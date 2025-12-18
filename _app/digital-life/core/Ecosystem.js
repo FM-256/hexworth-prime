@@ -21,6 +21,9 @@ class Ecosystem {
             maxPopulation: config.maxPopulation ?? 50,
             spawnRate: config.spawnRate ?? 0.02, // Chance per frame when under min
             collisionRadius: config.collisionRadius ?? 25,
+            // Planet population control (prevents performance issues)
+            maxPlanets: config.maxPlanets ?? 5,          // Maximum planets allowed
+            planetCleanupAge: config.planetCleanupAge ?? 180000, // Force cleanup after 3 min if over limit
             ...config
         };
 
@@ -504,6 +507,22 @@ class Ecosystem {
             return null;
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // PLANET POPULATION CONTROL - Prevents performance issues
+        // ═══════════════════════════════════════════════════════════════
+
+        // If at max capacity, clean up oldest planet first
+        if (this.planets.length >= this.config.maxPlanets) {
+            console.log(`🪐 Planet limit reached (${this.config.maxPlanets}). Recycling oldest planet...`);
+            this.recycleOldestPlanet();
+        }
+
+        // Double-check we have room (recycling might have failed)
+        if (this.planets.length >= this.config.maxPlanets) {
+            console.warn('Cannot create planet - at maximum capacity');
+            return null;
+        }
+
         // Create planet with orbit around black hole
         const planet = new Planet({
             digit: digit,
@@ -615,6 +634,42 @@ class Ecosystem {
     }
 
     /**
+     * Recycle the oldest planet to make room for a new one
+     * Called when planet limit is reached
+     */
+    recycleOldestPlanet() {
+        if (this.planets.length === 0) return;
+
+        // Find oldest planet by age
+        let oldestPlanet = this.planets[0];
+        let oldestAge = oldestPlanet.age;
+
+        for (const planet of this.planets) {
+            if (planet.age > oldestAge) {
+                oldestAge = planet.age;
+                oldestPlanet = planet;
+            }
+        }
+
+        console.log(`♻️ Recycling ${oldestPlanet.type.name} (age: ${Math.round(oldestAge / 1000)}s)`);
+
+        // Create a graceful death effect
+        if (this.particleSystem) {
+            this.particleSystem.createPlanetDeathEffect(
+                oldestPlanet.x, oldestPlanet.y,
+                oldestPlanet.type.color
+            );
+        }
+
+        // Remove from array and destroy
+        const index = this.planets.indexOf(oldestPlanet);
+        if (index > -1) {
+            this.planets.splice(index, 1);
+        }
+        oldestPlanet.destroy();
+    }
+
+    /**
      * Handle planet spawn request - planets can birth new fireflies
      */
     handlePlanetSpawn(planet, options) {
@@ -654,6 +709,16 @@ class Ecosystem {
      * Update all planets and their effects
      */
     updatePlanets(deltaTime) {
+        // ═══════════════════════════════════════════════════════════════
+        // PERIODIC CLEANUP - Extra safety check for planet overflow
+        // ═══════════════════════════════════════════════════════════════
+        if (this.planets.length > this.config.maxPlanets) {
+            console.warn(`⚠️ Planet overflow detected: ${this.planets.length}/${this.config.maxPlanets}. Cleaning up...`);
+            while (this.planets.length > this.config.maxPlanets) {
+                this.recycleOldestPlanet();
+            }
+        }
+
         // Clear planet influence markers at start of each frame
         for (const firefly of this.fireflies) {
             firefly.nearPlanet = null;
