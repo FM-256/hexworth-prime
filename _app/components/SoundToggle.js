@@ -148,13 +148,51 @@ class SoundToggle {
      * Enable audio in Digital Life
      */
     enableAudio() {
-        // Enable in config
+        // Enable in config first
         if (this.digitalLife.config) {
             this.digitalLife.config.audio = this.digitalLife.config.audio || {};
             this.digitalLife.config.audio.enabled = true;
+            this.digitalLife.config.audio.ambientEnabled = true;
+            this.digitalLife.config.audio.eventsEnabled = true;
         }
 
-        // Initialize sound manager if not already
+        // If sound manager doesn't exist, we need to initialize the full audio system
+        if (!this.digitalLife.soundManager) {
+            // Call the DigitalLife's own audio initialization
+            if (this.digitalLife.initAudioSystems) {
+                this.digitalLife.initAudioSystems();
+            } else {
+                // Fallback: create sound manager manually
+                if (typeof SoundManager !== 'undefined') {
+                    this.digitalLife.soundManager = new SoundManager({
+                        enabled: true,
+                        masterVolume: 0.5
+                    });
+                    this.digitalLife.soundManager.init();
+
+                    // Create event sounds
+                    if (typeof EventSounds !== 'undefined') {
+                        this.digitalLife.eventSounds = new EventSounds(this.digitalLife.soundManager, {
+                            enabled: true
+                        });
+                    }
+
+                    // Create ambient layer
+                    if (typeof AmbientLayer !== 'undefined') {
+                        this.digitalLife.ambientLayer = new AmbientLayer(this.digitalLife.soundManager, {
+                            enabled: true
+                        });
+                    }
+
+                    // Wire up audio hooks
+                    if (this.digitalLife.wireUpAudioHooks) {
+                        this.digitalLife.wireUpAudioHooks();
+                    }
+                }
+            }
+        }
+
+        // Now initialize/unmute the sound manager
         if (this.digitalLife.soundManager) {
             if (!this.digitalLife.soundManager.isInitialized) {
                 this.digitalLife.soundManager.init();
@@ -162,27 +200,8 @@ class SoundToggle {
             this.digitalLife.soundManager.unmute();
 
             // Start ambient layer if available
-            if (this.digitalLife.ambientLayer && this.digitalLife.config?.audio?.ambientEnabled) {
+            if (this.digitalLife.ambientLayer) {
                 this.digitalLife.ambientLayer.start();
-            }
-        } else if (typeof SoundManager !== 'undefined') {
-            // Create sound manager if it doesn't exist
-            this.digitalLife.soundManager = new SoundManager({
-                enabled: true,
-                masterVolume: 0.5
-            });
-            this.digitalLife.soundManager.init();
-
-            // Try to set up event sounds
-            if (typeof EventSounds !== 'undefined') {
-                this.digitalLife.eventSounds = new EventSounds(this.digitalLife.soundManager, {
-                    enabled: true
-                });
-            }
-
-            // Wire up audio hooks
-            if (this.digitalLife.wireUpAudioHooks) {
-                this.digitalLife.wireUpAudioHooks();
             }
         }
 
