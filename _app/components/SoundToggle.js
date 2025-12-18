@@ -184,9 +184,9 @@ class SoundToggle {
                         });
                     }
 
-                    // Wire up audio hooks
-                    if (this.digitalLife.wireUpAudioHooks) {
-                        this.digitalLife.wireUpAudioHooks();
+                    // Wire up audio hooks to ecosystem events
+                    if (this.digitalLife.wirePhase8Audio) {
+                        this.digitalLife.wirePhase8Audio();
                     }
                 }
             }
