@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Management Visualizer - House of Script</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green-darkest: #052e16;
+            --green-dark: #166534;
+            --green-main: #22c55e;
+            --green-light: #86efac;
+            --bg-dark: #0a0f0a;
+            --bg-card: #0f1810;
+            --text-primary: #e8f5e9;
+            --text-secondary: #86efac;
+            --border-color: #166534;
+
+            /* Process states colors */
+            --state-running: #22c55e;
+            --state-sleeping: #3b82f6;
+            --state-disk-sleep: #8b5cf6;
+            --state-stopped: #f59e0b;
+            --state-zombie: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--green-darkest) 100%);
+            color: var(--text-primary);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: var(--bg-card);
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(34, 197, 94, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: var(--green-main);
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .tab-button:hover {
+            background: var(--green-darkest);
+            border-color: var(--green-main);
+            color: var(--green-light);
+            transform: translateY(-2px);
+        }
+
+        .tab-button.active {
+            background: var(--green-dark);
+            border-color: var(--green-main);
+            color: var(--green-light);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Panel Styling */
+        .panel {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 1.5em;
+            color: var(--green-main);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        /* Process Tree Styles */
+        .process-tree {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .tree-node {
+            margin: 5px 0;
+            padding: 8px 12px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .tree-node:hover {
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 5px;
+        }
+
+        .tree-connector {
+            color: var(--green-light);
+            margin-right: 5px;
+        }
+
+        .process-info {
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(22, 101, 52, 0.3);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .pid {
+            color: var(--green-main);
+            font-weight: bold;
+        }
+
+        .process-name {
+            color: var(--text-secondary);
+        }
+
+        .toggle-children {
+            cursor: pointer;
+            color: var(--green-main);
+            margin-right: 5px;
+            user-select: none;
+        }
+
+        .collapsed {
+            display: none;
+        }
+
+        /* Process Table Styles */
+        .process-table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        th {
+            background: var(--green-dark);
+            color: var(--text-primary);
+            padding: 12px;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            transition: background 0.3s ease;
+        }
+
+        th:hover {
+            background: var(--green-main);
+            color: var(--green-darkest);
+        }
+
+        th::after {
+            content: ' ⇅';
+            color: var(--green-light);
+            font-size: 0.8em;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr {
+            transition: background 0.2s ease;
+        }
+
+        tr:hover {
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .state-R { color: var(--state-running); font-weight: bold; }
+        .state-S { color: var(--state-sleeping); }
+        .state-D { color: var(--state-disk-sleep); font-weight: bold; }
+        .state-T { color: var(--state-stopped); }
+        .state-Z { color: var(--state-zombie); font-weight: bold; }
+
+        /* Process States Diagram */
+        .states-diagram {
+            padding: 40px 20px;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .state-box {
+            position: absolute;
+            padding: 20px;
+            background: var(--bg-dark);
+            border: 3px solid;
+            border-radius: 12px;
+            min-width: 140px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .state-box:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        .state-box.running {
+            border-color: var(--state-running);
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .state-box.sleeping {
+            border-color: var(--state-sleeping);
+            top: 200px;
+            left: 20%;
+        }
+
+        .state-box.disk-sleep {
+            border-color: var(--state-disk-sleep);
+            top: 200px;
+            right: 20%;
+        }
+
+        .state-box.stopped {
+            border-color: var(--state-stopped);
+            top: 350px;
+            left: 15%;
+        }
+
+        .state-box.zombie {
+            border-color: var(--state-zombie);
+            top: 350px;
+            right: 15%;
+        }
+
+        .state-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .state-desc {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .state-arrow {
+            position: absolute;
+            height: 2px;
+            background: var(--green-main);
+            transform-origin: left center;
+            pointer-events: none;
+        }
+
+        .state-arrow::after {
+            content: '▶';
+            position: absolute;
+            right: -8px;
+            top: -7px;
+            color: var(--green-main);
+            font-size: 14px;
+        }
+
+        /* Commands Panel */
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .command-card {
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .command-card:hover {
+            border-color: var(--green-main);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.2);
+        }
+
+        .command-name {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            color: var(--green-main);
+            margin-bottom: 8px;
+        }
+
+        .command-desc {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .terminal {
+            background: #000;
+            border: 2px solid var(--green-main);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .terminal-output {
+            color: var(--green-light);
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .terminal-prompt {
+            color: var(--green-main);
+        }
+
+        .terminal-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .terminal-input input {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            padding: 10px;
+            color: var(--green-light);
+            font-family: 'Courier New', monospace;
+        }
+
+        .terminal-input button {
+            padding: 10px 20px;
+            background: var(--green-dark);
+            border: 2px solid var(--green-main);
+            border-radius: 5px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .terminal-input button:hover {
+            background: var(--green-main);
+            color: var(--green-darkest);
+        }
+
+        /* Signals Reference */
+        .signals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .signal-card {
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .signal-card:hover {
+            border-color: var(--green-main);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.2);
+        }
+
+        .signal-name {
+            font-size: 1.3em;
+            color: var(--green-main);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .signal-number {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .signal-desc {
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .demo-button {
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: var(--green-dark);
+            border: 1px solid var(--green-main);
+            border-radius: 5px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .demo-button:hover {
+            background: var(--green-main);
+            color: var(--green-darkest);
+        }
+
+        /* Nice Values Slider */
+        .nice-slider-container {
+            padding: 30px;
+        }
+
+        .nice-scale {
+            position: relative;
+            margin: 40px 0;
+        }
+
+        .nice-slider {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, var(--state-zombie), var(--state-stopped), var(--state-running));
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .nice-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: var(--green-main);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid var(--bg-dark);
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+        }
+
+        .nice-slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: var(--green-main);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid var(--bg-dark);
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+        }
+
+        .nice-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            color: var(--text-secondary);
+        }
+
+        .nice-value-display {
+            text-align: center;
+            margin: 30px 0;
+            font-size: 2em;
+            color: var(--green-main);
+            font-family: 'Courier New', monospace;
+        }
+
+        .priority-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .priority-card {
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .priority-title {
+            color: var(--green-main);
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .priority-desc {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        /* Quiz Styles */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .question {
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 1.2em;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .answers {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .answer-option {
+            padding: 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .answer-option:hover {
+            border-color: var(--green-main);
+            background: var(--green-darkest);
+        }
+
+        .answer-option.correct {
+            border-color: var(--state-running);
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        .answer-option.incorrect {
+            border-color: var(--state-zombie);
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .quiz-score {
+            text-align: center;
+            font-size: 1.5em;
+            color: var(--green-main);
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            border: 2px solid var(--green-main);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .animating {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab-button {
+                width: 100%;
+            }
+
+            .command-grid,
+            .signals-grid,
+            .priority-info {
+                grid-template-columns: 1fr;
+            }
+
+            .state-box {
+                position: relative !important;
+                margin: 20px auto;
+                left: auto !important;
+                right: auto !important;
+                top: auto !important;
+            }
+
+            .states-diagram {
+                min-height: auto;
+            }
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Process Management Visualizer</h1>
+            <p class="subtitle">Interactive Linux Process Management & Control</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('tree')">Process Tree</button>
+            <button class="tab-button" onclick="switchTab('table')">Process Table</button>
+            <button class="tab-button" onclick="switchTab('states')">Process States</button>
+            <button class="tab-button" onclick="switchTab('commands')">Commands</button>
+            <button class="tab-button" onclick="switchTab('signals')">Signals Reference</button>
+            <button class="tab-button" onclick="switchTab('nice')">Nice Values</button>
+            <button class="tab-button" onclick="switchTab('quiz')">Quiz</button>
+        </div>
+
+        <!-- Process Tree Tab -->
+        <div id="tree" class="tab-content active">
+            <div class="panel">
+                <h2 class="panel-title">Process Tree Hierarchy</h2>
+                <div class="process-tree" id="processTree"></div>
+            </div>
+        </div>
+
+        <!-- Process Table Tab -->
+        <div id="table" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Process Table (Click headers to sort)</h2>
+                <div class="process-table-container">
+                    <table id="processTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">PID</th>
+                                <th onclick="sortTable(1)">PPID</th>
+                                <th onclick="sortTable(2)">USER</th>
+                                <th onclick="sortTable(3)">STATE</th>
+                                <th onclick="sortTable(4)">%CPU</th>
+                                <th onclick="sortTable(5)">%MEM</th>
+                                <th onclick="sortTable(6)">COMMAND</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process States Tab -->
+        <div id="states" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Process State Transitions</h2>
+                <div class="states-diagram" id="statesDiagram">
+                    <div class="state-box running" onclick="showStateInfo('running')">
+                        <div class="state-title" style="color: var(--state-running)">Running (R)</div>
+                        <div class="state-desc">Executing on CPU</div>
+                    </div>
+                    <div class="state-box sleeping" onclick="showStateInfo('sleeping')">
+                        <div class="state-title" style="color: var(--state-sleeping)">Sleeping (S)</div>
+                        <div class="state-desc">Interruptible Sleep</div>
+                    </div>
+                    <div class="state-box disk-sleep" onclick="showStateInfo('disk-sleep')">
+                        <div class="state-title" style="color: var(--state-disk-sleep)">Disk Sleep (D)</div>
+                        <div class="state-desc">Uninterruptible</div>
+                    </div>
+                    <div class="state-box stopped" onclick="showStateInfo('stopped')">
+                        <div class="state-title" style="color: var(--state-stopped)">Stopped (T)</div>
+                        <div class="state-desc">Paused</div>
+                    </div>
+                    <div class="state-box zombie" onclick="showStateInfo('zombie')">
+                        <div class="state-title" style="color: var(--state-zombie)">Zombie (Z)</div>
+                        <div class="state-desc">Terminated, awaiting parent</div>
+                    </div>
+                </div>
+                <div class="panel" style="margin-top: 20px;">
+                    <h3 class="panel-title">State Information</h3>
+                    <div id="stateInfo" style="color: var(--text-secondary); line-height: 1.8;">
+                        Click on any state above to see detailed information about process states and transitions.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commands Tab -->
+        <div id="commands" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Process Management Commands</h2>
+                <div class="command-grid">
+                    <div class="command-card" onclick="runCommand('ps aux')">
+                        <div class="command-name">ps aux</div>
+                        <div class="command-desc">Display all running processes with detailed information</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('top')">
+                        <div class="command-name">top</div>
+                        <div class="command-desc">Real-time process monitoring (animated simulation)</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('kill')">
+                        <div class="command-name">kill [PID]</div>
+                        <div class="command-desc">Send SIGTERM to gracefully terminate a process</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('kill -9')">
+                        <div class="command-name">kill -9 [PID]</div>
+                        <div class="command-desc">Send SIGKILL to force-terminate a process</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('nice')">
+                        <div class="command-name">nice -n [VAL]</div>
+                        <div class="command-desc">Start a process with specified priority (-20 to 19)</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('renice')">
+                        <div class="command-name">renice [VAL] [PID]</div>
+                        <div class="command-desc">Change priority of running process</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('bg')">
+                        <div class="command-name">bg</div>
+                        <div class="command-desc">Resume suspended job in background</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('fg')">
+                        <div class="command-name">fg</div>
+                        <div class="command-desc">Bring background job to foreground</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('jobs')">
+                        <div class="command-name">jobs</div>
+                        <div class="command-desc">List all jobs (background and suspended)</div>
+                    </div>
+                    <div class="command-card" onclick="runCommand('nohup')">
+                        <div class="command-name">nohup [CMD]</div>
+                        <div class="command-desc">Run command immune to hangups, output to nohup.out</div>
+                    </div>
+                </div>
+
+                <div class="terminal">
+                    <div class="terminal-output" id="terminalOutput">
+<span class="terminal-prompt">user@linux:~$</span> Welcome to the Process Management Terminal
+Click any command above or type your own command below
+                    </div>
+                </div>
+
+                <div class="terminal-input">
+                    <input type="text" id="commandInput" placeholder="Enter command (e.g., ps aux, kill 1234, nice -n 10)..."
+                           onkeypress="if(event.key === 'Enter') executeCommand()">
+                    <button onclick="executeCommand()">Execute</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signals Reference Tab -->
+        <div id="signals" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Linux Process Signals</h2>
+                <div class="signals-grid">
+                    <div class="signal-card">
+                        <div class="signal-name">SIGTERM</div>
+                        <div class="signal-number">Signal 15</div>
+                        <div class="signal-desc">
+                            Graceful termination request. Allows process to clean up resources, save state, and exit cleanly. Can be caught and handled.
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGTERM')">Demo SIGTERM</button>
+                    </div>
+                    <div class="signal-card">
+                        <div class="signal-name">SIGKILL</div>
+                        <div class="signal-number">Signal 9</div>
+                        <div class="signal-desc">
+                            Immediate termination. Cannot be caught, blocked, or ignored. Process is killed instantly without cleanup. Use as last resort.
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGKILL')">Demo SIGKILL</button>
+                    </div>
+                    <div class="signal-card">
+                        <div class="signal-name">SIGHUP</div>
+                        <div class="signal-number">Signal 1</div>
+                        <div class="signal-desc">
+                            Hangup detected. Sent when controlling terminal closes. Often used to reload configuration files without restarting.
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGHUP')">Demo SIGHUP</button>
+                    </div>
+                    <div class="signal-card">
+                        <div class="signal-name">SIGINT</div>
+                        <div class="signal-number">Signal 2</div>
+                        <div class="signal-desc">
+                            Interrupt from keyboard (Ctrl+C). Requests process to stop. Can be caught to perform cleanup before exiting.
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGINT')">Demo SIGINT</button>
+                    </div>
+                    <div class="signal-card">
+                        <div class="signal-name">SIGSTOP</div>
+                        <div class="signal-number">Signal 19</div>
+                        <div class="signal-desc">
+                            Pause process execution. Cannot be caught or ignored. Process enters stopped state (T) until SIGCONT received.
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGSTOP')">Demo SIGSTOP</button>
+                    </div>
+                    <div class="signal-card">
+                        <div class="signal-name">SIGCONT</div>
+                        <div class="signal-number">Signal 18</div>
+                        <div class="signal-desc">
+                            Continue execution of stopped process. Resumes process that was paused by SIGSTOP or SIGTSTP (Ctrl+Z).
+                        </div>
+                        <button class="demo-button" onclick="demoSignal('SIGCONT')">Demo SIGCONT</button>
+                    </div>
+                </div>
+
+                <div class="terminal" style="margin-top: 20px;">
+                    <div class="terminal-output" id="signalDemo">
+<span class="terminal-prompt">Signal Demo:</span> Click any "Demo" button above to see signal behavior simulation
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nice Values Tab -->
+        <div id="nice" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Process Priority (Nice Values)</h2>
+                <div class="nice-slider-container">
+                    <div class="nice-value-display">
+                        Nice Value: <span id="niceValue">0</span>
+                    </div>
+                    <div class="nice-scale">
+                        <input type="range" min="-20" max="19" value="0" class="nice-slider" id="niceSlider">
+                        <div class="nice-labels">
+                            <span>-20 (Highest Priority)</span>
+                            <span>0 (Default)</span>
+                            <span>+19 (Lowest Priority)</span>
+                        </div>
+                    </div>
+
+                    <div class="priority-info">
+                        <div class="priority-card">
+                            <div class="priority-title">Current Priority</div>
+                            <div class="priority-desc" id="currentPriority">Normal Priority (0)</div>
+                        </div>
+                        <div class="priority-card">
+                            <div class="priority-title">CPU Time</div>
+                            <div class="priority-desc" id="cpuTime">Standard allocation</div>
+                        </div>
+                        <div class="priority-card">
+                            <div class="priority-title">Use Case</div>
+                            <div class="priority-desc" id="useCase">General purpose tasks</div>
+                        </div>
+                        <div class="priority-card">
+                            <div class="priority-title">Permission</div>
+                            <div class="priority-desc" id="permission">User can set</div>
+                        </div>
+                    </div>
+
+                    <div class="panel" style="margin-top: 30px;">
+                        <h3 class="panel-title">Nice Value Guide</h3>
+                        <div style="color: var(--text-secondary); line-height: 1.8;">
+                            <p><strong style="color: var(--green-main)">-20 to -1:</strong> High priority. Requires root/sudo. Used for critical system processes.</p>
+                            <p><strong style="color: var(--green-main)">0:</strong> Default priority. Standard for most user processes.</p>
+                            <p><strong style="color: var(--green-main)">1 to 19:</strong> Lower priority. Good for background tasks, batch jobs, or non-urgent operations.</p>
+                            <p style="margin-top: 15px;"><strong style="color: var(--green-main)">Examples:</strong></p>
+                            <p style="font-family: 'Courier New', monospace; color: var(--green-light);">
+                                nice -n 10 ./backup.sh<br>
+                                renice -n -5 -p 1234<br>
+                                nice -n 19 ./heavy-computation
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div id="quiz" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Process Management Quiz</h2>
+                <div class="quiz-container" id="quizContainer"></div>
+                <div class="quiz-score" id="quizScore" style="display: none;"></div>
+                <button class="demo-button" onclick="resetQuiz()" style="display: block; margin: 20px auto; padding: 12px 30px; font-size: 1.1em;">Reset Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global data structures
+        const processes = [
+            { pid: 1, ppid: 0, user: 'root', state: 'S', cpu: 0.0, mem: 0.1, command: 'systemd' },
+            { pid: 234, ppid: 1, user: 'root', state: 'S', cpu: 0.0, mem: 0.2, command: 'systemd-journal' },
+            { pid: 456, ppid: 1, user: 'root', state: 'S', cpu: 0.0, mem: 0.1, command: 'systemd-udevd' },
+            { pid: 567, ppid: 1, user: 'root', state: 'S', cpu: 0.1, mem: 0.3, command: 'sshd' },
+            { pid: 890, ppid: 1, user: 'root', state: 'S', cpu: 0.2, mem: 0.4, command: 'cron' },
+            { pid: 1024, ppid: 567, user: 'user', state: 'S', cpu: 0.0, mem: 0.2, command: 'sshd: user@pts/0' },
+            { pid: 1025, ppid: 1024, user: 'user', state: 'S', cpu: 0.1, mem: 0.5, command: 'bash' },
+            { pid: 1100, ppid: 1025, user: 'user', state: 'R', cpu: 15.2, mem: 2.3, command: 'python script.py' },
+            { pid: 1101, ppid: 1025, user: 'user', state: 'S', cpu: 0.0, mem: 0.8, command: 'vim document.txt' },
+            { pid: 1234, ppid: 1, user: 'user', state: 'S', cpu: 0.3, mem: 1.2, command: 'firefox' },
+            { pid: 1235, ppid: 1234, user: 'user', state: 'R', cpu: 8.5, mem: 3.4, command: 'Web Content' },
+            { pid: 1500, ppid: 1025, user: 'user', state: 'T', cpu: 0.0, mem: 0.3, command: 'sleep 100' },
+            { pid: 1600, ppid: 1, user: 'user', state: 'D', cpu: 2.1, mem: 1.5, command: 'rsync backup' },
+            { pid: 1666, ppid: 1025, user: 'user', state: 'Z', cpu: 0.0, mem: 0.0, command: '[defunct]' },
+            { pid: 2000, ppid: 1, user: 'root', state: 'S', cpu: 0.5, mem: 2.1, command: 'docker daemon' },
+            { pid: 2100, ppid: 2000, user: 'root', state: 'S', cpu: 1.2, mem: 1.8, command: 'containerd' },
+        ];
+
+        // Process tree structure
+        const processTree = [
+            {
+                pid: 1,
+                name: 'systemd',
+                children: [
+                    { pid: 234, name: 'systemd-journal', children: [] },
+                    { pid: 456, name: 'systemd-udevd', children: [] },
+                    {
+                        pid: 567,
+                        name: 'sshd',
+                        children: [
+                            {
+                                pid: 1024,
+                                name: 'sshd: user@pts/0',
+                                children: [
+                                    {
+                                        pid: 1025,
+                                        name: 'bash',
+                                        children: [
+                                            { pid: 1100, name: 'python script.py', children: [] },
+                                            { pid: 1101, name: 'vim document.txt', children: [] },
+                                            { pid: 1500, name: 'sleep 100 (stopped)', children: [] },
+                                            { pid: 1666, name: '[defunct] (zombie)', children: [] }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    { pid: 890, name: 'cron', children: [] },
+                    {
+                        pid: 1234,
+                        name: 'firefox',
+                        children: [
+                            { pid: 1235, name: 'Web Content', children: [] }
+                        ]
+                    },
+                    { pid: 1600, name: 'rsync backup (disk sleep)', children: [] },
+                    {
+                        pid: 2000,
+                        name: 'docker daemon',
+                        children: [
+                            { pid: 2100, name: 'containerd', children: [] }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        // Quiz questions
+        const quizQuestions = [
+            {
+                question: "Which signal cannot be caught or ignored by a process?",
+                answers: ["SIGTERM (15)", "SIGKILL (9)", "SIGHUP (1)", "SIGINT (2)"],
+                correct: 1
+            },
+            {
+                question: "What does a zombie process (Z) represent?",
+                answers: [
+                    "A process using too much memory",
+                    "A process terminated but parent hasn't read exit status",
+                    "A process stuck in disk I/O",
+                    "A process running with highest priority"
+                ],
+                correct: 1
+            },
+            {
+                question: "What is the default nice value for a new process?",
+                answers: ["-20", "-10", "0", "10"],
+                correct: 2
+            },
+            {
+                question: "Which process state indicates uninterruptible sleep (usually I/O)?",
+                answers: ["R (Running)", "S (Sleeping)", "D (Disk Sleep)", "T (Stopped)"],
+                correct: 2
+            },
+            {
+                question: "Which command shows real-time process information?",
+                answers: ["ps aux", "top", "kill", "nice"],
+                correct: 1
+            },
+            {
+                question: "What does 'nohup' command do?",
+                answers: [
+                    "Increases process priority",
+                    "Kills all child processes",
+                    "Runs command immune to hangups",
+                    "Stops a running process"
+                ],
+                correct: 2
+            },
+            {
+                question: "Which nice value gives HIGHEST priority? (requires root)",
+                answers: ["-20", "0", "10", "19"],
+                correct: 0
+            },
+            {
+                question: "What is PID 1 typically?",
+                answers: ["bash", "sshd", "systemd/init", "kernel"],
+                correct: 2
+            },
+            {
+                question: "Which signal is sent by Ctrl+C?",
+                answers: ["SIGTERM", "SIGKILL", "SIGINT", "SIGSTOP"],
+                correct: 2
+            },
+            {
+                question: "What does PPID represent?",
+                answers: [
+                    "Process Priority ID",
+                    "Parent Process ID",
+                    "Pending Process ID",
+                    "Primary Process Index"
+                ],
+                correct: 1
+            }
+        ];
+
+        let quizAnswers = new Array(quizQuestions.length).fill(null);
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            renderProcessTree();
+            renderProcessTable();
+            initializeNiceSlider();
+            renderQuiz();
+        });
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Render process tree
+        function renderProcessTree() {
+            const treeContainer = document.getElementById('processTree');
+            treeContainer.innerHTML = renderTreeNode(processTree[0], '', true);
+        }
+
+        function renderTreeNode(node, prefix, isLast) {
+            const connector = isLast ? '└── ' : '├── ';
+            const extension = isLast ? '    ' : '│   ';
+
+            let html = `<div class="tree-node">`;
+
+            if (prefix === '') {
+                html += `<span class="tree-connector">${connector}</span>`;
+            } else {
+                html += `<span class="tree-connector">${prefix}${connector}</span>`;
+            }
+
+            if (node.children && node.children.length > 0) {
+                html += `<span class="toggle-children" onclick="toggleChildren(this)">[-]</span>`;
+            } else {
+                html += `<span style="margin-right: 15px;"></span>`;
+            }
+
+            html += `<span class="process-info">`;
+            html += `<span class="pid">PID ${node.pid}</span> `;
+            html += `<span class="process-name">${node.name}</span>`;
+            html += `</span></div>`;
+
+            if (node.children && node.children.length > 0) {
+                html += `<div class="tree-children">`;
+                node.children.forEach((child, index) => {
+                    const childIsLast = index === node.children.length - 1;
+                    const childPrefix = prefix === '' ? '' : prefix + extension;
+                    html += renderTreeNode(child, childPrefix, childIsLast);
+                });
+                html += `</div>`;
+            }
+
+            return html;
+        }
+
+        function toggleChildren(element) {
+            const parent = element.parentElement;
+            const children = parent.nextElementSibling;
+
+            if (children && children.classList.contains('tree-children')) {
+                if (children.style.display === 'none') {
+                    children.style.display = 'block';
+                    element.textContent = '[-]';
+                } else {
+                    children.style.display = 'none';
+                    element.textContent = '[+]';
+                }
+            }
+        }
+
+        // Render process table
+        function renderProcessTable() {
+            const tbody = document.getElementById('processTableBody');
+            tbody.innerHTML = '';
+
+            processes.forEach(proc => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${proc.pid}</td>
+                    <td>${proc.ppid}</td>
+                    <td>${proc.user}</td>
+                    <td class="state-${proc.state}">${proc.state}</td>
+                    <td>${proc.cpu.toFixed(1)}</td>
+                    <td>${proc.mem.toFixed(1)}</td>
+                    <td>${proc.command}</td>
+                `;
+            });
+        }
+
+        // Sort table
+        let sortDirection = {};
+        function sortTable(columnIndex) {
+            const table = document.getElementById('processTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            const direction = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+            sortDirection[columnIndex] = direction;
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent;
+                let bVal = b.cells[columnIndex].textContent;
+
+                // Try to parse as number
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
+                return direction === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            });
+
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Show state information
+        function showStateInfo(state) {
+            const infoDiv = document.getElementById('stateInfo');
+            const stateDescriptions = {
+                'running': `
+                    <h3 style="color: var(--state-running)">Running (R)</h3>
+                    <p>The process is currently executing on the CPU or is in the run queue ready to execute.</p>
+                    <p><strong>Transitions:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>To Sleeping (S): Process waits for event/resource</li>
+                        <li>To Disk Sleep (D): Process waits for I/O operation</li>
+                        <li>To Stopped (T): Process receives SIGSTOP or SIGTSTP</li>
+                        <li>To Zombie (Z): Process terminates</li>
+                    </ul>
+                `,
+                'sleeping': `
+                    <h3 style="color: var(--state-sleeping)">Sleeping (S) - Interruptible</h3>
+                    <p>Process is waiting for an event to complete. Can be interrupted by signals.</p>
+                    <p><strong>Common causes:</strong> Waiting for user input, network data, timer, or other processes.</p>
+                    <p><strong>Transitions:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>To Running (R): Awaited event occurs</li>
+                        <li>To Stopped (T): Receives SIGSTOP</li>
+                        <li>To Zombie (Z): Process terminates while sleeping</li>
+                    </ul>
+                `,
+                'disk-sleep': `
+                    <h3 style="color: var(--state-disk-sleep)">Disk Sleep (D) - Uninterruptible</h3>
+                    <p>Process is in uninterruptible sleep, usually waiting for I/O operations to complete.</p>
+                    <p><strong>Important:</strong> Cannot be killed or interrupted, even with SIGKILL. Usually brief.</p>
+                    <p><strong>Common causes:</strong> Disk I/O, NFS operations, hardware access.</p>
+                    <p><strong>Transitions:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>To Running (R): I/O operation completes</li>
+                        <li>Prolonged D state may indicate hardware or filesystem issues</li>
+                    </ul>
+                `,
+                'stopped': `
+                    <h3 style="color: var(--state-stopped)">Stopped (T)</h3>
+                    <p>Process execution is paused. Often used for debugging or job control.</p>
+                    <p><strong>How to stop:</strong> SIGSTOP signal or Ctrl+Z in terminal.</p>
+                    <p><strong>Transitions:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>To Running (R): Receives SIGCONT signal (bg or fg command)</li>
+                        <li>To Zombie (Z): Process terminates while stopped</li>
+                    </ul>
+                    <p><strong>Use case:</strong> Pause a process, run another task, then resume with 'fg' or 'bg'.</p>
+                `,
+                'zombie': `
+                    <h3 style="color: var(--state-zombie)">Zombie (Z)</h3>
+                    <p>Process has terminated but parent hasn't read exit status via wait() system call.</p>
+                    <p><strong>Characteristics:</strong> Uses minimal resources (only process table entry), shows as [defunct].</p>
+                    <p><strong>How to remove:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>Parent process reads exit status (automatic in well-written programs)</li>
+                        <li>Kill parent process (zombies are then adopted by init/systemd and reaped)</li>
+                        <li>Cannot kill zombie directly - it's already dead!</li>
+                    </ul>
+                    <p><strong>Prevention:</strong> Proper signal handling in parent process.</p>
+                `
+            };
+
+            infoDiv.innerHTML = stateDescriptions[state] || 'Select a state to see information.';
+        }
+
+        // Command execution
+        function runCommand(cmd) {
+            const input = document.getElementById('commandInput');
+            input.value = cmd;
+            executeCommand();
+        }
+
+        function executeCommand() {
+            const input = document.getElementById('commandInput');
+            const output = document.getElementById('terminalOutput');
+            const command = input.value.trim();
+
+            if (!command) return;
+
+            let result = '';
+
+            if (command === 'ps aux') {
+                result = '\n<span class="terminal-prompt">user@linux:~$</span> ps aux\n';
+                result += 'USER       PID  PPID %CPU %MEM    COMMAND\n';
+                processes.forEach(p => {
+                    result += `${p.user.padEnd(10)} ${String(p.pid).padEnd(4)} ${String(p.ppid).padEnd(4)} ${p.cpu.toFixed(1).padStart(4)} ${p.mem.toFixed(1).padStart(4)}    ${p.command}\n`;
+                });
+            } else if (command === 'top') {
+                result = '\n<span class="terminal-prompt">user@linux:~$</span> top\n';
+                result += 'Simulating top command (live view)...\n';
+                result += 'Press q to quit (simulation)\n\n';
+                result += 'PID   USER     %CPU %MEM COMMAND\n';
+                const sorted = [...processes].sort((a, b) => b.cpu - a.cpu).slice(0, 10);
+                sorted.forEach(p => {
+                    result += `${String(p.pid).padEnd(5)} ${p.user.padEnd(8)} ${p.cpu.toFixed(1).padStart(4)} ${p.mem.toFixed(1).padStart(4)} ${p.command}\n`;
+                });
+            } else if (command.startsWith('kill ')) {
+                const parts = command.split(' ');
+                const signal = parts[1] === '-9' ? 'SIGKILL' : 'SIGTERM';
+                const pid = parts[parts.length - 1];
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += `Sending ${signal} to process ${pid}...\n`;
+                result += `Process ${pid} terminated.\n`;
+            } else if (command.startsWith('nice')) {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += 'Starting process with adjusted priority...\n';
+                result += 'Process started with custom nice value.\n';
+            } else if (command.startsWith('renice')) {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += 'Adjusting process priority...\n';
+                result += 'Priority updated successfully.\n';
+            } else if (command === 'bg') {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += '[1]+ sleep 100 &\n';
+                result += 'Job resumed in background.\n';
+            } else if (command === 'fg') {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += 'sleep 100\n';
+                result += 'Job brought to foreground.\n';
+            } else if (command === 'jobs') {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += '[1]+  Stopped                 sleep 100\n';
+                result += '[2]-  Running                 python script.py &\n';
+            } else if (command.startsWith('nohup')) {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += 'nohup: ignoring input and appending output to \'nohup.out\'\n';
+                result += 'Process will continue running after terminal closes.\n';
+            } else {
+                result = `\n<span class="terminal-prompt">user@linux:~$</span> ${command}\n`;
+                result += `Command '${command}' simulated. Try: ps aux, top, kill, nice, bg, fg, jobs, nohup\n`;
+            }
+
+            output.innerHTML += result;
+            output.scrollTop = output.scrollHeight;
+            input.value = '';
+        }
+
+        // Signal demonstrations
+        function demoSignal(signal) {
+            const demoDiv = document.getElementById('signalDemo');
+            let demo = '';
+
+            const demos = {
+                'SIGTERM': `
+<span class="terminal-prompt">Demo SIGTERM (15):</span>
+$ kill 1234
+Sending SIGTERM to process 1234...
+Process 1234 catching signal...
+  - Closing file handles
+  - Saving state to disk
+  - Cleaning up resources
+  - Sending goodbye messages
+Process 1234 exited cleanly with code 0
+                `,
+                'SIGKILL': `
+<span class="terminal-prompt">Demo SIGKILL (9):</span>
+$ kill -9 1234
+Sending SIGKILL to process 1234...
+Process 1234 TERMINATED IMMEDIATELY
+  - No cleanup performed
+  - Files may be left open
+  - Shared memory not released
+  - Use only when SIGTERM fails!
+                `,
+                'SIGHUP': `
+<span class="terminal-prompt">Demo SIGHUP (1):</span>
+$ kill -HUP 1234
+Sending SIGHUP to process 1234...
+Process 1234 received hangup signal
+  - Reloading configuration files
+  - Reopening log files
+  - Reconnecting to databases
+Configuration reloaded successfully
+                `,
+                'SIGINT': `
+<span class="terminal-prompt">Demo SIGINT (2):</span>
+$ ./long_process.sh
+Running... (Press Ctrl+C to interrupt)
+^C
+Caught SIGINT! Performing cleanup...
+  - Saving progress: 45% complete
+  - Temporary files removed
+  - Database connections closed
+Interrupted by user
+                `,
+                'SIGSTOP': `
+<span class="terminal-prompt">Demo SIGSTOP (19):</span>
+$ kill -STOP 1234
+Sending SIGSTOP to process 1234...
+Process 1234 state: Running (R) -> Stopped (T)
+Process paused - cannot be caught or ignored
+Use SIGCONT to resume execution
+$ ps aux | grep 1234
+user  1234  0.0  0.5  12345  T  pts/0  ./myprocess
+                `,
+                'SIGCONT': `
+<span class="terminal-prompt">Demo SIGCONT (18):</span>
+$ kill -CONT 1234
+Sending SIGCONT to process 1234...
+Process 1234 state: Stopped (T) -> Running (R)
+Process resumed execution
+$ ps aux | grep 1234
+user  1234  2.3  0.5  12345  R  pts/0  ./myprocess
+                `
+            };
+
+            demoDiv.innerHTML = demos[signal] || 'Signal demo not available.';
+        }
+
+        // Nice slider
+        function initializeNiceSlider() {
+            const slider = document.getElementById('niceSlider');
+            const valueDisplay = document.getElementById('niceValue');
+
+            slider.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                valueDisplay.textContent = value;
+                updateNiceInfo(value);
+            });
+        }
+
+        function updateNiceInfo(value) {
+            const priority = document.getElementById('currentPriority');
+            const cpuTime = document.getElementById('cpuTime');
+            const useCase = document.getElementById('useCase');
+            const permission = document.getElementById('permission');
+
+            if (value < -10) {
+                priority.textContent = 'Very High Priority';
+                cpuTime.textContent = 'Maximum CPU allocation';
+                useCase.textContent = 'Critical system processes';
+                permission.textContent = 'Requires root/sudo';
+            } else if (value < 0) {
+                priority.textContent = 'High Priority';
+                cpuTime.textContent = 'Increased CPU time';
+                useCase.textContent = 'Important user tasks';
+                permission.textContent = 'Requires root/sudo';
+            } else if (value === 0) {
+                priority.textContent = 'Normal Priority';
+                cpuTime.textContent = 'Standard allocation';
+                useCase.textContent = 'General purpose tasks';
+                permission.textContent = 'User can set';
+            } else if (value < 10) {
+                priority.textContent = 'Lower Priority';
+                cpuTime.textContent = 'Reduced CPU time';
+                useCase.textContent = 'Background tasks';
+                permission.textContent = 'User can set';
+            } else {
+                priority.textContent = 'Very Low Priority';
+                cpuTime.textContent = 'Minimal CPU allocation';
+                useCase.textContent = 'Batch jobs, lowest priority work';
+                permission.textContent = 'User can set';
+            }
+        }
+
+        // Quiz functionality
+        function renderQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = '';
+
+            quizQuestions.forEach((q, qIndex) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+
+                const questionText = document.createElement('div');
+                questionText.className = 'question-text';
+                questionText.textContent = `${qIndex + 1}. ${q.question}`;
+                questionDiv.appendChild(questionText);
+
+                const answersDiv = document.createElement('div');
+                answersDiv.className = 'answers';
+
+                q.answers.forEach((answer, aIndex) => {
+                    const answerDiv = document.createElement('div');
+                    answerDiv.className = 'answer-option';
+                    answerDiv.textContent = answer;
+                    answerDiv.onclick = () => selectAnswer(qIndex, aIndex, answerDiv);
+                    answersDiv.appendChild(answerDiv);
+                });
+
+                questionDiv.appendChild(answersDiv);
+                container.appendChild(questionDiv);
+            });
+        }
+
+        function selectAnswer(questionIndex, answerIndex, element) {
+            const question = quizQuestions[questionIndex];
+            const allAnswers = element.parentElement.children;
+
+            // Remove previous selections
+            Array.from(allAnswers).forEach(ans => {
+                ans.classList.remove('correct', 'incorrect');
+            });
+
+            // Mark answer
+            if (answerIndex === question.correct) {
+                element.classList.add('correct');
+                quizAnswers[questionIndex] = true;
+            } else {
+                element.classList.add('incorrect');
+                allAnswers[question.correct].classList.add('correct');
+                quizAnswers[questionIndex] = false;
+            }
+
+            updateScore();
+        }
+
+        function updateScore() {
+            const answered = quizAnswers.filter(a => a !== null).length;
+            const correct = quizAnswers.filter(a => a === true).length;
+
+            if (answered === quizQuestions.length) {
+                const scoreDiv = document.getElementById('quizScore');
+                const percentage = (correct / quizQuestions.length * 100).toFixed(0);
+                scoreDiv.textContent = `Quiz Complete! Score: ${correct}/${quizQuestions.length} (${percentage}%)`;
+                scoreDiv.style.display = 'block';
+            }
+        }
+
+        function resetQuiz() {
+            quizAnswers = new Array(quizQuestions.length).fill(null);
+            document.getElementById('quizScore').style.display = 'none';
+            renderQuiz();
+        }
+    </script>
+</body>
+</html>

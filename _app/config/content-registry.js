@@ -805,26 +805,453 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // SCRIPT HOUSE - Automation & Efficiency
         // ─────────────────────────────────────────────────────────────
-        'script-bash-basics': {
-            id: 'script-bash-basics',
-            title: 'Bash Scripting Basics',
-            description: 'Command-line automation fundamentals',
+
+        // --- Linux Fundamentals ---
+        'script-linux-basics': {
+            id: 'script-linux-basics',
+            title: 'Linux Command Line Basics',
+            description: 'Essential Linux commands and navigation',
             house: 'script',
             type: 'module',
             difficulty: 'beginner',
             duration: 60,
-            topics: ['scripting', 'bash', 'linux', 'automation'],
-            paths: ['linux-admin', 'devops-fundamentals'],
+            topics: ['linux', 'command-line', 'fundamentals'],
+            paths: ['comptia-linux', 'devops-fundamentals'],
             components: {
-                presentation: 'houses/script/presentations/scripting-basics.html',
-                applet: 'houses/script/applets/bash-playground.html',
-                lab: 'houses/script/labs/bash-lab.html'
+                presentation: 'houses/script/presentations/macos-linux-basics.html',
+                applet: 'houses/script/applets/linux/linux-command-simulator.html',
+                lab: 'houses/script/applets/linux/lab-macos-linux.html'
             },
             prerequisites: [],
             objectives: [
-                'Write basic bash scripts',
-                'Use variables, conditionals, loops',
-                'Automate common tasks'
+                'Navigate the Linux file system',
+                'Execute essential Linux commands',
+                'Understand shell basics'
+            ]
+        },
+
+        'script-linux-filesystem': {
+            id: 'script-linux-filesystem',
+            title: 'Linux File System',
+            description: 'Understanding Linux directory structure and file management',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['linux', 'filesystem', 'directories'],
+            paths: ['comptia-linux'],
+            components: {
+                applet: 'houses/script/applets/linux/linux-filesystem-navigator.html'
+            },
+            prerequisites: ['script-linux-basics'],
+            objectives: [
+                'Navigate Linux directory hierarchy',
+                'Understand FHS structure',
+                'Manage files and directories'
+            ]
+        },
+
+        'script-linux-permissions': {
+            id: 'script-linux-permissions',
+            title: 'Linux Permissions',
+            description: 'File ownership, permissions, and access control',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['linux', 'permissions', 'security', 'chmod'],
+            paths: ['comptia-linux'],
+            components: {
+                applet: 'houses/script/applets/linux/linux-permissions-calculator.html'
+            },
+            prerequisites: ['script-linux-filesystem'],
+            objectives: [
+                'Understand rwx permissions',
+                'Calculate octal permission values',
+                'Apply chmod and chown commands'
+            ]
+        },
+
+        'script-command-translator': {
+            id: 'script-command-translator',
+            title: 'Cross-Platform Commands',
+            description: 'Translate commands between Windows, macOS, and Linux',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['cross-platform', 'commands', 'windows', 'linux', 'macos'],
+            paths: ['comptia-aplus', 'comptia-linux'],
+            components: {
+                applet: 'houses/script/applets/linux/command-translator.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Find equivalent commands across OSes',
+                'Understand command syntax differences',
+                'Work effectively in multi-platform environments'
+            ]
+        },
+
+        // --- Bash Scripting ---
+        'script-bash-scripting': {
+            id: 'script-bash-scripting',
+            title: 'Bash Scripting',
+            description: 'Write shell scripts to automate Linux tasks',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['bash', 'scripting', 'automation', 'shell'],
+            paths: ['comptia-linux', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/linux/bash-scripting-playground.html'
+            },
+            prerequisites: ['script-linux-basics'],
+            objectives: [
+                'Write bash scripts with variables and loops',
+                'Use conditionals and functions',
+                'Automate repetitive tasks'
+            ]
+        },
+
+        // --- Python Programming (8-chapter series) ---
+        'script-python-basics': {
+            id: 'script-python-basics',
+            title: 'Python Basics',
+            description: 'Introduction to Python programming',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['python', 'programming', 'fundamentals'],
+            paths: ['python-fundamentals', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter1-applet.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Write and run Python code',
+                'Understand Python syntax',
+                'Use variables and data types'
+            ]
+        },
+
+        'script-python-strings': {
+            id: 'script-python-strings',
+            title: 'Python Strings',
+            description: 'String manipulation and operations',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'strings', 'text-processing'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter2-strings.html'
+            },
+            prerequisites: ['script-python-basics'],
+            objectives: [
+                'Manipulate strings effectively',
+                'Use string methods and formatting',
+                'Process text data'
+            ]
+        },
+
+        'script-python-flow-control': {
+            id: 'script-python-flow-control',
+            title: 'Python Flow Control',
+            description: 'Conditionals, loops, and program flow',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['python', 'conditionals', 'loops', 'flow-control'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter3-flow-control.html'
+            },
+            prerequisites: ['script-python-strings'],
+            objectives: [
+                'Use if/elif/else statements',
+                'Write for and while loops',
+                'Control program execution flow'
+            ]
+        },
+
+        'script-python-functions': {
+            id: 'script-python-functions',
+            title: 'Python Functions',
+            description: 'Creating reusable code with functions',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['python', 'functions', 'modularity'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter4-functions.html'
+            },
+            prerequisites: ['script-python-flow-control'],
+            objectives: [
+                'Define and call functions',
+                'Use parameters and return values',
+                'Understand scope and namespaces'
+            ]
+        },
+
+        'script-python-collections': {
+            id: 'script-python-collections',
+            title: 'Python Collections',
+            description: 'Lists, tuples, and data structures',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 55,
+            topics: ['python', 'lists', 'tuples', 'collections'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter5-collections.html'
+            },
+            prerequisites: ['script-python-functions'],
+            objectives: [
+                'Work with lists and tuples',
+                'Use list comprehensions',
+                'Manipulate collection data'
+            ]
+        },
+
+        'script-python-dictionaries': {
+            id: 'script-python-dictionaries',
+            title: 'Python Dictionaries',
+            description: 'Key-value data structures',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['python', 'dictionaries', 'key-value', 'data-structures'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter6-dictionaries.html'
+            },
+            prerequisites: ['script-python-collections'],
+            objectives: [
+                'Create and manipulate dictionaries',
+                'Access and modify key-value pairs',
+                'Use dictionary methods effectively'
+            ]
+        },
+
+        'script-python-files': {
+            id: 'script-python-files',
+            title: 'Python File Handling',
+            description: 'Reading and writing files',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 55,
+            topics: ['python', 'files', 'io', 'data-processing'],
+            paths: ['python-fundamentals', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter7-file-handling.html'
+            },
+            prerequisites: ['script-python-dictionaries'],
+            objectives: [
+                'Read from and write to files',
+                'Handle file exceptions',
+                'Process file data effectively'
+            ]
+        },
+
+        'script-python-oop': {
+            id: 'script-python-oop',
+            title: 'Python OOP',
+            description: 'Object-oriented programming in Python',
+            house: 'script',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 75,
+            topics: ['python', 'oop', 'classes', 'objects'],
+            paths: ['python-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/python/python-chapter8-oop.html'
+            },
+            prerequisites: ['script-python-files'],
+            objectives: [
+                'Define classes and create objects',
+                'Use inheritance and polymorphism',
+                'Apply OOP design principles'
+            ]
+        },
+
+        // --- PowerShell & Windows CLI ---
+        'script-powershell-basics': {
+            id: 'script-powershell-basics',
+            title: 'PowerShell Basics',
+            description: 'Introduction to PowerShell scripting',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['powershell', 'windows', 'scripting', 'automation'],
+            paths: ['windows-admin', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/powershell/powershell-playground.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Execute PowerShell commands',
+                'Understand cmdlet structure',
+                'Write basic PowerShell scripts'
+            ]
+        },
+
+        'script-windows-cli': {
+            id: 'script-windows-cli',
+            title: 'Windows CLI Tools',
+            description: 'Command-line utilities for Windows administration',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['windows', 'command-line', 'administration'],
+            paths: ['windows-admin', 'comptia-aplus'],
+            components: {
+                applet: 'houses/script/applets/powershell/windows-cli-tools.html'
+            },
+            prerequisites: ['script-powershell-basics'],
+            objectives: [
+                'Use essential Windows CLI commands',
+                'Manage system from command line',
+                'Troubleshoot with CLI tools'
+            ]
+        },
+
+        'script-windows-registry': {
+            id: 'script-windows-registry',
+            title: 'Windows Registry',
+            description: 'Understanding and navigating the Windows Registry',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['windows', 'registry', 'configuration'],
+            paths: ['windows-admin', 'comptia-aplus'],
+            components: {
+                applet: 'houses/script/applets/powershell/windows-registry-explorer.html'
+            },
+            prerequisites: ['script-windows-cli'],
+            objectives: [
+                'Navigate registry hives',
+                'Understand registry data types',
+                'Safely modify registry entries'
+            ]
+        },
+
+        'script-windows-troubleshooting': {
+            id: 'script-windows-troubleshooting',
+            title: 'Windows Troubleshooting',
+            description: 'Diagnostic tools and troubleshooting techniques',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['windows', 'troubleshooting', 'diagnostics'],
+            paths: ['windows-admin', 'comptia-aplus'],
+            components: {
+                applet: 'houses/script/applets/powershell/windows-troubleshooting.html'
+            },
+            prerequisites: ['script-windows-cli'],
+            objectives: [
+                'Use Windows diagnostic tools',
+                'Troubleshoot common issues',
+                'Analyze system health'
+            ]
+        },
+
+        // --- System Administration ---
+        'script-process-management': {
+            id: 'script-process-management',
+            title: 'Process Management',
+            description: 'Managing system processes and services',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['processes', 'services', 'linux', 'administration'],
+            paths: ['comptia-linux', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/script/applets/sysadmin/process-management-visualizer.html'
+            },
+            prerequisites: ['script-linux-basics'],
+            objectives: [
+                'Monitor and manage processes',
+                'Control system services',
+                'Analyze resource usage'
+            ]
+        },
+
+        'script-log-management': {
+            id: 'script-log-management',
+            title: 'Log Management',
+            description: 'System logging and log analysis',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['logs', 'syslog', 'monitoring', 'analysis'],
+            paths: ['comptia-linux', 'security-operations'],
+            components: {
+                applet: 'houses/script/applets/sysadmin/log-management-visualizer.html'
+            },
+            prerequisites: ['script-linux-basics'],
+            objectives: [
+                'Locate and read log files',
+                'Configure logging systems',
+                'Analyze logs for issues'
+            ]
+        },
+
+        'script-package-management': {
+            id: 'script-package-management',
+            title: 'Package Management',
+            description: 'Installing and managing software packages',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 40,
+            topics: ['packages', 'apt', 'yum', 'linux'],
+            paths: ['comptia-linux'],
+            components: {
+                applet: 'houses/script/applets/sysadmin/package-manager-simulator.html'
+            },
+            prerequisites: ['script-linux-basics'],
+            objectives: [
+                'Use package managers (apt, yum)',
+                'Install and remove software',
+                'Manage package repositories'
+            ]
+        },
+
+        'script-automation-concepts': {
+            id: 'script-automation-concepts',
+            title: 'Automation Concepts',
+            description: 'Infrastructure automation and programmability',
+            house: 'script',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['automation', 'ansible', 'infrastructure-as-code', 'apis'],
+            paths: ['devops-fundamentals', 'ccna'],
+            components: {
+                presentation: 'houses/script/presentations/automation-presentation.html',
+                applet: 'houses/script/applets/sysadmin/automation-visualizer.html'
+            },
+            prerequisites: ['script-bash-scripting'],
+            objectives: [
+                'Understand REST APIs and data formats',
+                'Apply infrastructure as code concepts',
+                'Use configuration management tools'
             ]
         },
 
@@ -1021,8 +1448,58 @@ const ContentRegistry = {
             color: '#10b981',
             modules: [
                 'code-git-basics',
-                'script-bash-basics',
+                'script-linux-basics',
+                'script-bash-scripting',
+                'script-python-basics',
+                'script-python-files',
+                'script-automation-concepts',
                 'cloud-concepts'
+            ]
+        },
+
+        'comptia-linux': {
+            id: 'comptia-linux',
+            title: 'CompTIA Linux+',
+            description: 'Linux system administration and command line mastery',
+            icon: '🐧',
+            certification: 'CompTIA Linux+ XK0-005',
+            difficulty: 'intermediate',
+            estimatedHours: 50,
+            color: '#a78bfa',
+            modules: [
+                // System Management
+                'script-linux-basics',
+                'script-linux-filesystem',
+                'script-linux-permissions',
+                'script-command-translator',
+                // Scripting & Automation
+                'script-bash-scripting',
+                'script-process-management',
+                'script-log-management',
+                'script-package-management',
+                // Advanced
+                'script-automation-concepts'
+            ]
+        },
+
+        'python-fundamentals': {
+            id: 'python-fundamentals',
+            title: 'Python Programming',
+            description: 'Complete Python programming from basics to OOP',
+            icon: '🐍',
+            certification: null,
+            difficulty: 'beginner',
+            estimatedHours: 35,
+            color: '#fbbf24',
+            modules: [
+                'script-python-basics',
+                'script-python-strings',
+                'script-python-flow-control',
+                'script-python-functions',
+                'script-python-collections',
+                'script-python-dictionaries',
+                'script-python-files',
+                'script-python-oop'
             ]
         }
     },

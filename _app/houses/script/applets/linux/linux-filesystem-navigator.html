@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Filesystem Navigator - House of Script</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #052e16 0%, #166534 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e7e7e7;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(22, 101, 52, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(134, 239, 172, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+            padding: 30px;
+            text-align: center;
+            border-bottom: 3px solid #86efac;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #86efac;
+            font-size: 1.1em;
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(5, 46, 22, 0.5);
+            padding: 0;
+            border-bottom: 2px solid #22c55e;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 18px 24px;
+            background: transparent;
+            border: none;
+            color: #86efac;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-right: 1px solid rgba(134, 239, 172, 0.1);
+            position: relative;
+        }
+
+        .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-button:hover {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .tab-button.active {
+            background: #166534;
+            color: #fff;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #22c55e;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 25px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(5, 46, 22, 0.5);
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #86efac;
+            box-shadow: 0 0 15px rgba(134, 239, 172, 0.3);
+        }
+
+        .search-box::placeholder {
+            color: #86efac;
+        }
+
+        /* Tree View */
+        .tree-container {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 25px;
+        }
+
+        .tree-panel {
+            background: rgba(5, 46, 22, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(134, 239, 172, 0.2);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .info-panel {
+            background: rgba(5, 46, 22, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(134, 239, 172, 0.2);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .tree-item {
+            margin: 8px 0;
+            user-select: none;
+        }
+
+        .tree-node {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tree-node:hover {
+            background: rgba(34, 197, 94, 0.2);
+            transform: translateX(5px);
+        }
+
+        .tree-node.selected {
+            background: #166534;
+            border-left: 4px solid #22c55e;
+        }
+
+        .tree-node.root {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #22c55e;
+        }
+
+        .tree-icon {
+            font-size: 1.2em;
+            min-width: 20px;
+        }
+
+        .tree-label {
+            flex: 1;
+            color: #86efac;
+        }
+
+        .tree-node.selected .tree-label {
+            color: #fff;
+        }
+
+        .tree-description {
+            font-size: 0.85em;
+            color: #a3a3a3;
+        }
+
+        .children {
+            margin-left: 25px;
+            border-left: 2px solid rgba(134, 239, 172, 0.1);
+            padding-left: 10px;
+        }
+
+        .expand-icon {
+            font-size: 0.9em;
+            transition: transform 0.3s ease;
+            color: #22c55e;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        /* Info Panel */
+        .info-panel h2 {
+            color: #22c55e;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-section h3 {
+            color: #86efac;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            border-bottom: 2px solid rgba(134, 239, 172, 0.2);
+            padding-bottom: 5px;
+        }
+
+        .info-section p {
+            color: #d4d4d4;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .info-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-section li {
+            padding: 8px 0;
+            padding-left: 20px;
+            color: #d4d4d4;
+            position: relative;
+        }
+
+        .info-section li::before {
+            content: '▹';
+            position: absolute;
+            left: 0;
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .code-block {
+            background: rgba(5, 46, 22, 0.6);
+            border: 1px solid #22c55e;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            color: #86efac;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .permission-badge {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 5px 5px 5px 0;
+            border: 1px solid #22c55e;
+        }
+
+        /* Quiz Section */
+        .quiz-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .quiz-question {
+            background: rgba(5, 46, 22, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(134, 239, 172, 0.2);
+        }
+
+        .quiz-question h3 {
+            color: #22c55e;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 12px;
+        }
+
+        .quiz-option {
+            padding: 15px 20px;
+            background: rgba(5, 46, 22, 0.5);
+            border: 2px solid rgba(134, 239, 172, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #d4d4d4;
+        }
+
+        .quiz-option:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            transform: translateX(5px);
+        }
+
+        .quiz-option.correct {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: #22c55e;
+            color: #fff;
+        }
+
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .quiz-feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .quiz-feedback.correct {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+            border: 1px solid #22c55e;
+        }
+
+        .quiz-feedback.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid #ef4444;
+        }
+
+        .quiz-score {
+            background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 25px;
+            color: #fff;
+            font-size: 1.3em;
+        }
+
+        /* FHS Reference */
+        .fhs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .fhs-card {
+            background: rgba(5, 46, 22, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(134, 239, 172, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .fhs-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.3);
+            border-color: #22c55e;
+        }
+
+        .fhs-card h3 {
+            color: #22c55e;
+            margin-bottom: 12px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fhs-comparison {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(5, 46, 22, 0.5);
+            border-radius: 6px;
+        }
+
+        .fhs-linux {
+            color: #86efac;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .fhs-arrow {
+            color: #22c55e;
+            font-size: 1.2em;
+        }
+
+        .fhs-windows {
+            color: #a3a3a3;
+            font-family: monospace;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(5, 46, 22, 0.3);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #22c55e;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #86efac;
+        }
+
+        .placeholder-text {
+            color: #86efac;
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1em;
+        }
+
+        .reset-quiz {
+            background: #22c55e;
+            color: #052e16;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .reset-quiz:hover {
+            background: #86efac;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Linux Filesystem Navigator</h1>
+            <p>Explore the Linux Filesystem Hierarchy Standard (FHS)</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="tree">Tree View</button>
+            <button class="tab-button" data-tab="quiz">Quiz</button>
+            <button class="tab-button" data-tab="fhs">FHS Reference</button>
+        </div>
+
+        <!-- Tree View Tab -->
+        <div id="tree" class="tab-content active">
+            <div class="search-container">
+                <input type="text" class="search-box" id="searchBox" placeholder="Search directories by name or purpose...">
+            </div>
+
+            <div class="tree-container">
+                <div class="tree-panel" id="treePanel">
+                    <!-- Tree will be generated by JavaScript -->
+                </div>
+                <div class="info-panel" id="infoPanel">
+                    <div class="placeholder-text">
+                        Click on a directory in the tree to view detailed information
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div id="quiz" class="tab-content">
+            <div class="quiz-container">
+                <div class="quiz-score" id="quizScore">
+                    Score: <span id="scoreValue">0</span> / <span id="totalQuestions">10</span>
+                </div>
+                <div id="quizQuestions">
+                    <!-- Quiz questions will be generated by JavaScript -->
+                </div>
+                <button class="reset-quiz" id="resetQuiz">Reset Quiz</button>
+            </div>
+        </div>
+
+        <!-- FHS Reference Tab -->
+        <div id="fhs" class="tab-content">
+            <div class="fhs-grid" id="fhsGrid">
+                <!-- FHS comparison cards will be generated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Filesystem data structure with detailed information
+        const filesystemData = {
+            name: '/',
+            path: '/',
+            description: 'Root directory - the top-level directory of the entire filesystem hierarchy',
+            purpose: 'The root directory is the starting point of the Linux filesystem tree. All other directories branch from here.',
+            commonFiles: [
+                'Lost+found (recovery directory)',
+                'Various mount points',
+                'System directories'
+            ],
+            permissions: 'drwxr-xr-x (755)',
+            examples: [
+                'cd / - Navigate to root',
+                'ls / - List all top-level directories',
+                'df / - Show disk usage for root filesystem'
+            ],
+            relatedCommands: ['ls', 'cd', 'df', 'mount'],
+            children: [
+                {
+                    name: 'bin',
+                    path: '/bin',
+                    description: 'Essential user command binaries',
+                    purpose: 'Contains essential command-line utilities required for system boot and single-user mode. These commands must be available to all users.',
+                    commonFiles: [
+                        'bash - Bourne Again Shell',
+                        'ls - List directory contents',
+                        'cp - Copy files',
+                        'mv - Move files',
+                        'rm - Remove files',
+                        'cat - Concatenate files',
+                        'grep - Search text patterns',
+                        'ps - Process status'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'which bash - Shows /bin/bash location',
+                        'ls -l /bin/ls - View ls binary details',
+                        '/bin/bash --version - Check bash version'
+                    ],
+                    relatedCommands: ['which', 'whereis', 'type', 'command']
+                },
+                {
+                    name: 'boot',
+                    path: '/boot',
+                    description: 'Boot loader files and kernel images',
+                    purpose: 'Contains static files required for the boot process, including the Linux kernel, initial RAM disk image, and bootloader configuration.',
+                    commonFiles: [
+                        'vmlinuz - Compressed Linux kernel',
+                        'initrd.img - Initial RAM disk',
+                        'grub/ - GRUB bootloader files',
+                        'config - Kernel configuration',
+                        'System.map - Kernel symbol table'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ls /boot - List boot files',
+                        'uname -r - Show current kernel version',
+                        'sudo update-grub - Update GRUB configuration'
+                    ],
+                    relatedCommands: ['grub-install', 'update-grub', 'uname']
+                },
+                {
+                    name: 'dev',
+                    path: '/dev',
+                    description: 'Device files',
+                    purpose: 'Contains special device files that represent hardware devices and pseudo-devices. These files provide interface to device drivers.',
+                    commonFiles: [
+                        'sda, sdb - Hard disk drives',
+                        'tty - Terminal devices',
+                        'null - Null device (data sink)',
+                        'zero - Provides null bytes',
+                        'random, urandom - Random number generators',
+                        'stdin, stdout, stderr - Standard I/O streams'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ls -l /dev/sda - View disk device',
+                        'echo "test" > /dev/null - Discard output',
+                        'cat /dev/urandom - Generate random data'
+                    ],
+                    relatedCommands: ['lsblk', 'mknod', 'udevadm']
+                },
+                {
+                    name: 'etc',
+                    path: '/etc',
+                    description: 'System configuration files',
+                    purpose: 'Contains system-wide configuration files and shell scripts used during boot. This is the control center for system configuration.',
+                    commonFiles: [
+                        'passwd - User account information',
+                        'fstab - Filesystem mount table',
+                        'hosts - Static hostname lookup',
+                        'resolv.conf - DNS configuration',
+                        'ssh/ - SSH server configuration',
+                        'apt/ - APT package manager config',
+                        'crontab - Scheduled tasks'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'cat /etc/os-release - View OS information',
+                        'sudo vim /etc/hosts - Edit hosts file',
+                        'cat /etc/passwd - View user accounts'
+                    ],
+                    relatedCommands: ['vim', 'nano', 'cat', 'grep']
+                },
+                {
+                    name: 'home',
+                    path: '/home',
+                    description: 'User home directories',
+                    purpose: 'Contains personal directories for each user on the system. Each user stores their personal files, configurations, and data here.',
+                    commonFiles: [
+                        '/home/username/ - User personal directory',
+                        '.bashrc - Bash configuration',
+                        '.profile - Login shell configuration',
+                        'Documents/ - User documents',
+                        'Downloads/ - Downloaded files',
+                        '.ssh/ - SSH keys and config'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'cd ~ - Go to your home directory',
+                        'ls -la ~ - List all files including hidden',
+                        'pwd - Print working directory'
+                    ],
+                    relatedCommands: ['cd', 'ls', 'pwd', 'useradd']
+                },
+                {
+                    name: 'lib',
+                    path: '/lib',
+                    description: 'Shared libraries and kernel modules',
+                    purpose: 'Contains essential shared libraries needed by binaries in /bin and /sbin, as well as kernel modules.',
+                    commonFiles: [
+                        'libc.so.6 - C standard library',
+                        'modules/ - Kernel modules',
+                        'firmware/ - Device firmware',
+                        'systemd/ - systemd libraries'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ldd /bin/ls - Show shared library dependencies',
+                        'ldconfig -p - Print library cache',
+                        'ls /lib/modules - List kernel modules'
+                    ],
+                    relatedCommands: ['ldd', 'ldconfig', 'modprobe']
+                },
+                {
+                    name: 'media',
+                    path: '/media',
+                    description: 'Mount points for removable media',
+                    purpose: 'Automatically mounted removable media devices like USB drives, CD-ROMs, and external hard drives appear here.',
+                    commonFiles: [
+                        'USB drives',
+                        'CD/DVD mounts',
+                        'External hard drives',
+                        'SD cards'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ls /media/$USER - List mounted removable media',
+                        'mount | grep media - Show media mounts',
+                        'df -h /media/* - Show media disk usage'
+                    ],
+                    relatedCommands: ['mount', 'umount', 'lsblk', 'df']
+                },
+                {
+                    name: 'mnt',
+                    path: '/mnt',
+                    description: 'Temporary mount points',
+                    purpose: 'Temporary mount point for manually mounting filesystems by system administrators. Used for temporary mounts.',
+                    commonFiles: [
+                        'Network shares',
+                        'Temporarily mounted partitions',
+                        'Loop devices',
+                        'ISO images'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'sudo mount /dev/sdb1 /mnt - Mount partition',
+                        'sudo mount -t nfs server:/path /mnt - Mount NFS',
+                        'sudo umount /mnt - Unmount filesystem'
+                    ],
+                    relatedCommands: ['mount', 'umount', 'findmnt']
+                },
+                {
+                    name: 'opt',
+                    path: '/opt',
+                    description: 'Optional application software packages',
+                    purpose: 'Reserved for installation of add-on application software packages. Third-party applications often install here.',
+                    commonFiles: [
+                        'Third-party applications',
+                        'Google Chrome',
+                        'TeamViewer',
+                        'Commercial software packages'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ls /opt - List installed optional software',
+                        'du -sh /opt/* - Show space used by each package',
+                        'find /opt -name "*.bin" - Find executables'
+                    ],
+                    relatedCommands: ['ls', 'du', 'find']
+                },
+                {
+                    name: 'proc',
+                    path: '/proc',
+                    description: 'Process and kernel information virtual filesystem',
+                    purpose: 'Virtual filesystem providing process and kernel information as files. Does not contain real files but runtime system information.',
+                    commonFiles: [
+                        'cpuinfo - CPU information',
+                        'meminfo - Memory information',
+                        'version - Kernel version',
+                        '[PID]/ - Process directories',
+                        'filesystems - Supported filesystems',
+                        'loadavg - System load average'
+                    ],
+                    permissions: 'dr-xr-xr-x (555)',
+                    examples: [
+                        'cat /proc/cpuinfo - View CPU details',
+                        'cat /proc/meminfo - View memory details',
+                        'ls /proc/[0-9]* - List process directories'
+                    ],
+                    relatedCommands: ['cat', 'top', 'ps', 'free']
+                },
+                {
+                    name: 'root',
+                    path: '/root',
+                    description: 'Root user home directory',
+                    purpose: 'Home directory for the root (superuser) account. Separate from /home to ensure root access even if /home is on a separate partition.',
+                    commonFiles: [
+                        '.bashrc - Root bash configuration',
+                        '.bash_history - Root command history',
+                        '.ssh/ - Root SSH keys',
+                        'Scripts and administrative files'
+                    ],
+                    permissions: 'drwx------ (700)',
+                    examples: [
+                        'sudo ls /root - List root directory (requires sudo)',
+                        'sudo -i - Switch to root and go to /root',
+                        'echo $HOME - Show home directory'
+                    ],
+                    relatedCommands: ['sudo', 'su', 'cd']
+                },
+                {
+                    name: 'sbin',
+                    path: '/sbin',
+                    description: 'System administration binaries',
+                    purpose: 'Essential system binaries for system administration. Commands here are typically used by root for system maintenance and repair.',
+                    commonFiles: [
+                        'fdisk - Partition table manipulator',
+                        'fsck - Filesystem check',
+                        'ifconfig - Network interface configuration',
+                        'iptables - Firewall administration',
+                        'shutdown - Shutdown system',
+                        'reboot - Reboot system'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'sudo /sbin/fdisk -l - List disk partitions',
+                        'sudo /sbin/shutdown -h now - Shutdown immediately',
+                        'which fdisk - Shows /sbin/fdisk location'
+                    ],
+                    relatedCommands: ['sudo', 'which', 'whereis']
+                },
+                {
+                    name: 'tmp',
+                    path: '/tmp',
+                    description: 'Temporary files',
+                    purpose: 'Temporary files created by applications and users. Contents are typically deleted on reboot. Writable by all users.',
+                    commonFiles: [
+                        'Application temporary files',
+                        'User session data',
+                        'Download buffers',
+                        'Compilation temporary files'
+                    ],
+                    permissions: 'drwxrwxrwt (1777)',
+                    examples: [
+                        'mktemp - Create temporary file',
+                        'ls /tmp - List temporary files',
+                        'rm /tmp/myfile - Remove temporary file'
+                    ],
+                    relatedCommands: ['mktemp', 'tempfile', 'rm']
+                },
+                {
+                    name: 'usr',
+                    path: '/usr',
+                    description: 'User programs and data',
+                    purpose: 'Secondary hierarchy for read-only user data. Contains the majority of user utilities and applications.',
+                    commonFiles: [
+                        'bin/ - User commands',
+                        'sbin/ - System administration commands',
+                        'lib/ - Libraries',
+                        'share/ - Shared data',
+                        'local/ - Locally installed software',
+                        'src/ - Source code'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'ls /usr/bin - List user binaries',
+                        'du -sh /usr - Show /usr disk usage',
+                        'find /usr/local -type f - Find local files'
+                    ],
+                    relatedCommands: ['ls', 'find', 'du']
+                },
+                {
+                    name: 'var',
+                    path: '/var',
+                    description: 'Variable data files',
+                    purpose: 'Variable data files that are expected to grow in size. Contains logs, databases, websites, and spool files.',
+                    commonFiles: [
+                        'log/ - System and application logs',
+                        'www/ - Web server files',
+                        'mail/ - Email mailboxes',
+                        'spool/ - Print and mail queues',
+                        'tmp/ - Temporary files preserved between reboots',
+                        'cache/ - Application cache data'
+                    ],
+                    permissions: 'drwxr-xr-x (755)',
+                    examples: [
+                        'tail -f /var/log/syslog - Monitor system log',
+                        'ls /var/www/html - List web files',
+                        'du -sh /var/log - Show log directory size'
+                    ],
+                    relatedCommands: ['tail', 'less', 'du', 'find']
+                }
+            ]
+        };
+
+        // Quiz questions data
+        const quizQuestions = [
+            {
+                question: 'Where would you find system-wide configuration files?',
+                options: ['/etc', '/var', '/home', '/opt'],
+                correct: 0,
+                explanation: '/etc contains system-wide configuration files like passwd, hosts, and fstab.'
+            },
+            {
+                question: 'Where are user home directories typically located?',
+                options: ['/root', '/usr', '/home', '/var'],
+                correct: 2,
+                explanation: '/home contains personal directories for regular users (e.g., /home/username).'
+            },
+            {
+                question: 'Where would temporary files that are deleted on reboot be stored?',
+                options: ['/var/tmp', '/tmp', '/opt', '/mnt'],
+                correct: 1,
+                explanation: '/tmp stores temporary files that are typically cleared on system reboot.'
+            },
+            {
+                question: 'Where are boot loader files and the Linux kernel located?',
+                options: ['/bin', '/boot', '/dev', '/sbin'],
+                correct: 1,
+                explanation: '/boot contains boot loader files, kernel images (vmlinuz), and initial RAM disk.'
+            },
+            {
+                question: 'Where would you find device files representing hardware?',
+                options: ['/dev', '/proc', '/sys', '/media'],
+                correct: 0,
+                explanation: '/dev contains device files that represent hardware devices like disks (sda) and terminals (tty).'
+            },
+            {
+                question: 'Where are system log files typically stored?',
+                options: ['/tmp/log', '/etc/log', '/var/log', '/usr/log'],
+                correct: 2,
+                explanation: '/var/log contains system and application log files like syslog and auth.log.'
+            },
+            {
+                question: 'Where are essential command-line utilities like ls, cp, and mv located?',
+                options: ['/usr/bin', '/bin', '/sbin', '/opt'],
+                correct: 1,
+                explanation: '/bin contains essential user command binaries required for system boot and recovery.'
+            },
+            {
+                question: 'Where are removable media devices like USB drives automatically mounted?',
+                options: ['/mnt', '/media', '/mount', '/dev'],
+                correct: 1,
+                explanation: '/media is used for automatically mounted removable media like USB drives and CD-ROMs.'
+            },
+            {
+                question: 'Where is the root (superuser) home directory located?',
+                options: ['/home/root', '/root', '/admin', '/su'],
+                correct: 1,
+                explanation: '/root is the home directory for the root user, separate from /home.'
+            },
+            {
+                question: 'Where would you find third-party optional application packages?',
+                options: ['/opt', '/app', '/usr/local', '/var/app'],
+                correct: 0,
+                explanation: '/opt is reserved for add-on application software packages and third-party applications.'
+            }
+        ];
+
+        // FHS comparison data (Linux vs Windows)
+        const fhsComparisons = [
+            {
+                category: 'User Home',
+                linux: '/home/username',
+                windows: 'C:\\Users\\username',
+                description: 'User personal files and settings'
+            },
+            {
+                category: 'Program Files',
+                linux: '/usr/bin or /opt',
+                windows: 'C:\\Program Files',
+                description: 'Installed applications and executables'
+            },
+            {
+                category: 'System Config',
+                linux: '/etc',
+                windows: 'C:\\Windows\\System32\\config',
+                description: 'System-wide configuration files'
+            },
+            {
+                category: 'Temporary Files',
+                linux: '/tmp',
+                windows: 'C:\\Windows\\Temp',
+                description: 'Temporary files and data'
+            },
+            {
+                category: 'Devices',
+                linux: '/dev',
+                windows: '\\\\.\\PhysicalDrive0',
+                description: 'Hardware device interfaces'
+            },
+            {
+                category: 'System Logs',
+                linux: '/var/log',
+                windows: 'C:\\Windows\\System32\\winevt\\Logs',
+                description: 'System and application logs'
+            },
+            {
+                category: 'System Binaries',
+                linux: '/bin and /sbin',
+                windows: 'C:\\Windows\\System32',
+                description: 'Core system executables'
+            },
+            {
+                category: 'Shared Libraries',
+                linux: '/lib',
+                windows: 'C:\\Windows\\System32 (DLLs)',
+                description: 'Shared code libraries'
+            }
+        ];
+
+        // State management
+        let selectedNode = null;
+        let quizState = {
+            answers: new Array(quizQuestions.length).fill(null),
+            score: 0
+        };
+
+        // Initialize application
+        function init() {
+            setupTabs();
+            renderTree();
+            renderQuiz();
+            renderFHSReference();
+            setupSearch();
+            setupQuizReset();
+        }
+
+        // Tab switching functionality
+        function setupTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabName = button.dataset.tab;
+
+                    // Remove active class from all tabs
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Add active class to clicked tab
+                    button.classList.add('active');
+                    document.getElementById(tabName).classList.add('active');
+                });
+            });
+        }
+
+        // Render filesystem tree
+        function renderTree() {
+            const treePanel = document.getElementById('treePanel');
+            treePanel.innerHTML = '';
+
+            const rootNode = createTreeNode(filesystemData, 0, true);
+            treePanel.appendChild(rootNode);
+        }
+
+        // Create tree node element
+        function createTreeNode(node, level, isRoot = false) {
+            const container = document.createElement('div');
+            container.className = 'tree-item';
+            container.dataset.path = node.path;
+
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = `tree-node ${isRoot ? 'root' : ''}`;
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = isRoot ? '' : '';
+
+            const label = document.createElement('span');
+            label.className = 'tree-label';
+            label.textContent = node.name;
+
+            const description = document.createElement('span');
+            description.className = 'tree-description';
+            description.textContent = ` - ${node.description}`;
+
+            nodeDiv.appendChild(icon);
+            nodeDiv.appendChild(label);
+            nodeDiv.appendChild(description);
+
+            nodeDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node, nodeDiv);
+            });
+
+            container.appendChild(nodeDiv);
+
+            // Add children if they exist
+            if (node.children && node.children.length > 0) {
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'children';
+
+                node.children.forEach(child => {
+                    const childNode = createTreeNode(child, level + 1);
+                    childrenContainer.appendChild(childNode);
+                });
+
+                container.appendChild(childrenContainer);
+            }
+
+            return container;
+        }
+
+        // Select node and display info
+        function selectNode(node, element) {
+            // Remove previous selection
+            document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+
+            // Add selection to current node
+            element.classList.add('selected');
+            selectedNode = node;
+
+            // Display info panel
+            displayNodeInfo(node);
+        }
+
+        // Display detailed node information
+        function displayNodeInfo(node) {
+            const infoPanel = document.getElementById('infoPanel');
+
+            const html = `
+                <h2>${node.path}</h2>
+
+                <div class="info-section">
+                    <h3>Purpose</h3>
+                    <p>${node.purpose}</p>
+                </div>
+
+                <div class="info-section">
+                    <h3>Common Files/Directories</h3>
+                    <ul>
+                        ${node.commonFiles.map(file => `<li>${file}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <div class="info-section">
+                    <h3>Typical Permissions</h3>
+                    <span class="permission-badge">${node.permissions}</span>
+                </div>
+
+                <div class="info-section">
+                    <h3>Example Commands</h3>
+                    ${node.examples.map(ex => `<div class="code-block">$ ${ex}</div>`).join('')}
+                </div>
+
+                <div class="info-section">
+                    <h3>Related Commands</h3>
+                    <p>${node.relatedCommands.map(cmd => `<span class="permission-badge">${cmd}</span>`).join(' ')}</p>
+                </div>
+            `;
+
+            infoPanel.innerHTML = html;
+        }
+
+        // Search functionality
+        function setupSearch() {
+            const searchBox = document.getElementById('searchBox');
+
+            searchBox.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const treeItems = document.querySelectorAll('.tree-item');
+
+                treeItems.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Render quiz
+        function renderQuiz() {
+            const quizContainer = document.getElementById('quizQuestions');
+            quizContainer.innerHTML = '';
+
+            quizQuestions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'quiz-question';
+
+                const questionTitle = document.createElement('h3');
+                questionTitle.textContent = `${index + 1}. ${q.question}`;
+                questionDiv.appendChild(questionTitle);
+
+                const optionsDiv = document.createElement('div');
+                optionsDiv.className = 'quiz-options';
+
+                q.options.forEach((option, optIndex) => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'quiz-option';
+                    optionDiv.textContent = option;
+                    optionDiv.dataset.index = optIndex;
+
+                    // Restore previous answer if exists
+                    if (quizState.answers[index] === optIndex) {
+                        if (optIndex === q.correct) {
+                            optionDiv.classList.add('correct');
+                        } else {
+                            optionDiv.classList.add('incorrect');
+                        }
+                    }
+
+                    optionDiv.addEventListener('click', () => {
+                        handleQuizAnswer(index, optIndex, q.correct, optionsDiv, questionDiv, q.explanation);
+                    });
+
+                    optionsDiv.appendChild(optionDiv);
+                });
+
+                questionDiv.appendChild(optionsDiv);
+
+                // Show explanation if already answered
+                if (quizState.answers[index] !== null) {
+                    showExplanation(questionDiv, q.explanation, quizState.answers[index] === q.correct);
+                }
+
+                quizContainer.appendChild(questionDiv);
+            });
+
+            updateQuizScore();
+        }
+
+        // Handle quiz answer
+        function handleQuizAnswer(questionIndex, selectedIndex, correctIndex, optionsDiv, questionDiv, explanation) {
+            // Prevent re-answering
+            if (quizState.answers[questionIndex] !== null) return;
+
+            quizState.answers[questionIndex] = selectedIndex;
+
+            // Mark all options
+            const options = optionsDiv.querySelectorAll('.quiz-option');
+            options.forEach((opt, idx) => {
+                opt.style.pointerEvents = 'none';
+                if (idx === correctIndex) {
+                    opt.classList.add('correct');
+                } else if (idx === selectedIndex) {
+                    opt.classList.add('incorrect');
+                }
+            });
+
+            // Update score
+            if (selectedIndex === correctIndex) {
+                quizState.score++;
+            }
+
+            // Show explanation
+            showExplanation(questionDiv, explanation, selectedIndex === correctIndex);
+
+            updateQuizScore();
+        }
+
+        // Show quiz explanation
+        function showExplanation(questionDiv, explanation, isCorrect) {
+            let feedbackDiv = questionDiv.querySelector('.quiz-feedback');
+            if (!feedbackDiv) {
+                feedbackDiv = document.createElement('div');
+                feedbackDiv.className = `quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+                questionDiv.appendChild(feedbackDiv);
+            }
+
+            feedbackDiv.textContent = isCorrect ? `Correct! ${explanation}` : `Incorrect. ${explanation}`;
+        }
+
+        // Update quiz score display
+        function updateQuizScore() {
+            document.getElementById('scoreValue').textContent = quizState.score;
+            document.getElementById('totalQuestions').textContent = quizQuestions.length;
+        }
+
+        // Reset quiz
+        function setupQuizReset() {
+            document.getElementById('resetQuiz').addEventListener('click', () => {
+                quizState = {
+                    answers: new Array(quizQuestions.length).fill(null),
+                    score: 0
+                };
+                renderQuiz();
+            });
+        }
+
+        // Render FHS reference comparison
+        function renderFHSReference() {
+            const fhsGrid = document.getElementById('fhsGrid');
+            fhsGrid.innerHTML = '';
+
+            fhsComparisons.forEach(comp => {
+                const card = document.createElement('div');
+                card.className = 'fhs-card';
+
+                card.innerHTML = `
+                    <h3> ${comp.category}</h3>
+                    <p style="color: #a3a3a3; margin-bottom: 15px;">${comp.description}</p>
+                    <div class="fhs-comparison">
+                        <span class="fhs-linux">${comp.linux}</span>
+                        <span class="fhs-arrow">⟷</span>
+                        <span class="fhs-windows">${comp.windows}</span>
+                    </div>
+                `;
+
+                fhsGrid.appendChild(card);
+            });
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
