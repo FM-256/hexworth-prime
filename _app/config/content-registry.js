@@ -136,6 +136,114 @@ const ContentRegistry = {
             ]
         },
 
+        'forge-macos-linux-basics': {
+            id: 'forge-macos-linux-basics',
+            title: 'macOS & Linux Basics',
+            description: 'Operating system fundamentals for macOS and Linux',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['macos', 'linux', 'operating-systems', 'command-line'],
+            paths: ['comptia-aplus'],
+            components: {
+                presentation: 'houses/forge/presentations/macos-linux-basics.html',
+                applet: 'houses/forge/applets/command-translator.html',
+                lab: 'houses/forge/labs/lab-macos-linux.html'
+            },
+            prerequisites: ['forge-system-tools'],
+            objectives: [
+                'Navigate macOS and Linux file systems',
+                'Use common command-line utilities',
+                'Compare Windows, macOS, and Linux commands'
+            ]
+        },
+
+        'forge-hardware-fundamentals': {
+            id: 'forge-hardware-fundamentals',
+            title: 'Hardware Fundamentals',
+            description: 'CPUs, RAM, storage, and core PC components',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 90,
+            topics: ['hardware', 'cpu', 'ram', 'storage', 'motherboard'],
+            paths: ['comptia-aplus'],
+            components: {
+                applet: 'houses/forge/applets/hardware/hardware-trainer.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Identify CPU types and specifications',
+                'Understand RAM types and configurations',
+                'Compare storage technologies (HDD, SSD, NVMe)',
+                'Recognize motherboard components'
+            ]
+        },
+
+        'forge-storage-raid': {
+            id: 'forge-storage-raid',
+            title: 'Storage & RAID',
+            description: 'Storage devices, RAID levels, and data redundancy',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['storage', 'raid', 'hard-drives', 'ssd'],
+            paths: ['comptia-aplus'],
+            components: {
+                applet: 'houses/forge/applets/hardware/raid-level-visualizer.html'
+            },
+            prerequisites: ['forge-hardware-fundamentals'],
+            objectives: [
+                'Explain RAID levels 0, 1, 5, 6, 10',
+                'Calculate storage capacity and fault tolerance',
+                'Choose appropriate RAID for scenarios'
+            ]
+        },
+
+        'forge-peripherals-expansion': {
+            id: 'forge-peripherals-expansion',
+            title: 'Peripherals & Expansion',
+            description: 'Expansion cards, peripherals, and external devices',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 40,
+            topics: ['peripherals', 'expansion-cards', 'displays', 'printers'],
+            paths: ['comptia-aplus'],
+            components: {
+                applet: 'houses/forge/applets/hardware/hardware-trainer.html'
+            },
+            prerequisites: ['forge-hardware-fundamentals'],
+            objectives: [
+                'Identify expansion card types and slots',
+                'Configure display connections and settings',
+                'Set up and troubleshoot printers'
+            ]
+        },
+
+        'forge-aplus-quiz': {
+            id: 'forge-aplus-quiz',
+            title: 'A+ Core 2 Practice Quiz',
+            description: 'Test your knowledge of A+ Core 2 objectives',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['assessment', 'certification', 'aplus'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/quizzes/aplus-core2-quiz.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Assess readiness for A+ Core 2 exam',
+                'Identify knowledge gaps',
+                'Practice exam-style questions'
+            ]
+        },
+
         // ─────────────────────────────────────────────────────────────
         // WEB HOUSE - Networking & Connections
         // ─────────────────────────────────────────────────────────────
@@ -350,21 +458,30 @@ const ContentRegistry = {
     paths: {
         'comptia-aplus': {
             id: 'comptia-aplus',
-            title: 'CompTIA A+ Core 1',
-            description: 'Hardware, networking, mobile devices, and troubleshooting',
+            title: 'CompTIA A+ Certification',
+            description: 'Hardware, OS, networking, troubleshooting - Core 1 & Core 2',
             icon: '🎓',
-            certification: 'CompTIA A+ 220-1101',
+            certification: 'CompTIA A+ 220-1101 & 220-1102',
             difficulty: 'beginner',
-            estimatedHours: 40,
+            estimatedHours: 60,
             color: '#f59e0b',
             modules: [
+                // Core 2 - Operating Systems
                 'forge-windows-editions',
                 'forge-windows-settings',
                 'forge-control-panel',
                 'forge-admin-tools',
                 'forge-system-tools',
+                'forge-macos-linux-basics',
+                // Core 1 - Hardware
+                'forge-hardware-fundamentals',
+                'forge-storage-raid',
+                'forge-peripherals-expansion',
+                // Networking basics
                 'web-osi-model',
-                'web-tcpip'
+                'web-tcpip',
+                // Assessment
+                'forge-aplus-quiz'
             ]
         },
 

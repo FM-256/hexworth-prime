@@ -467,6 +467,9 @@ class UpdateManager {
         const progressText = document.getElementById('progressText');
         const downloadBtn = document.getElementById('downloadBtn');
 
+        // AUTO-BACKUP: Save user data before download
+        this.createAutoBackup();
+
         // Show progress
         progressContainer.classList.add('visible');
         downloadBtn.disabled = true;
@@ -616,6 +619,93 @@ class UpdateManager {
             localStorage.setItem(this.options.storageKeys.dismissed, version);
         }
         this.closeModal();
+    }
+
+    /**
+     * Create automatic backup before update
+     * Stores in localStorage so it persists even if user extracts to new folder
+     */
+    createAutoBackup() {
+        try {
+            const userData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')) {
+                    // Don't backup the backup itself
+                    if (key !== 'hexworth_auto_backup') {
+                        userData[key] = localStorage.getItem(key);
+                    }
+                }
+            }
+
+            const backup = {
+                timestamp: Date.now(),
+                version: this.localVersion?.version || 'unknown',
+                data: userData
+            };
+
+            localStorage.setItem('hexworth_auto_backup', JSON.stringify(backup));
+            console.log('📦 Auto-backup created:', Object.keys(userData).length, 'items');
+        } catch (e) {
+            console.error('Auto-backup failed:', e);
+        }
+    }
+
+    /**
+     * Check if auto-backup exists and offer restore
+     * Call this on first launch of new version
+     */
+    static checkForBackupRestore() {
+        const backup = localStorage.getItem('hexworth_auto_backup');
+        if (!backup) return null;
+
+        try {
+            const parsed = JSON.parse(backup);
+            const backupAge = Date.now() - parsed.timestamp;
+            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+            // Only offer if backup is recent
+            if (backupAge > maxAge) {
+                localStorage.removeItem('hexworth_auto_backup');
+                return null;
+            }
+
+            return {
+                timestamp: new Date(parsed.timestamp).toLocaleString(),
+                version: parsed.version,
+                itemCount: Object.keys(parsed.data).length,
+                restore: () => UpdateManager.restoreFromAutoBackup()
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Restore data from auto-backup
+     */
+    static restoreFromAutoBackup() {
+        const backup = localStorage.getItem('hexworth_auto_backup');
+        if (!backup) return false;
+
+        try {
+            const parsed = JSON.parse(backup);
+            let restored = 0;
+
+            for (const [key, value] of Object.entries(parsed.data)) {
+                localStorage.setItem(key, value);
+                restored++;
+            }
+
+            // Clear the backup after successful restore
+            localStorage.removeItem('hexworth_auto_backup');
+
+            console.log('✅ Restored', restored, 'items from auto-backup');
+            return true;
+        } catch (e) {
+            console.error('Restore failed:', e);
+            return false;
+        }
     }
 
     /**
