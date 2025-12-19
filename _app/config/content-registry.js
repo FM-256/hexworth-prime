@@ -753,6 +753,8 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // CLOUD HOUSE - Infrastructure & Scale
         // ─────────────────────────────────────────────────────────────
+
+        // --- Cloud Fundamentals ---
         'cloud-concepts': {
             id: 'cloud-concepts',
             title: 'Cloud Computing Concepts',
@@ -761,18 +763,409 @@ const ContentRegistry = {
             type: 'module',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['cloud', 'aws', 'azure', 'fundamentals'],
+            topics: ['cloud', 'fundamentals', 'service-models'],
             paths: ['aws-ccp', 'azure-fundamentals'],
             components: {
-                presentation: 'houses/cloud/presentations/cloud-concepts.html',
-                applet: 'houses/cloud/applets/service-model-matcher.html',
-                lab: 'houses/cloud/labs/cloud-concepts-lab.html'
+                presentation: 'houses/cloud/presentations/cloud-presentation.html',
+                applet: 'houses/cloud/applets/fundamentals/cloud-visualizer.html',
+                lab: 'houses/cloud/labs/cloud-lab-simulator.html'
             },
             prerequisites: [],
             objectives: [
                 'Differentiate IaaS, PaaS, and SaaS',
                 'Explain public, private, hybrid clouds',
                 'Identify cloud benefits and considerations'
+            ]
+        },
+
+        'cloud-models': {
+            id: 'cloud-models',
+            title: 'Cloud Service Models',
+            description: 'Deep dive into IaaS, PaaS, SaaS, and shared responsibility',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 40,
+            topics: ['cloud', 'service-models', 'shared-responsibility'],
+            paths: ['aws-ccp', 'azure-fundamentals'],
+            components: {
+                applet: 'houses/cloud/applets/fundamentals/ch01-cloud-models-visualizer.html',
+                quiz: 'houses/cloud/applets/fundamentals/ch01-cloud-fundamentals-quiz.html'
+            },
+            prerequisites: ['cloud-concepts'],
+            objectives: [
+                'Compare cloud service models',
+                'Understand shared responsibility model',
+                'Match services to appropriate model'
+            ]
+        },
+
+        'cloud-providers': {
+            id: 'cloud-providers',
+            title: 'Cloud Provider Comparison',
+            description: 'Compare AWS, Azure, and GCP services and pricing',
+            house: 'cloud',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['aws', 'azure', 'gcp', 'comparison'],
+            paths: ['aws-ccp', 'azure-fundamentals'],
+            components: {
+                applet: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.html'
+            },
+            prerequisites: ['cloud-concepts'],
+            objectives: [
+                'Compare major cloud providers',
+                'Identify equivalent services across platforms',
+                'Understand pricing models'
+            ]
+        },
+
+        'cloud-architecture': {
+            id: 'cloud-architecture',
+            title: 'Cloud Architecture Designer',
+            description: 'Design cloud architectures with best practices',
+            house: 'cloud',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['architecture', 'design', 'best-practices'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/architecture/cloud-architecture-designer.html'
+            },
+            prerequisites: ['cloud-models'],
+            objectives: [
+                'Design basic cloud architectures',
+                'Apply well-architected principles',
+                'Select appropriate services for requirements'
+            ]
+        },
+
+        // --- AWS Fundamentals ---
+        'cloud-aws-account': {
+            id: 'cloud-aws-account',
+            title: 'AWS Account Structure',
+            description: 'AWS accounts, organizations, and billing',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 35,
+            topics: ['aws', 'account', 'billing', 'organizations'],
+            paths: ['aws-ccp'],
+            components: {
+                presentation: 'houses/cloud/presentations/aws-fundamentals.html',
+                applet: 'houses/cloud/applets/aws/ch02-aws-account-explorer.html'
+            },
+            prerequisites: ['cloud-concepts'],
+            objectives: [
+                'Navigate AWS account structure',
+                'Understand AWS Organizations',
+                'Manage billing and cost explorer'
+            ]
+        },
+
+        'cloud-aws-support': {
+            id: 'cloud-aws-support',
+            title: 'AWS Support Plans',
+            description: 'AWS support tiers and Trusted Advisor',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['aws', 'support', 'trusted-advisor'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch03-support-plans-visualizer.html'
+            },
+            prerequisites: ['cloud-aws-account'],
+            objectives: [
+                'Compare AWS support plans',
+                'Understand Trusted Advisor checks',
+                'Choose appropriate support level'
+            ]
+        },
+
+        'cloud-aws-regions': {
+            id: 'cloud-aws-regions',
+            title: 'AWS Global Infrastructure',
+            description: 'Regions, Availability Zones, and Edge Locations',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['aws', 'regions', 'availability-zones', 'edge'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch04-aws-regions-explorer.html'
+            },
+            prerequisites: ['cloud-aws-account'],
+            objectives: [
+                'Understand AWS global infrastructure',
+                'Select appropriate regions',
+                'Explain high availability concepts'
+            ]
+        },
+
+        'cloud-aws-security': {
+            id: 'cloud-aws-security',
+            title: 'AWS IAM & Security',
+            description: 'Identity and Access Management fundamentals',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['aws', 'iam', 'security', 'policies'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch05-security-visualizer.html',
+                quiz: 'houses/cloud/applets/aws/ch05-iam-security-quiz.html'
+            },
+            prerequisites: ['cloud-aws-account'],
+            objectives: [
+                'Create and manage IAM users and roles',
+                'Write IAM policies',
+                'Apply security best practices'
+            ]
+        },
+
+        'cloud-aws-tools': {
+            id: 'cloud-aws-tools',
+            title: 'AWS Management Tools',
+            description: 'Console, CLI, SDK, and CloudShell',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['aws', 'cli', 'sdk', 'management'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch06-aws-tools-explorer.html'
+            },
+            prerequisites: ['cloud-aws-account'],
+            objectives: [
+                'Use AWS Management Console',
+                'Execute AWS CLI commands',
+                'Understand SDK options'
+            ]
+        },
+
+        // --- AWS Compute ---
+        'cloud-aws-compute': {
+            id: 'cloud-aws-compute',
+            title: 'AWS Compute Services',
+            description: 'EC2, Lambda, ECS, and compute options',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['aws', 'ec2', 'lambda', 'compute'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch07-compute-services-explorer.html'
+            },
+            prerequisites: ['cloud-aws-security'],
+            objectives: [
+                'Compare EC2 instance types',
+                'Understand serverless with Lambda',
+                'Choose appropriate compute service'
+            ]
+        },
+
+        'cloud-aws-ec2': {
+            id: 'cloud-aws-ec2',
+            title: 'EC2 Instance Types',
+            description: 'EC2 families, pricing, and configuration',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['aws', 'ec2', 'instances', 'pricing'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch07-ec2-instance-visualizer.html'
+            },
+            prerequisites: ['cloud-aws-compute'],
+            objectives: [
+                'Select appropriate instance types',
+                'Understand EC2 pricing models',
+                'Configure instance settings'
+            ]
+        },
+
+        // --- AWS Storage ---
+        'cloud-aws-storage': {
+            id: 'cloud-aws-storage',
+            title: 'AWS Storage Services',
+            description: 'S3, EBS, EFS, and storage options',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 55,
+            topics: ['aws', 's3', 'ebs', 'storage'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch08-storage-services-explorer.html',
+                quiz: 'houses/cloud/applets/aws/ch08-storage-quiz.html'
+            },
+            prerequisites: ['cloud-aws-compute'],
+            objectives: [
+                'Compare S3 storage classes',
+                'Understand block vs object storage',
+                'Choose appropriate storage service'
+            ]
+        },
+
+        // --- AWS Database ---
+        'cloud-aws-database': {
+            id: 'cloud-aws-database',
+            title: 'AWS Database Services',
+            description: 'RDS, DynamoDB, and database options',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['aws', 'rds', 'dynamodb', 'database'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch09-database-services-explorer.html',
+                quiz: 'houses/cloud/applets/aws/ch09-database-quiz.html'
+            },
+            prerequisites: ['cloud-aws-storage'],
+            objectives: [
+                'Compare RDS database engines',
+                'Understand DynamoDB for NoSQL',
+                'Select appropriate database service'
+            ]
+        },
+
+        // --- AWS Networking ---
+        'cloud-aws-networking': {
+            id: 'cloud-aws-networking',
+            title: 'AWS VPC Networking',
+            description: 'VPC, subnets, security groups, and network design',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['aws', 'vpc', 'networking', 'security-groups'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch10-vpc-networking-visualizer.html',
+                quiz: 'houses/cloud/applets/aws/ch10-networking-quiz.html'
+            },
+            prerequisites: ['cloud-aws-security'],
+            objectives: [
+                'Design VPC architecture',
+                'Configure subnets and route tables',
+                'Implement security groups and NACLs'
+            ]
+        },
+
+        // --- AWS Advanced ---
+        'cloud-aws-automation': {
+            id: 'cloud-aws-automation',
+            title: 'AWS Automation',
+            description: 'CloudFormation, Elastic Beanstalk, and IaC',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['aws', 'cloudformation', 'automation', 'iac'],
+            paths: ['aws-ccp', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch11-automation-explorer.html'
+            },
+            prerequisites: ['cloud-aws-compute'],
+            objectives: [
+                'Create CloudFormation templates',
+                'Deploy with Elastic Beanstalk',
+                'Apply infrastructure as code'
+            ]
+        },
+
+        'cloud-aws-services': {
+            id: 'cloud-aws-services',
+            title: 'AWS Service Explorer',
+            description: 'Comprehensive AWS service catalog',
+            house: 'cloud',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['aws', 'services', 'catalog'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/aws-service-explorer.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Navigate AWS service categories',
+                'Understand service purposes',
+                'Find appropriate services for use cases'
+            ]
+        },
+
+        'cloud-aws-use-cases': {
+            id: 'cloud-aws-use-cases',
+            title: 'AWS Use Cases',
+            description: 'Real-world AWS architecture patterns',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['aws', 'architecture', 'patterns', 'use-cases'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/aws/ch12-use-cases-visualizer.html'
+            },
+            prerequisites: ['cloud-aws-networking'],
+            objectives: [
+                'Apply AWS to real scenarios',
+                'Design solutions for requirements',
+                'Understand migration strategies'
+            ]
+        },
+
+        'cloud-aws-practitioner': {
+            id: 'cloud-aws-practitioner',
+            title: 'AWS CCP Final Assessment',
+            description: 'Comprehensive Cloud Practitioner practice exam',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['aws', 'certification', 'assessment'],
+            paths: ['aws-ccp'],
+            components: {
+                quiz: 'houses/cloud/applets/aws/ch12-aws-practitioner-final-quiz.html'
+            },
+            prerequisites: ['cloud-aws-use-cases'],
+            objectives: [
+                'Assess AWS CCP readiness',
+                'Identify knowledge gaps',
+                'Practice exam-style questions'
+            ]
+        },
+
+        // --- Azure ---
+        'cloud-azure-fundamentals': {
+            id: 'cloud-azure-fundamentals',
+            title: 'Azure Fundamentals',
+            description: 'Microsoft Azure cloud platform basics',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['azure', 'fundamentals', 'microsoft'],
+            paths: ['azure-fundamentals'],
+            components: {
+                presentation: 'houses/cloud/presentations/azure-fundamentals.html'
+            },
+            prerequisites: ['cloud-concepts'],
+            objectives: [
+                'Navigate Azure portal',
+                'Understand Azure service categories',
+                'Compare Azure to AWS'
             ]
         },
 
@@ -1425,15 +1818,52 @@ const ContentRegistry = {
         'aws-ccp': {
             id: 'aws-ccp',
             title: 'AWS Cloud Practitioner',
-            description: 'AWS fundamentals and cloud concepts',
+            description: 'Complete AWS Cloud Practitioner certification preparation',
             icon: '☁️',
-            certification: 'AWS Certified Cloud Practitioner',
+            certification: 'AWS Certified Cloud Practitioner CLF-C02',
             difficulty: 'beginner',
-            estimatedHours: 30,
+            estimatedHours: 40,
             color: '#ff9900',
             modules: [
-                'cloud-concepts'
-                // More to be added
+                // Fundamentals
+                'cloud-concepts',
+                'cloud-models',
+                'cloud-providers',
+                'cloud-architecture',
+                // AWS Account & Support
+                'cloud-aws-account',
+                'cloud-aws-support',
+                'cloud-aws-regions',
+                'cloud-aws-security',
+                'cloud-aws-tools',
+                // AWS Services
+                'cloud-aws-compute',
+                'cloud-aws-ec2',
+                'cloud-aws-storage',
+                'cloud-aws-database',
+                'cloud-aws-networking',
+                // Advanced
+                'cloud-aws-automation',
+                'cloud-aws-services',
+                'cloud-aws-use-cases',
+                'cloud-aws-practitioner'
+            ]
+        },
+
+        'azure-fundamentals': {
+            id: 'azure-fundamentals',
+            title: 'Azure Fundamentals',
+            description: 'Microsoft Azure cloud platform fundamentals',
+            icon: '🔷',
+            certification: 'Microsoft Azure Fundamentals AZ-900',
+            difficulty: 'beginner',
+            estimatedHours: 25,
+            color: '#0078d4',
+            modules: [
+                'cloud-concepts',
+                'cloud-models',
+                'cloud-providers',
+                'cloud-azure-fundamentals'
             ]
         },
 
