@@ -132,7 +132,7 @@ class UpdateManager {
 
             // Last resort: use a default version object
             this.localVersion = {
-                version: '1.4.1',
+                version: '1.5.0',
                 codename: 'Genesis',
                 releaseDate: '2025-12-19',
                 changelog: []
