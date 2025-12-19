@@ -85,6 +85,93 @@
             box-shadow: 0 0 10px var(--house-glow);
         }
 
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+
+        /* GitHub Profile Badge (from GitHubAuth.js) */
+        .github-profile-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .github-profile-badge:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--house-primary);
+        }
+
+        .github-profile-badge .profile-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid var(--house-primary);
+        }
+
+        .github-profile-badge .profile-name {
+            color: #e0e0e0;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        .github-profile-badge .profile-logout {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .github-profile-badge:hover .profile-logout {
+            opacity: 1;
+        }
+
+        .github-profile-badge .profile-logout:hover {
+            color: #f87171;
+        }
+
+        .github-login-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #444;
+            border-radius: 20px;
+            color: #888;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .github-login-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #666;
+            color: #ccc;
+        }
+
+        .github-login-btn .github-icon {
+            width: 16px;
+            height: 16px;
+        }
+
         /* Main Content */
         .main-content {
             flex: 1;
@@ -1306,7 +1393,12 @@
     <div class="dashboard">
         <header class="header">
             <div class="logo">Hexworth Prime</div>
-            <div class="house-badge" id="houseBadge">Loading...</div>
+            <div class="header-right">
+                <div class="user-profile" id="userProfile">
+                    <!-- Populated by GitHubAuth -->
+                </div>
+                <div class="house-badge" id="houseBadge">Loading...</div>
+            </div>
         </header>
 
         <main class="main-content">
@@ -1469,6 +1561,28 @@
                 </div>
             </div>
 
+            <div class="settings-section">
+                <div class="settings-section-title">Cloud Sync</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        GitHub Account
+                        <small id="githubStatus">Not connected</small>
+                    </div>
+                    <div class="settings-control">
+                        <button class="settings-btn" id="githubConnectBtn" onclick="toggleGitHubConnection()">Connect</button>
+                    </div>
+                </div>
+                <div class="settings-row" id="cloudSyncRow" style="display: none;">
+                    <div class="settings-label">
+                        Cloud Backup
+                        <small>Sync progress across devices</small>
+                    </div>
+                    <div class="settings-control">
+                        <button class="settings-btn" onclick="openCloudSync()">Manage</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="version-info">
                 <div class="version" id="versionDisplay">v1.0.0</div>
                 <div class="codename" id="codenameDisplay">Loading...</div>
@@ -1550,6 +1664,8 @@
     <script src="components/SoundToggle.js"></script>
     <script src="components/HouseMembers.js"></script>
     <script src="components/UpdateManager.js"></script>
+    <script src="components/GitHubAuth.js"></script>
+    <script src="components/GistSync.js"></script>
     <script src="utils/transitions.js"></script>
     <script src="utils/HexworthAdmin.js"></script>
 
@@ -1588,6 +1704,9 @@
 
             // Apply house theme
             document.body.classList.add(`house-${userHouse}`);
+
+            // Initialize GitHub Authentication
+            initGitHubAuth();
 
             // Populate house info
             document.getElementById('houseBadge').textContent = house.shortName;
@@ -2586,6 +2705,108 @@
             if (confirm('Are you sure you want to retake the sorting quiz?\n\nYour current house assignment will be replaced.')) {
                 localStorage.removeItem('hexworth_house');
                 PageTransition.navigateTo('sorting.html', 'magic');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // GITHUB AUTHENTICATION & CLOUD SYNC
+        // ═══════════════════════════════════════════════════════════════
+
+        let githubAuth = null;
+        let gistSync = null;
+
+        function initGitHubAuth() {
+            // Initialize GitHub Auth (client ID will need to be set after OAuth app creation)
+            githubAuth = new GitHubAuth({
+                // GitHub OAuth App Client ID for Hexworth Prime
+                clientId: 'Ov23lincxrHCUeMUch1C',
+                scopes: ['read:user', 'gist'],
+                onLogin: (profile) => {
+                    console.log('GitHub login successful:', profile.username);
+                    updateGitHubUI();
+                },
+                onLogout: () => {
+                    console.log('GitHub logout');
+                    updateGitHubUI();
+                }
+            });
+
+            // Initialize GistSync
+            gistSync = new GistSync(githubAuth, {
+                autoSync: false,
+                onSyncComplete: (type, result) => {
+                    console.log(`${type} complete:`, result);
+                }
+            });
+
+            // Inject component styles
+            injectGitHubStyles();
+
+            // Update UI based on auth state
+            updateGitHubUI();
+        }
+
+        function injectGitHubStyles() {
+            // Add GitHub Auth styles
+            const authStyles = document.createElement('style');
+            authStyles.textContent = GitHubAuth.getStyles();
+            document.head.appendChild(authStyles);
+
+            // Add GistSync styles
+            const syncStyles = document.createElement('style');
+            syncStyles.textContent = GistSync.getStyles();
+            document.head.appendChild(syncStyles);
+        }
+
+        function updateGitHubUI() {
+            const profileContainer = document.getElementById('userProfile');
+            const githubStatus = document.getElementById('githubStatus');
+            const connectBtn = document.getElementById('githubConnectBtn');
+            const cloudSyncRow = document.getElementById('cloudSyncRow');
+
+            if (githubAuth && githubAuth.isAuthenticated && githubAuth.profile) {
+                // Show profile badge in header
+                profileContainer.innerHTML = '';
+                githubAuth.renderProfileBadge(profileContainer, {
+                    showName: true,
+                    showLogout: true,
+                    size: 'medium'
+                });
+
+                // Update settings
+                githubStatus.textContent = `Connected as @${githubAuth.profile.username}`;
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.classList.add('danger');
+                cloudSyncRow.style.display = 'flex';
+            } else {
+                // Show login button in header
+                profileContainer.innerHTML = '';
+                githubAuth.renderLoginButton(profileContainer, {
+                    text: 'Sign In',
+                    showIcon: true
+                });
+
+                // Update settings
+                githubStatus.textContent = 'Not connected';
+                connectBtn.textContent = 'Connect';
+                connectBtn.classList.remove('danger');
+                cloudSyncRow.style.display = 'none';
+            }
+        }
+
+        function toggleGitHubConnection() {
+            if (githubAuth && githubAuth.isAuthenticated) {
+                if (confirm('Disconnect from GitHub?\n\nYour cloud sync will be disabled.')) {
+                    githubAuth.logout();
+                }
+            } else {
+                githubAuth.showLoginModal();
+            }
+        }
+
+        function openCloudSync() {
+            if (gistSync) {
+                gistSync.showSyncModal();
             }
         }
     </script>
