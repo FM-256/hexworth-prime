@@ -56,11 +56,14 @@ class UpdateManager {
      * Initialize the update manager
      */
     async init() {
+        // Skip remote checks if running from file:// (CORS issues)
+        this.isLocalFile = window.location.protocol === 'file:';
+
         // First, check if this is a new version (show What's New)
         await this.checkFirstLaunch();
 
-        // Then check for updates if due
-        if (this.shouldCheck()) {
+        // Then check for updates if due (skip for file:// URLs)
+        if (!this.isLocalFile && this.shouldCheck()) {
             await this.checkForUpdates();
         }
 
@@ -107,10 +110,35 @@ class UpdateManager {
      * Load local version
      */
     async loadLocalVersion() {
-        const response = await fetch(this.options.localVersionPath);
-        if (!response.ok) throw new Error('Could not load local version');
-        this.localVersion = await response.json();
-        return this.localVersion;
+        try {
+            const response = await fetch(this.options.localVersionPath);
+            if (!response.ok) throw new Error('Could not load local version');
+            this.localVersion = await response.json();
+            return this.localVersion;
+        } catch (e) {
+            // Fallback: try to get version from page or use default
+            console.log('Local version fetch failed:', e.message);
+
+            // Try alternative path (in case we're in a subdirectory)
+            try {
+                const altResponse = await fetch('../config/version.json');
+                if (altResponse.ok) {
+                    this.localVersion = await altResponse.json();
+                    return this.localVersion;
+                }
+            } catch (e2) {
+                // Ignore
+            }
+
+            // Last resort: use a default version object
+            this.localVersion = {
+                version: '1.4.1',
+                codename: 'Genesis',
+                releaseDate: '2025-12-19',
+                changelog: []
+            };
+            return this.localVersion;
+        }
     }
 
     /**
@@ -118,6 +146,13 @@ class UpdateManager {
      */
     async checkForUpdates() {
         if (this.isChecking) return;
+
+        // Skip remote checks for file:// URLs (CORS issues)
+        if (this.isLocalFile) {
+            console.log('Update check skipped: running from local file');
+            return;
+        }
+
         this.isChecking = true;
 
         try {
