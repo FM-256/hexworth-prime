@@ -34,7 +34,7 @@ const AccessGuard = (function() {
             house: 'hexworth_house',
             theme: 'hexworth_theme',
             godMode: 'hexworth_god_mode',
-            gatePrefix: 'dark_arts_gate',
+            gatePrefix: 'gate',
             gateAnswerPrefix: 'gate'
         },
         paths: {
