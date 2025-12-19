@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Services Visualizer | DHCP, DNS, NTP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #f59e0b;
+        }
+
+        .header h1 {
+            color: #f59e0b;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1.1em;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #f59e0b;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 10px 20px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 25px;
+            border: 2px solid #f59e0b;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: #f59e0b;
+            color: #0f172a;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            flex-wrap: wrap;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-btn {
+            padding: 15px 25px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            cursor: pointer;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #0f172a;
+            border-color: #fbbf24;
+        }
+
+        .tab-btn.dhcp { border-left: 4px solid #10b981; }
+        .tab-btn.dns { border-left: 4px solid #06b6d4; }
+        .tab-btn.ntp { border-left: 4px solid #f59e0b; }
+        .tab-btn.integration { border-left: 4px solid #8b5cf6; }
+        .tab-btn.quiz { border-left: 4px solid #ef4444; }
+
+        .content {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+            overflow: visible;
+            overflow-x: hidden;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* DHCP Tab Styles */
+        .dora-container {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: nowrap;
+            max-width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .dora-container {
+                flex-wrap: wrap;
+            }
+        }
+
+        .device-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            min-width: 140px;
+            max-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .device-box.client {
+            border: 3px solid #3b82f6;
+        }
+
+        .device-box.server {
+            border: 3px solid #10b981;
+        }
+
+        .device-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .animation-area {
+            flex: 1 1 400px;
+            min-height: 280px;
+            max-height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .packet {
+            position: absolute;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85em;
+            opacity: 0;
+            transition: left 0.8s ease, top 0.3s ease, opacity 0.3s ease;
+            white-space: nowrap;
+            max-width: 80%;
+        }
+
+        .packet.discover { background: #3b82f6; color: white; }
+        .packet.offer { background: #10b981; color: white; }
+        .packet.request { background: #f59e0b; color: #0f172a; }
+        .packet.ack { background: #8b5cf6; color: white; }
+
+        .dora-step {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #64748b;
+            transition: all 0.3s ease;
+        }
+
+        .dora-step.active {
+            background: rgba(255, 255, 255, 0.15);
+            border-left-color: #10b981;
+        }
+
+        .dora-step.completed {
+            border-left-color: #10b981;
+            opacity: 0.7;
+        }
+
+        .step-letter {
+            font-size: 2em;
+            font-weight: bold;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .step-letter.d { background: #3b82f6; }
+        .step-letter.o { background: #10b981; }
+        .step-letter.r { background: #f59e0b; color: #0f172a; }
+        .step-letter.a { background: #8b5cf6; }
+
+        /* DNS Tab Styles */
+        .dns-journey {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .dns-server {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .dns-server:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #06b6d4;
+        }
+
+        .dns-server.active {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+        }
+
+        .dns-server-icon {
+            font-size: 3em;
+        }
+
+        .dns-server-info h3 {
+            color: #06b6d4;
+            margin-bottom: 5px;
+        }
+
+        .dns-input-area {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .dns-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 2px solid #475569;
+            background: rgba(0, 0, 0, 0.3);
+            color: #e2e8f0;
+            font-size: 1.1em;
+        }
+
+        .dns-input:focus {
+            outline: none;
+            border-color: #06b6d4;
+        }
+
+        .resolve-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+
+        .resolve-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .dns-result {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px solid #06b6d4;
+            font-family: monospace;
+        }
+
+        .record-type-btns {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .record-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #475569;
+            border-radius: 20px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .record-btn:hover, .record-btn.active {
+            background: #06b6d4;
+            border-color: #06b6d4;
+            color: #0f172a;
+        }
+
+        /* NTP Tab Styles */
+        .ntp-explorer {
+            display: flex;
+            gap: 25px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .stratum-pyramid {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .stratum-level {
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-size: 0.9em;
+        }
+
+        .stratum-level:hover {
+            transform: scale(1.03);
+        }
+
+        .stratum-level.selected {
+            border-color: white;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .stratum-0 { background: linear-gradient(135deg, #7c3aed, #8b5cf6); width: 140px; }
+        .stratum-1 { background: linear-gradient(135deg, #2563eb, #3b82f6); width: 180px; }
+        .stratum-2 { background: linear-gradient(135deg, #0891b2, #06b6d4); width: 220px; }
+        .stratum-3 { background: linear-gradient(135deg, #059669, #10b981); width: 260px; }
+        .stratum-clients { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #0f172a; width: 300px; }
+
+        .stratum-info-panel {
+            flex: 1;
+            min-width: 280px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #f59e0b;
+        }
+
+        .clock-drift-demo {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .clock-display {
+            background: #0f172a;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 180px;
+        }
+
+        .clock-time {
+            font-family: 'Consolas', monospace;
+            font-size: 2.5em;
+            color: #22d3ee;
+        }
+
+        .clock-label {
+            margin-top: 10px;
+            color: #94a3b8;
+        }
+
+        .clock-display.synced {
+            border: 3px solid #10b981;
+        }
+
+        .clock-display.drifted {
+            border: 3px solid #ef4444;
+        }
+
+        .clock-display.drifted .clock-time {
+            color: #ef4444;
+        }
+
+        .ntp-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .ntp-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .ntp-btn.start { background: #10b981; color: white; }
+        .ntp-btn.stop { background: #ef4444; color: white; }
+        .ntp-btn.reset { background: #6366f1; color: white; }
+
+        .ntp-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Integration Tab Styles */
+        .integration-layout {
+            display: flex;
+            gap: 25px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .service-map {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex: 0 0 280px;
+            max-width: 300px;
+        }
+
+        .scenario-area {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .service-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .service-card.dhcp-card { border-color: #10b981; }
+        .service-card.dns-card { border-color: #06b6d4; }
+        .service-card.ntp-card { border-color: #f59e0b; }
+
+        .service-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .service-card.dhcp-card h3 { color: #10b981; }
+        .service-card.dns-card h3 { color: #06b6d4; }
+        .service-card.ntp-card h3 { color: #f59e0b; }
+
+        .dependency-list {
+            margin-top: 15px;
+        }
+
+        .dependency-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        .scenario-selector {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .scenario-btn {
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #475569;
+            border-radius: 10px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-btn:hover, .scenario-btn.active {
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+        }
+
+        .scenario-output {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 10px 0;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.5s ease;
+        }
+
+        .flow-step.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .flow-step-num {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            background: #6366f1;
+        }
+
+        /* Quiz Tab Styles */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .quiz-progress {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .progress-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+        }
+
+        .progress-dot.current {
+            background: #f59e0b;
+            color: #0f172a;
+        }
+
+        .progress-dot.correct {
+            background: #10b981;
+        }
+
+        .progress-dot.incorrect {
+            background: #ef4444;
+        }
+
+        .quiz-question {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .quiz-question h3 {
+            color: #f59e0b;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .quiz-option {
+            padding: 18px 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #475569;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .quiz-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #f59e0b;
+        }
+
+        .quiz-option.selected {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #f59e0b;
+        }
+
+        .quiz-option.correct {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+        }
+
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+
+        .quiz-feedback {
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .quiz-feedback.correct {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            display: block;
+        }
+
+        .quiz-feedback.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            display: block;
+        }
+
+        .quiz-nav {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .quiz-nav-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-nav-btn.next {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #0f172a;
+        }
+
+        .quiz-nav-btn.restart {
+            background: #6366f1;
+            color: white;
+        }
+
+        .quiz-results {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .score-display {
+            font-size: 4em;
+            font-weight: bold;
+            color: #f59e0b;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: rgba(6, 182, 212, 0.1);
+            border: 2px solid #06b6d4;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .success-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid #10b981;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6em; }
+            .tabs { gap: 5px; }
+            .tab-btn { padding: 10px 15px; font-size: 0.9em; }
+            .content { padding: 15px; }
+            .dora-container { flex-direction: column; }
+            .clock-drift-demo { flex-direction: column; align-items: center; }
+            .stratum-0, .stratum-1, .stratum-2, .stratum-3, .stratum-clients { width: 100%; max-width: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../../index.html" class="back-link">← Back to Catalog</a>
+
+    <div class="header">
+        <h1>🌐 Network Services Visualizer</h1>
+        <p>DHCP • DNS • NTP - The Three Pillars of Network Infrastructure</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn dhcp active" onclick="showTab('dhcp')">🏠 DHCP DORA</button>
+        <button class="tab-btn dns" onclick="showTab('dns')">🌐 DNS Resolution</button>
+        <button class="tab-btn ntp" onclick="showTab('ntp')">⏰ NTP Stratum</button>
+        <button class="tab-btn integration" onclick="showTab('integration')">🔗 Integration</button>
+        <button class="tab-btn quiz" onclick="showTab('quiz')">📝 Quiz</button>
+    </div>
+
+    <div class="content">
+        <!-- DHCP Tab -->
+        <div id="dhcp" class="tab-content active">
+            <h2 style="color: #10b981; margin-bottom: 20px;">DHCP DORA Process Theater 🎭</h2>
+            <p>Watch the four-step DHCP process unfold. A client needs an IP address - see how DHCP delivers it!</p>
+
+            <div class="dora-container">
+                <div class="device-box client">
+                    <div class="device-icon">💻</div>
+                    <h3>Client</h3>
+                    <div id="clientIP" style="color: #94a3b8; margin-top: 10px;">IP: None (0.0.0.0)</div>
+                </div>
+
+                <div class="animation-area" id="animationArea">
+                    <div class="packet discover" id="discoverPacket">DISCOVER</div>
+                    <div class="packet offer" id="offerPacket">OFFER: 192.168.1.100</div>
+                    <div class="packet request" id="requestPacket">REQUEST: 192.168.1.100</div>
+                    <div class="packet ack" id="ackPacket">ACK ✓</div>
+                </div>
+
+                <div class="device-box server">
+                    <div class="device-icon">🖥️</div>
+                    <h3>DHCP Server</h3>
+                    <div style="color: #94a3b8; margin-top: 10px;">Pool: 192.168.1.100-200</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0;">
+                <button class="ntp-btn start" onclick="startDORA()">▶️ Start DORA</button>
+                <button class="ntp-btn reset" onclick="resetDORA()">🔄 Reset</button>
+            </div>
+
+            <div id="doraSteps">
+                <div class="dora-step" id="step-d">
+                    <div class="step-letter d">D</div>
+                    <div>
+                        <h3>Discover</h3>
+                        <p>Client broadcasts: "I need an IP address! Any DHCP servers out there?"</p>
+                        <code style="color: #64748b;">Broadcast to 255.255.255.255:67 from 0.0.0.0:68</code>
+                    </div>
+                </div>
+                <div class="dora-step" id="step-o">
+                    <div class="step-letter o">O</div>
+                    <div>
+                        <h3>Offer</h3>
+                        <p>Server responds: "I have 192.168.1.100 available for you!"</p>
+                        <code style="color: #64748b;">Includes: IP, Subnet Mask, Gateway, DNS, Lease Time</code>
+                    </div>
+                </div>
+                <div class="dora-step" id="step-r">
+                    <div class="step-letter r">R</div>
+                    <div>
+                        <h3>Request</h3>
+                        <p>Client broadcasts: "I want 192.168.1.100 from server 192.168.1.1!"</p>
+                        <code style="color: #64748b;">Broadcast so all servers know which offer was accepted</code>
+                    </div>
+                </div>
+                <div class="dora-step" id="step-a">
+                    <div class="step-letter a">A</div>
+                    <div>
+                        <h3>Acknowledge</h3>
+                        <p>Server confirms: "192.168.1.100 is yours for 8 hours. Welcome to the network!"</p>
+                        <code style="color: #64748b;">Client configures IP, starts using network</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>💡 Key Points</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>UDP Ports:</strong> Client uses 68, Server uses 67</li>
+                    <li><strong>Broadcasts:</strong> Discover and Request are broadcasts (client doesn't have IP yet)</li>
+                    <li><strong>Lease:</strong> IP is "rented" for a time period (default often 8 hours)</li>
+                    <li><strong>Renewal:</strong> Client tries to renew at 50% of lease (T1) and 87.5% (T2)</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <h3>⚠️ What Happens If DHCP Fails?</h3>
+                <p style="margin-top: 10px;">If no DHCP server responds, Windows/Linux clients use <strong>APIPA (169.254.x.x)</strong> - Automatic Private IP Addressing. This allows local communication but no internet access.</p>
+            </div>
+        </div>
+
+        <!-- DNS Tab -->
+        <div id="dns" class="tab-content">
+            <h2 style="color: #06b6d4; margin-bottom: 20px;">DNS Resolution Journey 🌐</h2>
+            <p>Follow a DNS query from your browser through the hierarchy of DNS servers.</p>
+
+            <div class="dns-input-area">
+                <input type="text" class="dns-input" id="domainInput" placeholder="Enter domain (e.g., www.example.com)" value="www.google.com">
+                <button class="resolve-btn" onclick="simulateDNS()">🔍 Resolve</button>
+            </div>
+
+            <div class="record-type-btns">
+                <button class="record-btn active" onclick="selectRecordType(this, 'A')">A (IPv4)</button>
+                <button class="record-btn" onclick="selectRecordType(this, 'AAAA')">AAAA (IPv6)</button>
+                <button class="record-btn" onclick="selectRecordType(this, 'MX')">MX (Mail)</button>
+                <button class="record-btn" onclick="selectRecordType(this, 'CNAME')">CNAME</button>
+                <button class="record-btn" onclick="selectRecordType(this, 'TXT')">TXT</button>
+            </div>
+
+            <div class="dns-journey" id="dnsJourney">
+                <div class="dns-server" id="dns-browser">
+                    <div class="dns-server-icon">🌐</div>
+                    <div class="dns-server-info">
+                        <h3>Browser Cache</h3>
+                        <p>First, check if we've looked this up recently...</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+                <div class="dns-server" id="dns-os">
+                    <div class="dns-server-icon">💻</div>
+                    <div class="dns-server-info">
+                        <h3>OS Cache / Hosts File</h3>
+                        <p>Check local system cache and hosts file...</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+                <div class="dns-server" id="dns-resolver">
+                    <div class="dns-server-icon">🏢</div>
+                    <div class="dns-server-info">
+                        <h3>Recursive Resolver (ISP/8.8.8.8)</h3>
+                        <p>Your configured DNS server handles the rest...</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+                <div class="dns-server" id="dns-root">
+                    <div class="dns-server-icon">🌍</div>
+                    <div class="dns-server-info">
+                        <h3>Root Server (.)</h3>
+                        <p>"I don't know google.com, but ask the .com TLD server"</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+                <div class="dns-server" id="dns-tld">
+                    <div class="dns-server-icon">📍</div>
+                    <div class="dns-server-info">
+                        <h3>TLD Server (.com)</h3>
+                        <p>"I know who handles google.com - ask their nameserver"</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+                <div class="dns-server" id="dns-auth">
+                    <div class="dns-server-icon">✅</div>
+                    <div class="dns-server-info">
+                        <h3>Authoritative Server (ns1.google.com)</h3>
+                        <p>"www.google.com = 142.250.80.68 - here's your answer!"</p>
+                    </div>
+                    <div class="dns-status" style="margin-left: auto; color: #94a3b8;">Waiting...</div>
+                </div>
+            </div>
+
+            <div class="dns-result" id="dnsResult" style="display: none;">
+                <h3 style="color: #06b6d4; margin-bottom: 15px;">📋 DNS Response</h3>
+                <div id="dnsResultContent"></div>
+            </div>
+
+            <div class="info-box">
+                <h3>💡 DNS Record Types</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>A:</strong> Maps domain to IPv4 address</li>
+                    <li><strong>AAAA:</strong> Maps domain to IPv6 address</li>
+                    <li><strong>MX:</strong> Mail exchange servers for the domain</li>
+                    <li><strong>CNAME:</strong> Alias pointing to another domain</li>
+                    <li><strong>TXT:</strong> Text records (SPF, DKIM, verification)</li>
+                    <li><strong>NS:</strong> Name servers for the domain</li>
+                    <li><strong>PTR:</strong> Reverse lookup (IP to domain)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- NTP Tab -->
+        <div id="ntp" class="tab-content">
+            <h2 style="color: #f59e0b; margin-bottom: 15px;">NTP Stratum Explorer ⏰</h2>
+            <p>Click on any stratum level to learn about that tier.</p>
+
+            <!-- Side-by-side layout: pyramid on left, info on right -->
+            <div class="ntp-explorer">
+                <div class="stratum-pyramid">
+                    <div class="stratum-level stratum-0" onclick="selectStratum(0)">
+                        ⚛️ Stratum 0<br>
+                        <small>Atomic/GPS</small>
+                    </div>
+                    <div class="stratum-level stratum-1" onclick="selectStratum(1)">
+                        🖥️ Stratum 1<br>
+                        <small>Primary Servers</small>
+                    </div>
+                    <div class="stratum-level stratum-2" onclick="selectStratum(2)">
+                        🏢 Stratum 2<br>
+                        <small>ISPs, Cloud</small>
+                    </div>
+                    <div class="stratum-level stratum-3" onclick="selectStratum(3)">
+                        🏠 Stratum 3<br>
+                        <small>Enterprise</small>
+                    </div>
+                    <div class="stratum-level stratum-clients" onclick="selectStratum(4)">
+                        💻 Stratum 4-15<br>
+                        <small>Workstations</small>
+                    </div>
+                </div>
+
+                <!-- Info panel next to pyramid -->
+                <div class="stratum-info-panel" id="stratumInfo">
+                    <h3 id="stratumTitle" style="color: #f59e0b;">👈 Click a Stratum Level</h3>
+                    <p id="stratumDesc" style="margin-top: 10px;">Select any level in the pyramid to learn about that tier of the NTP hierarchy.</p>
+                    <div id="stratumDetails" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+
+            <h3 style="color: #f59e0b; margin: 25px 0 15px 0;">🕐 Clock Drift Demonstration</h3>
+            <p>See what happens when NTP is disabled. Watch the clocks drift apart!</p>
+
+            <div class="clock-drift-demo">
+                <div class="clock-display synced" id="clock1">
+                    <div class="clock-time" id="clock1Time">12:00:00</div>
+                    <div class="clock-label">Server A (NTP Synced)</div>
+                </div>
+                <div class="clock-display synced" id="clock2">
+                    <div class="clock-time" id="clock2Time">12:00:00</div>
+                    <div class="clock-label">Server B (NTP Synced)</div>
+                </div>
+                <div class="clock-display synced" id="clock3">
+                    <div class="clock-time" id="clock3Time">12:00:00</div>
+                    <div class="clock-label">Workstation (NTP Synced)</div>
+                </div>
+            </div>
+
+            <div class="ntp-controls">
+                <button class="ntp-btn start" onclick="startDrift()">▶️ Stop NTP (Start Drift)</button>
+                <button class="ntp-btn stop" onclick="stopDrift()">⏹️ Enable NTP (Stop Drift)</button>
+                <button class="ntp-btn reset" onclick="resetClocks()">🔄 Reset Clocks</button>
+            </div>
+
+            <div id="driftWarning" class="warning-box" style="display: none;">
+                <h3>⚠️ Time Drift Detected!</h3>
+                <p id="driftMessage"></p>
+            </div>
+
+            <div class="success-box">
+                <h3>🔑 Key Takeaway</h3>
+                <p style="margin-top: 10px;">Clocks drift approximately 1-2 seconds per day. Without NTP, a server could be off by a full minute after a month - enough to break Kerberos authentication (5 min max), certificate validation, and log correlation.</p>
+            </div>
+        </div>
+
+        <!-- Integration Tab -->
+        <div id="integration" class="tab-content">
+            <h2 style="color: #8b5cf6; margin-bottom: 20px;">Service Integration Map 🔗</h2>
+            <p>See how DHCP, DNS, and NTP work together. Select a scenario to watch the services in action!</p>
+
+            <div class="integration-layout">
+                <!-- Service cards on the left (vertical) -->
+                <div class="service-map">
+                    <div class="service-card dhcp-card">
+                        <h3>🏠 DHCP</h3>
+                        <p style="font-size: 0.9em;">IP addresses, DNS & NTP server info</p>
+                    </div>
+
+                    <div class="service-card dns-card">
+                        <h3>🌐 DNS</h3>
+                        <p style="font-size: 0.9em;">Name resolution for all services</p>
+                    </div>
+
+                    <div class="service-card ntp-card">
+                        <h3>⏰ NTP</h3>
+                        <p style="font-size: 0.9em;">Time sync for auth & certs</p>
+                    </div>
+                </div>
+
+                <!-- Scenario simulator on the right -->
+                <div class="scenario-area">
+                    <h3 style="color: #8b5cf6; margin-bottom: 15px;">🎬 Scenario Simulator</h3>
+
+                    <div class="scenario-selector">
+                        <button class="scenario-btn active" onclick="runScenario('newDevice')">📱 New Device</button>
+                        <button class="scenario-btn" onclick="runScenario('webBrowse')">🌐 Web Browse</button>
+                        <button class="scenario-btn" onclick="runScenario('dhcpFail')">❌ DHCP Fail</button>
+                        <button class="scenario-btn" onclick="runScenario('dnsFail')">❌ DNS Fail</button>
+                        <button class="scenario-btn" onclick="runScenario('ntpFail')">❌ NTP Fail</button>
+                    </div>
+
+                    <div class="scenario-output" id="scenarioOutput">
+                        <div id="scenarioSteps"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dependencies reference below -->
+            <div class="info-box" style="margin-top: 20px;">
+                <h3>🔗 Service Dependencies</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div><strong style="color: #10b981;">DHCP →</strong> Provides DNS servers (Opt 6), NTP servers (Opt 42)</div>
+                    <div><strong style="color: #06b6d4;">DNS →</strong> Resolves NTP server names, requires IP from DHCP</div>
+                    <div><strong style="color: #f59e0b;">NTP →</strong> Required for Kerberos (5min), certs, DNSSEC</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div id="quiz" class="tab-content">
+            <h2 style="color: #ef4444; margin-bottom: 20px;">Network Services Quiz 📝</h2>
+            <p>Test your knowledge of DHCP, DNS, and NTP!</p>
+
+            <div class="quiz-container">
+                <div class="quiz-progress" id="quizProgress"></div>
+
+                <div id="quizArea">
+                    <div class="quiz-question" id="questionBox">
+                        <h3 id="questionText"></h3>
+                        <div class="quiz-options" id="optionsArea"></div>
+                    </div>
+
+                    <div class="quiz-feedback" id="feedbackBox">
+                        <p id="feedbackText"></p>
+                    </div>
+
+                    <div class="quiz-nav">
+                        <button class="quiz-nav-btn next" id="nextBtn" onclick="nextQuestion()" style="display: none;">Next Question →</button>
+                    </div>
+                </div>
+
+                <div class="quiz-results" id="resultsArea" style="display: none;">
+                    <h2>🎉 Quiz Complete!</h2>
+                    <div class="score-display" id="finalScore">0/10</div>
+                    <p id="scoreMessage"></p>
+                    <button class="quiz-nav-btn restart" onclick="restartQuiz()">🔄 Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Navigation
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-btn.${tabId}`).classList.add('active');
+        }
+
+        // DHCP DORA Animation
+        let doraRunning = false;
+
+        function startDORA() {
+            if (doraRunning) return;
+            doraRunning = true;
+            resetDORA();
+
+            const steps = ['d', 'o', 'r', 'a'];
+            const packets = ['discoverPacket', 'offerPacket', 'requestPacket', 'ackPacket'];
+
+            steps.forEach((step, i) => {
+                setTimeout(() => {
+                    document.getElementById(`step-${step}`).classList.add('active');
+                    const packet = document.getElementById(packets[i]);
+                    packet.style.opacity = '1';
+
+                    // All packets use left positioning only (no right) to stay contained
+                    const topPos = 15 + (i * 20); // 15%, 35%, 55%, 75%
+                    packet.style.top = topPos + '%';
+
+                    if (i % 2 === 0) {
+                        // Client to Server (left to right)
+                        packet.style.left = '5%';
+                        setTimeout(() => { packet.style.left = '60%'; }, 100);
+                    } else {
+                        // Server to Client (right to left)
+                        packet.style.left = '60%';
+                        setTimeout(() => { packet.style.left = '5%'; }, 100);
+                    }
+
+                    if (i > 0) {
+                        document.getElementById(`step-${steps[i-1]}`).classList.remove('active');
+                        document.getElementById(`step-${steps[i-1]}`).classList.add('completed');
+                    }
+
+                    if (i === 3) {
+                        setTimeout(() => {
+                            document.getElementById('clientIP').textContent = 'IP: 192.168.1.100 ✓';
+                            document.getElementById('clientIP').style.color = '#10b981';
+                            document.getElementById(`step-a`).classList.remove('active');
+                            document.getElementById(`step-a`).classList.add('completed');
+                            doraRunning = false;
+                        }, 1500);
+                    }
+                }, i * 2000);
+            });
+        }
+
+        function resetDORA() {
+            doraRunning = false;
+            document.querySelectorAll('.dora-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            document.querySelectorAll('.packet').forEach(packet => {
+                packet.style.opacity = '0';
+                packet.style.left = '-150px';
+                packet.style.top = '50%';
+            });
+            document.getElementById('clientIP').textContent = 'IP: None (0.0.0.0)';
+            document.getElementById('clientIP').style.color = '#94a3b8';
+        }
+
+        // DNS Simulation
+        let selectedRecordType = 'A';
+
+        function selectRecordType(btn, type) {
+            document.querySelectorAll('.record-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedRecordType = type;
+        }
+
+        function simulateDNS() {
+            const domain = document.getElementById('domainInput').value || 'www.google.com';
+            const servers = ['dns-browser', 'dns-os', 'dns-resolver', 'dns-root', 'dns-tld', 'dns-auth'];
+
+            // Reset all
+            servers.forEach(s => {
+                document.getElementById(s).classList.remove('active');
+                document.getElementById(s).querySelector('.dns-status').textContent = 'Waiting...';
+                document.getElementById(s).querySelector('.dns-status').style.color = '#94a3b8';
+            });
+            document.getElementById('dnsResult').style.display = 'none';
+
+            // Simulate resolution with auto-scroll
+            servers.forEach((server, i) => {
+                setTimeout(() => {
+                    const el = document.getElementById(server);
+                    el.classList.add('active');
+                    const status = el.querySelector('.dns-status');
+
+                    // Auto-scroll to keep active server visible
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    if (i < 2) {
+                        status.textContent = '❌ Cache Miss';
+                        status.style.color = '#f59e0b';
+                    } else if (i < servers.length - 1) {
+                        status.textContent = '→ Referral';
+                        status.style.color = '#06b6d4';
+                    } else {
+                        status.textContent = '✓ Found!';
+                        status.style.color = '#10b981';
+                    }
+
+                    if (i > 0) {
+                        document.getElementById(servers[i-1]).classList.remove('active');
+                    }
+
+                    if (i === servers.length - 1) {
+                        setTimeout(() => {
+                            showDNSResult(domain);
+                            // Scroll to result
+                            document.getElementById('dnsResult').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 500);
+                    }
+                }, i * 800);
+            });
+        }
+
+        function showDNSResult(domain) {
+            const results = {
+                'A': `; <<>> DNS Response <<>>
+;; QUESTION SECTION:
+${domain}.    IN    A
+
+;; ANSWER SECTION:
+${domain}.    300    IN    A    142.250.80.68
+
+;; Query time: 23 msec
+;; SERVER: 8.8.8.8#53`,
+                'AAAA': `; <<>> DNS Response <<>>
+;; QUESTION SECTION:
+${domain}.    IN    AAAA
+
+;; ANSWER SECTION:
+${domain}.    300    IN    AAAA    2607:f8b0:4004:800::2004`,
+                'MX': `; <<>> DNS Response <<>>
+;; QUESTION SECTION:
+${domain}.    IN    MX
+
+;; ANSWER SECTION:
+${domain}.    600    IN    MX    10 smtp.google.com.
+${domain}.    600    IN    MX    20 smtp2.google.com.`,
+                'CNAME': `; <<>> DNS Response <<>>
+;; QUESTION SECTION:
+${domain}.    IN    CNAME
+
+;; ANSWER SECTION:
+${domain}.    3600    IN    CNAME    www.google.com.`,
+                'TXT': `; <<>> DNS Response <<>>
+;; QUESTION SECTION:
+${domain}.    IN    TXT
+
+;; ANSWER SECTION:
+${domain}.    3600    IN    TXT    "v=spf1 include:_spf.google.com ~all"`
+            };
+
+            document.getElementById('dnsResultContent').innerHTML = `<pre style="white-space: pre-wrap;">${results[selectedRecordType]}</pre>`;
+            document.getElementById('dnsResult').style.display = 'block';
+        }
+
+        // NTP Stratum
+        const stratumData = {
+            0: {
+                title: 'Stratum 0 - Reference Clocks',
+                desc: 'These are the ultimate time sources - not NTP servers themselves, but the devices that provide time to Stratum 1 servers.',
+                details: '<ul><li><strong>GPS Satellites:</strong> Atomic clocks in orbit (~10 nanosecond accuracy)</li><li><strong>Atomic Clocks:</strong> Cesium/Rubidium oscillators (1 sec in 300 million years)</li><li><strong>Radio Stations:</strong> WWV, WWVB, DCF77 broadcast time signals</li></ul>'
+            },
+            1: {
+                title: 'Stratum 1 - Primary Servers',
+                desc: 'Directly connected to Stratum 0 sources. These are the most accurate NTP servers available.',
+                details: '<ul><li>Run by NIST, USNO, major tech companies</li><li>Accuracy: ~1 millisecond from UTC</li><li>Examples: time.nist.gov, time.google.com</li></ul>'
+            },
+            2: {
+                title: 'Stratum 2 - Secondary Servers',
+                desc: 'Sync to Stratum 1 over the network. Still very accurate and suitable for enterprise use.',
+                details: '<ul><li>ISP time servers</li><li>Cloud provider time services (AWS, Azure)</li><li>NTP pool volunteers</li><li>Accuracy: ~10 milliseconds from UTC</li></ul>'
+            },
+            3: {
+                title: 'Stratum 3 - Enterprise Servers',
+                desc: 'Your internal time servers. Domain controllers in Windows environments typically operate here.',
+                details: '<ul><li>Domain Controllers (PDC Emulator)</li><li>Internal NTP servers</li><li>Network infrastructure devices</li><li>Should sync to external Stratum 1/2</li></ul>'
+            },
+            4: {
+                title: 'Stratum 4-15 - End Clients',
+                desc: 'Workstations, phones, IoT devices. Each hop adds 1 to the stratum.',
+                details: '<ul><li>Workstations sync to domain controllers</li><li>IoT devices sync to local servers</li><li>Stratum 16 = UNSYNCHRONIZED (bad!)</li><li>Keep chains short for best accuracy</li></ul>'
+            }
+        };
+
+        function selectStratum(level) {
+            document.querySelectorAll('.stratum-level').forEach(el => el.classList.remove('selected'));
+            event.target.closest('.stratum-level').classList.add('selected');
+
+            const data = stratumData[level];
+            document.getElementById('stratumTitle').textContent = data.title;
+            document.getElementById('stratumTitle').style.color = '#f59e0b';
+            document.getElementById('stratumDesc').textContent = data.desc;
+            document.getElementById('stratumDetails').innerHTML = data.details;
+            // Info panel is always visible now, just update content
+        }
+
+        // Clock Drift Demo
+        let driftInterval = null;
+        let baseTime = new Date();
+        let drifts = [0, 0, 0];
+        let driftRates = [0, 0, 0];
+
+        function updateClocks() {
+            const now = new Date();
+            const elapsed = (now - baseTime) / 1000;
+
+            for (let i = 0; i < 3; i++) {
+                drifts[i] += driftRates[i];
+                const clockTime = new Date(now.getTime() + drifts[i] * 1000);
+                const timeStr = clockTime.toTimeString().split(' ')[0];
+                document.getElementById(`clock${i+1}Time`).textContent = timeStr;
+
+                const clockEl = document.getElementById(`clock${i+1}`);
+                if (Math.abs(drifts[i]) > 5) {
+                    clockEl.classList.remove('synced');
+                    clockEl.classList.add('drifted');
+                } else {
+                    clockEl.classList.remove('drifted');
+                    clockEl.classList.add('synced');
+                }
+            }
+
+            // Check for warnings
+            const maxDrift = Math.max(...drifts.map(Math.abs));
+            const warningBox = document.getElementById('driftWarning');
+            if (maxDrift > 10) {
+                warningBox.style.display = 'block';
+                let msg = '';
+                if (maxDrift > 300) {
+                    msg = '🔥 CRITICAL: Clock drift exceeds 5 minutes! Kerberos authentication will FAIL. Certificates may appear invalid.';
+                } else if (maxDrift > 60) {
+                    msg = '⚠️ WARNING: Clock drift exceeds 1 minute. Log correlation becoming unreliable. Consider this a critical issue.';
+                } else {
+                    msg = `Clock drift detected: ${maxDrift.toFixed(1)} seconds. This will accumulate over time without NTP.`;
+                }
+                document.getElementById('driftMessage').textContent = msg;
+            } else {
+                warningBox.style.display = 'none';
+            }
+        }
+
+        function startDrift() {
+            // Random drift rates (simulating real hardware differences)
+            driftRates = [
+                (Math.random() - 0.3) * 0.5,  // Server A: slight drift
+                (Math.random() - 0.2) * 0.8,  // Server B: more drift
+                (Math.random() + 0.2) * 1.2   // Workstation: significant drift
+            ];
+
+            if (!driftInterval) {
+                driftInterval = setInterval(updateClocks, 100);
+            }
+        }
+
+        function stopDrift() {
+            driftRates = [0, 0, 0];
+            // Gradually sync back
+            const syncInterval = setInterval(() => {
+                let allSynced = true;
+                for (let i = 0; i < 3; i++) {
+                    if (Math.abs(drifts[i]) > 0.1) {
+                        drifts[i] *= 0.9;
+                        allSynced = false;
+                    } else {
+                        drifts[i] = 0;
+                    }
+                }
+                if (allSynced) clearInterval(syncInterval);
+            }, 100);
+        }
+
+        function resetClocks() {
+            if (driftInterval) {
+                clearInterval(driftInterval);
+                driftInterval = null;
+            }
+            drifts = [0, 0, 0];
+            driftRates = [0, 0, 0];
+            baseTime = new Date();
+            document.querySelectorAll('.clock-display').forEach(el => {
+                el.classList.remove('drifted');
+                el.classList.add('synced');
+            });
+            document.getElementById('driftWarning').style.display = 'none';
+            updateClocks();
+        }
+
+        // Start clock updates
+        setInterval(() => {
+            if (driftInterval) return;
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            document.getElementById('clock1Time').textContent = timeStr;
+            document.getElementById('clock2Time').textContent = timeStr;
+            document.getElementById('clock3Time').textContent = timeStr;
+        }, 1000);
+
+        // Integration Scenarios
+        const scenarios = {
+            newDevice: [
+                { icon: '📱', text: 'New device powers on, has no IP address', service: 'device' },
+                { icon: '📡', text: 'DHCP DISCOVER: "Any DHCP servers out there?"', service: 'dhcp' },
+                { icon: '✉️', text: 'DHCP OFFER: Server offers 192.168.1.50', service: 'dhcp' },
+                { icon: '📡', text: 'DHCP REQUEST: "I want that IP!"', service: 'dhcp' },
+                { icon: '✅', text: 'DHCP ACK: IP assigned, plus DNS=8.8.8.8, NTP=time.google.com', service: 'dhcp' },
+                { icon: '🌐', text: 'Device queries DNS to resolve NTP server hostname', service: 'dns' },
+                { icon: '⏰', text: 'Device syncs time with NTP server', service: 'ntp' },
+                { icon: '🔐', text: 'Device can now authenticate (Kerberos tickets valid)', service: 'auth' },
+                { icon: '🎉', text: 'Device fully operational on network!', service: 'complete' }
+            ],
+            webBrowse: [
+                { icon: '👤', text: 'User types "www.google.com" in browser', service: 'user' },
+                { icon: '🔍', text: 'Browser checks local DNS cache - MISS', service: 'dns' },
+                { icon: '🌐', text: 'Query sent to configured DNS server (from DHCP)', service: 'dns' },
+                { icon: '📍', text: 'DNS resolver queries root → .com TLD → google.com NS', service: 'dns' },
+                { icon: '✅', text: 'DNS returns: www.google.com = 142.250.80.68', service: 'dns' },
+                { icon: '🔒', text: 'Browser initiates HTTPS connection', service: 'https' },
+                { icon: '⏰', text: 'Certificate validity checked (requires correct time!)', service: 'ntp' },
+                { icon: '📜', text: 'Certificate valid, TLS handshake completes', service: 'https' },
+                { icon: '🎉', text: 'Page loads successfully!', service: 'complete' }
+            ],
+            dhcpFail: [
+                { icon: '📱', text: 'New device powers on', service: 'device' },
+                { icon: '📡', text: 'DHCP DISCOVER broadcast sent...', service: 'dhcp' },
+                { icon: '⏳', text: 'Waiting for response...', service: 'waiting' },
+                { icon: '⏳', text: 'Still waiting... (4 attempts)', service: 'waiting' },
+                { icon: '❌', text: 'No DHCP server responds!', service: 'error' },
+                { icon: '🔶', text: 'APIPA kicks in: 169.254.x.x assigned', service: 'apipa' },
+                { icon: '⚠️', text: 'Can communicate locally but NO gateway', service: 'warning' },
+                { icon: '❌', text: 'NO DNS servers configured', service: 'error' },
+                { icon: '❌', text: 'Cannot reach internet or resolve names', service: 'error' },
+                { icon: '🛠️', text: 'Fix: Check DHCP server, network connectivity, VLAN config', service: 'fix' }
+            ],
+            dnsFail: [
+                { icon: '👤', text: 'User tries to browse to website', service: 'user' },
+                { icon: '✅', text: 'Device has IP from DHCP', service: 'dhcp' },
+                { icon: '🔍', text: 'DNS query sent to configured server...', service: 'dns' },
+                { icon: '⏳', text: 'No response from DNS server', service: 'waiting' },
+                { icon: '❌', text: 'DNS resolution fails!', service: 'error' },
+                { icon: '⚠️', text: 'Browser shows "DNS_PROBE_FINISHED_NXDOMAIN"', service: 'warning' },
+                { icon: '💡', text: 'Interesting: Ping by IP still works!', service: 'info' },
+                { icon: '💡', text: 'ping 8.8.8.8 ✓ but ping google.com ✗', service: 'info' },
+                { icon: '🛠️', text: 'Fix: Check DNS server, try alternate (8.8.8.8)', service: 'fix' }
+            ],
+            ntpFail: [
+                { icon: '⏰', text: 'NTP server becomes unreachable', service: 'ntp' },
+                { icon: '⏳', text: 'Devices continue with last known time...', service: 'waiting' },
+                { icon: '📉', text: 'Clocks begin to drift (1-2 sec/day)', service: 'warning' },
+                { icon: '📅', text: 'After 1 week: ~10 seconds drift', service: 'warning' },
+                { icon: '📅', text: 'After 1 month: ~1 minute drift', service: 'error' },
+                { icon: '🔐', text: 'Kerberos starts failing (>5 min drift)', service: 'error' },
+                { icon: '📜', text: 'Certificates appear expired or not-yet-valid', service: 'error' },
+                { icon: '📋', text: 'Logs become impossible to correlate', service: 'error' },
+                { icon: '🛠️', text: 'Fix: Restore NTP, may need manual time set first', service: 'fix' }
+            ]
+        };
+
+        function runScenario(scenarioId) {
+            document.querySelectorAll('.scenario-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const steps = scenarios[scenarioId];
+            const container = document.getElementById('scenarioSteps');
+            container.innerHTML = '';
+
+            // Scroll to scenario output first
+            document.getElementById('scenarioOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            steps.forEach((step, i) => {
+                const stepEl = document.createElement('div');
+                stepEl.className = 'flow-step';
+                stepEl.innerHTML = `
+                    <div class="flow-step-num">${step.icon}</div>
+                    <div>${step.text}</div>
+                `;
+                container.appendChild(stepEl);
+
+                setTimeout(() => {
+                    stepEl.classList.add('visible');
+                    // Auto-scroll to keep current step visible
+                    stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, i * 600);
+            });
+        }
+
+        // Quiz
+        const quizQuestions = [
+            {
+                question: "What port does DHCP server use?",
+                options: ["UDP 53", "UDP 67", "UDP 123", "TCP 80"],
+                correct: 1,
+                explanation: "DHCP server listens on UDP port 67. Clients use UDP port 68."
+            },
+            {
+                question: "What does the 'D' in DORA stand for?",
+                options: ["Deliver", "Discover", "Distribute", "Dynamic"],
+                correct: 1,
+                explanation: "DORA = Discover, Offer, Request, Acknowledge - the four steps of DHCP."
+            },
+            {
+                question: "What happens if a Windows client can't reach a DHCP server?",
+                options: ["It shuts down networking", "It uses APIPA (169.254.x.x)", "It uses 0.0.0.0", "It prompts the user"],
+                correct: 1,
+                explanation: "APIPA (Automatic Private IP Addressing) assigns a 169.254.x.x address for local communication."
+            },
+            {
+                question: "What port does DNS use?",
+                options: ["UDP 53", "UDP 67", "UDP 123", "TCP 443"],
+                correct: 0,
+                explanation: "DNS primarily uses UDP port 53 (TCP 53 for zone transfers and large responses)."
+            },
+            {
+                question: "Which DNS record type maps a domain to an IPv4 address?",
+                options: ["MX", "CNAME", "A", "AAAA"],
+                correct: 2,
+                explanation: "A records map domains to IPv4 addresses. AAAA is for IPv6."
+            },
+            {
+                question: "What port does NTP use?",
+                options: ["UDP 53", "UDP 67", "UDP 123", "TCP 443"],
+                correct: 2,
+                explanation: "NTP uses UDP port 123 for time synchronization."
+            },
+            {
+                question: "What stratum indicates an unsynchronized NTP clock?",
+                options: ["0", "1", "15", "16"],
+                correct: 3,
+                explanation: "Stratum 16 means the clock is unsynchronized and should not be trusted."
+            },
+            {
+                question: "What is the maximum clock skew allowed by Kerberos (by default)?",
+                options: ["30 seconds", "1 minute", "5 minutes", "15 minutes"],
+                correct: 2,
+                explanation: "Kerberos allows 5 minutes (300 seconds) of clock skew by default."
+            },
+            {
+                question: "Which DHCP option provides DNS server addresses to clients?",
+                options: ["Option 1", "Option 3", "Option 6", "Option 42"],
+                correct: 2,
+                explanation: "Option 6 provides DNS servers. Option 3 is default gateway, Option 42 is NTP servers."
+            },
+            {
+                question: "What type of NTP source is an atomic clock?",
+                options: ["Stratum 0", "Stratum 1", "Stratum 2", "Stratum 16"],
+                correct: 0,
+                explanation: "Atomic clocks and GPS receivers are Stratum 0 reference clocks."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let answered = false;
+
+        function initQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('quizArea').style.display = 'block';
+            updateProgress();
+            showQuestion();
+        }
+
+        function updateProgress() {
+            const container = document.getElementById('quizProgress');
+            container.innerHTML = '';
+            for (let i = 0; i < quizQuestions.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                if (i === currentQuestion) dot.classList.add('current');
+                dot.textContent = i + 1;
+                container.appendChild(dot);
+            }
+        }
+
+        function showQuestion() {
+            const q = quizQuestions[currentQuestion];
+            document.getElementById('questionText').textContent = `Question ${currentQuestion + 1}: ${q.question}`;
+
+            const optionsArea = document.getElementById('optionsArea');
+            optionsArea.innerHTML = '';
+
+            q.options.forEach((opt, i) => {
+                const optEl = document.createElement('div');
+                optEl.className = 'quiz-option';
+                optEl.textContent = opt;
+                optEl.onclick = () => selectAnswer(i);
+                optionsArea.appendChild(optEl);
+            });
+
+            document.getElementById('feedbackBox').className = 'quiz-feedback';
+            document.getElementById('nextBtn').style.display = 'none';
+            answered = false;
+        }
+
+        function selectAnswer(index) {
+            if (answered) return;
+            answered = true;
+
+            const q = quizQuestions[currentQuestion];
+            const options = document.querySelectorAll('.quiz-option');
+
+            options.forEach((opt, i) => {
+                opt.style.pointerEvents = 'none';
+                if (i === q.correct) {
+                    opt.classList.add('correct');
+                } else if (i === index) {
+                    opt.classList.add('incorrect');
+                }
+            });
+
+            const feedback = document.getElementById('feedbackBox');
+            const feedbackText = document.getElementById('feedbackText');
+
+            if (index === q.correct) {
+                score++;
+                feedback.className = 'quiz-feedback correct';
+                feedbackText.textContent = '✓ Correct! ' + q.explanation;
+                document.querySelectorAll('.progress-dot')[currentQuestion].classList.add('correct');
+            } else {
+                feedback.className = 'quiz-feedback incorrect';
+                feedbackText.textContent = '✗ Incorrect. ' + q.explanation;
+                document.querySelectorAll('.progress-dot')[currentQuestion].classList.add('incorrect');
+            }
+
+            document.getElementById('nextBtn').style.display = 'inline-block';
+            document.getElementById('nextBtn').textContent = currentQuestion < quizQuestions.length - 1 ? 'Next Question →' : 'See Results';
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion >= quizQuestions.length) {
+                showResults();
+            } else {
+                updateProgress();
+                showQuestion();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quizArea').style.display = 'none';
+            document.getElementById('resultsArea').style.display = 'block';
+            document.getElementById('finalScore').textContent = `${score}/${quizQuestions.length}`;
+
+            const percentage = (score / quizQuestions.length) * 100;
+            let message = '';
+            if (percentage >= 90) message = '🌟 Excellent! You\'re a Network Services expert!';
+            else if (percentage >= 70) message = '👍 Good job! You understand the fundamentals.';
+            else if (percentage >= 50) message = '📚 Keep studying! Review DHCP, DNS, and NTP concepts.';
+            else message = '💪 Don\'t give up! Review the material and try again.';
+
+            document.getElementById('scoreMessage').textContent = message;
+        }
+
+        function restartQuiz() {
+            initQuiz();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initQuiz();
+            runScenario('newDevice');
+        });
+    </script>
+</body>
+</html>

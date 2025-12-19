@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STP - Spanning Tree Protocol</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            overflow: hidden;
+        }
+
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide {
+            display: none;
+            width: 90%;
+            max-width: 1200px;
+            height: 85vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 60px;
+            position: relative;
+            animation: slideIn 0.5s ease-out;
+            overflow-y: auto;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        h1 {
+            color: #1e3c72;
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #2a5298;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            border-bottom: 4px solid #2a5298;
+            padding-bottom: 15px;
+        }
+
+        h3 {
+            color: #1e3c72;
+            font-size: 1.8em;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        p, li {
+            font-size: 1.3em;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        ul {
+            margin-left: 40px;
+        }
+
+        .subtitle {
+            font-size: 1.5em;
+            color: #666;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .prepared-by {
+            position: absolute;
+            bottom: 30px;
+            right: 50px;
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .slide-number {
+            position: absolute;
+            bottom: 30px;
+            left: 50px;
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: #2a5298;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #1e3c72;
+            transform: scale(1.05);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .network-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 40px 0;
+            height: 350px;
+            position: relative;
+        }
+
+        .switch {
+            width: 120px;
+            height: 80px;
+            background: #2a5298;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            flex-direction: column;
+        }
+
+        .switch.root {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: rootPulse 2s infinite;
+        }
+
+        @keyframes rootPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+            50% { transform: scale(1.1); box-shadow: 0 8px 25px rgba(245,87,108,0.5); }
+        }
+
+        .bridge-id {
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        .link {
+            position: absolute;
+            height: 4px;
+            background: #28a745;
+            transform-origin: left center;
+        }
+
+        .link.blocked {
+            background: #dc3545;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .port-state {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .port-state.forwarding {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .port-state.blocking {
+            background: #dc3545;
+        }
+
+        .port-state.learning {
+            background: #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .bpdu-packet {
+            width: 60px;
+            height: 40px;
+            background: #17a2b8;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            position: absolute;
+            animation: bpduFlow 3s infinite;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        @keyframes bpduFlow {
+            0% { left: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 90%; opacity: 0; }
+        }
+
+        .state-transition {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .state-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .state-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .state-box h4 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .state-box p {
+            font-size: 0.95em;
+            color: #f0f0f0;
+        }
+
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 40px 0;
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #2a5298;
+        }
+
+        .timeline-item {
+            background: white;
+            border: 3px solid #2a5298;
+            border-radius: 10px;
+            padding: 15px;
+            width: 30%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .timeline-item h4 {
+            color: #2a5298;
+            margin-bottom: 10px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p, .warning-box li {
+            color: #856404;
+            font-size: 1.1em;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box h4 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+
+        .info-box p, .info-box li {
+            color: #0c5460;
+            font-size: 1.1em;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .table-container {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.1em;
+        }
+
+        th {
+            background: #2a5298;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .comparison-box {
+            border: 2px solid #2a5298;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .loop-animation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            position: relative;
+        }
+
+        .broadcast-storm {
+            width: 100px;
+            height: 100px;
+            background: #dc3545;
+            border-radius: 50%;
+            position: absolute;
+            animation: storm 2s infinite;
+            opacity: 0.7;
+        }
+
+        @keyframes storm {
+            0% { transform: scale(0); opacity: 0; }
+            50% { opacity: 0.7; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../../index.html" style="position: fixed; top: 20px; right: 20px; background: rgba(6, 182, 212, 0.9); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s ease;" onmouseover="this.style.background='rgba(6, 182, 212, 1)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(6, 182, 212, 0.9)'; this.style.transform='translateY(0)'">
+        📁 Back to Catalog
+    </a>
+    <div class="presentation">
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <h1>STP</h1>
+            <p class="subtitle">Spanning Tree Protocol</p>
+            <p class="subtitle">Loop Prevention for Switched Networks</p>
+            <div style="text-align: center; margin-top: 80px;">
+                <h3>Network Essentials Course</h3>
+                <p style="font-size: 1.5em; margin-top: 40px;">Understanding Layer 2 Loop Prevention</p>
+            </div>
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 1</div>
+        </div>
+
+        <!-- Slide 2: History & The Problem -->
+        <div class="slide">
+            <h2>STP History & The Problem It Solves</h2>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>1985</h4>
+                    <p>Radia Perlman invents STP algorithm</p>
+                </div>
+                <div class="timeline-item">
+                    <h4>1990</h4>
+                    <p>IEEE 802.1D Standard published</p>
+                </div>
+                <div class="timeline-item">
+                    <h4>2001</h4>
+                    <p>802.1w RSTP (Rapid STP)</p>
+                </div>
+            </div>
+
+            <h3>The Problem: Layer 2 Loops</h3>
+            <div class="loop-animation">
+                <div class="broadcast-storm"></div>
+            </div>
+
+            <ul>
+                <li><strong>Without STP:</strong> Redundant switch links create loops</li>
+                <li><strong>Broadcast storms:</strong> Frames loop infinitely, consuming all bandwidth</li>
+                <li><strong>MAC table instability:</strong> Switches can't learn stable MAC addresses</li>
+                <li><strong>Multiple frame copies:</strong> Hosts receive duplicate frames</li>
+            </ul>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 2</div>
+        </div>
+
+        <!-- Slide 3: What is STP? -->
+        <div class="slide">
+            <h2>What is STP?</h2>
+
+            <div class="info-box">
+                <h4>Definition</h4>
+                <p>STP is a <strong>Layer 2 protocol</strong> that prevents loops in switched networks by logically blocking redundant paths while maintaining them as backup links.</p>
+            </div>
+
+            <h3>Key Characteristics</h3>
+            <ul>
+                <li><strong>Standard:</strong> IEEE 802.1D (original), 802.1w (RSTP), 802.1s (MSTP)</li>
+                <li><strong>Function:</strong> Creates loop-free logical topology</li>
+                <li><strong>Mechanism:</strong> BPDUs (Bridge Protocol Data Units)</li>
+                <li><strong>Default Timer:</strong> Hello 2 seconds, Max Age 20 seconds, Forward Delay 15 seconds</li>
+                <li><strong>Convergence Time:</strong> 30-50 seconds (802.1D), 1-6 seconds (RSTP)</li>
+                <li><strong>Destination MAC:</strong> 01:80:C2:00:00:00 (multicast)</li>
+            </ul>
+
+            <div class="warning-box">
+                <h4>⚠ Important</h4>
+                <p>All Cisco switches run STP by default. It cannot be disabled globally, only per-VLAN.</p>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 3</div>
+        </div>
+
+        <!-- Slide 4: STP Election Process -->
+        <div class="slide">
+            <h2>STP Election Process (3 Steps)</h2>
+
+            <h3>Step 1: Elect Root Bridge</h3>
+            <p><strong>Root Bridge</strong> is the reference point for the spanning tree topology.</p>
+            <ul>
+                <li>Switch with <strong>lowest Bridge ID</strong> becomes Root Bridge</li>
+                <li>Bridge ID = Priority (default 32768) + MAC Address</li>
+                <li>Lower priority wins; if tied, lower MAC wins</li>
+            </ul>
+
+            <h3>Step 2: Elect Root Ports</h3>
+            <p>On each <strong>non-root switch</strong>, select the port with the best path to Root Bridge.</p>
+            <ul>
+                <li>Based on <strong>path cost</strong> (cumulative to Root)</li>
+                <li>One Root Port per non-root switch</li>
+            </ul>
+
+            <h3>Step 3: Elect Designated Ports</h3>
+            <p>On each <strong>network segment</strong>, elect the port that forwards traffic toward Root Bridge.</p>
+            <ul>
+                <li>Switch with lowest cost to Root has Designated Port on that segment</li>
+                <li>All Root Bridge ports are Designated Ports</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>💡 Result</h4>
+                <p>All other ports become <strong>Blocked</strong> (Alternate) ports - preventing loops!</p>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 4</div>
+        </div>
+
+        <!-- Slide 5: Bridge ID and Priority -->
+        <div class="slide">
+            <h2>Bridge ID and Priority</h2>
+
+            <h3>Bridge ID Components</h3>
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Component</th>
+                        <th>Size</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>Priority</td>
+                        <td>4 bits</td>
+                        <td>0-61440 in increments of 4096</td>
+                    </tr>
+                    <tr>
+                        <td>Extended System ID</td>
+                        <td>12 bits</td>
+                        <td>VLAN ID (PVST+)</td>
+                    </tr>
+                    <tr>
+                        <td>MAC Address</td>
+                        <td>48 bits</td>
+                        <td>Switch base MAC address</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>Priority Values</h3>
+            <ul>
+                <li><strong>Default:</strong> 32768 (+ VLAN ID with PVST+)</li>
+                <li><strong>Valid range:</strong> 0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768, 36864, 40960, 45056, 49152, 53248, 57344, 61440</li>
+                <li><strong>Lower is better:</strong> Priority 0 = always becomes Root (if lowest MAC)</li>
+            </ul>
+
+            <div class="code-block">
+! Set priority to make switch Root Bridge
+Switch(config)# spanning-tree vlan 1 priority 4096
+
+! Verify
+Switch# show spanning-tree vlan 1
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 5</div>
+        </div>
+
+        <!-- Slide 6: Port Cost -->
+        <div class="slide">
+            <h2>STP Port Cost</h2>
+
+            <h3>Cost Determines Best Path to Root</h3>
+            <p>Path cost = Sum of all port costs from switch to Root Bridge</p>
+
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Link Speed</th>
+                        <th>802.1D Cost (Old)</th>
+                        <th>802.1w Cost (New)</th>
+                    </tr>
+                    <tr>
+                        <td>10 Mbps</td>
+                        <td>100</td>
+                        <td>2,000,000</td>
+                    </tr>
+                    <tr>
+                        <td>100 Mbps</td>
+                        <td>19</td>
+                        <td>200,000</td>
+                    </tr>
+                    <tr>
+                        <td>1 Gbps</td>
+                        <td>4</td>
+                        <td>20,000</td>
+                    </tr>
+                    <tr>
+                        <td>10 Gbps</td>
+                        <td>2</td>
+                        <td>2,000</td>
+                    </tr>
+                    <tr>
+                        <td>100 Gbps</td>
+                        <td>N/A</td>
+                        <td>200</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠ Cisco Default</h4>
+                <p>Cisco uses "short" (802.1D) cost values by default. Use <code>spanning-tree pathcost method long</code> for newer cost scale.</p>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 6</div>
+        </div>
+
+        <!-- Slide 7: Port States (802.1D) -->
+        <div class="slide">
+            <h2>STP Port States (802.1D)</h2>
+
+            <div class="state-transition">
+                <div class="state-box">
+                    <h4>Disabled</h4>
+                    <p>Administratively down</p>
+                    <p><strong>Time:</strong> N/A</p>
+                </div>
+                <div class="state-box">
+                    <h4>Blocking</h4>
+                    <p>Receives BPDUs only</p>
+                    <p><strong>Time:</strong> 20 sec</p>
+                </div>
+                <div class="state-box">
+                    <h4>Listening</h4>
+                    <p>Sends/receives BPDUs</p>
+                    <p><strong>Time:</strong> 15 sec</p>
+                </div>
+                <div class="state-box">
+                    <h4>Learning</h4>
+                    <p>Builds MAC table</p>
+                    <p><strong>Time:</strong> 15 sec</p>
+                </div>
+                <div class="state-box" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <h4>Forwarding</h4>
+                    <p>Forwards traffic</p>
+                    <p><strong>Active</strong></p>
+                </div>
+            </div>
+
+            <h3>State Transitions</h3>
+            <ul>
+                <li><strong>Blocking → Listening:</strong> Port selected as Root or Designated</li>
+                <li><strong>Listening → Learning:</strong> After 15 seconds (Forward Delay)</li>
+                <li><strong>Learning → Forwarding:</strong> After 15 seconds (Forward Delay)</li>
+                <li><strong>Total Time:</strong> 30-50 seconds to reach Forwarding state</li>
+            </ul>
+
+            <div class="warning-box">
+                <h4>⚠ Convergence Time</h4>
+                <p>802.1D STP takes 30-50 seconds to converge. This is why RSTP (802.1w) was created!</p>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 7</div>
+        </div>
+
+        <!-- Slide 8: BPDU Format -->
+        <div class="slide">
+            <h2>Bridge Protocol Data Units (BPDUs)</h2>
+
+            <div class="network-diagram">
+                <div class="bpdu-packet">BPDU</div>
+            </div>
+
+            <h3>BPDU Contents</h3>
+            <ul>
+                <li><strong>Root Bridge ID:</strong> Who is the Root?</li>
+                <li><strong>Cost to Root:</strong> Sender's path cost to Root</li>
+                <li><strong>Sender Bridge ID:</strong> Who sent this BPDU?</li>
+                <li><strong>Sender Port ID:</strong> Which port sent this?</li>
+                <li><strong>Timers:</strong> Hello, Max Age, Forward Delay</li>
+                <li><strong>Flags:</strong> Topology Change, TC Acknowledgment</li>
+            </ul>
+
+            <h3>BPDU Behavior</h3>
+            <ul>
+                <li><strong>Root Bridge:</strong> Sends BPDUs every 2 seconds (Hello Time)</li>
+                <li><strong>Non-Root Switches:</strong> Relay BPDUs (update cost value)</li>
+                <li><strong>Blocked Ports:</strong> Receive BPDUs, don't forward</li>
+                <li><strong>Max Age (20s):</strong> If no BPDU received, assume link/switch failed</li>
+            </ul>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 8</div>
+        </div>
+
+        <!-- Slide 9: RSTP (802.1w) -->
+        <div class="slide">
+            <h2>RSTP - Rapid Spanning Tree (802.1w)</h2>
+
+            <h3>Why RSTP?</h3>
+            <p>802.1D STP is <strong>too slow</strong> for modern networks (30-50 second convergence)</p>
+
+            <h3>RSTP Improvements</h3>
+            <ul>
+                <li><strong>Faster Convergence:</strong> 1-6 seconds (vs 30-50 seconds)</li>
+                <li><strong>New Port Roles:</strong> Root, Designated, Alternate, Backup</li>
+                <li><strong>New Port States:</strong> Discarding, Learning, Forwarding (3 vs 5 states)</li>
+                <li><strong>Edge Ports:</strong> Immediate forwarding (like PortFast)</li>
+                <li><strong>Point-to-Point Links:</strong> Fast transition between switches</li>
+                <li><strong>Proposal/Agreement:</strong> Rapid synchronization mechanism</li>
+            </ul>
+
+            <div class="comparison-grid">
+                <div class="comparison-box">
+                    <h3>802.1D (STP)</h3>
+                    <ul>
+                        <li>5 port states</li>
+                        <li>Passive convergence</li>
+                        <li>30-50 second failover</li>
+                        <li>Timer-based</li>
+                    </ul>
+                </div>
+                <div class="comparison-box">
+                    <h3>802.1w (RSTP)</h3>
+                    <ul>
+                        <li>3 port states</li>
+                        <li>Active proposal/agreement</li>
+                        <li>1-6 second failover</li>
+                        <li>Handshake-based</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 9</div>
+        </div>
+
+        <!-- Slide 10: PortFast & BPDU Guard -->
+        <div class="slide">
+            <h2>PortFast & BPDU Guard</h2>
+
+            <h3>PortFast</h3>
+            <div class="info-box">
+                <h4>Purpose</h4>
+                <p>Immediately transitions port to Forwarding state (bypasses Listening and Learning)</p>
+            </div>
+
+            <ul>
+                <li><strong>Use Case:</strong> End devices (PCs, servers, printers)</li>
+                <li><strong>Benefit:</strong> Device gets network access immediately (no 30-second wait)</li>
+                <li><strong>Warning:</strong> NEVER use on ports connected to switches!</li>
+            </ul>
+
+            <div class="code-block">
+! Enable PortFast on an access port
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# spanning-tree portfast
+
+! Enable globally on all access ports
+Switch(config)# spanning-tree portfast default
+            </div>
+
+            <h3>BPDU Guard</h3>
+            <div class="warning-box">
+                <h4>⚠ Protection Mechanism</h4>
+                <p>Shuts down port if BPDU is received (prevents accidental loops)</p>
+            </div>
+
+            <div class="code-block">
+! Enable BPDU Guard on PortFast ports
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# spanning-tree bpduguard enable
+
+! Enable globally on all PortFast ports
+Switch(config)# spanning-tree portfast bpduguard default
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 10</div>
+        </div>
+
+        <!-- Slide 11: Root Guard & Loop Guard -->
+        <div class="slide">
+            <h2>Root Guard & Loop Guard</h2>
+
+            <h3>Root Guard</h3>
+            <div class="info-box">
+                <h4>Purpose</h4>
+                <p>Prevents another switch from becoming Root Bridge on a specific port</p>
+            </div>
+
+            <ul>
+                <li><strong>Use Case:</strong> Ports facing access layer or customer equipment</li>
+                <li><strong>Behavior:</strong> If superior BPDU received, port goes into "root-inconsistent" state</li>
+                <li><strong>Recovery:</strong> Automatic when superior BPDUs stop</li>
+            </ul>
+
+            <div class="code-block">
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# spanning-tree guard root
+            </div>
+
+            <h3>Loop Guard</h3>
+            <div class="info-box">
+                <h4>Purpose</h4>
+                <p>Prevents alternate/blocked ports from transitioning to Forwarding due to unidirectional link failure</p>
+            </div>
+
+            <ul>
+                <li><strong>Use Case:</strong> Point-to-point links between switches</li>
+                <li><strong>Behavior:</strong> If BPDUs stop on non-designated port, port goes to "loop-inconsistent" state</li>
+            </ul>
+
+            <div class="code-block">
+! Enable globally
+Switch(config)# spanning-tree loopguard default
+
+! Or per-interface
+Switch(config-if)# spanning-tree guard loop
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 11</div>
+        </div>
+
+        <!-- Slide 12: Implementation -->
+        <div class="slide">
+            <h2>STP Implementation - Basic Configuration</h2>
+
+            <div class="code-block">
+! View current STP status
+Switch# show spanning-tree
+
+! View STP for specific VLAN
+Switch# show spanning-tree vlan 1
+
+! Set switch as Root Bridge (manually set priority)
+Switch(config)# spanning-tree vlan 1 priority 4096
+
+! Or use root primary command (sets priority 24576 or lower)
+Switch(config)# spanning-tree vlan 1 root primary
+
+! Set as secondary root (priority 28672)
+Switch(config)# spanning-tree vlan 1 root secondary
+
+! Enable RSTP mode (Cisco default is PVST+ which is per-VLAN STP)
+Switch(config)# spanning-tree mode rapid-pvst
+
+! Configure port cost manually
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# spanning-tree vlan 1 cost 10
+
+! Configure port priority (lower is better, default 128)
+Switch(config-if)# spanning-tree vlan 1 port-priority 64
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 12</div>
+        </div>
+
+        <!-- Slide 13: Verification Commands -->
+        <div class="slide">
+            <h2>STP Verification Commands</h2>
+
+            <div class="code-block">
+! Show spanning tree summary
+Switch# show spanning-tree
+
+! Show specific VLAN
+Switch# show spanning-tree vlan 10
+
+! Show brief summary
+Switch# show spanning-tree summary
+
+! Show interface details
+Switch# show spanning-tree interface GigabitEthernet0/1
+
+! Show root bridge information
+Switch# show spanning-tree root
+
+! Show bridge ID
+Switch# show spanning-tree bridge
+
+! View inconsistent ports (BPDU Guard, Root Guard violations)
+Switch# show spanning-tree inconsistentports
+
+! Debug BPDUs (use with caution)
+Switch# debug spanning-tree events
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠ Key Output Fields</h4>
+                <ul>
+                    <li><strong>Root ID:</strong> Who is the Root Bridge?</li>
+                    <li><strong>Bridge ID:</strong> This switch's ID</li>
+                    <li><strong>Port Role:</strong> Root (R), Designated (D), Alternate (A), Backup (B)</li>
+                    <li><strong>Port State:</strong> FWD (Forwarding), BLK (Blocking), LRN (Learning)</li>
+                    <li><strong>Cost:</strong> Path cost to Root</li>
+                </ul>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 13</div>
+        </div>
+
+        <!-- Slide 14: Troubleshooting -->
+        <div class="slide">
+            <h2>STP Troubleshooting</h2>
+
+            <h3>Common Issues & Solutions</h3>
+
+            <div class="warning-box">
+                <h4>⚠ Issue: Wrong Root Bridge</h4>
+                <ul>
+                    <li><strong>Symptom:</strong> Suboptimal Root, traffic taking inefficient paths</li>
+                    <li><strong>Cause:</strong> Switch with lowest MAC (not best switch) became Root</li>
+                    <li><strong>Solution:</strong> Manually configure priority on desired Root</li>
+                    <li><strong>Command:</strong> <code>spanning-tree vlan 1 root primary</code></li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠ Issue: Port Stuck in Blocking</h4>
+                <ul>
+                    <li><strong>Symptom:</strong> Port should be Forwarding but stuck Blocking</li>
+                    <li><strong>Cause:</strong> Receiving superior BPDUs, higher cost, or inconsistent state</li>
+                    <li><strong>Check:</strong> <code>show spanning-tree interface</code></li>
+                    <li><strong>Solution:</strong> Verify topology, check for Root Guard violations</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠ Issue: Slow Convergence</h4>
+                <ul>
+                    <li><strong>Symptom:</strong> 30-50 seconds for network to recover</li>
+                    <li><strong>Cause:</strong> Using 802.1D STP instead of RSTP</li>
+                    <li><strong>Solution:</strong> <code>spanning-tree mode rapid-pvst</code></li>
+                </ul>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 14</div>
+        </div>
+
+        <!-- Slide 15: More Troubleshooting -->
+        <div class="slide">
+            <h2>STP Troubleshooting (Continued)</h2>
+
+            <div class="warning-box">
+                <h4>⚠ Issue: Port Err-Disabled</h4>
+                <ul>
+                    <li><strong>Symptom:</strong> Port shut down, LED amber</li>
+                    <li><strong>Cause:</strong> BPDU Guard triggered (BPDU received on PortFast port)</li>
+                    <li><strong>Check:</strong> <code>show interface status err-disabled</code></li>
+                    <li><strong>Recovery:</strong> Remove switch, <code>shutdown</code> then <code>no shutdown</code></li>
+                    <li><strong>Prevention:</strong> Don't connect switches to PortFast ports!</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠ Issue: Broadcast Storm</h4>
+                <ul>
+                    <li><strong>Symptom:</strong> Network extremely slow, CPU 100%, switch fans loud</li>
+                    <li><strong>Cause:</strong> STP disabled or failed, creating Layer 2 loop</li>
+                    <li><strong>Emergency:</strong> Physically unplug redundant links</li>
+                    <li><strong>Solution:</strong> Re-enable STP, verify proper Root election</li>
+                </ul>
+            </div>
+
+            <div class="code-block">
+! Recover from err-disabled
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# shutdown
+Switch(config-if)# no shutdown
+
+! Or enable auto-recovery (after 5 minutes)
+Switch(config)# errdisable recovery cause bpduguard
+Switch(config)# errdisable recovery interval 300
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 15</div>
+        </div>
+
+        <!-- Slide 16: Best Practices -->
+        <div class="slide">
+            <h2>STP Best Practices</h2>
+
+            <h3>✅ DO</h3>
+            <ul>
+                <li><strong>Manually configure Root Bridge</strong> - Don't let lowest MAC decide!</li>
+                <li><strong>Use RSTP (rapid-pvst)</strong> - Faster convergence</li>
+                <li><strong>Enable PortFast on access ports</strong> - Faster end-device connectivity</li>
+                <li><strong>Enable BPDU Guard on PortFast ports</strong> - Prevent loops</li>
+                <li><strong>Enable Root Guard on distribution ports</strong> - Prevent rogue Root</li>
+                <li><strong>Document your STP design</strong> - Know which switch is Root, why</li>
+                <li><strong>Monitor for topology changes</strong> - Frequent changes indicate problems</li>
+            </ul>
+
+            <h3>❌ DON'T</h3>
+            <ul>
+                <li>Don't disable STP (even if you think you don't need it!)</li>
+                <li>Don't use PortFast on trunk or switch-facing ports</li>
+                <li>Don't ignore err-disabled ports (investigate root cause)</li>
+                <li>Don't mix STP modes (PVST+, Rapid-PVST, MST) without planning</li>
+                <li>Don't forget about STP when adding new switches</li>
+            </ul>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 16</div>
+        </div>
+
+        <!-- Slide 17: Quick Reference -->
+        <div class="slide">
+            <h2>STP Quick Reference</h2>
+
+            <div class="comparison-grid">
+                <div class="comparison-box">
+                    <h3>Key Facts</h3>
+                    <ul>
+                        <li><strong>Standard:</strong> 802.1D (STP), 802.1w (RSTP)</li>
+                        <li><strong>Timers:</strong> Hello 2s, Max Age 20s, Forward Delay 15s</li>
+                        <li><strong>Default Priority:</strong> 32768 + VLAN ID</li>
+                        <li><strong>Convergence:</strong> 30-50s (STP), 1-6s (RSTP)</li>
+                        <li><strong>Destination MAC:</strong> 01:80:C2:00:00:00</li>
+                    </ul>
+                </div>
+                <div class="comparison-box">
+                    <h3>Essential Commands</h3>
+                    <ul>
+                        <li><code>show spanning-tree</code></li>
+                        <li><code>show spanning-tree vlan 1</code></li>
+                        <li><code>spanning-tree vlan 1 root primary</code></li>
+                        <li><code>spanning-tree mode rapid-pvst</code></li>
+                        <li><code>spanning-tree portfast</code></li>
+                        <li><code>spanning-tree bpduguard enable</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Port Role</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>Root Port</td>
+                        <td>Best path to Root Bridge (one per non-root switch)</td>
+                    </tr>
+                    <tr>
+                        <td>Designated Port</td>
+                        <td>Forwarding port for each segment</td>
+                    </tr>
+                    <tr>
+                        <td>Alternate Port</td>
+                        <td>Backup path to Root (RSTP)</td>
+                    </tr>
+                    <tr>
+                        <td>Backup Port</td>
+                        <td>Backup on same segment (RSTP, rare)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 17</div>
+        </div>
+
+        <!-- Slide 18: Summary -->
+        <div class="slide">
+            <h2>Summary</h2>
+
+            <h3>What We Learned</h3>
+            <ul>
+                <li>STP is a <strong>Layer 2 protocol</strong> that prevents loops in switched networks</li>
+                <li><strong>Invented by Radia Perlman</strong> in 1985, standardized as IEEE 802.1D</li>
+                <li><strong>Root Bridge election:</strong> Lowest Bridge ID (Priority + MAC)</li>
+                <li><strong>Port roles:</strong> Root, Designated, Blocked/Alternate</li>
+                <li><strong>5 port states (STP):</strong> Disabled, Blocking, Listening, Learning, Forwarding</li>
+                <li><strong>3 port states (RSTP):</strong> Discarding, Learning, Forwarding</li>
+                <li><strong>BPDUs:</strong> Sent every 2 seconds to maintain topology</li>
+                <li><strong>PortFast:</strong> Immediately forward on access ports</li>
+                <li><strong>BPDU Guard:</strong> Protect against loops from user-connected switches</li>
+                <li><strong>RSTP (802.1w):</strong> Fast convergence (1-6 seconds vs 30-50 seconds)</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>Next Steps</h4>
+                <p>Practice STP configuration in Packet Tracer. Create redundant topology, observe Root election, test PortFast and BPDU Guard.</p>
+            </div>
+
+            <div class="prepared-by">Prepared by: EQ6</div>
+            <div class="slide-number">Slide 18</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+        <button id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function showSlide(n) {
+            slides.forEach(slide => slide.classList.remove('active'));
+
+            if (n >= slides.length) {
+                currentSlide = slides.length - 1;
+            } else if (n < 0) {
+                currentSlide = 0;
+            } else {
+                currentSlide = n;
+            }
+
+            slides[currentSlide].classList.add('active');
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === slides.length - 1;
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        });
+
+        showSlide(0);
+    </script>
+</body>
+</html>

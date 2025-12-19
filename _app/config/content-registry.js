@@ -281,15 +281,277 @@ const ContentRegistry = {
             topics: ['networking', 'tcp-ip', 'protocols'],
             paths: ['comptia-network', 'ccna'],
             components: {
-                presentation: 'houses/web/presentations/tcpip-model.html',
-                applet: 'houses/web/applets/tcpip-explorer.html',
-                lab: 'houses/web/labs/tcpip-lab.html'
+                presentation: 'houses/web/presentations/tcp-presentation.html',
+                applet: 'houses/web/applets/visualizers/port-visualizer.html'
             },
             prerequisites: ['web-osi-model'],
             objectives: [
                 'Compare TCP/IP to OSI model',
                 'Understand IP addressing basics',
                 'Analyze TCP vs UDP'
+            ]
+        },
+
+        'web-ip-addressing': {
+            id: 'web-ip-addressing',
+            title: 'IP Addressing & Subnetting',
+            description: 'IPv4 classes, binary conversion, and subnet calculations',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 90,
+            topics: ['ip-addressing', 'subnetting', 'binary'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/subnetting-presentation.html',
+                applet: 'houses/web/applets/visualizers/subnetting-visualizer.html'
+            },
+            prerequisites: ['web-tcpip'],
+            objectives: [
+                'Convert between binary and decimal',
+                'Identify IP address classes',
+                'Calculate subnet masks and ranges'
+            ]
+        },
+
+        'web-vlsm': {
+            id: 'web-vlsm',
+            title: 'VLSM & Advanced Subnetting',
+            description: 'Variable Length Subnet Masking for efficient IP allocation',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['vlsm', 'subnetting', 'ip-addressing'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                applet: 'houses/web/applets/ip-addressing/VLSM/'
+            },
+            prerequisites: ['web-ip-addressing'],
+            objectives: [
+                'Apply VLSM to network designs',
+                'Optimize IP address allocation',
+                'Solve complex subnetting scenarios'
+            ]
+        },
+
+        'web-ipv6': {
+            id: 'web-ipv6',
+            title: 'IPv6 Fundamentals',
+            description: 'Next-generation IP addressing and configuration',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['ipv6', 'addressing', 'networking'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/ipv6-presentation.html',
+                applet: 'houses/web/applets/visualizers/ipv6-visualizer.html'
+            },
+            prerequisites: ['web-ip-addressing'],
+            objectives: [
+                'Understand IPv6 address structure',
+                'Configure IPv6 on devices',
+                'Compare IPv4 and IPv6'
+            ]
+        },
+
+        'web-switching': {
+            id: 'web-switching',
+            title: 'Switching & VLANs',
+            description: 'Layer 2 switching, VLANs, and trunking',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['switching', 'vlans', 'layer2'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/vlan-presentation.html',
+                applet: 'houses/web/applets/visualizers/vlan-visualizer.html'
+            },
+            prerequisites: ['web-osi-model'],
+            objectives: [
+                'Configure VLANs and trunk ports',
+                'Understand switch operations',
+                'Implement inter-VLAN routing'
+            ]
+        },
+
+        'web-stp': {
+            id: 'web-stp',
+            title: 'Spanning Tree Protocol',
+            description: 'Loop prevention and redundancy in switched networks',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['stp', 'switching', 'redundancy'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/stp-presentation.html',
+                applet: 'houses/web/applets/visualizers/stp-visualizer.html'
+            },
+            prerequisites: ['web-switching'],
+            objectives: [
+                'Explain STP operation and port states',
+                'Configure root bridge election',
+                'Troubleshoot STP issues'
+            ]
+        },
+
+        'web-routing': {
+            id: 'web-routing',
+            title: 'Routing Fundamentals',
+            description: 'Static and dynamic routing concepts',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['routing', 'ospf', 'eigrp'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/ospf-presentation.html',
+                applet: 'houses/web/applets/visualizers/ospf-cost-visualizer.html'
+            },
+            prerequisites: ['web-ip-addressing'],
+            objectives: [
+                'Configure static routes',
+                'Understand OSPF and EIGRP basics',
+                'Analyze routing tables'
+            ]
+        },
+
+        'web-fhrp': {
+            id: 'web-fhrp',
+            title: 'First Hop Redundancy',
+            description: 'HSRP, VRRP, and GLBP for gateway redundancy',
+            house: 'web',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['fhrp', 'hsrp', 'redundancy'],
+            paths: ['ccna'],
+            components: {
+                presentation: 'houses/web/presentations/fhrp-presentation.html',
+                applet: 'houses/web/applets/visualizers/fhrp-visualizer.html'
+            },
+            prerequisites: ['web-routing'],
+            objectives: [
+                'Compare HSRP, VRRP, and GLBP',
+                'Configure first hop redundancy',
+                'Design highly available networks'
+            ]
+        },
+
+        'web-wireless': {
+            id: 'web-wireless',
+            title: 'Wireless Networking',
+            description: 'WiFi standards, security, and architecture',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['wireless', 'wifi', '802.11'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/wireless-presentation.html',
+                applet: 'houses/web/applets/visualizers/wireless-visualizer.html'
+            },
+            prerequisites: ['web-osi-model'],
+            objectives: [
+                'Identify wireless standards and frequencies',
+                'Configure wireless security',
+                'Design wireless networks'
+            ]
+        },
+
+        'web-network-services': {
+            id: 'web-network-services',
+            title: 'Network Services',
+            description: 'DHCP, DNS, NTP, and NAT',
+            house: 'web',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['dhcp', 'dns', 'nat', 'services'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                presentation: 'houses/web/presentations/dhcp-presentation.html',
+                applet: 'houses/web/applets/visualizers/network-services-visualizer.html'
+            },
+            prerequisites: ['web-tcpip'],
+            objectives: [
+                'Configure DHCP and DNS',
+                'Understand NAT and PAT',
+                'Implement network time services'
+            ]
+        },
+
+        'web-troubleshooting': {
+            id: 'web-troubleshooting',
+            title: 'Network Troubleshooting',
+            description: 'Systematic approach to diagnosing network issues',
+            house: 'web',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['troubleshooting', 'diagnostics', 'tools'],
+            paths: ['comptia-network'],
+            components: {
+                presentation: 'houses/web/presentations/troubleshooting-presentation.html',
+                applet: 'houses/web/applets/visualizers/troubleshooting-visualizer.html'
+            },
+            prerequisites: ['web-osi-model', 'web-tcpip'],
+            objectives: [
+                'Apply OSI model to troubleshooting',
+                'Use network diagnostic tools',
+                'Develop systematic troubleshooting methodology'
+            ]
+        },
+
+        'web-network-simulator': {
+            id: 'web-network-simulator',
+            title: 'Network Simulator Lab',
+            description: 'Interactive packet tracer-style network simulator',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 120,
+            topics: ['simulation', 'practice', 'hands-on'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                applet: 'houses/web/simulators/packet-tracer-lite-v3.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Build virtual network topologies',
+                'Configure devices interactively',
+                'Test network connectivity'
+            ]
+        },
+
+        'web-cumulative-labs': {
+            id: 'web-cumulative-labs',
+            title: 'Cumulative Lab Series',
+            description: 'Progressive hands-on labs building a complete enterprise network',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 360,
+            topics: ['packet-tracer', 'enterprise', 'hands-on', 'routing', 'switching'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                lab: 'houses/web/labs/CUMULATIVE_LAB_SERIES.md'
+            },
+            prerequisites: ['web-ip-addressing', 'web-switching', 'web-routing'],
+            objectives: [
+                'Build enterprise network from scratch',
+                'Configure VLANs, STP, OSPF, EIGRP progressively',
+                'Implement HSRP, DHCP, ACLs, and SNMP',
+                'Integrate multiple technologies in one topology',
+                'Troubleshoot complex multi-protocol networks'
             ]
         },
 
@@ -316,6 +578,175 @@ const ContentRegistry = {
                 'Define confidentiality, integrity, availability',
                 'Apply CIA triad to real scenarios',
                 'Identify threats to each pillar'
+            ]
+        },
+
+        'shield-security-fundamentals': {
+            id: 'shield-security-fundamentals',
+            title: 'Security Fundamentals',
+            description: 'Core security concepts: 5 pillars, controls, and frameworks',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 60,
+            topics: ['security', 'fundamentals', 'controls', 'five-pillars'],
+            paths: ['comptia-security', 'security-fundamentals'],
+            components: {
+                presentation: 'houses/shield/presentations/security-presentation.html',
+                applet: 'houses/shield/applets/fundamentals/'
+            },
+            prerequisites: ['shield-cia-triad'],
+            objectives: [
+                'Understand the five pillars of information assurance',
+                'Identify types of security controls',
+                'Apply defense-in-depth principles'
+            ]
+        },
+
+        'shield-threat-types': {
+            id: 'shield-threat-types',
+            title: 'Threats & Attacks',
+            description: 'Common attack vectors, malware types, and threat actors',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 75,
+            topics: ['threats', 'malware', 'attacks', 'vulnerabilities'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/threats/'
+            },
+            prerequisites: ['shield-security-fundamentals'],
+            objectives: [
+                'Identify common malware types',
+                'Recognize social engineering techniques',
+                'Understand threat actor motivations'
+            ]
+        },
+
+        'shield-social-engineering': {
+            id: 'shield-social-engineering',
+            title: 'Social Engineering',
+            description: 'Phishing, pretexting, baiting, and human-based attacks',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['social-engineering', 'phishing', 'attacks'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/threats/social-engineering-attacks.html'
+            },
+            prerequisites: ['shield-threat-types'],
+            objectives: [
+                'Identify social engineering attack types',
+                'Recognize phishing indicators',
+                'Apply user awareness training principles'
+            ]
+        },
+
+        'shield-web-attacks': {
+            id: 'shield-web-attacks',
+            title: 'Web Application Attacks',
+            description: 'XSS, SQL injection, CSRF, and web vulnerabilities',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['web-attacks', 'xss', 'sql-injection', 'owasp'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/threats/'
+            },
+            prerequisites: ['shield-threat-types'],
+            objectives: [
+                'Understand XSS attack vectors',
+                'Recognize SQL injection patterns',
+                'Apply OWASP mitigation strategies'
+            ]
+        },
+
+        'shield-cryptography': {
+            id: 'shield-cryptography',
+            title: 'Cryptography Essentials',
+            description: 'Encryption algorithms, hashing, and PKI concepts',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 90,
+            topics: ['cryptography', 'encryption', 'hashing', 'pki'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/crypto/'
+            },
+            prerequisites: ['shield-security-fundamentals'],
+            objectives: [
+                'Compare symmetric vs asymmetric encryption',
+                'Understand hashing and digital signatures',
+                'Explain PKI and certificate chains'
+            ]
+        },
+
+        'shield-network-security': {
+            id: 'shield-network-security',
+            title: 'Network Security',
+            description: 'Firewalls, IDS/IPS, VPNs, and network defense',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['network-security', 'firewalls', 'vpn', 'ids-ips'],
+            paths: ['comptia-security', 'comptia-network'],
+            components: {
+                applet: 'houses/shield/applets/network/'
+            },
+            prerequisites: ['shield-security-fundamentals'],
+            objectives: [
+                'Configure firewall rules and policies',
+                'Compare IDS vs IPS capabilities',
+                'Implement secure network architectures'
+            ]
+        },
+
+        'shield-access-control': {
+            id: 'shield-access-control',
+            title: 'Access Control',
+            description: 'Authentication, authorization, and identity management',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 50,
+            topics: ['access-control', 'authentication', 'authorization'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/access/'
+            },
+            prerequisites: ['shield-security-fundamentals'],
+            objectives: [
+                'Implement multi-factor authentication',
+                'Apply role-based access control',
+                'Manage identity and access lifecycles'
+            ]
+        },
+
+        'shield-risk-management': {
+            id: 'shield-risk-management',
+            title: 'Risk Management',
+            description: 'Risk assessment, analysis, and mitigation strategies',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['risk-management', 'risk-analysis', 'compliance'],
+            paths: ['comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/risk/'
+            },
+            prerequisites: ['shield-security-fundamentals'],
+            objectives: [
+                'Conduct risk assessments',
+                'Calculate risk using quantitative methods',
+                'Develop risk mitigation strategies'
             ]
         },
 
@@ -495,10 +926,24 @@ const ContentRegistry = {
             estimatedHours: 50,
             color: '#3b82f6',
             modules: [
+                // Domain 1: Networking Concepts
                 'web-osi-model',
                 'web-tcpip',
-                'shield-cia-triad'
-                // More to be added
+                'web-ip-addressing',
+                'web-vlsm',
+                'web-ipv6',
+                // Domain 2: Network Implementation
+                'web-switching',
+                'web-stp',
+                'web-routing',
+                'web-wireless',
+                'web-network-services',
+                // Domain 3: Network Operations
+                'web-troubleshooting',
+                // Domain 4: Network Security
+                'shield-cia-triad',
+                // Hands-on Lab
+                'web-network-simulator'
             ]
         },
 
@@ -512,10 +957,23 @@ const ContentRegistry = {
             estimatedHours: 45,
             color: '#ef4444',
             modules: [
+                // Domain 1: General Security Concepts
                 'shield-cia-triad',
+                'shield-security-fundamentals',
+                // Domain 2: Threats, Vulnerabilities, and Mitigations
+                'shield-threat-types',
+                'shield-social-engineering',
+                'shield-web-attacks',
+                // Domain 3: Security Architecture
+                'shield-network-security',
+                'shield-cryptography',
                 'key-encryption-basics',
+                // Domain 4: Security Operations
+                'shield-access-control',
+                // Domain 5: Security Program Management
+                'shield-risk-management',
+                // Networking context
                 'web-osi-model'
-                // More to be added
             ]
         },
 
