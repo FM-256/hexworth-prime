@@ -1576,7 +1576,7 @@
         // Current explore house (for "Explore All" tab)
         let currentExploreHouse = userHouse;
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Check if user has been sorted
             if (!localStorage.getItem('hexworth_house')) {
                 PageTransition.navigateTo('sorting.html', 'magic');
@@ -1610,9 +1610,9 @@
 
             // Check for updates (store globally for manual check)
             window.updateManager = new UpdateManager();
-            window.updateManager.init();
+            await window.updateManager.init();
 
-            // Initialize footer version display
+            // Initialize footer version display (after UpdateManager loads version)
             initFooterVersion();
 
             // Check for backup restore (after update)
@@ -2458,14 +2458,38 @@
             if (!footerVersion) return;
 
             try {
+                // Try to use UpdateManager's version first (it may already be loaded)
+                if (window.updateManager && window.updateManager.localVersion) {
+                    const v = window.updateManager.localVersion;
+                    footerVersion.innerHTML = `
+                        <span class="version-current">v${v.version}</span>
+                        <span class="version-codename">"${v.codename}"</span>
+                    `;
+                    return;
+                }
+
+                // Otherwise load it ourselves
                 const response = await fetch('config/version.json');
+                if (!response.ok) throw new Error('Failed to fetch');
                 const versionData = await response.json();
                 footerVersion.innerHTML = `
                     <span class="version-current">v${versionData.version}</span>
                     <span class="version-codename">"${versionData.codename}"</span>
                 `;
             } catch (e) {
-                footerVersion.innerHTML = '<span class="version-current">Version unknown</span>';
+                console.error('Version load failed:', e);
+                // Retry after a delay in case UpdateManager is still loading
+                setTimeout(async () => {
+                    if (window.updateManager && window.updateManager.localVersion) {
+                        const v = window.updateManager.localVersion;
+                        footerVersion.innerHTML = `
+                            <span class="version-current">v${v.version}</span>
+                            <span class="version-codename">"${v.codename}"</span>
+                        `;
+                    } else {
+                        footerVersion.innerHTML = '<span class="version-current">v1.2.0</span>';
+                    }
+                }, 1000);
             }
         }
 
