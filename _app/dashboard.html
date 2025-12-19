@@ -638,6 +638,59 @@
             letter-spacing: 0.2em;
         }
 
+        .footer-version {
+            margin: 12px 0;
+            font-size: 0.75rem;
+            color: #666;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .version-current {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .version-codename {
+            color: #444;
+            font-style: italic;
+        }
+
+        .version-status {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+
+        .version-status.checking {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            animation: pulse-check 1.5s ease-in-out infinite;
+        }
+
+        .version-status.up-to-date {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+        }
+
+        .version-status.update-available {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+        }
+
+        .version-status.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        @keyframes pulse-check {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         /* Modal System */
         .modal-overlay {
             position: fixed;
@@ -1342,10 +1395,13 @@
 
         <footer class="footer">
             <div class="footer-links">
-                <a href="#" class="footer-link" onclick="openSettings()">Settings</a>
-                <a href="#" class="footer-link" onclick="openAchievements()">Achievements</a>
-                <a href="#" class="footer-link" onclick="checkForUpdates()">Check for Updates</a>
-                <a href="#" class="footer-link" onclick="retakeSorting()">Retake Sorting</a>
+                <a href="javascript:void(0)" class="footer-link" onclick="openSettings()">Settings</a>
+                <a href="javascript:void(0)" class="footer-link" onclick="openAchievements()">Achievements</a>
+                <a href="javascript:void(0)" class="footer-link" onclick="checkForUpdates()">Check for Updates</a>
+                <a href="javascript:void(0)" class="footer-link" onclick="retakeSorting()">Retake Sorting</a>
+            </div>
+            <div class="footer-version" id="footerVersion">
+                <span class="version-current">Loading version...</span>
             </div>
             <div class="footer-note">HEXWORTH PRIME</div>
         </footer>
@@ -1555,6 +1611,9 @@
             // Check for updates (store globally for manual check)
             window.updateManager = new UpdateManager();
             window.updateManager.init();
+
+            // Initialize footer version display
+            initFooterVersion();
 
             // Check for backup restore (after update)
             checkForBackupRestore();
@@ -2389,13 +2448,110 @@
             }).join('');
         }
 
-        // Check for Updates
+        // ─────────────────────────────────────────────────────────────
+        // VERSION & UPDATE SYSTEM
+        // ─────────────────────────────────────────────────────────────
+
+        // Initialize footer version display
+        async function initFooterVersion() {
+            const footerVersion = document.getElementById('footerVersion');
+            if (!footerVersion) return;
+
+            try {
+                const response = await fetch('config/version.json');
+                const versionData = await response.json();
+                footerVersion.innerHTML = `
+                    <span class="version-current">v${versionData.version}</span>
+                    <span class="version-codename">"${versionData.codename}"</span>
+                `;
+            } catch (e) {
+                footerVersion.innerHTML = '<span class="version-current">Version unknown</span>';
+            }
+        }
+
+        // Update footer with status
+        function updateFooterStatus(status, message) {
+            const footerVersion = document.getElementById('footerVersion');
+            if (!footerVersion) return;
+
+            const currentSpan = footerVersion.querySelector('.version-current');
+            const currentText = currentSpan ? currentSpan.textContent : '';
+
+            // Remove existing status
+            const existingStatus = footerVersion.querySelector('.version-status');
+            if (existingStatus) existingStatus.remove();
+
+            // Add new status
+            const statusSpan = document.createElement('span');
+            statusSpan.className = `version-status ${status}`;
+            statusSpan.textContent = message;
+            footerVersion.appendChild(statusSpan);
+
+            // Auto-remove success status after 5 seconds
+            if (status === 'up-to-date') {
+                setTimeout(() => {
+                    statusSpan.style.opacity = '0';
+                    setTimeout(() => statusSpan.remove(), 300);
+                }, 5000);
+            }
+        }
+
+        // Check for Updates with visual feedback
         async function checkForUpdates() {
-            // Use UpdateManager if available
-            if (window.updateManager) {
-                await window.updateManager.forceCheck();
-            } else {
-                alert('Update manager not initialized. Please refresh the page.');
+            const footerVersion = document.getElementById('footerVersion');
+
+            // Show checking status
+            updateFooterStatus('checking', 'Checking...');
+
+            try {
+                if (window.updateManager) {
+                    // Load local version if needed
+                    if (!window.updateManager.localVersion) {
+                        await window.updateManager.loadLocalVersion();
+                    }
+
+                    const localVersion = window.updateManager.localVersion?.version || 'unknown';
+
+                    // Try to fetch remote version
+                    const response = await fetch(
+                        `https://api.github.com/repos/FM-256/hexworth-prime/releases/latest`,
+                        { headers: { 'Accept': 'application/vnd.github.v3+json' } }
+                    );
+
+                    if (response.ok) {
+                        const release = await response.json();
+                        const remoteVersion = release.tag_name.replace(/^v/, '');
+
+                        if (window.updateManager.isNewerVersion(remoteVersion, localVersion)) {
+                            updateFooterStatus('update-available', `v${remoteVersion} available!`);
+                            // Also show the full modal
+                            await window.updateManager.forceCheck();
+                        } else {
+                            updateFooterStatus('up-to-date', `Up to date`);
+                        }
+                    } else {
+                        // No releases found, check version.json fallback
+                        const fallbackResponse = await fetch(
+                            `https://raw.githubusercontent.com/FM-256/hexworth-prime/master/_app/config/version.json`
+                        );
+
+                        if (fallbackResponse.ok) {
+                            const remoteData = await fallbackResponse.json();
+                            if (window.updateManager.isNewerVersion(remoteData.version, localVersion)) {
+                                updateFooterStatus('update-available', `v${remoteData.version} available!`);
+                            } else {
+                                updateFooterStatus('up-to-date', `Up to date`);
+                            }
+                        } else {
+                            updateFooterStatus('up-to-date', `Up to date`);
+                        }
+                    }
+                } else {
+                    updateFooterStatus('error', 'Manager not ready');
+                }
+            } catch (e) {
+                console.error('Update check failed:', e);
+                updateFooterStatus('error', 'Check failed');
             }
         }
 
