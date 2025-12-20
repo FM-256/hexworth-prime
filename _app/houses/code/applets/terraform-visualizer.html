@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform Infrastructure Visualizer - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --terraform-purple: #7B42BC;
+            --terraform-glow: rgba(123, 66, 188, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(123, 66, 188, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            background: transparent;
+            color: var(--terraform-purple);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(123, 66, 188, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(123, 66, 188, 0.15);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 20px;
+            color: var(--terraform-purple);
+            letter-spacing: 0.1em;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .intro-banner {
+            background: linear-gradient(135deg, rgba(123, 66, 188, 0.1), rgba(99, 102, 241, 0.1));
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .intro-banner h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: var(--terraform-purple);
+        }
+
+        .intro-banner p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr 350px;
+            gap: 25px;
+            min-height: 600px;
+        }
+
+        /* Resource Palette */
+        .resource-palette {
+            background: var(--bg-card);
+            border: 1px solid rgba(123, 66, 188, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 250px);
+        }
+
+        .palette-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--terraform-purple);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .resource-category {
+            margin-bottom: 20px;
+        }
+
+        .category-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .resource-item {
+            background: rgba(123, 66, 188, 0.1);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resource-item:hover {
+            border-color: var(--terraform-purple);
+            background: rgba(123, 66, 188, 0.2);
+            transform: translateX(5px);
+        }
+
+        .resource-item:active {
+            cursor: grabbing;
+        }
+
+        .resource-icon {
+            font-size: 1.2rem;
+        }
+
+        .resource-info {
+            flex: 1;
+        }
+
+        .resource-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .resource-type {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            background: var(--bg-card);
+            border: 2px dashed rgba(123, 66, 188, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            min-height: 600px;
+            overflow: auto;
+        }
+
+        .canvas-area.drag-over {
+            border-color: var(--terraform-purple);
+            background: rgba(123, 66, 188, 0.05);
+        }
+
+        .canvas-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .canvas-placeholder.hidden {
+            display: none;
+        }
+
+        .canvas-placeholder h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .canvas-placeholder p {
+            font-size: 0.9rem;
+            opacity: 0.4;
+        }
+
+        /* Placed Resource */
+        .placed-resource {
+            background: rgba(123, 66, 188, 0.15);
+            border: 2px solid rgba(123, 66, 188, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: move;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .placed-resource:hover {
+            border-color: var(--terraform-purple);
+            box-shadow: 0 5px 20px var(--terraform-glow);
+        }
+
+        .placed-resource.selected {
+            border-color: #10b981;
+            box-shadow: 0 5px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .placed-resource-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .placed-resource-icon {
+            font-size: 1.5rem;
+        }
+
+        .placed-resource-info {
+            flex: 1;
+        }
+
+        .placed-resource-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+        }
+
+        .placed-resource-type {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .resource-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .resource-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .resource-action-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .resource-dependencies {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(123, 66, 188, 0.2);
+        }
+
+        /* Code Panel */
+        .code-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(123, 66, 188, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 250px);
+        }
+
+        .code-header {
+            padding: 15px 20px;
+            background: rgba(123, 66, 188, 0.1);
+            border-bottom: 1px solid rgba(123, 66, 188, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--terraform-purple);
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .code-action-btn {
+            padding: 5px 12px;
+            background: rgba(123, 66, 188, 0.2);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .code-action-btn:hover {
+            background: rgba(123, 66, 188, 0.3);
+            border-color: var(--terraform-purple);
+        }
+
+        .code-content {
+            flex: 1;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: #7dd3fc;
+        }
+
+        .code-content .comment {
+            color: #6b7280;
+        }
+
+        .code-content .keyword {
+            color: #fb923c;
+            font-weight: bold;
+        }
+
+        .code-content .string {
+            color: #a78bfa;
+        }
+
+        .code-content .number {
+            color: #10b981;
+        }
+
+        .code-empty {
+            color: var(--text-secondary);
+            font-style: italic;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Plan Output */
+        .plan-output {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .plan-line {
+            margin-bottom: 5px;
+        }
+
+        .plan-add {
+            color: #10b981;
+        }
+
+        .plan-change {
+            color: #f59e0b;
+        }
+
+        .plan-destroy {
+            color: #ef4444;
+        }
+
+        .plan-summary {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(123, 66, 188, 0.2);
+            color: var(--text-secondary);
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--bg-card);
+            border: 1px solid rgba(123, 66, 188, 0.2);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            padding: 10px 20px;
+            background: rgba(123, 66, 188, 0.2);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(123, 66, 188, 0.3);
+            border-color: var(--terraform-purple);
+        }
+
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, var(--terraform-purple), #5b2d8a);
+            border-color: var(--terraform-purple);
+        }
+
+        .toolbar-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--terraform-glow);
+        }
+
+        .toolbar-btn.danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .resource-palette,
+            .code-panel {
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">Terraform Infrastructure Visualizer</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <div class="intro-banner">
+            <h1>🏗️ Design Your Infrastructure</h1>
+            <p>Drag resources from the palette onto the canvas, configure them, and generate Terraform code. Visualize dependencies and simulate terraform plan.</p>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-section">
+                <button class="toolbar-btn primary" onclick="generateCode()">
+                    <span>📝</span> Generate Code
+                </button>
+                <button class="toolbar-btn" onclick="simulatePlan()">
+                    <span>🔍</span> Simulate Plan
+                </button>
+                <button class="toolbar-btn" onclick="copyCode()">
+                    <span>📋</span> Copy Code
+                </button>
+            </div>
+            <div class="toolbar-section">
+                <button class="toolbar-btn danger" onclick="clearCanvas()">
+                    <span>🗑️</span> Clear All
+                </button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Resource Palette -->
+            <div class="resource-palette">
+                <div class="palette-header">Resources</div>
+
+                <div class="resource-category">
+                    <div class="category-title">Compute</div>
+                    <div class="resource-item" draggable="true" data-type="aws_instance" data-icon="💻">
+                        <span class="resource-icon">💻</span>
+                        <div class="resource-info">
+                            <div class="resource-name">EC2 Instance</div>
+                            <div class="resource-type">aws_instance</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="aws_lambda_function" data-icon="⚡">
+                        <span class="resource-icon">⚡</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Lambda Function</div>
+                            <div class="resource-type">aws_lambda_function</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Storage</div>
+                    <div class="resource-item" draggable="true" data-type="aws_s3_bucket" data-icon="🪣">
+                        <span class="resource-icon">🪣</span>
+                        <div class="resource-info">
+                            <div class="resource-name">S3 Bucket</div>
+                            <div class="resource-type">aws_s3_bucket</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="aws_ebs_volume" data-icon="💾">
+                        <span class="resource-icon">💾</span>
+                        <div class="resource-info">
+                            <div class="resource-name">EBS Volume</div>
+                            <div class="resource-type">aws_ebs_volume</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Networking</div>
+                    <div class="resource-item" draggable="true" data-type="aws_vpc" data-icon="🌐">
+                        <span class="resource-icon">🌐</span>
+                        <div class="resource-info">
+                            <div class="resource-name">VPC</div>
+                            <div class="resource-type">aws_vpc</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="aws_subnet" data-icon="🔗">
+                        <span class="resource-icon">🔗</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Subnet</div>
+                            <div class="resource-type">aws_subnet</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="aws_security_group" data-icon="🔒">
+                        <span class="resource-icon">🔒</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Security Group</div>
+                            <div class="resource-type">aws_security_group</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Database</div>
+                    <div class="resource-item" draggable="true" data-type="aws_db_instance" data-icon="🗄️">
+                        <span class="resource-icon">🗄️</span>
+                        <div class="resource-info">
+                            <div class="resource-name">RDS Instance</div>
+                            <div class="resource-type">aws_db_instance</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="aws_dynamodb_table" data-icon="⚙️">
+                        <span class="resource-icon">⚙️</span>
+                        <div class="resource-info">
+                            <div class="resource-name">DynamoDB Table</div>
+                            <div class="resource-type">aws_dynamodb_table</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="canvas-area" id="canvas">
+                <div class="canvas-placeholder" id="placeholder">
+                    <h3>🎨 Drop Resources Here</h3>
+                    <p>Drag resources from the palette to start designing your infrastructure</p>
+                </div>
+            </div>
+
+            <!-- Code Panel -->
+            <div class="code-panel">
+                <div class="code-header">
+                    <span class="code-title">Generated Terraform Code</span>
+                    <div class="code-actions">
+                        <button class="code-action-btn" onclick="downloadCode()">Download</button>
+                    </div>
+                </div>
+                <div class="code-content" id="codeOutput">
+                    <div class="code-empty">Add resources to generate Terraform code</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let placedResources = [];
+        let resourceCounter = 1;
+
+        // Resource templates with sensible defaults
+        const resourceTemplates = {
+            aws_instance: {
+                properties: {
+                    ami: 'ami-0c55b159cbfafe1f0',
+                    instance_type: 't2.micro',
+                    tags: { Name: 'web-server' }
+                }
+            },
+            aws_lambda_function: {
+                properties: {
+                    function_name: 'my-function',
+                    runtime: 'python3.9',
+                    handler: 'index.handler',
+                    role: 'arn:aws:iam::account:role/lambda-role'
+                }
+            },
+            aws_s3_bucket: {
+                properties: {
+                    bucket: 'my-unique-bucket',
+                    acl: 'private'
+                }
+            },
+            aws_ebs_volume: {
+                properties: {
+                    availability_zone: 'us-east-1a',
+                    size: 20
+                }
+            },
+            aws_vpc: {
+                properties: {
+                    cidr_block: '10.0.0.0/16',
+                    tags: { Name: 'main-vpc' }
+                }
+            },
+            aws_subnet: {
+                properties: {
+                    vpc_id: 'vpc_id_placeholder',
+                    cidr_block: '10.0.1.0/24',
+                    availability_zone: 'us-east-1a'
+                }
+            },
+            aws_security_group: {
+                properties: {
+                    name: 'allow_web',
+                    description: 'Allow web traffic',
+                    vpc_id: 'vpc_id_placeholder'
+                }
+            },
+            aws_db_instance: {
+                properties: {
+                    allocated_storage: 20,
+                    engine: 'mysql',
+                    engine_version: '8.0',
+                    instance_class: 'db.t3.micro',
+                    username: 'admin'
+                }
+            },
+            aws_dynamodb_table: {
+                properties: {
+                    name: 'my-table',
+                    billing_mode: 'PAY_PER_REQUEST',
+                    hash_key: 'id'
+                }
+            }
+        };
+
+        // Initialize drag and drop
+        function initDragAndDrop() {
+            const canvas = document.getElementById('canvas');
+            const resourceItems = document.querySelectorAll('.resource-item');
+
+            resourceItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+            });
+
+            canvas.addEventListener('dragover', handleDragOver);
+            canvas.addEventListener('drop', handleDrop);
+            canvas.addEventListener('dragleave', handleDragLeave);
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('resourceType', this.dataset.type);
+            e.dataTransfer.setData('resourceIcon', this.dataset.icon);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (e.currentTarget === e.target) {
+                e.currentTarget.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const canvas = e.currentTarget;
+            canvas.classList.remove('drag-over');
+
+            const resourceType = e.dataTransfer.getData('resourceType');
+            const resourceIcon = e.dataTransfer.getData('resourceIcon');
+
+            addResourceToCanvas(resourceType, resourceIcon);
+        }
+
+        function addResourceToCanvas(type, icon) {
+            const id = `${type}_${resourceCounter++}`;
+            const template = resourceTemplates[type];
+
+            const resource = {
+                id: id,
+                type: type,
+                icon: icon,
+                name: id.replace(/_/g, '-'),
+                properties: { ...template.properties }
+            };
+
+            placedResources.push(resource);
+            renderCanvas();
+            updatePlaceholder();
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const placeholder = document.getElementById('placeholder');
+
+            // Clear existing resources (keep placeholder)
+            const existingResources = canvas.querySelectorAll('.placed-resource');
+            existingResources.forEach(el => el.remove());
+
+            // Render each resource
+            placedResources.forEach((resource, index) => {
+                const el = createResourceElement(resource, index);
+                canvas.appendChild(el);
+            });
+        }
+
+        function createResourceElement(resource, index) {
+            const el = document.createElement('div');
+            el.className = 'placed-resource';
+            el.dataset.index = index;
+
+            const dependencies = detectDependencies(resource);
+            const depText = dependencies.length > 0
+                ? `Depends on: ${dependencies.join(', ')}`
+                : 'No dependencies';
+
+            el.innerHTML = `
+                <div class="placed-resource-header">
+                    <span class="placed-resource-icon">${resource.icon}</span>
+                    <div class="placed-resource-info">
+                        <div class="placed-resource-name">${resource.name}</div>
+                        <div class="placed-resource-type">${resource.type}</div>
+                    </div>
+                    <div class="resource-actions">
+                        <button class="resource-action-btn" onclick="removeResource(${index})" title="Delete">×</button>
+                    </div>
+                </div>
+                <div class="resource-dependencies">${depText}</div>
+            `;
+
+            return el;
+        }
+
+        function detectDependencies(resource) {
+            const deps = [];
+
+            // Check for VPC dependency
+            if (resource.properties.vpc_id && resource.properties.vpc_id.includes('placeholder')) {
+                const vpc = placedResources.find(r => r.type === 'aws_vpc');
+                if (vpc) deps.push(vpc.name);
+            }
+
+            return deps;
+        }
+
+        function removeResource(index) {
+            placedResources.splice(index, 1);
+            renderCanvas();
+            updatePlaceholder();
+            generateCode();
+        }
+
+        function updatePlaceholder() {
+            const placeholder = document.getElementById('placeholder');
+            if (placedResources.length > 0) {
+                placeholder.classList.add('hidden');
+            } else {
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        function clearCanvas() {
+            if (placedResources.length === 0) return;
+
+            if (confirm('Are you sure you want to remove all resources?')) {
+                placedResources = [];
+                renderCanvas();
+                updatePlaceholder();
+                document.getElementById('codeOutput').innerHTML = '<div class="code-empty">Add resources to generate Terraform code</div>';
+            }
+        }
+
+        function generateCode() {
+            if (placedResources.length === 0) {
+                document.getElementById('codeOutput').innerHTML = '<div class="code-empty">Add resources to generate Terraform code</div>';
+                return;
+            }
+
+            let code = `<span class="comment"># Terraform Configuration</span>\n`;
+            code += `<span class="comment"># Generated by Hexworth Prime Terraform Visualizer</span>\n\n`;
+
+            // Add provider
+            code += `<span class="keyword">terraform</span> {\n`;
+            code += `  <span class="keyword">required_providers</span> {\n`;
+            code += `    aws = {\n`;
+            code += `      source  = <span class="string">"hashicorp/aws"</span>\n`;
+            code += `      version = <span class="string">"~> 4.0"</span>\n`;
+            code += `    }\n`;
+            code += `  }\n`;
+            code += `}\n\n`;
+
+            code += `<span class="keyword">provider</span> <span class="string">"aws"</span> {\n`;
+            code += `  region = <span class="string">"us-east-1"</span>\n`;
+            code += `}\n\n`;
+
+            // Add resources
+            placedResources.forEach(resource => {
+                code += generateResourceCode(resource);
+            });
+
+            document.getElementById('codeOutput').innerHTML = code;
+        }
+
+        function generateResourceCode(resource) {
+            let code = `<span class="comment"># ${resource.name}</span>\n`;
+            code += `<span class="keyword">resource</span> <span class="string">"${resource.type}"</span> <span class="string">"${resource.id}"</span> {\n`;
+
+            // Update VPC references if VPC exists
+            let props = { ...resource.properties };
+            if (props.vpc_id && props.vpc_id.includes('placeholder')) {
+                const vpc = placedResources.find(r => r.type === 'aws_vpc');
+                if (vpc) {
+                    props.vpc_id = `aws_vpc.${vpc.id}.id`;
+                }
+            }
+
+            for (const [key, value] of Object.entries(props)) {
+                if (typeof value === 'object') {
+                    code += `  ${key} = {\n`;
+                    for (const [k, v] of Object.entries(value)) {
+                        code += `    ${k} = <span class="string">"${v}"</span>\n`;
+                    }
+                    code += `  }\n`;
+                } else if (typeof value === 'number') {
+                    code += `  ${key} = <span class="number">${value}</span>\n`;
+                } else if (value.startsWith('aws_')) {
+                    code += `  ${key} = ${value}\n`;
+                } else {
+                    code += `  ${key} = <span class="string">"${value}"</span>\n`;
+                }
+            }
+
+            code += `}\n\n`;
+            return code;
+        }
+
+        function simulatePlan() {
+            if (placedResources.length === 0) {
+                alert('Add some resources first!');
+                return;
+            }
+
+            let planOutput = '<div class="plan-output">';
+            planOutput += '<div class="plan-line"><span class="comment">Terraform will perform the following actions:</span></div>\n';
+            planOutput += '<div class="plan-line"></div>\n';
+
+            placedResources.forEach(resource => {
+                planOutput += `<div class="plan-line plan-add">  + ${resource.type}.${resource.id}</div>\n`;
+                planOutput += `<div class="plan-line">      id:               (known after apply)</div>\n`;
+            });
+
+            planOutput += '<div class="plan-line"></div>\n';
+            planOutput += `<div class="plan-summary">Plan: <span class="plan-add">${placedResources.length} to add</span>, <span class="plan-change">0 to change</span>, <span class="plan-destroy">0 to destroy</span>.</div>`;
+            planOutput += '</div>';
+
+            // Add to code panel
+            const codeOutput = document.getElementById('codeOutput');
+            const existingPlan = codeOutput.querySelector('.plan-output');
+            if (existingPlan) existingPlan.remove();
+
+            codeOutput.insertAdjacentHTML('beforeend', planOutput);
+        }
+
+        function copyCode() {
+            const codeOutput = document.getElementById('codeOutput');
+            const text = codeOutput.innerText;
+
+            if (!text || text.includes('Add resources')) {
+                alert('No code to copy! Add some resources first.');
+                return;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Code copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy code. Please copy manually.');
+            });
+        }
+
+        function downloadCode() {
+            const codeOutput = document.getElementById('codeOutput');
+            const text = codeOutput.innerText;
+
+            if (!text || text.includes('Add resources')) {
+                alert('No code to download! Add some resources first.');
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'main.tf';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initDragAndDrop();
+        });
+    </script>
+</body>
+</html>

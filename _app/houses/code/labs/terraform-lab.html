@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terraform Hands-On Lab - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --terraform-purple: #7B42BC;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(123, 66, 188, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            background: transparent;
+            color: var(--terraform-purple);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(123, 66, 188, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(123, 66, 188, 0.15);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 20px;
+            color: var(--terraform-purple);
+            letter-spacing: 0.1em;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .lab-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .lab-header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--terraform-purple);
+        }
+
+        .lab-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(123, 66, 188, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 30px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--terraform-purple), var(--house-color));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .task-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(123, 66, 188, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .task-card.completed {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .task-number {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .task-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(123, 66, 188, 0.1);
+            border: 2px solid rgba(123, 66, 188, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--terraform-purple);
+        }
+
+        .task-card.completed .task-icon {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .task-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .task-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .command-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .command-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .command-text {
+            font-family: 'Courier New', monospace;
+            color: #7dd3fc;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            user-select: all;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background: rgba(123, 66, 188, 0.2);
+            border: 1px solid rgba(123, 66, 188, 0.3);
+            border-radius: 6px;
+            color: var(--terraform-purple);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(123, 66, 188, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .verification-section {
+            background: rgba(123, 66, 188, 0.05);
+            border: 1px solid rgba(123, 66, 188, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .verification-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--terraform-purple);
+            margin-bottom: 10px;
+        }
+
+        .verification-steps {
+            list-style: none;
+            padding: 0;
+        }
+
+        .verification-steps li {
+            padding: 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .verification-steps li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .check-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--terraform-purple), #5b2d8a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(123, 66, 188, 0.3);
+        }
+
+        .check-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hint-box {
+            background: rgba(245, 158, 11, 0.05);
+            border-left: 3px solid var(--warning);
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 15px;
+        }
+
+        .hint-box strong {
+            color: var(--warning);
+            font-size: 0.85rem;
+        }
+
+        .hint-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+
+        .completion-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(123, 66, 188, 0.1));
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .completion-banner.visible {
+            display: block;
+        }
+
+        .completion-banner h2 {
+            font-size: 1.8rem;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        .completion-banner p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .complete-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .task-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">Terraform Hands-On Lab</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <div class="lab-header">
+            <h1>🏗️ Terraform Practical Exercise</h1>
+            <p>Learn Infrastructure as Code hands-on with step-by-step tasks</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">0 of 5 tasks completed</div>
+
+        <!-- Task 1: Write First Configuration -->
+        <div class="task-card" data-task="1">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">1</div>
+                    <div class="task-title">Write Your First Terraform Configuration</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Create a basic Terraform configuration that defines an AWS EC2 instance. You'll learn the structure of .tf files and the basic HCL syntax.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create file: main.tf</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "web_server" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name        = "MyFirstServer"
+    Environment = "Learning"
+  }
+}</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>File contains terraform block with required_providers</li>
+                    <li>Provider is configured for AWS region us-east-1</li>
+                    <li>Resource defines an EC2 instance with AMI and instance type</li>
+                    <li>Tags are properly formatted with Name and Environment</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>The terraform block specifies which provider plugins to download. The provider block configures how to connect to AWS. The resource block declares infrastructure to create.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(1)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 2: Add Variables -->
+        <div class="task-card" data-task="2">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">2</div>
+                    <div class="task-title">Use Variables for Flexibility</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Refactor your configuration to use variables instead of hard-coded values. This makes your infrastructure reusable across different environments.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create file: variables.tf</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">variable "aws_region" {
+  description = "AWS region for resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "learning"
+}</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Update main.tf to use variables</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_instance" "web_server" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = var.instance_type
+
+  tags = {
+    Name        = "MyFirstServer"
+    Environment = var.environment
+  }
+}</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Created variables.tf with three variable definitions</li>
+                    <li>Each variable has description, type, and default value</li>
+                    <li>Updated main.tf to reference variables using var.variable_name</li>
+                    <li>Configuration is now reusable for different environments</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Variables make configurations flexible. You can override defaults using -var flags, .tfvars files, or environment variables. This enables the same code to work in dev, staging, and production.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(2)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 3: Add Outputs -->
+        <div class="task-card" data-task="3">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">3</div>
+                    <div class="task-title">Define Outputs to Extract Information</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Add output values to display important information after terraform apply, such as the instance's public IP address and ID.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create file: outputs.tf</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">output "instance_id" {
+  description = "ID of the EC2 instance"
+  value       = aws_instance.web_server.id
+}
+
+output "instance_public_ip" {
+  description = "Public IP address of the instance"
+  value       = aws_instance.web_server.public_ip
+}
+
+output "instance_state" {
+  description = "Current state of the instance"
+  value       = aws_instance.web_server.instance_state
+}</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Created outputs.tf file</li>
+                    <li>Defined output for instance ID</li>
+                    <li>Defined output for public IP address</li>
+                    <li>Each output has a descriptive description</li>
+                    <li>Outputs reference resource attributes correctly</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Outputs are useful for displaying information after deployment, passing data between Terraform modules, and integrating with other tools. They're shown after terraform apply and can be queried with terraform output.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(3)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 4: Create a Module -->
+        <div class="task-card" data-task="4">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">4</div>
+                    <div class="task-title">Organize Code with Modules</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Create a reusable module for the EC2 instance. Modules help organize code and enable sharing components across projects.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create directory structure</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">mkdir -p modules/ec2-instance
+# Move files to module
+mv variables.tf modules/ec2-instance/
+mv outputs.tf modules/ec2-instance/
+# Create module main.tf with resource definition</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Root main.tf using the module</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+module "web_server" {
+  source = "./modules/ec2-instance"
+
+  aws_region    = "us-east-1"
+  instance_type = "t2.micro"
+  environment   = "production"
+}</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Created modules/ec2-instance directory</li>
+                    <li>Module contains its own variables.tf and outputs.tf</li>
+                    <li>Root main.tf calls the module with source path</li>
+                    <li>Module inputs are passed from root configuration</li>
+                    <li>Code is now reusable and organized</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Modules are the key to writing reusable Terraform code. They package related resources together. You can share modules across teams via Git, Terraform Registry, or private registries.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(4)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 5: Understand State Management -->
+        <div class="task-card" data-task="5">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">5</div>
+                    <div class="task-title">Configure Remote State Backend</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Configure a remote backend for state storage. This is critical for team collaboration and preventing state corruption.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Add backend configuration to main.tf</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+
+  backend "s3" {
+    bucket         = "my-terraform-state-bucket"
+    key            = "learning/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock"
+  }
+}</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Initialize with new backend</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">terraform init -reconfigure</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Added backend block to terraform configuration</li>
+                    <li>Specified S3 bucket for state storage</li>
+                    <li>Enabled encryption for state file</li>
+                    <li>Configured DynamoDB table for state locking</li>
+                    <li>Understand why remote state is critical for teams</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Remote state backends enable team collaboration by storing state in a shared location (S3, Terraform Cloud, Azure Blob). State locking (via DynamoDB) prevents concurrent modifications that could corrupt state. Always encrypt state files - they contain sensitive data!</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(5)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Completion Banner -->
+        <div class="completion-banner" id="completionBanner">
+            <h2>🎉 Lab Complete!</h2>
+            <p>Congratulations! You've mastered the fundamentals of Terraform Infrastructure as Code.</p>
+            <button class="complete-btn" onclick="completeLab()">Mark Lab as Complete</button>
+        </div>
+    </div>
+
+    <script>
+        let completedTasks = new Set();
+        const totalTasks = 5;
+
+        function updateProgress() {
+            const completed = completedTasks.size;
+            const percentage = (completed / totalTasks) * 100;
+
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `${completed} of ${totalTasks} tasks completed`;
+
+            if (completed === totalTasks) {
+                document.getElementById('completionBanner').classList.add('visible');
+            }
+        }
+
+        function completeTask(taskNumber) {
+            if (completedTasks.has(taskNumber)) return;
+
+            completedTasks.add(taskNumber);
+
+            const taskCard = document.querySelector(`[data-task="${taskNumber}"]`);
+            taskCard.classList.add('completed');
+
+            const status = taskCard.querySelector('.task-status');
+            status.textContent = 'Completed';
+            status.className = 'task-status status-completed';
+
+            const button = taskCard.querySelector('.check-btn');
+            button.disabled = true;
+            button.textContent = '✓ Completed';
+
+            updateProgress();
+
+            // Save progress
+            localStorage.setItem('terraform-lab-progress', JSON.stringify([...completedTasks]));
+        }
+
+        function copyCommand(button) {
+            const commandBox = button.closest('.command-box');
+            const commandText = commandBox.querySelector('.command-text').textContent;
+
+            navigator.clipboard.writeText(commandText).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function completeLab() {
+            ModuleProgress.complete('code', 'code-terraform-lab', {
+                returnToDashboard: true
+            });
+        }
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Load progress on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('terraform-lab-progress');
+            if (saved) {
+                const tasks = JSON.parse(saved);
+                tasks.forEach(taskNumber => {
+                    completeTask(taskNumber);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
