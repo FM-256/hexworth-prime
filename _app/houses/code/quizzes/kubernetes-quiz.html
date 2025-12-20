@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Fundamentals Quiz - House of the Code</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827ee;
+            --ink: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #326CE5;
+            --accent-2: #6366F1;
+            --good: #10b981;
+            --bad: #ef4444;
+            --warn: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: radial-gradient(1200px 800px at 110% -10%, #1f2937, transparent 60%),
+                       radial-gradient(1200px 800px at -10% 110%, #111827, transparent 60%),
+                       var(--bg);
+            color: var(--ink);
+            font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.55;
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .title {
+            font-weight: 800;
+            font-size: clamp(22px, 2.3vw, 34px);
+            letter-spacing: 0.3px;
+        }
+
+        .panel {
+            background: linear-gradient(180deg, #0b1220 0%, #0b1120 10%, #0b1020 100%);
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            box-shadow: 0 15px 45px #0008;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        button {
+            appearance: none;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 650;
+            color: #0b1120;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.08s ease, filter 0.15s ease;
+        }
+
+        button.secondary {
+            background: #1f2937;
+            color: var(--ink);
+            border: 1px solid #2b3444;
+        }
+
+        button:hover {
+            filter: brightness(1.05);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .row {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid #202b41;
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid #2b3444;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .progress {
+            height: 10px;
+            background: #111827;
+            border: 1px solid #2b3444;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress > span {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            width: 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .q {
+            margin: 2px 0 10px;
+            font-weight: 700;
+        }
+
+        .opt {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 1px solid #2b3444;
+            border-radius: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .opt:hover {
+            background: rgba(50, 108, 229, 0.05);
+            border-color: var(--accent);
+        }
+
+        .opt input {
+            margin-top: 4px;
+        }
+
+        .opt.correct {
+            border-color: color-mix(in hsl, var(--good), #fff 20%);
+            background: #052e1a;
+        }
+
+        .opt.wrong {
+            border-color: color-mix(in hsl, var(--bad), #fff 30%);
+            background: #2a0b0b;
+        }
+
+        .msg {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        @media(min-width: 860px) {
+            .grid {
+                grid-template-columns: 1.2fr 0.8fr;
+            }
+        }
+
+        .score-good {
+            color: var(--good);
+        }
+
+        .score-mid {
+            color: var(--warn);
+        }
+
+        .score-bad {
+            color: var(--bad);
+        }
+
+        .footer {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .timer {
+            font-variant-numeric: tabular-nums;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="title">Kubernetes Fundamentals Quiz <span style="opacity:.55">— Test Your Knowledge</span></div>
+            <div class="toolbar">
+                <button id="startBtn">Start</button>
+                <button id="resetBtn" class="secondary" title="Clear answers and restart">Reset</button>
+            </div>
+        </header>
+
+        <div class="panel card" id="intro">
+            <div class="row" style="align-items:flex-start">
+                <div style="flex:1;min-width:260px">
+                    <h2 style="margin:.2rem 0 0">Instructions</h2>
+                    <ul style="margin:.4rem 0 1rem; line-height:1.8">
+                        <li>This quiz contains <strong>10 questions</strong> covering Kubernetes fundamentals.</li>
+                        <li>Total points: <strong>100</strong> (<em>10 points</em> each)</li>
+                        <li>Time limit: <strong>20 minutes</strong></li>
+                        <li>Your progress autosaves locally.</li>
+                    </ul>
+                    <div class="meta">
+                        <span class="chip">Kubernetes Basics</span>
+                        <span class="chip">Container Orchestration</span>
+                        <span class="chip">Time-boxed</span>
+                        <span class="chip">Autosave</span>
+                    </div>
+                </div>
+                <div style="flex:1;min-width:260px">
+                    <div class="card" style="background:#0b1220;border-color:#1f2937">
+                        <div class="row" style="justify-content:space-between;align-items:center">
+                            <div>
+                                <div class="msg">Timer</div>
+                                <div class="timer" id="timer">20:00</div>
+                            </div>
+                            <div style="flex:1"></div>
+                            <div style="min-width:55%;">
+                                <div class="msg">Progress</div>
+                                <div class="progress" aria-label="Quiz completion">
+                                    <span id="progressBar" style="width:0%"></span>
+                                </div>
+                                <div class="msg" id="progressText" aria-live="polite">0 / 10 answered</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="grid" id="quizArea" aria-live="polite">
+            <section id="questions"></section>
+            <aside>
+                <div class="card">
+                    <h3 style="margin-top:0">Your Status</h3>
+                    <p class="msg">Answer all questions, then submit.</p>
+                    <div class="row">
+                        <button id="submitBtn">Submit Quiz</button>
+                        <button id="reviewBtn" class="secondary">Review Answers</button>
+                    </div>
+                    <hr style="border-color:#253049;margin:16px 0">
+                    <div class="msg">Score</div>
+                    <div id="scoreDisplay" style="font-size:28px;font-weight:800">—</div>
+                    <div id="scoreNote" class="footer">Not graded yet</div>
+                </div>
+            </aside>
+        </main>
+
+        <section class="panel card hidden" id="results">
+            <h2 style="margin-top:0">Results</h2>
+            <p id="resultsSummary"></p>
+            <div id="resultsList"></div>
+            <div class="row" style="margin-top:10px">
+                <button id="retryBtn">Retry</button>
+                <button id="showKeyBtn" class="secondary">Show Answer Key</button>
+            </div>
+        </section>
+
+        <footer class="footer">Kubernetes Fundamentals Quiz • House of the Code • Hexworth Prime</footer>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "kubernetes_quiz_v1";
+        const TOTAL_TIME_SECONDS = 20 * 60;
+        let remaining = TOTAL_TIME_SECONDS;
+        let timerId = null;
+        let submitted = false;
+
+        const quiz = [
+            {
+                id: 1,
+                type: "mc",
+                points: 10,
+                stem: "What is the smallest deployable unit in Kubernetes?",
+                choices: [
+                    "Container",
+                    "Pod",
+                    "Deployment",
+                    "Node"
+                ],
+                answer: 1
+            },
+            {
+                id: 2,
+                type: "mc",
+                points: 10,
+                stem: "Which Kubernetes component is responsible for scheduling pods to nodes?",
+                choices: [
+                    "Controller Manager",
+                    "API Server",
+                    "Scheduler",
+                    "Kubelet"
+                ],
+                answer: 2
+            },
+            {
+                id: 3,
+                type: "mc",
+                points: 10,
+                stem: "What is the purpose of a Kubernetes Service?",
+                choices: [
+                    "To store container images",
+                    "To provide stable networking and load balancing for pods",
+                    "To schedule pods to nodes",
+                    "To store configuration data"
+                ],
+                answer: 1
+            },
+            {
+                id: 4,
+                type: "tf",
+                points: 10,
+                stem: "A Pod can contain multiple containers that share the same network namespace and storage volumes.",
+                answer: true
+            },
+            {
+                id: 5,
+                type: "mc",
+                points: 10,
+                stem: "Which kubectl command is used to create resources from a YAML file?",
+                choices: [
+                    "kubectl create",
+                    "kubectl apply",
+                    "kubectl run",
+                    "kubectl make"
+                ],
+                answer: 1
+            },
+            {
+                id: 6,
+                type: "mc",
+                points: 10,
+                stem: "What does a Deployment provide that a Pod does not?",
+                choices: [
+                    "The ability to run containers",
+                    "Network isolation",
+                    "Self-healing, scaling, and rolling updates",
+                    "Access to ConfigMaps and Secrets"
+                ],
+                answer: 2
+            },
+            {
+                id: 7,
+                type: "mc",
+                points: 10,
+                stem: "Where does Kubernetes store all cluster data and state?",
+                choices: [
+                    "In the API Server",
+                    "In etcd",
+                    "In the Scheduler",
+                    "In ConfigMaps"
+                ],
+                answer: 1
+            },
+            {
+                id: 8,
+                type: "mc",
+                points: 10,
+                stem: "Which Kubernetes object is used to store sensitive information like passwords?",
+                choices: [
+                    "ConfigMap",
+                    "Volume",
+                    "Secret",
+                    "Namespace"
+                ],
+                answer: 2
+            },
+            {
+                id: 9,
+                type: "tf",
+                points: 10,
+                stem: "The kubelet is the agent that runs on each worker node and ensures containers are running in pods.",
+                answer: true
+            },
+            {
+                id: 10,
+                type: "mc",
+                points: 10,
+                stem: "What command would you use to scale a deployment named 'webapp' to 5 replicas?",
+                choices: [
+                    "kubectl scale webapp --replicas=5",
+                    "kubectl scale deployment webapp --replicas=5",
+                    "kubectl set replicas webapp 5",
+                    "kubectl update deployment webapp --size=5"
+                ],
+                answer: 1
+            }
+        ];
+
+        const el = sel => document.querySelector(sel);
+        const els = sel => Array.from(document.querySelectorAll(sel));
+
+        function renderQuestions() {
+            const container = el('#questions');
+            container.innerHTML = '';
+            quiz.forEach((q, idx) => {
+                const wrap = document.createElement('article');
+                wrap.className = 'card';
+                wrap.setAttribute('data-qid', q.id);
+
+                const header = document.createElement('div');
+                header.className = 'meta';
+                header.innerHTML = `<span class="chip">Question ${idx + 1}</span><span class="chip">${q.points} pts</span>`;
+
+                const h = document.createElement('h3');
+                h.className = 'q';
+                h.textContent = q.stem;
+
+                const area = document.createElement('div');
+
+                if (q.type === 'mc') {
+                    q.choices.forEach((c, i) => {
+                        const id = `q${q.id}_opt${i}`;
+                        const lab = document.createElement('label');
+                        lab.className = 'opt';
+                        lab.innerHTML = `<input type="radio" name="q${q.id}" id="${id}" value="${i}" aria-label="${c}"><div>${String.fromCharCode(65 + i)}) ${c}</div>`;
+                        area.appendChild(lab);
+                    });
+                }
+
+                if (q.type === 'tf') {
+                    ["True", "False"].forEach((c, i) => {
+                        const id = `q${q.id}_tf${i}`;
+                        const lab = document.createElement('label');
+                        lab.className = 'opt';
+                        lab.innerHTML = `<input type="radio" name="q${q.id}" id="${id}" value="${i === 0}"><div>${c}</div>`;
+                        area.appendChild(lab);
+                    });
+                }
+
+                wrap.appendChild(header);
+                wrap.appendChild(h);
+                wrap.appendChild(area);
+                container.appendChild(wrap);
+            });
+        }
+
+        function getAnswers() {
+            const answers = {};
+            quiz.forEach(q => {
+                const picked = el(`input[name="q${q.id}"]:checked`);
+                answers[q.id] = picked ? picked.value : null;
+            });
+            return answers;
+        }
+
+        function setAnswers(answers) {
+            quiz.forEach(q => {
+                if (q.type === 'tf') {
+                    const val = String(answers?.[q.id]);
+                    if (val !== 'null') {
+                        const inp = el(`input[name="q${q.id}"][value="${val}"]`);
+                        if (inp) inp.checked = true;
+                    }
+                } else {
+                    const val = answers?.[q.id];
+                    if (val !== null && val !== undefined) {
+                        const inp = el(`input[name="q${q.id}"][value="${val}"]`);
+                        if (inp) inp.checked = true;
+                    }
+                }
+            });
+        }
+
+        function updateProgress() {
+            const a = getAnswers();
+            const answered = quiz.filter(q => {
+                const v = a[q.id];
+                return v !== null && v !== undefined;
+            }).length;
+            const pct = Math.round((answered / quiz.length) * 100);
+            el('#progressBar').style.width = pct + '%';
+            el('#progressText').textContent = `${answered} / ${quiz.length} answered`;
+        }
+
+        function grade() {
+            const a = getAnswers();
+            let total = 0;
+            const details = [];
+
+            quiz.forEach(q => {
+                let correct = false;
+                let correctVal = null;
+
+                if (q.type === 'mc') {
+                    correct = String(a[q.id]) === String(q.answer);
+                    correctVal = q.choices[q.answer];
+                } else if (q.type === 'tf') {
+                    correct = String(a[q.id]) === String(q.answer);
+                    correctVal = q.answer ? 'True' : 'False';
+                }
+
+                const earned = correct ? q.points : 0;
+                total += earned;
+                details.push({
+                    id: q.id,
+                    correct,
+                    earned,
+                    points: q.points,
+                    stem: q.stem,
+                    user: a[q.id],
+                    correctVal
+                });
+            });
+
+            return { total, details };
+        }
+
+        function showResults(r) {
+            el('#results').classList.remove('hidden');
+            const pct = Math.round((r.total / 100) * 100);
+            el('#resultsSummary').innerHTML = `<strong>Score:</strong> ${r.total}/100 (${pct}%)`;
+            const sd = el('#scoreDisplay');
+            sd.textContent = `${r.total} / 100`;
+            sd.className = r.total >= 90 ? 'score-good' : r.total >= 70 ? 'score-mid' : 'score-bad';
+            el('#scoreNote').textContent = 'Submitted';
+
+            const list = el('#resultsList');
+            list.innerHTML = '';
+            r.details.forEach((d, i) => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                const mark = d.correct ? `<span class="score-good">✔ Correct</span>` : `<span class="score-bad">✖ Incorrect</span>`;
+                const userLabel = (function () {
+                    const q = quiz.find(x => x.id === d.id);
+                    if (q.type === 'mc') {
+                        const idx = parseInt(d.user, 10);
+                        if (Number.isInteger(idx)) return `${String.fromCharCode(65 + idx)}) ${q.choices[idx]}`;
+                        return '<em>No answer</em>';
+                    }
+                    if (q.type === 'tf') {
+                        if (d.user === null || d.user === undefined) return '<em>No answer</em>';
+                        return (String(d.user) === 'true') ? 'True' : 'False';
+                    }
+                })();
+
+                const correctLabel = (function () {
+                    const q = quiz.find(x => x.id === d.id);
+                    if (q.type === 'mc') return `${String.fromCharCode(65 + q.answer)}) ${q.choices[q.answer]}`;
+                    if (q.type === 'tf') return q.answer ? 'True' : 'False';
+                    return d.correctVal;
+                })();
+
+                div.innerHTML = `
+                    <div class="meta"><span class="chip">Question ${i + 1}</span><span class="chip">${d.points} pts</span></div>
+                    <div style="font-weight:700;margin:8px 0">${d.stem}</div>
+                    <div class="msg">Your answer: ${userLabel}</div>
+                    <div class="msg">Correct answer: <strong>${correctLabel}</strong></div>
+                    <div style="margin-top:6px">${mark} — <span class="msg">${d.earned} / ${d.points} pts</span></div>
+                `;
+                list.appendChild(div);
+            });
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function reviewMode() {
+            const r = grade();
+            r.details.forEach(d => {
+                const q = quiz.find(x => x.id === d.id);
+                const holder = document.querySelector(`[data-qid="${d.id}"]`);
+                if (q.type === 'mc' || q.type === 'tf') {
+                    const opts = holder.querySelectorAll('.opt');
+                    opts.forEach((lab, idx) => {
+                        lab.classList.remove('correct', 'wrong');
+                        if (q.type === 'mc') {
+                            if (idx === q.answer) lab.classList.add('correct');
+                            const radio = lab.querySelector('input');
+                            if (radio.checked && idx !== q.answer) lab.classList.add('wrong');
+                        } else if (q.type === 'tf') {
+                            const truth = idx === 0;
+                            if (truth === q.answer) lab.classList.add('correct');
+                            const radio = lab.querySelector('input');
+                            if (String(radio.value) !== String(q.answer) && radio.checked) lab.classList.add('wrong');
+                        }
+                    });
+                }
+            });
+        }
+
+        function persist() {
+            const payload = {
+                remaining,
+                answers: getAnswers(),
+                submitted
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        }
+
+        function restore() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            try {
+                const data = JSON.parse(raw);
+                if (data.answers) setAnswers(data.answers);
+                if (Number.isInteger(data.remaining)) remaining = data.remaining;
+                submitted = !!data.submitted;
+            } catch { }
+        }
+
+        function startTimer() {
+            clearInterval(timerId);
+            timerId = setInterval(() => {
+                remaining--;
+                if (remaining < 0) {
+                    remaining = 0;
+                    clearInterval(timerId);
+                    autoSubmit();
+                }
+                const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+                const s = String(remaining % 60).padStart(2, '0');
+                el('#timer').textContent = `${m}:${s}`;
+                persist();
+            }, 1000);
+        }
+
+        function autoSubmit() {
+            if (submitted) return;
+            const r = grade();
+            submitted = true;
+            showResults(r);
+            reviewMode();
+            persist();
+            alert('Time is up. Your quiz has been submitted.');
+        }
+
+        function submitQuiz() {
+            const r = grade();
+            submitted = true;
+            showResults(r);
+            reviewMode();
+            persist();
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('code', 'kubernetes-quiz', r.total, {
+                    maxScore: 100,
+                    showNotification: true
+                });
+            }
+        }
+
+        function resetAll() {
+            if (!confirm('Reset quiz and clear saved progress?')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            remaining = TOTAL_TIME_SECONDS;
+            submitted = false;
+            clearInterval(timerId);
+            el('#timer').textContent = '20:00';
+            renderQuestions();
+            updateProgress();
+            el('#results').classList.add('hidden');
+            el('#scoreDisplay').textContent = '—';
+            el('#scoreDisplay').className = '';
+            el('#scoreNote').textContent = 'Not graded yet';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showAnswerKey() {
+            const list = el('#resultsList');
+            list.innerHTML = '';
+            quiz.forEach((q, i) => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                const correct = (function () {
+                    if (q.type === 'mc') return `${String.fromCharCode(65 + q.answer)}) ${q.choices[q.answer]}`;
+                    if (q.type === 'tf') return q.answer ? 'True' : 'False';
+                    return 'N/A';
+                })();
+                div.innerHTML = `
+                    <div class="meta"><span class="chip">Question ${i + 1}</span><span class="chip">${q.points} pts</span></div>
+                    <div style="font-weight:700;margin:8px 0">${q.stem}</div>
+                    <div class="msg">Correct answer: <strong>${correct}</strong></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.addEventListener('load', () => {
+            renderQuestions();
+            restore();
+            updateProgress();
+            els('input').forEach(x => x.addEventListener('input', updateProgress));
+        });
+
+        addEventListener('input', e => {
+            if (e.target.matches('input')) {
+                updateProgress();
+                persist();
+            }
+        });
+
+        el('#startBtn').addEventListener('click', () => {
+            if (timerId) {
+                if (confirm('Timer is already running. Restart timer?')) {
+                    remaining = TOTAL_TIME_SECONDS;
+                }
+            }
+            startTimer();
+        });
+
+        el('#submitBtn').addEventListener('click', submitQuiz);
+        el('#reviewBtn').addEventListener('click', () => {
+            reviewMode();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        el('#resetBtn').addEventListener('click', resetAll);
+        el('#retryBtn').addEventListener('click', () => {
+            submitted = false;
+            el('#results').classList.add('hidden');
+            reviewMode();
+            persist();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        el('#showKeyBtn').addEventListener('click', showAnswerKey);
+
+        setInterval(updateProgress, 1500);
+    </script>
+</body>
+</html>

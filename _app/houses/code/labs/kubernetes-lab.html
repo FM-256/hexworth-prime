@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Hands-On Lab - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --k8s-blue: #326CE5;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .lab-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .lab-header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--k8s-blue);
+        }
+
+        .lab-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 30px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--k8s-blue), var(--house-color));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .task-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .task-card.completed {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .task-number {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .task-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(50, 108, 229, 0.1);
+            border: 2px solid rgba(50, 108, 229, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--k8s-blue);
+        }
+
+        .task-card.completed .task-icon {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .task-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .task-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .yaml-box, .command-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(50, 108, 229, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .box-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .yaml-text, .command-text {
+            font-family: 'Courier New', monospace;
+            color: #7dd3fc;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            user-select: all;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .command-text {
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background: rgba(50, 108, 229, 0.2);
+            border: 1px solid rgba(50, 108, 229, 0.3);
+            border-radius: 6px;
+            color: var(--k8s-blue);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(50, 108, 229, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .verification-section {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .verification-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--house-color);
+            margin-bottom: 10px;
+        }
+
+        .verification-steps {
+            list-style: none;
+            padding: 0;
+        }
+
+        .verification-steps li {
+            padding: 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .verification-steps li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .check-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--k8s-blue), #1e5bc7);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(50, 108, 229, 0.3);
+        }
+
+        .hint-box {
+            background: rgba(245, 158, 11, 0.05);
+            border-left: 3px solid var(--warning);
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 15px;
+        }
+
+        .hint-box strong {
+            color: var(--warning);
+            font-size: 0.85rem;
+        }
+
+        .hint-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+
+        .completion-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(99, 102, 241, 0.1));
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .completion-banner.visible {
+            display: block;
+        }
+
+        .completion-banner h2 {
+            font-size: 1.8rem;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        .completion-banner p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .complete-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .task-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">Kubernetes Hands-On Lab</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <div class="lab-header">
+            <h1>⎈ Kubernetes Hands-On Lab</h1>
+            <p>Complete these practical exercises to master Kubernetes fundamentals</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">0 of 5 tasks completed</div>
+
+        <!-- Task 1: Create a Pod -->
+        <div class="task-card" data-task="1">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">1</div>
+                    <div class="task-title">Create a Simple Pod</div>
+                </div>
+                <div class="task-status status-pending">Pending</div>
+            </div>
+
+            <div class="task-description">
+                Create your first Kubernetes Pod using a YAML manifest. This Pod will run a single NGINX container.
+            </div>
+
+            <div class="yaml-box">
+                <div class="box-label">nginx-pod.yaml</div>
+                <div class="yaml-text">apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, `apiVersion: v1\nkind: Pod\nmetadata:\n  name: nginx-pod\n  labels:\n    app: nginx\nspec:\n  containers:\n  - name: nginx\n    image: nginx:latest\n    ports:\n    - containerPort: 80`)">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Apply the Pod</div>
+                <div class="command-text">kubectl apply -f nginx-pod.yaml</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl apply -f nginx-pod.yaml')">Copy</button>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Create the YAML file with the content above</li>
+                    <li>Run the kubectl apply command</li>
+                    <li>Check pod status: <code>kubectl get pods</code></li>
+                    <li>Verify it's running: <code>kubectl describe pod nginx-pod</code></li>
+                </ul>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(1)">Mark as Complete</button>
+
+            <div class="hint-box">
+                <strong>Hint:</strong>
+                <p>If you don't have a Kubernetes cluster, you can use Minikube locally or try our Kubernetes Simulator to practice the commands!</p>
+            </div>
+        </div>
+
+        <!-- Task 2: Create a Deployment -->
+        <div class="task-card" data-task="2">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">2</div>
+                    <div class="task-title">Create a Deployment</div>
+                </div>
+                <div class="task-status status-pending">Pending</div>
+            </div>
+
+            <div class="task-description">
+                Create a Deployment that manages 3 replicas of an NGINX pod. Deployments provide self-healing and scaling capabilities.
+            </div>
+
+            <div class="yaml-box">
+                <div class="box-label">nginx-deployment.yaml</div>
+                <div class="yaml-text">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx-deployment\n  labels:\n    app: nginx\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.24\n        ports:\n        - containerPort: 80\n        resources:\n          requests:\n            memory: \"64Mi\"\n            cpu: \"100m\"\n          limits:\n            memory: \"128Mi\"\n            cpu: \"200m\"`)">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Apply the Deployment</div>
+                <div class="command-text">kubectl apply -f nginx-deployment.yaml</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl apply -f nginx-deployment.yaml')">Copy</button>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Apply the deployment YAML</li>
+                    <li>Check deployment status: <code>kubectl get deployments</code></li>
+                    <li>Verify all 3 pods are running: <code>kubectl get pods</code></li>
+                    <li>Check rollout status: <code>kubectl rollout status deployment/nginx-deployment</code></li>
+                </ul>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(2)">Mark as Complete</button>
+        </div>
+
+        <!-- Task 3: Expose with a Service -->
+        <div class="task-card" data-task="3">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">3</div>
+                    <div class="task-title">Expose with a Service</div>
+                </div>
+                <div class="task-status status-pending">Pending</div>
+            </div>
+
+            <div class="task-description">
+                Create a Service to expose your NGINX deployment. Services provide stable networking and load balancing across pods.
+            </div>
+
+            <div class="yaml-box">
+                <div class="box-label">nginx-service.yaml</div>
+                <div class="yaml-text">apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30080</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, `apiVersion: v1\nkind: Service\nmetadata:\n  name: nginx-service\nspec:\n  selector:\n    app: nginx\n  type: LoadBalancer\n  ports:\n  - protocol: TCP\n    port: 80\n    targetPort: 80\n    nodePort: 30080`)">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Apply the Service</div>
+                <div class="command-text">kubectl apply -f nginx-service.yaml</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl apply -f nginx-service.yaml')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">View the Service</div>
+                <div class="command-text">kubectl get services
+kubectl describe service nginx-service</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl get services')">Copy</button>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Apply the service YAML</li>
+                    <li>Check service status: <code>kubectl get svc</code></li>
+                    <li>Verify endpoints are populated: <code>kubectl get endpoints nginx-service</code></li>
+                    <li>Test access (if using Minikube): <code>minikube service nginx-service</code></li>
+                </ul>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(3)">Mark as Complete</button>
+
+            <div class="hint-box">
+                <strong>Note:</strong>
+                <p>LoadBalancer type requires a cloud provider or MetalLB. For local testing with Minikube, use NodePort instead or the minikube service command.</p>
+            </div>
+        </div>
+
+        <!-- Task 4: Scale the Deployment -->
+        <div class="task-card" data-task="4">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">4</div>
+                    <div class="task-title">Scale the Deployment</div>
+                </div>
+                <div class="task-status status-pending">Pending</div>
+            </div>
+
+            <div class="task-description">
+                Practice scaling your deployment up and down. This demonstrates Kubernetes' ability to dynamically adjust resources.
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Scale Up to 5 Replicas</div>
+                <div class="command-text">kubectl scale deployment nginx-deployment --replicas=5</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl scale deployment nginx-deployment --replicas=5')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Watch Pods Being Created</div>
+                <div class="command-text">kubectl get pods -w</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl get pods -w')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Scale Down to 2 Replicas</div>
+                <div class="command-text">kubectl scale deployment nginx-deployment --replicas=2</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl scale deployment nginx-deployment --replicas=2')">Copy</button>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Scale up to 5 replicas and verify: <code>kubectl get deployment nginx-deployment</code></li>
+                    <li>Confirm all 5 pods are running: <code>kubectl get pods</code></li>
+                    <li>Scale down to 2 replicas</li>
+                    <li>Verify 2 pods remain: <code>kubectl get pods</code></li>
+                </ul>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(4)">Mark as Complete</button>
+
+            <div class="hint-box">
+                <strong>Pro Tip:</strong>
+                <p>Use <code>kubectl get pods -w</code> (watch mode) to see pods being created or terminated in real-time. Press Ctrl+C to exit watch mode.</p>
+            </div>
+        </div>
+
+        <!-- Task 5: Update the Deployment -->
+        <div class="task-card" data-task="5">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">5</div>
+                    <div class="task-title">Perform a Rolling Update</div>
+                </div>
+                <div class="task-status status-pending">Pending</div>
+            </div>
+
+            <div class="task-description">
+                Update your deployment to use a different NGINX version. Kubernetes will perform a rolling update with zero downtime.
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Update Image Version</div>
+                <div class="command-text">kubectl set image deployment/nginx-deployment nginx=nginx:1.25</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl set image deployment/nginx-deployment nginx=nginx:1.25')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Watch the Rollout</div>
+                <div class="command-text">kubectl rollout status deployment/nginx-deployment</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl rollout status deployment/nginx-deployment')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">View Rollout History</div>
+                <div class="command-text">kubectl rollout history deployment/nginx-deployment</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl rollout history deployment/nginx-deployment')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Rollback if Needed</div>
+                <div class="command-text">kubectl rollout undo deployment/nginx-deployment</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl rollout undo deployment/nginx-deployment')">Copy</button>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Update the image to nginx:1.25</li>
+                    <li>Watch the rollout progress complete successfully</li>
+                    <li>Verify new version: <code>kubectl describe deployment nginx-deployment</code></li>
+                    <li>Optional: Test rollback and verify it returns to previous version</li>
+                </ul>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(5)">Mark as Complete</button>
+
+            <div class="hint-box">
+                <strong>Production Tip:</strong>
+                <p>Always test updates in a staging environment first. Use <code>kubectl rollout pause</code> to pause a rollout if issues are detected, investigate, then <code>kubectl rollout resume</code> or undo.</p>
+            </div>
+        </div>
+
+        <!-- Bonus Section -->
+        <div class="task-card" style="border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.03);">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: var(--warning);">★</div>
+                    <div class="task-title">Bonus: Cleanup Commands</div>
+                </div>
+            </div>
+
+            <div class="task-description">
+                Clean up all the resources you created during this lab.
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Delete All Resources</div>
+                <div class="command-text">kubectl delete service nginx-service
+kubectl delete deployment nginx-deployment
+kubectl delete pod nginx-pod
+
+# Or delete all at once:
+kubectl delete -f nginx-service.yaml
+kubectl delete -f nginx-deployment.yaml
+kubectl delete -f nginx-pod.yaml</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl delete service nginx-service\nkubectl delete deployment nginx-deployment\nkubectl delete pod nginx-pod')">Copy</button>
+            </div>
+
+            <div class="command-box">
+                <div class="box-label">Verify Cleanup</div>
+                <div class="command-text">kubectl get all</div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'kubectl get all')">Copy</button>
+            </div>
+        </div>
+
+        <!-- Completion Banner -->
+        <div class="completion-banner" id="completionBanner">
+            <h2>🎉 Congratulations!</h2>
+            <p>You've completed all Kubernetes hands-on lab exercises!</p>
+            <button class="complete-btn" onclick="completeLab()">Complete Lab & Return to Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        const totalTasks = 5;
+        let completedTasks = new Set();
+
+        // Load progress from localStorage
+        function loadProgress() {
+            const saved = localStorage.getItem('k8s_lab_progress');
+            if (saved) {
+                completedTasks = new Set(JSON.parse(saved));
+                completedTasks.forEach(taskNum => {
+                    updateTaskUI(taskNum, true);
+                });
+                updateProgress();
+            }
+        }
+
+        // Save progress to localStorage
+        function saveProgress() {
+            localStorage.setItem('k8s_lab_progress', JSON.stringify([...completedTasks]));
+        }
+
+        // Complete a task
+        function completeTask(taskNum) {
+            if (completedTasks.has(taskNum)) return;
+
+            completedTasks.add(taskNum);
+            updateTaskUI(taskNum, true);
+            updateProgress();
+            saveProgress();
+
+            // Check if all tasks complete
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completionBanner').classList.add('visible');
+            }
+        }
+
+        // Update task UI
+        function updateTaskUI(taskNum, isComplete) {
+            const card = document.querySelector(`[data-task="${taskNum}"]`);
+            const status = card.querySelector('.task-status');
+            const icon = card.querySelector('.task-icon');
+
+            if (isComplete) {
+                card.classList.add('completed');
+                status.textContent = 'Completed';
+                status.className = 'task-status status-completed';
+                icon.textContent = '✓';
+            }
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const percentage = (completedTasks.size / totalTasks) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent =
+                `${completedTasks.size} of ${totalTasks} tasks completed`;
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(button, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Complete lab and return
+        function completeLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'kubernetes-lab', {
+                    returnToDashboard: true,
+                    timeSpent: 45
+                });
+            } else {
+                goBack();
+            }
+        }
+
+        // Navigate back
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', loadProgress);
+    </script>
+</body>
+</html>

@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Cluster Simulator - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --k8s-blue: #326CE5;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        .terminal-section {
+            background: rgba(5, 5, 10, 0.95);
+            border-right: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            padding: 15px 20px;
+            background: rgba(99, 102, 241, 0.05);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--k8s-blue);
+        }
+
+        .terminal {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .terminal-output {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .terminal-success {
+            color: var(--success);
+        }
+
+        .terminal-error {
+            color: var(--error);
+        }
+
+        .terminal-prompt {
+            color: var(--k8s-blue);
+            margin-right: 8px;
+        }
+
+        .terminal-input-container {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .send-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, var(--k8s-blue), #1e5bc7);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .cluster-section {
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .cluster-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .cluster-header h2 {
+            font-size: 1.5rem;
+            color: var(--k8s-blue);
+            margin-bottom: 10px;
+        }
+
+        .cluster-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .cluster-status.healthy {
+            color: var(--success);
+        }
+
+        .nodes-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .node-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .node-card.ready {
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .node-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--k8s-blue);
+        }
+
+        .node-status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .node-status-badge.ready {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .node-status-badge.not-ready {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .node-info {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .pods-in-node {
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+            padding-top: 15px;
+        }
+
+        .pods-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .pod-item {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .pod-item:hover {
+            border-color: var(--k8s-blue);
+            transform: translateX(3px);
+        }
+
+        .pod-item.running {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .pod-item.pending {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .pod-name {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .pod-status {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .pod-status.running {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .pod-status.pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .commands-help {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .commands-help h3 {
+            font-size: 1rem;
+            color: var(--k8s-blue);
+            margin-bottom: 15px;
+        }
+
+        .command-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .help-command {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            background: rgba(99, 102, 241, 0.05);
+            border-left: 3px solid var(--k8s-blue);
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .help-command:hover {
+            background: rgba(99, 102, 241, 0.1);
+            transform: translateX(3px);
+        }
+
+        .help-command code {
+            color: var(--k8s-blue);
+            font-weight: 600;
+        }
+
+        .help-command span {
+            color: var(--text-secondary);
+            margin-left: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            padding: 20px;
+        }
+
+        @keyframes podAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .pod-item.new {
+            animation: podAppear 0.3s ease;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 400px 1fr;
+            }
+
+            .terminal-section {
+                border-right: none;
+                border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">Kubernetes Cluster Simulator</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="main-container">
+        <!-- Terminal Section -->
+        <div class="terminal-section">
+            <div class="terminal-header">kubectl Terminal</div>
+            <div class="terminal" id="terminal">
+                <div class="terminal-output terminal-success">
+                    Welcome to the Kubernetes Cluster Simulator!
+                </div>
+                <div class="terminal-output">
+                    Cluster: hexworth-cluster (3 nodes, Ready)
+                </div>
+                <div class="terminal-output" style="margin-top: 15px;">
+                    Try commands like:
+                    - kubectl get pods
+                    - kubectl get nodes
+                    - kubectl apply -f nginx-deployment.yaml
+                    - kubectl scale deployment nginx --replicas=5
+                </div>
+            </div>
+            <div class="terminal-input-container">
+                <span class="terminal-prompt">$</span>
+                <input
+                    type="text"
+                    class="terminal-input"
+                    id="terminalInput"
+                    placeholder="kubectl get pods"
+                    autocomplete="off"
+                >
+                <button class="send-btn" onclick="executeCommand()">Run</button>
+            </div>
+        </div>
+
+        <!-- Cluster Visualization Section -->
+        <div class="cluster-section">
+            <div class="cluster-header">
+                <h2>Cluster Visualization</h2>
+                <div class="cluster-status healthy" id="clusterStatus">
+                    ✓ All nodes ready (3/3)
+                </div>
+            </div>
+
+            <div class="nodes-container" id="nodesContainer">
+                <!-- Nodes will be rendered here -->
+            </div>
+
+            <div class="commands-help">
+                <h3>Quick Commands</h3>
+                <div class="command-list">
+                    <div class="help-command" onclick="quickCommand('kubectl get pods')">
+                        <code>kubectl get pods</code>
+                        <span>List all pods</span>
+                    </div>
+                    <div class="help-command" onclick="quickCommand('kubectl get nodes')">
+                        <code>kubectl get nodes</code>
+                        <span>List all nodes</span>
+                    </div>
+                    <div class="help-command" onclick="quickCommand('kubectl apply -f nginx-deployment.yaml')">
+                        <code>kubectl apply -f nginx-deployment.yaml</code>
+                        <span>Create deployment</span>
+                    </div>
+                    <div class="help-command" onclick="quickCommand('kubectl scale deployment nginx --replicas=5')">
+                        <code>kubectl scale deployment nginx --replicas=5</code>
+                        <span>Scale to 5 replicas</span>
+                    </div>
+                    <div class="help-command" onclick="quickCommand('kubectl delete deployment nginx')">
+                        <code>kubectl delete deployment nginx</code>
+                        <span>Delete deployment</span>
+                    </div>
+                    <div class="help-command" onclick="quickCommand('kubectl describe pod nginx-')">
+                        <code>kubectl describe pod [pod-name]</code>
+                        <span>Show pod details</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cluster state
+        const cluster = {
+            nodes: [
+                { name: 'node-1', status: 'Ready', role: 'control-plane', pods: [] },
+                { name: 'node-2', status: 'Ready', role: 'worker', pods: [] },
+                { name: 'node-3', status: 'Ready', role: 'worker', pods: [] }
+            ],
+            deployments: {}
+        };
+
+        let podCounter = 0;
+
+        // Initialize
+        function init() {
+            renderNodes();
+            document.getElementById('terminalInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') executeCommand();
+            });
+        }
+
+        // Render cluster nodes
+        function renderNodes() {
+            const container = document.getElementById('nodesContainer');
+            container.innerHTML = '';
+
+            cluster.nodes.forEach(node => {
+                const nodeCard = document.createElement('div');
+                nodeCard.className = `node-card ${node.status.toLowerCase()}`;
+
+                const podsHtml = node.pods.length > 0
+                    ? node.pods.map(pod => `
+                        <div class="pod-item ${pod.status.toLowerCase()} new">
+                            <span class="pod-name">${pod.name}</span>
+                            <span class="pod-status ${pod.status.toLowerCase()}">${pod.status}</span>
+                        </div>
+                    `).join('')
+                    : '<div class="empty-state">No pods scheduled</div>';
+
+                nodeCard.innerHTML = `
+                    <div class="node-header">
+                        <div class="node-name">${node.name}</div>
+                        <div class="node-status-badge ${node.status.toLowerCase().replace(' ', '-')}">
+                            ${node.status}
+                        </div>
+                    </div>
+                    <div class="node-info">
+                        Role: ${node.role} | Pods: ${node.pods.length}
+                    </div>
+                    <div class="pods-in-node">
+                        <div class="pods-label">Pods on this node</div>
+                        ${podsHtml}
+                    </div>
+                `;
+
+                container.appendChild(nodeCard);
+            });
+
+            // Remove 'new' class after animation
+            setTimeout(() => {
+                document.querySelectorAll('.pod-item.new').forEach(el => {
+                    el.classList.remove('new');
+                });
+            }, 300);
+        }
+
+        // Add terminal output
+        function addOutput(text, type = 'normal') {
+            const terminal = document.getElementById('terminal');
+            const output = document.createElement('div');
+            output.className = `terminal-output ${type === 'success' ? 'terminal-success' : type === 'error' ? 'terminal-error' : ''}`;
+            output.textContent = text;
+            terminal.appendChild(output);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Execute kubectl command
+        function executeCommand() {
+            const input = document.getElementById('terminalInput');
+            const command = input.value.trim();
+
+            if (!command) return;
+
+            // Echo command
+            addOutput(`$ ${command}`);
+
+            // Process command
+            processCommand(command);
+
+            // Clear input
+            input.value = '';
+        }
+
+        // Process command
+        function processCommand(command) {
+            const parts = command.split(' ');
+
+            // kubectl get commands
+            if (command.includes('kubectl get pods')) {
+                getPods();
+            } else if (command.includes('kubectl get nodes')) {
+                getNodes();
+            } else if (command.includes('kubectl get deployments') || command.includes('kubectl get deploy')) {
+                getDeployments();
+            }
+            // kubectl describe
+            else if (command.includes('kubectl describe pod')) {
+                const podName = parts[parts.length - 1];
+                describePod(podName);
+            }
+            // kubectl apply
+            else if (command.includes('kubectl apply')) {
+                if (command.includes('nginx-deployment.yaml')) {
+                    applyDeployment('nginx', 3);
+                } else if (command.includes('webapp-deployment.yaml')) {
+                    applyDeployment('webapp', 2);
+                } else {
+                    addOutput('deployment.yaml applied', 'success');
+                    applyDeployment('myapp', 3);
+                }
+            }
+            // kubectl scale
+            else if (command.includes('kubectl scale')) {
+                const match = command.match(/--replicas[=\s]+(\d+)/);
+                const deployMatch = command.match(/deployment[\/\s]+(\S+)/);
+                if (match && deployMatch) {
+                    scaleDeployment(deployMatch[1], parseInt(match[1]));
+                } else {
+                    addOutput('Error: invalid scale command', 'error');
+                }
+            }
+            // kubectl delete
+            else if (command.includes('kubectl delete deployment')) {
+                const deployName = parts[parts.length - 1];
+                deleteDeployment(deployName);
+            } else if (command.includes('kubectl delete pod')) {
+                const podName = parts[parts.length - 1];
+                deletePod(podName);
+            }
+            // Help
+            else if (command === 'help' || command === 'kubectl --help') {
+                showHelp();
+            }
+            // Unknown command
+            else {
+                addOutput(`Error: unknown command or not implemented in simulator`, 'error');
+                addOutput('Try: kubectl get pods, kubectl get nodes, kubectl apply -f nginx-deployment.yaml');
+            }
+        }
+
+        // Get pods
+        function getPods() {
+            const allPods = cluster.nodes.flatMap(n => n.pods);
+
+            if (allPods.length === 0) {
+                addOutput('No resources found in default namespace.');
+                return;
+            }
+
+            addOutput('NAME                     READY   STATUS    RESTARTS   AGE');
+            allPods.forEach(pod => {
+                const padding = ' '.repeat(25 - pod.name.length);
+                addOutput(`${pod.name}${padding}1/1     ${pod.status}     0          ${Math.floor(Math.random() * 60)}s`);
+            });
+        }
+
+        // Get nodes
+        function getNodes() {
+            addOutput('NAME      STATUS   ROLES           AGE   VERSION');
+            cluster.nodes.forEach(node => {
+                const padding1 = ' '.repeat(10 - node.name.length);
+                const padding2 = ' '.repeat(16 - node.role.length);
+                addOutput(`${node.name}${padding1}${node.status}   ${node.role}${padding2}42d   v1.28.0`);
+            });
+        }
+
+        // Get deployments
+        function getDeployments() {
+            const deployments = Object.keys(cluster.deployments);
+
+            if (deployments.length === 0) {
+                addOutput('No resources found in default namespace.');
+                return;
+            }
+
+            addOutput('NAME     READY   UP-TO-DATE   AVAILABLE   AGE');
+            deployments.forEach(name => {
+                const replicas = cluster.deployments[name];
+                const padding = ' '.repeat(9 - name.length);
+                addOutput(`${name}${padding}${replicas}/${replicas}   ${replicas}            ${replicas}           ${Math.floor(Math.random() * 300)}s`);
+            });
+        }
+
+        // Apply deployment
+        function applyDeployment(name, replicas) {
+            addOutput(`deployment.apps/${name} created`, 'success');
+            cluster.deployments[name] = replicas;
+
+            // Create pods
+            for (let i = 0; i < replicas; i++) {
+                createPod(name);
+            }
+
+            renderNodes();
+        }
+
+        // Create a pod
+        function createPod(deploymentName) {
+            const pod = {
+                name: `${deploymentName}-${generatePodId()}`,
+                status: 'Running',
+                deployment: deploymentName
+            };
+
+            // Schedule to random worker node
+            const workerNodes = cluster.nodes.filter(n => n.role === 'worker');
+            const randomNode = workerNodes[Math.floor(Math.random() * workerNodes.length)];
+            randomNode.pods.push(pod);
+
+            return pod;
+        }
+
+        // Generate pod ID
+        function generatePodId() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let id = '';
+            for (let i = 0; i < 10; i++) {
+                id += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return id;
+        }
+
+        // Scale deployment
+        function scaleDeployment(name, newReplicas) {
+            if (!cluster.deployments[name]) {
+                addOutput(`Error: deployment "${name}" not found`, 'error');
+                return;
+            }
+
+            const currentReplicas = cluster.deployments[name];
+            cluster.deployments[name] = newReplicas;
+
+            // Remove or add pods
+            if (newReplicas < currentReplicas) {
+                // Remove pods
+                const toRemove = currentReplicas - newReplicas;
+                for (let i = 0; i < toRemove; i++) {
+                    for (let node of cluster.nodes) {
+                        const podIndex = node.pods.findIndex(p => p.deployment === name);
+                        if (podIndex !== -1) {
+                            node.pods.splice(podIndex, 1);
+                            break;
+                        }
+                    }
+                }
+                addOutput(`deployment.apps/${name} scaled (${currentReplicas} → ${newReplicas})`, 'success');
+            } else if (newReplicas > currentReplicas) {
+                // Add pods
+                const toAdd = newReplicas - currentReplicas;
+                for (let i = 0; i < toAdd; i++) {
+                    createPod(name);
+                }
+                addOutput(`deployment.apps/${name} scaled (${currentReplicas} → ${newReplicas})`, 'success');
+            } else {
+                addOutput(`deployment.apps/${name} already at ${newReplicas} replicas`);
+            }
+
+            renderNodes();
+        }
+
+        // Delete deployment
+        function deleteDeployment(name) {
+            if (!cluster.deployments[name]) {
+                addOutput(`Error: deployment "${name}" not found`, 'error');
+                return;
+            }
+
+            // Remove all pods from this deployment
+            cluster.nodes.forEach(node => {
+                node.pods = node.pods.filter(p => p.deployment !== name);
+            });
+
+            delete cluster.deployments[name];
+            addOutput(`deployment.apps/${name} deleted`, 'success');
+            renderNodes();
+        }
+
+        // Delete pod
+        function deletePod(podName) {
+            let found = false;
+            for (let node of cluster.nodes) {
+                const index = node.pods.findIndex(p => p.name.startsWith(podName));
+                if (index !== -1) {
+                    const pod = node.pods[index];
+                    node.pods.splice(index, 1);
+                    addOutput(`pod "${pod.name}" deleted`, 'success');
+
+                    // If part of deployment, recreate
+                    if (pod.deployment && cluster.deployments[pod.deployment]) {
+                        setTimeout(() => {
+                            addOutput(`pod "${createPod(pod.deployment).name}" created (replacement)`, 'success');
+                            renderNodes();
+                        }, 1000);
+                    }
+
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                addOutput(`Error: pod "${podName}" not found`, 'error');
+            } else {
+                renderNodes();
+            }
+        }
+
+        // Describe pod
+        function describePod(podName) {
+            let pod = null;
+            let nodeName = null;
+
+            for (let node of cluster.nodes) {
+                const found = node.pods.find(p => p.name.startsWith(podName));
+                if (found) {
+                    pod = found;
+                    nodeName = node.name;
+                    break;
+                }
+            }
+
+            if (!pod) {
+                addOutput(`Error: pod "${podName}" not found`, 'error');
+                return;
+            }
+
+            addOutput(`Name:         ${pod.name}`);
+            addOutput(`Namespace:    default`);
+            addOutput(`Node:         ${nodeName}`);
+            addOutput(`Status:       ${pod.status}`);
+            addOutput(`IP:           10.244.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`);
+            addOutput(`Controlled By:  ReplicaSet/${pod.deployment}`);
+            addOutput('Containers:');
+            addOutput(`  ${pod.deployment}:`);
+            addOutput(`    Image:      nginx:latest`);
+            addOutput(`    Port:       80/TCP`);
+            addOutput(`    State:      Running`);
+        }
+
+        // Show help
+        function showHelp() {
+            addOutput('Available commands:');
+            addOutput('  kubectl get pods              - List all pods');
+            addOutput('  kubectl get nodes             - List all nodes');
+            addOutput('  kubectl get deployments       - List deployments');
+            addOutput('  kubectl apply -f <file>       - Create deployment');
+            addOutput('  kubectl scale deployment <name> --replicas=<n>');
+            addOutput('  kubectl delete deployment <name>');
+            addOutput('  kubectl delete pod <name>');
+            addOutput('  kubectl describe pod <name>');
+        }
+
+        // Quick command helper
+        function quickCommand(cmd) {
+            document.getElementById('terminalInput').value = cmd;
+            document.getElementById('terminalInput').focus();
+        }
+
+        // Navigation
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
