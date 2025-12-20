@@ -34,6 +34,8 @@ const AccessGuard = (function() {
             house: 'hexworth_house',
             theme: 'hexworth_theme',
             godMode: 'hexworth_god_mode',
+            divergent: 'hexworth_divergent',
+            houseHopper: 'hexworth_house_hopper',
             gatePrefix: 'gate',
             gateAnswerPrefix: 'gate'
         },
@@ -58,8 +60,22 @@ const AccessGuard = (function() {
     }
 
     // Check if user has God Mode (bypasses all checks)
+    // NOTE: God Mode uses sessionStorage - it resets when browser/tab closes
     function hasGodMode() {
-        return localStorage.getItem(config.storageKeys.godMode) === 'true';
+        return sessionStorage.getItem(config.storageKeys.godMode) === 'true';
+    }
+
+    // Toggle God Mode (session-only, never persisted)
+    function toggleGodMode() {
+        const current = hasGodMode();
+        if (current) {
+            sessionStorage.removeItem(config.storageKeys.godMode);
+            console.log('%c👁️ God Mode Deactivated', 'color: #666; font-size: 14px;');
+        } else {
+            sessionStorage.setItem(config.storageKeys.godMode, 'true');
+            console.log('%c👁️ GOD MODE ACTIVATED', 'color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #ffd700;');
+        }
+        return !current;
     }
 
     // Check if user has been sorted
@@ -70,6 +86,16 @@ const AccessGuard = (function() {
     // Get user's house
     function getUserHouse() {
         return localStorage.getItem(config.storageKeys.house);
+    }
+
+    // Check if user is Divergent (Factionless)
+    function isDivergent() {
+        return localStorage.getItem(config.storageKeys.divergent) === 'true';
+    }
+
+    // Check if user is a House Hopper (can access all house content)
+    function isHouseHopper() {
+        return localStorage.getItem(config.storageKeys.houseHopper) === 'true';
     }
 
     // Check if user has passed a specific Dark Arts gate
@@ -176,6 +202,10 @@ const AccessGuard = (function() {
                     message = 'You must complete the Sorting Quiz first.';
                 } else if (param === 'any' || param === undefined) {
                     authorized = true;
+                } else if (isHouseHopper()) {
+                    // House Hoppers (Divergent) can access ANY house content
+                    authorized = true;
+                    console.log('%c⚡ House Hopper Access Granted', 'color: #ff00ff;');
                 } else {
                     const userHouse = getUserHouse();
                     // Allow access if user is in the specified house
@@ -282,7 +312,8 @@ const AccessGuard = (function() {
                     passed = isSorted();
                     break;
                 case 'house':
-                    passed = isSorted() && (param === 'any' || getUserHouse() === param);
+                    // House hoppers can access any house
+                    passed = isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param);
                     break;
                 case 'gate':
                     passed = hasPassedGatesUpTo(parseInt(param) || 1);
@@ -326,7 +357,8 @@ const AccessGuard = (function() {
                     passed = isSorted();
                     break;
                 case 'house':
-                    passed = isSorted() && (param === 'any' || getUserHouse() === param);
+                    // House hoppers can access any house
+                    passed = isSorted() && (param === 'any' || isHouseHopper() || getUserHouse() === param);
                     break;
                 case 'gate':
                     passed = hasPassedGatesUpTo(parseInt(param) || 1);
@@ -358,8 +390,11 @@ const AccessGuard = (function() {
         requireAll,
         requireAny,
         hasGodMode,
+        toggleGodMode,
         isSorted,
         getUserHouse,
+        isDivergent,
+        isHouseHopper,
         hasPassedGate,
         hasPassedGatesUpTo,
         showContent,

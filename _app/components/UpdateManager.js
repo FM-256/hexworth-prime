@@ -216,11 +216,21 @@ class UpdateManager {
         if (this.isNewerVersion(remoteVersion.version, this.localVersion.version)) {
             const dismissed = localStorage.getItem(this.options.storageKeys.dismissed);
             if (dismissed !== remoteVersion.version) {
+                // Format changelog array into markdown string
+                let changelogBody = 'New version available!';
+                if (Array.isArray(remoteVersion.changelog)) {
+                    changelogBody = remoteVersion.changelog
+                        .map(item => `${item.icon || '•'} **${item.title}**: ${item.description}`)
+                        .join('\n\n');
+                } else if (typeof remoteVersion.changelog === 'string') {
+                    changelogBody = remoteVersion.changelog;
+                }
+
                 // Create a pseudo-release object
                 this.remoteRelease = {
                     tag_name: remoteVersion.version,
-                    name: `Hexworth Prime ${remoteVersion.version}`,
-                    body: remoteVersion.changelog || 'New version available!',
+                    name: `${remoteVersion.codename || 'Hexworth Prime'} ${remoteVersion.version}`,
+                    body: changelogBody,
                     published_at: remoteVersion.releaseDate,
                     html_url: `https://github.com/${this.options.owner}/${this.options.repo}/releases`,
                     assets: []

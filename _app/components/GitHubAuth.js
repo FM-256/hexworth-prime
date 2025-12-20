@@ -478,47 +478,24 @@ class GitHubAuth {
                     <h2>Sign in with GitHub</h2>
                 </div>
                 <div class="modal-content">
-                    <div class="login-step step-loading">
-                        <div class="spinner"></div>
-                        <p>Initializing...</p>
-                    </div>
-                    <div class="login-step step-code" style="display: none;">
-                        <p>Enter this code at:</p>
-                        <a href="" target="_blank" class="verification-link"></a>
-                        <div class="user-code"></div>
-                        <button class="copy-code-btn">Copy Code</button>
-                        <div class="waiting-message">
-                            <div class="spinner small"></div>
-                            <span>Waiting for authorization...</span>
-                        </div>
+                    <div class="login-step step-main">
+                        <p class="login-intro">Connect your GitHub account to sync progress and compete on leaderboards.</p>
+                        <button class="token-login-btn primary-login-btn">
+                            <span>🔑</span> Sign in with Personal Access Token
+                        </button>
+                        <button class="oauth-login-btn disabled-btn" disabled title="Coming soon - requires backend server">
+                            <span>🔒</span> OAuth Sign-in (Coming Soon)
+                        </button>
                     </div>
                     <div class="login-step step-success" style="display: none;">
                         <div class="success-icon">✓</div>
                         <p>Welcome, <span class="username"></span>!</p>
-                    </div>
-                    <div class="login-step step-error" style="display: none;">
-                        <div class="error-icon">✗</div>
-                        <p class="error-message"></p>
-                        <button class="retry-btn">Try Again</button>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <div class="alt-login">
-                        <span>Or use a </span>
-                        <button class="token-login-btn">Personal Access Token</button>
                     </div>
                 </div>
             </div>
         `;
 
         document.body.appendChild(overlay);
-
-        // Get elements
-        const modal = overlay.querySelector('.github-login-modal');
-        const stepLoading = overlay.querySelector('.step-loading');
-        const stepCode = overlay.querySelector('.step-code');
-        const stepSuccess = overlay.querySelector('.step-success');
-        const stepError = overlay.querySelector('.step-error');
 
         // Close handlers
         const close = () => overlay.remove();
@@ -527,58 +504,14 @@ class GitHubAuth {
             if (e.target === overlay) close();
         });
 
-        // Token login alternative
+        // Token login button - opens PAT modal
         overlay.querySelector('.token-login-btn').addEventListener('click', () => {
-            this.showTokenLoginModal();
             close();
+            this.showTokenLoginModal();
         });
 
-        try {
-            // Initiate device flow
-            const loginController = await this.login();
-
-            // Show code step
-            stepLoading.style.display = 'none';
-            stepCode.style.display = 'block';
-
-            const codeDisplay = stepCode.querySelector('.user-code');
-            codeDisplay.textContent = loginController.userCode;
-
-            const verificationLink = stepCode.querySelector('.verification-link');
-            verificationLink.href = loginController.verificationUri;
-            verificationLink.textContent = loginController.verificationUri;
-
-            // Copy button
-            stepCode.querySelector('.copy-code-btn').addEventListener('click', () => {
-                navigator.clipboard.writeText(loginController.userCode);
-                const btn = stepCode.querySelector('.copy-code-btn');
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = 'Copy Code', 2000);
-            });
-
-            // Wait for authorization
-            const profile = await loginController.waitForAuth();
-
-            // Show success
-            stepCode.style.display = 'none';
-            stepSuccess.style.display = 'block';
-            stepSuccess.querySelector('.username').textContent = profile.displayName;
-
-            // Close after delay
-            setTimeout(close, 2000);
-
-        } catch (error) {
-            // Show error
-            stepLoading.style.display = 'none';
-            stepCode.style.display = 'none';
-            stepError.style.display = 'block';
-            stepError.querySelector('.error-message').textContent = error.message;
-
-            stepError.querySelector('.retry-btn').addEventListener('click', () => {
-                close();
-                this.showLoginModal();
-            });
-        }
+        // OAuth button is disabled - just show tooltip on hover
+        // Will be enabled when backend is ready
     }
 
     /**
@@ -594,16 +527,26 @@ class GitHubAuth {
                     <svg class="github-logo" viewBox="0 0 24 24" width="48" height="48">
                         <path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                     </svg>
-                    <h2>Personal Access Token</h2>
+                    <h2>Sign in with GitHub</h2>
                 </div>
                 <div class="modal-content">
                     <div class="token-instructions">
-                        <p>Generate a token at <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings</a></p>
-                        <p class="scope-hint">Required scopes: <code>read:user</code>, <code>gist</code></p>
+                        <p><strong>How to create a Personal Access Token:</strong></p>
+                        <ol class="pat-steps">
+                            <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings → Tokens</a></li>
+                            <li>Click <strong>"Generate new token (classic)"</strong></li>
+                            <li>Give it a name (e.g., "Hexworth Prime")</li>
+                            <li>Select scopes: <code>read:user</code> and <code>gist</code></li>
+                            <li>Click <strong>"Generate token"</strong> and copy it</li>
+                        </ol>
+                        <p class="scope-hint">⚠️ Save your token - you won't see it again!</p>
                     </div>
-                    <input type="password" class="token-input" placeholder="ghp_xxxxxxxxxxxx">
+                    <input type="password" class="token-input" placeholder="Paste your token here (ghp_...)">
                     <button class="submit-token-btn">Sign In</button>
                     <p class="token-error" style="display: none;"></p>
+                </div>
+                <div class="modal-footer oauth-disabled-notice">
+                    <p>🔒 OAuth sign-in coming soon</p>
                 </div>
             </div>
         `;
@@ -903,12 +846,70 @@ class GitHubAuth {
                 background: #30363d;
             }
 
-            /* Token Login */
+            /* Login Modal - Main Step */
+            .login-intro {
+                color: #8b949e;
+                margin-bottom: 20px;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            .primary-login-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                width: 100%;
+                padding: 14px 20px;
+                background: #238636;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                font-size: 15px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.2s;
+                margin-bottom: 12px;
+            }
+
+            .primary-login-btn:hover {
+                background: #2ea043;
+            }
+
+            .oauth-login-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                width: 100%;
+                padding: 12px 20px;
+                background: #21262d;
+                color: #8b949e;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                font-size: 14px;
+                cursor: not-allowed;
+            }
+
+            .disabled-btn {
+                opacity: 0.6;
+            }
+
+            /* Token Login Modal */
             .modal-footer {
                 margin-top: 25px;
                 padding-top: 20px;
                 border-top: 1px solid #30363d;
                 text-align: center;
+            }
+
+            .oauth-disabled-notice {
+                color: #8b949e;
+                font-size: 12px;
+            }
+
+            .oauth-disabled-notice p {
+                margin: 0;
             }
 
             .alt-login {
@@ -931,6 +932,38 @@ class GitHubAuth {
             .token-instructions {
                 text-align: left;
                 margin-bottom: 20px;
+            }
+
+            .token-instructions p {
+                margin: 0 0 12px 0;
+                color: #c9d1d9;
+            }
+
+            .pat-steps {
+                margin: 12px 0;
+                padding-left: 20px;
+                color: #8b949e;
+            }
+
+            .pat-steps li {
+                margin: 8px 0;
+                line-height: 1.5;
+            }
+
+            .pat-steps a {
+                color: #58a6ff;
+            }
+
+            .pat-steps strong {
+                color: #c9d1d9;
+            }
+
+            .pat-steps code {
+                background: #21262d;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 12px;
+                color: #f0883e;
             }
 
             .token-instructions p {
