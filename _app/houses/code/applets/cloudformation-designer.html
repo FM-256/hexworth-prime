@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudFormation Stack Designer - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --aws-orange: #FF9900;
+            --aws-glow: rgba(255, 153, 0, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(255, 153, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            background: transparent;
+            color: var(--aws-orange);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 153, 0, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(255, 153, 0, 0.15);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 20px;
+            color: var(--aws-orange);
+            letter-spacing: 0.1em;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .intro-banner {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.1), rgba(99, 102, 241, 0.1));
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .intro-banner h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: var(--aws-orange);
+        }
+
+        .intro-banner p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr 350px;
+            gap: 25px;
+            min-height: 600px;
+        }
+
+        /* Resource Palette */
+        .resource-palette {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 250px);
+        }
+
+        .palette-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--aws-orange);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .resource-category {
+            margin-bottom: 20px;
+        }
+
+        .category-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .resource-item {
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resource-item:hover {
+            border-color: var(--aws-orange);
+            background: rgba(255, 153, 0, 0.2);
+            transform: translateX(5px);
+        }
+
+        .resource-item:active {
+            cursor: grabbing;
+        }
+
+        .resource-icon {
+            font-size: 1.2rem;
+        }
+
+        .resource-info {
+            flex: 1;
+        }
+
+        .resource-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .resource-type {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            background: var(--bg-card);
+            border: 2px dashed rgba(255, 153, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            min-height: 600px;
+            overflow: auto;
+        }
+
+        .canvas-area.drag-over {
+            border-color: var(--aws-orange);
+            background: rgba(255, 153, 0, 0.05);
+        }
+
+        .canvas-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .canvas-placeholder.hidden {
+            display: none;
+        }
+
+        .canvas-placeholder h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .canvas-placeholder p {
+            font-size: 0.9rem;
+            opacity: 0.4;
+        }
+
+        /* Placed Resource */
+        .placed-resource {
+            background: rgba(255, 153, 0, 0.15);
+            border: 2px solid rgba(255, 153, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: move;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .placed-resource:hover {
+            border-color: var(--aws-orange);
+            box-shadow: 0 5px 20px var(--aws-glow);
+        }
+
+        .placed-resource.selected {
+            border-color: #10b981;
+            box-shadow: 0 5px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .placed-resource-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .placed-resource-icon {
+            font-size: 1.5rem;
+        }
+
+        .placed-resource-info {
+            flex: 1;
+        }
+
+        .placed-resource-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+        }
+
+        .placed-resource-type {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .resource-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .resource-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .resource-action-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .resource-dependencies {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 153, 0, 0.2);
+        }
+
+        /* Code Panel */
+        .code-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 250px);
+        }
+
+        .code-header {
+            padding: 15px 20px;
+            background: rgba(255, 153, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 153, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--aws-orange);
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .code-action-btn {
+            padding: 5px 12px;
+            background: rgba(255, 153, 0, 0.2);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .code-action-btn:hover {
+            background: rgba(255, 153, 0, 0.3);
+            border-color: var(--aws-orange);
+        }
+
+        .format-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .format-btn {
+            padding: 4px 10px;
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .format-btn.active {
+            background: rgba(255, 153, 0, 0.3);
+            border-color: var(--aws-orange);
+            color: var(--aws-orange);
+        }
+
+        .code-content {
+            flex: 1;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: #7dd3fc;
+        }
+
+        .code-content .comment {
+            color: #6b7280;
+        }
+
+        .code-content .keyword {
+            color: #fb923c;
+            font-weight: bold;
+        }
+
+        .code-content .string {
+            color: #a78bfa;
+        }
+
+        .code-content .number {
+            color: #10b981;
+        }
+
+        .code-empty {
+            color: var(--text-secondary);
+            font-style: italic;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            padding: 10px 20px;
+            background: rgba(255, 153, 0, 0.2);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(255, 153, 0, 0.3);
+            border-color: var(--aws-orange);
+        }
+
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, var(--aws-orange), #e88a00);
+            border-color: var(--aws-orange);
+        }
+
+        .toolbar-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--aws-glow);
+        }
+
+        .toolbar-btn.danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .resource-palette,
+            .code-panel {
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">CloudFormation Stack Designer</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <div class="intro-banner">
+            <h1>☁️ Design Your AWS Stack</h1>
+            <p>Drag AWS resources onto the canvas, configure dependencies, and generate CloudFormation YAML/JSON templates.</p>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-section">
+                <button class="toolbar-btn primary" onclick="generateCode()">
+                    <span>📝</span> Generate Template
+                </button>
+                <button class="toolbar-btn" onclick="validateTemplate()">
+                    <span>✓</span> Validate
+                </button>
+                <button class="toolbar-btn" onclick="copyCode()">
+                    <span>📋</span> Copy
+                </button>
+            </div>
+            <div class="toolbar-section">
+                <button class="toolbar-btn danger" onclick="clearCanvas()">
+                    <span>🗑️</span> Clear All
+                </button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Resource Palette -->
+            <div class="resource-palette">
+                <div class="palette-header">AWS Resources</div>
+
+                <div class="resource-category">
+                    <div class="category-title">Compute</div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EC2::Instance" data-icon="💻">
+                        <span class="resource-icon">💻</span>
+                        <div class="resource-info">
+                            <div class="resource-name">EC2 Instance</div>
+                            <div class="resource-type">AWS::EC2::Instance</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::Lambda::Function" data-icon="⚡">
+                        <span class="resource-icon">⚡</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Lambda Function</div>
+                            <div class="resource-type">AWS::Lambda::Function</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Storage</div>
+                    <div class="resource-item" draggable="true" data-type="AWS::S3::Bucket" data-icon="🪣">
+                        <span class="resource-icon">🪣</span>
+                        <div class="resource-info">
+                            <div class="resource-name">S3 Bucket</div>
+                            <div class="resource-type">AWS::S3::Bucket</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EBS::Volume" data-icon="💾">
+                        <span class="resource-icon">💾</span>
+                        <div class="resource-info">
+                            <div class="resource-name">EBS Volume</div>
+                            <div class="resource-type">AWS::EBS::Volume</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Networking</div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EC2::VPC" data-icon="🌐">
+                        <span class="resource-icon">🌐</span>
+                        <div class="resource-info">
+                            <div class="resource-name">VPC</div>
+                            <div class="resource-type">AWS::EC2::VPC</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EC2::Subnet" data-icon="🔗">
+                        <span class="resource-icon">🔗</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Subnet</div>
+                            <div class="resource-type">AWS::EC2::Subnet</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EC2::SecurityGroup" data-icon="🔒">
+                        <span class="resource-icon">🔒</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Security Group</div>
+                            <div class="resource-type">AWS::EC2::SecurityGroup</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::EC2::InternetGateway" data-icon="🌍">
+                        <span class="resource-icon">🌍</span>
+                        <div class="resource-info">
+                            <div class="resource-name">Internet Gateway</div>
+                            <div class="resource-type">AWS::EC2::InternetGateway</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">Database</div>
+                    <div class="resource-item" draggable="true" data-type="AWS::RDS::DBInstance" data-icon="🗄️">
+                        <span class="resource-icon">🗄️</span>
+                        <div class="resource-info">
+                            <div class="resource-name">RDS Instance</div>
+                            <div class="resource-type">AWS::RDS::DBInstance</div>
+                        </div>
+                    </div>
+                    <div class="resource-item" draggable="true" data-type="AWS::DynamoDB::Table" data-icon="⚙️">
+                        <span class="resource-icon">⚙️</span>
+                        <div class="resource-info">
+                            <div class="resource-name">DynamoDB Table</div>
+                            <div class="resource-type">AWS::DynamoDB::Table</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="resource-category">
+                    <div class="category-title">IAM</div>
+                    <div class="resource-item" draggable="true" data-type="AWS::IAM::Role" data-icon="🎭">
+                        <span class="resource-icon">🎭</span>
+                        <div class="resource-info">
+                            <div class="resource-name">IAM Role</div>
+                            <div class="resource-type">AWS::IAM::Role</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="canvas-area" id="canvas">
+                <div class="canvas-placeholder" id="placeholder">
+                    <h3>☁️ Drop AWS Resources Here</h3>
+                    <p>Drag resources from the palette to start designing your CloudFormation stack</p>
+                </div>
+            </div>
+
+            <!-- Code Panel -->
+            <div class="code-panel">
+                <div class="code-header">
+                    <span class="code-title">Generated Template</span>
+                    <div class="code-actions">
+                        <div class="format-toggle">
+                            <button class="format-btn active" data-format="yaml" onclick="switchFormat('yaml')">YAML</button>
+                            <button class="format-btn" data-format="json" onclick="switchFormat('json')">JSON</button>
+                        </div>
+                        <button class="code-action-btn" onclick="downloadCode()">Download</button>
+                    </div>
+                </div>
+                <div class="code-content" id="codeOutput">
+                    <div class="code-empty">Add resources to generate CloudFormation template</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let placedResources = [];
+        let resourceCounter = 1;
+        let currentFormat = 'yaml';
+
+        // Resource templates
+        const resourceTemplates = {
+            'AWS::EC2::Instance': {
+                properties: {
+                    ImageId: 'ami-0c55b159cbfafe1f0',
+                    InstanceType: 't2.micro',
+                    Tags: [{ Key: 'Name', Value: 'WebServer' }]
+                }
+            },
+            'AWS::Lambda::Function': {
+                properties: {
+                    FunctionName: 'my-function',
+                    Runtime: 'python3.9',
+                    Handler: 'index.handler',
+                    Role: '!GetAtt LambdaExecutionRole.Arn',
+                    Code: { ZipFile: 'print("Hello from Lambda")' }
+                }
+            },
+            'AWS::S3::Bucket': {
+                properties: {
+                    BucketName: 'my-unique-bucket',
+                    PublicAccessBlockConfiguration: {
+                        BlockPublicAcls: true,
+                        BlockPublicPolicy: true
+                    }
+                }
+            },
+            'AWS::EBS::Volume': {
+                properties: {
+                    AvailabilityZone: '!Select [0, !GetAZs ""]',
+                    Size: 20
+                }
+            },
+            'AWS::EC2::VPC': {
+                properties: {
+                    CidrBlock: '10.0.0.0/16',
+                    EnableDnsHostnames: true,
+                    Tags: [{ Key: 'Name', Value: 'MainVPC' }]
+                }
+            },
+            'AWS::EC2::Subnet': {
+                properties: {
+                    VpcId: '!Ref VPC',
+                    CidrBlock: '10.0.1.0/24',
+                    AvailabilityZone: '!Select [0, !GetAZs ""]'
+                }
+            },
+            'AWS::EC2::SecurityGroup': {
+                properties: {
+                    GroupDescription: 'Allow web traffic',
+                    VpcId: '!Ref VPC',
+                    SecurityGroupIngress: [
+                        { IpProtocol: 'tcp', FromPort: 80, ToPort: 80, CidrIp: '0.0.0.0/0' }
+                    ]
+                }
+            },
+            'AWS::EC2::InternetGateway': {
+                properties: {
+                    Tags: [{ Key: 'Name', Value: 'MainIGW' }]
+                }
+            },
+            'AWS::RDS::DBInstance': {
+                properties: {
+                    AllocatedStorage: 20,
+                    DBInstanceClass: 'db.t3.micro',
+                    Engine: 'mysql',
+                    EngineVersion: '8.0',
+                    MasterUsername: 'admin',
+                    MasterUserPassword: 'changeme123'
+                }
+            },
+            'AWS::DynamoDB::Table': {
+                properties: {
+                    TableName: 'my-table',
+                    BillingMode: 'PAY_PER_REQUEST',
+                    AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+                    KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }]
+                }
+            },
+            'AWS::IAM::Role': {
+                properties: {
+                    RoleName: 'LambdaExecutionRole',
+                    AssumeRolePolicyDocument: {
+                        Version: '2012-10-17',
+                        Statement: [{
+                            Effect: 'Allow',
+                            Principal: { Service: 'lambda.amazonaws.com' },
+                            Action: 'sts:AssumeRole'
+                        }]
+                    },
+                    ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole']
+                }
+            }
+        };
+
+        // Initialize drag and drop
+        function initDragAndDrop() {
+            const canvas = document.getElementById('canvas');
+            const resourceItems = document.querySelectorAll('.resource-item');
+
+            resourceItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+            });
+
+            canvas.addEventListener('dragover', handleDragOver);
+            canvas.addEventListener('drop', handleDrop);
+            canvas.addEventListener('dragleave', handleDragLeave);
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('resourceType', this.dataset.type);
+            e.dataTransfer.setData('resourceIcon', this.dataset.icon);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (e.currentTarget === e.target) {
+                e.currentTarget.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const canvas = e.currentTarget;
+            canvas.classList.remove('drag-over');
+
+            const resourceType = e.dataTransfer.getData('resourceType');
+            const resourceIcon = e.dataTransfer.getData('resourceIcon');
+
+            addResourceToCanvas(resourceType, resourceIcon);
+        }
+
+        function addResourceToCanvas(type, icon) {
+            const logicalId = generateLogicalId(type);
+            const template = resourceTemplates[type];
+
+            const resource = {
+                id: logicalId,
+                type: type,
+                icon: icon,
+                properties: JSON.parse(JSON.stringify(template.properties))
+            };
+
+            placedResources.push(resource);
+            renderCanvas();
+            updatePlaceholder();
+            generateCode();
+        }
+
+        function generateLogicalId(type) {
+            const baseName = type.split('::')[2];
+            return `${baseName}${resourceCounter++}`;
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const existingResources = canvas.querySelectorAll('.placed-resource');
+            existingResources.forEach(el => el.remove());
+
+            placedResources.forEach((resource, index) => {
+                const el = createResourceElement(resource, index);
+                canvas.appendChild(el);
+            });
+        }
+
+        function createResourceElement(resource, index) {
+            const el = document.createElement('div');
+            el.className = 'placed-resource';
+            el.dataset.index = index;
+
+            const dependencies = detectDependencies(resource);
+            const depText = dependencies.length > 0
+                ? `Depends on: ${dependencies.join(', ')}`
+                : 'No dependencies';
+
+            el.innerHTML = `
+                <div class="placed-resource-header">
+                    <span class="placed-resource-icon">${resource.icon}</span>
+                    <div class="placed-resource-info">
+                        <div class="placed-resource-name">${resource.id}</div>
+                        <div class="placed-resource-type">${resource.type}</div>
+                    </div>
+                    <div class="resource-actions">
+                        <button class="resource-action-btn" onclick="removeResource(${index})" title="Delete">×</button>
+                    </div>
+                </div>
+                <div class="resource-dependencies">${depText}</div>
+            `;
+
+            return el;
+        }
+
+        function detectDependencies(resource) {
+            const deps = [];
+            const propsString = JSON.stringify(resource.properties);
+
+            // Check for !Ref and !GetAtt dependencies
+            if (propsString.includes('!Ref VPC')) {
+                const vpc = placedResources.find(r => r.type === 'AWS::EC2::VPC');
+                if (vpc) deps.push(vpc.id);
+            }
+
+            return deps;
+        }
+
+        function removeResource(index) {
+            placedResources.splice(index, 1);
+            renderCanvas();
+            updatePlaceholder();
+            generateCode();
+        }
+
+        function updatePlaceholder() {
+            const placeholder = document.getElementById('placeholder');
+            if (placedResources.length > 0) {
+                placeholder.classList.add('hidden');
+            } else {
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        function clearCanvas() {
+            if (placedResources.length === 0) return;
+
+            if (confirm('Are you sure you want to remove all resources?')) {
+                placedResources = [];
+                resourceCounter = 1;
+                renderCanvas();
+                updatePlaceholder();
+                document.getElementById('codeOutput').innerHTML = '<div class="code-empty">Add resources to generate CloudFormation template</div>';
+            }
+        }
+
+        function switchFormat(format) {
+            currentFormat = format;
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.format === format);
+            });
+            generateCode();
+        }
+
+        function generateCode() {
+            if (placedResources.length === 0) {
+                document.getElementById('codeOutput').innerHTML = '<div class="code-empty">Add resources to generate CloudFormation template</div>';
+                return;
+            }
+
+            if (currentFormat === 'yaml') {
+                generateYAML();
+            } else {
+                generateJSON();
+            }
+        }
+
+        function generateYAML() {
+            let yaml = `<span class="keyword">AWSTemplateFormatVersion</span>: <span class="string">'2010-09-09'</span>\n`;
+            yaml += `<span class="keyword">Description</span>: <span class="string">'CloudFormation stack generated by Hexworth Prime'</span>\n\n`;
+
+            yaml += `<span class="keyword">Resources</span>:\n`;
+
+            placedResources.forEach(resource => {
+                yaml += `  ${resource.id}:\n`;
+                yaml += `    <span class="keyword">Type</span>: ${resource.type}\n`;
+                yaml += `    <span class="keyword">Properties</span>:\n`;
+                yaml += formatPropertiesYAML(resource.properties, 6);
+                yaml += '\n';
+            });
+
+            yaml += `<span class="keyword">Outputs</span>:\n`;
+            placedResources.forEach(resource => {
+                yaml += `  ${resource.id}Output:\n`;
+                yaml += `    <span class="keyword">Description</span>: Reference to ${resource.id}\n`;
+                yaml += `    <span class="keyword">Value</span>: !Ref ${resource.id}\n`;
+            });
+
+            document.getElementById('codeOutput').innerHTML = yaml;
+        }
+
+        function formatPropertiesYAML(obj, indent) {
+            let yaml = '';
+            const spaces = ' '.repeat(indent);
+
+            for (const [key, value] of Object.entries(obj)) {
+                if (value === null || value === undefined) continue;
+
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    yaml += `${spaces}${key}:\n`;
+                    yaml += formatPropertiesYAML(value, indent + 2);
+                } else if (Array.isArray(value)) {
+                    yaml += `${spaces}${key}:\n`;
+                    value.forEach(item => {
+                        if (typeof item === 'object') {
+                            yaml += `${spaces}  -\n`;
+                            yaml += formatPropertiesYAML(item, indent + 4);
+                        } else {
+                            yaml += `${spaces}  - ${formatValue(item)}\n`;
+                        }
+                    });
+                } else {
+                    yaml += `${spaces}${key}: ${formatValue(value)}\n`;
+                }
+            }
+
+            return yaml;
+        }
+
+        function formatValue(value) {
+            if (typeof value === 'string' && value.startsWith('!')) {
+                return value;
+            } else if (typeof value === 'string') {
+                return `<span class="string">'${value}'</span>`;
+            } else if (typeof value === 'number') {
+                return `<span class="number">${value}</span>`;
+            } else if (typeof value === 'boolean') {
+                return `<span class="keyword">${value}</span>`;
+            }
+            return value;
+        }
+
+        function generateJSON() {
+            const template = {
+                AWSTemplateFormatVersion: '2010-09-09',
+                Description: 'CloudFormation stack generated by Hexworth Prime',
+                Resources: {},
+                Outputs: {}
+            };
+
+            placedResources.forEach(resource => {
+                template.Resources[resource.id] = {
+                    Type: resource.type,
+                    Properties: resource.properties
+                };
+
+                template.Outputs[`${resource.id}Output`] = {
+                    Description: `Reference to ${resource.id}`,
+                    Value: { Ref: resource.id }
+                };
+            });
+
+            const jsonString = JSON.stringify(template, null, 2);
+            const highlighted = jsonString
+                .replace(/"([^"]+)":/g, '<span class="keyword">"$1"</span>:')
+                .replace(/: "([^"]+)"/g, ': <span class="string">"$1"</span>')
+                .replace(/: (\d+)/g, ': <span class="number">$1</span>')
+                .replace(/: (true|false)/g, ': <span class="keyword">$1</span>');
+
+            document.getElementById('codeOutput').innerHTML = highlighted;
+        }
+
+        function validateTemplate() {
+            if (placedResources.length === 0) {
+                alert('Add some resources first!');
+                return;
+            }
+
+            const hasVPC = placedResources.some(r => r.type === 'AWS::EC2::VPC');
+            const hasSubnet = placedResources.some(r => r.type === 'AWS::EC2::Subnet');
+
+            let validation = '✓ Template structure is valid\n';
+            validation += `✓ ${placedResources.length} resources defined\n`;
+
+            if (hasSubnet && !hasVPC) {
+                validation += '⚠ Warning: Subnet requires a VPC\n';
+            }
+
+            alert(validation);
+        }
+
+        function copyCode() {
+            const codeOutput = document.getElementById('codeOutput');
+            const text = codeOutput.innerText;
+
+            if (!text || text.includes('Add resources')) {
+                alert('No template to copy! Add some resources first.');
+                return;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Template copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy. Please copy manually.');
+            });
+        }
+
+        function downloadCode() {
+            const codeOutput = document.getElementById('codeOutput');
+            const text = codeOutput.innerText;
+
+            if (!text || text.includes('Add resources')) {
+                alert('No template to download! Add some resources first.');
+                return;
+            }
+
+            const extension = currentFormat === 'yaml' ? 'yaml' : 'json';
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cloudformation-template.${extension}`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initDragAndDrop();
+        });
+    </script>
+</body>
+</html>

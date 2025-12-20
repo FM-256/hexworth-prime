@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudFormation Hands-On Lab - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --aws-orange: #FF9900;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(255, 153, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            background: transparent;
+            color: var(--aws-orange);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 153, 0, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(255, 153, 0, 0.15);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 20px;
+            color: var(--aws-orange);
+            letter-spacing: 0.1em;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .lab-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .lab-header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--aws-orange);
+        }
+
+        .lab-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 153, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 30px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--aws-orange), var(--house-color));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .task-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .task-card.completed {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .task-number {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .task-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 153, 0, 0.1);
+            border: 2px solid rgba(255, 153, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--aws-orange);
+        }
+
+        .task-card.completed .task-icon {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .task-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .task-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .command-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .command-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .command-text {
+            font-family: 'Courier New', monospace;
+            color: #7dd3fc;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            user-select: all;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background: rgba(255, 153, 0, 0.2);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 6px;
+            color: var(--aws-orange);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 153, 0, 0.3);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .verification-section {
+            background: rgba(255, 153, 0, 0.05);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .verification-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--aws-orange);
+            margin-bottom: 10px;
+        }
+
+        .verification-steps {
+            list-style: none;
+            padding: 0;
+        }
+
+        .verification-steps li {
+            padding: 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .verification-steps li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .check-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--aws-orange), #e88a00);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.3);
+        }
+
+        .check-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hint-box {
+            background: rgba(245, 158, 11, 0.05);
+            border-left: 3px solid var(--warning);
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 15px;
+        }
+
+        .hint-box strong {
+            color: var(--warning);
+            font-size: 0.85rem;
+        }
+
+        .hint-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+
+        .completion-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 153, 0, 0.1));
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .completion-banner.visible {
+            display: block;
+        }
+
+        .completion-banner h2 {
+            font-size: 1.8rem;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        .completion-banner p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .complete-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .task-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">CloudFormation Hands-On Lab</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <div class="lab-header">
+            <h1>☁️ CloudFormation Practical Exercise</h1>
+            <p>Learn AWS Infrastructure as Code hands-on with step-by-step tasks</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">0 of 5 tasks completed</div>
+
+        <!-- Task 1: Create Basic Template -->
+        <div class="task-card" data-task="1">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">1</div>
+                    <div class="task-title">Create Your First CloudFormation Template</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Create a basic CloudFormation template in YAML that defines an S3 bucket. You'll learn the essential template structure and syntax.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create file: simple-stack.yaml</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">AWSTemplateFormatVersion: '2010-09-09'
+Description: 'My first CloudFormation stack'
+
+Resources:
+  MyFirstBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-first-cfn-bucket-12345
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: Learning
+        - Key: ManagedBy
+          Value: CloudFormation</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">AWS CLI: Create stack</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation create-stack \
+  --stack-name my-first-stack \
+  --template-body file://simple-stack.yaml</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Template has AWSTemplateFormatVersion set to '2010-09-09'</li>
+                    <li>Description is provided</li>
+                    <li>Resources section contains S3 bucket definition</li>
+                    <li>Bucket has PublicAccessBlockConfiguration for security</li>
+                    <li>Tags are properly formatted as key-value pairs</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>The AWSTemplateFormatVersion is always '2010-09-09'. Resources is the only required section. Each resource needs a Type (like AWS::S3::Bucket) and Properties specific to that resource.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(1)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 2: Add Parameters -->
+        <div class="task-card" data-task="2">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">2</div>
+                    <div class="task-title">Make Templates Flexible with Parameters</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Add parameters to your template to make it reusable across different environments. Parameters allow runtime customization.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Enhanced template with parameters</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template with parameters'
+
+Parameters:
+  BucketPrefix:
+    Type: String
+    Description: Prefix for the S3 bucket name
+    Default: my-app
+    MinLength: 3
+    MaxLength: 20
+
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - production
+
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${BucketPrefix}-${Environment}-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">AWS CLI: Create stack with parameters</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation create-stack \
+  --stack-name parameterized-stack \
+  --template-body file://parameterized-stack.yaml \
+  --parameters ParameterKey=BucketPrefix,ParameterValue=myapp \
+               ParameterKey=Environment,ParameterValue=dev</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Parameters section defines BucketPrefix and Environment</li>
+                    <li>Each parameter has Type, Description, and Default value</li>
+                    <li>Environment parameter uses AllowedValues for validation</li>
+                    <li>Template uses !Ref to reference parameter values</li>
+                    <li>BucketName uses !Sub for string interpolation</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>!Ref returns the parameter value. !Sub allows string interpolation with ${VarName} syntax. Pseudo parameters like ${AWS::AccountId} are automatically available. Use AllowedValues to restrict input.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(2)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 3: Use Intrinsic Functions -->
+        <div class="task-card" data-task="3">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">3</div>
+                    <div class="task-title">Master Intrinsic Functions</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Use CloudFormation intrinsic functions to create dynamic, intelligent templates with conditional logic and resource references.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Template with intrinsic functions</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template demonstrating intrinsic functions'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t2.small, t2.medium]
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0c55b159cbfafe1f0
+    us-west-2:
+      AMI: ami-0d1cd67c26f5fca19
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC'
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-WebServer'</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Intrinsic Functions Used:</div>
+                <ul class="verification-steps">
+                    <li>!Sub - String interpolation with ${} variables</li>
+                    <li>!Ref - Reference parameters and resource IDs</li>
+                    <li>!GetAZs - Get list of availability zones</li>
+                    <li>!Select - Pick specific item from a list</li>
+                    <li>!FindInMap - Lookup values from Mappings section</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Intrinsic functions make templates dynamic. !GetAZs gets available zones for the current region. !FindInMap does lookups from the Mappings section. Combine !Select with !GetAZs to pick specific availability zones.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(3)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 4: Define Outputs -->
+        <div class="task-card" data-task="4">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">4</div>
+                    <div class="task-title">Export Values with Outputs</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Add outputs to your template to export important information like resource IDs, IP addresses, and ARNs. Outputs can be used for cross-stack references.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Add Outputs section to template</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC-ID'
+
+  PublicSubnetId:
+    Description: Public Subnet ID
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnet-ID'
+
+  InstancePublicIP:
+    Description: EC2 instance public IP address
+    Value: !GetAtt EC2Instance.PublicIp
+
+  InstanceId:
+    Description: EC2 instance ID
+    Value: !Ref EC2Instance
+
+  SecurityGroupId:
+    Description: Security group ID
+    Value: !Ref WebServerSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroup-ID'</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">AWS CLI: View stack outputs</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation describe-stacks \
+  --stack-name my-stack \
+  --query 'Stacks[0].Outputs'</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Verification Steps:</div>
+                <ul class="verification-steps">
+                    <li>Outputs section is defined after Resources</li>
+                    <li>Each output has Description and Value</li>
+                    <li>Uses !Ref for resource IDs</li>
+                    <li>Uses !GetAtt for specific resource attributes</li>
+                    <li>Export names use !Sub for unique naming</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Outputs show values after stack creation. Use Export to make values available to other stacks via Fn::ImportValue. !GetAtt accesses specific attributes like PublicIp, Arn, or DnsName that aren't returned by !Ref.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(4)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Task 5: Deploy and Manage Stacks -->
+        <div class="task-card" data-task="5">
+            <div class="task-header">
+                <div class="task-number">
+                    <div class="task-icon">5</div>
+                    <div class="task-title">Stack Operations with AWS CLI</div>
+                </div>
+                <span class="task-status status-pending">Pending</span>
+            </div>
+
+            <div class="task-description">
+                Learn essential CloudFormation CLI commands for creating, updating, and managing stacks. Practice using change sets for safe updates.
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create a stack</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation create-stack \
+  --stack-name production-stack \
+  --template-body file://template.yaml \
+  --parameters file://parameters.json</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Check stack status</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation describe-stacks \
+  --stack-name production-stack \
+  --query 'Stacks[0].StackStatus'</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Create change set (preview updates)</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation create-change-set \
+  --stack-name production-stack \
+  --change-set-name my-changes \
+  --template-body file://updated-template.yaml</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">View change set details</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation describe-change-set \
+  --stack-name production-stack \
+  --change-set-name my-changes</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Execute change set (apply updates)</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation execute-change-set \
+  --stack-name production-stack \
+  --change-set-name my-changes</pre>
+            </div>
+
+            <div class="command-box">
+                <div class="command-label">Delete a stack</div>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                <pre class="command-text">aws cloudformation delete-stack \
+  --stack-name production-stack</pre>
+            </div>
+
+            <div class="verification-section">
+                <div class="verification-title">Key Stack Operations:</div>
+                <ul class="verification-steps">
+                    <li>create-stack - Deploy new infrastructure</li>
+                    <li>describe-stacks - Check status and outputs</li>
+                    <li>create-change-set - Preview changes before applying</li>
+                    <li>execute-change-set - Apply previewed changes</li>
+                    <li>delete-stack - Tear down all resources</li>
+                </ul>
+            </div>
+
+            <div class="hint-box">
+                <strong>💡 Hint:</strong>
+                <p>Always use change sets to preview updates before applying them to production stacks. StackStatus shows CREATE_COMPLETE, UPDATE_COMPLETE, or error states. Use --query to filter AWS CLI output for specific fields.</p>
+            </div>
+
+            <button class="check-btn" onclick="completeTask(5)">✓ Mark Task Complete</button>
+        </div>
+
+        <!-- Completion Banner -->
+        <div class="completion-banner" id="completionBanner">
+            <h2>🎉 Congratulations!</h2>
+            <p>You've completed all CloudFormation lab tasks. You now understand template structure, parameters, intrinsic functions, outputs, and stack operations.</p>
+            <button class="complete-btn" onclick="completeModule()">
+                ✓ Complete Lab & Return to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Track completed tasks
+        let completedTasks = new Set();
+        const totalTasks = 5;
+
+        // Load saved progress
+        function loadProgress() {
+            const saved = localStorage.getItem('cloudformation-lab-progress');
+            if (saved) {
+                completedTasks = new Set(JSON.parse(saved));
+                completedTasks.forEach(taskNum => {
+                    markTaskComplete(taskNum, false);
+                });
+                updateProgress();
+            }
+        }
+
+        // Save progress
+        function saveProgress() {
+            localStorage.setItem('cloudformation-lab-progress', JSON.stringify([...completedTasks]));
+        }
+
+        // Complete a task
+        function completeTask(taskNum) {
+            if (!completedTasks.has(taskNum)) {
+                completedTasks.add(taskNum);
+                markTaskComplete(taskNum, true);
+                saveProgress();
+                updateProgress();
+            }
+        }
+
+        // Mark task as complete visually
+        function markTaskComplete(taskNum, animate) {
+            const taskCard = document.querySelector(`.task-card[data-task="${taskNum}"]`);
+            if (!taskCard) return;
+
+            taskCard.classList.add('completed');
+            const statusBadge = taskCard.querySelector('.task-status');
+            statusBadge.textContent = 'Completed';
+            statusBadge.classList.remove('status-pending');
+            statusBadge.classList.add('status-completed');
+
+            const checkBtn = taskCard.querySelector('.check-btn');
+            checkBtn.disabled = true;
+            checkBtn.textContent = '✓ Task Completed';
+
+            if (animate) {
+                taskCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const progress = (completedTasks.size / totalTasks) * 100;
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${completedTasks.size} of ${totalTasks} tasks completed`;
+
+            // Show completion banner if all tasks done
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completionBanner').classList.add('visible');
+                document.getElementById('completionBanner').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Copy command to clipboard
+        function copyCommand(button) {
+            const commandBox = button.closest('.command-box');
+            const commandText = commandBox.querySelector('.command-text');
+            const text = commandText.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(() => {
+                alert('Failed to copy. Please copy manually.');
+            });
+        }
+
+        // Navigation
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Complete module
+        function completeModule() {
+            ModuleProgress.complete('code', 'code-cloudformation-lab', {
+                returnToDashboard: true
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+        });
+    </script>
+</body>
+</html>
