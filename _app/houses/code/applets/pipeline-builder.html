@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD Pipeline Builder - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .title {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 250px 1fr 350px;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--house-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Stage Palette */
+        .stage-palette {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stage-option {
+            padding: 12px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            cursor: move;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-option:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--house-color);
+            transform: translateX(5px);
+        }
+
+        .stage-option.dragging {
+            opacity: 0.5;
+        }
+
+        .stage-icon {
+            font-size: 1.5rem;
+        }
+
+        .stage-info {
+            flex: 1;
+        }
+
+        .stage-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stage-desc {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* Pipeline Builder Area */
+        .pipeline-builder {
+            min-height: 600px;
+        }
+
+        .pipeline-canvas {
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px dashed rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            min-height: 500px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .pipeline-canvas.drag-over {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .pipeline-canvas.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .pipeline-stage {
+            background: var(--bg-card);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .pipeline-stage:hover {
+            border-color: var(--house-color);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+        }
+
+        .pipeline-stage.running {
+            border-color: var(--info);
+            animation: pulse 2s infinite;
+        }
+
+        .pipeline-stage.success {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .pipeline-stage.failed {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+        }
+
+        .stage-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.2);
+            border: 2px solid rgba(99, 102, 241, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .pipeline-stage.success .stage-number {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .pipeline-stage.failed .stage-number {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .pipeline-stage.running .stage-number {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--info);
+            color: var(--info);
+        }
+
+        .stage-content {
+            flex: 1;
+        }
+
+        .stage-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .stage-status {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .stage-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stage-btn {
+            padding: 6px 10px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .stage-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+        }
+
+        .stage-btn.delete {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Output Panel */
+        .output-section {
+            margin-top: 20px;
+        }
+
+        .output-code {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: #7dd3fc;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .output-code .keyword {
+            color: #fb923c;
+            font-weight: bold;
+        }
+
+        .output-code .comment {
+            color: #6b7280;
+        }
+
+        .output-code .value {
+            color: #a78bfa;
+        }
+
+        /* Console */
+        .console {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .console-line {
+            padding: 4px 0;
+            line-height: 1.5;
+        }
+
+        .console-line.info {
+            color: #60a5fa;
+        }
+
+        .console-line.success {
+            color: var(--success);
+        }
+
+        .console-line.error {
+            color: var(--danger);
+        }
+
+        .console-line.warning {
+            color: var(--warning);
+        }
+
+        /* Status Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--house-color);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Presets */
+        .preset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .preset-btn {
+            padding: 10px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        .preset-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--house-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: var(--text-primary);
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            font-size: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">←</button>
+            <span class="title">CI/CD Pipeline Builder</span>
+        </div>
+        <span class="house-badge">HOUSE OF THE CODE</span>
+    </header>
+
+    <div class="container">
+        <!-- Left Panel: Stage Palette -->
+        <aside class="panel">
+            <div class="panel-title">📦 Available Stages</div>
+            <div class="stage-palette">
+                <div class="stage-option" draggable="true" data-stage="checkout">
+                    <span class="stage-icon">📥</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Checkout</div>
+                        <div class="stage-desc">Get source code</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="build">
+                    <span class="stage-icon">🔨</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Build</div>
+                        <div class="stage-desc">Compile & package</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="unit-test">
+                    <span class="stage-icon">🧪</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Unit Tests</div>
+                        <div class="stage-desc">Fast isolated tests</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="integration-test">
+                    <span class="stage-icon">🔗</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Integration Tests</div>
+                        <div class="stage-desc">Component tests</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="security-scan">
+                    <span class="stage-icon">🔒</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Security Scan</div>
+                        <div class="stage-desc">Vulnerability check</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="deploy-staging">
+                    <span class="stage-icon">🎭</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Deploy Staging</div>
+                        <div class="stage-desc">Test environment</div>
+                    </div>
+                </div>
+
+                <div class="stage-option" draggable="true" data-stage="deploy-production">
+                    <span class="stage-icon">🚀</span>
+                    <div class="stage-info">
+                        <div class="stage-name">Deploy Production</div>
+                        <div class="stage-desc">Live deployment</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div class="panel-title">🎯 Quick Presets</div>
+                <div class="preset-list">
+                    <button class="preset-btn" onclick="loadPreset('basic')">Basic CI Pipeline</button>
+                    <button class="preset-btn" onclick="loadPreset('full')">Full CI/CD Pipeline</button>
+                    <button class="preset-btn" onclick="loadPreset('security')">Security-First Pipeline</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Panel: Pipeline Builder -->
+        <main class="panel pipeline-builder">
+            <div class="panel-title">🔧 Pipeline Designer</div>
+            <div id="pipelineCanvas" class="pipeline-canvas empty">
+                <div class="empty-message">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🔄</div>
+                    <div>Drag stages from the left to build your pipeline</div>
+                    <div style="font-size: 0.8rem; margin-top: 5px; color: var(--text-secondary);">
+                        Or use a preset to get started quickly
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="runPipeline()" id="runBtn" disabled>
+                    ▶️ Run Pipeline
+                </button>
+                <button class="btn btn-secondary" onclick="stopPipeline()" id="stopBtn" disabled>
+                    ⏹️ Stop
+                </button>
+                <button class="btn btn-danger" onclick="clearPipeline()">
+                    🗑️ Clear All
+                </button>
+            </div>
+        </main>
+
+        <!-- Right Panel: Output & Console -->
+        <aside class="panel">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stageCount">0</div>
+                    <div class="stat-label">Stages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="duration">0s</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+            </div>
+
+            <div class="panel-title">📊 Execution Console</div>
+            <div id="console" class="console">
+                <div class="console-line info">Pipeline console ready...</div>
+            </div>
+
+            <div class="output-section">
+                <div class="panel-title">📄 GitHub Actions YAML</div>
+                <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="copyYAML()">
+                    📋 Copy YAML
+                </button>
+                <div id="yamlOutput" class="output-code">
+<span class="comment"># Build your pipeline to see YAML output</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // Pipeline state
+        let pipeline = [];
+        let isRunning = false;
+        let currentStageIndex = 0;
+        let startTime = null;
+        let durationInterval = null;
+
+        // Stage definitions with simulation data
+        const stageDefinitions = {
+            'checkout': {
+                name: 'Checkout Code',
+                icon: '📥',
+                duration: 2000,
+                failRate: 0.02,
+                yaml: `- name: Checkout code\n  uses: actions/checkout@v3`
+            },
+            'build': {
+                name: 'Build Application',
+                icon: '🔨',
+                duration: 4000,
+                failRate: 0.05,
+                yaml: `- name: Build application\n  run: npm run build`
+            },
+            'unit-test': {
+                name: 'Run Unit Tests',
+                icon: '🧪',
+                duration: 3000,
+                failRate: 0.08,
+                yaml: `- name: Run unit tests\n  run: npm test -- --coverage`
+            },
+            'integration-test': {
+                name: 'Run Integration Tests',
+                icon: '🔗',
+                duration: 5000,
+                failRate: 0.10,
+                yaml: `- name: Run integration tests\n  run: npm run test:integration`
+            },
+            'security-scan': {
+                name: 'Security Vulnerability Scan',
+                icon: '🔒',
+                duration: 3500,
+                failRate: 0.12,
+                yaml: `- name: Security scan\n  run: npm audit --audit-level=high`
+            },
+            'deploy-staging': {
+                name: 'Deploy to Staging',
+                icon: '🎭',
+                duration: 4500,
+                failRate: 0.03,
+                yaml: `- name: Deploy to staging\n  run: ./deploy.sh staging`
+            },
+            'deploy-production': {
+                name: 'Deploy to Production',
+                icon: '🚀',
+                duration: 5000,
+                failRate: 0.02,
+                yaml: `- name: Deploy to production\n  run: ./deploy.sh production\n  if: github.ref == 'refs/heads/main'`
+            }
+        };
+
+        // Preset configurations
+        const presets = {
+            'basic': ['checkout', 'build', 'unit-test'],
+            'full': ['checkout', 'build', 'unit-test', 'integration-test', 'security-scan', 'deploy-staging', 'deploy-production'],
+            'security': ['checkout', 'build', 'security-scan', 'unit-test', 'deploy-staging']
+        };
+
+        // Drag and drop handlers
+        document.querySelectorAll('.stage-option').forEach(option => {
+            option.addEventListener('dragstart', handleDragStart);
+            option.addEventListener('dragend', handleDragEnd);
+        });
+
+        const canvas = document.getElementById('pipelineCanvas');
+        canvas.addEventListener('dragover', handleDragOver);
+        canvas.addEventListener('drop', handleDrop);
+        canvas.addEventListener('dragleave', handleDragLeave);
+
+        function handleDragStart(e) {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', e.currentTarget.dataset.stage);
+            e.currentTarget.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            canvas.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (e.target === canvas) {
+                canvas.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            canvas.classList.remove('drag-over');
+
+            const stageType = e.dataTransfer.getData('text/plain');
+            addStage(stageType);
+        }
+
+        function addStage(stageType) {
+            const stage = {
+                id: Date.now(),
+                type: stageType,
+                status: 'pending'
+            };
+
+            pipeline.push(stage);
+            renderPipeline();
+            updateStats();
+            generateYAML();
+            logToConsole(`Added stage: ${stageDefinitions[stageType].name}`, 'info');
+        }
+
+        function removeStage(id) {
+            const stage = pipeline.find(s => s.id === id);
+            if (stage) {
+                logToConsole(`Removed stage: ${stageDefinitions[stage.type].name}`, 'warning');
+            }
+            pipeline = pipeline.filter(s => s.id !== id);
+            renderPipeline();
+            updateStats();
+            generateYAML();
+        }
+
+        function renderPipeline() {
+            if (pipeline.length === 0) {
+                canvas.classList.add('empty');
+                canvas.innerHTML = `
+                    <div class="empty-message">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">🔄</div>
+                        <div>Drag stages from the left to build your pipeline</div>
+                        <div style="font-size: 0.8rem; margin-top: 5px; color: var(--text-secondary);">
+                            Or use a preset to get started quickly
+                        </div>
+                    </div>
+                `;
+                document.getElementById('runBtn').disabled = true;
+                return;
+            }
+
+            canvas.classList.remove('empty');
+            document.getElementById('runBtn').disabled = isRunning;
+
+            canvas.innerHTML = pipeline.map((stage, index) => {
+                const def = stageDefinitions[stage.type];
+                const statusClass = stage.status === 'running' ? 'running' :
+                                  stage.status === 'success' ? 'success' :
+                                  stage.status === 'failed' ? 'failed' : '';
+
+                const statusText = stage.status === 'running' ? 'Running...' :
+                                 stage.status === 'success' ? 'Passed ✓' :
+                                 stage.status === 'failed' ? 'Failed ✗' :
+                                 'Pending';
+
+                return `
+                    <div class="pipeline-stage ${statusClass}">
+                        <div class="stage-number">${index + 1}</div>
+                        <span class="stage-icon">${def.icon}</span>
+                        <div class="stage-content">
+                            <div class="stage-title">${def.name}</div>
+                            <div class="stage-status">${statusText}</div>
+                        </div>
+                        <div class="stage-actions">
+                            <button class="stage-btn delete" onclick="removeStage(${stage.id})" ${isRunning ? 'disabled' : ''}>
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('stageCount').textContent = pipeline.length;
+        }
+
+        function generateYAML() {
+            if (pipeline.length === 0) {
+                document.getElementById('yamlOutput').innerHTML = '<span class="comment"># Build your pipeline to see YAML output</span>';
+                return;
+            }
+
+            const yaml = `<span class="comment"># GitHub Actions Workflow</span>
+<span class="keyword">name:</span> <span class="value">CI/CD Pipeline</span>
+
+<span class="keyword">on:</span>
+  <span class="keyword">push:</span>
+    <span class="keyword">branches:</span> [ <span class="value">main</span> ]
+  <span class="keyword">pull_request:</span>
+    <span class="keyword">branches:</span> [ <span class="value">main</span> ]
+
+<span class="keyword">jobs:</span>
+  <span class="keyword">build:</span>
+    <span class="keyword">runs-on:</span> <span class="value">ubuntu-latest</span>
+
+    <span class="keyword">steps:</span>
+${pipeline.map(stage => {
+    const def = stageDefinitions[stage.type];
+    return '      ' + def.yaml.split('\n').join('\n      ');
+}).join('\n\n')}`;
+
+            document.getElementById('yamlOutput').innerHTML = yaml;
+        }
+
+        function logToConsole(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        async function runPipeline() {
+            if (isRunning || pipeline.length === 0) return;
+
+            isRunning = true;
+            currentStageIndex = 0;
+            startTime = Date.now();
+
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+
+            // Reset all stages
+            pipeline.forEach(stage => stage.status = 'pending');
+            renderPipeline();
+
+            logToConsole('Starting pipeline execution...', 'info');
+            logToConsole('='.repeat(50), 'info');
+
+            // Start duration counter
+            durationInterval = setInterval(updateDuration, 100);
+
+            for (let i = 0; i < pipeline.length; i++) {
+                if (!isRunning) {
+                    logToConsole('Pipeline execution stopped by user', 'warning');
+                    break;
+                }
+
+                currentStageIndex = i;
+                const stage = pipeline[i];
+                const def = stageDefinitions[stage.type];
+
+                stage.status = 'running';
+                renderPipeline();
+                logToConsole(`Running: ${def.name}`, 'info');
+
+                // Simulate stage execution
+                await sleep(def.duration);
+
+                // Random failure based on failRate
+                const failed = Math.random() < def.failRate;
+
+                if (failed) {
+                    stage.status = 'failed';
+                    renderPipeline();
+                    logToConsole(`FAILED: ${def.name}`, 'error');
+                    logToConsole('Pipeline failed! Fix the issues and try again.', 'error');
+                    break;
+                } else {
+                    stage.status = 'success';
+                    renderPipeline();
+                    logToConsole(`SUCCESS: ${def.name}`, 'success');
+                }
+            }
+
+            clearInterval(durationInterval);
+            isRunning = false;
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            // Check if all stages passed
+            const allPassed = pipeline.every(s => s.status === 'success');
+            if (allPassed) {
+                logToConsole('='.repeat(50), 'success');
+                logToConsole('Pipeline completed successfully! 🎉', 'success');
+            }
+        }
+
+        function stopPipeline() {
+            isRunning = false;
+            clearInterval(durationInterval);
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        function clearPipeline() {
+            if (isRunning) {
+                stopPipeline();
+            }
+            pipeline = [];
+            renderPipeline();
+            updateStats();
+            generateYAML();
+
+            // Clear console
+            const console = document.getElementById('console');
+            console.innerHTML = '<div class="console-line info">Pipeline console ready...</div>';
+
+            // Reset duration
+            document.getElementById('duration').textContent = '0s';
+
+            logToConsole('Pipeline cleared', 'info');
+        }
+
+        function loadPreset(presetName) {
+            clearPipeline();
+            const stages = presets[presetName];
+            stages.forEach(stageType => addStage(stageType));
+            logToConsole(`Loaded preset: ${presetName}`, 'info');
+        }
+
+        function updateDuration() {
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('duration').textContent = `${elapsed}s`;
+            }
+        }
+
+        function copyYAML() {
+            const yamlElement = document.getElementById('yamlOutput');
+            const text = yamlElement.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                logToConsole('YAML copied to clipboard!', 'success');
+            }).catch(err => {
+                logToConsole('Failed to copy YAML', 'error');
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        // Initialize
+        renderPipeline();
+        updateStats();
+        generateYAML();
+    </script>
+</body>
+</html>
