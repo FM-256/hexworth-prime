@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDF Quiz - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #f59e0b;
+            --house-glow: rgba(245, 158, 11, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --cyan-accent: #06b6d4;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            transform: translateX(-2px);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .quiz-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .progress-badge {
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 5px;
+            color: var(--cyan-accent);
+            font-weight: 600;
+        }
+
+        /* Container */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(6, 182, 212, 0.05));
+            border-radius: 12px;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .intro h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--house-color), var(--cyan-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Question Card */
+        .question-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .question-card.answered-correct {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(15, 15, 25, 0.8));
+        }
+
+        .question-card.answered-wrong {
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .question-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .question-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--house-color), var(--cyan-accent));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Options */
+        .options {
+            margin: 20px 0;
+        }
+
+        .option {
+            background: rgba(20, 20, 30, 0.6);
+            border: 2px solid rgba(245, 158, 11, 0.2);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin: 12px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .option:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.05);
+            transform: translateX(5px);
+        }
+
+        .option-letter {
+            width: 32px;
+            height: 32px;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--house-color);
+            flex-shrink: 0;
+        }
+
+        .option-text {
+            flex: 1;
+            color: var(--text-secondary);
+        }
+
+        .option.selected {
+            border-color: var(--cyan-accent);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .option.selected .option-letter {
+            background: var(--cyan-accent);
+            color: white;
+        }
+
+        .option.correct {
+            border-color: var(--success-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .option.correct .option-letter {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .option.wrong {
+            border-color: var(--warning-red);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .option.wrong .option-letter {
+            background: var(--warning-red);
+            color: white;
+        }
+
+        .option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--house-color), var(--cyan-accent));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Explanation Box */
+        .explanation {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-left: 4px solid var(--cyan-accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .explanation.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .explanation h4 {
+            color: var(--cyan-accent);
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .explanation p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .explanation ul {
+            margin-left: 20px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Results */
+        .results-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        .results-card.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .results-score {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--house-color), var(--cyan-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 20px 0;
+        }
+
+        .results-message {
+            font-size: 1.3rem;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .results-detail {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 30px;
+        }
+
+        .results-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-box {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cyan-accent);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .results-score {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'" title="Back to Key House">←</button>
+            <h1 class="module-title">KDF Quiz</h1>
+            <span class="house-badge">HOUSE OF THE KEY</span>
+        </div>
+        <div class="quiz-progress">
+            <span>Progress:</span>
+            <span class="progress-badge" id="progress-display">0/10</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="intro">
+            <h1>Key Derivation Functions Quiz</h1>
+            <p>
+                Test your understanding of KDFs, password hashing, and security best practices.
+                Answer all 10 questions to complete the module.
+            </p>
+        </div>
+
+        <!-- Quiz Questions -->
+        <div id="quiz-container">
+            <!-- Questions will be populated by JavaScript -->
+        </div>
+
+        <!-- Submit Button -->
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" id="submit-btn" onclick="submitQuiz()" disabled>Submit Quiz</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results-card" id="results-card">
+            <h2>Quiz Complete!</h2>
+            <div class="results-score" id="results-score">0%</div>
+            <div class="results-message" id="results-message"></div>
+            <div class="results-detail" id="results-detail"></div>
+
+            <div class="results-breakdown">
+                <div class="stat-box">
+                    <div class="stat-value" id="correct-count">0</div>
+                    <div class="stat-label">Correct</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="wrong-count">0</div>
+                    <div class="stat-label">Incorrect</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="score-percent">0%</div>
+                    <div class="stat-label">Score</div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="window.location.href='../../index.html'">Return to Key House</button>
+        </div>
+    </div>
+
+    <script>
+        // Quiz data
+        const quizData = [
+            {
+                question: "What is the primary purpose of salt in password hashing?",
+                options: [
+                    "To make the password longer and more complex",
+                    "To prevent rainbow table attacks by ensuring unique hashes for identical passwords",
+                    "To encrypt the password before hashing",
+                    "To speed up the hashing process"
+                ],
+                correct: 1,
+                explanation: "Salt is a unique random value added to each password before hashing. Its primary purpose is to ensure that identical passwords produce different hashes, preventing rainbow table attacks (precomputed hash databases). Salt doesn't need to be secret—it's stored in plaintext alongside the hash. Its security comes from uniqueness, not confidentiality."
+            },
+            {
+                question: "Which PBKDF2 iteration count meets NIST's 2024 recommendation for password hashing?",
+                options: [
+                    "10,000 iterations",
+                    "100,000 iterations",
+                    "600,000 iterations",
+                    "1,000 iterations"
+                ],
+                correct: 2,
+                explanation: "NIST SP 800-132 recommends a minimum of 600,000 iterations for PBKDF2-HMAC-SHA256 as of 2024. This reflects the increased computational power available to attackers. Legacy systems with 10,000 iterations (common in 2010) are now considered vulnerable. The iteration count should be increased over time to maintain equivalent security as hardware improves."
+            },
+            {
+                question: "In bcrypt, what does a cost factor of 12 represent?",
+                options: [
+                    "12 rounds of hashing",
+                    "12 megabytes of memory usage",
+                    "2^12 (4,096) rounds of hashing",
+                    "12 seconds of computation time"
+                ],
+                correct: 2,
+                explanation: "bcrypt's cost factor is logarithmic: cost=12 means 2<sup>12</sup> = 4,096 iterations. This exponential relationship makes it easy to increase security over time—each increment doubles the work. Cost factors below 12 are now considered weak (e.g., cost=10 is only 1,024 rounds). The recommended minimum is cost=12, with cost=14 for high-security applications."
+            },
+            {
+                question: "Which KDF parameter makes GPU and ASIC attacks economically infeasible?",
+                options: [
+                    "High iteration count (time cost)",
+                    "Large memory requirement (memory-hardness)",
+                    "Multiple parallel threads",
+                    "Long salt length"
+                ],
+                correct: 1,
+                explanation: "Memory-hardness is the key defense against GPU/ASIC attacks. Algorithms like scrypt and Argon2 require significant RAM (64-256 MB typical), which is expensive to provide at scale. A GPU with 16 GB RAM can run billions of PBKDF2 hashes in parallel but only ~250 concurrent scrypt instances with 64 MB each. This economic constraint makes brute-force attacks impractical."
+            },
+            {
+                question: "What is the main limitation of bcrypt that doesn't affect Argon2?",
+                options: [
+                    "bcrypt has a 72-byte password length limit",
+                    "bcrypt cannot use salt",
+                    "bcrypt is slower than Argon2",
+                    "bcrypt doesn't support cost factors"
+                ],
+                correct: 0,
+                explanation: "bcrypt truncates passwords at 72 bytes due to Blowfish's design. For most users this isn't an issue, but long passphrases or Unicode can exceed this limit. Argon2 has no such limitation. Workaround for bcrypt: pre-hash with SHA256, then bcrypt the hash (though this adds complexity and changes security properties)."
+            },
+            {
+                question: "In a production system, you need to choose between bcrypt and Argon2id. Which scenario favors Argon2id?",
+                options: [
+                    "You need maximum compatibility across all platforms",
+                    "You're protecting high-value accounts and have control over server hardware",
+                    "You need FIPS 140-2 compliance",
+                    "You want to minimize authentication time below 50ms"
+                ],
+                correct: 1,
+                explanation: "Argon2id is ideal for high-security scenarios where you control the hardware. It offers superior resistance to GPU/ASIC attacks through memory-hardness. However, bcrypt wins for compatibility (25+ years of libraries) and FIPS compliance. For maximum security with modern infrastructure, Argon2id is the best choice. For broad compatibility or regulatory requirements, bcrypt or PBKDF2 may be necessary."
+            },
+            {
+                question: "What is the recommended approach when migrating from MD5 password hashes to Argon2?",
+                options: [
+                    "Force all users to reset their passwords immediately",
+                    "Continue using MD5 to maintain compatibility",
+                    "Use lazy migration: rehash with Argon2 on successful login with old hash",
+                    "Wrap the MD5 hash in Argon2 without verifying the password"
+                ],
+                correct: 2,
+                explanation: "Lazy migration is the industry-standard approach: (1) Check stored hash format, (2) Verify password with old algorithm (MD5), (3) On successful authentication, immediately rehash with Argon2 and update the database. This transparently upgrades security without forcing password resets. Over time, active users migrate automatically. Inactive accounts can be flagged for reset after a grace period."
+            },
+            {
+                question: "For Argon2, which parameter should be your primary focus when tuning for security?",
+                options: [
+                    "Time cost (iterations)",
+                    "Parallelism (threads)",
+                    "Memory cost (RAM requirement)",
+                    "Salt length"
+                ],
+                correct: 2,
+                explanation: "Memory cost is Argon2's primary defense mechanism. Start with 64 MB and increase to 256 MB+ if possible. Memory-hardness defeats parallel attacks on GPUs/ASICs. Time cost (iterations) and parallelism are secondary tuning parameters. Recommendation: m=64MB minimum, increase until authentication time reaches 200-500ms, then adjust time cost if needed."
+            },
+            {
+                question: "Which statement about salt storage is correct?",
+                options: [
+                    "Salt must be encrypted and stored separately from the hash",
+                    "Salt should be stored in plaintext alongside the hash in the database",
+                    "Salt should be derived from the username to ensure consistency",
+                    "Salt should be a global constant shared across all passwords"
+                ],
+                correct: 1,
+                explanation: "Salt is NOT secret—it's stored in plaintext right next to the hash (often in the same database field). Security comes from uniqueness, not confidentiality. Each password must have its own randomly generated salt. Never derive salt from username, timestamp, or other predictable values. Global salt defeats the entire purpose and enables rainbow tables."
+            },
+            {
+                question: "You're implementing password hashing for a cryptocurrency wallet. Which KDF configuration is most appropriate?",
+                options: [
+                    "PBKDF2 with 10,000 iterations for fast unlocking",
+                    "bcrypt with cost factor 10 for compatibility",
+                    "Argon2id with m=256MB, t=5, p=4 for maximum security",
+                    "SHA256 with salt for simplicity"
+                ],
+                correct: 2,
+                explanation: "Cryptocurrency wallets protect high-value assets and justify aggressive KDF parameters. Users expect a few seconds of delay when unlocking their wallet in exchange for security. Argon2id with m=256MB, t=5, p=4 provides excellent protection (~2-5 seconds on typical hardware). This is a non-interactive use case—users decrypt once per session, so higher parameters are acceptable. Never use fast hashes like SHA256 for wallet protection!"
+            }
+        ];
+
+        // Quiz state
+        const quizState = {
+            answers: {},
+            submitted: false
+        };
+
+        // Initialize quiz
+        function initQuiz() {
+            const container = document.getElementById('quiz-container');
+
+            quizData.forEach((q, index) => {
+                const questionCard = document.createElement('div');
+                questionCard.className = 'question-card';
+                questionCard.id = `question-${index}`;
+
+                let optionsHTML = '';
+                q.options.forEach((option, optIndex) => {
+                    const letter = String.fromCharCode(65 + optIndex); // A, B, C, D
+                    optionsHTML += `
+                        <div class="option" onclick="selectOption(${index}, ${optIndex})">
+                            <div class="option-letter">${letter}</div>
+                            <div class="option-text">${option}</div>
+                        </div>
+                    `;
+                });
+
+                questionCard.innerHTML = `
+                    <div class="question-header">
+                        <div class="question-number">${index + 1}</div>
+                        <div class="question-text">${q.question}</div>
+                    </div>
+                    <div class="options">
+                        ${optionsHTML}
+                    </div>
+                    <div class="explanation" id="explanation-${index}">
+                        <h4>Explanation</h4>
+                        <p>${q.explanation}</p>
+                    </div>
+                `;
+
+                container.appendChild(questionCard);
+            });
+        }
+
+        // Select option
+        function selectOption(questionIndex, optionIndex) {
+            if (quizState.submitted) return;
+
+            // Remove previous selection
+            const questionCard = document.getElementById(`question-${questionIndex}`);
+            const options = questionCard.querySelectorAll('.option');
+            options.forEach(opt => opt.classList.remove('selected'));
+
+            // Add new selection
+            options[optionIndex].classList.add('selected');
+
+            // Save answer
+            quizState.answers[questionIndex] = optionIndex;
+
+            // Update progress and enable submit
+            updateProgress();
+            checkSubmitReady();
+        }
+
+        // Update progress display
+        function updateProgress() {
+            const answered = Object.keys(quizState.answers).length;
+            document.getElementById('progress-display').textContent = `${answered}/10`;
+        }
+
+        // Check if all questions answered
+        function checkSubmitReady() {
+            const allAnswered = Object.keys(quizState.answers).length === quizData.length;
+            document.getElementById('submit-btn').disabled = !allAnswered;
+        }
+
+        // Submit quiz
+        function submitQuiz() {
+            if (quizState.submitted) return;
+            quizState.submitted = true;
+
+            let correct = 0;
+            let wrong = 0;
+
+            quizData.forEach((q, index) => {
+                const questionCard = document.getElementById(`question-${index}`);
+                const options = questionCard.querySelectorAll('.option');
+                const userAnswer = quizState.answers[index];
+                const correctAnswer = q.correct;
+
+                // Disable all options
+                options.forEach(opt => opt.classList.add('disabled'));
+
+                // Mark correct answer
+                options[correctAnswer].classList.add('correct');
+
+                // Mark user's answer if wrong
+                if (userAnswer !== correctAnswer) {
+                    options[userAnswer].classList.add('wrong');
+                    questionCard.classList.add('answered-wrong');
+                    wrong++;
+                } else {
+                    questionCard.classList.add('answered-correct');
+                    correct++;
+                }
+
+                // Show explanation
+                document.getElementById(`explanation-${index}`).classList.add('show');
+            });
+
+            // Calculate score
+            const percentage = Math.round((correct / quizData.length) * 100);
+
+            // Show results
+            showResults(correct, wrong, percentage);
+
+            // Save progress
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('key', 'kdf-quiz', percentage);
+            }
+
+            // Award achievement
+            if (typeof AchievementManager !== 'undefined') {
+                if (percentage === 100) {
+                    AchievementManager.unlock('perfectionist', 'Perfect score on KDF Quiz');
+                } else if (percentage >= 80) {
+                    AchievementManager.unlock('scholar', 'Passed KDF Quiz with 80%+');
+                }
+            }
+
+            // Scroll to results
+            setTimeout(() => {
+                document.getElementById('results-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+
+        // Show results
+        function showResults(correct, wrong, percentage) {
+            document.getElementById('results-score').textContent = percentage + '%';
+            document.getElementById('correct-count').textContent = correct;
+            document.getElementById('wrong-count').textContent = wrong;
+            document.getElementById('score-percent').textContent = percentage + '%';
+
+            let message, detail;
+            if (percentage === 100) {
+                message = 'Perfect Score!';
+                detail = 'You have mastered Key Derivation Functions. Excellent work!';
+            } else if (percentage >= 80) {
+                message = 'Great Job!';
+                detail = 'You have a strong understanding of KDFs. Review the explanations for questions you missed.';
+            } else if (percentage >= 60) {
+                message = 'Good Effort!';
+                detail = 'You understand the basics. Review the material and focus on the explanations below.';
+            } else {
+                message = 'Keep Learning!';
+                detail = 'KDFs are complex. Review the presentation material and try again.';
+            }
+
+            document.getElementById('results-message').textContent = message;
+            document.getElementById('results-detail').textContent = detail;
+            document.getElementById('results-card').classList.add('show');
+
+            // Hide submit button
+            document.getElementById('submit-btn').style.display = 'none';
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initQuiz);
+    </script>
+</body>
+</html>
