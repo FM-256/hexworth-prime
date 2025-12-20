@@ -2022,6 +2022,16 @@ const ContentRegistry = {
             description: 'Understand attacks to build better defenses',
             restricted: true,
             unlockRequirement: 'five-gates'
+        },
+        'divergent': {
+            id: 'divergent',
+            name: 'The Factionless',
+            shortName: 'Factionless',
+            icon: '⚡',
+            domain: 'All Domains',
+            color: '#ff00ff',
+            description: 'You cannot be contained. All houses are open to you.',
+            hidden: true  // Don't show in house lists - Divergents explore all houses
         }
     },
 
