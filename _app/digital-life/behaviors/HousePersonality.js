@@ -168,7 +168,15 @@ class HousePersonalitySystem {
      */
     assignPersonality(firefly) {
         const houseKeys = Object.keys(this.houses);
-        const houseKey = houseKeys[Math.floor(Math.random() * houseKeys.length)];
+        let houseKey;
+
+        // Use dominant house with weighted probability if set
+        if (this.dominantHouse && Math.random() < this.dominantHouseWeight) {
+            houseKey = this.dominantHouse;
+        } else {
+            houseKey = houseKeys[Math.floor(Math.random() * houseKeys.length)];
+        }
+
         const house = this.houses[houseKey];
 
         const personality = {

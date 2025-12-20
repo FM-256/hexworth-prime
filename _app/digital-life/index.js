@@ -2642,6 +2642,31 @@ class DigitalLife {
     }
 
     /**
+     * Set the dominant house for firefly personalities
+     * Fireflies will be biased toward exhibiting this house's behaviors
+     * @param {string} houseKey - The house key ('web', 'shield', 'forge', 'script', 'cloud', 'darkarts')
+     * @param {number} weight - Weight from 0-1 (default 0.6 = 60% chance)
+     */
+    setDominantHouse(houseKey, weight = 0.6) {
+        if (this.housePersonalitySystem) {
+            this.housePersonalitySystem.setDominantHouse(houseKey, weight);
+            console.log(`🏠 Digital Life: Dominant house set to ${houseKey} (${weight * 100}% bias)`);
+        }
+        return this;
+    }
+
+    /**
+     * Clear the dominant house (return to random distribution)
+     */
+    clearDominantHouse() {
+        if (this.housePersonalitySystem) {
+            this.housePersonalitySystem.clearDominantHouse();
+            console.log('🏠 Digital Life: Dominant house cleared');
+        }
+        return this;
+    }
+
+    /**
      * Get rare firefly stats
      */
     getRareStats() {
