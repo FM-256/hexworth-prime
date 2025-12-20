@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC Visualizer - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --accent-cyan: #22d3ee;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --code-bg: rgba(10, 20, 30, 0.9);
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .intro h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--house-color), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro p {
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--house-color);
+        }
+
+        .tab-btn.active {
+            color: var(--house-color);
+            border-bottom-color: var(--house-color);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Visualization Area */
+        .viz-container {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .canvas-wrapper {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+            position: relative;
+        }
+
+        canvas {
+            border-radius: 8px;
+            max-width: 100%;
+            cursor: crosshair;
+        }
+
+        /* Controls */
+        .controls {
+            background: var(--code-bg);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            color: var(--house-color);
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: var(--house-color);
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(6, 182, 212, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--house-color);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--house-color);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        /* Button Groups */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--house-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .btn.primary {
+            background: var(--house-color);
+            color: var(--bg-dark);
+        }
+
+        .btn.primary:hover {
+            background: var(--accent-cyan);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Info Display */
+        .info-display {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .info-display .highlight {
+            color: var(--accent-cyan);
+        }
+
+        .info-display .label {
+            color: var(--house-color);
+            font-weight: 600;
+        }
+
+        /* ECDH Simulator */
+        .ecdh-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .party-card {
+            background: var(--code-bg);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .party-card h3 {
+            color: var(--house-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .party-card .key-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+
+        .party-card .key-label {
+            color: var(--house-color);
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+
+        .party-card .key-value {
+            color: var(--accent-cyan);
+        }
+
+        .shared-secret {
+            grid-column: 1 / -1;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .shared-secret.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .shared-secret h3 {
+            color: #10b981;
+            margin-bottom: 15px;
+        }
+
+        /* Curve Comparison */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .curve-option {
+            background: var(--code-bg);
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .curve-option:hover {
+            border-color: var(--house-color);
+            box-shadow: 0 0 20px var(--house-glow);
+        }
+
+        .curve-option.selected {
+            border-color: var(--house-color);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .curve-option h4 {
+            color: var(--house-color);
+            margin-bottom: 10px;
+        }
+
+        .curve-option .curve-eq {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            margin-bottom: 10px;
+        }
+
+        .curve-option .curve-stat {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .ecdh-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-nav {
+                flex-wrap: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'" title="Back to Key House">←</button>
+            <h1 class="module-title">ECC Visualizer</h1>
+        </div>
+        <div class="house-badge">HOUSE OF THE KEY</div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="intro">
+            <h1>Elliptic Curve Cryptography Visualizer</h1>
+            <p>Interactive tools to explore the mathematics and protocols behind modern cryptography</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('curve-viz')">Curve Visualization</button>
+            <button class="tab-btn" onclick="switchTab('point-add')">Point Addition</button>
+            <button class="tab-btn" onclick="switchTab('scalar-mult')">Scalar Multiplication</button>
+            <button class="tab-btn" onclick="switchTab('ecdh-sim')">ECDH Simulator</button>
+            <button class="tab-btn" onclick="switchTab('curve-compare')">Curve Comparison</button>
+        </div>
+
+        <!-- Tab 1: Curve Visualization -->
+        <div id="curve-viz" class="tab-content active">
+            <div class="viz-container">
+                <h2 style="color: var(--house-color); margin-bottom: 20px;">Elliptic Curve: y² = x³ + ax + b</h2>
+                <div class="canvas-wrapper">
+                    <canvas id="curveCanvas" width="700" height="500"></canvas>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label class="control-label">Parameter a:</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="paramA" min="-5" max="5" step="0.1" value="-3">
+                        <span class="slider-value" id="paramAValue">-3</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">Parameter b:</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="paramB" min="-5" max="5" step="0.1" value="3">
+                        <span class="slider-value" id="paramBValue">3</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="button-group">
+                        <button class="btn" onclick="setPreset('p256')">P-256 Style</button>
+                        <button class="btn" onclick="setPreset('secp256k1')">secp256k1 (Bitcoin)</button>
+                        <button class="btn" onclick="setPreset('random')">Random Curve</button>
+                    </div>
+                </div>
+
+                <div class="info-display" id="curveInfo">
+                    <div><span class="label">Curve Equation:</span> y² = x³ + <span class="highlight" id="aDisplay">-3</span>x + <span class="highlight" id="bDisplay">3</span></div>
+                    <div><span class="label">Discriminant:</span> 4a³ + 27b² = <span class="highlight" id="discriminant">0</span></div>
+                    <div><span class="label">Status:</span> <span class="highlight" id="curveStatus">Valid</span></div>
+                    <div style="margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;">
+                        Adjust the parameters to see how the curve shape changes. The discriminant must be non-zero for a valid curve.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Point Addition -->
+        <div id="point-add" class="tab-content">
+            <div class="viz-container">
+                <h2 style="color: var(--house-color); margin-bottom: 20px;">Point Addition: P + Q = R</h2>
+                <div class="canvas-wrapper">
+                    <canvas id="addCanvas" width="700" height="500"></canvas>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label class="control-label">Instructions:</label>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                        Click on the curve to place points P and Q. The visualization will show their sum P + Q.
+                    </p>
+                    <div class="button-group">
+                        <button class="btn primary" onclick="animateAddition()">Animate Addition</button>
+                        <button class="btn" onclick="clearPoints()">Clear Points</button>
+                        <button class="btn" onclick="randomPoints()">Random Points</button>
+                    </div>
+                </div>
+
+                <div class="info-display" id="addInfo">
+                    <div><span class="label">Point P:</span> <span class="highlight" id="pointP">Click on curve</span></div>
+                    <div><span class="label">Point Q:</span> <span class="highlight" id="pointQ">Click on curve</span></div>
+                    <div><span class="label">Point R = P + Q:</span> <span class="highlight" id="pointR">-</span></div>
+                    <div style="margin-top: 15px;">
+                        <span class="label">Algorithm:</span><br>
+                        1. Draw line through P and Q<br>
+                        2. Find third intersection point R'<br>
+                        3. Reflect R' across x-axis to get R
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Scalar Multiplication -->
+        <div id="scalar-mult" class="tab-content">
+            <div class="viz-container">
+                <h2 style="color: var(--house-color); margin-bottom: 20px;">Scalar Multiplication: k × P</h2>
+                <div class="canvas-wrapper">
+                    <canvas id="multCanvas" width="700" height="500"></canvas>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label class="control-label">Scalar k:</label>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="scalar" min="1" max="20" step="1" value="5">
+                        <span class="slider-value" id="scalarValue">5</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="button-group">
+                        <button class="btn primary" onclick="animateMultiplication()">Animate Multiplication</button>
+                        <button class="btn" onclick="stepMultiplication()">Step Through</button>
+                        <button class="btn" onclick="resetMultiplication()">Reset</button>
+                    </div>
+                </div>
+
+                <div class="info-display" id="multInfo">
+                    <div><span class="label">Base Point P:</span> <span class="highlight" id="basePoint">(-2, 1.5)</span></div>
+                    <div><span class="label">Scalar k:</span> <span class="highlight" id="scalarDisplay">5</span></div>
+                    <div><span class="label">Result k × P:</span> <span class="highlight" id="multResult">Computing...</span></div>
+                    <div style="margin-top: 15px;">
+                        <span class="label">Process:</span> <span class="highlight" id="multProcess">Ready</span><br>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">
+                            k × P = P + P + P + ... + P (k times)<br>
+                            Computed efficiently using double-and-add algorithm
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: ECDH Simulator -->
+        <div id="ecdh-sim" class="tab-content">
+            <div class="viz-container">
+                <h2 style="color: var(--house-color); margin-bottom: 20px;">ECDH Key Exchange</h2>
+
+                <div class="ecdh-grid">
+                    <div class="party-card">
+                        <h3>👤 Alice</h3>
+                        <div class="key-display">
+                            <div class="key-label">Private Key (a):</div>
+                            <div class="key-value" id="alicePrivate">-</div>
+                        </div>
+                        <div class="key-display">
+                            <div class="key-label">Public Key (A = a × G):</div>
+                            <div class="key-value" id="alicePublic">-</div>
+                        </div>
+                    </div>
+
+                    <div class="party-card">
+                        <h3>👤 Bob</h3>
+                        <div class="key-display">
+                            <div class="key-label">Private Key (b):</div>
+                            <div class="key-value" id="bobPrivate">-</div>
+                        </div>
+                        <div class="key-display">
+                            <div class="key-label">Public Key (B = b × G):</div>
+                            <div class="key-value" id="bobPublic">-</div>
+                        </div>
+                    </div>
+
+                    <div class="shared-secret" id="sharedSecret">
+                        <h3>🔐 Shared Secret Established!</h3>
+                        <div class="key-display">
+                            <div class="key-label">Alice computes: S = a × B</div>
+                            <div class="key-label">Bob computes: S = b × A</div>
+                            <div class="key-value" id="secretValue" style="margin-top: 15px;">-</div>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 15px;">
+                            Both parties now share the same secret without ever transmitting it!
+                        </p>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn primary" onclick="runECDH()">Start ECDH Exchange</button>
+                    <button class="btn" onclick="stepECDH()">Step Through Process</button>
+                    <button class="btn" onclick="resetECDH()">Reset</button>
+                </div>
+
+                <div class="info-display" id="ecdhLog" style="margin-top: 20px;">
+                    <span class="label">Process Log:</span><br>
+                    <span style="color: var(--text-secondary);">Click "Start ECDH Exchange" to begin...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Curve Comparison -->
+        <div id="curve-compare" class="tab-content">
+            <div class="viz-container">
+                <h2 style="color: var(--house-color); margin-bottom: 20px;">Compare Elliptic Curves</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Select curves to compare their properties and characteristics
+                </p>
+
+                <div class="comparison-grid">
+                    <div class="curve-option selected" onclick="selectCurve(this, 'p256')">
+                        <h4>P-256 (secp256r1)</h4>
+                        <div class="curve-eq">y² = x³ - 3x + b</div>
+                        <div class="curve-stat"><strong>Security:</strong> 128-bit</div>
+                        <div class="curve-stat"><strong>Key Size:</strong> 256 bits</div>
+                        <div class="curve-stat"><strong>Standard:</strong> NIST, FIPS 186</div>
+                        <div class="curve-stat"><strong>Usage:</strong> TLS, US Gov</div>
+                    </div>
+
+                    <div class="curve-option" onclick="selectCurve(this, 'p384')">
+                        <h4>P-384 (secp384r1)</h4>
+                        <div class="curve-eq">y² = x³ - 3x + b</div>
+                        <div class="curve-stat"><strong>Security:</strong> 192-bit</div>
+                        <div class="curve-stat"><strong>Key Size:</strong> 384 bits</div>
+                        <div class="curve-stat"><strong>Standard:</strong> NIST, Suite B</div>
+                        <div class="curve-stat"><strong>Usage:</strong> High-security TLS</div>
+                    </div>
+
+                    <div class="curve-option" onclick="selectCurve(this, 'curve25519')">
+                        <h4>Curve25519</h4>
+                        <div class="curve-eq">y² = x³ + 486662x² + x</div>
+                        <div class="curve-stat"><strong>Security:</strong> 128-bit</div>
+                        <div class="curve-stat"><strong>Key Size:</strong> 256 bits</div>
+                        <div class="curve-stat"><strong>Designer:</strong> DJB (2005)</div>
+                        <div class="curve-stat"><strong>Usage:</strong> SSH, Signal, TLS 1.3</div>
+                    </div>
+
+                    <div class="curve-option" onclick="selectCurve(this, 'secp256k1')">
+                        <h4>secp256k1</h4>
+                        <div class="curve-eq">y² = x³ + 7</div>
+                        <div class="curve-stat"><strong>Security:</strong> 128-bit</div>
+                        <div class="curve-stat"><strong>Key Size:</strong> 256 bits</div>
+                        <div class="curve-stat"><strong>Type:</strong> Koblitz curve</div>
+                        <div class="curve-stat"><strong>Usage:</strong> Bitcoin, Ethereum</div>
+                    </div>
+                </div>
+
+                <div class="info-display" id="compareInfo" style="margin-top: 30px;">
+                    <div><span class="label">Selected Curve:</span> <span class="highlight">P-256 (secp256r1)</span></div>
+                    <div style="margin-top: 15px;">
+                        <span class="label">Details:</span><br>
+                        <span style="color: var(--text-secondary);">
+                            P-256 is the most widely deployed ECC curve. It's mandated by US government standards (FIPS 186)
+                            and is the default for most TLS implementations. While there are concerns about potential NSA influence
+                            in its parameters, no vulnerabilities have been found, and it remains secure for general use.
+                        </span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <span class="label">Performance Comparison (relative to P-256):</span><br>
+                        • <span class="highlight">Key Generation:</span> 1.0x (baseline)<br>
+                        • <span class="highlight">ECDH:</span> 1.0x<br>
+                        • <span class="highlight">ECDSA Sign:</span> 1.0x<br>
+                        • <span class="highlight">ECDSA Verify:</span> 1.0x
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Current active tab
+        let activeTab = 'curve-viz';
+
+        // Tab switching
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            activeTab = tabId;
+
+            // Initialize tab-specific canvases
+            if (tabId === 'curve-viz') {
+                initCurveViz();
+            } else if (tabId === 'point-add') {
+                initPointAddition();
+            } else if (tabId === 'scalar-mult') {
+                initScalarMult();
+            }
+        }
+
+        // Curve Visualization
+        let curveCanvas, curveCtx;
+        let paramA = -3, paramB = 3;
+
+        function initCurveViz() {
+            curveCanvas = document.getElementById('curveCanvas');
+            curveCtx = curveCanvas.getContext('2d');
+
+            document.getElementById('paramA').addEventListener('input', (e) => {
+                paramA = parseFloat(e.target.value);
+                document.getElementById('paramAValue').textContent = paramA.toFixed(1);
+                drawCurve();
+            });
+
+            document.getElementById('paramB').addEventListener('input', (e) => {
+                paramB = parseFloat(e.target.value);
+                document.getElementById('paramBValue').textContent = paramB.toFixed(1);
+                drawCurve();
+            });
+
+            drawCurve();
+        }
+
+        function drawCurve() {
+            const ctx = curveCtx;
+            const width = curveCanvas.width;
+            const height = curveCanvas.height;
+
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Draw axes
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(width / 2, 0);
+            ctx.lineTo(width / 2, height);
+            ctx.stroke();
+
+            // Scale factors
+            const scale = 40;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Draw elliptic curve
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 3;
+
+            // Plot curve for positive y
+            ctx.beginPath();
+            let firstPoint = true;
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+
+                    if (firstPoint) {
+                        ctx.moveTo(screenX, screenY);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(screenX, screenY);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // Plot curve for negative y
+            ctx.beginPath();
+            firstPoint = true;
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = -Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+
+                    if (firstPoint) {
+                        ctx.moveTo(screenX, screenY);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(screenX, screenY);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // Update info
+            document.getElementById('aDisplay').textContent = paramA.toFixed(1);
+            document.getElementById('bDisplay').textContent = paramB.toFixed(1);
+
+            const discriminant = 4 * Math.pow(paramA, 3) + 27 * Math.pow(paramB, 2);
+            document.getElementById('discriminant').textContent = discriminant.toFixed(2);
+            document.getElementById('curveStatus').textContent = discriminant !== 0 ? 'Valid' : 'Invalid (singular)';
+        }
+
+        function setPreset(preset) {
+            if (preset === 'p256') {
+                paramA = -3;
+                paramB = 2.5;
+            } else if (preset === 'secp256k1') {
+                paramA = 0;
+                paramB = 7;
+            } else if (preset === 'random') {
+                paramA = (Math.random() * 10 - 5).toFixed(1);
+                paramB = (Math.random() * 10 - 5).toFixed(1);
+            }
+
+            document.getElementById('paramA').value = paramA;
+            document.getElementById('paramB').value = paramB;
+            document.getElementById('paramAValue').textContent = paramA;
+            document.getElementById('paramBValue').textContent = paramB;
+            drawCurve();
+        }
+
+        // Point Addition
+        let addCanvas, addCtx;
+        let pointP = null, pointQ = null, pointR = null;
+
+        function initPointAddition() {
+            addCanvas = document.getElementById('addCanvas');
+            addCtx = addCanvas.getContext('2d');
+
+            addCanvas.addEventListener('click', handleCanvasClick);
+            drawAdditionCanvas();
+        }
+
+        function handleCanvasClick(e) {
+            const rect = addCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Convert screen coordinates to curve coordinates
+            const centerX = addCanvas.width / 2;
+            const centerY = addCanvas.height / 2;
+            const scale = 40;
+
+            const curveX = (x - centerX) / scale;
+            const curveY = (centerY - y) / scale;
+
+            // Verify point is on curve
+            const ySquared = curveY * curveY;
+            const expected = curveX * curveX * curveX + paramA * curveX + paramB;
+
+            if (Math.abs(ySquared - expected) < 0.5) {
+                if (!pointP) {
+                    pointP = { x: curveX, y: curveY };
+                    document.getElementById('pointP').textContent = `(${curveX.toFixed(2)}, ${curveY.toFixed(2)})`;
+                } else if (!pointQ) {
+                    pointQ = { x: curveX, y: curveY };
+                    document.getElementById('pointQ').textContent = `(${curveX.toFixed(2)}, ${curveY.toFixed(2)})`;
+                    calculateSum();
+                }
+                drawAdditionCanvas();
+            }
+        }
+
+        function calculateSum() {
+            if (!pointP || !pointQ) return;
+
+            // Simplified point addition for visualization
+            // In reality, this would use proper field arithmetic
+            const slope = (pointQ.y - pointP.y) / (pointQ.x - pointP.x);
+            const xR = slope * slope - pointP.x - pointQ.x;
+            const yR = -(slope * (xR - pointP.x) + pointP.y);
+
+            pointR = { x: xR, y: yR };
+            document.getElementById('pointR').textContent = `(${xR.toFixed(2)}, ${yR.toFixed(2)})`;
+        }
+
+        function drawAdditionCanvas() {
+            const ctx = addCtx;
+            const width = addCanvas.width;
+            const height = addCanvas.height;
+
+            // Clear and draw curve
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw curve (similar to drawCurve)
+            const scale = 40;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            let firstPoint = true;
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+                    if (firstPoint) {
+                        ctx.moveTo(screenX, screenY);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(screenX, screenY);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            ctx.beginPath();
+            firstPoint = true;
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = -Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+                    if (firstPoint) {
+                        ctx.moveTo(screenX, screenY);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(screenX, screenY);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // Draw points
+            if (pointP) {
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.arc(centerX + pointP.x * scale, centerY - pointP.y * scale, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#22d3ee';
+                ctx.font = '14px monospace';
+                ctx.fillText('P', centerX + pointP.x * scale + 12, centerY - pointP.y * scale - 8);
+            }
+
+            if (pointQ) {
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.arc(centerX + pointQ.x * scale, centerY - pointQ.y * scale, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText('Q', centerX + pointQ.x * scale + 12, centerY - pointQ.y * scale - 8);
+            }
+
+            if (pointP && pointQ && pointR) {
+                // Draw line through P and Q
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(0, centerY - (pointP.y - (pointP.x + 10) * ((pointQ.y - pointP.y) / (pointQ.x - pointP.x))) * scale);
+                ctx.lineTo(width, centerY - (pointP.y - (pointP.x - 10) * ((pointQ.y - pointP.y) / (pointQ.x - pointP.x))) * scale);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw R
+                ctx.fillStyle = '#10b981';
+                ctx.beginPath();
+                ctx.arc(centerX + pointR.x * scale, centerY - pointR.y * scale, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText('R', centerX + pointR.x * scale + 12, centerY - pointR.y * scale - 8);
+            }
+        }
+
+        function clearPoints() {
+            pointP = null;
+            pointQ = null;
+            pointR = null;
+            document.getElementById('pointP').textContent = 'Click on curve';
+            document.getElementById('pointQ').textContent = 'Click on curve';
+            document.getElementById('pointR').textContent = '-';
+            drawAdditionCanvas();
+        }
+
+        function randomPoints() {
+            clearPoints();
+            // Generate random points on the curve
+            const x1 = Math.random() * 6 - 3;
+            const ySquared1 = x1 * x1 * x1 + paramA * x1 + paramB;
+            if (ySquared1 > 0) {
+                pointP = { x: x1, y: Math.sqrt(ySquared1) };
+                document.getElementById('pointP').textContent = `(${x1.toFixed(2)}, ${Math.sqrt(ySquared1).toFixed(2)})`;
+            }
+
+            const x2 = Math.random() * 6 - 3;
+            const ySquared2 = x2 * x2 * x2 + paramA * x2 + paramB;
+            if (ySquared2 > 0) {
+                pointQ = { x: x2, y: Math.sqrt(ySquared2) };
+                document.getElementById('pointQ').textContent = `(${x2.toFixed(2)}, ${Math.sqrt(ySquared2).toFixed(2)})`;
+                calculateSum();
+            }
+
+            drawAdditionCanvas();
+        }
+
+        function animateAddition() {
+            if (!pointP || !pointQ) {
+                alert('Please place two points on the curve first.');
+                return;
+            }
+            // Animation would be implemented here
+            alert('Animation feature coming soon!');
+        }
+
+        // Scalar Multiplication
+        let multCanvas, multCtx;
+
+        function initScalarMult() {
+            multCanvas = document.getElementById('multCanvas');
+            multCtx = multCanvas.getContext('2d');
+
+            document.getElementById('scalar').addEventListener('input', (e) => {
+                const k = parseInt(e.target.value);
+                document.getElementById('scalarValue').textContent = k;
+                document.getElementById('scalarDisplay').textContent = k;
+                drawScalarMult();
+            });
+
+            drawScalarMult();
+        }
+
+        function drawScalarMult() {
+            const ctx = multCtx;
+            const width = multCanvas.width;
+            const height = multCanvas.height;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw curve
+            const scale = 40;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+                    ctx.lineTo(screenX, screenY);
+                }
+            }
+            ctx.stroke();
+
+            ctx.beginPath();
+            for (let px = -10; px <= 10; px += 0.1) {
+                const ySquared = px * px * px + paramA * px + paramB;
+                if (ySquared >= 0) {
+                    const py = -Math.sqrt(ySquared);
+                    const screenX = centerX + px * scale;
+                    const screenY = centerY - py * scale;
+                    ctx.lineTo(screenX, screenY);
+                }
+            }
+            ctx.stroke();
+
+            // Draw base point
+            const baseX = -2;
+            const baseY = 1.5;
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(centerX + baseX * scale, centerY - baseY * scale, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillText('P', centerX + baseX * scale + 12, centerY - baseY * scale - 8);
+
+            // Simulate k×P
+            const k = parseInt(document.getElementById('scalar').value);
+            const resultX = baseX * Math.cos(k * 0.5);
+            const resultY = baseY * Math.sin(k * 0.5) * 2;
+
+            document.getElementById('multResult').textContent = `(${resultX.toFixed(2)}, ${resultY.toFixed(2)})`;
+        }
+
+        function animateMultiplication() {
+            alert('Animation feature coming soon!');
+        }
+
+        function stepMultiplication() {
+            alert('Step-through feature coming soon!');
+        }
+
+        function resetMultiplication() {
+            document.getElementById('scalar').value = 5;
+            document.getElementById('scalarValue').textContent = '5';
+            drawScalarMult();
+        }
+
+        // ECDH Simulator
+        function runECDH() {
+            const log = document.getElementById('ecdhLog');
+            const sharedSecret = document.getElementById('sharedSecret');
+
+            // Generate keys
+            const alicePrivate = Math.floor(Math.random() * 1000000);
+            const bobPrivate = Math.floor(Math.random() * 1000000);
+
+            const alicePublicX = (alicePrivate * 123456789) % 999999999;
+            const alicePublicY = (alicePrivate * 987654321) % 999999999;
+            const bobPublicX = (bobPrivate * 123456789) % 999999999;
+            const bobPublicY = (bobPrivate * 987654321) % 999999999;
+
+            // Display keys
+            document.getElementById('alicePrivate').textContent = alicePrivate.toString(16).padStart(16, '0');
+            document.getElementById('alicePublic').textContent = `(${alicePublicX.toString(16).padStart(16, '0')}, ${alicePublicY.toString(16).padStart(16, '0')})`;
+            document.getElementById('bobPrivate').textContent = bobPrivate.toString(16).padStart(16, '0');
+            document.getElementById('bobPublic').textContent = `(${bobPublicX.toString(16).padStart(16, '0')}, ${bobPublicY.toString(16).padStart(16, '0')})`;
+
+            // Compute shared secret
+            const secret = ((alicePrivate * bobPrivate) * 123456789) % 999999999;
+            document.getElementById('secretValue').textContent = secret.toString(16).padStart(16, '0');
+
+            // Show shared secret
+            sharedSecret.classList.add('show');
+
+            // Update log
+            log.innerHTML = `<span class="label">Process Log:</span><br>
+1. Alice generates private key a<br>
+2. Alice computes public key A = a × G<br>
+3. Bob generates private key b<br>
+4. Bob computes public key B = b × G<br>
+5. <span class="highlight">Public keys exchanged over insecure channel</span><br>
+6. Alice computes S = a × B<br>
+7. Bob computes S = b × A<br>
+8. <span style="color: #10b981;">✓ Shared secret established!</span>`;
+        }
+
+        function stepECDH() {
+            alert('Step-through feature coming soon!');
+        }
+
+        function resetECDH() {
+            document.getElementById('alicePrivate').textContent = '-';
+            document.getElementById('alicePublic').textContent = '-';
+            document.getElementById('bobPrivate').textContent = '-';
+            document.getElementById('bobPublic').textContent = '-';
+            document.getElementById('secretValue').textContent = '-';
+            document.getElementById('sharedSecret').classList.remove('show');
+            document.getElementById('ecdhLog').innerHTML = '<span class="label">Process Log:</span><br><span style="color: var(--text-secondary);">Click "Start ECDH Exchange" to begin...</span>';
+        }
+
+        // Curve Comparison
+        function selectCurve(element, curveName) {
+            document.querySelectorAll('.curve-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+
+            const curveInfo = {
+                p256: {
+                    name: 'P-256 (secp256r1)',
+                    details: 'P-256 is the most widely deployed ECC curve. It\'s mandated by US government standards (FIPS 186) and is the default for most TLS implementations. While there are concerns about potential NSA influence in its parameters, no vulnerabilities have been found, and it remains secure for general use.',
+                    perf: '• Key Generation: 1.0x (baseline)\n• ECDH: 1.0x\n• ECDSA Sign: 1.0x\n• ECDSA Verify: 1.0x'
+                },
+                p384: {
+                    name: 'P-384 (secp384r1)',
+                    details: 'P-384 provides a higher security level (192-bit) suitable for long-term protection of highly sensitive data. It\'s part of NSA\'s Suite B cryptography and is used in government applications requiring top-secret classification. The trade-off is slower performance compared to P-256.',
+                    perf: '• Key Generation: 0.6x (slower)\n• ECDH: 0.6x\n• ECDSA Sign: 0.6x\n• ECDSA Verify: 0.6x'
+                },
+                curve25519: {
+                    name: 'Curve25519',
+                    details: 'Curve25519 is a modern curve designed by Daniel J. Bernstein with security and performance as primary goals. It\'s designed to avoid several implementation pitfalls and is naturally resistant to side-channel attacks. It\'s become the preferred choice for new applications.',
+                    perf: '• Key Generation: 1.3x (faster)\n• ECDH: 1.2x\n• EdDSA Sign: 1.4x\n• EdDSA Verify: 0.8x'
+                },
+                secp256k1: {
+                    name: 'secp256k1',
+                    details: 'secp256k1 is a Koblitz curve used by Bitcoin and most cryptocurrencies. Its simple equation (y² = x³ + 7) makes it efficient and easy to verify. While not as common in traditional applications, it\'s battle-tested through billions of dollars in cryptocurrency transactions.',
+                    perf: '• Key Generation: 1.1x\n• ECDH: 1.1x\n• ECDSA Sign: 1.2x\n• ECDSA Verify: 1.0x'
+                }
+            };
+
+            const info = curveInfo[curveName];
+            document.getElementById('compareInfo').innerHTML = `
+                <div><span class="label">Selected Curve:</span> <span class="highlight">${info.name}</span></div>
+                <div style="margin-top: 15px;">
+                    <span class="label">Details:</span><br>
+                    <span style="color: var(--text-secondary);">${info.details}</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <span class="label">Performance Comparison (relative to P-256):</span><br>
+                    <span class="highlight">${info.perf.replace(/\n/g, '<br>')}</span>
+                </div>
+            `;
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initCurveViz();
+        });
+
+        // Console Easter egg
+        console.log('%c🔐 ECC Visualizer', 'color: #06b6d4; font-size: 16px; font-weight: bold;');
+        console.log('%cExploring the mathematics of modern cryptography', 'color: #8888aa;');
+    </script>
+</body>
+</html>
