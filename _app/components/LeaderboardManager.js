@@ -109,6 +109,10 @@ class LeaderboardManager {
         const streak = parseInt(localStorage.getItem('hexworth_streak') || '1');
         xp += streak * 10;
 
+        // Add achievement points (discovery points from AchievementManager)
+        const achievementPoints = parseInt(localStorage.getItem('hexworth_discovery_points') || '0');
+        xp += achievementPoints;
+
         this.currentUser = {
             id: 'current_user',
             username: username || 'You',
