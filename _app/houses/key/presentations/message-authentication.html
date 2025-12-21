@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Authentication & HMAC - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --accent-cyan: #06b6d4;
+            --accent-navy: #1e3a8a;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--house-color), #22d3ee);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        /* Main Content */
+        .module-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro-section {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .intro-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px var(--house-glow));
+        }
+
+        .intro-title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #fff, var(--house-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 50px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease;
+        }
+
+        .section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .section-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--house-color), #22d3ee);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 400;
+            color: var(--text-primary);
+        }
+
+        .section-content {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+        }
+
+        .concept-block {
+            margin-bottom: 25px;
+        }
+
+        .concept-block:last-child {
+            margin-bottom: 0;
+        }
+
+        .concept-title {
+            font-size: 1.2rem;
+            color: var(--house-color);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .concept-text {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        /* Visual Diagram */
+        .visual-diagram {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .diagram-title {
+            font-size: 1rem;
+            color: var(--house-color);
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .flow-box {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 15px 20px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .flow-box-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .flow-box-content {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .flow-arrow {
+            color: var(--house-color);
+            font-size: 1.5rem;
+        }
+
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .comparison-table th {
+            background: rgba(6, 182, 212, 0.1);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+            font-weight: 500;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            color: var(--text-secondary);
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: rgba(6, 182, 212, 0.03);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            color: #22d3ee;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* Alert Boxes */
+        .alert-box {
+            border-left: 4px solid;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .alert-box.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--info-blue);
+        }
+
+        .alert-box.warning {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--warning-red);
+        }
+
+        .alert-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success-green);
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-text {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* List Styles */
+        .styled-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .styled-list li {
+            padding: 12px 0 12px 30px;
+            position: relative;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .styled-list li:before {
+            content: '▹';
+            position: absolute;
+            left: 0;
+            color: var(--house-color);
+            font-size: 1.2rem;
+        }
+
+        /* Interactive Demo */
+        .interactive-demo {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .demo-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .demo-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .demo-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .demo-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .demo-button {
+            background: linear-gradient(135deg, var(--house-color), #22d3ee);
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            color: #0a0a12;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .demo-output {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            color: #22d3ee;
+            word-break: break-all;
+        }
+
+        /* Complete Button */
+        .complete-section {
+            text-align: center;
+            margin-top: 60px;
+            padding: 40px;
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+        }
+
+        .complete-btn {
+            background: linear-gradient(135deg, var(--house-color), #22d3ee);
+            border: none;
+            border-radius: 8px;
+            padding: 15px 40px;
+            color: #0a0a12;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--house-glow);
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 30px var(--house-glow);
+        }
+
+        .complete-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .module-content {
+                padding: 30px 20px;
+            }
+
+            .intro-title {
+                font-size: 2rem;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+
+            .demo-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-diagram {
+                flex-direction: column;
+            }
+
+            .comparison-table {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'" title="Back to Key House">←</button>
+            <h1 class="module-title">Message Authentication & HMAC</h1>
+            <span class="house-badge">KEY HOUSE</span>
+        </div>
+        <div class="progress-indicator">
+            <span id="progress-text">0%</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-content">
+        <!-- Introduction -->
+        <section class="intro-section">
+            <div class="intro-icon">🔐</div>
+            <h1 class="intro-title">Message Authentication Codes</h1>
+            <p class="intro-subtitle">
+                Encryption protects confidentiality, but how do you know a message hasn't been tampered with?
+                Message Authentication Codes (MACs) provide cryptographic integrity and authenticity, ensuring
+                that data comes from the claimed sender and hasn't been modified in transit.
+            </p>
+        </section>
+
+        <!-- Section 1: Why Integrity Matters -->
+        <section class="section" data-section="1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <h2 class="section-title">Why Message Integrity Matters</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">The Three Pillars of Security</h3>
+                    <p class="concept-text">
+                        Cryptographic security rests on three fundamental properties:
+                    </p>
+                    <ul class="styled-list">
+                        <li><strong>Confidentiality:</strong> Encryption ensures only authorized parties can read the message</li>
+                        <li><strong>Integrity:</strong> Detection of any unauthorized modification to the message</li>
+                        <li><strong>Authenticity:</strong> Verification that the message came from the claimed sender</li>
+                    </ul>
+                    <p class="concept-text">
+                        While encryption handles confidentiality, MACs provide both integrity and authenticity.
+                    </p>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Real-World Attack Scenarios</h3>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ Man-in-the-Middle Attack</div>
+                        <div class="alert-text">
+                            An attacker intercepts a message "Transfer $100 to Alice" and modifies it to
+                            "Transfer $10000 to Eve" before forwarding it. Without integrity protection,
+                            the recipient has no way to detect this tampering.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ Replay Attack</div>
+                        <div class="alert-text">
+                            An attacker captures a legitimate authenticated message like "Unlock door" and
+                            replays it later to gain unauthorized access. MACs alone don't prevent this—you
+                            also need nonces or timestamps.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Why Not Just Hash?</h3>
+                    <p class="concept-text">
+                        A simple hash (like SHA-256) can detect accidental corruption, but it doesn't
+                        prevent malicious tampering:
+                    </p>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">Why Plain Hashing Fails for Authentication</div>
+                        <div class="flow-diagram">
+                            <div class="flow-box">
+                                <div class="flow-box-title">Original</div>
+                                <div class="flow-box-content">Message M</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box">
+                                <div class="flow-box-title">Hash</div>
+                                <div class="flow-box-content">H(M)</div>
+                            </div>
+                        </div>
+                        <div class="flow-diagram" style="margin-top: 20px;">
+                            <div class="flow-box" style="border-color: #ef4444;">
+                                <div class="flow-box-title">Attacker</div>
+                                <div class="flow-box-content">Message M'</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box" style="border-color: #ef4444;">
+                                <div class="flow-box-title">New Hash</div>
+                                <div class="flow-box-content">H(M')</div>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 15px; text-align: center;">
+                            Attacker can modify both message and hash—receiver has no way to detect forgery!
+                        </p>
+                    </div>
+
+                    <p class="concept-text">
+                        A MAC solves this by incorporating a <strong>secret key</strong> known only to
+                        legitimate parties. Without the key, an attacker cannot generate a valid MAC for
+                        a forged message.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: MAC vs Hash vs Digital Signature -->
+        <section class="section" data-section="2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <h2 class="section-title">MAC vs Hash vs Digital Signature</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Understanding the Differences</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Hash Function</th>
+                                <th>MAC (HMAC)</th>
+                                <th>Digital Signature</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Uses Key?</strong></td>
+                                <td>No</td>
+                                <td>Yes (symmetric)</td>
+                                <td>Yes (asymmetric)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Integrity?</strong></td>
+                                <td>Yes (accidental)</td>
+                                <td>Yes (cryptographic)</td>
+                                <td>Yes (cryptographic)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Authenticity?</strong></td>
+                                <td>No</td>
+                                <td>Yes</td>
+                                <td>Yes</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Non-repudiation?</strong></td>
+                                <td>No</td>
+                                <td>No</td>
+                                <td>Yes</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Performance</strong></td>
+                                <td>Fastest</td>
+                                <td>Fast</td>
+                                <td>Slow</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Use Case</strong></td>
+                                <td>Checksums, fingerprints</td>
+                                <td>API auth, session cookies</td>
+                                <td>Software signing, emails</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">When to Use Each</h3>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">💡 Hash Functions</div>
+                        <div class="alert-text">
+                            Use when you need to detect accidental corruption (file downloads, data storage)
+                            or create unique identifiers. Not suitable for security against active attackers.
+                        </div>
+                    </div>
+
+                    <div class="alert-box success">
+                        <div class="alert-title">✓ MACs (HMAC)</div>
+                        <div class="alert-text">
+                            Use when both parties share a secret key and need fast authentication. Perfect for
+                            API authentication, session tokens, and authenticated encryption. Both parties can
+                            generate and verify the MAC.
+                        </div>
+                    </div>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">🔏 Digital Signatures</div>
+                        <div class="alert-text">
+                            Use when you need non-repudiation (legal proof) or when parties don't share a secret
+                            key. Only the private key holder can sign, but anyone with the public key can verify.
+                            Essential for software distribution and legal documents.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: HMAC Construction -->
+        <section class="section" data-section="3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <h2 class="section-title">HMAC: Hash-based Message Authentication Code</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">The HMAC Algorithm</h3>
+                    <p class="concept-text">
+                        HMAC is the most widely used MAC construction. It combines a cryptographic hash
+                        function (like SHA-256) with a secret key using a specific formula:
+                    </p>
+
+                    <div class="code-block">
+                        <code>HMAC(K, m) = H((K ⊕ opad) || H((K ⊕ ipad) || m))</code>
+                    </div>
+
+                    <p class="concept-text">Where:</p>
+                    <ul class="styled-list">
+                        <li><strong>H</strong> = Underlying hash function (SHA-256, SHA-512, etc.)</li>
+                        <li><strong>K</strong> = Secret key (padded or hashed to block size)</li>
+                        <li><strong>m</strong> = Message to authenticate</li>
+                        <li><strong>ipad</strong> = Inner padding (0x36 repeated)</li>
+                        <li><strong>opad</strong> = Outer padding (0x5c repeated)</li>
+                        <li><strong>⊕</strong> = XOR operation</li>
+                        <li><strong>||</strong> = Concatenation</li>
+                    </ul>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Visual HMAC Construction</h3>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">HMAC Computational Flow</div>
+
+                        <!-- Inner Hash -->
+                        <div style="margin-bottom: 25px;">
+                            <p style="color: var(--house-color); margin-bottom: 10px; font-weight: 500;">Inner Hash:</p>
+                            <div class="flow-diagram">
+                                <div class="flow-box">
+                                    <div class="flow-box-title">Key</div>
+                                    <div class="flow-box-content">K</div>
+                                </div>
+                                <div class="flow-arrow">⊕</div>
+                                <div class="flow-box">
+                                    <div class="flow-box-title">Padding</div>
+                                    <div class="flow-box-content">ipad</div>
+                                </div>
+                                <div class="flow-arrow">||</div>
+                                <div class="flow-box">
+                                    <div class="flow-box-title">Message</div>
+                                    <div class="flow-box-content">m</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-box" style="background: rgba(6, 182, 212, 0.2);">
+                                    <div class="flow-box-title">Hash</div>
+                                    <div class="flow-box-content">H(...)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Outer Hash -->
+                        <div>
+                            <p style="color: var(--house-color); margin-bottom: 10px; font-weight: 500;">Outer Hash:</p>
+                            <div class="flow-diagram">
+                                <div class="flow-box">
+                                    <div class="flow-box-title">Key</div>
+                                    <div class="flow-box-content">K</div>
+                                </div>
+                                <div class="flow-arrow">⊕</div>
+                                <div class="flow-box">
+                                    <div class="flow-box-title">Padding</div>
+                                    <div class="flow-box-content">opad</div>
+                                </div>
+                                <div class="flow-arrow">||</div>
+                                <div class="flow-box" style="background: rgba(6, 182, 212, 0.2);">
+                                    <div class="flow-box-title">Inner Hash</div>
+                                    <div class="flow-box-content">H(...)</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-box" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981;">
+                                    <div class="flow-box-title">HMAC</div>
+                                    <div class="flow-box-content">Final</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Why This Construction?</h3>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">🛡️ Defense Against Length Extension</div>
+                        <div class="alert-text">
+                            Simply computing H(K || m) is vulnerable to length extension attacks with
+                            Merkle-Damgård hashes (SHA-1, SHA-256). HMAC's double-hash construction prevents
+                            this: an attacker can't extend the inner hash without knowing K.
+                        </div>
+                    </div>
+
+                    <div class="alert-box success">
+                        <div class="alert-title">✓ Proven Security</div>
+                        <div class="alert-text">
+                            HMAC's security has been formally proven: if the underlying hash function is secure,
+                            then HMAC is secure. This mathematical guarantee is why HMAC is the standard MAC
+                            construction.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Interactive HMAC Demo</h3>
+
+                    <div class="interactive-demo">
+                        <div class="demo-controls">
+                            <div class="demo-control">
+                                <label class="demo-label">Message</label>
+                                <input type="text" class="demo-input" id="hmac-message" placeholder="Enter message..." value="Hello, World!">
+                            </div>
+                            <div class="demo-control">
+                                <label class="demo-label">Secret Key</label>
+                                <input type="text" class="demo-input" id="hmac-key" placeholder="Enter key..." value="secret-key-123">
+                            </div>
+                        </div>
+                        <button class="demo-button" onclick="computeHMAC()">Compute HMAC-SHA256</button>
+                        <div class="demo-output" id="hmac-output">Click "Compute HMAC-SHA256" to see the result</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: HMAC Security Properties -->
+        <section class="section" data-section="4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <h2 class="section-title">HMAC Security Properties</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Key Security Guarantees</h3>
+
+                    <ul class="styled-list">
+                        <li><strong>Unforgeability:</strong> Without the secret key, an attacker cannot create a valid HMAC for any message, even after seeing many valid message-MAC pairs</li>
+                        <li><strong>Key Commitment:</strong> HMAC binds the MAC to a specific key—you can't find a different key that produces the same MAC for the same message</li>
+                        <li><strong>Collision Resistance:</strong> Finding two messages with the same HMAC is as hard as finding collisions in the underlying hash function</li>
+                        <li><strong>Length Extension Protection:</strong> The nested construction prevents length extension attacks that affect simple H(K || m) schemes</li>
+                    </ul>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Key Length Recommendations</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Hash Function</th>
+                                <th>Output Size</th>
+                                <th>Minimum Key Size</th>
+                                <th>Recommended Key Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>HMAC-SHA256</td>
+                                <td>256 bits (32 bytes)</td>
+                                <td>128 bits (16 bytes)</td>
+                                <td>256 bits (32 bytes)</td>
+                            </tr>
+                            <tr>
+                                <td>HMAC-SHA384</td>
+                                <td>384 bits (48 bytes)</td>
+                                <td>192 bits (24 bytes)</td>
+                                <td>384 bits (48 bytes)</td>
+                            </tr>
+                            <tr>
+                                <td>HMAC-SHA512</td>
+                                <td>512 bits (64 bytes)</td>
+                                <td>256 bits (32 bytes)</td>
+                                <td>512 bits (64 bytes)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="alert-box warning" style="margin-top: 15px;">
+                        <div class="alert-title">⚠️ Weak Hash Functions</div>
+                        <div class="alert-text">
+                            Never use HMAC-MD5 or HMAC-SHA1 for new systems. While HMAC provides some protection
+                            against hash weaknesses, these algorithms have known vulnerabilities and should be
+                            considered deprecated.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Timing Attacks -->
+        <section class="section" data-section="5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <h2 class="section-title">Timing Attacks & Constant-Time Comparison</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">The Timing Attack Problem</h3>
+                    <p class="concept-text">
+                        Even with a perfect HMAC algorithm, the verification step can introduce a critical
+                        vulnerability. Consider this naive comparison:
+                    </p>
+
+                    <div class="code-block">
+                        <code>// VULNERABLE CODE - DO NOT USE!
+function verifyMAC(received, expected) {
+    if (received.length !== expected.length) return false;
+    for (let i = 0; i < received.length; i++) {
+        if (received[i] !== expected[i]) {
+            return false;  // ⚠️ Returns immediately on mismatch
+        }
+    }
+    return true;
+}</code>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ Why This Is Dangerous</div>
+                        <div class="alert-text">
+                            This function returns as soon as it finds a mismatched byte. An attacker can measure
+                            response times: a longer time means more bytes matched. By trying millions of MACs
+                            and measuring timing differences, the attacker can slowly forge a valid MAC byte by byte.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Constant-Time Comparison</h3>
+                    <p class="concept-text">
+                        The solution is to compare <strong>every byte</strong> regardless of whether a
+                        mismatch is found:
+                    </p>
+
+                    <div class="code-block">
+                        <code>// SECURE: Constant-time comparison
+function constantTimeCompare(a, b) {
+    if (a.length !== b.length) return false;
+
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a[i] ^ b[i];  // Accumulate differences
+    }
+    return diff === 0;  // Check only at the end
+}</code>
+                    </div>
+
+                    <div class="alert-box success">
+                        <div class="alert-title">✓ Security Properties</div>
+                        <div class="alert-text">
+                            This function always examines every byte using bitwise operations (XOR and OR)
+                            that take constant time. The total execution time is the same whether the MACs
+                            match perfectly or differ in the first byte.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Real-World Impact</h3>
+
+                    <ul class="styled-list">
+                        <li>Timing attacks have been successfully exploited against TLS, SSH, and web applications</li>
+                        <li>Even nanosecond differences can be detected over network connections with statistical analysis</li>
+                        <li>Modern languages provide constant-time comparison functions (e.g., crypto.timingSafeEqual in Node.js)</li>
+                        <li>Always use these built-in functions rather than implementing your own</li>
+                    </ul>
+
+                    <div class="alert-box info" style="margin-top: 15px;">
+                        <div class="alert-title">💡 Defense in Depth</div>
+                        <div class="alert-text">
+                            Even with constant-time comparison, add rate limiting and monitoring to detect
+                            MAC verification attempts. No single defense is perfect—layered security is essential.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Authenticated Encryption -->
+        <section class="section" data-section="6">
+            <div class="section-header">
+                <div class="section-number">6</div>
+                <h2 class="section-title">Authenticated Encryption (AE)</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Combining Encryption and Authentication</h3>
+                    <p class="concept-text">
+                        Most applications need both confidentiality (encryption) and integrity (MAC).
+                        There are three common approaches to combining them:
+                    </p>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Three Composition Methods</h3>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">1. Encrypt-then-MAC (Recommended)</div>
+                        <div class="flow-diagram">
+                            <div class="flow-box">
+                                <div class="flow-box-title">Plaintext</div>
+                                <div class="flow-box-content">M</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box" style="background: rgba(6, 182, 212, 0.2);">
+                                <div class="flow-box-title">Encrypt</div>
+                                <div class="flow-box-content">C = E(M)</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981;">
+                                <div class="flow-box-title">MAC</div>
+                                <div class="flow-box-content">MAC(C)</div>
+                            </div>
+                        </div>
+                        <p style="color: var(--success-green); margin-top: 10px; text-align: center;">
+                            ✓ Most secure: MAC protects ciphertext, prevents padding oracle attacks
+                        </p>
+                    </div>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">2. MAC-then-Encrypt (Not Recommended)</div>
+                        <div class="flow-diagram">
+                            <div class="flow-box">
+                                <div class="flow-box-title">Plaintext</div>
+                                <div class="flow-box-content">M</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box">
+                                <div class="flow-box-title">MAC</div>
+                                <div class="flow-box-content">T = MAC(M)</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444;">
+                                <div class="flow-box-title">Encrypt</div>
+                                <div class="flow-box-content">E(M||T)</div>
+                            </div>
+                        </div>
+                        <p style="color: var(--warning-red); margin-top: 10px; text-align: center;">
+                            ⚠️ Vulnerable to padding oracle and other attacks
+                        </p>
+                    </div>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">3. Encrypt-and-MAC (Context Dependent)</div>
+                        <div class="flow-diagram">
+                            <div class="flow-box">
+                                <div class="flow-box-title">Plaintext</div>
+                                <div class="flow-box-content">M</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box">
+                                <div class="flow-box-title">Encrypt</div>
+                                <div class="flow-box-content">C = E(M)</div>
+                            </div>
+                        </div>
+                        <div class="flow-diagram" style="margin-top: 10px;">
+                            <div class="flow-box">
+                                <div class="flow-box-title">Plaintext</div>
+                                <div class="flow-box-content">M</div>
+                            </div>
+                            <div class="flow-arrow">→</div>
+                            <div class="flow-box">
+                                <div class="flow-box-title">MAC</div>
+                                <div class="flow-box-content">T = MAC(M)</div>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 10px; text-align: center;">
+                            Used in SSH, but can leak information about plaintext
+                        </p>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Why Encrypt-then-MAC Wins</h3>
+
+                    <div class="alert-box success">
+                        <div class="alert-title">✓ Security Advantages</div>
+                        <div class="alert-text">
+                            <ul class="styled-list">
+                                <li>MAC verification fails before decryption, preventing padding oracle attacks</li>
+                                <li>No information leakage about plaintext structure</li>
+                                <li>Generic composition: secure with any secure encryption and MAC</li>
+                                <li>Used by IPsec, recommended by cryptographic standards</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 7: AEAD Modes -->
+        <section class="section" data-section="7">
+            <div class="section-header">
+                <div class="section-number">7</div>
+                <h2 class="section-title">AEAD: Authenticated Encryption with Associated Data</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Modern Integrated Modes</h3>
+                    <p class="concept-text">
+                        Instead of manually combining encryption and MAC, modern AEAD modes provide
+                        integrated authenticated encryption. They're faster, simpler to use correctly,
+                        and harder to misuse than generic composition.
+                    </p>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Popular AEAD Modes</h3>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">🔒 AES-GCM (Galois/Counter Mode)</div>
+                        <div class="alert-text">
+                            <strong>How it works:</strong> Combines AES in counter mode for encryption with GHASH for authentication<br>
+                            <strong>Performance:</strong> Extremely fast with hardware acceleration (AES-NI)<br>
+                            <strong>Nonce requirement:</strong> 96-bit nonce must NEVER be reused with same key<br>
+                            <strong>Use cases:</strong> TLS 1.3, QUIC, disk encryption, VPNs<br>
+                            <strong>Warning:</strong> Catastrophic failure if nonce is reused—attacker can recover key
+                        </div>
+                    </div>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">🔒 ChaCha20-Poly1305</div>
+                        <div class="alert-text">
+                            <strong>How it works:</strong> ChaCha20 stream cipher + Poly1305 MAC<br>
+                            <strong>Performance:</strong> Fast in software, ideal for mobile/embedded devices<br>
+                            <strong>Nonce requirement:</strong> 96-bit nonce, same reuse vulnerability as GCM<br>
+                            <strong>Use cases:</strong> TLS (when AES-NI unavailable), WireGuard VPN, Android encryption<br>
+                            <strong>Advantage:</strong> Constant-time in software, no side-channel leaks
+                        </div>
+                    </div>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">🔒 AES-CCM (Counter with CBC-MAC)</div>
+                        <div class="alert-text">
+                            <strong>How it works:</strong> AES-CTR for encryption + CBC-MAC for authentication<br>
+                            <strong>Performance:</strong> Slower than GCM (two passes required)<br>
+                            <strong>Use cases:</strong> WPA2/WPA3 WiFi, Bluetooth LE, IoT devices<br>
+                            <strong>Advantage:</strong> Simpler implementation, smaller code footprint
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Associated Data (AD)</h3>
+                    <p class="concept-text">
+                        AEAD modes can authenticate additional data that isn't encrypted. This is crucial
+                        for protocol headers:
+                    </p>
+
+                    <div class="code-block">
+                        <code>// Example: TLS record
+Header (AD):  | Version | Type | Length |
+              [authenticated but NOT encrypted]
+
+Payload:      | Application Data |
+              [encrypted AND authenticated]
+
+MAC Tag:      | Authentication Tag |
+              [covers both header and payload]</code>
+                    </div>
+
+                    <ul class="styled-list" style="margin-top: 15px;">
+                        <li>Prevents header manipulation (e.g., changing length field to cause buffer overflow)</li>
+                        <li>Binds encrypted data to specific context (session ID, sequence number)</li>
+                        <li>No performance cost—AD is processed during encryption</li>
+                    </ul>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">AEAD Usage Best Practices</h3>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ Nonce Management is Critical</div>
+                        <div class="alert-text">
+                            <ul class="styled-list">
+                                <li>Generate nonces from a cryptographically secure random number generator</li>
+                                <li>Or use a counter (ensures uniqueness but requires state management)</li>
+                                <li>Never use timestamps alone (insufficient entropy)</li>
+                                <li>Consider nonce-misuse resistant schemes (AES-GCM-SIV) for high-risk applications</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 8: Real-World Applications -->
+        <section class="section" data-section="8">
+            <div class="section-header">
+                <div class="section-number">8</div>
+                <h2 class="section-title">Real-World MAC Applications</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">API Authentication: AWS Signature Version 4</h3>
+
+                    <p class="concept-text">
+                        Amazon Web Services uses HMAC-SHA256 to sign API requests. This proves the requester
+                        has the secret access key without transmitting it:
+                    </p>
+
+                    <div class="code-block">
+                        <code>// Simplified AWS Signature V4 process
+1. Create canonical request (method, URI, headers, payload hash)
+2. Create string to sign (algorithm, timestamp, scope, canonical hash)
+3. Derive signing key from secret using multiple HMACs
+4. Sign string to sign with signing key → Signature
+5. Include signature in Authorization header</code>
+                    </div>
+
+                    <div class="alert-box success">
+                        <div class="alert-title">✓ Security Benefits</div>
+                        <div class="alert-text">
+                            Replay protection (timestamp), request integrity (canonical form), credential
+                            scoping (date/region/service), and the secret key never travels over the network.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">JWT (JSON Web Tokens)</h3>
+
+                    <p class="concept-text">
+                        JWTs use HMAC (or RSA signatures) to create tamper-proof tokens for authentication:
+                    </p>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">JWT Structure</div>
+                        <div class="code-block" style="background: rgba(6, 182, 212, 0.1);">
+                            <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9           ← Header (Base64)
+.
+eyJzdWIiOiIxMjM0NSIsIm5hbWUiOiJBbGljZSJ9         ← Payload (Base64)
+.
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c     ← HMAC Signature
+
+Signature = HMAC-SHA256(
+    base64(header) + "." + base64(payload),
+    secret_key
+)</code>
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning" style="margin-top: 15px;">
+                        <div class="alert-title">⚠️ Common JWT Vulnerabilities</div>
+                        <div class="alert-text">
+                            <ul class="styled-list">
+                                <li><strong>Algorithm confusion:</strong> Attacker changes "alg" to "none" to bypass signature</li>
+                                <li><strong>Key confusion:</strong> Using public key as HMAC secret</li>
+                                <li><strong>Weak secrets:</strong> Short or guessable HMAC keys enable brute force</li>
+                                <li><strong>Missing validation:</strong> Not verifying signature or expiration</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">TLS 1.3 Handshake</h3>
+
+                    <p class="concept-text">
+                        TLS 1.3 uses HMAC throughout the handshake for key derivation and message authentication:
+                    </p>
+
+                    <ul class="styled-list">
+                        <li><strong>HKDF:</strong> HMAC-based Key Derivation Function generates session keys</li>
+                        <li><strong>Finished messages:</strong> HMAC over entire handshake proves both parties have the same key</li>
+                        <li><strong>Record protection:</strong> Each record is protected by AEAD (GCM or ChaCha20-Poly1305)</li>
+                        <li><strong>Resumption:</strong> HMAC-based PSK (Pre-Shared Key) for session resumption</li>
+                    </ul>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Session Cookies</h3>
+
+                    <div class="code-block">
+                        <code>// Secure session cookie format
+sessionID=user123|2024-12-20T10:30:00Z|c8f9a2b3...
+
+Components:
+- User ID: user123
+- Expiration: 2024-12-20T10:30:00Z
+- HMAC: HMAC-SHA256(userID + expiration, secret)
+
+Server verifies HMAC before trusting session data</code>
+                    </div>
+
+                    <p class="concept-text" style="margin-top: 15px;">
+                        This prevents users from modifying their session ID or extending expiration time.
+                        Without the server's secret key, they can't generate a valid HMAC.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 9: Common Mistakes -->
+        <section class="section" data-section="9">
+            <div class="section-header">
+                <div class="section-number">9</div>
+                <h2 class="section-title">Common MAC Implementation Mistakes</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Critical Errors to Avoid</h3>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 1. Using Deprecated Hash Functions</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> HMAC-MD5, HMAC-SHA1<br>
+                            <strong>Right:</strong> HMAC-SHA256 or stronger<br>
+                            <strong>Why:</strong> Even though HMAC provides some protection, these hash functions have
+                            known weaknesses and are considered cryptographically broken.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 2. Timing Vulnerabilities</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> <code>if (receivedMAC === expectedMAC)</code><br>
+                            <strong>Right:</strong> <code>crypto.timingSafeEqual(received, expected)</code><br>
+                            <strong>Why:</strong> String comparison short-circuits on first mismatch, leaking timing information.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 3. Key Reuse Across Purposes</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> Using same key for encryption and MAC<br>
+                            <strong>Right:</strong> Derive separate keys using KDF (HKDF)<br>
+                            <strong>Why:</strong> Key separation ensures compromise of one doesn't affect the other.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 4. Truncating MACs Too Much</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> Using only 4-8 bytes of HMAC output<br>
+                            <strong>Right:</strong> Use full output (32+ bytes) or at least 16 bytes<br>
+                            <strong>Why:</strong> Short MACs are vulnerable to brute force forgery.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 5. Ignoring MAC Verification Failures</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> Logging error but continuing to process data<br>
+                            <strong>Right:</strong> Reject request immediately on verification failure<br>
+                            <strong>Why:</strong> Failed MAC means tampering or corruption—data is untrustworthy.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 6. MAC-then-Encrypt</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> MAC(plaintext), then encrypt both<br>
+                            <strong>Right:</strong> Encrypt(plaintext), then MAC(ciphertext)<br>
+                            <strong>Why:</strong> MAC-then-encrypt is vulnerable to padding oracle attacks.
+                        </div>
+                    </div>
+
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ 7. Not Including Context in MAC</div>
+                        <div class="alert-text">
+                            <strong>Wrong:</strong> <code>HMAC(message)</code><br>
+                            <strong>Right:</strong> <code>HMAC(context || message)</code><br>
+                            <strong>Why:</strong> Including purpose/version prevents cross-protocol attacks.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Secure Implementation Checklist</h3>
+
+                    <ul class="styled-list">
+                        <li>Use HMAC-SHA256 or stronger (SHA-384, SHA-512)</li>
+                        <li>Generate keys from cryptographically secure random source</li>
+                        <li>Key length should match hash output size</li>
+                        <li>Always use constant-time comparison for verification</li>
+                        <li>Use separate keys for encryption and authentication</li>
+                        <li>Include contextual information (purpose, version) in MAC</li>
+                        <li>For authenticated encryption, use AEAD modes (GCM, ChaCha20-Poly1305)</li>
+                        <li>Implement rate limiting on MAC verification failures</li>
+                        <li>Log verification failures for security monitoring</li>
+                        <li>Rotate keys periodically and have a key revocation process</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 10: Conclusion -->
+        <section class="section" data-section="10">
+            <div class="section-header">
+                <div class="section-number">10</div>
+                <h2 class="section-title">Summary & Best Practices</h2>
+            </div>
+            <div class="section-content">
+                <div class="concept-block">
+                    <h3 class="concept-title">Key Takeaways</h3>
+
+                    <ul class="styled-list">
+                        <li><strong>Integrity matters:</strong> Encryption alone doesn't prevent tampering—always authenticate</li>
+                        <li><strong>HMAC is the standard:</strong> Hash-based MACs provide proven security with any secure hash</li>
+                        <li><strong>Constant-time is crucial:</strong> Timing attacks are real—use proper comparison functions</li>
+                        <li><strong>Encrypt-then-MAC:</strong> When composing manually, this is the safest approach</li>
+                        <li><strong>AEAD is better:</strong> Use integrated modes (GCM, ChaCha20-Poly1305) when possible</li>
+                        <li><strong>Nonce management:</strong> Never reuse nonces with the same key in AEAD modes</li>
+                        <li><strong>Context binding:</strong> Include purpose and version information in MACs</li>
+                        <li><strong>Key hygiene:</strong> Separate keys, adequate length, proper generation and rotation</li>
+                    </ul>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Decision Tree: Choosing the Right Approach</h3>
+
+                    <div class="visual-diagram">
+                        <div class="code-block" style="background: rgba(6, 182, 212, 0.1);">
+                            <code>Need integrity only (no encryption)?
+    → HMAC-SHA256
+
+Need both encryption and integrity?
+    Modern platform (hardware AES support)?
+        → AES-GCM
+
+    Software-only or mobile/embedded?
+        → ChaCha20-Poly1305
+
+    Legacy compatibility required?
+        → AES-CBC + Encrypt-then-MAC (HMAC-SHA256)
+
+Need non-repudiation (legal proof)?
+    → Digital signatures (Ed25519, ECDSA, RSA-PSS)</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="concept-block">
+                    <h3 class="concept-title">Further Exploration</h3>
+
+                    <div class="alert-box info">
+                        <div class="alert-title">📚 Next Steps</div>
+                        <div class="alert-text">
+                            <ul class="styled-list">
+                                <li>Practice with the HMAC Calculator tool</li>
+                                <li>Complete the hands-on lab exercises</li>
+                                <li>Test your knowledge with the MAC quiz</li>
+                                <li>Study real protocol specifications (TLS 1.3, JWT RFC 7519)</li>
+                                <li>Explore cryptographic libraries for your language (WebCrypto API, NaCl, OpenSSL)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Completion Section -->
+        <section class="complete-section">
+            <h2 style="margin-bottom: 15px; color: var(--text-primary);">Module Complete</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">
+                You've learned the fundamentals of message authentication codes and HMAC. Ready to mark this module as complete?
+            </p>
+            <button class="complete-btn" onclick="completeModule()">Mark Module as Complete</button>
+            <p style="margin-top: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                Continue to the HMAC Calculator tool or Hands-On Lab to practice these concepts
+            </p>
+        </section>
+    </main>
+
+    <script>
+        // Section visibility tracking
+        const sections = document.querySelectorAll('.section');
+        const totalSections = sections.length;
+        let visibleSections = 0;
+
+        // Intersection Observer for scroll animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    if (!entry.target.dataset.counted) {
+                        entry.target.dataset.counted = 'true';
+                        visibleSections++;
+                        updateProgress();
+                    }
+                }
+            });
+        }, {
+            threshold: 0.1
+        });
+
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+
+        // Update progress indicator
+        function updateProgress() {
+            const progress = Math.round((visibleSections / totalSections) * 100);
+            document.getElementById('progress-fill').style.width = progress + '%';
+            document.getElementById('progress-text').textContent = progress + '%';
+        }
+
+        // Simple HMAC demonstration using SHA-256
+        async function computeHMAC() {
+            const message = document.getElementById('hmac-message').value;
+            const key = document.getElementById('hmac-key').value;
+
+            if (!message || !key) {
+                document.getElementById('hmac-output').textContent = 'Please enter both message and key';
+                return;
+            }
+
+            try {
+                // Convert strings to Uint8Array
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(key);
+                const messageData = encoder.encode(message);
+
+                // Import key for HMAC
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw',
+                    keyData,
+                    { name: 'HMAC', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                );
+
+                // Compute HMAC
+                const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+
+                // Convert to hex string
+                const hashArray = Array.from(new Uint8Array(signature));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                document.getElementById('hmac-output').innerHTML = `
+                    <div style="margin-bottom: 10px;"><strong>HMAC-SHA256:</strong></div>
+                    <div style="word-break: break-all; color: #22d3ee;">${hashHex}</div>
+                    <div style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85rem;">
+                        Length: ${hashHex.length / 2} bytes (${hashHex.length * 4} bits)
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('hmac-output').textContent = 'Error computing HMAC: ' + error.message;
+            }
+        }
+
+        // Complete module
+        function completeModule() {
+            const btn = document.querySelector('.complete-btn');
+            btn.disabled = true;
+            btn.textContent = 'Completing...';
+
+            // Mark module as complete
+            ModuleProgress.complete('key', 'key-message-auth');
+
+            // Achievement notification
+            setTimeout(() => {
+                btn.textContent = 'Module Complete!';
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+
+                // Show success message
+                alert('Congratulations! You\'ve completed the Message Authentication & HMAC module.\n\nNext steps:\n- Try the HMAC Calculator tool\n- Complete the hands-on lab exercises\n- Test your knowledge with the quiz');
+            }, 500);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if already completed
+            const progress = ModuleProgress.getProgress('key');
+            if (progress && progress.completed && progress.completed.includes('key-message-auth')) {
+                const btn = document.querySelector('.complete-btn');
+                btn.textContent = 'Module Already Complete';
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMAC Hands-On Lab - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        /* Intro */
+        .intro {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .intro-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 15px var(--house-glow));
+        }
+
+        .intro-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, var(--house-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Progress Tracker */
+        .progress-tracker {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .progress-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .progress-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--house-color), #22d3ee);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-count {
+            font-size: 1.2rem;
+            color: var(--house-color);
+            font-weight: 600;
+        }
+
+        /* Exercise Card */
+        .exercise {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        .exercise.unlocked {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .exercise.completed {
+            border-color: var(--success-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .exercise-number {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .exercise-badge {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--house-color), #22d3ee);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #0a0a12;
+        }
+
+        .exercise.completed .exercise-badge {
+            background: linear-gradient(135deg, var(--success-green), #059669);
+        }
+
+        .exercise-title {
+            font-size: 1.4rem;
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        .exercise-status {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .status-locked {
+            background: rgba(136, 136, 170, 0.2);
+            color: var(--text-secondary);
+        }
+
+        .status-unlocked {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-green);
+        }
+
+        .exercise-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red { background: #ef4444; }
+        .dot-yellow { background: #eab308; }
+        .dot-green { background: #10b981; }
+
+        .terminal-output {
+            color: #22d3ee;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .terminal-prompt {
+            color: var(--success-green);
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            outline: none;
+            margin-top: 10px;
+            padding: 8px;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #22d3ee;
+            overflow-x: auto;
+        }
+
+        /* Input Group */
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-field,
+        .input-textarea {
+            width: 100%;
+            background: rgba(20, 20, 30, 0.8);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .input-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .input-field:focus,
+        .input-textarea:focus {
+            outline: none;
+            border-color: var(--house-color);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--house-color), #22d3ee);
+            color: #0a0a12;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--house-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        /* Feedback */
+        .feedback {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .feedback.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-green);
+            color: var(--success-green);
+        }
+
+        .feedback.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--warning-red);
+            color: var(--warning-red);
+        }
+
+        .feedback.hint {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--house-color);
+            color: var(--house-color);
+        }
+
+        /* Hint Toggle */
+        .hint-toggle {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .hint-toggle:hover {
+            background: rgba(6, 182, 212, 0.15);
+        }
+
+        .hint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--house-color);
+            font-weight: 600;
+        }
+
+        .hint-content {
+            display: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(6, 182, 212, 0.2);
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .hint-content.visible {
+            display: block;
+        }
+
+        /* Completion Banner */
+        .completion-banner {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+            border: 2px solid var(--success-green);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .completion-banner.visible {
+            display: block;
+        }
+
+        .completion-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .completion-title {
+            font-size: 1.8rem;
+            color: var(--success-green);
+            margin-bottom: 10px;
+        }
+
+        .completion-text {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .progress-bar-container {
+                width: 150px;
+            }
+
+            .exercise-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'" title="Back to Key House">←</button>
+            <h1 class="module-title">HMAC Hands-On Lab</h1>
+            <span class="house-badge">KEY HOUSE</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Intro -->
+        <div class="intro">
+            <div class="intro-icon">🔬</div>
+            <h1 class="intro-title">Practical HMAC Exercises</h1>
+            <p class="intro-subtitle">
+                Master message authentication through hands-on challenges. Build real-world implementations
+                of HMAC verification, timing-safe comparison, authenticated encryption, and more.
+            </p>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="progress-tracker">
+            <div class="progress-info">
+                <span class="progress-label">Lab Progress</span>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+            </div>
+            <div class="progress-count">
+                <span id="progress-count">0</span> / 7
+            </div>
+        </div>
+
+        <!-- Exercise 1: Generate HMAC -->
+        <div class="exercise unlocked" id="exercise-1">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">1</div>
+                    <h2 class="exercise-title">Generate HMAC-SHA256</h2>
+                </div>
+                <span class="exercise-status status-unlocked">UNLOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Your first task is to generate an HMAC-SHA256 signature for a message. This is the fundamental
+                operation for message authentication. Use the Web Crypto API to compute the HMAC.
+            </p>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot dot-red"></div>
+                    <div class="terminal-dot dot-yellow"></div>
+                    <div class="terminal-dot dot-green"></div>
+                </div>
+                <div class="terminal-output">
+                    <div><span class="terminal-prompt">$</span> Task: Generate HMAC-SHA256</div>
+                    <div>Message: "Hello, Hexworth Prime!"</div>
+                    <div>Key: "welcome-to-key-house"</div>
+                    <div style="margin-top: 10px;">Expected output: 64-character hex string</div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Your HMAC Output (hex)</label>
+                <input type="text" class="input-field" id="ex1-answer" placeholder="Enter the HMAC hex string...">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise1()">Submit Answer</button>
+                <button class="btn btn-secondary" onclick="generateEx1HMAC()">Generate HMAC</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(1)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-1">▼</span>
+                </div>
+                <div class="hint-content" id="hint-1">
+                    Use the Web Crypto API: <code>crypto.subtle.importKey()</code> to import the key,
+                    then <code>crypto.subtle.sign('HMAC', key, message)</code> to generate the signature.
+                    Convert the result to a hex string.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-1"></div>
+        </div>
+
+        <!-- Exercise 2: Verify Message Integrity -->
+        <div class="exercise" id="exercise-2">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">2</div>
+                    <h2 class="exercise-title">Detect Message Tampering</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                You've received a message with its HMAC. Your job is to verify if the message has been tampered with.
+                Compare the received HMAC against the expected value.
+            </p>
+
+            <div class="code-block">
+const receivedMessage = "Transfer $100 to Alice";
+const receivedHMAC = "abc123...";  // Provided HMAC
+const sharedKey = "secure-key-2024";
+
+// Your task: Verify if the message is authentic</div>
+
+            <div class="input-group">
+                <label class="input-label">Received Message</label>
+                <input type="text" class="input-field" id="ex2-message" value="Transfer $100 to Alice" readonly>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Received HMAC</label>
+                <input type="text" class="input-field" id="ex2-hmac" readonly>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Shared Secret Key</label>
+                <input type="text" class="input-field" id="ex2-key" value="secure-key-2024" readonly>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise2()">Verify Integrity</button>
+                <button class="btn btn-secondary" onclick="tamperMessage()">Tamper with Message</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(2)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-2">▼</span>
+                </div>
+                <div class="hint-content" id="hint-2">
+                    Generate the expected HMAC for the received message using the shared key.
+                    Compare it with the received HMAC. If they match, the message is authentic.
+                    Try clicking "Tamper with Message" to see what happens when verification fails.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-2"></div>
+        </div>
+
+        <!-- Exercise 3: Constant-Time Comparison -->
+        <div class="exercise" id="exercise-3">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">3</div>
+                    <h2 class="exercise-title">Implement Constant-Time Comparison</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Write a constant-time comparison function that doesn't leak timing information.
+                This prevents attackers from using timing differences to guess valid MACs.
+            </p>
+
+            <div class="code-block">
+// VULNERABLE: Early exit on mismatch
+function vulnerableCompare(a, b) {
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;  // ⚠️ Timing leak
+    }
+    return true;
+}
+
+// YOUR TASK: Implement secure constant-time comparison
+function constantTimeCompare(a, b) {
+    // Your implementation here
+}</div>
+
+            <div class="input-group">
+                <label class="input-label">Your Implementation</label>
+                <textarea class="input-textarea" id="ex3-code" placeholder="function constantTimeCompare(a, b) {
+    // Your code here
+    return true;
+}"></textarea>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise3()">Test Implementation</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(3)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-3">▼</span>
+                </div>
+                <div class="hint-content" id="hint-3">
+                    Use bitwise operations (XOR and OR) to accumulate differences without early exit.
+                    Check the accumulated difference only at the end. The function should always
+                    examine every byte regardless of where mismatches occur.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-3"></div>
+        </div>
+
+        <!-- Exercise 4: API Authentication -->
+        <div class="exercise" id="exercise-4">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">4</div>
+                    <h2 class="exercise-title">Build API Request Signature</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Create an authenticated API request similar to AWS Signature Version 4. Combine the HTTP method,
+                path, timestamp, and body into a canonical request, then sign it with HMAC.
+            </p>
+
+            <div class="code-block">
+// API Request Details
+Method: POST
+Path: /api/users
+Timestamp: 2024-12-20T10:30:00Z
+Body: {"name": "Alice", "role": "admin"}
+
+// Canonical Request Format:
+// METHOD\nPATH\nTIMESTAMP\nBODY_HASH</div>
+
+            <div class="input-group">
+                <label class="input-label">HTTP Method</label>
+                <input type="text" class="input-field" id="ex4-method" value="POST" readonly>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Request Path</label>
+                <input type="text" class="input-field" id="ex4-path" value="/api/users" readonly>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Request Body</label>
+                <textarea class="input-textarea" id="ex4-body" readonly>{"name": "Alice", "role": "admin"}</textarea>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">API Secret Key</label>
+                <input type="text" class="input-field" id="ex4-key" value="api-secret-key-2024" readonly>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise4()">Generate Signature</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(4)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-4">▼</span>
+                </div>
+                <div class="hint-content" id="hint-4">
+                    Create a canonical string by joining method, path, timestamp, and SHA-256 hash of the body
+                    with newline separators. Then compute HMAC-SHA256 of this canonical string using the secret key.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-4"></div>
+        </div>
+
+        <!-- Exercise 5: Encrypt-then-MAC -->
+        <div class="exercise" id="exercise-5">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">5</div>
+                    <h2 class="exercise-title">Implement Encrypt-then-MAC</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Implement the Encrypt-then-MAC pattern for authenticated encryption. First encrypt the plaintext,
+                then compute a MAC over the ciphertext. This provides both confidentiality and integrity.
+            </p>
+
+            <div class="input-group">
+                <label class="input-label">Plaintext Message</label>
+                <input type="text" class="input-field" id="ex5-plaintext" value="This is a secret message">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Encryption Key</label>
+                <input type="text" class="input-field" id="ex5-enc-key" value="encryption-key-123">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">MAC Key (must be different!)</label>
+                <input type="text" class="input-field" id="ex5-mac-key" value="mac-key-456">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise5()">Encrypt & Authenticate</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(5)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-5">▼</span>
+                </div>
+                <div class="hint-content" id="hint-5">
+                    Step 1: Encrypt the plaintext using the encryption key (you can use simple XOR for this exercise).
+                    Step 2: Compute HMAC-SHA256 of the ciphertext using the MAC key.
+                    Step 3: Return both ciphertext and MAC tag. Important: Use different keys for encryption and MAC!
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-5"></div>
+        </div>
+
+        <!-- Exercise 6: JWT Verification -->
+        <div class="exercise" id="exercise-6">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">6</div>
+                    <h2 class="exercise-title">Decode and Verify JWT</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Parse a JSON Web Token, extract its components, and verify the HMAC signature.
+                JWTs are commonly used for authentication in modern web applications.
+            </p>
+
+            <div class="input-group">
+                <label class="input-label">JWT Token</label>
+                <textarea class="input-textarea" id="ex6-jwt" readonly></textarea>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Secret Key</label>
+                <input type="text" class="input-field" id="ex6-secret" value="jwt-secret-2024" readonly>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkExercise6()">Verify JWT</button>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(6)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-6">▼</span>
+                </div>
+                <div class="hint-content" id="hint-6">
+                    JWT format: header.payload.signature (all base64url encoded).
+                    Split the JWT by '.', decode the header and payload from base64.
+                    Compute HMAC-SHA256 of "header.payload" using the secret key.
+                    Compare your computed signature with the provided signature.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-6"></div>
+        </div>
+
+        <!-- Exercise 7: Message Authentication System -->
+        <div class="exercise" id="exercise-7">
+            <div class="exercise-header">
+                <div class="exercise-number">
+                    <div class="exercise-badge">7</div>
+                    <h2 class="exercise-title">Build Complete Authentication System</h2>
+                </div>
+                <span class="exercise-status status-locked">LOCKED</span>
+            </div>
+            <p class="exercise-description">
+                Bring it all together: Create a complete message authentication system that supports sending
+                authenticated messages, verifying them, and detecting tampering. Include nonce/timestamp
+                to prevent replay attacks.
+            </p>
+
+            <div class="input-group">
+                <label class="input-label">Message to Send</label>
+                <textarea class="input-textarea" id="ex7-message">Execute payment of $500 to Bob</textarea>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Shared Secret</label>
+                <input type="text" class="input-field" id="ex7-key" value="system-master-key">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="sendAuthenticatedMessage()">Send Authenticated Message</button>
+                <button class="btn btn-secondary" onclick="receiveAndVerify()">Receive & Verify</button>
+            </div>
+
+            <div class="terminal" id="ex7-terminal" style="display: none;">
+                <div class="terminal-header">
+                    <div class="terminal-dot dot-red"></div>
+                    <div class="terminal-dot dot-yellow"></div>
+                    <div class="terminal-dot dot-green"></div>
+                </div>
+                <div class="terminal-output" id="ex7-output"></div>
+            </div>
+
+            <div class="hint-toggle" onclick="toggleHint(7)">
+                <div class="hint-header">
+                    <span>💡 Need a hint?</span>
+                    <span id="hint-arrow-7">▼</span>
+                </div>
+                <div class="hint-content" id="hint-7">
+                    Create an authenticated message format: {message, timestamp, nonce, hmac}.
+                    The HMAC should cover all fields except itself. When verifying, check:
+                    1) HMAC is valid, 2) Timestamp is recent (prevent replay), 3) Nonce hasn't been seen before.
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback-7"></div>
+        </div>
+
+        <!-- Completion Banner -->
+        <div class="completion-banner" id="completion-banner">
+            <div class="completion-icon">🎉</div>
+            <h2 class="completion-title">Lab Complete!</h2>
+            <p class="completion-text">
+                Congratulations! You've mastered HMAC and message authentication fundamentals.
+                You're now equipped to implement secure authentication in real-world applications.
+            </p>
+            <button class="btn btn-primary" onclick="window.location.href='../quizzes/mac-quiz.html'">
+                Continue to Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Progress tracking
+        let completedExercises = 0;
+        const totalExercises = 7;
+        let ex2OriginalHMAC = '';
+        let ex6JWT = '';
+        let ex7SentMessage = null;
+
+        function updateProgress() {
+            completedExercises++;
+            const percentage = (completedExercises / totalExercises) * 100;
+            document.getElementById('progress-bar').style.width = percentage + '%';
+            document.getElementById('progress-count').textContent = completedExercises;
+
+            // Unlock next exercise
+            if (completedExercises < totalExercises) {
+                const nextExercise = document.getElementById(`exercise-${completedExercises + 1}`);
+                nextExercise.classList.add('unlocked');
+                const status = nextExercise.querySelector('.exercise-status');
+                status.classList.remove('status-locked');
+                status.classList.add('status-unlocked');
+                status.textContent = 'UNLOCKED';
+            }
+
+            // Show completion banner
+            if (completedExercises === totalExercises) {
+                document.getElementById('completion-banner').classList.add('visible');
+            }
+        }
+
+        function markComplete(exerciseNum) {
+            const exercise = document.getElementById(`exercise-${exerciseNum}`);
+            exercise.classList.add('completed');
+            const status = exercise.querySelector('.exercise-status');
+            status.classList.remove('status-unlocked');
+            status.classList.add('status-completed');
+            status.textContent = 'COMPLETED';
+        }
+
+        function showFeedback(exerciseNum, type, message) {
+            const feedback = document.getElementById(`feedback-${exerciseNum}`);
+            feedback.className = `feedback ${type}`;
+            feedback.innerHTML = message;
+            feedback.style.display = 'block';
+        }
+
+        function toggleHint(num) {
+            const hint = document.getElementById(`hint-${num}`);
+            const arrow = document.getElementById(`hint-arrow-${num}`);
+            hint.classList.toggle('visible');
+            arrow.textContent = hint.classList.contains('visible') ? '▲' : '▼';
+        }
+
+        // Exercise 1: Generate HMAC
+        async function generateEx1HMAC() {
+            const message = "Hello, Hexworth Prime!";
+            const key = "welcome-to-key-house";
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const hashHex = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            document.getElementById('ex1-answer').value = hashHex;
+        }
+
+        async function checkExercise1() {
+            const answer = document.getElementById('ex1-answer').value.trim();
+            if (!answer) {
+                showFeedback(1, 'error', '⚠️ Please enter an HMAC value');
+                return;
+            }
+
+            // Generate expected HMAC
+            const message = "Hello, Hexworth Prime!";
+            const key = "welcome-to-key-house";
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const expected = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            if (answer.toLowerCase() === expected.toLowerCase()) {
+                showFeedback(1, 'success', '✓ Correct! You successfully generated the HMAC-SHA256 signature.');
+                markComplete(1);
+                updateProgress();
+            } else {
+                showFeedback(1, 'error', '✗ Incorrect HMAC. Try clicking "Generate HMAC" to see the correct value.');
+            }
+        }
+
+        // Exercise 2: Verify Message Integrity
+        async function initExercise2() {
+            const message = "Transfer $100 to Alice";
+            const key = "secure-key-2024";
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            ex2OriginalHMAC = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            document.getElementById('ex2-hmac').value = ex2OriginalHMAC;
+        }
+
+        function tamperMessage() {
+            document.getElementById('ex2-message').value = "Transfer $10000 to Alice";
+            showFeedback(2, 'hint', '💡 Message has been tampered with. Now try verifying the HMAC!');
+        }
+
+        async function checkExercise2() {
+            const message = document.getElementById('ex2-message').value;
+            const receivedHMAC = document.getElementById('ex2-hmac').value;
+            const key = document.getElementById('ex2-key').value;
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const computedHMAC = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            if (computedHMAC === receivedHMAC) {
+                showFeedback(2, 'success', '✓ Message is authentic! HMAC verification passed.');
+                markComplete(2);
+                updateProgress();
+            } else {
+                showFeedback(2, 'error', '✗ Tampering detected! The computed HMAC does not match the received HMAC. This message cannot be trusted.');
+            }
+        }
+
+        // Exercise 3: Constant-Time Comparison
+        function checkExercise3() {
+            const code = document.getElementById('ex3-code').value;
+
+            // Test if code contains necessary elements
+            if (!code.includes('function constantTimeCompare')) {
+                showFeedback(3, 'error', '⚠️ Please implement the constantTimeCompare function');
+                return;
+            }
+
+            try {
+                // Execute the user's code
+                eval(code);
+
+                // Test cases
+                const test1a = "a1b2c3d4";
+                const test1b = "a1b2c3d4";
+                const test2a = "a1b2c3d4";
+                const test2b = "00000000";
+                const test3a = "hello";
+                const test3b = "heLLo";
+
+                const result1 = constantTimeCompare(test1a, test1b);
+                const result2 = constantTimeCompare(test2a, test2b);
+                const result3 = constantTimeCompare(test3a, test3b);
+
+                if (result1 === true && result2 === false && result3 === false) {
+                    showFeedback(3, 'success', '✓ Excellent! Your constant-time comparison function works correctly. It prevents timing leaks by always examining every character.');
+                    markComplete(3);
+                    updateProgress();
+                } else {
+                    showFeedback(3, 'error', '✗ Your function doesn\'t return the expected results. Make sure it returns true only when strings match exactly.');
+                }
+            } catch (error) {
+                showFeedback(3, 'error', '⚠️ Error in your code: ' + error.message);
+            }
+        }
+
+        // Exercise 4: API Authentication
+        async function checkExercise4() {
+            const method = document.getElementById('ex4-method').value;
+            const path = document.getElementById('ex4-path').value;
+            const body = document.getElementById('ex4-body').value;
+            const key = document.getElementById('ex4-key').value;
+            const timestamp = "2024-12-20T10:30:00Z";
+
+            // Hash the body
+            const encoder = new TextEncoder();
+            const bodyData = encoder.encode(body);
+            const bodyHashBuffer = await crypto.subtle.digest('SHA-256', bodyData);
+            const bodyHash = Array.from(new Uint8Array(bodyHashBuffer))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Create canonical request
+            const canonical = `${method}\n${path}\n${timestamp}\n${bodyHash}`;
+
+            // Sign canonical request
+            const keyData = encoder.encode(key);
+            const canonicalData = encoder.encode(canonical);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, canonicalData);
+            const signatureHex = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            showFeedback(4, 'success',
+                `✓ API Request Signature Generated!<br><br>
+                <strong>Canonical Request:</strong><br>
+                <code style="display: block; margin: 10px 0; white-space: pre-wrap;">${canonical.replace(/\n/g, '\\n\n')}</code><br>
+                <strong>Signature:</strong><br>
+                <code>${signatureHex}</code><br><br>
+                This signature proves you have the API secret key without transmitting it!`
+            );
+            markComplete(4);
+            updateProgress();
+        }
+
+        // Exercise 5: Encrypt-then-MAC
+        async function checkExercise5() {
+            const plaintext = document.getElementById('ex5-plaintext').value;
+            const encKey = document.getElementById('ex5-enc-key').value;
+            const macKey = document.getElementById('ex5-mac-key').value;
+
+            if (encKey === macKey) {
+                showFeedback(5, 'error', '⚠️ Security violation! Encryption and MAC keys must be different.');
+                return;
+            }
+
+            const encoder = new TextEncoder();
+            const plaintextBytes = encoder.encode(plaintext);
+
+            // Simple XOR encryption (for demonstration)
+            const encKeyBytes = encoder.encode(encKey);
+            const ciphertext = Array.from(plaintextBytes).map((b, i) =>
+                b ^ encKeyBytes[i % encKeyBytes.length]
+            );
+            const ciphertextHex = ciphertext.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // MAC the ciphertext
+            const ciphertextBytes = new Uint8Array(ciphertext);
+            const macKeyData = encoder.encode(macKey);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', macKeyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, ciphertextBytes);
+            const macHex = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            showFeedback(5, 'success',
+                `✓ Encrypt-then-MAC Complete!<br><br>
+                <strong>Step 1 - Ciphertext:</strong><br>
+                <code>${ciphertextHex}</code><br><br>
+                <strong>Step 2 - MAC Tag:</strong><br>
+                <code>${macHex}</code><br><br>
+                The recipient verifies the MAC before decryption, preventing padding oracle attacks!`
+            );
+            markComplete(5);
+            updateProgress();
+        }
+
+        // Exercise 6: JWT Verification
+        async function initExercise6() {
+            const header = { alg: 'HS256', typ: 'JWT' };
+            const payload = { sub: 'user123', name: 'Alice', exp: 1735689600 };
+            const secret = 'jwt-secret-2024';
+
+            const base64Header = btoa(JSON.stringify(header));
+            const base64Payload = btoa(JSON.stringify(payload));
+            const unsignedToken = base64Header + '.' + base64Payload;
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secret);
+            const messageData = encoder.encode(unsignedToken);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const signatureArray = Array.from(new Uint8Array(signature));
+            const base64Signature = btoa(String.fromCharCode(...signatureArray))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+            ex6JWT = unsignedToken + '.' + base64Signature;
+            document.getElementById('ex6-jwt').value = ex6JWT;
+        }
+
+        async function checkExercise6() {
+            const jwt = document.getElementById('ex6-jwt').value;
+            const secret = document.getElementById('ex6-secret').value;
+
+            const parts = jwt.split('.');
+            if (parts.length !== 3) {
+                showFeedback(6, 'error', '⚠️ Invalid JWT format');
+                return;
+            }
+
+            const [header, payload, signature] = parts;
+            const unsignedToken = header + '.' + payload;
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secret);
+            const messageData = encoder.encode(unsignedToken);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const expectedSig = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const expectedSigArray = Array.from(new Uint8Array(expectedSig));
+            const expectedBase64 = btoa(String.fromCharCode(...expectedSigArray))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+            const isValid = signature === expectedBase64;
+            const decodedPayload = JSON.parse(atob(payload));
+
+            if (isValid) {
+                showFeedback(6, 'success',
+                    `✓ JWT Signature Valid!<br><br>
+                    <strong>Decoded Payload:</strong><br>
+                    <code>${JSON.stringify(decodedPayload, null, 2)}</code><br><br>
+                    The token is authentic and can be trusted.`
+                );
+                markComplete(6);
+                updateProgress();
+            } else {
+                showFeedback(6, 'error', '✗ JWT signature verification failed!');
+            }
+        }
+
+        // Exercise 7: Complete Authentication System
+        async function sendAuthenticatedMessage() {
+            const message = document.getElementById('ex7-message').value;
+            const key = document.getElementById('ex7-key').value;
+
+            const timestamp = Date.now();
+            const nonce = Math.random().toString(36).substring(7);
+
+            // Create message to MAC
+            const dataToMAC = `${message}|${timestamp}|${nonce}`;
+
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(dataToMAC);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const hmac = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            ex7SentMessage = { message, timestamp, nonce, hmac };
+
+            const terminal = document.getElementById('ex7-terminal');
+            const output = document.getElementById('ex7-output');
+            terminal.style.display = 'block';
+            output.innerHTML = `
+<span class="terminal-prompt">$</span> Sending authenticated message...
+<div style="margin: 10px 0;">
+Message: ${message}
+Timestamp: ${timestamp}
+Nonce: ${nonce}
+HMAC: ${hmac.substring(0, 32)}...
+</div>
+<span style="color: var(--success-green);">✓ Message sent with authentication!</span>
+<div style="margin-top: 10px;">Click "Receive & Verify" to validate the message.</div>
+            `;
+        }
+
+        async function receiveAndVerify() {
+            if (!ex7SentMessage) {
+                showFeedback(7, 'error', '⚠️ Please send an authenticated message first');
+                return;
+            }
+
+            const { message, timestamp, nonce, hmac } = ex7SentMessage;
+            const key = document.getElementById('ex7-key').value;
+
+            // Verify HMAC
+            const dataToMAC = `${message}|${timestamp}|${nonce}`;
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(dataToMAC);
+
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
+
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            const computedHMAC = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            const isValid = computedHMAC === hmac;
+
+            // Check timestamp (within 5 minutes)
+            const now = Date.now();
+            const age = (now - timestamp) / 1000;
+            const isFresh = age < 300;
+
+            const output = document.getElementById('ex7-output');
+            output.innerHTML += `
+<div style="margin-top: 15px; border-top: 1px solid rgba(6, 182, 212, 0.2); padding-top: 15px;">
+<span class="terminal-prompt">$</span> Verifying received message...
+<div style="margin: 10px 0;">
+HMAC Valid: ${isValid ? '<span style="color: var(--success-green);">✓ Yes</span>' : '<span style="color: var(--warning-red);">✗ No</span>'}
+Timestamp Fresh: ${isFresh ? '<span style="color: var(--success-green);">✓ Yes</span>' : '<span style="color: var(--warning-red);">✗ No</span>'} (${age.toFixed(0)}s old)
+Nonce: ${nonce}
+</div>
+${isValid && isFresh ?
+    '<span style="color: var(--success-green);">✓ Message authenticated successfully!</span>' :
+    '<span style="color: var(--warning-red);">✗ Authentication failed!</span>'}
+</div>
+            `;
+
+            if (isValid && isFresh) {
+                showFeedback(7, 'success',
+                    `✓ Complete! You've built a full message authentication system with:<br>
+                    - HMAC signature for authenticity<br>
+                    - Timestamp for replay protection<br>
+                    - Nonce for uniqueness<br><br>
+                    This is the foundation of secure API authentication!`
+                );
+                markComplete(7);
+                updateProgress();
+            }
+        }
+
+        // Initialize exercises on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initExercise2();
+            initExercise6();
+        });
+    </script>
+</body>
+</html>
