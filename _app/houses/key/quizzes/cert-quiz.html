@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Mastery Quiz - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Container */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        /* Intro */
+        .intro {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .intro-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 20px var(--house-glow));
+        }
+
+        .intro-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, var(--house-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .quiz-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .quiz-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--house-color);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Question Card */
+        .question-card {
+            background: var(--bg-card);
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .question-card.active {
+            display: block;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .question-number {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .question-difficulty {
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .difficulty-easy { background: rgba(16, 185, 129, 0.2); color: var(--success-green); }
+        .difficulty-medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .difficulty-hard { background: rgba(239, 68, 68, 0.2); color: var(--warning-red); }
+
+        .question-text {
+            font-size: 1.3rem;
+            color: var(--text-primary);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .option {
+            background: rgba(6, 182, 212, 0.05);
+            border: 2px solid rgba(6, 182, 212, 0.2);
+            border-radius: 10px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .option:hover {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--house-color);
+        }
+
+        .option.selected {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--house-color);
+        }
+
+        .option.correct {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--success-green);
+        }
+
+        .option.incorrect {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--warning-red);
+        }
+
+        .option.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .option-letter {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .option.incorrect .option-letter {
+            background: var(--warning-red);
+            color: white;
+        }
+
+        .option-text {
+            flex: 1;
+            color: var(--text-secondary);
+        }
+
+        .option-icon {
+            font-size: 1.2rem;
+            display: none;
+        }
+
+        .option.correct .option-icon,
+        .option.incorrect .option-icon {
+            display: block;
+        }
+
+        /* Feedback */
+        .feedback {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .feedback.show {
+            display: block;
+        }
+
+        .feedback.correct {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success-green);
+        }
+
+        .feedback.incorrect {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid var(--warning-red);
+        }
+
+        .feedback-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .feedback.correct .feedback-title {
+            color: var(--success-green);
+        }
+
+        .feedback.incorrect .feedback-title {
+            color: var(--warning-red);
+        }
+
+        .feedback-text {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Buttons */
+        .question-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .action-btn {
+            padding: 12px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .submit-btn {
+            background: var(--house-color);
+            color: var(--bg-dark);
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .submit-btn:disabled {
+            background: rgba(6, 182, 212, 0.3);
+            cursor: not-allowed;
+        }
+
+        .next-btn {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+            border: 1px solid var(--house-color);
+        }
+
+        .next-btn:hover {
+            background: rgba(6, 182, 212, 0.3);
+        }
+
+        /* Results */
+        .results-section {
+            background: var(--bg-card);
+            border: 2px solid rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .results-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .results-title {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .results-score {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 20px 0;
+        }
+
+        .score-excellent { color: var(--success-green); }
+        .score-good { color: var(--house-color); }
+        .score-needs-work { color: #f59e0b; }
+
+        .results-message {
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btn {
+            padding: 14px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .primary-btn {
+            background: var(--house-color);
+            color: var(--bg-dark);
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .secondary-btn {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--house-color);
+            border: 1px solid var(--house-color);
+        }
+
+        .secondary-btn:hover {
+            background: rgba(6, 182, 212, 0.3);
+        }
+
+        /* Progress Indicator */
+        .progress-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: var(--house-color);
+            transform: scale(1.3);
+        }
+
+        .progress-dot.completed {
+            background: var(--success-green);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../index.html'">←</button>
+            <div>
+                <div class="module-title">Certificate Mastery Quiz</div>
+            </div>
+        </div>
+        <div class="house-badge">HOUSE OF THE KEY</div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Intro -->
+        <div class="intro" id="quizIntro">
+            <div class="intro-icon">📜</div>
+            <h1 class="intro-title">Certificate Mastery Quiz</h1>
+            <p class="intro-subtitle">
+                Test your knowledge of X.509 certificates, PKI, and certificate management
+            </p>
+            <div class="quiz-info">
+                <div class="quiz-stat">
+                    <div class="stat-value">10</div>
+                    <div class="stat-label">QUESTIONS</div>
+                </div>
+                <div class="quiz-stat">
+                    <div class="stat-value">70%</div>
+                    <div class="stat-label">TO PASS</div>
+                </div>
+                <div class="quiz-stat">
+                    <div class="stat-value">~15</div>
+                    <div class="stat-label">MINUTES</div>
+                </div>
+            </div>
+            <button class="action-btn submit-btn" onclick="startQuiz()" style="margin-top: 30px; padding: 15px 40px; font-size: 1.1rem;">
+                Begin Quiz
+            </button>
+        </div>
+
+        <!-- Progress Dots -->
+        <div class="progress-dots" id="progressDots" style="display: none;"></div>
+
+        <!-- Questions -->
+        <div id="questionsContainer"></div>
+
+        <!-- Results -->
+        <div class="results-section" id="resultsSection">
+            <div class="results-icon" id="resultsIcon">🏆</div>
+            <h2 class="results-title" id="resultsTitle">Quiz Complete!</h2>
+            <div class="results-score" id="resultsScore">0%</div>
+            <p class="results-message" id="resultsMessage"></p>
+            <div class="results-actions">
+                <button class="results-btn primary-btn" onclick="window.location.href='../index.html'">
+                    Return to House of the Key
+                </button>
+                <button class="results-btn secondary-btn" onclick="retakeQuiz()">
+                    Retake Quiz
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Quiz Questions
+        const questions = [
+            {
+                id: 1,
+                difficulty: 'easy',
+                question: 'What does the Subject Alternative Name (SAN) extension allow in an X.509 certificate?',
+                options: [
+                    'Encrypting the certificate with multiple algorithms',
+                    'Listing multiple domains, IPs, or identities in one certificate',
+                    'Extending the certificate validity period',
+                    'Signing certificates with multiple CAs'
+                ],
+                correct: 1,
+                explanation: 'SAN allows a single certificate to cover multiple domains, subdomains, IP addresses, or email addresses. Modern browsers require SAN for domain validation and ignore the CN field when SAN is present. This is essential for multi-domain certificates and is more flexible than using only the Common Name (CN) field.'
+            },
+            {
+                id: 2,
+                difficulty: 'medium',
+                question: 'In a certificate chain, the intermediate CA\'s Issuer field must match which field in the parent certificate?',
+                options: [
+                    'Serial Number',
+                    'Subject field',
+                    'Public Key',
+                    'Signature Algorithm'
+                ],
+                correct: 1,
+                explanation: 'Chain validation requires that each certificate\'s Issuer field exactly matches the Subject field of the certificate that signed it. This creates a verifiable trust path from the leaf certificate up through intermediates to the root CA. The chain is valid only when Subject = Issuer at each link (except the root, which is self-signed).'
+            },
+            {
+                id: 3,
+                difficulty: 'hard',
+                question: 'What is the primary advantage of OCSP stapling over standard OCSP?',
+                options: [
+                    'It uses smaller response messages',
+                    'It supports more certificate types',
+                    'The server queries OCSP instead of the client, improving privacy and performance',
+                    'It works with expired certificates'
+                ],
+                correct: 2,
+                explanation: 'OCSP stapling solves two major problems with standard OCSP: (1) Privacy - the CA doesn\'t see which sites clients visit, and (2) Performance - the server queries OCSP periodically and caches the response, eliminating the client\'s network round-trip to the OCSP responder. The server "staples" this signed response to the TLS handshake.'
+            },
+            {
+                id: 4,
+                difficulty: 'easy',
+                question: 'What is the maximum validity period for publicly-trusted TLS certificates as of 2020?',
+                options: [
+                    '90 days',
+                    '398 days (about 13 months)',
+                    '2 years',
+                    '5 years'
+                ],
+                correct: 1,
+                explanation: 'The CA/Browser Forum reduced maximum validity from 825 days to 398 days (approximately 13 months) effective September 2020. This forces more frequent renewal, which improves security through regular key rotation, reduces the window of exposure if a certificate is compromised, and encourages automation. Let\'s Encrypt issues 90-day certificates to push for even more automation.'
+            },
+            {
+                id: 5,
+                difficulty: 'medium',
+                question: 'What is the key difference between DV, OV, and EV certificates?',
+                options: [
+                    'Encryption strength - EV uses stronger algorithms',
+                    'Validation level - DV only verifies domain control, OV verifies organization, EV requires extensive vetting',
+                    'Certificate chain length',
+                    'Support for wildcard domains'
+                ],
+                correct: 1,
+                explanation: 'DV (Domain Validated) only verifies you control the domain via DNS or HTTP challenge. OV (Organization Validated) additionally verifies your organization exists through business registries and phone verification. EV (Extended Validation) requires extensive vetting including legal existence, physical address, and operational status. All provide the same encryption strength; the difference is the level of identity verification performed by the CA before issuance.'
+            },
+            {
+                id: 6,
+                difficulty: 'hard',
+                question: 'Why was HTTP Public Key Pinning (HPKP) deprecated and removed from browsers?',
+                options: [
+                    'It was too slow and caused performance issues',
+                    'Misconfiguration could permanently lock users out, and it could be weaponized by attackers',
+                    'Certificate Transparency made it unnecessary',
+                    'CAs refused to support it'
+                ],
+                correct: 1,
+                explanation: 'HPKP was removed because: (1) Bricking risk - if you pin the wrong key or lose your private key, users are permanently locked out until max-age expires (potentially months), (2) Hostile pinning - attackers who compromise your site could pin their own keys, (3) Operational complexity - key rotation became dangerous. Certificate Transparency provides similar visibility without the catastrophic failure modes.'
+            },
+            {
+                id: 7,
+                difficulty: 'easy',
+                question: 'What information does Certificate Transparency (CT) logs provide?',
+                options: [
+                    'Real-time revocation status of certificates',
+                    'Public record of all issued certificates for monitoring and detection',
+                    'Encryption keys for all certificates',
+                    'Private keys for auditing purposes'
+                ],
+                correct: 1,
+                explanation: 'CT logs create a public, append-only, cryptographically-assured record of all issued certificates. This allows domain owners to monitor for unauthorized certificates, security researchers to detect mis-issuance, and the community to hold CAs accountable. Browsers require Signed Certificate Timestamps (SCTs) as proof of logging. CT was instrumental in detecting the Symantec mis-issuance scandal.'
+            },
+            {
+                id: 8,
+                difficulty: 'medium',
+                question: 'Which ACME challenge type is required to issue wildcard certificates with Let\'s Encrypt?',
+                options: [
+                    'HTTP-01 (file on web server)',
+                    'TLS-ALPN-01 (TLS handshake)',
+                    'DNS-01 (TXT record)',
+                    'Any challenge type works for wildcards'
+                ],
+                correct: 2,
+                explanation: 'Wildcard certificates (*.example.com) require DNS-01 challenge because it\'s the only method that proves you control the entire domain at the DNS level. HTTP-01 only proves control of a specific host, and TLS-ALPN-01 has the same limitation. DNS-01 requires creating a TXT record at _acme-challenge.example.com, which demonstrates authority over the domain\'s DNS zone.'
+            },
+            {
+                id: 9,
+                difficulty: 'hard',
+                question: 'A server presents a valid certificate for www.example.com, but the chain includes an intermediate certificate that expired last month. What happens?',
+                options: [
+                    'Connection succeeds - only the leaf certificate validity matters',
+                    'Connection fails - all certificates in the chain must be valid',
+                    'Browser shows warning but allows connection',
+                    'OCSP is queried to override the expiration'
+                ],
+                correct: 1,
+                explanation: 'All certificates in the chain (leaf, intermediate, and root) must be valid at the time of connection. If any certificate in the chain is expired, revoked, or otherwise invalid, the entire chain is untrusted and the connection fails. This is a common misconfiguration - CAs sometimes forget to renew their intermediate certificates, breaking all leaf certificates issued by that intermediate, even if the leaf certs themselves are still valid.'
+            },
+            {
+                id: 10,
+                difficulty: 'medium',
+                question: 'What was the primary lesson learned from the DigiNotar breach in 2011?',
+                options: [
+                    'Use longer RSA keys for better security',
+                    'A single compromised CA can issue fraudulent certificates for any domain, affecting the entire PKI ecosystem',
+                    'OCSP is more reliable than CRLs',
+                    'EV certificates are more secure than DV'
+                ],
+                correct: 1,
+                explanation: 'DigiNotar was compromised and issued fraudulent certificates for Google, CIA, Mossad, and others. These were used for government MITM attacks in Iran. The incident demonstrated that the PKI trust model has a fundamental weakness: any CA in your trust store can issue certificates for any domain. This directly led to Certificate Transparency (to detect rogue issuance), stricter CA requirements, and browser vendors actively distrusting compromised CAs.'
+            }
+        ];
+
+        // Quiz State
+        let currentQuestion = 0;
+        let answers = [];
+        let quizStarted = false;
+
+        // Start Quiz
+        function startQuiz() {
+            quizStarted = true;
+            document.getElementById('quizIntro').style.display = 'none';
+            document.getElementById('progressDots').style.display = 'flex';
+            renderProgressDots();
+            renderQuestion();
+        }
+
+        // Render Progress Dots
+        function renderProgressDots() {
+            const container = document.getElementById('progressDots');
+            container.innerHTML = '';
+            for (let i = 0; i < questions.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                if (i < currentQuestion) dot.classList.add('completed');
+                if (i === currentQuestion) dot.classList.add('active');
+                container.appendChild(dot);
+            }
+        }
+
+        // Render Question
+        function renderQuestion() {
+            const question = questions[currentQuestion];
+            const container = document.getElementById('questionsContainer');
+
+            const questionHTML = `
+                <div class="question-card active" id="question${question.id}">
+                    <div class="question-header">
+                        <div class="question-number">Question ${currentQuestion + 1} of ${questions.length}</div>
+                        <div class="question-difficulty difficulty-${question.difficulty}">${question.difficulty.toUpperCase()}</div>
+                    </div>
+                    <div class="question-text">${question.question}</div>
+                    <div class="options" id="options${question.id}">
+                        ${question.options.map((option, idx) => `
+                            <div class="option" onclick="selectOption(${question.id}, ${idx})">
+                                <div class="option-letter">${String.fromCharCode(65 + idx)}</div>
+                                <div class="option-text">${option}</div>
+                                <div class="option-icon"></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="feedback" id="feedback${question.id}">
+                        <div class="feedback-title"></div>
+                        <div class="feedback-text"></div>
+                    </div>
+                    <div class="question-actions">
+                        <button class="action-btn submit-btn" id="submitBtn${question.id}" onclick="submitAnswer(${question.id})" disabled>
+                            Submit Answer
+                        </button>
+                        <button class="action-btn next-btn" id="nextBtn${question.id}" onclick="nextQuestion()" style="display: none;">
+                            ${currentQuestion === questions.length - 1 ? 'View Results' : 'Next Question'} →
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = questionHTML;
+            renderProgressDots();
+        }
+
+        // Select Option
+        function selectOption(questionId, optionIdx) {
+            const options = document.querySelectorAll(`#options${questionId} .option`);
+
+            // Check if already submitted
+            if (options[0].classList.contains('disabled')) return;
+
+            // Clear previous selection
+            options.forEach(opt => opt.classList.remove('selected'));
+
+            // Select new option
+            options[optionIdx].classList.add('selected');
+
+            // Enable submit button
+            document.getElementById(`submitBtn${questionId}`).disabled = false;
+
+            // Store answer
+            answers[currentQuestion] = optionIdx;
+        }
+
+        // Submit Answer
+        function submitAnswer(questionId) {
+            const question = questions[currentQuestion];
+            const selectedAnswer = answers[currentQuestion];
+            const isCorrect = selectedAnswer === question.correct;
+
+            const options = document.querySelectorAll(`#options${questionId} .option`);
+            const feedback = document.getElementById(`feedback${questionId}`);
+            const feedbackTitle = feedback.querySelector('.feedback-title');
+            const feedbackText = feedback.querySelector('.feedback-text');
+
+            // Disable all options
+            options.forEach((opt, idx) => {
+                opt.classList.add('disabled');
+                if (idx === question.correct) {
+                    opt.classList.add('correct');
+                    opt.querySelector('.option-icon').textContent = '✓';
+                }
+                if (idx === selectedAnswer && !isCorrect) {
+                    opt.classList.add('incorrect');
+                    opt.querySelector('.option-icon').textContent = '✗';
+                }
+            });
+
+            // Show feedback
+            feedback.classList.add('show');
+            if (isCorrect) {
+                feedback.classList.add('correct');
+                feedbackTitle.textContent = '✓ Correct!';
+            } else {
+                feedback.classList.add('incorrect');
+                feedbackTitle.textContent = '✗ Incorrect';
+            }
+            feedbackText.textContent = question.explanation;
+
+            // Hide submit, show next
+            document.getElementById(`submitBtn${questionId}`).style.display = 'none';
+            document.getElementById(`nextBtn${questionId}`).style.display = 'block';
+        }
+
+        // Next Question
+        function nextQuestion() {
+            currentQuestion++;
+
+            if (currentQuestion >= questions.length) {
+                showResults();
+            } else {
+                renderQuestion();
+            }
+        }
+
+        // Show Results
+        function showResults() {
+            const correctAnswers = answers.filter((answer, idx) => answer === questions[idx].correct).length;
+            const percentage = Math.round((correctAnswers / questions.length) * 100);
+            const passed = percentage >= 70;
+
+            document.getElementById('progressDots').style.display = 'none';
+            document.getElementById('questionsContainer').style.display = 'none';
+
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsIcon = document.getElementById('resultsIcon');
+            const resultsTitle = document.getElementById('resultsTitle');
+            const resultsScore = document.getElementById('resultsScore');
+            const resultsMessage = document.getElementById('resultsMessage');
+
+            resultsSection.classList.add('show');
+
+            // Set icon and title based on score
+            if (percentage >= 90) {
+                resultsIcon.textContent = '🏆';
+                resultsTitle.textContent = 'Outstanding!';
+                resultsScore.className = 'results-score score-excellent';
+                resultsMessage.textContent = `Perfect score! You've demonstrated mastery of X.509 certificates and PKI. You correctly answered ${correctAnswers} out of ${questions.length} questions. You're ready to handle real-world certificate operations with confidence.`;
+            } else if (percentage >= 70) {
+                resultsIcon.textContent = '✓';
+                resultsTitle.textContent = 'Well Done!';
+                resultsScore.className = 'results-score score-good';
+                resultsMessage.textContent = `You passed! You correctly answered ${correctAnswers} out of ${questions.length} questions (${percentage}%). You have a solid understanding of certificate concepts. Review the explanations for questions you missed to strengthen your knowledge.`;
+            } else {
+                resultsIcon.textContent = '📚';
+                resultsTitle.textContent = 'Keep Learning';
+                resultsScore.className = 'results-score score-needs-work';
+                resultsMessage.textContent = `You scored ${percentage}% (${correctAnswers} out of ${questions.length}). Review the presentation material and try the labs again. Certificate management is complex, but with practice you'll master it. Focus on understanding chain validation, extensions, and revocation mechanisms.`;
+            }
+
+            resultsScore.textContent = `${percentage}%`;
+
+            // Complete quiz if passed
+            if (passed) {
+                try {
+                    ModuleProgress.completeQuiz('key', 'key-certificates-quiz', percentage);
+                    AchievementManager.unlock('certificate-expert');
+                } catch (error) {
+                    console.error('Error recording completion:', error);
+                }
+            }
+        }
+
+        // Retake Quiz
+        function retakeQuiz() {
+            currentQuestion = 0;
+            answers = [];
+            quizStarted = false;
+
+            document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('questionsContainer').style.display = 'block';
+            document.getElementById('quizIntro').style.display = 'block';
+            document.getElementById('progressDots').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

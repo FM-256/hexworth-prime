@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Inspector - House of the Key</title>
+    <!-- Using jsrsasign for certificate parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.6/jsrsasign-all-min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --input-bg: rgba(20, 20, 30, 0.8);
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+            --accent-orange: #f59e0b;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        /* Tool Tabs */
+        .tool-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(6, 182, 212, 0.2);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            position: relative;
+            bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: var(--house-color);
+        }
+
+        .tab-btn.active {
+            color: var(--house-color);
+            border-bottom-color: var(--house-color);
+        }
+
+        .tool-panel {
+            display: none;
+        }
+
+        .tool-panel.active {
+            display: block;
+        }
+
+        /* Input Section */
+        .input-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .input-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .cert-input {
+            width: 100%;
+            min-height: 200px;
+            background: var(--input-bg);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+        }
+
+        .cert-input:focus {
+            outline: none;
+            border-color: var(--house-color);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 10px 24px;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid var(--house-color);
+            color: var(--house-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(6, 182, 212, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.secondary {
+            background: rgba(136, 136, 170, 0.1);
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+        }
+
+        .action-btn.secondary:hover {
+            background: rgba(136, 136, 170, 0.2);
+        }
+
+        /* Output Section */
+        .output-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .output-title {
+            font-size: 1.2rem;
+            color: var(--house-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cert-field-group {
+            margin-bottom: 25px;
+        }
+
+        .field-group-title {
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .cert-field {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.1);
+        }
+
+        .cert-field:last-child {
+            border-bottom: none;
+        }
+
+        .field-name {
+            color: var(--house-color);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .field-value {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+        }
+
+        .field-value.multiline {
+            white-space: pre-wrap;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.valid {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-green);
+            border: 1px solid var(--success-green);
+        }
+
+        .status-badge.expired {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--warning-red);
+            border: 1px solid var(--warning-red);
+        }
+
+        .status-badge.not-yet-valid {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-orange);
+            border: 1px solid var(--accent-orange);
+        }
+
+        .status-badge.expiring-soon {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-orange);
+            border: 1px solid var(--accent-orange);
+        }
+
+        /* Alert Box */
+        .alert-box {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid;
+        }
+
+        .alert-box.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--info-blue);
+            color: var(--text-secondary);
+        }
+
+        .alert-box.warning {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--warning-red);
+            color: var(--text-secondary);
+        }
+
+        .alert-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success-green);
+            color: var(--text-secondary);
+        }
+
+        /* Chain Visual */
+        .chain-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .chain-cert-card {
+            background: rgba(6, 182, 212, 0.05);
+            border: 2px solid rgba(6, 182, 212, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .chain-cert-card::after {
+            content: '↓';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--house-color);
+            font-size: 2rem;
+        }
+
+        .chain-cert-card:last-child::after {
+            display: none;
+        }
+
+        .chain-cert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .chain-cert-type {
+            font-weight: 600;
+            color: var(--house-color);
+            font-size: 1.1rem;
+        }
+
+        /* Extension Decoder */
+        .extension-card {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .extension-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .extension-name {
+            font-weight: 600;
+            color: var(--house-color);
+        }
+
+        .critical-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--warning-red);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .extension-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .extension-value {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        /* Comparison Grid */
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .comparison-side {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .comparison-title {
+            font-size: 1.1rem;
+            color: var(--house-color);
+            margin-bottom: 15px;
+        }
+
+        /* CSR Generator */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 15px;
+            background: var(--input-bg);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--house-color);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* OpenSSL Commands */
+        .command-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .command-title {
+            color: var(--house-color);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .command-code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            float: right;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid var(--house-color);
+            color: var(--house-color);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: rgba(6, 182, 212, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .cert-field {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../index.html'">←</button>
+            <div>
+                <div class="module-title">Certificate Inspector</div>
+            </div>
+        </div>
+        <div class="house-badge">HOUSE OF THE KEY</div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Tool Tabs -->
+        <div class="tool-tabs">
+            <button class="tab-btn active" onclick="switchTab('parser')">Certificate Parser</button>
+            <button class="tab-btn" onclick="switchTab('chain')">Chain Visualizer</button>
+            <button class="tab-btn" onclick="switchTab('extensions')">Extension Decoder</button>
+            <button class="tab-btn" onclick="switchTab('validator')">Validity Checker</button>
+            <button class="tab-btn" onclick="switchTab('san')">SAN Extractor</button>
+            <button class="tab-btn" onclick="switchTab('compare')">Compare Certificates</button>
+            <button class="tab-btn" onclick="switchTab('csr')">CSR Generator</button>
+            <button class="tab-btn" onclick="switchTab('openssl')">OpenSSL Commands</button>
+        </div>
+
+        <!-- Certificate Parser Panel -->
+        <div id="parser" class="tool-panel active">
+            <div class="input-section">
+                <label class="input-label">Paste X.509 Certificate (PEM format):</label>
+                <textarea id="parserInput" class="cert-input" placeholder="-----BEGIN CERTIFICATE-----
+MIIFazCCBFOgAwIBAgISA+...
+-----END CERTIFICATE-----"></textarea>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="parseCertificate()">Parse Certificate</button>
+                    <button class="action-btn secondary" onclick="loadSampleCert('parser')">Load Sample</button>
+                    <button class="action-btn secondary" onclick="clearInput('parserInput')">Clear</button>
+                </div>
+            </div>
+            <div id="parserOutput"></div>
+        </div>
+
+        <!-- Chain Visualizer Panel -->
+        <div id="chain" class="tool-panel">
+            <div class="input-section">
+                <label class="input-label">Paste Certificate Chain (multiple PEM certificates):</label>
+                <textarea id="chainInput" class="cert-input" placeholder="-----BEGIN CERTIFICATE-----
+(Leaf Certificate)
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+(Intermediate CA)
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+(Root CA)
+-----END CERTIFICATE-----"></textarea>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="visualizeChain()">Visualize Chain</button>
+                    <button class="action-btn secondary" onclick="loadSampleChain()">Load Sample Chain</button>
+                    <button class="action-btn secondary" onclick="clearInput('chainInput')">Clear</button>
+                </div>
+            </div>
+            <div id="chainOutput"></div>
+        </div>
+
+        <!-- Extension Decoder Panel -->
+        <div id="extensions" class="tool-panel">
+            <div class="input-section">
+                <label class="input-label">Paste Certificate (PEM format):</label>
+                <textarea id="extensionInput" class="cert-input" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="decodeExtensions()">Decode Extensions</button>
+                    <button class="action-btn secondary" onclick="loadSampleCert('extension')">Load Sample</button>
+                    <button class="action-btn secondary" onclick="clearInput('extensionInput')">Clear</button>
+                </div>
+            </div>
+            <div id="extensionOutput"></div>
+        </div>
+
+        <!-- Validity Checker Panel -->
+        <div id="validator" class="tool-panel">
+            <div class="input-section">
+                <label class="input-label">Paste Certificate (PEM format):</label>
+                <textarea id="validatorInput" class="cert-input" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="checkValidity()">Check Validity</button>
+                    <button class="action-btn secondary" onclick="loadSampleCert('validator')">Load Sample</button>
+                    <button class="action-btn secondary" onclick="clearInput('validatorInput')">Clear</button>
+                </div>
+            </div>
+            <div id="validatorOutput"></div>
+        </div>
+
+        <!-- SAN Extractor Panel -->
+        <div id="san" class="tool-panel">
+            <div class="input-section">
+                <label class="input-label">Paste Certificate (PEM format):</label>
+                <textarea id="sanInput" class="cert-input" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="extractSAN()">Extract SANs</button>
+                    <button class="action-btn secondary" onclick="loadSampleCert('san')">Load Sample</button>
+                    <button class="action-btn secondary" onclick="clearInput('sanInput')">Clear</button>
+                </div>
+            </div>
+            <div id="sanOutput"></div>
+        </div>
+
+        <!-- Compare Certificates Panel -->
+        <div id="compare" class="tool-panel">
+            <div class="comparison-container">
+                <div class="comparison-side">
+                    <div class="comparison-title">Certificate A</div>
+                    <textarea id="compareInputA" class="cert-input" style="min-height: 150px;" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                </div>
+                <div class="comparison-side">
+                    <div class="comparison-title">Certificate B</div>
+                    <textarea id="compareInputB" class="cert-input" style="min-height: 150px;" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="action-btn" onclick="compareCertificates()">Compare Certificates</button>
+                <button class="action-btn secondary" onclick="loadComparisonSamples()">Load Samples</button>
+                <button class="action-btn secondary" onclick="clearComparison()">Clear Both</button>
+            </div>
+            <div id="compareOutput"></div>
+        </div>
+
+        <!-- CSR Generator Panel -->
+        <div id="csr" class="tool-panel">
+            <div class="input-section">
+                <h3 style="color: var(--house-color); margin-bottom: 20px;">Generate Certificate Signing Request</h3>
+                <div class="form-group">
+                    <label class="form-label">Common Name (CN) *</label>
+                    <input type="text" id="csrCN" class="form-input" placeholder="www.example.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Organization (O)</label>
+                        <input type="text" id="csrO" class="form-input" placeholder="Example Corp">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Organizational Unit (OU)</label>
+                        <input type="text" id="csrOU" class="form-input" placeholder="IT Department">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">City/Locality (L)</label>
+                        <input type="text" id="csrL" class="form-input" placeholder="San Francisco">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">State/Province (ST)</label>
+                        <input type="text" id="csrST" class="form-input" placeholder="California">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Country (C)</label>
+                        <input type="text" id="csrC" class="form-input" placeholder="US" maxlength="2">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="csrEmail" class="form-input" placeholder="admin@example.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subject Alternative Names (comma-separated)</label>
+                    <input type="text" id="csrSAN" class="form-input" placeholder="example.com, www.example.com, api.example.com">
+                </div>
+                <div class="btn-group">
+                    <button class="action-btn" onclick="generateCSR()">Generate CSR</button>
+                    <button class="action-btn secondary" onclick="fillSampleCSR()">Fill Sample Data</button>
+                    <button class="action-btn secondary" onclick="clearCSRForm()">Clear Form</button>
+                </div>
+            </div>
+            <div id="csrOutput"></div>
+        </div>
+
+        <!-- OpenSSL Commands Panel -->
+        <div id="openssl" class="tool-panel">
+            <div class="output-section">
+                <div class="output-title">📋 Common OpenSSL Commands for Certificate Operations</div>
+
+                <div class="command-card">
+                    <div class="command-title">View Certificate Details</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in certificate.crt -text -noout</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Convert PEM to DER Format</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in cert.pem -outform DER -out cert.der</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Convert DER to PEM Format</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in cert.der -inform DER -outform PEM -out cert.pem</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Verify Certificate Chain</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl verify -CAfile ca-bundle.crt -untrusted intermediate.crt server.crt</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Check Certificate Expiration Date</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in certificate.crt -noout -enddate</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Extract Public Key from Certificate</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in certificate.crt -noout -pubkey > public.key</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Generate Private Key and CSR (RSA 2048-bit)</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl req -newkey rsa:2048 -nodes -keyout private.key -out request.csr</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Generate Private Key and CSR (ECDSA P-256)</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl ecparam -genkey -name prime256v1 | openssl req -new -key /dev/stdin -out request.csr</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">View CSR Details</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl req -in request.csr -text -noout</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Test SSL/TLS Connection</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl s_client -connect example.com:443 -servername example.com</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Download and View Server Certificate</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -text -noout</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Verify Certificate and Private Key Match</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -noout -modulus -in certificate.crt | openssl md5
+openssl rsa -noout -modulus -in private.key | openssl md5</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Check OCSP Status</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl ocsp -issuer issuer.crt -cert server.crt -url http://ocsp.example.com -resp_text</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Create Self-Signed Certificate (1 year validity)</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Extract Certificate from PKCS#12/PFX</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl pkcs12 -in certificate.pfx -clcerts -nokeys -out certificate.crt</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Extract Private Key from PKCS#12/PFX</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl pkcs12 -in certificate.pfx -nocerts -nodes -out private.key</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Convert PEM to PKCS#12/PFX</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl pkcs12 -export -in certificate.crt -inkey private.key -out certificate.pfx</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-title">Calculate Certificate Fingerprint (SHA-256)</div>
+                    <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+                    <div class="command-code">openssl x509 -in certificate.crt -noout -fingerprint -sha256</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample certificate for demonstrations (Let's Encrypt staging)
+        const SAMPLE_CERT = `-----BEGIN CERTIFICATE-----
+MIIFDTCCAvWgAwIBAgISA1234567890abcdefghijklmnopMDANBgkqhkiG9w0BAQsF
+ADBjMQswCQYDVQQGEwJVUzEXMBUGA1UEChMOTGV0J3MgRW5jcnlwdDElMCMGA1UE
+AxMcTGV0J3MgRW5jcnlwdCBBdXRob3JpdHkgWDMwHhcNMjUwMTAxMDAwMDAwWhcN
+MjUwMzMxMjM1OTU5WjAZMRcwFQYDVQQDEw5leGFtcGxlLmNvbTCCASIwDQYJKoZI
+hvcNAQEBBQADggEPADCCAQoCggEBAMa1234567890abcdefghijklmnopqrstuvwxy
+zabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc
+defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefgh
+ijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklm
+nopqrstuvwxyzAgMBAAGjggEhMIIBHTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYw
+FAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFJqr
+s1234567890abcdefghijklmnopqr0B8GA1UdIwQYMBaAFKhKamMEfd265tE5t6ZF
+Ze/zqOyhMG8GCCsGAQUFBwEBBGMwYTAuBggrBgEFBQcwAYYiaHR0cDovL29jc3Au
+aW50LXgzLmxldHNlbmNyeXB0Lm9yZzAvBggrBgEFBQcwAoYjaHR0cDovL2NlcnQu
+aW50LXgzLmxldHNlbmNyeXB0Lm9yZy8wGQYDVR0RBBIwEIIOZXhhbXBsZS5jb20w
+TAYDVR0gBEUwQzAIBgZngQwBAgEwNwYLKwYBBAGC3xMBAQEwKDAmBggrBgEFBQcC
+ARYaaHR0cDovL2Nwcy5sZXRzZW5jcnlwdC5vcmcwDQYJKoZIhvcNAQELBQADggEB
+AAbcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab
+cdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef
+ghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghij
+klmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ==
+-----END CERTIFICATE-----`;
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all panels
+            document.querySelectorAll('.tool-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Deactivate all tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(tabName).classList.add('active');
+
+            // Activate clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Certificate Parser
+        function parseCertificate() {
+            const pemText = document.getElementById('parserInput').value.trim();
+            const output = document.getElementById('parserOutput');
+
+            if (!pemText) {
+                output.innerHTML = '<div class="alert-box warning">Please paste a certificate</div>';
+                return;
+            }
+
+            try {
+                const cert = new X509();
+                cert.readCertPEM(pemText);
+
+                const subject = cert.getSubjectString();
+                const issuer = cert.getIssuerString();
+                const serial = cert.getSerialNumberHex();
+                const notBefore = cert.getNotBefore();
+                const notAfter = cert.getNotAfter();
+                const sigAlg = cert.getSignatureAlgorithmName();
+                const publicKey = cert.getPublicKey();
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">🔍 Certificate Details</div>';
+
+                // Basic Information
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Basic Information</div>';
+                html += `<div class="cert-field"><div class="field-name">Version</div><div class="field-value">v${cert.version + 1}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Serial Number</div><div class="field-value">${serial}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Signature Algorithm</div><div class="field-value">${sigAlg}</div></div>`;
+                html += '</div>';
+
+                // Subject & Issuer
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Identity</div>';
+                html += `<div class="cert-field"><div class="field-name">Subject DN</div><div class="field-value">${escapeHtml(subject)}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Issuer DN</div><div class="field-value">${escapeHtml(issuer)}</div></div>`;
+                html += '</div>';
+
+                // Validity
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Validity Period</div>';
+                html += `<div class="cert-field"><div class="field-name">Not Before</div><div class="field-value">${notBefore}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Not After</div><div class="field-value">${notAfter}</div></div>`;
+                html += '</div>';
+
+                // Public Key
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Public Key Information</div>';
+                html += `<div class="cert-field"><div class="field-name">Algorithm</div><div class="field-value">${publicKey.type || 'RSA'}</div></div>`;
+                if (publicKey.n) {
+                    const keySize = publicKey.n.bitLength();
+                    html += `<div class="cert-field"><div class="field-name">Key Size</div><div class="field-value">${keySize} bits</div></div>`;
+                }
+                html += '</div>';
+
+                html += '</div>';
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error parsing certificate: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Chain Visualizer
+        function visualizeChain() {
+            const pemText = document.getElementById('chainInput').value.trim();
+            const output = document.getElementById('chainOutput');
+
+            if (!pemText) {
+                output.innerHTML = '<div class="alert-box warning">Please paste certificate chain</div>';
+                return;
+            }
+
+            try {
+                const certs = pemText.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g);
+
+                if (!certs || certs.length === 0) {
+                    output.innerHTML = '<div class="alert-box warning">No valid certificates found</div>';
+                    return;
+                }
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">🔗 Certificate Chain</div>';
+                html += '<div class="chain-container">';
+
+                certs.forEach((certPem, index) => {
+                    const cert = new X509();
+                    cert.readCertPEM(certPem);
+
+                    const subject = cert.getSubjectString();
+                    const issuer = cert.getIssuerString();
+                    const notAfter = cert.getNotAfter();
+
+                    const isRoot = subject === issuer;
+                    const certType = index === 0 ? 'Leaf Certificate' :
+                                    isRoot ? 'Root CA' : 'Intermediate CA';
+                    const icon = index === 0 ? '🌐' : isRoot ? '🏛️' : '🔗';
+
+                    html += '<div class="chain-cert-card">';
+                    html += '<div class="chain-cert-header">';
+                    html += `<div class="chain-cert-type">${icon} ${certType}</div>`;
+                    html += '</div>';
+                    html += `<div class="cert-field"><div class="field-name">Subject</div><div class="field-value">${escapeHtml(subject)}</div></div>`;
+                    html += `<div class="cert-field"><div class="field-name">Issuer</div><div class="field-value">${escapeHtml(issuer)}</div></div>`;
+                    html += `<div class="cert-field"><div class="field-name">Expires</div><div class="field-value">${notAfter}</div></div>`;
+                    html += '</div>';
+                });
+
+                html += '</div></div>';
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error parsing chain: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Extension Decoder
+        function decodeExtensions() {
+            const pemText = document.getElementById('extensionInput').value.trim();
+            const output = document.getElementById('extensionOutput');
+
+            if (!pemText) {
+                output.innerHTML = '<div class="alert-box warning">Please paste a certificate</div>';
+                return;
+            }
+
+            try {
+                const cert = new X509();
+                cert.readCertPEM(pemText);
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">🔧 X.509 Extensions</div>';
+
+                const extInfo = cert.getInfo().split('\n');
+                let foundExtensions = false;
+
+                // Parse extensions (simplified for demo)
+                html += '<div class="alert-box info">';
+                html += '<strong>Note:</strong> This is a simplified decoder. For full details, use OpenSSL: ';
+                html += '<code>openssl x509 -in cert.pem -text -noout</code>';
+                html += '</div>';
+
+                // Key Usage
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Key Usage</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Defines the cryptographic purpose of the certificate\'s key.</div>';
+                html += '<div class="extension-value">Common values: Digital Signature, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign</div>';
+                html += '</div>';
+
+                // Extended Key Usage
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Extended Key Usage</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Specifies specific purposes for which the key can be used.</div>';
+                html += '<div class="extension-value">Common values: TLS Server Authentication, TLS Client Authentication, Code Signing, Email Protection</div>';
+                html += '</div>';
+
+                // Subject Alternative Name
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Subject Alternative Name (SAN)</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Additional identities for the certificate (domains, IPs, emails).</div>';
+                html += '<div class="extension-value">Use the SAN Extractor tab to see parsed values</div>';
+                html += '</div>';
+
+                // Basic Constraints
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Basic Constraints</div>';
+                html += '<div class="critical-badge">CRITICAL</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Indicates if this is a CA certificate and path length constraint.</div>';
+                html += '<div class="extension-value">CA:FALSE (for leaf certificates) or CA:TRUE, pathlen:N (for CAs)</div>';
+                html += '</div>';
+
+                // Authority Key Identifier
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Authority Key Identifier</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Identifies the public key used to sign this certificate.</div>';
+                html += '<div class="extension-value">Contains key ID of the issuing CA</div>';
+                html += '</div>';
+
+                // Subject Key Identifier
+                html += '<div class="extension-card">';
+                html += '<div class="extension-header">';
+                html += '<div class="extension-name">Subject Key Identifier</div>';
+                html += '</div>';
+                html += '<div class="extension-description">Unique identifier for this certificate\'s public key.</div>';
+                html += '<div class="extension-value">Used to identify certificates in chains</div>';
+                html += '</div>';
+
+                html += '</div>';
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error decoding extensions: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Validity Checker
+        function checkValidity() {
+            const pemText = document.getElementById('validatorInput').value.trim();
+            const output = document.getElementById('validatorOutput');
+
+            if (!pemText) {
+                output.innerHTML = '<div class="alert-box warning">Please paste a certificate</div>';
+                return;
+            }
+
+            try {
+                const cert = new X509();
+                cert.readCertPEM(pemText);
+
+                const notBeforeStr = cert.getNotBefore();
+                const notAfterStr = cert.getNotAfter();
+                const notBefore = new Date(notBeforeStr);
+                const notAfter = new Date(notAfterStr);
+                const now = new Date();
+
+                let status, statusClass, message;
+
+                if (now < notBefore) {
+                    status = 'NOT YET VALID';
+                    statusClass = 'not-yet-valid';
+                    message = `Certificate is not valid until ${notBeforeStr}`;
+                } else if (now > notAfter) {
+                    status = 'EXPIRED';
+                    statusClass = 'expired';
+                    const daysExpired = Math.floor((now - notAfter) / (1000 * 60 * 60 * 24));
+                    message = `Certificate expired ${daysExpired} days ago on ${notAfterStr}`;
+                } else {
+                    const daysRemaining = Math.floor((notAfter - now) / (1000 * 60 * 60 * 24));
+
+                    if (daysRemaining <= 30) {
+                        status = 'EXPIRING SOON';
+                        statusClass = 'expiring-soon';
+                        message = `Certificate expires in ${daysRemaining} days - renewal recommended`;
+                    } else {
+                        status = 'VALID';
+                        statusClass = 'valid';
+                        message = `Certificate is valid for ${daysRemaining} more days`;
+                    }
+                }
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">✅ Validity Status</div>';
+                html += `<div style="text-align: center; margin: 30px 0;">`;
+                html += `<div class="status-badge ${statusClass}" style="font-size: 1.2rem; padding: 10px 20px;">${status}</div>`;
+                html += `<p style="color: var(--text-secondary); margin-top: 15px;">${message}</p>`;
+                html += `</div>`;
+
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Validity Period Details</div>';
+                html += `<div class="cert-field"><div class="field-name">Valid From</div><div class="field-value">${notBeforeStr}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Valid Until</div><div class="field-value">${notAfterStr}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Current Time</div><div class="field-value">${now.toUTCString()}</div></div>`;
+                html += `<div class="cert-field"><div class="field-name">Total Validity</div><div class="field-value">${Math.floor((notAfter - notBefore) / (1000 * 60 * 60 * 24))} days</div></div>`;
+                html += '</div>';
+
+                if (statusClass === 'valid' || statusClass === 'expiring-soon') {
+                    const percentElapsed = ((now - notBefore) / (notAfter - notBefore)) * 100;
+                    html += '<div style="margin-top: 20px;">';
+                    html += '<div style="color: var(--text-secondary); margin-bottom: 8px;">Lifetime Progress</div>';
+                    html += '<div style="background: rgba(0,0,0,0.3); height: 20px; border-radius: 10px; overflow: hidden;">';
+                    html += `<div style="background: var(--house-color); height: 100%; width: ${percentElapsed}%; transition: width 0.3s ease;"></div>`;
+                    html += '</div>';
+                    html += `<div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 5px;">${percentElapsed.toFixed(1)}% of lifetime elapsed</div>`;
+                    html += '</div>';
+                }
+
+                html += '</div>';
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error checking validity: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // SAN Extractor
+        function extractSAN() {
+            const pemText = document.getElementById('sanInput').value.trim();
+            const output = document.getElementById('sanOutput');
+
+            if (!pemText) {
+                output.innerHTML = '<div class="alert-box warning">Please paste a certificate</div>';
+                return;
+            }
+
+            try {
+                const cert = new X509();
+                cert.readCertPEM(pemText);
+
+                const subject = cert.getSubjectString();
+                const cnMatch = subject.match(/CN=([^,]+)/);
+                const cn = cnMatch ? cnMatch[1] : 'Not specified';
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">🌐 Subject Alternative Names</div>';
+
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Common Name (Legacy)</div>';
+                html += `<div class="cert-field"><div class="field-name">CN</div><div class="field-value">${escapeHtml(cn)}</div></div>`;
+                html += '<div class="alert-box info">Modern certificates use SAN instead of CN for domain names. Browsers ignore CN when SAN is present.</div>';
+                html += '</div>';
+
+                html += '<div class="cert-field-group">';
+                html += '<div class="field-group-title">Subject Alternative Names</div>';
+                html += '<div class="alert-box info">Note: This simplified parser cannot extract SAN extensions. Use OpenSSL:<br>';
+                html += '<code>openssl x509 -in cert.pem -text -noout | grep -A1 "Subject Alternative Name"</code><br><br>';
+                html += 'SAN can contain: DNS names, IP addresses, email addresses, URIs</div>';
+                html += '</div>';
+
+                html += '</div>';
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error extracting SAN: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Compare Certificates
+        function compareCertificates() {
+            const pemA = document.getElementById('compareInputA').value.trim();
+            const pemB = document.getElementById('compareInputB').value.trim();
+            const output = document.getElementById('compareOutput');
+
+            if (!pemA || !pemB) {
+                output.innerHTML = '<div class="alert-box warning">Please paste both certificates</div>';
+                return;
+            }
+
+            try {
+                const certA = new X509();
+                const certB = new X509();
+                certA.readCertPEM(pemA);
+                certB.readCertPEM(pemB);
+
+                const compareField = (name, valA, valB) => {
+                    const match = valA === valB;
+                    const color = match ? 'var(--success-green)' : 'var(--warning-red)';
+                    const icon = match ? '✓' : '✗';
+                    return `
+                        <tr>
+                            <td>${name}</td>
+                            <td style="font-family: 'Courier New', monospace; font-size: 0.85rem;">${escapeHtml(valA)}</td>
+                            <td style="font-family: 'Courier New', monospace; font-size: 0.85rem;">${escapeHtml(valB)}</td>
+                            <td style="color: ${color}; text-align: center;">${icon}</td>
+                        </tr>
+                    `;
+                };
+
+                let html = '<div class="output-section">';
+                html += '<div class="output-title">⚖️ Certificate Comparison</div>';
+                html += '<table class="cert-table">';
+                html += '<thead><tr><th>Field</th><th>Certificate A</th><th>Certificate B</th><th>Match</th></tr></thead>';
+                html += '<tbody>';
+                html += compareField('Subject', certA.getSubjectString(), certB.getSubjectString());
+                html += compareField('Issuer', certA.getIssuerString(), certB.getIssuerString());
+                html += compareField('Serial Number', certA.getSerialNumberHex(), certB.getSerialNumberHex());
+                html += compareField('Not Before', certA.getNotBefore(), certB.getNotBefore());
+                html += compareField('Not After', certA.getNotAfter(), certB.getNotAfter());
+                html += compareField('Signature Algorithm', certA.getSignatureAlgorithmName(), certB.getSignatureAlgorithmName());
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+
+                output.innerHTML = html;
+
+            } catch (error) {
+                output.innerHTML = `<div class="alert-box warning">Error comparing certificates: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // CSR Generator
+        function generateCSR() {
+            const cn = document.getElementById('csrCN').value.trim();
+            const output = document.getElementById('csrOutput');
+
+            if (!cn) {
+                output.innerHTML = '<div class="alert-box warning">Common Name (CN) is required</div>';
+                return;
+            }
+
+            const o = document.getElementById('csrO').value.trim();
+            const ou = document.getElementById('csrOU').value.trim();
+            const l = document.getElementById('csrL').value.trim();
+            const st = document.getElementById('csrST').value.trim();
+            const c = document.getElementById('csrC').value.trim();
+            const email = document.getElementById('csrEmail').value.trim();
+            const san = document.getElementById('csrSAN').value.trim();
+
+            let subject = `/CN=${cn}`;
+            if (o) subject += `/O=${o}`;
+            if (ou) subject += `/OU=${ou}`;
+            if (l) subject += `/L=${l}`;
+            if (st) subject += `/ST=${st}`;
+            if (c) subject += `/C=${c}`;
+            if (email) subject += `/emailAddress=${email}`;
+
+            let opensslCmd = `openssl req -new -newkey rsa:2048 -nodes -keyout ${cn}.key -out ${cn}.csr -subj "${subject}"`;
+
+            let html = '<div class="output-section">';
+            html += '<div class="output-title">📝 Generated CSR Commands</div>';
+
+            html += '<div class="alert-box success">';
+            html += 'Run these OpenSSL commands to generate your CSR and private key:';
+            html += '</div>';
+
+            html += '<div class="command-card">';
+            html += '<div class="command-title">Generate RSA 2048-bit Private Key and CSR</div>';
+            html += '<button class="copy-btn" onclick="copyCommand(this)">Copy</button>';
+            html += `<div class="command-code">${opensslCmd}</div>`;
+            html += '</div>';
+
+            if (san) {
+                html += '<div class="command-card">';
+                html += '<div class="command-title">Alternative: CSR with Subject Alternative Names</div>';
+                html += '<button class="copy-btn" onclick="copyCommand(this)">Copy</button>';
+                const sanList = san.split(',').map(s => `DNS:${s.trim()}`).join(',');
+                html += `<div class="command-code">openssl req -new -newkey rsa:2048 -nodes -keyout ${cn}.key -out ${cn}.csr -subj "${subject}" -addext "subjectAltName = ${sanList}"</div>`;
+                html += '</div>';
+            }
+
+            html += '<div class="command-card">';
+            html += '<div class="command-title">Alternative: ECDSA P-256 Key and CSR (Recommended)</div>';
+            html += '<button class="copy-btn" onclick="copyCommand(this)">Copy</button>';
+            html += `<div class="command-code">openssl ecparam -genkey -name prime256v1 -out ${cn}.key\nopenssl req -new -key ${cn}.key -out ${cn}.csr -subj "${subject}"</div>`;
+            html += '</div>';
+
+            html += '<div class="command-card">';
+            html += '<div class="command-title">Verify CSR Contents</div>';
+            html += '<button class="copy-btn" onclick="copyCommand(this)">Copy</button>';
+            html += `<div class="command-code">openssl req -in ${cn}.csr -text -noout</div>`;
+            html += '</div>';
+
+            html += '<div class="cert-field-group" style="margin-top: 30px;">';
+            html += '<div class="field-group-title">Subject DN</div>';
+            html += `<div class="field-value">${escapeHtml(subject)}</div>`;
+            html += '</div>';
+
+            html += '</div>';
+            output.innerHTML = html;
+        }
+
+        // Helper Functions
+        function loadSampleCert(target) {
+            const inputId = target + 'Input';
+            document.getElementById(inputId).value = SAMPLE_CERT;
+        }
+
+        function loadSampleChain() {
+            const chain = SAMPLE_CERT + '\n' + SAMPLE_CERT.replace('example.com', 'Intermediate CA') + '\n' + SAMPLE_CERT.replace('example.com', 'Root CA');
+            document.getElementById('chainInput').value = chain;
+        }
+
+        function loadComparisonSamples() {
+            document.getElementById('compareInputA').value = SAMPLE_CERT;
+            document.getElementById('compareInputB').value = SAMPLE_CERT.replace('example.com', 'different.com');
+        }
+
+        function fillSampleCSR() {
+            document.getElementById('csrCN').value = 'www.example.com';
+            document.getElementById('csrO').value = 'Example Corporation';
+            document.getElementById('csrOU').value = 'IT Security';
+            document.getElementById('csrL').value = 'San Francisco';
+            document.getElementById('csrST').value = 'California';
+            document.getElementById('csrC').value = 'US';
+            document.getElementById('csrEmail').value = 'admin@example.com';
+            document.getElementById('csrSAN').value = 'example.com, www.example.com, api.example.com';
+        }
+
+        function clearInput(inputId) {
+            document.getElementById(inputId).value = '';
+        }
+
+        function clearComparison() {
+            document.getElementById('compareInputA').value = '';
+            document.getElementById('compareInputB').value = '';
+            document.getElementById('compareOutput').innerHTML = '';
+        }
+
+        function clearCSRForm() {
+            ['csrCN', 'csrO', 'csrOU', 'csrL', 'csrST', 'csrC', 'csrEmail', 'csrSAN'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('csrOutput').innerHTML = '';
+        }
+
+        function copyCommand(btn) {
+            const commandText = btn.nextElementSibling.textContent;
+            navigator.clipboard.writeText(commandText).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
