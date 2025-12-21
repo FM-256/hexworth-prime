@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptanalysis - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+            --success-green: #10b981;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Progress Indicator */
+        .progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--house-color);
+            transition: width 0.3s ease;
+        }
+
+        /* Main Content */
+        .module-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro-section {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(6, 182, 212, 0.02));
+            border-radius: 15px;
+            border: 1px solid rgba(6, 182, 212, 0.1);
+        }
+
+        .intro-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px var(--house-glow));
+        }
+
+        .intro-title {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--house-color), #0891b2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Ethics Notice */
+        .ethics-notice {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 20px 25px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 15px;
+            align-items: start;
+        }
+
+        .ethics-icon {
+            font-size: 1.5rem;
+            color: var(--warning-red);
+            flex-shrink: 0;
+        }
+
+        .ethics-content h3 {
+            color: var(--warning-red);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .ethics-content p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Section Cards */
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow: 0 8px 30px rgba(6, 182, 212, 0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .section-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--house-color), #0891b2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-content h3 {
+            color: var(--house-color);
+            font-size: 1.2rem;
+            margin: 25px 0 12px 0;
+        }
+
+        .section-content p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+
+        .section-content ul {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .section-content li {
+            padding: 10px 0;
+            padding-left: 25px;
+            position: relative;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .section-content li::before {
+            content: '▹';
+            position: absolute;
+            left: 0;
+            color: var(--house-color);
+            font-weight: 600;
+        }
+
+        /* Attack Models Table */
+        .attack-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .attack-table th {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--house-color);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .attack-table td {
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .attack-table tr:hover {
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #00ff88;
+            overflow-x: auto;
+        }
+
+        .code-block .comment {
+            color: #888;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .info-box-title {
+            color: var(--info-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-box-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Warning Box */
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--warning-red);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box-title {
+            color: var(--warning-red);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-box-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Success Box */
+        .success-box {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid var(--success-green);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .success-box-title {
+            color: var(--success-green);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .success-box-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Case Study Card */
+        .case-study {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .case-study-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .case-study-icon {
+            font-size: 1.3rem;
+        }
+
+        .case-study-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--warning-red);
+        }
+
+        .case-study-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .case-study-content {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Math Formula */
+        .math-formula {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: var(--house-color);
+        }
+
+        /* Visual Diagram */
+        .diagram {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 10px;
+            padding: 30px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .diagram-title {
+            color: var(--house-color);
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .diagram-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .diagram-box {
+            background: var(--bg-card);
+            border: 2px solid var(--house-color);
+            border-radius: 8px;
+            padding: 15px 20px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .diagram-arrow {
+            color: var(--house-color);
+            font-size: 1.5rem;
+        }
+
+        /* Complete Button */
+        .complete-section {
+            text-align: center;
+            margin-top: 50px;
+            padding: 40px 20px;
+        }
+
+        .complete-btn {
+            background: linear-gradient(135deg, var(--house-color), #0891b2);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        .complete-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.5);
+        }
+
+        /* Complexity Badge */
+        .complexity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 15px;
+            font-size: 0.85rem;
+            color: var(--house-color);
+            font-family: 'Courier New', monospace;
+            margin: 5px;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--house-color), rgba(6, 182, 212, 0.2));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            background: var(--house-color);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .timeline-year {
+            color: var(--house-color);
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .timeline-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'">←</button>
+            <h1 class="module-title">Cryptanalysis: The Art of Breaking Cryptography</h1>
+        </div>
+        <div class="header-right">
+            <span class="house-badge">HOUSE OF THE KEY</span>
+            <div class="progress-indicator">
+                <span id="progress-text">0%</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-content">
+        <!-- Introduction -->
+        <section class="intro-section">
+            <div class="intro-icon">🔓</div>
+            <h1 class="intro-title">Cryptanalysis</h1>
+            <p class="intro-subtitle">
+                Understanding how cryptographic systems fail is essential to building secure ones.
+                This module explores the science of breaking encryption, analyzing weaknesses, and
+                defending against attacks - all from an ethical, defensive perspective.
+            </p>
+        </section>
+
+        <!-- Ethics Notice -->
+        <div class="ethics-notice">
+            <div class="ethics-icon">⚠️</div>
+            <div class="ethics-content">
+                <h3>Ethical Framework</h3>
+                <p>
+                    The techniques covered here are taught for <strong>defensive purposes only</strong>.
+                    Understanding attacks enables you to build secure systems, conduct authorized penetration
+                    testing, and protect against real threats. Unauthorized access to systems is illegal and
+                    unethical. Always obtain explicit permission before testing security systems.
+                </p>
+            </div>
+        </div>
+
+        <!-- Section 1: Introduction to Cryptanalysis -->
+        <section class="section-card" data-section="1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <h2 class="section-title">What is Cryptanalysis?</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Cryptanalysis is the study of analyzing information systems to understand hidden aspects
+                    of the systems. In cryptography, it specifically refers to finding weaknesses in cryptographic
+                    schemes to recover plaintext without access to the key, or to recover the key itself.
+                </p>
+
+                <h3>Breaking vs. Analyzing</h3>
+                <p>
+                    There's an important distinction between different levels of cryptanalytic success:
+                </p>
+                <ul>
+                    <li><strong>Total Break:</strong> Recovering the secret key</li>
+                    <li><strong>Global Deduction:</strong> Finding an algorithm equivalent to decryption without knowing the key</li>
+                    <li><strong>Instance Deduction:</strong> Recovering plaintext from specific ciphertext</li>
+                    <li><strong>Information Deduction:</strong> Gaining partial information about the key or plaintext</li>
+                    <li><strong>Distinguishing Attack:</strong> Detecting that output isn't random (breaking semantic security)</li>
+                </ul>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>💡</span> Historical Context
+                    </div>
+                    <div class="info-box-content">
+                        Cryptanalysis has shaped history. The breaking of the Enigma cipher by Allied
+                        cryptanalysts at Bletchley Park shortened WWII by an estimated 2-4 years. The
+                        weaknesses found in DES led to the development of AES. Every broken cipher has
+                        advanced the field of cryptography.
+                    </div>
+                </div>
+
+                <h3>The Security-Usability Trade-off</h3>
+                <p>
+                    Cryptanalysis reveals that absolute security often conflicts with practical usability.
+                    The One-Time Pad is theoretically unbreakable, but impractical for most uses. Modern
+                    cryptography balances computational security (hard enough to break given current
+                    technology) with practical implementation.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 2: Attack Models -->
+        <section class="section-card" data-section="2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <h2 class="section-title">Cryptanalytic Attack Models</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Attack models describe what information an attacker has access to. Understanding these
+                    models helps security engineers evaluate the real-world security of cryptographic systems.
+                </p>
+
+                <table class="attack-table">
+                    <thead>
+                        <tr>
+                            <th>Attack Model</th>
+                            <th>Attacker Knowledge</th>
+                            <th>Real-World Example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Ciphertext-Only</strong></td>
+                            <td>Only ciphertext is known</td>
+                            <td>Intercepted encrypted communications without context</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Known-Plaintext</strong></td>
+                            <td>Some plaintext-ciphertext pairs known</td>
+                            <td>Standard email headers encrypted with unknown key</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Chosen-Plaintext</strong></td>
+                            <td>Can encrypt arbitrary plaintexts</td>
+                            <td>Access to encryption oracle (e.g., signing service)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Chosen-Ciphertext</strong></td>
+                            <td>Can decrypt chosen ciphertexts</td>
+                            <td>Padding oracle attacks (server reveals decryption errors)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Adaptive Chosen-Ciphertext</strong></td>
+                            <td>Can choose ciphertexts based on previous results</td>
+                            <td>Interactive padding oracle exploitation</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">
+                        <span>🚨</span> Security Assumption
+                    </div>
+                    <div class="warning-box-content">
+                        Modern cryptography operates under Kerckhoffs's principle: A cryptosystem should
+                        be secure even if everything about the system, except the key, is public knowledge.
+                        We assume attackers know the algorithm and only the key remains secret.
+                    </div>
+                </div>
+
+                <h3>Practical Implications</h3>
+                <p>
+                    In the real world, attackers often have more information than we'd like. TLS connections
+                    have predictable plaintext (HTTP headers), padding oracle vulnerabilities give chosen-ciphertext
+                    capabilities, and timing side-channels leak information. Secure systems must resist all
+                    feasible attack models.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 3: Classical Cipher Attacks -->
+        <section class="section-card" data-section="3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <h2 class="section-title">Classical Cipher Attacks</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    While classical ciphers are obsolete for serious security, they teach fundamental
+                    cryptanalytic principles still relevant today.
+                </p>
+
+                <h3>Frequency Analysis</h3>
+                <p>
+                    Frequency analysis exploits the non-uniform distribution of letters in natural language.
+                    In English, 'E' appears ~12.7% of the time, while 'Z' appears ~0.07%. Monoalphabetic
+                    substitution ciphers preserve these frequencies, making them vulnerable.
+                </p>
+
+                <div class="diagram">
+                    <div class="diagram-title">Letter Frequency Attack Flow</div>
+                    <div class="diagram-content">
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Ciphertext</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Count letters</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Frequency Table</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Compare to English</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Substitutions</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Reveal plaintext</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="comment"># Simple frequency analysis</span>
+from collections import Counter
+
+ciphertext = "XJJVPX..."
+freq = Counter(ciphertext.replace(' ', ''))
+most_common = freq.most_common(5)
+
+<span class="comment"># Most common letter likely 'E'</span>
+<span class="comment"># Second most likely 'T', etc.</span>
+print(most_common)  <span class="comment"># [('X', 127), ('J', 89), ...]</span>
+                </div>
+
+                <h3>Kasiski Examination</h3>
+                <p>
+                    The Kasiski examination breaks polyalphabetic ciphers like Vigenère by finding repeated
+                    sequences in the ciphertext. The distance between repetitions is likely a multiple of
+                    the key length.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🔍</span> Method
+                    </div>
+                    <div class="info-box-content">
+                        1. Find repeated sequences (3+ characters)<br>
+                        2. Calculate distances between repetitions<br>
+                        3. Find GCD of distances to determine key length<br>
+                        4. Use frequency analysis on each alphabet
+                    </div>
+                </div>
+
+                <h3>Index of Coincidence</h3>
+                <p>
+                    The Index of Coincidence (IC) measures how likely two randomly selected letters from
+                    a text are identical. For English plaintext, IC ≈ 0.067. For random text, IC ≈ 0.038.
+                    This helps determine key length in polyalphabetic ciphers.
+                </p>
+
+                <div class="math-formula">
+                    IC = Σ(f<sub>i</sub> × (f<sub>i</sub> - 1)) / (N × (N - 1))
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Hash Function Attacks -->
+        <section class="section-card" data-section="4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <h2 class="section-title">Hash Function Attacks</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Hash functions must be collision-resistant, preimage-resistant, and second-preimage
+                    resistant. Attacks on these properties have led to the deprecation of MD5 and SHA-1.
+                </p>
+
+                <h3>Birthday Attack</h3>
+                <p>
+                    The birthday paradox states that in a group of just 23 people, there's a 50% probability
+                    that two share a birthday. This same principle applies to hash collisions.
+                </p>
+
+                <div class="math-formula">
+                    Collision probability ≈ 1 - e<sup>-n²/(2×2<sup>b</sup>)</sup>
+                </div>
+
+                <p>
+                    For a hash function with output size <em>b</em> bits, you only need about 2<sup>b/2</sup>
+                    hash operations to find a collision with high probability. This is why MD5 (128-bit) only
+                    requires 2<sup>64</sup> operations to break, not 2<sup>128</sup>.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🎲</span> Probability Breakdown
+                    </div>
+                    <div class="info-box-content">
+                        For a 256-bit hash (SHA-256):<br>
+                        • 2<sup>128</sup> operations for 50% collision probability<br>
+                        • 2<sup>130</sup> operations for 86% collision probability<br>
+                        • Far beyond computational feasibility (for now)
+                    </div>
+                </div>
+
+                <h3>Length Extension Attack</h3>
+                <p>
+                    MD5, SHA-1, and SHA-2 use the Merkle-Damgård construction, which has a subtle weakness:
+                    if you know hash(message), you can compute hash(message || padding || extension) without
+                    knowing the original message.
+                </p>
+
+                <div class="code-block">
+<span class="comment"># Vulnerable pattern</span>
+signature = SHA256(secret || message)
+
+<span class="comment"># Attacker can compute:</span>
+<span class="comment"># SHA256(secret || message || padding || attack_data)</span>
+<span class="comment"># without knowing the secret!</span>
+
+<span class="comment"># Defense: Use HMAC instead</span>
+signature = HMAC-SHA256(secret, message)  <span class="comment"># ✓ Secure</span>
+                </div>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">
+                        <span>⚠️</span> Vulnerable Code Pattern
+                    </div>
+                    <div class="warning-box-content">
+                        Never use hash(secret || message) for authentication. Always use HMAC or a
+                        similar construction designed for message authentication. SHA-3 is immune to
+                        length extension attacks due to its sponge construction.
+                    </div>
+                </div>
+
+                <h3>Preimage Attacks</h3>
+                <ul>
+                    <li><strong>Preimage:</strong> Given hash(x), find any x' such that hash(x') = hash(x)</li>
+                    <li><strong>Second Preimage:</strong> Given x and hash(x), find x' ≠ x where hash(x') = hash(x)</li>
+                </ul>
+
+                <p>
+                    Both require approximately 2<sup>n</sup> operations for an n-bit hash. These attacks are
+                    generally infeasible for cryptographic hashes, but theoretical weaknesses have been found
+                    in older algorithms.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 5: MD5 and SHA-1 Weaknesses -->
+        <section class="section-card" data-section="5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <h2 class="section-title">The Fall of MD5 and SHA-1</h2>
+            </div>
+            <div class="section-content">
+                <h3>MD5 Collision Attacks</h3>
+                <p>
+                    MD5 was designed in 1991 and cryptographically broken in 2004 when researchers found
+                    practical collision attacks. By 2008, attackers could generate rogue certificates
+                    with valid MD5 signatures.
+                </p>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-year">1996</div>
+                        <div class="timeline-content">First theoretical weaknesses discovered in MD5 compression function</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-year">2004</div>
+                        <div class="timeline-content">Xiaoyun Wang demonstrates practical collision attack in under 1 hour</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-year">2008</div>
+                        <div class="timeline-content">Rogue CA certificate created using MD5 collision</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-year">2012</div>
+                        <div class="timeline-content">Flame malware uses MD5 collision for code signing</div>
+                    </div>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">🔬</span>
+                        <div class="case-study-title">Case Study: The Flame Malware</div>
+                    </div>
+                    <div class="case-study-meta">2012 | Nation-state malware | CVE-2012-1535</div>
+                    <div class="case-study-content">
+                        The Flame malware used an MD5 collision attack to forge Windows code-signing
+                        certificates. Attackers created a collision between a legitimate certificate
+                        request and malicious code, allowing them to sign malware with what appeared
+                        to be a valid Microsoft signature. This prompted Microsoft to immediately
+                        revoke all certificates using MD5.
+                    </div>
+                </div>
+
+                <h3>SHA-1 SHAttered Attack</h3>
+                <p>
+                    In February 2017, Google announced the first practical SHA-1 collision attack, dubbed
+                    "SHAttered." The attack required:
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>💻</span> Computational Cost
+                    </div>
+                    <div class="info-box-content">
+                        • 9,223,372,036,854,775,808 (2<sup>63</sup>) SHA-1 computations<br>
+                        • 6,500 CPU years of computation<br>
+                        • 110 GPU years of computation<br>
+                        • Total cost: ~$110,000 on cloud infrastructure
+                    </div>
+                </div>
+
+                <p>
+                    Google created two different PDF files with identical SHA-1 hashes, demonstrating that
+                    SHA-1 is no longer collision-resistant. Major browsers and certificate authorities
+                    immediately began deprecating SHA-1.
+                </p>
+
+                <h3>Rainbow Tables</h3>
+                <p>
+                    Rainbow tables are precomputed tables of hash outputs used to crack password hashes.
+                    They trade storage space for computation time, making MD5 and unsalted SHA-1 hashes
+                    vulnerable to rapid lookup attacks.
+                </p>
+
+                <div class="success-box">
+                    <div class="success-box-title">
+                        <span>✓</span> Defense Strategy
+                    </div>
+                    <div class="success-box-content">
+                        Use salted hashes with slow hash functions like bcrypt, scrypt, or Argon2.
+                        Salt makes rainbow tables ineffective (each salt requires a new table), and
+                        slow hashing makes brute-force attacks computationally expensive.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Block Cipher Attacks -->
+        <section class="section-card" data-section="6">
+            <div class="section-header">
+                <div class="section-number">6</div>
+                <h2 class="section-title">Block Cipher Attacks</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Block ciphers themselves (like AES) are generally secure, but their modes of operation
+                    and implementation can introduce vulnerabilities.
+                </p>
+
+                <h3>Padding Oracle Attack</h3>
+                <p>
+                    A padding oracle attack exploits the information leaked when a server reveals whether
+                    decryption padding is valid. This seemingly tiny leak allows complete decryption of
+                    ciphertext without the key.
+                </p>
+
+                <div class="diagram">
+                    <div class="diagram-title">Padding Oracle Attack Flow</div>
+                    <div class="diagram-content">
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Modify Ciphertext</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Change last byte</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Submit to Server</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Decrypt attempt</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Observe Response</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Valid/invalid padding</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Recover Plaintext</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Byte by byte</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">🎯</span>
+                        <div class="case-study-title">POODLE (Padding Oracle On Downgraded Legacy Encryption)</div>
+                    </div>
+                    <div class="case-study-meta">2014 | CVE-2014-3566 | SSLv3 vulnerability</div>
+                    <div class="case-study-content">
+                        POODLE exploited a padding oracle vulnerability in SSLv3's CBC mode. Attackers could
+                        force a downgrade from TLS to SSLv3, then use the padding oracle to decrypt secure
+                        cookies, including session tokens and passwords. The fix: disable SSLv3 entirely and
+                        use TLS 1.2+ with AEAD ciphers.
+                    </div>
+                </div>
+
+                <h3>Bit-Flipping Attacks</h3>
+                <p>
+                    CBC mode has a malleability property: flipping a bit in ciphertext block C<sub>i</sub>
+                    causes a predictable bit flip in plaintext block P<sub>i+1</sub>. Attackers can modify
+                    encrypted data without knowing the key.
+                </p>
+
+                <div class="code-block">
+<span class="comment"># CBC bit-flipping example</span>
+<span class="comment"># Ciphertext: C1 | C2 | C3</span>
+<span class="comment"># Plaintext:  P1 | P2 | P3</span>
+
+<span class="comment"># P2 = Decrypt(C2) XOR C1</span>
+<span class="comment"># If we flip bit in C1, it flips same bit in P2</span>
+
+<span class="comment"># Attack: Change "user=guest" to "user=admin"</span>
+<span class="comment"># Flip bits in C1 to change P2</span>
+C1_modified = C1 XOR b"guest" XOR b"admin"
+                </div>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">
+                        <span>🔐</span> Defense
+                    </div>
+                    <div class="warning-box-content">
+                        Use authenticated encryption (AES-GCM, ChaCha20-Poly1305) which includes a MAC
+                        that detects any modification to the ciphertext. Never use encryption without
+                        authentication in applications handling attacker-controlled data.
+                    </div>
+                </div>
+
+                <h3>Meet-in-the-Middle Attack</h3>
+                <p>
+                    Double encryption (2DES) seems like it should have 2<sup>112</sup> security, but the
+                    meet-in-the-middle attack reduces it to about 2<sup>57</sup> time and space complexity.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🧮</span> Attack Method
+                    </div>
+                    <div class="info-box-content">
+                        1. Encrypt plaintext P with all possible K1: store E(K1, P)<br>
+                        2. Decrypt ciphertext C with all possible K2: compute D(K2, C)<br>
+                        3. Find matching values: E(K1, P) = D(K2, C)<br>
+                        4. Requires 2<sup>56</sup> time and 2<sup>56</sup> space (for 56-bit DES)
+                    </div>
+                </div>
+
+                <p>
+                    This is why triple-DES (3DES) with three keys was used instead of 2DES. It provides
+                    approximately 112-bit security against meet-in-the-middle attacks.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 7: Side-Channel Attacks -->
+        <section class="section-card" data-section="7">
+            <div class="section-header">
+                <div class="section-number">7</div>
+                <h2 class="section-title">Side-Channel Attacks</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Side-channel attacks exploit information leaked through implementation details rather
+                    than algorithmic weaknesses. These are among the most dangerous attacks in practice.
+                </p>
+
+                <h3>Timing Attacks</h3>
+                <p>
+                    Timing attacks measure how long cryptographic operations take. Variable-time operations
+                    leak information about secret data through their execution time.
+                </p>
+
+                <div class="code-block">
+<span class="comment"># VULNERABLE: Early return leaks information</span>
+def verify_password(input, stored):
+    if len(input) != len(stored):
+        return False
+    for i in range(len(input)):
+        if input[i] != stored[i]:
+            return False  <span class="comment"># ⚠️ Returns immediately on mismatch</span>
+    return True
+
+<span class="comment"># SECURE: Constant-time comparison</span>
+def verify_password_safe(input, stored):
+    if len(input) != len(stored):
+        return False
+    result = 0
+    for i in range(len(input)):
+        result |= ord(input[i]) ^ ord(stored[i])
+    return result == 0  <span class="comment"># ✓ Always checks all bytes</span>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">⏱️</span>
+                        <div class="case-study-title">Lucky Thirteen Attack</div>
+                    </div>
+                    <div class="case-study-meta">2013 | CVE-2013-0169 | TLS CBC timing leak</div>
+                    <div class="case-study-content">
+                        The Lucky Thirteen attack exploited a timing difference of just 1/10,000th of a
+                        second in TLS's CBC padding check. By measuring response times over thousands of
+                        requests, attackers could decrypt TLS traffic. The vulnerability affected virtually
+                        all TLS implementations at the time.
+                    </div>
+                </div>
+
+                <h3>Power Analysis</h3>
+                <p>
+                    Power analysis attacks measure the electrical power consumption of cryptographic devices.
+                    Different operations consume different amounts of power, leaking information about keys.
+                </p>
+
+                <ul>
+                    <li><strong>Simple Power Analysis (SPA):</strong> Directly observes power traces</li>
+                    <li><strong>Differential Power Analysis (DPA):</strong> Statistical analysis of many traces</li>
+                    <li><strong>Correlation Power Analysis (CPA):</strong> Correlates power with predicted values</li>
+                </ul>
+
+                <h3>Cache Timing Attacks</h3>
+                <p>
+                    Modern CPUs use caches to speed up memory access. Cache hits are faster than cache misses,
+                    and this timing difference can leak secret information.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>🎯</span> Notable Attacks
+                    </div>
+                    <div class="info-box-content">
+                        <strong>FLUSH+RELOAD:</strong> Attacker flushes cache line, victim accesses secret-dependent
+                        memory, attacker times reload to detect access<br><br>
+                        <strong>PRIME+PROBE:</strong> Attacker fills cache, victim runs, attacker checks which
+                        lines were evicted<br><br>
+                        <strong>Spectre/Meltdown:</strong> Exploit speculative execution to leak kernel memory
+                        via cache timing
+                    </div>
+                </div>
+
+                <div class="success-box">
+                    <div class="success-box-title">
+                        <span>🛡️</span> Countermeasures
+                    </div>
+                    <div class="success-box-content">
+                        1. <strong>Constant-time algorithms:</strong> Ensure execution time doesn't depend on secret data<br>
+                        2. <strong>Blinding:</strong> Randomize intermediate values<br>
+                        3. <strong>Masking:</strong> Split secrets into random shares<br>
+                        4. <strong>Hardware countermeasures:</strong> Random delays, dual-rail logic, shielding
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 8: Real-World Case Studies -->
+        <section class="section-card" data-section="8">
+            <div class="section-header">
+                <div class="section-number">8</div>
+                <h2 class="section-title">Real-World Vulnerabilities</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Understanding historical vulnerabilities helps prevent future mistakes. Here are landmark
+                    attacks that changed how we approach cryptographic security.
+                </p>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">💔</span>
+                        <div class="case-study-title">Heartbleed</div>
+                    </div>
+                    <div class="case-study-meta">2014 | CVE-2014-0160 | OpenSSL buffer over-read</div>
+                    <div class="case-study-content">
+                        Heartbleed was a buffer over-read vulnerability in OpenSSL's heartbeat extension.
+                        Attackers could read up to 64KB of server memory per request, potentially exposing
+                        private keys, session tokens, and passwords. The bug existed for over two years
+                        and affected approximately 17% of all secure web servers globally. Despite being
+                        a simple bounds-check error, it demonstrated how critical proper memory management
+                        is in cryptographic code.
+                    </div>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">🗜️</span>
+                        <div class="case-study-title">CRIME (Compression Ratio Info-leak Made Easy)</div>
+                    </div>
+                    <div class="case-study-meta">2012 | CVE-2012-4929 | TLS compression attack</div>
+                    <div class="case-study-content">
+                        CRIME exploited TLS compression to decrypt HTTPS cookies. The attack works because
+                        compression reduces data size when repeated strings exist. By injecting controlled
+                        plaintext and observing compressed ciphertext size, attackers could deduce secret
+                        cookie values character by character. The fix: disable TLS compression entirely.
+                    </div>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">🦁</span>
+                        <div class="case-study-title">BEAST (Browser Exploit Against SSL/TLS)</div>
+                    </div>
+                    <div class="case-study-meta">2011 | CVE-2011-3389 | TLS 1.0 CBC attack</div>
+                    <div class="case-study-content">
+                        BEAST exploited a known vulnerability in TLS 1.0's CBC implementation where the IV
+                        for block N+1 was the last ciphertext block of N. Combined with JavaScript to inject
+                        chosen plaintext, attackers could decrypt secure cookies. The attack required
+                        thousands of requests but was demonstrated to be practical. Solutions included
+                        1/n-1 record splitting and upgrading to TLS 1.1+.
+                    </div>
+                </div>
+
+                <div class="case-study">
+                    <div class="case-study-header">
+                        <span class="case-study-icon">🤖</span>
+                        <div class="case-study-title">ROBOT (Return Of Bleichenbacher's Oracle Threat)</div>
+                    </div>
+                    <div class="case-study-meta">2017 | CVE-2017-13099 | RSA padding oracle</div>
+                    <div class="case-study-content">
+                        ROBOT revived a 20-year-old attack (Bleichenbacher's 1998 padding oracle) affecting
+                        RSA encryption with PKCS#1 v1.5 padding. Despite being well-known, the vulnerability
+                        still affected 27% of top Alexa domains in 2017, including Facebook and PayPal.
+                        The attack allows decryption of TLS sessions and forging signatures. Modern systems
+                        use RSA-OAEP instead of PKCS#1 v1.5.
+                    </div>
+                </div>
+
+                <h3>Lessons Learned</h3>
+                <ul>
+                    <li><strong>Complexity is the enemy:</strong> Simple protocols are easier to secure</li>
+                    <li><strong>Fail securely:</strong> Error messages shouldn't leak information</li>
+                    <li><strong>Defense in depth:</strong> Use multiple layers of protection</li>
+                    <li><strong>Test edge cases:</strong> Vulnerabilities often hide in error paths</li>
+                    <li><strong>Stay updated:</strong> Security is a moving target</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 9: Defense Strategies -->
+        <section class="section-card" data-section="9">
+            <div class="section-header">
+                <div class="section-number">9</div>
+                <h2 class="section-title">Building Secure Systems</h2>
+            </div>
+            <div class="section-content">
+                <p>
+                    Understanding attacks is only valuable if it leads to better defenses. Here are proven
+                    strategies for building cryptographically secure systems.
+                </p>
+
+                <h3>Use Authenticated Encryption</h3>
+                <p>
+                    Authenticated Encryption with Associated Data (AEAD) provides both confidentiality and
+                    integrity in a single operation. This prevents padding oracle attacks, bit-flipping
+                    attacks, and many other vulnerabilities.
+                </p>
+
+                <div class="success-box">
+                    <div class="success-box-title">
+                        <span>✓</span> Recommended AEAD Algorithms
+                    </div>
+                    <div class="success-box-content">
+                        • <strong>AES-GCM:</strong> Fast with hardware acceleration, industry standard<br>
+                        • <strong>ChaCha20-Poly1305:</strong> Fast in software, great for mobile<br>
+                        • <strong>AES-CCM:</strong> Smaller code size, good for embedded systems<br>
+                        • <strong>AES-GCM-SIV:</strong> Nonce-misuse resistant (safer in practice)
+                    </div>
+                </div>
+
+                <h3>Implement Constant-Time Code</h3>
+                <p>
+                    All cryptographic operations on secret data must take constant time, regardless of the
+                    secret values. This prevents timing attacks.
+                </p>
+
+                <div class="code-block">
+<span class="comment"># Guidelines for constant-time code:</span>
+
+<span class="comment"># 1. No secret-dependent branches</span>
+if secret_bit:  <span class="comment"># ⚠️ BAD</span>
+    do_something()
+
+<span class="comment"># 2. No secret-dependent memory access</span>
+value = table[secret_index]  <span class="comment"># ⚠️ BAD</span>
+
+<span class="comment"># 3. No secret-dependent loop bounds</span>
+for i in range(secret_count):  <span class="comment"># ⚠️ BAD</span>
+    process(i)
+
+<span class="comment"># 4. Use constant-time primitives</span>
+result = constant_time_compare(a, b)  <span class="comment"># ✓ GOOD</span>
+                </div>
+
+                <h3>Choose Modern Algorithms</h3>
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>📋</span> Algorithm Recommendations (2025)
+                    </div>
+                    <div class="info-box-content">
+                        <strong>Hash Functions:</strong> SHA-256, SHA-3, BLAKE3<br>
+                        <strong>Symmetric Encryption:</strong> AES-256-GCM, ChaCha20-Poly1305<br>
+                        <strong>Asymmetric Encryption:</strong> RSA-OAEP (4096-bit), X25519 (ECDH)<br>
+                        <strong>Digital Signatures:</strong> Ed25519, ECDSA (P-256), RSA-PSS<br>
+                        <strong>Password Hashing:</strong> Argon2id, scrypt, bcrypt<br>
+                        <strong>Key Derivation:</strong> HKDF, PBKDF2 (100k+ iterations)
+                    </div>
+                </div>
+
+                <h3>Avoid Common Mistakes</h3>
+                <ul>
+                    <li><strong>Don't roll your own crypto:</strong> Use established libraries (libsodium, OpenSSL)</li>
+                    <li><strong>Don't reuse nonces:</strong> AES-GCM catastrophically fails with nonce reuse</li>
+                    <li><strong>Don't use ECB mode:</strong> It leaks patterns in plaintext</li>
+                    <li><strong>Don't use weak RNGs:</strong> Use cryptographically secure random number generators</li>
+                    <li><strong>Don't trust user input:</strong> Validate and sanitize all external data</li>
+                    <li><strong>Don't use homebrew protocols:</strong> Use TLS 1.3, SSH, Signal Protocol</li>
+                </ul>
+
+                <h3>Security Development Lifecycle</h3>
+                <div class="diagram">
+                    <div class="diagram-title">Secure Crypto Implementation Process</div>
+                    <div class="diagram-content">
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Threat Model</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Define adversary</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Choose Algorithms</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Use proven standards</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Implement</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Constant-time code</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Test & Audit</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Professional review</div>
+                        </div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="diagram-box">
+                            <div style="color: var(--house-color); font-weight: 600;">Monitor</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Stay updated</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">
+                        <span>🎓</span> Final Wisdom
+                    </div>
+                    <div class="warning-box-content">
+                        "Anyone can invent a cipher they themselves cannot break. The difference between
+                        amateurs and professionals is that professionals know their limits." - Bruce Schneier
+                        <br><br>
+                        Always use peer-reviewed, standardized cryptographic libraries. Security through
+                        obscurity is not security at all.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Completion Section -->
+        <section class="complete-section">
+            <h2 style="color: var(--house-color); margin-bottom: 15px;">Module Complete</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                You now understand the fundamental principles of cryptanalysis, from classical attacks to
+                modern vulnerabilities. This knowledge is essential for building and maintaining secure systems.
+            </p>
+            <button class="complete-btn" onclick="completeModule()">
+                Mark Module Complete
+            </button>
+        </section>
+    </main>
+
+    <script>
+        // Section tracking for progress
+        const sections = document.querySelectorAll('.section-card');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        // Track sections in view
+        const observerOptions = {
+            threshold: 0.3,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const sectionNum = entry.target.dataset.section;
+                    updateProgress(sectionNum);
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => {
+            sectionObserver.observe(section);
+        });
+
+        // Update progress indicator
+        function updateProgress(currentSection) {
+            const totalSections = sections.length;
+            const progress = (currentSection / totalSections) * 100;
+            progressFill.style.width = progress + '%';
+            progressText.textContent = Math.round(progress) + '%';
+        }
+
+        // Complete module
+        function completeModule() {
+            // Mark module as complete
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('key', 'key-cryptanalysis');
+            }
+
+            // Award achievement
+            if (typeof AchievementManager !== 'undefined') {
+                AchievementManager.unlock('cryptanalyst', {
+                    title: 'Cryptanalyst',
+                    description: 'Completed the Cryptanalysis module',
+                    house: 'key',
+                    icon: '🔓'
+                });
+            }
+
+            // Show completion message
+            alert('Congratulations! You have completed the Cryptanalysis module.\n\nYou can now proceed to the interactive lab and quiz to test your knowledge.');
+
+            // Redirect to Key House index
+            setTimeout(() => {
+                window.location.href = '../../index.html';
+            }, 1000);
+        }
+
+        // Initialize progress
+        updateProgress(0);
+
+        // Smooth scrolling for better UX
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

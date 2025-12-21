@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptanalysis Lab - House of the Key</title>
+    <!-- CryptoJS for demonstrations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #06b6d4;
+            --house-glow: rgba(6, 182, 212, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --input-bg: rgba(20, 20, 30, 0.8);
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            --info-blue: #3b82f6;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .intro-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 20px var(--house-glow));
+        }
+
+        .intro-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--house-color), #0891b2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Tool Navigation */
+        .tool-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .tool-nav-btn {
+            padding: 15px 20px;
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .tool-nav-btn:hover {
+            border-color: var(--house-color);
+            background: rgba(6, 182, 212, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .tool-nav-btn.active {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--house-color);
+        }
+
+        .tool-nav-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .tool-nav-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        /* Tool Sections */
+        .tool-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tool-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card */
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+        }
+
+        .tool-card h3 {
+            color: var(--house-color);
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tool-card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* Input/Output Areas */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .text-input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: var(--house-color);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--house-color), #0891b2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Results */
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+        }
+
+        .result-box.success {
+            border-color: var(--success-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .result-box.error {
+            border-color: var(--warning-red);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        /* Frequency Chart */
+        .frequency-chart {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(30px, 1fr));
+            gap: 5px;
+            margin-top: 20px;
+        }
+
+        .frequency-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .frequency-bar-graph {
+            width: 100%;
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            min-height: 5px;
+        }
+
+        .frequency-bar-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Collision Gallery */
+        .collision-item {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .collision-header {
+            color: var(--warning-red);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .collision-data {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        /* Probability Chart */
+        .probability-chart {
+            margin-top: 20px;
+            height: 300px;
+            position: relative;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Step-by-step visualization */
+        .step-container {
+            margin-top: 20px;
+        }
+
+        .step-item {
+            background: var(--bg-card);
+            border-left: 3px solid var(--house-color);
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: var(--house-color);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-right: 10px;
+        }
+
+        .step-title {
+            color: var(--house-color);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .info-box-title {
+            color: var(--info-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .info-box-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        /* Warning Box */
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--warning-red);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box-title {
+            color: var(--warning-red);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        /* XOR Visualization */
+        .xor-visual {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .xor-box {
+            background: var(--input-bg);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .xor-operator {
+            color: var(--house-color);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        /* Timing visualization */
+        .timing-bar {
+            height: 30px;
+            background: linear-gradient(90deg, var(--house-color), transparent);
+            border-radius: 4px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .timing-label {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 182, 212, 0.3);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="window.location.href='../../index.html'">←</button>
+            <h1 class="module-title">Cryptanalysis Lab</h1>
+        </div>
+        <div class="header-right">
+            <span class="house-badge">HOUSE OF THE KEY</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Introduction -->
+        <section class="intro-section">
+            <div class="intro-icon">🔬</div>
+            <h1 class="intro-title">Interactive Attack Demonstrations</h1>
+            <p class="intro-subtitle">
+                Explore cryptanalytic techniques through hands-on visualization and experimentation
+            </p>
+        </section>
+
+        <!-- Tool Navigation -->
+        <div class="tool-nav">
+            <div class="tool-nav-btn active" onclick="showTool('frequency')">
+                <div class="tool-nav-icon">📊</div>
+                <div class="tool-nav-title">Frequency Analysis</div>
+            </div>
+            <div class="tool-nav-btn" onclick="showTool('birthday')">
+                <div class="tool-nav-icon">🎂</div>
+                <div class="tool-nav-title">Birthday Attack</div>
+            </div>
+            <div class="tool-nav-btn" onclick="showTool('length-extension')">
+                <div class="tool-nav-icon">➕</div>
+                <div class="tool-nav-title">Length Extension</div>
+            </div>
+            <div class="tool-nav-btn" onclick="showTool('padding-oracle')">
+                <div class="tool-nav-icon">🔮</div>
+                <div class="tool-nav-title">Padding Oracle</div>
+            </div>
+            <div class="tool-nav-btn" onclick="showTool('bit-flip')">
+                <div class="tool-nav-icon">🔄</div>
+                <div class="tool-nav-title">Bit-Flipping</div>
+            </div>
+            <div class="tool-nav-btn" onclick="showTool('collisions')">
+                <div class="tool-nav-icon">💥</div>
+                <div class="tool-nav-title">Hash Collisions</div>
+            </div>
+        </div>
+
+        <!-- Frequency Analysis Tool -->
+        <section id="frequency-tool" class="tool-section active">
+            <div class="tool-card">
+                <h3><span>📊</span> Frequency Analysis</h3>
+                <p>
+                    Analyze letter frequency in ciphertext to break monoalphabetic substitution ciphers.
+                    This technique exploits the non-uniform distribution of letters in natural language.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">How it works:</div>
+                    <div class="info-box-content">
+                        In English, 'E' appears ~12.7% of the time, 'T' ~9.1%, 'A' ~8.2%, etc.
+                        By comparing ciphertext frequencies to expected frequencies, we can deduce
+                        the substitution mapping.
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Enter Ciphertext (uppercase letters only):</label>
+                    <textarea id="freq-input" class="text-input" placeholder="XJJVPX DV J VJWGYH WHVVJRH...">WKDW LV D VHFUHW PHVVDJH HQFUBSWHG ZLWK D VLPSOH FDHVDU FLSKHU VKLIW EB WKUHH SRVLWLRQV</textarea>
+                </div>
+
+                <button class="btn" onclick="analyzeFrequency()">Analyze Frequency</button>
+
+                <div id="freq-results"></div>
+            </div>
+        </section>
+
+        <!-- Birthday Attack Tool -->
+        <section id="birthday-tool" class="tool-section">
+            <div class="tool-card">
+                <h3><span>🎂</span> Birthday Attack Probability</h3>
+                <p>
+                    Calculate the probability of hash collisions based on the birthday paradox.
+                    For an n-bit hash, collision probability reaches 50% after approximately 2^(n/2) operations.
+                </p>
+
+                <div class="input-group">
+                    <label class="input-label">Hash Output Size (bits):</label>
+                    <select id="birthday-bits" style="width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 8px; color: var(--text-primary);">
+                        <option value="64">64-bit (insecure)</option>
+                        <option value="128" selected>128-bit (MD5)</option>
+                        <option value="160">160-bit (SHA-1)</option>
+                        <option value="256">256-bit (SHA-256)</option>
+                        <option value="512">512-bit (SHA-512)</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="calculateBirthday()">Calculate Probabilities</button>
+
+                <div id="birthday-results"></div>
+            </div>
+        </section>
+
+        <!-- Length Extension Tool -->
+        <section id="length-extension-tool" class="tool-section">
+            <div class="tool-card">
+                <h3><span>➕</span> Length Extension Attack Simulator</h3>
+                <p>
+                    Demonstrates how Merkle-Damgård hash functions (MD5, SHA-1, SHA-256) are vulnerable
+                    to length extension attacks. Given hash(secret||message), attackers can compute
+                    hash(secret||message||padding||extension) without knowing the secret.
+                </p>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">⚠️ Vulnerability</div>
+                    Never use hash(secret||message) for authentication. Always use HMAC or similar
+                    constructions designed for message authentication.
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Original Message:</label>
+                    <input type="text" id="le-message" class="text-input" style="min-height: auto;" value="user=guest">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Secret Length (bytes):</label>
+                    <input type="number" id="le-secret-len" class="text-input" style="min-height: auto;" value="16">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Extension Data:</label>
+                    <input type="text" id="le-extension" class="text-input" style="min-height: auto;" value="&admin=true">
+                </div>
+
+                <button class="btn" onclick="demonstrateLengthExtension()">Simulate Attack</button>
+
+                <div id="le-results"></div>
+            </div>
+        </section>
+
+        <!-- Padding Oracle Tool -->
+        <section id="padding-oracle-tool" class="tool-section">
+            <div class="tool-card">
+                <h3><span>🔮</span> Padding Oracle Attack Visualizer</h3>
+                <p>
+                    Step-by-step visualization of how padding oracle attacks decrypt AES-CBC ciphertext
+                    by exploiting servers that reveal padding validity. This attack was used in POODLE
+                    to break SSLv3.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-box-title">Attack Overview:</div>
+                    <div class="info-box-content">
+                        1. Modify ciphertext bytes systematically<br>
+                        2. Submit to server (the "oracle")<br>
+                        3. Server reveals if padding is valid<br>
+                        4. Use this information to deduce plaintext byte-by-byte
+                    </div>
+                </div>
+
+                <button class="btn" onclick="demonstratePaddingOracle()">Start Visualization</button>
+
+                <div id="oracle-results"></div>
+            </div>
+        </section>
+
+        <!-- Bit Flip Tool -->
+        <section id="bit-flip-tool" class="tool-section">
+            <div class="tool-card">
+                <h3><span>🔄</span> CBC Bit-Flipping Attack</h3>
+                <p>
+                    Demonstrates CBC mode malleability: flipping a bit in ciphertext block C<sub>i</sub>
+                    causes a predictable bit flip in plaintext block P<sub>i+1</sub>. This allows
+                    attackers to modify encrypted data without knowing the key.
+                </p>
+
+                <div class="warning-box">
+                    <div class="warning-box-title">⚠️ Why This Works</div>
+                    In CBC mode: P<sub>i+1</sub> = Decrypt(C<sub>i+1</sub>) ⊕ C<sub>i</sub>
+                    <br>Modifying C<sub>i</sub> directly affects P<sub>i+1</sub> through XOR.
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Original Plaintext:</label>
+                    <input type="text" id="flip-original" class="text-input" style="min-height: auto;" value="user=guest">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Target Plaintext:</label>
+                    <input type="text" id="flip-target" class="text-input" style="min-height: auto;" value="user=admin">
+                </div>
+
+                <button class="btn" onclick="demonstrateBitFlip()">Demonstrate Attack</button>
+
+                <div id="flip-results"></div>
+            </div>
+        </section>
+
+        <!-- Hash Collisions Tool -->
+        <section id="collisions-tool" class="tool-section">
+            <div class="tool-card">
+                <h3><span>💥</span> Hash Collision Gallery</h3>
+                <p>
+                    Real-world examples of hash collisions that demonstrate why MD5 and SHA-1 are
+                    cryptographically broken and should never be used for security purposes.
+                </p>
+
+                <div class="collision-item">
+                    <div class="collision-header">MD5 Collision Example</div>
+                    <div class="collision-data">
+                        <strong>String 1:</strong> d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f89...<br>
+                        <strong>String 2:</strong> d131dd02c5e6eec4693d9a0698aff95c2fcab50712467eab4004583eb8fb7f89...<br>
+                        <strong>MD5 Hash:</strong> 79054025255fb1a26e4bc422aef54eb4 (identical!)
+                    </div>
+                </div>
+
+                <div class="collision-item">
+                    <div class="collision-header">SHA-1 Collision (SHAttered Attack, 2017)</div>
+                    <div class="collision-data">
+                        Google created two different PDF files with identical SHA-1 hashes:<br>
+                        <strong>Hash:</strong> 38762cf7f55934b34d179ae6a4c80cadccbb7f0a<br>
+                        Cost: ~$110,000 in computation (6,500 CPU years + 110 GPU years)
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <div class="info-box-title">💡 Live Demonstration:</div>
+                    <div class="info-box-content">
+                        <button class="btn" onclick="showMD5Collision()" style="margin-top: 10px;">
+                            Generate MD5 Collision Example
+                        </button>
+                    </div>
+                </div>
+
+                <div id="collision-demo"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Tool Navigation
+        function showTool(toolName) {
+            // Hide all tools
+            document.querySelectorAll('.tool-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tool-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tool
+            document.getElementById(toolName + '-tool').classList.add('active');
+
+            // Highlight active button
+            event.target.closest('.tool-nav-btn').classList.add('active');
+        }
+
+        // Frequency Analysis
+        function analyzeFrequency() {
+            const input = document.getElementById('freq-input').value.toUpperCase().replace(/[^A-Z]/g, '');
+
+            if (input.length === 0) {
+                alert('Please enter some ciphertext');
+                return;
+            }
+
+            // Count letter frequencies
+            const freq = {};
+            for (let char of input) {
+                freq[char] = (freq[char] || 0) + 1;
+            }
+
+            // Sort by frequency
+            const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+
+            // Expected English frequencies
+            const englishFreq = {
+                'E': 12.7, 'T': 9.1, 'A': 8.2, 'O': 7.5, 'I': 7.0,
+                'N': 6.7, 'S': 6.3, 'H': 6.1, 'R': 6.0, 'D': 4.3
+            };
+
+            // Calculate percentages
+            const total = input.length;
+            const percentages = sorted.map(([char, count]) => ({
+                char,
+                count,
+                percent: ((count / total) * 100).toFixed(2)
+            }));
+
+            // Generate visualization
+            let html = '<div class="result-box success">';
+            html += '<h4 style="color: var(--success-green); margin-bottom: 15px;">Frequency Analysis Results</h4>';
+            html += `<p style="color: var(--text-secondary); margin-bottom: 20px;">Total letters: ${total}</p>`;
+
+            // Top 10 most frequent
+            html += '<div style="margin-bottom: 20px;"><strong>Top 10 Most Frequent Letters:</strong></div>';
+            html += '<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px;">';
+
+            percentages.slice(0, 10).forEach(({ char, count, percent }) => {
+                html += `
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--house-color);">${char}</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">${percent}%</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">(${count})</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            // Suggested mappings
+            html += '<div style="margin-top: 20px;"><strong>Suggested Substitutions (based on English frequency):</strong></div>';
+            html += '<div style="margin-top: 10px; font-family: monospace; line-height: 1.8;">';
+            const englishTop = Object.keys(englishFreq);
+            percentages.slice(0, 10).forEach(({ char }, idx) => {
+                if (idx < englishTop.length) {
+                    html += `${char} → ${englishTop[idx]} (${englishFreq[englishTop[idx]]}% expected)<br>`;
+                }
+            });
+            html += '</div>';
+
+            html += '</div>';
+            document.getElementById('freq-results').innerHTML = html;
+        }
+
+        // Birthday Attack Calculator
+        function calculateBirthday() {
+            const bits = parseInt(document.getElementById('birthday-bits').value);
+            const totalHashes = Math.pow(2, bits);
+
+            // Calculate probabilities for different numbers of hashes
+            const sqrt = Math.pow(2, bits / 2);
+            const prob50 = sqrt;
+            const prob99 = sqrt * 2.5;
+
+            let html = '<div class="result-box success">';
+            html += '<h4 style="color: var(--success-green); margin-bottom: 15px;">Birthday Attack Analysis</h4>';
+
+            html += `<p><strong>Hash Output Size:</strong> ${bits} bits</p>`;
+            html += `<p><strong>Total Possible Hashes:</strong> 2<sup>${bits}</sup></p>`;
+            html += `<p style="margin-top: 20px;"><strong>Collision Probabilities:</strong></p>`;
+
+            html += '<div class="step-container">';
+            html += `
+                <div class="step-item">
+                    <div class="step-title">50% Collision Probability</div>
+                    <div class="step-content">
+                        Approximately 2<sup>${bits/2}</sup> = ${formatNumber(prob50)} hash operations<br>
+                        ${bits <= 128 ? '⚠️ Potentially vulnerable to birthday attacks' : '✓ Secure against birthday attacks'}
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title">99% Collision Probability</div>
+                    <div class="step-content">
+                        Approximately 2<sup>${(bits/2 + 1.32).toFixed(2)}</sup> = ${formatNumber(prob99)} hash operations
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title">Security Assessment</div>
+                    <div class="step-content">
+                        ${getSecurityAssessment(bits)}
+                    </div>
+                </div>
+            `;
+            html += '</div></div>';
+
+            document.getElementById('birthday-results').innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1e18) return num.toExponential(2);
+            return num.toLocaleString();
+        }
+
+        function getSecurityAssessment(bits) {
+            if (bits < 128) {
+                return '🚨 <strong>INSECURE:</strong> Birthday attacks are feasible with modern computing';
+            } else if (bits === 128) {
+                return '⚠️ <strong>MARGINAL:</strong> MD5 uses 128 bits and has been broken. Use 256+ bits';
+            } else if (bits >= 256) {
+                return '✓ <strong>SECURE:</strong> Computationally infeasible to find collisions';
+            }
+            return '⚠️ <strong>MODERATE:</strong> Consider using 256+ bits for long-term security';
+        }
+
+        // Length Extension Attack
+        function demonstrateLengthExtension() {
+            const message = document.getElementById('le-message').value;
+            const secretLen = parseInt(document.getElementById('le-secret-len').value);
+            const extension = document.getElementById('le-extension').value;
+
+            let html = '<div class="result-box">';
+            html += '<h4 style="color: var(--house-color); margin-bottom: 15px;">Length Extension Attack Simulation</h4>';
+
+            html += '<div class="step-container">';
+            html += `
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">1</span>Original State</div>
+                    <div class="step-content">
+                        Message: "${message}"<br>
+                        Secret length: ${secretLen} bytes<br>
+                        Original hash: SHA256(secret + "${message}")
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">2</span>Calculate Padding</div>
+                    <div class="step-content">
+                        SHA-256 uses Merkle-Damgård construction<br>
+                        Padding calculated based on message length: ${message.length + secretLen} bytes<br>
+                        Padding format: \\x80 + zeros + length (64-bit big-endian)
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">3</span>Extend Message</div>
+                    <div class="step-content">
+                        Extended message: secret + "${message}" + padding + "${extension}"<br>
+                        Attacker can compute: SHA256(secret + "${message}" + padding + "${extension}")<br>
+                        Without knowing the secret!
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">4</span>Attack Result</div>
+                    <div class="step-content" style="color: var(--warning-red);">
+                        ✗ Using hash(secret||message) allows length extension<br>
+                        ✓ <strong>Fix:</strong> Use HMAC-SHA256(secret, message) instead<br>
+                        ✓ Or use SHA-3 (immune to length extension)
+                    </div>
+                </div>
+            `;
+            html += '</div></div>';
+
+            document.getElementById('le-results').innerHTML = html;
+        }
+
+        // Padding Oracle Attack
+        function demonstratePaddingOracle() {
+            let html = '<div class="result-box">';
+            html += '<h4 style="color: var(--house-color); margin-bottom: 15px;">Padding Oracle Attack Walkthrough</h4>';
+
+            html += '<div class="step-container">';
+            html += `
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">1</span>Setup</div>
+                    <div class="step-content">
+                        Target: Decrypt AES-CBC ciphertext (2 blocks)<br>
+                        Oracle: Server that returns "valid padding" or "invalid padding"<br>
+                        Goal: Decrypt without knowing the key
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">2</span>Attack Last Byte</div>
+                    <div class="step-content">
+                        Modify last byte of C<sub>0</sub> (affects P<sub>1</sub> last byte)<br>
+                        Try all 256 values: 0x00, 0x01, 0x02, ..., 0xFF<br>
+                        When padding is valid, we know plaintext byte value!<br>
+                        Valid padding: ...\\x01 or ...\\x02\\x02 or ...\\x03\\x03\\x03
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">3</span>Deduce Plaintext</div>
+                    <div class="step-content">
+                        When oracle says "valid padding" at C<sub>0</sub>[15] = 0x7B:<br>
+                        We know: P<sub>1</sub>[15] ⊕ 0x7B = 0x01<br>
+                        Therefore: P<sub>1</sub>[15] = 0x7B ⊕ 0x01 = 0x7A = 'z'<br>
+                        One byte decrypted!
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">4</span>Repeat for All Bytes</div>
+                    <div class="step-content">
+                        Modify C<sub>0</sub> to make padding ...\\x02\\x02<br>
+                        Attack second-to-last byte the same way<br>
+                        Continue until entire block is decrypted<br>
+                        Average: 128 requests per byte (16 bytes = ~2,048 requests)
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">5</span>Defense</div>
+                    <div class="step-content" style="color: var(--success-green);">
+                        ✓ Use authenticated encryption (AES-GCM)<br>
+                        ✓ Return same error for all decryption failures<br>
+                        ✓ Use constant-time padding validation<br>
+                        ✓ Upgrade to TLS 1.2+ with AEAD ciphers
+                    </div>
+                </div>
+            `;
+            html += '</div></div>';
+
+            document.getElementById('oracle-results').innerHTML = html;
+        }
+
+        // Bit-Flipping Attack
+        function demonstrateBitFlip() {
+            const original = document.getElementById('flip-original').value;
+            const target = document.getElementById('flip-target').value;
+
+            if (original.length !== target.length) {
+                alert('Original and target must be the same length for this demo');
+                return;
+            }
+
+            // Calculate XOR difference
+            let xorBytes = [];
+            for (let i = 0; i < original.length; i++) {
+                xorBytes.push(original.charCodeAt(i) ^ target.charCodeAt(i));
+            }
+
+            let html = '<div class="result-box">';
+            html += '<h4 style="color: var(--house-color); margin-bottom: 15px;">CBC Bit-Flipping Attack</h4>';
+
+            html += '<div class="step-container">';
+            html += `
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">1</span>CBC Decryption Formula</div>
+                    <div class="step-content">
+                        P<sub>i</sub> = Decrypt(C<sub>i</sub>) ⊕ C<sub>i-1</sub><br>
+                        This means: modifying C<sub>i-1</sub> directly affects P<sub>i</sub>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">2</span>XOR Calculation</div>
+                    <div class="step-content">
+                        Original: "${original}"<br>
+                        Target: "${target}"<br>
+                        XOR difference needed:
+                    </div>
+                    <div class="xor-visual" style="margin-top: 10px;">
+                        <div class="xor-box">"${original}"</div>
+                        <div class="xor-operator">⊕</div>
+                        <div class="xor-box">"${target}"</div>
+                        <div class="xor-operator">=</div>
+                        <div class="xor-box">${xorBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">3</span>Modify Ciphertext</div>
+                    <div class="step-content">
+                        C<sub>i-1</sub>' = C<sub>i-1</sub> ⊕ "${original}" ⊕ "${target}"<br>
+                        When decrypted: P<sub>i</sub>' = Decrypt(C<sub>i</sub>) ⊕ C<sub>i-1</sub>'<br>
+                        Result: P<sub>i</sub>' = "${target}" ✓
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">4</span>Attack Consequence</div>
+                    <div class="step-content" style="color: var(--warning-red);">
+                        Attacker changed "user=guest" to "user=admin"<br>
+                        Without knowing the encryption key!<br>
+                        Block C<sub>i-1</sub> is corrupted, but block C<sub>i</sub> now contains attacker's data
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-title"><span class="step-number">5</span>Defense</div>
+                    <div class="step-content" style="color: var(--success-green);">
+                        ✓ Use authenticated encryption (AES-GCM, ChaCha20-Poly1305)<br>
+                        ✓ MAC detects any modification to ciphertext<br>
+                        ✓ Never use encryption without authentication
+                    </div>
+                </div>
+            `;
+            html += '</div></div>';
+
+            document.getElementById('flip-results').innerHTML = html;
+        }
+
+        // MD5 Collision Demo
+        function showMD5Collision() {
+            // These are actual hex strings that collide in MD5
+            const msg1 = "d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f8955ad340609f4b30283e488832571415a085125e8f7cdc99fd91dbdf280373c5bd8823e3156348f5bae6dacd436c919c6dd53e2b487da03fd02396306d248cda0e99f33420f577ee8ce54b67080a80d1ec69821bcb6a8839396f9652b6ff72a70";
+            const msg2 = "d131dd02c5e6eec4693d9a0698aff95c2fcab50712467eab4004583eb8fb7f8955ad340609f4b30283e4888325f1415a085125e8f7cdc99fd91dbd7280373c5bd8823e3156348f5bae6dacd436c919c6dd53e23487da03fd02396306d248cda0e99f33420f577ee8ce54b67080280d1ec69821bcb6a8839396f965ab6ff72a70";
+
+            // Calculate MD5 hashes
+            const hash1 = CryptoJS.MD5(CryptoJS.enc.Hex.parse(msg1)).toString();
+            const hash2 = CryptoJS.MD5(CryptoJS.enc.Hex.parse(msg2)).toString();
+
+            let html = '<div class="result-box" style="margin-top: 20px;">';
+            html += '<h4 style="color: var(--warning-red); margin-bottom: 15px;">MD5 Collision Demonstration</h4>';
+            html += `
+                <div style="margin-bottom: 15px;">
+                    <strong>Message 1 (hex):</strong><br>
+                    <code style="font-size: 0.75rem; word-break: break-all; color: var(--text-secondary);">${msg1.substring(0, 100)}...</code>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>Message 2 (hex):</strong><br>
+                    <code style="font-size: 0.75rem; word-break: break-all; color: var(--text-secondary);">${msg2.substring(0, 100)}...</code>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>MD5(Message 1):</strong><br>
+                    <code style="color: var(--warning-red); font-weight: 600;">${hash1}</code>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong>MD5(Message 2):</strong><br>
+                    <code style="color: var(--warning-red); font-weight: 600;">${hash2}</code>
+                </div>
+                <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; margin-top: 20px;">
+                    ${hash1 === hash2 ?
+                        '🚨 <strong>COLLISION DETECTED!</strong> Two different messages produce identical MD5 hashes.' :
+                        '⚠️ Hashes shown for demonstration purposes.'}
+                </div>
+            `;
+            html += '</div>';
+
+            document.getElementById('collision-demo').innerHTML = html;
+        }
+
+        // Sample ciphertext for frequency analysis
+        window.addEventListener('load', () => {
+            const sampleCiphertext = "WKDW LV D VHFUHW PHVVDJH HQFUBSWHG ZLWK D VLPSOH FDHVDU FLSKHU VKLIW EB WKUHH SRVLWLRQV";
+            document.getElementById('freq-input').value = sampleCiphertext;
+        });
+    </script>
+</body>
+</html>
