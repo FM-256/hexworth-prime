@@ -259,8 +259,8 @@ const ContentRegistry = {
             paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/osi-model.html',
-                applet: 'houses/web/applets/osi-explorer.html',
-                lab: 'houses/web/labs/osi-lab.html'
+                applet: 'houses/web/applets/visualizers/osi-visualizer.html',
+                quiz: 'houses/web/quizzes/osi-quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -570,8 +570,7 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 presentation: 'houses/shield/presentations/cia-triad.html',
-                applet: 'houses/shield/applets/cia-scenarios.html',
-                lab: 'houses/shield/labs/cia-lab.html'
+                applet: 'houses/shield/applets/fundamentals/five_pillars/FivePillars.html'
             },
             prerequisites: [],
             objectives: [
@@ -635,7 +634,7 @@ const ContentRegistry = {
             topics: ['social-engineering', 'phishing', 'attacks'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/threats/social-engineering-attacks.html'
+                applet: 'houses/shield/applets/threats/social_engineering/social_engineering.html'
             },
             prerequisites: ['shield-threat-types'],
             objectives: [
@@ -1184,8 +1183,8 @@ const ContentRegistry = {
             paths: ['comptia-security', 'cryptography-track'],
             components: {
                 presentation: 'houses/key/presentations/encryption-basics.html',
-                applet: 'houses/key/applets/cipher-playground.html',
-                lab: 'houses/key/labs/encryption-lab.html'
+                applet: 'houses/key/tools/aes-explorer.html',
+                lab: 'houses/key/labs/aes-lab.html'
             },
             prerequisites: [],
             objectives: [
@@ -1663,8 +1662,8 @@ const ContentRegistry = {
             paths: ['devops-fundamentals', 'developer-essentials'],
             components: {
                 presentation: 'houses/code/presentations/git-basics.html',
-                applet: 'houses/code/applets/git-visualizer.html',
-                lab: 'houses/code/labs/git-lab.html'
+                applet: 'houses/code/applets/pipeline-builder.html',
+                lab: 'houses/code/labs/cicd-lab.html'
             },
             prerequisites: [],
             objectives: [
@@ -1689,8 +1688,8 @@ const ContentRegistry = {
             paths: ['security-operations', 'sysadmin-essentials'],
             components: {
                 presentation: 'houses/eye/presentations/log-basics.html',
-                applet: 'houses/eye/applets/log-parser.html',
-                lab: 'houses/eye/labs/log-analysis-lab.html'
+                applet: 'houses/eye/tools/siem-simulator.html',
+                lab: 'houses/eye/labs/soc-lab.html'
             },
             prerequisites: [],
             objectives: [
