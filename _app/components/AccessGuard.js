@@ -589,6 +589,13 @@ const AccessGuard = (function() {
         return require(level, param);
     }
 
+    // Show indicator if Master Key is active (for page navigation)
+    function showIndicatorIfActive() {
+        if (hasMasterKey() && !document.getElementById('master-key-indicator')) {
+            showMasterKeyIndicator();
+        }
+    }
+
     // Public API
     return {
         require,
@@ -601,6 +608,7 @@ const AccessGuard = (function() {
         activateMasterKey,
         deactivateMasterKey,
         getMasterKeyRemaining,
+        showIndicatorIfActive,
         // User status
         isSorted,
         getUserHouse,
@@ -621,3 +629,8 @@ const AccessGuard = (function() {
     style.textContent = 'body { visibility: hidden; }';
     document.head.appendChild(style);
 })();
+
+// Auto-show Master Key indicator on any page if active
+document.addEventListener('DOMContentLoaded', function() {
+    AccessGuard.showIndicatorIfActive();
+});
