@@ -2227,171 +2227,131 @@ class DigitalLife {
     }
 
     /**
-     * Show house selector modal (triggered by 5 clicks on black hole)
+     * Activate Master Key (triggered by 5 clicks on black hole)
+     * Grants 5 minutes of full access to all houses and Dark Arts gates
      */
     showHouseSelector() {
-        // Define all houses
-        const houses = [
-            { id: 'web', name: 'Web', icon: '🌐', color: '#60a5fa', desc: 'Network Engineering' },
-            { id: 'shield', name: 'Shield', icon: '🛡️', color: '#f87171', desc: 'Cybersecurity' },
-            { id: 'cloud', name: 'Cloud', icon: '☁️', color: '#38bdf8', desc: 'Cloud Computing' },
-            { id: 'forge', name: 'Forge', icon: '🔧', color: '#fbbf24', desc: 'Hardware & Systems' },
-            { id: 'script', name: 'Script', icon: '📜', color: '#a78bfa', desc: 'Linux & Scripting' },
-            { id: 'code', name: 'Code', icon: '💻', color: '#4ade80', desc: 'DevOps & Development' },
-            { id: 'key', name: 'Key', icon: '🔐', color: '#f472b6', desc: 'Cryptography' },
-            { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', desc: 'SOC & Threat Hunting' },
-            { id: 'divergent', name: 'Factionless', icon: '⚡', color: '#ff00ff', desc: 'All Houses' }
-        ];
+        // Check if AccessGuard is available
+        if (typeof AccessGuard !== 'undefined' && AccessGuard.activateMasterKey) {
+            // Activate the Master Key through AccessGuard
+            AccessGuard.activateMasterKey();
 
-        // Create modal
-        const modal = document.createElement('div');
-        modal.id = 'house-selector-modal';
-        modal.innerHTML = `
+            // Show dramatic visual feedback
+            this.showMasterKeyActivation();
+        } else {
+            console.warn('AccessGuard not available - Master Key cannot be activated');
+        }
+    }
+
+    /**
+     * Show dramatic Master Key activation effect
+     */
+    showMasterKeyActivation() {
+        // Create dramatic flash effect
+        const flash = document.createElement('div');
+        flash.id = 'master-key-flash';
+        flash.innerHTML = `
             <style>
-                #house-selector-modal {
+                #master-key-flash {
                     position: fixed;
                     top: 0;
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: rgba(0, 0, 0, 0.9);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 10000;
-                    backdrop-filter: blur(10px);
-                    animation: fadeIn 0.3s ease;
+                    background: radial-gradient(circle at center,
+                        rgba(0, 255, 0, 0.8) 0%,
+                        rgba(0, 200, 0, 0.4) 30%,
+                        rgba(0, 100, 0, 0.1) 60%,
+                        transparent 80%
+                    );
+                    z-index: 99998;
+                    pointer-events: none;
+                    animation: masterKeyFlash 1.5s ease-out forwards;
                 }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                @keyframes masterKeyFlash {
+                    0% {
+                        opacity: 0;
+                        transform: scale(0.5);
+                    }
+                    20% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: scale(1.5);
+                    }
                 }
-                .house-selector-content {
-                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-                    border: 1px solid rgba(159, 122, 234, 0.3);
-                    border-radius: 20px;
-                    padding: 30px;
-                    max-width: 600px;
-                    width: 90%;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-                }
-                .house-selector-title {
+                .master-key-message {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
                     text-align: center;
-                    color: #fff;
-                    font-size: 1.5rem;
-                    margin-bottom: 10px;
+                    animation: masterKeyText 1.5s ease-out forwards;
+                }
+                @keyframes masterKeyText {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(0.5);
+                    }
+                    30% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1.1);
+                    }
+                    50% {
+                        transform: translate(-50%, -50%) scale(1);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) scale(1);
+                    }
+                }
+                .master-key-icon {
+                    font-size: 4rem;
+                    text-shadow: 0 0 30px #00ff00;
+                }
+                .master-key-title {
+                    color: #00ff00;
+                    font-size: 2rem;
+                    font-weight: bold;
+                    letter-spacing: 0.3em;
+                    text-shadow: 0 0 20px #00ff00;
+                    margin: 10px 0;
+                }
+                .master-key-subtitle {
+                    color: rgba(0, 255, 0, 0.8);
+                    font-size: 1rem;
                     letter-spacing: 0.2em;
                 }
-                .house-selector-subtitle {
-                    text-align: center;
-                    color: #666;
-                    font-size: 0.85rem;
-                    margin-bottom: 25px;
-                }
-                .house-grid {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 15px;
-                }
-                .house-option {
-                    background: rgba(255, 255, 255, 0.05);
-                    border: 2px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 12px;
-                    padding: 20px 15px;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                }
-                .house-option:hover {
-                    transform: translateY(-5px);
-                    border-color: var(--house-color);
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                }
-                .house-option-icon {
-                    font-size: 2rem;
-                    margin-bottom: 8px;
-                }
-                .house-option-name {
-                    color: #fff;
-                    font-weight: 600;
-                    margin-bottom: 4px;
-                }
-                .house-option-desc {
-                    color: #888;
-                    font-size: 0.75rem;
-                }
-                .house-selector-close {
-                    display: block;
-                    margin: 20px auto 0;
-                    background: transparent;
-                    border: 1px solid #666;
-                    color: #888;
-                    padding: 10px 30px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 0.9rem;
-                    transition: all 0.3s ease;
-                }
-                .house-selector-close:hover {
-                    border-color: #f87171;
-                    color: #f87171;
-                }
             </style>
-            <div class="house-selector-content">
-                <div class="house-selector-title">🕳️ CHOOSE YOUR HOUSE</div>
-                <div class="house-selector-subtitle">The void reveals all paths</div>
-                <div class="house-grid">
-                    ${houses.map(h => `
-                        <div class="house-option" data-house="${h.id}" style="--house-color: ${h.color}">
-                            <div class="house-option-icon">${h.icon}</div>
-                            <div class="house-option-name" style="color: ${h.color}">${h.name}</div>
-                            <div class="house-option-desc">${h.desc}</div>
-                        </div>
-                    `).join('')}
-                </div>
-                <button class="house-selector-close">Cancel</button>
+            <div class="master-key-message">
+                <div class="master-key-icon">🔑</div>
+                <div class="master-key-title">MASTER KEY</div>
+                <div class="master-key-subtitle">5 MINUTES • ALL ACCESS</div>
             </div>
         `;
 
-        document.body.appendChild(modal);
+        document.body.appendChild(flash);
 
-        // Handle house selection
-        modal.querySelectorAll('.house-option').forEach(option => {
-            option.addEventListener('click', () => {
-                const houseId = option.dataset.house;
-
-                // Update localStorage
-                if (houseId === 'divergent') {
-                    localStorage.setItem('hexworth_house', 'divergent');
-                    localStorage.setItem('hexworth_divergent', 'true');
-                    localStorage.setItem('hexworth_house_hopper', 'true');
-                } else {
-                    localStorage.setItem('hexworth_house', houseId);
-                    localStorage.removeItem('hexworth_divergent');
-                    localStorage.removeItem('hexworth_house_hopper');
-                }
-
-                console.log(`%c🏠 House changed to: ${houseId}`, 'color: #00ff00; font-weight: bold;');
-
-                // Reload page to apply changes
-                modal.remove();
-                location.reload();
-            });
-        });
-
-        // Handle close
-        modal.querySelector('.house-selector-close').addEventListener('click', () => {
-            modal.style.animation = 'fadeIn 0.2s ease reverse';
-            setTimeout(() => modal.remove(), 200);
-        });
-
-        // Close on backdrop click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.style.animation = 'fadeIn 0.2s ease reverse';
-                setTimeout(() => modal.remove(), 200);
+        // Remove after animation
+        setTimeout(() => {
+            if (flash.parentNode) {
+                flash.remove();
             }
-        });
+        }, 1500);
+
+        // Trigger a dramatic black hole pulse
+        if (this.blackHole && this.blackHole.element) {
+            this.blackHole.element.style.transform = 'scale(1.5)';
+            this.blackHole.element.style.filter = 'hue-rotate(120deg) brightness(2)';
+            setTimeout(() => {
+                if (this.blackHole && this.blackHole.element) {
+                    this.blackHole.element.style.transform = '';
+                    this.blackHole.element.style.filter = '';
+                }
+            }, 500);
+        }
     }
 
     /**

@@ -30,6 +30,7 @@ const AccessGuard = (function() {
     // Configuration
     const config = {
         redirectDelay: 100,  // ms before redirect
+        masterKeyDuration: 5 * 60 * 1000,  // 5 minutes in milliseconds
         storageKeys: {
             house: 'hexworth_house',
             theme: 'hexworth_theme',
@@ -37,7 +38,9 @@ const AccessGuard = (function() {
             divergent: 'hexworth_divergent',
             houseHopper: 'hexworth_house_hopper',
             gatePrefix: 'gate',
-            gateAnswerPrefix: 'gate'
+            gateAnswerPrefix: 'gate',
+            masterKey: 'hexworth_master_key',
+            masterKeyExpiry: 'hexworth_master_key_expiry'
         },
         paths: {
             sorting: '/sorting.html',
@@ -78,6 +81,172 @@ const AccessGuard = (function() {
         return !current;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // MASTER KEY SYSTEM - Time-based full access
+    // Triggered by 5 clicks on the black hole
+    // ─────────────────────────────────────────────────────────────
+
+    // Check if Master Key is active and not expired
+    function hasMasterKey() {
+        const expiry = sessionStorage.getItem(config.storageKeys.masterKeyExpiry);
+        if (!expiry) return false;
+
+        const expiryTime = parseInt(expiry, 10);
+        const now = Date.now();
+
+        if (now >= expiryTime) {
+            // Expired - clean up
+            deactivateMasterKey();
+            return false;
+        }
+
+        return true;
+    }
+
+    // Get remaining time in milliseconds
+    function getMasterKeyRemaining() {
+        const expiry = sessionStorage.getItem(config.storageKeys.masterKeyExpiry);
+        if (!expiry) return 0;
+
+        const remaining = parseInt(expiry, 10) - Date.now();
+        return Math.max(0, remaining);
+    }
+
+    // Activate Master Key for 5 minutes
+    function activateMasterKey() {
+        const expiry = Date.now() + config.masterKeyDuration;
+        sessionStorage.setItem(config.storageKeys.masterKey, 'true');
+        sessionStorage.setItem(config.storageKeys.masterKeyExpiry, expiry.toString());
+
+        // Grant all gate access temporarily
+        for (let i = 1; i <= 7; i++) {
+            sessionStorage.setItem(`master_gate${i}_complete`, 'true');
+        }
+
+        console.log('%c🔑 MASTER KEY ACTIVATED - 5 MINUTES',
+            'color: #00ff00; font-size: 18px; font-weight: bold; text-shadow: 0 0 10px #00ff00;');
+
+        // Create visual indicator
+        showMasterKeyIndicator();
+
+        return true;
+    }
+
+    // Deactivate Master Key
+    function deactivateMasterKey() {
+        sessionStorage.removeItem(config.storageKeys.masterKey);
+        sessionStorage.removeItem(config.storageKeys.masterKeyExpiry);
+
+        // Remove temporary gate access
+        for (let i = 1; i <= 7; i++) {
+            sessionStorage.removeItem(`master_gate${i}_complete`);
+        }
+
+        // Remove visual indicator
+        const indicator = document.getElementById('master-key-indicator');
+        if (indicator) indicator.remove();
+
+        console.log('%c🔑 Master Key Expired', 'color: #666; font-size: 14px;');
+    }
+
+    // Show floating countdown indicator
+    function showMasterKeyIndicator() {
+        // Remove existing indicator
+        const existing = document.getElementById('master-key-indicator');
+        if (existing) existing.remove();
+
+        const indicator = document.createElement('div');
+        indicator.id = 'master-key-indicator';
+        indicator.innerHTML = `
+            <style>
+                #master-key-indicator {
+                    position: fixed;
+                    top: 15px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, #00ff00, #00aa00);
+                    color: #000;
+                    padding: 8px 20px;
+                    border-radius: 25px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    letter-spacing: 0.1em;
+                    z-index: 99999;
+                    box-shadow: 0 0 30px rgba(0, 255, 0, 0.6);
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    animation: masterKeyPulse 2s ease-in-out infinite;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                @keyframes masterKeyPulse {
+                    0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
+                    50% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
+                }
+                #master-key-indicator:hover {
+                    background: linear-gradient(135deg, #ff4444, #aa0000);
+                    box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+                }
+                #master-key-indicator .key-icon {
+                    font-size: 16px;
+                }
+                #master-key-indicator .key-time {
+                    font-family: monospace;
+                    font-size: 14px;
+                }
+            </style>
+            <span class="key-icon">🔑</span>
+            <span>MASTER KEY</span>
+            <span class="key-time" id="master-key-countdown">5:00</span>
+        `;
+
+        document.body.appendChild(indicator);
+
+        // Click to deactivate early
+        indicator.addEventListener('click', () => {
+            if (confirm('Deactivate Master Key early?')) {
+                deactivateMasterKey();
+            }
+        });
+
+        // Start countdown timer
+        updateMasterKeyCountdown();
+    }
+
+    // Update countdown display
+    function updateMasterKeyCountdown() {
+        const countdownEl = document.getElementById('master-key-countdown');
+        if (!countdownEl) return;
+
+        const remaining = getMasterKeyRemaining();
+
+        if (remaining <= 0) {
+            deactivateMasterKey();
+            return;
+        }
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        // Change color when < 1 minute
+        const indicator = document.getElementById('master-key-indicator');
+        if (indicator && remaining < 60000) {
+            indicator.style.background = 'linear-gradient(135deg, #ffaa00, #ff6600)';
+            indicator.style.boxShadow = '0 0 30px rgba(255, 165, 0, 0.6)';
+        }
+
+        // Update every second
+        setTimeout(updateMasterKeyCountdown, 1000);
+    }
+
+    // Check if temporary gate access is granted by Master Key
+    function hasMasterKeyGateAccess(gateNumber) {
+        if (!hasMasterKey()) return false;
+        return sessionStorage.getItem(`master_gate${gateNumber}_complete`) === 'true';
+    }
+
     // Check if user has been sorted
     function isSorted() {
         return localStorage.getItem(config.storageKeys.house) !== null;
@@ -100,12 +269,18 @@ const AccessGuard = (function() {
 
     // Check if user has passed a specific Dark Arts gate
     function hasPassedGate(gateNumber) {
+        // Master Key grants temporary access to all gates
+        if (hasMasterKeyGateAccess(gateNumber)) return true;
+
         const key = `${config.storageKeys.gatePrefix}${gateNumber}_complete`;
         return localStorage.getItem(key) === 'true';
     }
 
     // Check if user has passed all gates up to specified number
     function hasPassedGatesUpTo(gateNumber) {
+        // Master Key grants access to all gates
+        if (hasMasterKey()) return true;
+
         for (let i = 1; i <= gateNumber; i++) {
             if (!hasPassedGate(i)) {
                 return false;
@@ -178,6 +353,13 @@ const AccessGuard = (function() {
         if (hasGodMode() && level !== 'admin-only') {
             showContent();
             addGodModeBadge();
+            return true;
+        }
+
+        // Master Key bypasses everything except explicit admin-only
+        if (hasMasterKey() && level !== 'admin-only') {
+            showContent();
+            addMasterKeyBadge();
             return true;
         }
 
@@ -291,6 +473,15 @@ const AccessGuard = (function() {
         document.body.appendChild(badge);
     }
 
+    // Add Master Key indicator (shows on protected pages when active)
+    function addMasterKeyBadge() {
+        // Check if indicator already exists
+        if (document.getElementById('master-key-indicator')) return;
+
+        // Show the full indicator with countdown
+        showMasterKeyIndicator();
+    }
+
     // Check multiple requirements (all must pass)
     function requireAll(...requirements) {
         hideContent();
@@ -299,6 +490,13 @@ const AccessGuard = (function() {
         if (hasGodMode()) {
             showContent();
             addGodModeBadge();
+            return true;
+        }
+
+        // Master Key bypass
+        if (hasMasterKey()) {
+            showContent();
+            addMasterKeyBadge();
             return true;
         }
 
@@ -348,6 +546,13 @@ const AccessGuard = (function() {
             return true;
         }
 
+        // Master Key bypass
+        if (hasMasterKey()) {
+            showContent();
+            addMasterKeyBadge();
+            return true;
+        }
+
         for (const req of requirements) {
             const [level, param] = Array.isArray(req) ? req : [req];
             let passed = false;
@@ -391,6 +596,12 @@ const AccessGuard = (function() {
         requireAny,
         hasGodMode,
         toggleGodMode,
+        // Master Key system
+        hasMasterKey,
+        activateMasterKey,
+        deactivateMasterKey,
+        getMasterKeyRemaining,
+        // User status
         isSorted,
         getUserHouse,
         isDivergent,
