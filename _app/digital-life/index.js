@@ -407,8 +407,8 @@ class DigitalLife {
         // Initialize black hole predator
         if (this.config.blackHole.enabled) {
             this.blackHole = new BlackHole({
-                x: this.config.blackHole.x ?? window.innerWidth * 0.06,
-                y: this.config.blackHole.y ?? window.innerHeight * 0.08,
+                x: this.config.blackHole.x ?? window.innerWidth * 0.08,
+                y: this.config.blackHole.y ?? window.innerHeight * 0.25,
                 baseSize: this.config.blackHole.baseSize,
                 gravityRadius: this.config.blackHole.gravityRadius,
                 gravityStrength: this.config.blackHole.gravityStrength
