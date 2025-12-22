@@ -220,6 +220,15 @@ const AchievementManager = (function() {
             category: 'regular',
             title: 'Master of Shadows'
         },
+        {
+            id: 'dark-arts-master',
+            icon: '🌑',
+            name: 'Dark Arts Master',
+            desc: 'Pass the Dark Arts Mastery Quiz',
+            points: 75,
+            category: 'regular',
+            title: 'Master of the Dark Arts'
+        },
 
         // ─────────────────────────────────────────────────────────────
         // SECRET ACHIEVEMENTS (hidden until unlocked)
