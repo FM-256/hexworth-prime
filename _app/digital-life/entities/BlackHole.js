@@ -37,7 +37,7 @@ class BlackHole {
         // Gravitational physics
         this.gravityRadius = options.gravityRadius ?? 250;  // Pull range
         this.gravityStrength = options.gravityStrength ?? 0.08;  // Pull force
-        this.eventHorizonRatio = 0.4;  // Consumption radius as ratio of size
+        this.eventHorizonRatio = 0.5;  // Consumption radius as ratio of size (clickable core)
 
         // Health system (for shooting star damage)
         this.maxHealth = 100;
@@ -141,44 +141,50 @@ class BlackHole {
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                opacity: 0.4;
+                transition: opacity 0.3s ease;
+            }
+
+            .black-hole:hover {
+                opacity: 0.7;
             }
 
             .black-hole-glow {
                 position: absolute;
                 border-radius: 50%;
                 background: radial-gradient(circle,
-                    rgba(75, 0, 130, 0.3) 0%,
-                    rgba(75, 0, 130, 0.1) 40%,
+                    rgba(40, 0, 60, 0.2) 0%,
+                    rgba(40, 0, 60, 0.05) 40%,
                     transparent 70%
                 );
-                animation: blackHoleGlow 3s ease-in-out infinite;
+                animation: blackHoleGlow 5s ease-in-out infinite;
             }
 
             .black-hole-disk {
                 position: absolute;
                 border-radius: 50%;
-                border: 3px solid transparent;
-                border-top-color: var(--accent, #9f7aea);
-                border-right-color: rgba(159, 122, 234, 0.5);
+                border: 2px solid transparent;
+                border-top-color: rgba(100, 60, 140, 0.6);
+                border-right-color: rgba(100, 60, 140, 0.3);
                 box-shadow:
-                    0 0 20px var(--glow-color, rgba(159, 122, 234, 0.6)),
-                    inset 0 0 20px rgba(0, 0, 0, 0.5);
-                animation: blackHoleSpin 4s linear infinite;
+                    0 0 10px rgba(100, 60, 140, 0.3),
+                    inset 0 0 15px rgba(0, 0, 0, 0.5);
+                animation: blackHoleSpin 6s linear infinite;
             }
 
             .black-hole-core {
                 position: absolute;
                 border-radius: 50%;
                 background: radial-gradient(circle,
-                    #000 0%,
-                    #000 60%,
-                    #1a0a2e 100%
+                    #050005 0%,
+                    #0a000a 60%,
+                    #0f0510 100%
                 );
                 box-shadow:
-                    inset 0 0 30px rgba(0, 0, 0, 1),
-                    0 0 10px rgba(0, 0, 0, 0.8);
+                    inset 0 0 20px rgba(0, 0, 0, 1),
+                    0 0 5px rgba(0, 0, 0, 0.6);
                 pointer-events: auto;
-                cursor: pointer;
+                cursor: default;
             }
 
             .black-hole.hurt .black-hole-core {
@@ -533,22 +539,20 @@ class BlackHole {
         }
 
         this.clickCount++;
-        console.log(`%c🕳️ Black Hole click ${this.clickCount}/5`, 'color: #9f7aea;');
 
-        // Visual pulse feedback
+        // Subtle visual pulse feedback (no console hints!)
         if (this.innerElement) {
-            this.innerElement.style.transform = 'scale(1.2)';
+            this.innerElement.style.transform = 'scale(1.15)';
             setTimeout(() => {
                 if (this.innerElement) {
                     this.innerElement.style.transform = '';
                 }
-            }, 150);
+            }, 100);
         }
 
         // Check if pattern complete
         if (this.clickCount >= 5) {
             this.clickCount = 0;
-            console.log('%c🌌 HOUSE SELECTOR ACTIVATED', 'color: #ff00ff; font-size: 14px; font-weight: bold;');
 
             if (this.onSecretClick) {
                 this.onSecretClick(this);
