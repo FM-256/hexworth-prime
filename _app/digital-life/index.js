@@ -2231,8 +2231,10 @@ class DigitalLife {
      * Grants 5 minutes of full access to all houses and Dark Arts gates
      */
     showHouseSelector() {
+        console.log('[DEBUG] showHouseSelector called!');
         // Check if AccessGuard is available
         if (typeof AccessGuard !== 'undefined' && AccessGuard.activateMasterKey) {
+            console.log('[DEBUG] Calling AccessGuard.activateMasterKey()');
             // Activate the Master Key through AccessGuard
             AccessGuard.activateMasterKey();
 

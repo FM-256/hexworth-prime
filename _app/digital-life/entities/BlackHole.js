@@ -113,6 +113,7 @@ class BlackHole {
         // Secret click handler on the core (5 clicks = house selector)
         this.innerElement.addEventListener('click', (e) => {
             e.stopPropagation();
+            console.log('[DEBUG] Black hole core clicked!');
             this.handleSecretClick();
         });
 
@@ -533,6 +534,8 @@ class BlackHole {
      * Handle secret click pattern (5 clicks = house selector)
      */
     handleSecretClick() {
+        console.log('[DEBUG] handleSecretClick called, current count:', this.clickCount);
+
         // Reset timer on each click
         if (this.clickTimer) {
             clearTimeout(this.clickTimer);
@@ -552,10 +555,14 @@ class BlackHole {
 
         // Check if pattern complete
         if (this.clickCount >= 5) {
+            console.log('[DEBUG] 5 clicks reached! Triggering callback...');
             this.clickCount = 0;
 
             if (this.onSecretClick) {
+                console.log('[DEBUG] onSecretClick callback exists, calling it');
                 this.onSecretClick(this);
+            } else {
+                console.log('[DEBUG] WARNING: onSecretClick callback is NOT set!');
             }
             return;
         }
