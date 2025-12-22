@@ -77,6 +77,12 @@ class BlackHole {
         this.onDamage = null;
         this.onDeath = null;
         this.onAscendedSacrifice = null; // Called when Ascended tier is consumed
+        this.onSecretClick = null; // Called when 5 clicks detected (house selector)
+
+        // Secret click tracking (5 clicks = house selector)
+        this.clickCount = 0;
+        this.clickTimer = null;
+        this.clickTimeout = 2000; // Reset after 2 seconds of no clicks
     }
 
     /**
@@ -104,7 +110,11 @@ class BlackHole {
         this.innerElement.className = 'black-hole-core';
         this.element.appendChild(this.innerElement);
 
-
+        // Secret click handler on the core (5 clicks = house selector)
+        this.innerElement.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handleSecretClick();
+        });
 
         this.updateElementStyle();
         container.appendChild(this.element);
@@ -167,6 +177,8 @@ class BlackHole {
                 box-shadow:
                     inset 0 0 30px rgba(0, 0, 0, 1),
                     0 0 10px rgba(0, 0, 0, 0.8);
+                pointer-events: auto;
+                cursor: pointer;
             }
 
             .black-hole.hurt .black-hole-core {
@@ -509,6 +521,45 @@ class BlackHole {
         this.isActive = true;
         this.opacity = 1;
         this.isHurt = false;
+    }
+
+    /**
+     * Handle secret click pattern (5 clicks = house selector)
+     */
+    handleSecretClick() {
+        // Reset timer on each click
+        if (this.clickTimer) {
+            clearTimeout(this.clickTimer);
+        }
+
+        this.clickCount++;
+        console.log(`%c🕳️ Black Hole click ${this.clickCount}/5`, 'color: #9f7aea;');
+
+        // Visual pulse feedback
+        if (this.innerElement) {
+            this.innerElement.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                if (this.innerElement) {
+                    this.innerElement.style.transform = '';
+                }
+            }, 150);
+        }
+
+        // Check if pattern complete
+        if (this.clickCount >= 5) {
+            this.clickCount = 0;
+            console.log('%c🌌 HOUSE SELECTOR ACTIVATED', 'color: #ff00ff; font-size: 14px; font-weight: bold;');
+
+            if (this.onSecretClick) {
+                this.onSecretClick(this);
+            }
+            return;
+        }
+
+        // Reset after timeout
+        this.clickTimer = setTimeout(() => {
+            this.clickCount = 0;
+        }, this.clickTimeout);
     }
 
     /**
