@@ -2334,11 +2334,13 @@ class DigitalLife {
 
         document.body.appendChild(flash);
 
-        // Remove after animation
+        // Remove after animation, then show house selector
         setTimeout(() => {
             if (flash.parentNode) {
                 flash.remove();
             }
+            // Show house selector panel
+            this.showHouseSelectorPanel();
         }, 1500);
 
         // Trigger a dramatic black hole pulse
@@ -2352,6 +2354,139 @@ class DigitalLife {
                 }
             }, 500);
         }
+    }
+
+    /**
+     * Show house selector panel for quick navigation
+     */
+    showHouseSelectorPanel() {
+        // Remove existing panel if present
+        const existing = document.getElementById('house-selector-panel');
+        if (existing) existing.remove();
+
+        const houses = [
+            { id: 'web', name: 'Web', icon: '🌐', color: '#3b82f6', path: 'houses/web/index.html' },
+            { id: 'shield', name: 'Shield', icon: '🛡️', color: '#10b981', path: 'houses/shield/index.html' },
+            { id: 'forge', name: 'Forge', icon: '🔨', color: '#f59e0b', path: 'houses/forge/index.html' },
+            { id: 'script', name: 'Script', icon: '📜', color: '#8b5cf6', path: 'houses/script/index.html' },
+            { id: 'cloud', name: 'Cloud', icon: '☁️', color: '#06b6d4', path: 'houses/cloud/index.html' },
+            { id: 'code', name: 'Code', icon: '💻', color: '#ec4899', path: 'houses/code/index.html' },
+            { id: 'key', name: 'Key', icon: '🔑', color: '#f59e0b', path: 'houses/key/index.html' },
+            { id: 'eye', name: 'Eye', icon: '👁️', color: '#6366f1', path: 'houses/eye/index.html' },
+            { id: 'dark-arts', name: 'Dark Arts', icon: '🌑', color: '#991b1b', path: 'dark-arts/vault.html' }
+        ];
+
+        const panel = document.createElement('div');
+        panel.id = 'house-selector-panel';
+        panel.innerHTML = `
+            <style>
+                #house-selector-panel {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(10, 10, 20, 0.95);
+                    border: 2px solid rgba(0, 255, 0, 0.4);
+                    border-radius: 20px;
+                    padding: 30px;
+                    z-index: 99999;
+                    box-shadow: 0 0 60px rgba(0, 255, 0, 0.3);
+                    animation: panelAppear 0.3s ease-out;
+                    max-width: 90vw;
+                }
+                @keyframes panelAppear {
+                    from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                }
+                #house-selector-panel h2 {
+                    text-align: center;
+                    color: #00ff00;
+                    font-size: 1.2rem;
+                    letter-spacing: 0.2em;
+                    margin: 0 0 20px 0;
+                    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+                }
+                .house-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 15px;
+                }
+                .house-btn {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 20px 15px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    text-decoration: none;
+                }
+                .house-btn:hover {
+                    transform: translateY(-3px);
+                    border-color: var(--house-color);
+                    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+                }
+                .house-btn .icon {
+                    font-size: 2rem;
+                }
+                .house-btn .name {
+                    color: #fff;
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                    letter-spacing: 0.1em;
+                }
+                .close-panel {
+                    position: absolute;
+                    top: 10px;
+                    right: 15px;
+                    background: none;
+                    border: none;
+                    color: #666;
+                    font-size: 1.5rem;
+                    cursor: pointer;
+                    transition: color 0.2s;
+                }
+                .close-panel:hover {
+                    color: #ff4444;
+                }
+                @media (max-width: 500px) {
+                    .house-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+            </style>
+            <button class="close-panel" onclick="this.parentElement.remove()">×</button>
+            <h2>🔑 SELECT DESTINATION</h2>
+            <div class="house-grid">
+                ${houses.map(h => `
+                    <a href="${h.path}" class="house-btn" style="--house-color: ${h.color}">
+                        <span class="icon">${h.icon}</span>
+                        <span class="name">${h.name}</span>
+                    </a>
+                `).join('')}
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        // Close on click outside
+        panel.addEventListener('click', (e) => {
+            if (e.target === panel) {
+                panel.remove();
+            }
+        });
+
+        // Close on Escape key
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                panel.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
     }
 
     /**
