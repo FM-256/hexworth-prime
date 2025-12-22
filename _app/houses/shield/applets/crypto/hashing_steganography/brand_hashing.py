@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SHIELD_WRAPPER_START = '''<div class="hexworth-wrapper" style="font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a0a 100%); min-height: 100vh; margin: 0; padding: 0;">
     <header style="background: linear-gradient(135deg, #1a0a0a 0%, #8b0000 50%, #dc143c 100%); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(220, 20, 60, 0.3);">
-        <a href="../../../catalog.html?theme=academy" style="display: flex; align-items: center; gap: 12px; color: white; text-decoration: none;">
+        <a href="../../../index.html" style="display: flex; align-items: center; gap: 12px; color: white; text-decoration: none;">
             <span style="font-size: 28px;">🏰</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 1px;">Hexworth Academy</span>
         </a>
@@ -21,7 +21,7 @@ SHIELD_WRAPPER_START = '''<div class="hexworth-wrapper" style="font-family: 'Seg
 
 SHIELD_WRAPPER_END = '''    </div>
     <footer style="background: rgba(26, 10, 10, 0.8); color: rgba(255,255,255,0.7); text-align: center; padding: 12px; font-size: 12px;">
-        <p>Educational content | <a href="../../../catalog.html" style="color: #dc143c; text-decoration: none;">← Back to Catalog</a></p>
+        <p>Educational content | <a href="../../../index.html" style="color: #dc143c; text-decoration: none;">← Back to House</a></p>
     </footer>
 </div>'''
 
