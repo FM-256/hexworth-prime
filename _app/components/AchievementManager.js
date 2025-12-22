@@ -91,6 +91,51 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'perfect_score',
+            icon: '💯',
+            name: 'Perfectionist',
+            desc: 'Score 100% on any quiz',
+            points: 25,
+            category: 'regular',
+            title: 'the Perfectionist'
+        },
+        {
+            id: 'quiz_master_10',
+            icon: '🎓',
+            name: 'Quiz Master',
+            desc: 'Pass 10 quizzes',
+            points: 50,
+            category: 'regular',
+            title: 'Quiz Master'
+        },
+        {
+            id: 'quiz_master_25',
+            icon: '📜',
+            name: 'Knowledge Seeker',
+            desc: 'Pass 25 quizzes',
+            points: 100,
+            category: 'regular',
+            title: 'Seeker of Knowledge'
+        },
+        {
+            id: 'persistence',
+            icon: '🔄',
+            name: 'Persistence',
+            desc: 'Pass a quiz after 3+ attempts',
+            points: 20,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'speed_demon',
+            icon: '⚡',
+            name: 'Speed Demon',
+            desc: 'Pass a timed quiz with 50%+ time remaining',
+            points: 30,
+            category: 'regular',
+            title: 'the Swift'
+        },
+        {
             id: 'explorer',
             icon: '🗺️',
             name: 'Explorer',

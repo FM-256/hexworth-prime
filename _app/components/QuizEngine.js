@@ -301,10 +301,13 @@ class QuizEngine {
 
         const results = this.calculateResults(timedOut);
 
-        // Trigger achievement if passed
+        // Trigger quiz-specific achievement if passed
         if (results.passed && this.config.achievement) {
             this.triggerAchievement(this.config.achievement);
         }
+
+        // Process general quiz achievements (first_quiz, perfect_score, etc.)
+        this.processQuizAchievements(results);
 
         // Callback
         if (this.config.onComplete) {
@@ -523,6 +526,87 @@ class QuizEngine {
                 console.log(`Achievement unlocked: ${achievementId}`);
             }
         }
+    }
+
+    /**
+     * Process quiz achievements based on results
+     * Called after quiz completion to check and unlock various achievements
+     */
+    processQuizAchievements(results) {
+        if (!results.passed) return;
+
+        // Get and update quiz stats
+        const stats = this.getQuizStats();
+        stats.quizzesPassed++;
+        stats.lastQuizDate = Date.now();
+
+        // Track this specific quiz
+        const quizId = this.config.achievement || this.config.title;
+        if (!stats.quizzesCompleted.includes(quizId)) {
+            stats.quizzesCompleted.push(quizId);
+        }
+
+        this.saveQuizStats(stats);
+
+        // First Quiz Achievement
+        if (stats.quizzesPassed === 1) {
+            this.triggerAchievement('first_quiz');
+        }
+
+        // Perfect Score Achievement
+        if (results.percentage === 100) {
+            this.triggerAchievement('perfect_score');
+        }
+
+        // Quiz Master Achievements (cumulative)
+        if (stats.quizzesPassed >= 10) {
+            this.triggerAchievement('quiz_master_10');
+        }
+        if (stats.quizzesPassed >= 25) {
+            this.triggerAchievement('quiz_master_25');
+        }
+
+        // Persistence Achievement (passed after 3+ attempts)
+        if (results.attempts >= 3) {
+            this.triggerAchievement('persistence');
+        }
+
+        // Speed Demon Achievement (timed quiz with 50%+ time remaining)
+        if (this.config.timeLimit && this.state.timeRemaining) {
+            const timeUsedPercent = ((this.config.timeLimit - this.state.timeRemaining) / this.config.timeLimit) * 100;
+            if (timeUsedPercent <= 50) {
+                this.triggerAchievement('speed_demon');
+            }
+        }
+    }
+
+    /**
+     * Get quiz statistics from localStorage
+     */
+    getQuizStats() {
+        try {
+            const stats = JSON.parse(localStorage.getItem('hexworth_quiz_stats'));
+            return stats || {
+                quizzesPassed: 0,
+                quizzesCompleted: [],
+                perfectScores: 0,
+                lastQuizDate: null
+            };
+        } catch {
+            return {
+                quizzesPassed: 0,
+                quizzesCompleted: [],
+                perfectScores: 0,
+                lastQuizDate: null
+            };
+        }
+    }
+
+    /**
+     * Save quiz statistics to localStorage
+     */
+    saveQuizStats(stats) {
+        localStorage.setItem('hexworth_quiz_stats', JSON.stringify(stats));
     }
 }
 
