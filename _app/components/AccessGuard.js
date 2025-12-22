@@ -82,6 +82,65 @@ const AccessGuard = (function() {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // FIREBASE ADMIN - Persistent admin access via Google sign-in
+    // Uses localStorage - persists across pages and file:// protocol
+    // ─────────────────────────────────────────────────────────────
+
+    // Check if user is Firebase admin (reads from localStorage)
+    function isFirebaseAdmin() {
+        return localStorage.getItem('hexworth_firebase_admin') === 'true';
+    }
+
+    // Get Firebase user info
+    function getFirebaseUser() {
+        try {
+            const user = localStorage.getItem('hexworth_firebase_user');
+            return user ? JSON.parse(user) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Add Firebase admin badge
+    function addFirebaseAdminBadge() {
+        if (document.getElementById('firebase-admin-indicator')) return;
+
+        const user = getFirebaseUser();
+        const badge = document.createElement('div');
+        badge.id = 'firebase-admin-indicator';
+        badge.innerHTML = `
+            <style>
+                #firebase-admin-indicator {
+                    position: fixed;
+                    top: 10px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, #4285f4, #34a853);
+                    color: #fff;
+                    padding: 6px 16px;
+                    border-radius: 20px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    letter-spacing: 0.1em;
+                    z-index: 99999;
+                    box-shadow: 0 0 20px rgba(66, 133, 244, 0.5);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                #firebase-admin-indicator img {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                }
+            </style>
+            ${user && user.photoURL ? `<img src="${user.photoURL}" alt="">` : ''}
+            <span>ADMIN MODE</span>
+        `;
+        document.body.appendChild(badge);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // MASTER KEY SYSTEM - Time-based full access
     // Triggered by 5 clicks on the black hole
     // ─────────────────────────────────────────────────────────────
@@ -349,10 +408,12 @@ const AccessGuard = (function() {
         // Hide content immediately
         hideContent();
 
-        // Debug: Check Master Key status
-        console.log('[AccessGuard] require() called with level:', level);
-        console.log('[AccessGuard] hasMasterKey():', hasMasterKey());
-        console.log('[AccessGuard] sessionStorage masterKeyExpiry:', sessionStorage.getItem(config.storageKeys.masterKeyExpiry));
+        // Firebase Admin bypasses everything (uses localStorage - persists across pages)
+        if (isFirebaseAdmin() && level !== 'admin-only') {
+            showContent();
+            addFirebaseAdminBadge();
+            return true;
+        }
 
         // God Mode bypasses everything except explicit admin-only
         if (hasGodMode() && level !== 'admin-only') {
@@ -363,7 +424,6 @@ const AccessGuard = (function() {
 
         // Master Key bypasses everything except explicit admin-only
         if (hasMasterKey() && level !== 'admin-only') {
-            console.log('[AccessGuard] Master Key active - bypassing check');
             showContent();
             addMasterKeyBadge();
             return true;
@@ -492,6 +552,13 @@ const AccessGuard = (function() {
     function requireAll(...requirements) {
         hideContent();
 
+        // Firebase Admin bypass
+        if (isFirebaseAdmin()) {
+            showContent();
+            addFirebaseAdminBadge();
+            return true;
+        }
+
         // God Mode bypass
         if (hasGodMode()) {
             showContent();
@@ -545,6 +612,13 @@ const AccessGuard = (function() {
     function requireAny(...requirements) {
         hideContent();
 
+        // Firebase Admin bypass
+        if (isFirebaseAdmin()) {
+            showContent();
+            addFirebaseAdminBadge();
+            return true;
+        }
+
         // God Mode bypass
         if (hasGodMode()) {
             showContent();
@@ -595,8 +669,13 @@ const AccessGuard = (function() {
         return require(level, param);
     }
 
-    // Show indicator if Master Key is active (for page navigation)
+    // Show indicator if Master Key or Firebase Admin is active (for page navigation)
     function showIndicatorIfActive() {
+        // Firebase Admin badge
+        if (isFirebaseAdmin() && !document.getElementById('firebase-admin-indicator')) {
+            addFirebaseAdminBadge();
+        }
+        // Master Key indicator
         if (hasMasterKey() && !document.getElementById('master-key-indicator')) {
             showMasterKeyIndicator();
         }
@@ -609,6 +688,9 @@ const AccessGuard = (function() {
         requireAny,
         hasGodMode,
         toggleGodMode,
+        // Firebase Admin system
+        isFirebaseAdmin,
+        getFirebaseUser,
         // Master Key system
         hasMasterKey,
         activateMasterKey,
