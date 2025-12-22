@@ -2373,7 +2373,7 @@ class DigitalLife {
             { id: 'code', name: 'Code', icon: '💻', color: '#ec4899', path: 'houses/code/index.html' },
             { id: 'key', name: 'Key', icon: '🔑', color: '#f59e0b', path: 'houses/key/index.html' },
             { id: 'eye', name: 'Eye', icon: '👁️', color: '#6366f1', path: 'houses/eye/index.html' },
-            { id: 'dark-arts', name: 'Dark Arts', icon: '🌑', color: '#991b1b', path: 'dark-arts/vault.html' }
+            { id: 'dark-arts', name: 'Dark Arts', icon: '🌑', color: '#991b1b', path: 'dark-arts/vault/index.html' }
         ];
 
         const panel = document.createElement('div');

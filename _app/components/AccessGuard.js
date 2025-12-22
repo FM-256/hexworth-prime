@@ -349,6 +349,11 @@ const AccessGuard = (function() {
         // Hide content immediately
         hideContent();
 
+        // Debug: Check Master Key status
+        console.log('[AccessGuard] require() called with level:', level);
+        console.log('[AccessGuard] hasMasterKey():', hasMasterKey());
+        console.log('[AccessGuard] sessionStorage masterKeyExpiry:', sessionStorage.getItem(config.storageKeys.masterKeyExpiry));
+
         // God Mode bypasses everything except explicit admin-only
         if (hasGodMode() && level !== 'admin-only') {
             showContent();
@@ -358,6 +363,7 @@ const AccessGuard = (function() {
 
         // Master Key bypasses everything except explicit admin-only
         if (hasMasterKey() && level !== 'admin-only') {
+            console.log('[AccessGuard] Master Key active - bypassing check');
             showContent();
             addMasterKeyBadge();
             return true;
