@@ -21,9 +21,40 @@
 
 ---
 
+## Access Methods
+
+### 1. Web Hosted (Full Features)
+**URL:** https://hexworth-prime.web.app
+
+| Feature | Status |
+|---------|--------|
+| All content & quizzes | ✅ Works |
+| Progress tracking | ✅ Works |
+| Achievements | ✅ Works |
+| Firebase Google Sign-in | ✅ Works |
+| House sorting | ✅ Works |
+| Dark Arts gates | ✅ Works |
+
+### 2. Local / Offline (Most Features)
+**How:** Open `START.html` directly in browser
+
+| Feature | Status |
+|---------|--------|
+| All content & quizzes | ✅ Works |
+| Progress tracking | ✅ Works (localStorage) |
+| Achievements | ✅ Works (localStorage) |
+| Firebase Google Sign-in | ❌ Requires HTTPS |
+| House sorting | ✅ Works |
+| Dark Arts gates | ✅ Works |
+| God Mode / Master Key | ✅ Works |
+
+**Note:** Running locally is fully functional for learning. The only missing feature is Google sign-in for admin access, but God Mode and Master Key provide equivalent access locally.
+
+---
+
 ## Why Firebase Hosting?
 
-1. **Firebase Authentication** - Required a real domain (not `file://`) to work properly
+1. **Firebase Authentication** - Google sign-in requires a real HTTPS domain
 2. **Free Tier** - Generous limits for educational use
 3. **SSL Included** - Automatic HTTPS
 4. **Fast CDN** - Global content delivery
@@ -49,10 +80,14 @@ See `firebase.json` in project root:
 
 ---
 
-## Access Methods
+## For Local Users
 
-1. **Web (Primary):** https://hexworth-prime.web.app
-2. **Local:** Open `START.html` directly (some features limited)
+If distributing as a ZIP file for offline use:
+1. Extract the ZIP
+2. Open `START.html` in any modern browser
+3. All learning content works without internet
+4. Progress saves to browser's localStorage
+5. Use God Mode (console) or Master Key (5 clicks on black hole) for full access
 
 ---
 
