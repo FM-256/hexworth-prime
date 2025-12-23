@@ -88,7 +88,9 @@ const AccessGuard = (function() {
 
     // Check if user is Firebase admin (reads from localStorage)
     function isFirebaseAdmin() {
-        return localStorage.getItem('hexworth_firebase_admin') === 'true';
+        const value = localStorage.getItem('hexworth_firebase_admin');
+        console.log('[AccessGuard] Firebase admin check:', value);
+        return value === 'true';
     }
 
     // Get Firebase user info
@@ -103,6 +105,12 @@ const AccessGuard = (function() {
 
     // Add Firebase admin badge
     function addFirebaseAdminBadge() {
+        // Defer until body exists
+        if (!document.body) {
+            document.addEventListener('DOMContentLoaded', addFirebaseAdminBadge);
+            return;
+        }
+
         if (document.getElementById('firebase-admin-indicator')) return;
 
         const user = getFirebaseUser();
@@ -364,12 +372,16 @@ const AccessGuard = (function() {
 
     // Show page content (after successful check)
     function showContent() {
+        console.log('[AccessGuard] showContent() called');
+
         // Remove both hide styles (preload and dynamic)
         const preloadStyle = document.getElementById('access-guard-preload');
+        console.log('[AccessGuard] preload style found:', !!preloadStyle);
         if (preloadStyle) {
             preloadStyle.remove();
         }
         const hideStyle = document.getElementById('access-guard-hide');
+        console.log('[AccessGuard] hide style found:', !!hideStyle);
         if (hideStyle) {
             hideStyle.remove();
         }
@@ -378,6 +390,9 @@ const AccessGuard = (function() {
         if (document.body) {
             document.body.style.visibility = 'visible';
             document.body.style.opacity = '1';
+            console.log('[AccessGuard] Body styles set');
+        } else {
+            console.log('[AccessGuard] Body does not exist yet');
         }
     }
 
@@ -414,11 +429,14 @@ const AccessGuard = (function() {
 
     // Main requirement check
     function require(level, param) {
+        console.log('[AccessGuard] require() called with:', level, param);
+
         // Hide content immediately
         hideContent();
 
         // Firebase Admin bypasses everything (uses localStorage - persists across pages)
         if (isFirebaseAdmin() && level !== 'admin-only') {
+            console.log('[AccessGuard] Firebase admin - showing content');
             showContent();
             addFirebaseAdminBadge();
             return true;
