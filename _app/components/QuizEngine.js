@@ -32,7 +32,11 @@ class QuizEngine {
             retryAllowed: config.retryAllowed !== false,
             theme: config.theme || 'default', // default, dark, house-specific
             onComplete: config.onComplete || null,
-            onQuestionAnswer: config.onQuestionAnswer || null
+            onQuestionAnswer: config.onQuestionAnswer || null,
+            // NEW: Progress tracking integration
+            moduleId: config.moduleId || config.achievement || null,  // Unique ID for this quiz
+            houseId: config.houseId || this.detectHouseFromUrl(),     // Auto-detect from URL
+            trackProgress: config.trackProgress !== false             // Enable progress tracking
         };
 
         this.state = {
@@ -49,6 +53,28 @@ class QuizEngine {
 
         this.container = null;
         this.originalQuestions = [...this.config.questions];
+        this.progressResult = null;  // Store progress result for UI
+    }
+
+    /**
+     * Detect house from current URL path
+     */
+    detectHouseFromUrl() {
+        const path = window.location.pathname.toLowerCase();
+        const houses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+        for (const house of houses) {
+            if (path.includes(`/houses/${house}/`) || path.includes(`/${house}/`)) {
+                return house;
+            }
+        }
+        // Also check for theme in config
+        if (this.config && this.config.theme) {
+            const theme = this.config.theme.toLowerCase();
+            if (houses.includes(theme)) {
+                return theme;
+            }
+        }
+        return null;
     }
 
     /**
@@ -309,12 +335,48 @@ class QuizEngine {
         // Process general quiz achievements (first_quiz, perfect_score, etc.)
         this.processQuizAchievements(results);
 
+        // NEW: Track progress through ProgressManager
+        if (results.passed && this.config.trackProgress && this.config.moduleId) {
+            this.progressResult = this.trackQuizCompletion(results);
+            results.progressResult = this.progressResult;
+        }
+
         // Callback
         if (this.config.onComplete) {
             this.config.onComplete(results);
         }
 
         this.renderResults(results, timedOut);
+    }
+
+    /**
+     * Track quiz completion in ProgressManager
+     */
+    trackQuizCompletion(results) {
+        // Check if ProgressManager is available
+        if (typeof ProgressManager === 'undefined') {
+            console.warn('QuizEngine: ProgressManager not available, progress not tracked');
+            return null;
+        }
+
+        const houseId = this.config.houseId || this.detectHouseFromUrl();
+        if (!houseId) {
+            console.warn('QuizEngine: Could not determine house ID for progress tracking');
+            return null;
+        }
+
+        // Complete the module and get result
+        return ProgressManager.completeModule(
+            this.config.moduleId,
+            houseId,
+            'quiz',
+            {
+                score: results.percentage,
+                attempts: results.attempts,
+                time: results.duration,
+                passed: results.passed
+            }
+        );
     }
 
     /**
@@ -353,6 +415,11 @@ class QuizEngine {
             ? this.getPassMessage(results.percentage)
             : this.getFailMessage(results.percentage);
 
+        // Get progress info for display
+        const progressResult = this.progressResult || results.progressResult;
+        const xpEarned = progressResult ? progressResult.xpEarned : 0;
+        const nextModule = progressResult ? progressResult.nextModule : this.getNextModuleFallback();
+
         this.container.innerHTML = `
             <div class="quiz-engine theme-${this.config.theme}">
                 <div class="quiz-results ${gradeClass}">
@@ -387,6 +454,14 @@ class QuizEngine {
                         </div>
                     </div>
 
+                    ${results.passed && xpEarned > 0 ? `
+                        <div class="results-xp">
+                            <span class="xp-icon">✨</span>
+                            <span class="xp-earned">+${xpEarned} XP</span>
+                            ${progressResult && progressResult.levelUp ? `<span class="level-up">🎉 Level Up! Now Level ${progressResult.newLevel}</span>` : ''}
+                        </div>
+                    ` : ''}
+
                     ${results.passed && this.config.achievement ? `
                         <div class="results-achievement">
                             🏆 Achievement Unlocked: <strong>${this.config.achievement}</strong>
@@ -394,6 +469,16 @@ class QuizEngine {
                     ` : ''}
 
                     <div class="results-actions">
+                        ${results.passed && nextModule ? `
+                            <button class="quiz-btn quiz-next-module-btn primary">
+                                Continue → ${nextModule.title || 'Next Module'}
+                            </button>
+                        ` : ''}
+                        ${results.passed ? `
+                            <button class="quiz-btn quiz-house-btn">
+                                ← Back to House
+                            </button>
+                        ` : ''}
                         ${this.config.retryAllowed ? `
                             <button class="quiz-btn quiz-retry-btn">${results.passed ? 'Try Again' : 'Retry Challenge'}</button>
                         ` : ''}
@@ -402,6 +487,9 @@ class QuizEngine {
                 </div>
             </div>
         `;
+
+        // Add additional styles for new elements
+        this.addResultsStyles();
 
         // Attach event listeners
         const retryBtn = this.container.querySelector('.quiz-retry-btn');
@@ -413,6 +501,131 @@ class QuizEngine {
         if (reviewBtn) {
             reviewBtn.addEventListener('click', () => this.renderReview(results));
         }
+
+        // Next module button
+        const nextBtn = this.container.querySelector('.quiz-next-module-btn');
+        if (nextBtn && nextModule) {
+            nextBtn.addEventListener('click', () => {
+                window.location.href = nextModule.href;
+            });
+        }
+
+        // Back to house button
+        const houseBtn = this.container.querySelector('.quiz-house-btn');
+        if (houseBtn) {
+            houseBtn.addEventListener('click', () => {
+                // Navigate to house index
+                const houseId = this.config.houseId || this.detectHouseFromUrl();
+                if (houseId) {
+                    // Go up to house index
+                    window.location.href = '../index.html';
+                } else {
+                    window.history.back();
+                }
+            });
+        }
+    }
+
+    /**
+     * Fallback to get next module if ProgressManager isn't available
+     */
+    getNextModuleFallback() {
+        if (typeof LearningPaths === 'undefined') return null;
+
+        const houseId = this.config.houseId || this.detectHouseFromUrl();
+        if (!houseId || !this.config.moduleId) return null;
+
+        return LearningPaths.getNextModule(houseId, this.config.moduleId);
+    }
+
+    /**
+     * Add styles for new results elements
+     */
+    addResultsStyles() {
+        if (document.getElementById('quiz-results-enhanced-styles')) return;
+
+        const styles = document.createElement('style');
+        styles.id = 'quiz-results-enhanced-styles';
+        styles.textContent = `
+            .results-xp {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 12px 20px;
+                background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+                border: 1px solid rgba(34, 197, 94, 0.3);
+                border-radius: 10px;
+                margin: 15px 0;
+            }
+
+            .xp-icon {
+                font-size: 1.3rem;
+            }
+
+            .xp-earned {
+                font-size: 1.4rem;
+                font-weight: 700;
+                color: #22c55e;
+            }
+
+            .level-up {
+                font-size: 1rem;
+                font-weight: 600;
+                color: #fbbf24;
+                background: rgba(251, 191, 36, 0.15);
+                padding: 4px 12px;
+                border-radius: 20px;
+            }
+
+            .quiz-next-module-btn.primary {
+                background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+                color: white !important;
+                font-weight: 600;
+                padding: 14px 24px !important;
+                font-size: 1.05rem;
+                border: none;
+                box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+                animation: pulseGlow 2s infinite;
+            }
+
+            .quiz-next-module-btn.primary:hover {
+                background: linear-gradient(135deg, #8b5cf6, #c084fc) !important;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+            }
+
+            @keyframes pulseGlow {
+                0%, 100% { box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3); }
+                50% { box-shadow: 0 4px 25px rgba(168, 85, 247, 0.5); }
+            }
+
+            .quiz-house-btn {
+                background: rgba(100, 100, 120, 0.3) !important;
+                color: #a0a0b0 !important;
+            }
+
+            .quiz-house-btn:hover {
+                background: rgba(100, 100, 120, 0.5) !important;
+                color: #e0e0e0 !important;
+            }
+
+            .results-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            @media (min-width: 480px) {
+                .results-actions {
+                    flex-direction: row;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }
+            }
+        `;
+        document.head.appendChild(styles);
     }
 
     /**
