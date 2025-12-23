@@ -304,10 +304,22 @@ const SkillTree = {
     isCompleted(contentId) {
         if (!contentId) return false;
         const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-        // Check across all houses for completion
-        for (const house in progress) {
-            if (progress[house][contentId]?.completed) return true;
+
+        // Check global completedModules array
+        if (progress.completedModules && progress.completedModules.includes(contentId)) {
+            return true;
         }
+
+        // Also check each house's modulesCompleted array
+        if (progress.houses) {
+            for (const houseId in progress.houses) {
+                const house = progress.houses[houseId];
+                if (house.modulesCompleted && house.modulesCompleted.includes(contentId)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     },
 
