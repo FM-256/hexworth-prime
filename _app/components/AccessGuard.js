@@ -364,12 +364,21 @@ const AccessGuard = (function() {
 
     // Show page content (after successful check)
     function showContent() {
-        const style = document.getElementById('access-guard-hide');
-        if (style) {
-            style.remove();
+        // Remove both hide styles (preload and dynamic)
+        const preloadStyle = document.getElementById('access-guard-preload');
+        if (preloadStyle) {
+            preloadStyle.remove();
         }
-        document.body.style.visibility = 'visible';
-        document.body.style.opacity = '1';
+        const hideStyle = document.getElementById('access-guard-hide');
+        if (hideStyle) {
+            hideStyle.remove();
+        }
+
+        // Also set inline styles if body exists (belt and suspenders)
+        if (document.body) {
+            document.body.style.visibility = 'visible';
+            document.body.style.opacity = '1';
+        }
     }
 
     // Redirect to appropriate page
