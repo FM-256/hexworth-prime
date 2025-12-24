@@ -92,10 +92,18 @@
             z-index: 9997;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: transparent !important;
+            right: 0;
+            bottom: 0;
+            overflow: visible;
+            background: none !important;
+            background-color: transparent !important;
+            isolation: isolate;
+            contain: layout style;
+        }
+
+        /* Ensure no unintended styling leaks */
+        .patronus-container * {
+            background: none;
         }
 
         .patronus {
@@ -105,6 +113,8 @@
             filter: drop-shadow(0 0 10px var(--patronus-glow));
             transition: opacity 0.5s ease;
             animation: patronusFloat 3s ease-in-out infinite;
+            background: none !important;
+            line-height: 1;
         }
 
         .patronus.active {
@@ -322,17 +332,26 @@
         }
 
         init() {
+            console.log('[TrailHunter] Initializing...');
             this.checkActiveHunts();
 
             // Only do anything if there's an active hunt
             if (this.activeTrail) {
-                this.injectStyles();
-                this.createPatronus();
-                this.createProgressIndicator();
-                this.startPatronusMovement();
-                this.checkCurrentPage();
+                console.log('[TrailHunter] Active hunt found:', this.activeTrail);
+                try {
+                    this.injectStyles();
+                    this.createPatronus();
+                    this.createProgressIndicator();
+                    this.startPatronusMovement();
+                    this.checkCurrentPage();
+                    console.log('[TrailHunter] Patronus active and hopping');
+                } catch (e) {
+                    console.error('[TrailHunter] Error during init:', e);
+                    this.destroy(); // Clean up on error
+                }
+            } else {
+                console.log('[TrailHunter] No active hunt, staying dormant');
             }
-            // Otherwise, do nothing - no styles, no elements
         }
 
         injectStyles() {
@@ -653,8 +672,12 @@
         // Static method to start a hunt (called from Gate)
         static startHunt(trailId) {
             try {
+                console.log('[TrailHunter] Starting hunt:', trailId);
                 const trail = TRAILS[trailId];
-                if (!trail) return;
+                if (!trail) {
+                    console.warn('[TrailHunter] Unknown trail:', trailId);
+                    return;
+                }
 
                 const hunts = JSON.parse(localStorage.getItem('trail_hunts') || '{}');
 
@@ -666,21 +689,13 @@
                         completed: false
                     };
                     localStorage.setItem('trail_hunts', JSON.stringify(hunts));
+                    console.log('[TrailHunter] Hunt registered in localStorage');
 
-                    // Set CSS variables on body for toast styling
-                    if (document.body) {
-                        document.body.style.setProperty('--patronus-color', trail.color);
-                        document.body.style.setProperty('--patronus-glow', trail.glowColor);
-                    }
-
-                    // Show start toast (create minimal instance just for toast)
-                    const tempInstance = Object.create(TrailHunter.prototype);
-                    tempInstance.activeTrail = trailId;
-                    tempInstance.injectStyles();
-                    tempInstance.showToast('start');
+                    // Note: Toast will show when user navigates to a page with TrailHunter
+                    // We don't inject styles here to avoid affecting Gate page
                 }
             } catch (e) {
-                console.error('TrailHunter.startHunt error:', e);
+                console.error('[TrailHunter] startHunt error:', e);
             }
         }
 
@@ -697,6 +712,7 @@
         }
 
         destroy() {
+            console.log('[TrailHunter] Destroying instance');
             if (this.hopInterval) clearInterval(this.hopInterval);
             if (this.sparkleInterval) clearInterval(this.sparkleInterval);
 
@@ -705,6 +721,29 @@
 
             const progress = document.getElementById('huntProgress');
             if (progress) progress.remove();
+
+            const styles = document.getElementById('trail-hunter-styles');
+            if (styles) styles.remove();
+        }
+
+        // Emergency kill switch - clears all hunts and removes Patronus
+        static emergencyStop() {
+            console.log('[TrailHunter] EMERGENCY STOP - clearing all hunts');
+            localStorage.removeItem('trail_hunts');
+
+            const container = document.getElementById('patronusContainer');
+            if (container) container.remove();
+
+            const progress = document.getElementById('huntProgress');
+            if (progress) progress.remove();
+
+            const styles = document.getElementById('trail-hunter-styles');
+            if (styles) styles.remove();
+
+            const toasts = document.querySelectorAll('.hunt-toast');
+            toasts.forEach(t => t.remove());
+
+            console.log('[TrailHunter] All elements removed, localStorage cleared');
         }
     }
 
