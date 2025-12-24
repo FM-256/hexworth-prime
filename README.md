@@ -2,6 +2,8 @@
 
 **An Interactive Learning Platform for IT & Cybersecurity**
 
+🌐 **Live Demo:** [https://hexworth-prime.web.app](https://hexworth-prime.web.app)
+
 Hexworth Prime transforms technical education into an immersive journey through a magical academy. Get sorted into a house, complete learning modules, earn achievements, and watch your progress come alive through the Digital Life ecosystem.
 
 ---
