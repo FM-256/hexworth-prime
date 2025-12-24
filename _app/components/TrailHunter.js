@@ -95,6 +95,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            background: transparent !important;
         }
 
         .patronus {
@@ -649,30 +650,35 @@
 
         // Static method to start a hunt (called from Gate)
         static startHunt(trailId) {
-            const trail = TRAILS[trailId];
-            if (!trail) return;
+            try {
+                const trail = TRAILS[trailId];
+                if (!trail) return;
 
-            const hunts = JSON.parse(localStorage.getItem('trail_hunts') || '{}');
+                const hunts = JSON.parse(localStorage.getItem('trail_hunts') || '{}');
 
-            if (!hunts[trailId]) {
-                hunts[trailId] = {
-                    active: true,
-                    started: Date.now(),
-                    found: [],
-                    completed: false
-                };
-                localStorage.setItem('trail_hunts', JSON.stringify(hunts));
+                if (!hunts[trailId]) {
+                    hunts[trailId] = {
+                        active: true,
+                        started: Date.now(),
+                        found: [],
+                        completed: false
+                    };
+                    localStorage.setItem('trail_hunts', JSON.stringify(hunts));
 
-                // Show start toast
-                const instance = new TrailHunter();
-                instance.activeTrail = trailId;
-                instance.injectStyles();
+                    // Set CSS variables on body for toast styling
+                    if (document.body) {
+                        document.body.style.setProperty('--patronus-color', trail.color);
+                        document.body.style.setProperty('--patronus-glow', trail.glowColor);
+                    }
 
-                // Set CSS variables on body temporarily for toast
-                document.body.style.setProperty('--patronus-color', trail.color);
-                document.body.style.setProperty('--patronus-glow', trail.glowColor);
-
-                instance.showToast('start');
+                    // Show start toast (create minimal instance just for toast)
+                    const tempInstance = Object.create(TrailHunter.prototype);
+                    tempInstance.activeTrail = trailId;
+                    tempInstance.injectStyles();
+                    tempInstance.showToast('start');
+                }
+            } catch (e) {
+                console.error('TrailHunter.startHunt error:', e);
             }
         }
 
@@ -707,11 +713,22 @@
     // Make TrailHunter available globally for Gate integration
     window.TrailHunter = TrailHunter;
 
+    // Safe initialization with error handling
+    function safeInit() {
+        try {
+            // Only create if body exists
+            if (!document.body) return;
+            new TrailHunter();
+        } catch (e) {
+            console.error('TrailHunter initialization error:', e);
+        }
+    }
+
     // Auto-initialize on page load
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => new TrailHunter());
+        document.addEventListener('DOMContentLoaded', safeInit);
     } else {
-        new TrailHunter();
+        safeInit();
     }
 
 })();
