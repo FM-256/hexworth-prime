@@ -34,6 +34,19 @@
                 'reference/cpu-architecture.html',
                 'applets/linux/linux-permissions-calculator.html'
             ],
+            // Keywords to match module cards by title/content
+            keywords: [
+                'binary/decimal', 'binary decimal', 'binary converter',
+                'subnet calculator', 'subnetting calculator',
+                'dns header',
+                'osi model',
+                'encryption task', 'hashing steganography',
+                'encryption basics',
+                'packet analyzer',
+                'wireshark',
+                'cpu architecture', '32-bit vs 64-bit',
+                'linux permissions', 'permissions calculator'
+            ],
             achievements: {
                 started: { id: 'rabbit_hunter', name: 'Rabbit Hunter', desc: 'Began the White Rabbit trail' },
                 found3: { id: 'rabbit_spotter', name: 'Rabbit Spotter', desc: 'Found 3 rabbit trail modules' },
@@ -596,59 +609,98 @@
         }
 
         markTrailModules() {
+            // Delay to allow dynamic content to render
+            setTimeout(() => this._doMarkTrailModules(), 500);
+        }
+
+        _doMarkTrailModules() {
             const trail = TRAILS[this.activeTrail];
-            if (!trail) return;
+            if (!trail || !trail.keywords) return;
 
             const huntData = this.getHuntData()[this.activeTrail] || {};
             const foundModules = huntData.found || [];
 
-            // Find all links on the page
-            const links = document.querySelectorAll('a[href], [onclick]');
             let markedCount = 0;
 
-            links.forEach(link => {
-                const href = link.getAttribute('href') || '';
-                const onclick = link.getAttribute('onclick') || '';
+            // Method 1: Find module cards by their text content
+            const cards = document.querySelectorAll('.module-card, .card, [class*="module"], [class*="card"]');
 
-                // Check if this link points to a trail module
-                const matchedModule = trail.modules.find(mod =>
-                    href.includes(mod) || onclick.includes(mod.replace('.html', ''))
+            cards.forEach(card => {
+                // Skip if already marked
+                if (card.querySelector('.trail-marker')) return;
+
+                const cardText = card.textContent.toLowerCase();
+
+                // Check if card text matches any trail keyword
+                const matched = trail.keywords.some(keyword =>
+                    cardText.includes(keyword.toLowerCase())
                 );
 
+                if (matched) {
+                    this._addMarkerToCard(card, trail, foundModules);
+                    markedCount++;
+                }
+            });
+
+            // Method 2: Also check links with hrefs
+            const links = document.querySelectorAll('a[href]');
+            links.forEach(link => {
+                const href = link.getAttribute('href') || '';
+
+                const matchedModule = trail.modules.find(mod => href.includes(mod));
+
                 if (matchedModule) {
-                    // Find the card container (parent with position relative or the link itself)
-                    let card = link.closest('.module-card, .card, .category-card, [class*="card"]');
+                    let card = link.closest('.module-card, .card, [class*="card"]');
                     if (!card) card = link;
 
-                    // Make sure card has position relative for absolute positioning
-                    const computedStyle = window.getComputedStyle(card);
-                    if (computedStyle.position === 'static') {
-                        card.style.position = 'relative';
+                    if (!card.querySelector('.trail-marker')) {
+                        this._addMarkerToCard(card, trail, foundModules);
+                        markedCount++;
                     }
-
-                    // Check if already marked
-                    if (card.querySelector('.trail-marker')) return;
-
-                    // Create marker
-                    const marker = document.createElement('span');
-                    marker.className = 'trail-marker';
-                    marker.textContent = trail.icon;
-                    marker.title = `${trail.name} Trail Module`;
-
-                    // Mark as found if already discovered
-                    if (foundModules.some(f => f.includes(matchedModule))) {
-                        marker.classList.add('found');
-                        marker.title += ' (Discovered!)';
-                    }
-
-                    card.appendChild(marker);
-                    markedCount++;
                 }
             });
 
             if (markedCount > 0) {
                 console.log(`[TrailHunter] Marked ${markedCount} trail modules on this page`);
             }
+        }
+
+        _addMarkerToCard(card, trail, foundModules) {
+            // Make sure card has position relative for absolute positioning
+            const computedStyle = window.getComputedStyle(card);
+            if (computedStyle.position === 'static') {
+                card.style.position = 'relative';
+            }
+
+            // Create marker
+            const marker = document.createElement('span');
+            marker.className = 'trail-marker';
+            marker.textContent = trail.icon;
+            marker.title = `${trail.name} Trail Module`;
+
+            // Check if this module was already found (match by keywords in card)
+            const cardText = card.textContent.toLowerCase();
+            const isFound = foundModules.some(foundPath => {
+                // Check if any trail module path matches and this card contains related keywords
+                return trail.modules.some(mod => {
+                    if (foundPath.includes(mod)) {
+                        // Get keywords for this module
+                        const modKeywords = trail.keywords.filter(kw =>
+                            mod.toLowerCase().includes(kw.split(' ')[0]) ||
+                            kw.toLowerCase().includes(mod.split('/').pop().replace('.html', '').replace(/-/g, ' ').split('_')[0])
+                        );
+                        return modKeywords.some(kw => cardText.includes(kw.toLowerCase()));
+                    }
+                    return false;
+                });
+            });
+
+            if (isFound) {
+                marker.classList.add('found');
+                marker.title += ' (Discovered!)';
+            }
+
+            card.appendChild(marker);
         }
 
         handleModuleFound(modulePath) {
