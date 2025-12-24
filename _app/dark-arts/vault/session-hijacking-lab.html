@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Hijacking Lab - Dark Arts Vault</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a0933 100%);
+            color: #e0e0e0;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(168, 85, 247, 0.1);
+            border-radius: 15px;
+            border: 2px solid #a855f7;
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+        }
+
+        h1 {
+            font-size: 2.8em;
+            color: #a855f7;
+            text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #dc2626;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .section {
+            background: rgba(30, 30, 60, 0.6);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        h2 {
+            color: #a855f7;
+            margin-bottom: 20px;
+            font-size: 2em;
+            border-bottom: 2px solid #dc2626;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #dc2626;
+            margin: 20px 0 15px 0;
+            font-size: 1.4em;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .concept-card {
+            background: rgba(168, 85, 247, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #a855f7;
+            transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            background: rgba(168, 85, 247, 0.2);
+            transform: translateX(5px);
+        }
+
+        .concept-card h4 {
+            color: #a855f7;
+            margin-bottom: 10px;
+        }
+
+        /* Session Flow Visualizer */
+        .session-flow {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .flow-node {
+            background: linear-gradient(135deg, #1e1e3c 0%, #2a2a5a 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #a855f7;
+            text-align: center;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .flow-arrow {
+            color: #dc2626;
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .packet-animation {
+            width: 15px;
+            height: 15px;
+            background: #a855f7;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            animation: packetMove 3s infinite;
+            box-shadow: 0 0 10px #a855f7;
+        }
+
+        @keyframes packetMove {
+            0%, 100% { left: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            50% { left: 50%; }
+            90% { opacity: 1; }
+            100% { left: 90%; opacity: 0; }
+        }
+
+        /* Cookie Inspector */
+        .cookie-inspector {
+            background: #1a1a2e;
+            border: 2px solid #a855f7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .cookie-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .cookie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .cookie-table th {
+            background: rgba(168, 85, 247, 0.2);
+            padding: 12px;
+            text-align: left;
+            color: #a855f7;
+            border-bottom: 2px solid #a855f7;
+        }
+
+        .cookie-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .cookie-table tr:hover {
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .vulnerability-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .vuln-high {
+            background: #dc2626;
+            color: white;
+        }
+
+        .vuln-medium {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .vuln-low {
+            background: #10b981;
+            color: white;
+        }
+
+        /* TCP Sequence Predictor */
+        .sequence-predictor {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .sequence-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .sequence-box {
+            background: linear-gradient(135deg, #1e1e3c 0%, #2a2a5a 100%);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #a855f7;
+            text-align: center;
+        }
+
+        .sequence-number {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5em;
+            color: #a855f7;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .predict-btn {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .predict-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
+        }
+
+        /* MitM Attack Visualizer */
+        .mitm-visualizer {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .mitm-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .endpoint {
+            background: linear-gradient(135deg, #1e1e3c 0%, #2a2a5a 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #a855f7;
+            text-align: center;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .attacker-node {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #ef4444;
+            text-align: center;
+            min-width: 150px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(220, 38, 38, 0.8); }
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #a855f7 0%, #dc2626 50%, #a855f7 100%);
+            top: 50%;
+            animation: lineFlow 2s infinite;
+        }
+
+        @keyframes lineFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .mitm-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        /* Attack Scenario Walkthrough */
+        .scenario-container {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .scenario-step {
+            background: rgba(168, 85, 247, 0.1);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #a855f7;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-step.active {
+            opacity: 1;
+            border-left-color: #dc2626;
+            background: rgba(220, 38, 38, 0.1);
+        }
+
+        .scenario-step.completed {
+            opacity: 1;
+            border-left-color: #10b981;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            background: #a855f7;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .scenario-step.active .step-number {
+            background: #dc2626;
+        }
+
+        .scenario-step.completed .step-number {
+            background: #10b981;
+        }
+
+        .code-block {
+            background: #000;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            color: #10b981;
+            margin: 10px 0;
+            overflow-x: auto;
+            border: 1px solid #a855f7;
+        }
+
+        /* Defense Checklist */
+        .defense-checklist {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: start;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(168, 85, 247, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .checklist-item:hover {
+            background: rgba(168, 85, 247, 0.2);
+        }
+
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #a855f7;
+            border-radius: 4px;
+            margin-right: 15px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .checkbox.checked {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .checkbox.checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Session Token Anatomy */
+        .token-anatomy {
+            background: #000;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #a855f7;
+        }
+
+        .token-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            color: #10b981;
+            word-break: break-all;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 6px;
+        }
+
+        .token-segment {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .token-segment:hover {
+            background: rgba(168, 85, 247, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .token-info {
+            background: rgba(168, 85, 247, 0.1);
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .token-info.show {
+            display: block;
+        }
+
+        /* Quiz Section */
+        .quiz-container {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .question {
+            background: rgba(168, 85, 247, 0.1);
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .question h4 {
+            color: #a855f7;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option {
+            background: rgba(30, 30, 60, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .option:hover {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: #a855f7;
+        }
+
+        .option.selected {
+            border-color: #a855f7;
+            background: rgba(168, 85, 247, 0.3);
+        }
+
+        .option.correct {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .option.incorrect {
+            border-color: #dc2626;
+            background: rgba(220, 38, 38, 0.2);
+        }
+
+        .submit-quiz {
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .submit-quiz:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .quiz-result {
+            background: rgba(168, 85, 247, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid #a855f7;
+            text-align: center;
+            display: none;
+        }
+
+        .quiz-result.show {
+            display: block;
+        }
+
+        .score-display {
+            font-size: 2.5em;
+            color: #a855f7;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .xp-gain {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.3em;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 15px;
+            animation: xpPulse 1s ease-in-out;
+        }
+
+        @keyframes xpPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a855f7 0%, #dc2626 100%);
+            border-radius: 15px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: rgba(168, 85, 247, 0.2);
+            border: 2px solid #a855f7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab:hover {
+            background: rgba(168, 85, 247, 0.3);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .highlight {
+            color: #a855f7;
+            font-weight: 600;
+        }
+
+        .warning {
+            background: rgba(220, 38, 38, 0.1);
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+
+        .info {
+            background: rgba(168, 85, 247, 0.1);
+            border-left: 4px solid #a855f7;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.5em; }
+            .flow-container { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); }
+            .mitm-diagram { flex-direction: column; gap: 30px; }
+            .concept-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Session Hijacking Lab</h1>
+            <p class="subtitle">Master the Art of Session Takeover & Defense</p>
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="window.location.href='../index.html'">← Back to Vault</button>
+                <button class="nav-btn" onclick="window.location.href='../../index.html'">🏠 Hexworth Prime</button>
+            </div>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar" style="width: 0%">0%</div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('concepts')">Core Concepts</div>
+            <div class="tab" onclick="switchTab('session-flow')">Session Flow</div>
+            <div class="tab" onclick="switchTab('attacks')">Attack Techniques</div>
+            <div class="tab" onclick="switchTab('defenses')">Countermeasures</div>
+            <div class="tab" onclick="switchTab('quiz')">Knowledge Check</div>
+        </div>
+
+        <!-- Core Concepts Tab -->
+        <div id="concepts" class="tab-content active">
+            <div class="section">
+                <h2>What is Session Hijacking?</h2>
+                <p>Session hijacking (also known as <span class="highlight">session sidejacking</span> or <span class="highlight">cookie hijacking</span>) is an attack where an attacker takes over a valid TCP session between two computers. This allows the attacker to impersonate an authenticated user without needing their credentials.</p>
+
+                <div class="warning">
+                    <strong>⚠ Critical Insight:</strong> Sessions are the trust mechanism that allows you to stay logged in. Once hijacked, the attacker IS you from the application's perspective.
+                </div>
+
+                <h3>Why Session Hijacking Works</h3>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h4>No Session Timeout</h4>
+                        <p>Sessions that never expire or have extremely long timeouts give attackers extended windows of opportunity to exploit stolen tokens.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Predictable Session IDs</h4>
+                        <p>Weak random number generators create predictable session tokens that attackers can guess or brute force.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Insecure Transport</h4>
+                        <p>Session tokens transmitted over HTTP (not HTTPS) can be intercepted via network sniffing or man-in-the-middle attacks.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>No Token Validation</h4>
+                        <p>Applications that don't validate session tokens against IP addresses, user agents, or other client attributes are vulnerable to token theft.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Client-Side Storage</h4>
+                        <p>Session tokens stored in cookies without HttpOnly and Secure flags can be stolen via XSS attacks.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Session Fixation</h4>
+                        <p>Applications that accept externally-provided session IDs allow attackers to force victims into using known tokens.</p>
+                    </div>
+                </div>
+
+                <h3>Attack Types</h3>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h4>Passive Hijacking</h4>
+                        <p><strong>Sniffing & Monitoring</strong> - Attacker silently monitors traffic to capture session tokens without disrupting the connection. Lower risk but limited control.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Active Hijacking</h4>
+                        <p><strong>Full Session Takeover</strong> - Attacker actively takes control of the session, often disconnecting the legitimate user. Higher risk but complete control.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Attack Levels</h2>
+
+                <h3>Network-Level Hijacking</h3>
+                <div class="info">
+                    Network-level attacks target the underlying TCP/IP communication, manipulating packet sequences and network routing.
+                </div>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h4>TCP Session Hijacking</h4>
+                        <p>Intercept and inject packets into an existing TCP connection by predicting sequence numbers.</p>
+                        <span class="vulnerability-badge vuln-high">HIGH IMPACT</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Sequence Prediction</h4>
+                        <p>Analyze TCP sequence number patterns to predict future sequence numbers and inject malicious packets.</p>
+                        <span class="vulnerability-badge vuln-high">TECHNICAL</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>ARP Spoofing MitM</h4>
+                        <p>Poison ARP cache to redirect traffic through attacker's machine, enabling session interception.</p>
+                        <span class="vulnerability-badge vuln-high">LAN ATTACK</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>IP Spoofing</h4>
+                        <p>Forge IP packets with fake source addresses to impersonate legitimate endpoints in the session.</p>
+                        <span class="vulnerability-badge vuln-medium">ROUTING</span>
+                    </div>
+                </div>
+
+                <h3>Application-Level Hijacking</h3>
+                <div class="info">
+                    Application-level attacks target session management mechanisms like cookies and tokens at the HTTP layer.
+                </div>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h4>Session Cookie Theft</h4>
+                        <p>Steal session cookies via XSS, malware, or network sniffing to impersonate authenticated users.</p>
+                        <span class="vulnerability-badge vuln-high">COMMON</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Session Fixation</h4>
+                        <p>Force victim to use attacker's known session ID, then wait for them to authenticate.</p>
+                        <span class="vulnerability-badge vuln-high">EXPLOIT</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>XSS for Session Theft</h4>
+                        <p>Inject JavaScript to steal cookies and send them to attacker-controlled servers.</p>
+                        <span class="vulnerability-badge vuln-high">WEB APP</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Session Token Brute Force</h4>
+                        <p>Systematically guess session tokens when they're short or follow predictable patterns.</p>
+                        <span class="vulnerability-badge vuln-medium">TIME-INTENSIVE</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Session Sidejacking</h4>
+                        <p>Sniff unencrypted wireless traffic to capture session cookies transmitted over HTTP.</p>
+                        <span class="vulnerability-badge vuln-high">WIRELESS</span>
+                    </div>
+                    <div class="concept-card">
+                        <h4>CSRF Relationship</h4>
+                        <p>Cross-Site Request Forgery leverages existing sessions to perform unauthorized actions.</p>
+                        <span class="vulnerability-badge vuln-medium">RELATED</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Flow Tab -->
+        <div id="session-flow" class="tab-content">
+            <div class="section">
+                <h2>Interactive Session Flow Diagram</h2>
+                <p>Understanding how sessions work is crucial to exploiting them. Watch the flow of authentication and session establishment.</p>
+
+                <div class="session-flow">
+                    <h3>Normal Session Establishment</h3>
+                    <div class="flow-container">
+                        <div class="flow-node">
+                            <strong>Client</strong><br>
+                            <small>Web Browser</small>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-node">
+                            <strong>Server</strong><br>
+                            <small>Web Application</small>
+                        </div>
+                    </div>
+                    <div class="packet-animation"></div>
+
+                    <div id="flowSteps"></div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="predict-btn" onclick="startSessionFlow()">▶ Start Animation</button>
+                        <button class="predict-btn" onclick="resetSessionFlow()">↻ Reset</button>
+                    </div>
+                </div>
+
+                <h3>Cookie Inspector Simulator</h3>
+                <div class="cookie-inspector">
+                    <div class="cookie-header">
+                        <h4>Session Cookie Analysis</h4>
+                        <button class="predict-btn" onclick="generateNewCookie()">Generate New Session</button>
+                    </div>
+
+                    <table class="cookie-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Value</th>
+                                <th>Flags</th>
+                                <th>Security</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cookieTableBody">
+                            <tr>
+                                <td>SESSIONID</td>
+                                <td id="cookieValue" style="font-family: 'Courier New', monospace;">abc123def456</td>
+                                <td id="cookieFlags">None</td>
+                                <td><span class="vulnerability-badge vuln-high">VULNERABLE</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info">
+                        <strong>Cookie Security Flags:</strong><br>
+                        <strong>HttpOnly</strong> - Prevents JavaScript access (XSS protection)<br>
+                        <strong>Secure</strong> - Only transmitted over HTTPS<br>
+                        <strong>SameSite</strong> - Prevents CSRF attacks (Strict, Lax, None)
+                    </div>
+                </div>
+
+                <h3>Session Token Anatomy</h3>
+                <div class="token-anatomy">
+                    <h4>Analyze Token Structure</h4>
+                    <div class="token-display" id="tokenDisplay">
+                        <span class="token-segment" data-segment="timestamp">1703347200</span>-<span class="token-segment" data-segment="userid">usr42</span>-<span class="token-segment" data-segment="random">a7f3e9d1</span>-<span class="token-segment" data-segment="checksum">c8b2</span>
+                    </div>
+
+                    <div id="timestampInfo" class="token-info">
+                        <strong>Timestamp Component:</strong> Unix timestamp when session was created. Predictable and reveals session creation time.
+                    </div>
+                    <div id="useridInfo" class="token-info">
+                        <strong>User ID Component:</strong> Sequential user identifier. Highly predictable and reveals user information.
+                    </div>
+                    <div id="randomInfo" class="token-info">
+                        <strong>Random Component:</strong> Short random hex string. Only 32 bits of entropy - easily brute forced!
+                    </div>
+                    <div id="checksumInfo" class="token-info">
+                        <strong>Checksum Component:</strong> Weak checksum for validation. Can be recalculated if algorithm is known.
+                    </div>
+
+                    <div class="warning" style="margin-top: 20px;">
+                        <strong>Vulnerability Analysis:</strong> This token structure is highly predictable! An attacker who knows the timestamp, user ID pattern, and checksum algorithm can brute force the 32-bit random component in seconds.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attacks Tab -->
+        <div id="attacks" class="tab-content">
+            <div class="section">
+                <h2>TCP Sequence Number Predictor</h2>
+                <p>TCP hijacking relies on predicting sequence numbers. Observe patterns in sequence number generation.</p>
+
+                <div class="sequence-predictor">
+                    <h4>Captured Sequence Numbers</h4>
+                    <div class="sequence-display" id="sequenceDisplay">
+                        <div class="sequence-box">
+                            <div>Packet #1</div>
+                            <div class="sequence-number" id="seq1">-</div>
+                        </div>
+                        <div class="sequence-box">
+                            <div>Packet #2</div>
+                            <div class="sequence-number" id="seq2">-</div>
+                        </div>
+                        <div class="sequence-box">
+                            <div>Packet #3</div>
+                            <div class="sequence-number" id="seq3">-</div>
+                        </div>
+                        <div class="sequence-box">
+                            <div>Pattern Δ</div>
+                            <div class="sequence-number" id="seqDelta">-</div>
+                        </div>
+                        <div class="sequence-box">
+                            <div>Predicted</div>
+                            <div class="sequence-number" id="seqPredicted" style="color: #dc2626;">-</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="predict-btn" onclick="captureSequence()">Capture Packets</button>
+                        <button class="predict-btn" onclick="predictNext()">Predict Next</button>
+                        <button class="predict-btn" onclick="resetSequence()">Reset</button>
+                    </div>
+
+                    <div class="info" style="margin-top: 20px;">
+                        <strong>Attack Concept:</strong> By observing multiple packets, attackers can identify patterns in sequence number generation. If the increment is predictable, they can inject malicious packets with valid sequence numbers.
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Man-in-the-Middle Attack Visualizer</h2>
+
+                <div class="mitm-visualizer">
+                    <h4>ARP Spoofing Attack Flow</h4>
+                    <div class="mitm-diagram" id="mitmDiagram">
+                        <div class="endpoint">
+                            <strong>👤 Victim</strong><br>
+                            <small>192.168.1.100</small>
+                        </div>
+
+                        <div class="attacker-node">
+                            <strong>🎭 Attacker</strong><br>
+                            <small id="attackerStatus">Ready</small>
+                        </div>
+
+                        <div class="endpoint">
+                            <strong>🖥 Server</strong><br>
+                            <small>192.168.1.1</small>
+                        </div>
+                    </div>
+
+                    <div id="mitmLog" style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.4); border-radius: 6px; font-family: 'Courier New', monospace; color: #10b981; min-height: 100px; max-height: 200px; overflow-y: auto;"></div>
+
+                    <div class="mitm-controls">
+                        <button class="predict-btn" onclick="startMitM()">Launch Attack</button>
+                        <button class="predict-btn" onclick="stopMitM()">Stop Attack</button>
+                        <button class="predict-btn" onclick="resetMitM()">Reset</button>
+                    </div>
+
+                    <div class="warning" style="margin-top: 20px;">
+                        <strong>Attack Phases:</strong><br>
+                        1. ARP Poisoning - Attacker broadcasts fake ARP responses<br>
+                        2. Traffic Redirection - Victim's traffic flows through attacker<br>
+                        3. Session Interception - Attacker captures session cookies<br>
+                        4. Session Hijacking - Attacker uses stolen cookies to impersonate victim
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Attack Scenario Walkthrough</h2>
+
+                <div class="scenario-container">
+                    <h3>Scenario: Session Fixation Attack</h3>
+
+                    <div class="scenario-step" id="step1">
+                        <span class="step-number">1</span>
+                        <strong>Attacker obtains valid session ID</strong>
+                        <p>Attacker visits the vulnerable website and receives a session ID from the server.</p>
+                        <div class="code-block">
+GET /login HTTP/1.1
+Host: vulnerable-bank.com
+
+Response:
+Set-Cookie: SESSIONID=attacker-known-token-12345</div>
+                    </div>
+
+                    <div class="scenario-step" id="step2">
+                        <span class="step-number">2</span>
+                        <strong>Attacker sends malicious link to victim</strong>
+                        <p>Attacker crafts URL or email containing the known session ID.</p>
+                        <div class="code-block">
+Malicious Link:
+https://vulnerable-bank.com/login?SESSIONID=attacker-known-token-12345
+
+Email: "Click here to verify your account!"</div>
+                    </div>
+
+                    <div class="scenario-step" id="step3">
+                        <span class="step-number">3</span>
+                        <strong>Victim clicks link and authenticates</strong>
+                        <p>Victim follows the link and logs in using their legitimate credentials.</p>
+                        <div class="code-block">
+POST /login HTTP/1.1
+Cookie: SESSIONID=attacker-known-token-12345
+username=victim&password=VictimPassword123</div>
+                    </div>
+
+                    <div class="scenario-step" id="step4">
+                        <span class="step-number">4</span>
+                        <strong>Session becomes authenticated</strong>
+                        <p>Server associates the attacker's session ID with the victim's authenticated account.</p>
+                        <div class="code-block">
+Server State:
+SESSIONID=attacker-known-token-12345 → User: victim, Authenticated: TRUE</div>
+                    </div>
+
+                    <div class="scenario-step" id="step5">
+                        <span class="step-number">5</span>
+                        <strong>Attacker uses the session</strong>
+                        <p>Attacker now uses the known session ID to access the victim's authenticated session.</p>
+                        <div class="code-block">
+GET /account/transfer HTTP/1.1
+Cookie: SESSIONID=attacker-known-token-12345
+
+SUCCESS! Attacker is now the victim.</div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="predict-btn" onclick="startScenario()">▶ Start Walkthrough</button>
+                        <button class="predict-btn" onclick="nextStep()">Next Step →</button>
+                        <button class="predict-btn" onclick="resetScenario()">Reset</button>
+                    </div>
+                </div>
+
+                <div class="info" style="margin-top: 20px;">
+                    <strong>Prevention:</strong> The application should regenerate the session ID upon successful authentication, invalidating the old session ID.
+                </div>
+            </div>
+        </div>
+
+        <!-- Defenses Tab -->
+        <div id="defenses" class="tab-content">
+            <div class="section">
+                <h2>Session Hijacking Countermeasures</h2>
+
+                <div class="defense-checklist">
+                    <h3>Implementation Checklist</h3>
+                    <p>Click each item to learn about the defensive measure:</p>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense1')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Use HTTPS/TLS for All Traffic</strong>
+                            <div id="defense1" class="token-info">
+                                Encrypt all communications to prevent session token interception. Use HSTS (HTTP Strict Transport Security) to force HTTPS. Never transmit session cookies over HTTP.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense2')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Implement Secure Cookie Flags</strong>
+                            <div id="defense2" class="token-info">
+                                Set HttpOnly (prevent JavaScript access), Secure (HTTPS only), and SameSite (CSRF protection) flags on all session cookies.
+                                <div class="code-block" style="margin-top: 10px;">Set-Cookie: SESSIONID=xyz; HttpOnly; Secure; SameSite=Strict</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense3')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Generate Strong Random Session IDs</strong>
+                            <div id="defense3" class="token-info">
+                                Use cryptographically secure random number generators (CSRNG) to create unpredictable session tokens with at least 128 bits of entropy. Avoid sequential or predictable patterns.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense4')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Regenerate Session ID on Authentication</strong>
+                            <div id="defense4" class="token-info">
+                                Create a new session ID after successful login to prevent session fixation attacks. Invalidate the old session ID completely.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense5')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Implement Session Timeouts</strong>
+                            <div id="defense5" class="token-info">
+                                Set absolute timeout (e.g., 2 hours max) and idle timeout (e.g., 15 minutes of inactivity). Force re-authentication after timeout.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense6')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Bind Sessions to IP Address</strong>
+                            <div id="defense6" class="token-info">
+                                Validate that requests come from the same IP address that initiated the session. Be aware this can cause issues with mobile users or users behind proxies.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense7')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Validate User Agent and Headers</strong>
+                            <div id="defense7" class="token-info">
+                                Check that User-Agent and other browser fingerprinting data remain consistent throughout the session. Suspicious changes should trigger re-authentication.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense8')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Implement Token Rotation</strong>
+                            <div id="defense8" class="token-info">
+                                Periodically regenerate session tokens during active sessions. Each token should be valid for a limited time window.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense9')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Enable Logout Functionality</strong>
+                            <div id="defense9" class="token-info">
+                                Provide clear logout mechanism that completely destroys the session server-side. Also clear cookies client-side.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense10')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Monitor for Suspicious Activity</strong>
+                            <div id="defense10" class="token-info">
+                                Log and alert on simultaneous logins from different locations, rapid IP changes, unusual access patterns, or concurrent sessions.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense11')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Deploy WAF and IDS/IPS</strong>
+                            <div id="defense11" class="token-info">
+                                Use Web Application Firewall to detect and block session hijacking attempts. Intrusion Detection/Prevention Systems can identify ARP spoofing and TCP hijacking.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item" onclick="toggleCheck(this, 'defense12')">
+                        <div class="checkbox"></div>
+                        <div>
+                            <strong>Educate Users</strong>
+                            <div id="defense12" class="token-info">
+                                Train users to recognize phishing, avoid public WiFi for sensitive transactions, verify HTTPS, and always log out from shared computers.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning" style="margin-top: 30px;">
+                    <strong>Defense in Depth:</strong> No single countermeasure is perfect. Implement multiple layers of defense to create a robust security posture against session hijacking attacks.
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Secure Session Implementation Example</h2>
+                <div class="code-block">
+// Server-side session configuration (Node.js/Express example)
+const session = require('express-session');
+
+app.use(session({
+    secret: process.env.SESSION_SECRET, // Strong random secret
+    name: 'sessionId', // Don't use default 'connect.sid'
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: true,        // HTTPS only
+        httpOnly: true,      // No JavaScript access
+        sameSite: 'strict',  // CSRF protection
+        maxAge: 1800000      // 30 minute timeout
+    },
+    genid: function(req) {
+        return crypto.randomBytes(32).toString('hex'); // Cryptographically secure
+    }
+}));
+
+// Regenerate session on authentication
+app.post('/login', (req, res) => {
+    // Validate credentials...
+    req.session.regenerate((err) => {
+        req.session.userId = user.id;
+        req.session.ipAddress = req.ip;
+        req.session.userAgent = req.get('user-agent');
+        res.json({ success: true });
+    });
+});
+
+// Middleware to validate session
+app.use((req, res, next) => {
+    if (req.session.userId) {
+        // Validate IP hasn't changed
+        if (req.session.ipAddress !== req.ip) {
+            req.session.destroy();
+            return res.status(401).json({ error: 'Session invalid' });
+        }
+        // Validate user agent
+        if (req.session.userAgent !== req.get('user-agent')) {
+            req.session.destroy();
+            return res.status(401).json({ error: 'Session invalid' });
+        }
+    }
+    next();
+});</div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div id="quiz" class="tab-content">
+            <div class="section">
+                <h2>Knowledge Check</h2>
+                <p>Test your understanding of session hijacking concepts and countermeasures.</p>
+
+                <div class="quiz-container" id="quizContainer">
+                    <!-- Questions will be inserted here -->
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="submit-quiz" onclick="submitQuiz()">Submit Quiz</button>
+                </div>
+
+                <div class="quiz-result" id="quizResult">
+                    <h3>Quiz Complete!</h3>
+                    <div class="score-display" id="scoreDisplay">0/10</div>
+                    <p id="scoreMessage"></p>
+                    <div class="xp-gain" id="xpGain" style="display: none;">+65 XP Earned!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Achievement and Progress Management
+        const MODULE_ID = 'session-hijacking-lab';
+        const MODULE_XP = 65;
+
+        // Initialize progress tracking
+        let completedSections = {
+            concepts: false,
+            sessionFlow: false,
+            attacks: false,
+            defenses: false,
+            quiz: false
+        };
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Mark section as viewed
+            if (tabName === 'session-flow') completedSections.sessionFlow = true;
+            if (tabName === 'attacks') completedSections.attacks = true;
+            if (tabName === 'defenses') completedSections.defenses = true;
+
+            updateProgress();
+        }
+
+        // Progress tracking
+        function updateProgress() {
+            const completed = Object.values(completedSections).filter(v => v).length;
+            const total = Object.keys(completedSections).length;
+            const percentage = Math.round((completed / total) * 100);
+
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+        }
+
+        // Session Flow Animation
+        let flowInterval;
+        let flowStep = 0;
+        const flowSteps = [
+            { step: 1, text: '1. Client sends login credentials', code: 'POST /login\nusername=alice&password=secret123' },
+            { step: 2, text: '2. Server validates credentials', code: 'Authentication: SUCCESS' },
+            { step: 3, text: '3. Server generates session token', code: 'SessionID: a7f3e9d1c8b2...' },
+            { step: 4, text: '4. Server sends Set-Cookie header', code: 'Set-Cookie: SESSIONID=a7f3e9d1c8b2' },
+            { step: 5, text: '5. Client stores cookie', code: 'Cookie stored in browser' },
+            { step: 6, text: '6. Client includes cookie in requests', code: 'Cookie: SESSIONID=a7f3e9d1c8b2' },
+            { step: 7, text: '7. Server validates session', code: 'Session valid: User authenticated' },
+            { step: 8, text: '8. Server responds with protected data', code: 'Response: Account Balance: $1,000' }
+        ];
+
+        function startSessionFlow() {
+            resetSessionFlow();
+            flowStep = 0;
+            flowInterval = setInterval(() => {
+                if (flowStep < flowSteps.length) {
+                    displayFlowStep(flowSteps[flowStep]);
+                    flowStep++;
+                } else {
+                    clearInterval(flowInterval);
+                    completedSections.sessionFlow = true;
+                    updateProgress();
+                }
+            }, 2000);
+        }
+
+        function displayFlowStep(step) {
+            const container = document.getElementById('flowSteps');
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'scenario-step active';
+            stepDiv.innerHTML = `
+                <span class="step-number">${step.step}</span>
+                <strong>${step.text}</strong>
+                <div class="code-block">${step.code}</div>
+            `;
+            container.appendChild(stepDiv);
+
+            setTimeout(() => {
+                stepDiv.classList.remove('active');
+                stepDiv.classList.add('completed');
+            }, 1800);
+        }
+
+        function resetSessionFlow() {
+            clearInterval(flowInterval);
+            document.getElementById('flowSteps').innerHTML = '';
+            flowStep = 0;
+        }
+
+        // Cookie Generator
+        function generateNewCookie() {
+            const tokens = [
+                { value: 'abc123def456', flags: 'None', vuln: 'VULNERABLE', level: 'vuln-high' },
+                { value: crypto.randomUUID(), flags: 'HttpOnly', vuln: 'MEDIUM', level: 'vuln-medium' },
+                { value: crypto.randomUUID(), flags: 'HttpOnly; Secure', vuln: 'LOW', level: 'vuln-low' },
+                { value: crypto.randomUUID(), flags: 'HttpOnly; Secure; SameSite=Strict', vuln: 'SECURE', level: 'vuln-low' }
+            ];
+
+            const selected = tokens[Math.floor(Math.random() * tokens.length)];
+            document.getElementById('cookieValue').textContent = selected.value;
+            document.getElementById('cookieFlags').textContent = selected.flags;
+
+            const badge = document.querySelector('.cookie-table .vulnerability-badge');
+            badge.className = 'vulnerability-badge ' + selected.level;
+            badge.textContent = selected.vuln;
+        }
+
+        // Token Anatomy Interaction
+        document.querySelectorAll('.token-segment').forEach(segment => {
+            segment.addEventListener('click', function() {
+                // Hide all info boxes
+                document.querySelectorAll('.token-info').forEach(info => {
+                    info.classList.remove('show');
+                });
+
+                // Show selected info
+                const segmentType = this.getAttribute('data-segment');
+                const infoBox = document.getElementById(segmentType + 'Info');
+                if (infoBox) {
+                    infoBox.classList.add('show');
+                }
+            });
+        });
+
+        // TCP Sequence Number Predictor
+        let sequences = [];
+
+        function captureSequence() {
+            sequences = [];
+            const baseSeq = Math.floor(Math.random() * 1000000);
+            const increment = 1460; // Typical TCP MSS
+
+            for (let i = 0; i < 3; i++) {
+                sequences.push(baseSeq + (increment * i));
+            }
+
+            document.getElementById('seq1').textContent = sequences[0];
+            document.getElementById('seq2').textContent = sequences[1];
+            document.getElementById('seq3').textContent = sequences[2];
+
+            const delta = sequences[1] - sequences[0];
+            document.getElementById('seqDelta').textContent = '+' + delta;
+            document.getElementById('seqPredicted').textContent = '?';
+        }
+
+        function predictNext() {
+            if (sequences.length < 2) {
+                alert('Capture packets first!');
+                return;
+            }
+
+            const delta = sequences[1] - sequences[0];
+            const predicted = sequences[2] + delta;
+            document.getElementById('seqPredicted').textContent = predicted;
+
+            completedSections.attacks = true;
+            updateProgress();
+        }
+
+        function resetSequence() {
+            sequences = [];
+            document.getElementById('seq1').textContent = '-';
+            document.getElementById('seq2').textContent = '-';
+            document.getElementById('seq3').textContent = '-';
+            document.getElementById('seqDelta').textContent = '-';
+            document.getElementById('seqPredicted').textContent = '-';
+        }
+
+        // MitM Attack Simulator
+        let mitmInterval;
+        let mitmActive = false;
+
+        function startMitM() {
+            if (mitmActive) return;
+            mitmActive = true;
+
+            const log = document.getElementById('mitmLog');
+            const status = document.getElementById('attackerStatus');
+
+            log.innerHTML = '';
+            addMitmLog('> Initializing ARP spoofing attack...');
+
+            setTimeout(() => addMitmLog('> Sending fake ARP to victim: 192.168.1.1 is at [attacker-mac]'), 1000);
+            setTimeout(() => addMitmLog('> Sending fake ARP to gateway: 192.168.1.100 is at [attacker-mac]'), 2000);
+            setTimeout(() => {
+                addMitmLog('> ARP cache poisoned! Traffic redirected.');
+                status.textContent = 'Intercepting';
+            }, 3000);
+            setTimeout(() => addMitmLog('> Captured packet: GET /account HTTP/1.1'), 4000);
+            setTimeout(() => addMitmLog('> Cookie extracted: SESSIONID=victim-session-token'), 5000);
+            setTimeout(() => {
+                addMitmLog('> SESSION HIJACKED! Attacker can now impersonate victim.');
+                status.textContent = 'Session Hijacked';
+            }, 6000);
+        }
+
+        function addMitmLog(message) {
+            const log = document.getElementById('mitmLog');
+            log.innerHTML += message + '\n';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function stopMitM() {
+            mitmActive = false;
+            document.getElementById('attackerStatus').textContent = 'Stopped';
+            addMitmLog('> Attack stopped. ARP tables recovering...');
+        }
+
+        function resetMitM() {
+            mitmActive = false;
+            document.getElementById('attackerStatus').textContent = 'Ready';
+            document.getElementById('mitmLog').innerHTML = '';
+        }
+
+        // Attack Scenario Walkthrough
+        let scenarioStep = 0;
+
+        function startScenario() {
+            resetScenario();
+            nextStep();
+        }
+
+        function nextStep() {
+            if (scenarioStep < 5) {
+                scenarioStep++;
+                const step = document.getElementById('step' + scenarioStep);
+                step.classList.add('active');
+
+                if (scenarioStep > 1) {
+                    document.getElementById('step' + (scenarioStep - 1)).classList.remove('active');
+                    document.getElementById('step' + (scenarioStep - 1)).classList.add('completed');
+                }
+            }
+        }
+
+        function resetScenario() {
+            scenarioStep = 0;
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById('step' + i);
+                step.classList.remove('active', 'completed');
+            }
+        }
+
+        // Defense Checklist
+        function toggleCheck(element, infoId) {
+            const checkbox = element.querySelector('.checkbox');
+            const info = document.getElementById(infoId);
+
+            checkbox.classList.toggle('checked');
+            info.classList.toggle('show');
+        }
+
+        // Quiz Data
+        const quizQuestions = [
+            {
+                question: 'What is the primary goal of session hijacking?',
+                options: [
+                    'To steal user credentials',
+                    'To take over an authenticated session without credentials',
+                    'To perform denial of service',
+                    'To inject SQL commands'
+                ],
+                correct: 1
+            },
+            {
+                question: 'Which cookie flag prevents JavaScript from accessing the session cookie?',
+                options: ['Secure', 'HttpOnly', 'SameSite', 'Domain'],
+                correct: 1
+            },
+            {
+                question: 'What is the difference between passive and active hijacking?',
+                options: [
+                    'Passive hijacking is legal, active is not',
+                    'Passive monitors traffic, active takes control of the session',
+                    'Passive is slower than active',
+                    'There is no difference'
+                ],
+                correct: 1
+            },
+            {
+                question: 'In session fixation attacks, what does the attacker do?',
+                options: [
+                    'Brute force the session ID',
+                    'Sniff network traffic',
+                    'Force the victim to use a known session ID',
+                    'Perform SQL injection'
+                ],
+                correct: 2
+            },
+            {
+                question: 'What network attack can be used to intercept session tokens on a LAN?',
+                options: ['DNS spoofing', 'ARP poisoning', 'IP fragmentation', 'ICMP flooding'],
+                correct: 1
+            },
+            {
+                question: 'What is the minimum recommended entropy for session tokens?',
+                options: ['32 bits', '64 bits', '128 bits', '256 bits'],
+                correct: 2
+            },
+            {
+                question: 'When should session IDs be regenerated?',
+                options: [
+                    'Never',
+                    'Every hour',
+                    'After successful authentication',
+                    'Only when user logs out'
+                ],
+                correct: 2
+            },
+            {
+                question: 'What does TCP sequence number prediction enable?',
+                options: [
+                    'Faster downloads',
+                    'Packet injection into existing connections',
+                    'Better encryption',
+                    'DDoS attacks'
+                ],
+                correct: 1
+            },
+            {
+                question: 'Which is NOT an effective countermeasure against session hijacking?',
+                options: [
+                    'Using HTTPS for all traffic',
+                    'Making session IDs longer',
+                    'Implementing session timeouts',
+                    'Binding sessions to IP addresses'
+                ],
+                correct: 1
+            },
+            {
+                question: 'What relationship does CSRF have with session hijacking?',
+                options: [
+                    'CSRF is a type of session hijacking',
+                    'CSRF leverages existing sessions to perform unauthorized actions',
+                    'CSRF prevents session hijacking',
+                    'They are unrelated'
+                ],
+                correct: 1
+            }
+        ];
+
+        // Generate Quiz
+        function generateQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = '';
+
+            quizQuestions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `
+                    <h4>Question ${index + 1}: ${q.question}</h4>
+                    <div class="options" id="options${index}">
+                        ${q.options.map((option, optIndex) => `
+                            <div class="option" onclick="selectOption(${index}, ${optIndex})">
+                                ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(questionDiv);
+            });
+        }
+
+        // Select Quiz Option
+        let selectedAnswers = {};
+
+        function selectOption(questionIndex, optionIndex) {
+            const optionsContainer = document.getElementById('options' + questionIndex);
+            const options = optionsContainer.querySelectorAll('.option');
+
+            options.forEach(opt => opt.classList.remove('selected'));
+            options[optionIndex].classList.add('selected');
+
+            selectedAnswers[questionIndex] = optionIndex;
+        }
+
+        // Submit Quiz
+        function submitQuiz() {
+            if (Object.keys(selectedAnswers).length < quizQuestions.length) {
+                alert('Please answer all questions before submitting!');
+                return;
+            }
+
+            let correct = 0;
+            quizQuestions.forEach((q, index) => {
+                const optionsContainer = document.getElementById('options' + index);
+                const options = optionsContainer.querySelectorAll('.option');
+
+                options.forEach((opt, optIndex) => {
+                    opt.classList.remove('selected');
+                    if (optIndex === q.correct) {
+                        opt.classList.add('correct');
+                    } else if (selectedAnswers[index] === optIndex) {
+                        opt.classList.add('incorrect');
+                    }
+                });
+
+                if (selectedAnswers[index] === q.correct) {
+                    correct++;
+                }
+            });
+
+            const percentage = (correct / quizQuestions.length) * 100;
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const scoreMessage = document.getElementById('scoreMessage');
+            const quizResult = document.getElementById('quizResult');
+            const xpGain = document.getElementById('xpGain');
+
+            scoreDisplay.textContent = `${correct}/${quizQuestions.length}`;
+
+            if (percentage >= 70) {
+                scoreMessage.textContent = `Excellent work! You scored ${percentage.toFixed(0)}%`;
+                scoreMessage.style.color = '#10b981';
+                xpGain.style.display = 'inline-block';
+
+                completedSections.quiz = true;
+                updateProgress();
+                saveModuleProgress();
+            } else {
+                scoreMessage.textContent = `You scored ${percentage.toFixed(0)}%. Review the material and try again!`;
+                scoreMessage.style.color = '#dc2626';
+                xpGain.style.display = 'none';
+            }
+
+            quizResult.classList.add('show');
+
+            // Scroll to result
+            quizResult.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Save progress to localStorage
+        function saveModuleProgress() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
+
+                if (!progress.modules) {
+                    progress.modules = {};
+                }
+
+                progress.modules[MODULE_ID] = {
+                    completed: true,
+                    xp: MODULE_XP,
+                    completedAt: new Date().toISOString()
+                };
+
+                // Update total XP
+                if (!progress.totalXP) {
+                    progress.totalXP = 0;
+                }
+                progress.totalXP += MODULE_XP;
+
+                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
+
+                console.log('Module progress saved:', progress);
+            } catch (e) {
+                console.error('Error saving progress:', e);
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', function() {
+            generateQuiz();
+            completedSections.concepts = true;
+            updateProgress();
+
+            // Auto-start first animation
+            setTimeout(() => {
+                if (document.getElementById('concepts').classList.contains('active')) {
+                    // Initial load complete
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dark Arts Division • CTF Leaderboard</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#12182a; --muted:#8ea0c0; --text:#eaf1ff;
+      --accent:#a855f7; --accent2:#dc2626;
+      --gold:#fbbf24; --silver:#cbd5e1; --bronze:#b87333; --dark-purple:#7c3aed;
+      --green:#34d399; --red:#ef4444;
+      /* Compact sizes baked-in */
+      --podium-avatar: 120px;
+      --team-mini: 56px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(168,85,247,.12), transparent 60%),
+                  radial-gradient(1200px 800px at 110% 10%, rgba(220,38,38,.12), transparent 60%),
+                  linear-gradient(180deg, #0b0f19 0%, #0b0f19 100%);
+    }
+    .hidden{display:none !important}
+
+    /* Page Header */
+    .page-header{
+      padding:24px clamp(16px, 4vw, 48px);
+      display:flex; gap:16px; align-items:center; justify-content:space-between;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .page-header a{
+      color:var(--accent); text-decoration:none; font-weight:600; transition:color .2s;
+    }
+    .page-header a:hover{
+      color:#fff;
+    }
+    .brand{display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:.4px;}
+    .brand span{font-size:1.5rem}
+
+    .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .input, .btn{
+      background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:var(--text);
+      padding:10px 12px; border-radius:10px; outline:none; backdrop-filter: blur(6px);
+    }
+    .btn{cursor:pointer; font-weight:600}
+    .btn.primary{background: linear-gradient(135deg, var(--accent), var(--accent2)); border:none; color:#fff}
+    .btn.danger{background: linear-gradient(135deg, #ef4444, #f97316); border:none; color:#fff}
+
+    main{padding:0 clamp(16px, 4vw, 48px) 48px; max-width:1200px; margin:0 auto}
+
+    /* Podium (compact) */
+    .podium{background:linear-gradient(180deg, rgba(168,85,247,.08), rgba(168,85,247,.03)); border:1px solid rgba(168,85,247,.2); border-radius:18px; padding:22px; position:relative; overflow:hidden;}
+    .glow{position:absolute; inset:-20px; background: radial-gradient(600px 200px at 50% 0%, rgba(168,85,247,.18), transparent 60%); pointer-events:none}
+    .stages{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:end; height:320px; padding-top:calc(var(--podium-avatar) * .28); margin-top:8px}
+    .stage{position:relative; border:1px solid rgba(255,255,255,.06); border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding:12px 12px 14px; color:#0b0f19; font-weight:800; transition: transform .25s ease, box-shadow .25s ease}
+    .s2{background:var(--gold); height:82%}
+    .s1{background:var(--silver); height:66%}
+    .s3{background:var(--bronze); height:50%}
+    .stage .place{position:absolute; top:-12px; left:50%; transform:translateX(-50%); padding:6px 10px; border-radius:999px; font-size:12px; font-weight:800; background:#fff; color:#0b0f19}
+    .avatar{position:absolute; top:calc(-1 * var(--podium-avatar) - 12px); width:var(--podium-avatar); height:var(--podium-avatar); border-radius:50%; border:4px solid rgba(255,255,255,.95); background:#1b2540; display:grid; place-items:center; font-weight:800; color:white; overflow:hidden}
+    .avatar img{width:100%; height:100%; object-fit:cover; display:block}
+    .avatar .init{display:grid; place-items:center; width:100%; height:100%; font-size:calc(var(--podium-avatar) * .34); letter-spacing:.6px}
+    .trophy{font-size:48px; margin-bottom:6px}
+    .stage .name{max-width:92%; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+    .stage .score{margin-top:8px; font-weight:800; color:#0b0f19; font-size:16px}
+
+    /* Hover glow per medal */
+    @keyframes flashGold {0%,100%{box-shadow:0 0 0 rgba(251,191,36,0)}50%{box-shadow:0 0 36px rgba(251,191,36,.85)}}
+    @keyframes flashSilver {0%,100%{box-shadow:0 0 0 rgba(203,213,225,0)}50%{box-shadow:0 0 36px rgba(203,213,225,.9)}}
+    @keyframes flashBronze {0%,100%{box-shadow:0 0 0 rgba(184,115,51,0)}50%{box-shadow:0 0 36px rgba(184,115,51,.9)}}
+    .s2:hover{transform:scale(1.05); animation:flashGold 1.4s ease-in-out infinite}
+    .s1:hover{transform:scale(1.05); animation:flashSilver 1.4s ease-in-out infinite}
+    .s3:hover{transform:scale(1.05); animation:flashBronze 1.4s ease-in-out infinite}
+
+    /* Table */
+    .table{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.08); border-radius:18px; overflow:hidden; margin-top:20px}
+    table{width:100%; border-collapse:collapse}
+    thead th{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); padding:14px 16px; text-align:left; background:rgba(255,255,255,.04)}
+    tbody td{padding:14px 16px; border-top:1px solid rgba(255,255,255,.06)}
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    .teamCell{display:flex; align-items:center; gap:14px}
+    .teamMini{width:var(--team-mini); height:var(--team-mini); border-radius:50%; border:3px solid rgba(255,255,255,.75); object-fit:cover; background:#1b2540; display:block}
+    .teamMini.fallback{display:grid; place-items:center; background:#1b2540; color:#fff; font-size:calc(var(--team-mini) * .35); font-weight:800}
+
+    /* Admin Panel */
+    #adminPanel{margin-top:20px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:16px}
+    #adminPanel h3{margin-top:0}
+    #scoreForm{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; align-items:end}
+    #scoreForm label{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted)}
+    #scoreForm input, #scoreForm select{padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.06); color:var(--text)}
+    #logoPreview{width:96px; height:96px; border-radius:50%; border:3px solid rgba(255,255,255,.7); object-fit:cover; background:#1b2540}
+
+    /* Bulk import dropzone */
+    #dropZone{grid-column:1/-1; margin-top:6px; padding:18px; border:2px dashed rgba(255,255,255,.28); border-radius:14px; text-align:center; background:rgba(255,255,255,.04); cursor:pointer; transition:background .2s ease, border-color .2s ease, transform .2s ease}
+    #dropZone:hover{background:rgba(255,255,255,.07)}
+    #dropZone.dragover{border-color:var(--accent2); background:rgba(220,38,38,.12); transform:scale(1.01)}
+
+    /* Diagnostics */
+    #diagPanel{margin-top:16px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:16px}
+    #diagPanel h3{margin:0 0 8px 0}
+    .diag-list{display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center}
+    .diag-item{display:contents}
+    .diag-team{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,.03)}
+    .diag-ok{color:#34d399; font-weight:700}
+    .diag-miss{color:#ef4444; font-weight:700}
+
+    /* Confetti */
+    canvas#confetti{position:fixed; inset:0; pointer-events:none; z-index:999}
+
+    /* Footer */
+    footer{margin-top:24px; padding:16px; text-align:center; background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15)); border-top:1px solid rgba(255,255,255,.08)}
+    footer .brand-footer{opacity:0; transform:translateY(6px); animation:footerIn .7s .8s ease forwards; font-size:14px; color:var(--muted)}
+    @keyframes footerIn{to{opacity:1; transform:translateY(0)}}
+
+    /* Global celebration pulses */
+    @keyframes pulsePurple{0%,100%{filter: drop-shadow(0 0 6px rgba(168,85,247,.6))}50%{filter: drop-shadow(0 0 16px rgba(168,85,247,1))}}
+    .celebrate .brand span{animation:pulsePurple 1.2s ease-in-out infinite}
+
+    /* Banner */
+    #liveBanner{position:relative; margin:10px auto -6px; width:max-content; padding:10px 16px; border-radius:999px; background:rgba(168,85,247,.1); border:1px solid rgba(168,85,247,.35); box-shadow:0 0 16px rgba(168,85,247,.35); display:none}
+    #liveBanner.show{display:block; animation:bannerIn .35s ease, bannerOut .35s ease 5s forwards}
+    @keyframes bannerIn{from{opacity:0; transform:translateY(-6px)}to{opacity:1; transform:translateY(0)}}
+    @keyframes bannerOut{to{opacity:0; transform:translateY(-6px)}}
+    #liveBanner .beam{position:absolute; inset:-2px; border-radius:inherit; pointer-events:none; overflow:hidden}
+    #liveBanner .beam::before{content:""; position:absolute; left:-50%; top:-50%; width:200%; height:200%; background: linear-gradient(135deg, rgba(168,85,247,.0) 35%, rgba(168,85,247,.55) 50%, rgba(220,38,38,.0) 65%); filter:blur(10px); animation:beamSweep 4s linear infinite}
+    @keyframes beamSweep{0%{transform:translateX(0)}100%{transform:translateX(50%)}}
+
+    /* Intro fade-in */
+    .intro .brand, .intro .podium{animation:fadeIn .5s ease forwards}
+    @keyframes fadeIn{from{opacity:0; transform:translateY(-4px)}to{opacity:1; transform:none}}
+
+    /* Responsive (extra compact on small) */
+    @media (max-width: 640px){
+      :root{ --podium-avatar: 100px; }
+      .stages{height: 280px;}
+      .trophy{font-size: 40px;}
+    }
+  </style>
+</head>
+<body class="intro">
+  <canvas id="confetti"></canvas>
+
+  <header class="page-header">
+    <a href="gate-1.html">← Back to Dark Arts</a>
+    <div class="brand">
+      <span>☠️</span>
+      <div>Dark Arts Division</div>
+    </div>
+  </header>
+
+  <main>
+    <div id="liveBanner"><div class="beam"></div><strong id="bannerTitle">🏁 Leaderboard Active</strong> — Updated <span id="liveTime">00:00</span></div>
+
+    <section class="podium"><div class="glow"></div><h2>Podium</h2><div class="stages" id="podium"></div></section>
+
+    <section class="table"><table id="board"><thead><tr><th>#</th><th>Team</th><th>Points</th><th>Solves</th></tr></thead><tbody></tbody></table></section>
+
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:center">
+      <button class="btn primary" id="celebrate">Celebrate Top 3</button>
+      <button class="btn" id="openAdmin">Open Admin Popout</button>
+      <button class="btn" id="toggleAdminPanel">Toggle Admin Panel</button>
+    </div>
+
+    <div id="adminPanel" class="hidden">
+      <h3>Admin Score Editor</h3>
+      <form id="scoreForm">
+        <label>Team
+          <select id="teamSelect"></select>
+        </label>
+        <label id="newTeamLabel" class="hidden">New Team
+          <input id="newTeamName" type="text" placeholder="Enter team name">
+        </label>
+        <label>Points <input id="teamPoints" type="number" min="0"></label>
+        <label>Solves <input id="teamSolves" type="number" min="0"></label>
+        <label>Logo URL <input id="teamLogoUrl" type="url" placeholder="https://..."></label>
+        <label>or Upload <input id="teamLogoFile" type="file" accept="image/*"></label>
+        <label>Preview <img id="logoPreview" alt="logo preview"></label>
+        <div id="dropZone">📂 <strong>Bulk import team logos</strong> — drop images here or click to pick files (PNG/JPG/SVG). Filenames become team names.</div>
+        <input id="bulkFiles" type="file" accept="image/*" multiple class="hidden" />
+        <div style="grid-column:1/-1; display:flex; gap:10px; justify-content:flex-start; margin-top:4px">
+          <button class="btn" type="submit">Update/Add</button>
+          <button class="btn danger" id="deleteTeamBtn" type="button" title="Remove selected team">Delete Team</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <div class="brand-footer">Dark Arts Division • Hexworth Prime</div>
+  </footer>
+
+  <!-- Access Control & Achievement Integration -->
+  <script src="../components/AccessGuard.js"></script>
+  <script src="../components/AchievementManager.js"></script>
+  <script>
+    // Optional: Unlock achievement when someone reaches 1000+ points
+    function checkScoreAchievements(score) {
+      if (typeof AchievementManager !== 'undefined' && score >= 1000) {
+        // Could add a custom achievement for this
+        console.log('High score detected:', score);
+      }
+    }
+  </script>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const tbody = $('#board tbody');
+    const podium = $('#podium');
+    const teamSelect=$('#teamSelect');
+    const teamPoints=$('#teamPoints');
+    const teamSolves=$('#teamSolves');
+    const newTeamLabel=$('#newTeamLabel');
+    const newTeamName=$('#newTeamName');
+    const teamLogoUrl=$('#teamLogoUrl');
+    const teamLogoFile=$('#teamLogoFile');
+    const logoPreview=$('#logoPreview');
+    const banner=$('#liveBanner');
+    const bannerTitle=$('#bannerTitle');
+    const liveTime=$('#liveTime');
+    const dropZone=$('#dropZone');
+    const bulkFiles=$('#bulkFiles');
+    const adminPanel=$('#adminPanel');
+    let adminWin = null;
+
+    // Confetti
+    const canvas=document.getElementById('confetti');
+    const ctx=canvas.getContext('2d');
+    let konf=[]; function resize(){canvas.width=innerWidth;canvas.height=innerHeight;} addEventListener('resize',resize); resize();
+    const colors=['#fbbf24','#cbd5e1','#b87333','#a855f7','#dc2626','#34d399','#ef4444'];
+    function burst(){for(let i=0;i<220;i++){const c=colors[Math.floor(Math.random()*colors.length)];konf.push({x:innerWidth/2,y:innerHeight*.2,vx:(Math.random()-0.5)*8,vy:(Math.random()*-8)-2,r:2+Math.random()*3,a:1,color:c});}}
+    (function tick(){ctx.clearRect(0,0,canvas.width,canvas.height);konf.forEach(k=>{k.vy+=0.12;k.x+=k.vx;k.y+=k.vy;k.a-=0.008;ctx.globalAlpha=Math.max(k.a,0);ctx.fillStyle=k.color;ctx.beginPath();ctx.arc(k.x,k.y,k.r,0,Math.PI*2);ctx.fill();});konf=konf.filter(k=>k.a>0&&k.y<innerHeight+10);requestAnimationFrame(tick)})();
+
+    // DEFAULT TEAMS (Dark Arts themed)
+    const DEFAULT_TEAMS = [
+      'Shadow Collective',
+      'Cipher Syndicate',
+      'Binary Ghosts',
+      'Zero Day Elite',
+      'Phantom Protocol',
+      'Exploit Architects',
+      'Malware Mages',
+      'Packet Phantoms',
+      'Shell Shock Squad'
+    ];
+
+    // STATE (using Dark Arts storage key)
+    let state = JSON.parse(localStorage.getItem('hexworth_darkarts_ctf')||'null') || {
+      rows:[
+        {team:'Shadow Collective',points:940,solves:18,logo:''},
+        {team:'Cipher Syndicate',points:880,solves:17,logo:''},
+        {team:'Binary Ghosts',points:830,solves:15,logo:''}
+      ]
+    };
+
+    (function ensureDefaults(){
+      DEFAULT_TEAMS.forEach(name=>{
+        const found = state.rows.find(r=>r.team.toLowerCase()===name.toLowerCase());
+        if(!found){
+          state.rows.push({team:name, points:0, solves:0, logo:''});
+        }
+      });
+    })();
+
+    function persist(){ localStorage.setItem('hexworth_darkarts_ctf', JSON.stringify(state)); }
+
+    // HELPERS
+    function fmt24(d){return new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});}
+    function initials(name){return (name||'').split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();}
+    function esc(s){return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+
+    function cleanTeamName(raw){
+      let n = raw.replace(/\.[^.]+$/,''); n = n.replace(/[_]+/g,' '); try{ n = decodeURIComponent(n); }catch(e){} return n.trim();
+    }
+
+    function upsertTeam(team, logo){
+      const found = state.rows.find(r=>r.team.toLowerCase()===team.toLowerCase());
+      if(found){ found.logo = logo || found.logo; }
+      else { state.rows.push({team, points:0, solves:0, logo:logo||''}); }
+    }
+
+    function removeTeam(team){
+      const idx = state.rows.findIndex(r=>r.team.toLowerCase()===String(team).toLowerCase());
+      if(idx === -1) return false;
+      state.rows.splice(idx,1);
+      persist();
+      return true;
+    }
+
+    function avatarHTML(row){
+      const init = initials(row.team);
+      const has = row.logo && row.logo.trim()!=='';
+      return `<div class="avatar">${has?`<img src="${esc(row.logo)}" alt="${esc(row.team)} logo" onerror="this.style.display='none'; this.parentElement.querySelector('.init').style.display='grid'">`:''}<div class="init" style="${has?'display:none':''}">${esc(init)}</div></div>`;
+    }
+
+    function teamCellHTML(row){
+      const init = initials(row.team);
+      const has = row.logo && row.logo.trim()!=='';
+      const onerr = `this.onerror=null; this.outerHTML='<div class=\\'teamMini fallback\\'>${esc(init)}</div>'`;
+      return `<div class="teamCell">${has?`<img class="teamMini" src="${esc(row.logo)}" alt="${esc(row.team)} logo" onerror="${onerr}">`:`<div class="teamMini fallback">${esc(init)}</div>`}<span>${esc(row.team)}</span></div>`;
+    }
+
+    function sorted(){
+      return [...state.rows].sort((a,b)=> (b.points - a.points) || (b.solves - a.solves));
+    }
+
+    // RENDER
+    function render(){
+      const rows = sorted();
+      tbody.innerHTML = rows.map((r,i)=>`<tr><td>${i+1}</td><td>${teamCellHTML(r)}</td><td>${r.points}</td><td>${r.solves}</td></tr>`).join('');
+      const [first,second,third] = rows;
+      podium.innerHTML = `
+        <div class='stage s1'><div class='place'>2nd</div>${second?avatarHTML(second):''}<div class='trophy'>🥈</div><div class='name'>${esc(second?.team||'TBD')}</div><div class='score'>${second?.points||0} pts</div></div>
+        <div class='stage s2'><div class='place'>1st</div>${first?avatarHTML(first):''}<div class='trophy'>🏆</div><div class='name'>${esc(first?.team||'TBD')}</div><div class='score'>${first?.points||0} pts</div></div>
+        <div class='stage s3'><div class='place'>3rd</div>${third?avatarHTML(third):''}<div class='trophy'>🥉</div><div class='name'>${esc(third?.team||'TBD')}</div><div class='score'>${third?.points||0} pts</div></div>`;
+      teamSelect.innerHTML = '<option value="__new">➕ Add new team</option>' + state.rows.map(r=>`<option value="${esc(r.team)}">${esc(r.team)}</option>`).join('');
+
+      // Check score achievements
+      if(first && first.points) checkScoreAchievements(first.points);
+
+      persist();
+    }
+
+    function showBanner(msg){
+      bannerTitle.textContent = msg || '🏁 Leaderboard Active';
+      liveTime.textContent = fmt24(Date.now());
+      banner.classList.remove('show');
+      void banner.offsetWidth;
+      banner.classList.add('show');
+    }
+
+    function globalCelebrate(){
+      document.body.classList.add('celebrate');
+      burst();
+      showBanner('🎉 Podium updated');
+      setTimeout(()=>document.body.classList.remove('celebrate'), 3500);
+    }
+
+    // ADMIN UI
+    function loadIntoEditor(row){
+      if(!row){ teamPoints.value=''; teamSolves.value=''; teamLogoUrl.value=''; logoPreview.src=''; return; }
+      teamPoints.value = row.points||0; teamSolves.value=row.solves||0;
+      teamLogoUrl.value = row.logo||''; logoPreview.src = row.logo||'';
+    }
+
+    function handleFileUpload(file){
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { logoPreview.src = e.target.result; teamLogoUrl.value = e.target.result; };
+      reader.readAsDataURL(file);
+    }
+
+    function importFiles(files){
+      if(!files || !files.length) return;
+      let done=0; const total=files.length;
+      for(const file of files){
+        const team = cleanTeamName(file.name);
+        const reader=new FileReader();
+        reader.onload = e => { upsertTeam(team, e.target.result); if(++done===total){ render(); showBanner(`📥 Imported ${total} logo${total>1?'s':''}`); } };
+        reader.onerror = ()=> { if(++done===total){ render(); showBanner(`📥 Imported ${total} file${total>1?'s':''} (some errors)`); } };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    dropZone.addEventListener('click', ()=> bulkFiles.click());
+    dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('dragover'); importFiles(e.dataTransfer.files); });
+    bulkFiles.addEventListener('change', e=> importFiles(e.target.files));
+
+    function openAdminPopout(){
+      if(adminWin && !adminWin.closed){ adminWin.focus(); return; }
+      adminWin = window.open('', 'hexworth_ctf_admin', 'width=600,height=820');
+      if(!adminWin){ alert('Popup blocked. Please allow pop-ups for this site.'); return; }
+      adminWin.document.title = 'Dark Arts CTF Admin';
+      const options = '<option value="__new">➕ Add new team</option>' + state.rows.map(r=>`<option value="${esc(r.team)}">${esc(r.team)}</option>`).join('');
+      adminWin.document.body.innerHTML = `
+        <style>
+          :root{--bg:#0b0f19;--card:#141b2f;--muted:#8ea0c0;--text:#eaf1ff;--accent:#a855f7;--accent2:#dc2626}
+          *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto;background:var(--bg);color:var(--text)}
+          header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:#0f1526}
+          h1{font-size:16px;margin:0}
+          main{padding:16px}
+          form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:end}
+          label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+          input,select,button{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:var(--text)}
+          .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;cursor:pointer;border:none}
+          .btn.danger{background:linear-gradient(135deg,#ef4444,#f97316);color:#fff}
+          #pLogoPreview{width:96px;height:96px;border-radius:50%;border:3px solid rgba(255,255,255,.7);object-fit:cover;background:#1b2540}
+          #dropZone{grid-column:1/-1;margin-top:6px;padding:18px;border:2px dashed rgba(255,255,255,.28);border-radius:14px;text-align:center;background:rgba(255,255,255,.04);cursor:pointer}
+          #dropZone.dragover{border-color:var(--accent2);background:rgba(220,38,38,.12)}
+          .actions{grid-column:1/-1;display:flex;gap:10px;margin-top:4px}
+          footer{padding:12px;text-align:center;color:var(--muted);font-size:12px;border-top:1px solid rgba(255,255,255,.08);margin-top:14px}
+        </style>
+        <header><h1>Dark Arts Division • Admin</h1></header>
+        <main>
+          <form id="pForm">
+            <label>Team
+              <select id="pTeamSelect">${options}</select>
+            </label>
+            <label id="pNewTeamLabel" style="display:none">New Team
+              <input id="pNewTeamName" type="text" placeholder="Enter team name">
+            </label>
+            <label>Points <input id="pTeamPoints" type="number" min="0"></label>
+            <label>Solves <input id="pTeamSolves" type="number" min="0"></label>
+            <label>Logo URL <input id="pTeamLogoUrl" type="url" placeholder="https://..."></label>
+            <label>Preview <img id="pLogoPreview" alt="logo preview"></label>
+            <div id="dropZone">📂 <strong>Bulk import team logos</strong> — drop images here or click to pick files</div>
+            <input id="pBulkFiles" type="file" accept="image/*" multiple style="display:none" />
+            <div class="actions">
+              <button class="btn" type="submit">Update/Add</button>
+              <button class="btn danger" id="pDelete" type="button">Delete Team</button>
+            </div>
+          </form>
+        </main>
+        <footer>Popout updates the main leaderboard in real time.</footer>
+      `;
+      const s = adminWin.document.createElement('script');
+      s.textContent = `
+        const qs=s=>document.querySelector(s);
+        const teamSelect=qs('#pTeamSelect');
+        const newTeamLabel=qs('#pNewTeamLabel');
+        const newTeamName=qs('#pNewTeamName');
+        const teamPoints=qs('#pTeamPoints');
+        const teamSolves=qs('#pTeamSolves');
+        const teamLogoUrl=qs('#pTeamLogoUrl');
+        const logoPreview=qs('#pLogoPreview');
+        const dropZone=qs('#dropZone');
+        const bulkFiles=qs('#pBulkFiles');
+        const pDelete=qs('#pDelete');
+        function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","'":"&#39;"}[c]));}
+        function cleanTeamName(raw){let n=raw.replace(/\\.[^.]+$/,''); n=n.replace(/[_]+/g,' '); try{n=decodeURIComponent(n)}catch(e){} return n.trim();}
+        const send = (msg)=>{ if (window.opener) window.opener.postMessage(msg,'*'); };
+
+        window.addEventListener('message', (e)=>{
+          const msg=e.data||{};
+          if(msg.type==='state' && Array.isArray(msg.rows)){
+            teamSelect.innerHTML = '<option value="__new">➕ Add new team</option>' + msg.rows.map(r=>'<option value="'+esc(r.team)+'">'+esc(r.team)+'</option>').join('');
+          } else if(msg.type==='teamData'){
+            const r=msg.row||{}; teamPoints.value=r.points||0; teamSolves.value=r.solves||0; teamLogoUrl.value=r.logo||''; logoPreview.src=r.logo||'';
+          }
+        });
+        setTimeout(()=>send({type:'requestState'}), 50);
+
+        teamSelect.addEventListener('change', ()=>{
+          const val=teamSelect.value;
+          if(val==='__new'){ newTeamLabel.style.display='block'; teamPoints.value=''; teamSolves.value=''; teamLogoUrl.value=''; logoPreview.src=''; newTeamName.focus(); }
+          else { newTeamLabel.style.display='none'; send({type:'requestTeam', team: val}); }
+        });
+        teamLogoUrl.addEventListener('input', ()=>{ logoPreview.src = teamLogoUrl.value || ''; });
+        dropZone.addEventListener('click', ()=> bulkFiles.click());
+        dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('dragover'); const files=[...(e.dataTransfer.files||[])]; files.forEach(f=>{ const reader=new FileReader(); reader.onload=ev=>{ const team=cleanTeamName(f.name); send({type:'updateTeam', row:{team:team, points:0, solves:0, logo:ev.target.result}}); }; reader.readAsDataURL(f); }); });
+        bulkFiles.addEventListener('change', e=>{ const files=[...(e.target.files||[])]; files.forEach(f=>{ const reader=new FileReader(); reader.onload=ev=>{ const team=cleanTeamName(f.name); send({type:'updateTeam', row:{team:team, points:0, solves:0, logo:ev.target.result}}); }; reader.readAsDataURL(f); }); });
+        qs('#pForm').addEventListener('submit', e=>{
+          e.preventDefault();
+          let team=teamSelect.value;
+          if(team==='__new'){ team=(newTeamName.value||'').trim(); if(!team){ alert('Enter new team name'); return; } }
+          const pts=parseInt(teamPoints.value)||0;
+          const sol=parseInt(teamSolves.value)||0;
+          const logo=(teamLogoUrl.value||'').trim();
+          send({type:'updateTeam', row:{team:team, points:pts, solves:sol, logo:logo}});
+        });
+        pDelete.addEventListener('click', ()=>{
+          const team = teamSelect.value;
+          if(team==='__new'){ alert('Select a team to delete'); return; }
+          if(confirm('Remove "'+team+'"? This cannot be undone.')){
+            send({type:'deleteTeam', team});
+          }
+        });
+      `;
+      adminWin.__initialRows = state.rows;
+      adminWin.document.body.appendChild(s);
+      const s2 = adminWin.document.createElement('script');
+      s2.textContent = `
+        (function(){
+          const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","'":"&#39;"}[c]));
+          const sel = document.querySelector('#pTeamSelect');
+          if(sel && Array.isArray(window.__initialRows)){
+            sel.innerHTML = '<option value="__new">➕ Add new team</option>' + window.__initialRows.map(r=>'<option value="'+esc(r.team)+'">'+esc(r.team)+'</option>').join('');
+          }
+        })();`;
+      adminWin.document.body.appendChild(s2);
+      try{ adminWin.postMessage({type:'state', rows: state.rows}, '*'); }catch(_){}
+      setTimeout(()=>{ try{ adminWin.postMessage({type:'state', rows: state.rows}, '*'); }catch(_){} }, 250);
+    }
+
+    window.addEventListener('message', (e)=>{
+      const msg=e.data||{};
+      if(msg.type==='requestState'){
+        e.source && e.source.postMessage({type:'state', rows: state.rows}, '*');
+      } else if(msg.type==='requestTeam'){
+        const row = state.rows.find(r=>r.team===msg.team);
+        e.source && e.source.postMessage({type:'teamData', row}, '*');
+      } else if(msg.type==='updateTeam'){
+        const row = msg.row || {};
+        const team = (row.team||'').trim();
+        const pts = parseInt(row.points)||0;
+        const solves = parseInt(row.solves)||0;
+        const logo = row.logo||'';
+        const oldTop3=new Set(sorted().slice(0,3).map(x=>x.team));
+        let found=state.rows.find(r=>r.team.toLowerCase()===team.toLowerCase());
+        if(found){found.points=pts;found.solves=solves; if(logo) found.logo=logo;}
+        else{state.rows.push({team,points:pts,solves,logo});}
+        render();
+        const newTop3=new Set(sorted().slice(0,3).map(x=>x.team));
+        let changed=false; newTop3.forEach(t=>{if(!oldTop3.has(t)) changed=true;});
+        if(changed) globalCelebrate();
+        showBanner('✍️ Admin update applied');
+        e.source && e.source.postMessage({type:'state', rows: state.rows}, '*');
+      } else if(msg.type==='deleteTeam'){
+        const team = (msg.team||'').trim();
+        if(removeTeam(team)){
+          render();
+          showBanner('🗑️ Removed team');
+          e.source && e.source.postMessage({type:'state', rows: state.rows}, '*');
+        }
+      }
+    });
+
+    addEventListener('DOMContentLoaded', ()=>{
+      render();
+      setTimeout(()=>showBanner(), 200);
+      setTimeout(()=>document.body.classList.remove('intro'), 800);
+    });
+
+    // UI controls
+    $('#celebrate').addEventListener('click', globalCelebrate);
+    $('#openAdmin').addEventListener('click', openAdminPopout);
+    $('#toggleAdminPanel').addEventListener('click', ()=> adminPanel.classList.toggle('hidden'));
+
+    teamSelect.addEventListener('change',()=>{
+      const val=teamSelect.value;
+      if(val==='__new'){
+        newTeamLabel.classList.remove('hidden');
+        loadIntoEditor(null);
+        newTeamName?.focus();
+      }else{
+        newTeamLabel.classList.add('hidden');
+        const sel=state.rows.find(r=>r.team===val);
+        if(sel) loadIntoEditor(sel);
+      }
+    });
+
+    const delBtn = document.getElementById('deleteTeamBtn');
+    if(delBtn){
+      delBtn.addEventListener('click', ()=>{
+        let team = teamSelect.value;
+        if(team==='__new'){ alert('Select a team to delete.'); return; }
+        if(!confirm(`Remove "${team}"? This can't be undone.`)) return;
+        if(removeTeam(team)){
+          render();
+          showBanner('🗑️ Removed team');
+          teamSelect.value='__new';
+          newTeamLabel.classList.remove('hidden');
+          loadIntoEditor(null);
+        }
+      });
+    }
+
+    teamLogoFile.addEventListener('change', e=> handleFileUpload(e.target.files?.[0]));
+    teamLogoUrl.addEventListener('input', ()=>{ logoPreview.src = teamLogoUrl.value || ''; });
+
+    $('#scoreForm').addEventListener('submit',e=>{
+      e.preventDefault();
+      let team=teamSelect.value;
+      if(team==='__new'){
+        team=(newTeamName.value||'').trim();
+        if(!team){alert('Enter new team name');return;}
+      }
+      const pts=parseInt(teamPoints.value)||0;
+      const solves=parseInt(teamSolves.value)||0;
+      const logo=(teamLogoUrl.value||'').trim();
+
+      const oldTop3=new Set(sorted().slice(0,3).map(x=>x.team));
+      let found=state.rows.find(r=>r.team.toLowerCase()===team.toLowerCase());
+      if(found){found.points=pts;found.solves=solves;found.logo=logo;}
+      else{state.rows.push({team,points:pts,solves,logo});}
+
+      render();
+      const newTop3=new Set(sorted().slice(0,3).map(x=>x.team));
+      let changed=false; newTop3.forEach(t=>{if(!oldTop3.has(t)) changed=true;});
+      if(changed) globalCelebrate();
+
+      newTeamName.value=''; teamSelect.value=team; newTeamLabel.classList.add('hidden');
+      const sel=state.rows.find(r=>r.team===team); if(sel) loadIntoEditor(sel);
+    });
+  </script>
+</body>
+</html>

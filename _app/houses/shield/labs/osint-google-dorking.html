@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OSINT: Google Dorking Lab - Shield House | Hexworth Prime</title>
+
+<!-- Access Control -->
+<script src="../../../components/AccessGuard.js"></script>
+<script>
+    AccessGuard.require('sorted');
+</script>
+<!-- Achievement & Progress Integration -->
+<script src="../../../components/AchievementManager.js"></script>
+<script src="../../../components/ModuleProgress.js"></script>
+
+<style>
+  :root{
+    --bg:#0f172a;
+    --panel:#111827;
+    --muted:#94a3b8;
+    --accent:#10b981;
+    --accent2:#22d3ee;
+    --text:#e5e7eb;
+    --chip:#1f2937;
+    --warning:#f59e0b;
+    --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+       color:var(--text); background: radial-gradient(1200px 800px at 20% -10%, #1e3a32 0%, #0b1220 60%, #060912 100%) fixed;}
+
+  /* Page Header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: linear-gradient(180deg, rgba(16,185,129,.08), rgba(16,185,129,.03));
+    border-bottom: 1px solid rgba(16,185,129,.2);
+  }
+  .page-header a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+  .page-header a:hover {
+    color: var(--accent2);
+  }
+  .brand {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .brand span {
+    margin-right: 4px;
+  }
+
+  header{padding:48px 24px 8px; text-align:center}
+  h1{margin:0; font-size:clamp(24px,3.5vw,40px); letter-spacing:.5px}
+  .sub{color:var(--muted); margin-top:8px}
+  .wrap{max-width:1200px; margin:24px auto 64px; padding:0 20px}
+
+  /* Cards */
+  .card{background:linear-gradient(180deg, rgba(16,185,129,.06), rgba(16,185,129,.02));
+        border:1px solid rgba(16,185,129,.15); border-radius:16px; padding:20px; margin:16px 0; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+  /* Warning Callout */
+  .warning-box {
+    background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(239,68,68,.12));
+    border: 2px solid rgba(245,158,11,.4);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 24px 0;
+    display: flex;
+    gap: 16px;
+    align-items: start;
+  }
+  .warning-box .icon {
+    font-size: 32px;
+    flex-shrink: 0;
+  }
+  .warning-box h3 {
+    margin: 0 0 8px;
+    color: var(--warning);
+    font-size: 18px;
+  }
+  .warning-box p {
+    margin: 4px 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .warning-box strong {
+    color: var(--danger);
+  }
+
+  .grid{display:grid; gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1.1fr .9fr}}
+  h2{font-size:clamp(18px,2.4vw,26px); margin:0 0 12px}
+  h3{font-size:clamp(16px,2vw,20px); margin:16px 0 8px; color:var(--accent)}
+
+  table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:12px; border:1px solid rgba(16,185,129,.15)}
+  th, td{padding:12px 14px; text-align:left; vertical-align:top}
+  thead th{background:linear-gradient(180deg, rgba(16,185,129,.15), rgba(34,211,238,.12)); color:#d1fae5}
+  tbody tr:nth-child(odd){background:rgba(16,185,129,.04)}
+
+  code, kbd{background:var(--chip); color:#d1fae5; padding:.15em .45em; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size: 13px;}
+  pre{margin:0; padding:14px; background:#0b1020; border:1px solid rgba(16,185,129,.15); border-radius:12px; overflow:auto; position: relative;}
+  pre code {
+    background: transparent;
+    padding: 0;
+  }
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+  .chip{background:linear-gradient(90deg, rgba(16,185,129,.15), rgba(34,211,238,.12));
+        border:1px solid rgba(16,185,129,.2); padding:6px 10px; border-radius:999px; font-size:13px; color:#a7f3d0}
+  .tip{font-size:14px; color:var(--muted); margin-bottom: 8px;}
+  .accent{color:var(--accent)}
+  .accent2{color:var(--accent2)}
+  .examples ol{margin:0; padding-left:20px}
+  .examples li{margin:10px 0}
+
+  /* Interactive Query Builder */
+  .builder {
+    background: rgba(16,185,129,.03);
+    border: 1px solid rgba(16,185,129,.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+  .builder label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  .builder input, .builder select, .builder textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(0,0,0,.3);
+    border: 1px solid rgba(16,185,129,.2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .builder textarea {
+    font-family: ui-monospace, monospace;
+    resize: vertical;
+    min-height: 80px;
+  }
+  .builder button {
+    margin-top: 12px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 14px;
+  }
+  .builder button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16,185,129,.3);
+  }
+  .builder button:active {
+    transform: translateY(0);
+  }
+  .builder .output {
+    margin-top: 16px;
+    padding: 14px;
+    background: #0b1020;
+    border: 1px solid rgba(16,185,129,.2);
+    border-radius: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--accent2);
+    word-break: break-all;
+  }
+
+  /* Copy button for code blocks */
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    background: rgba(16,185,129,.2);
+    border: 1px solid rgba(16,185,129,.3);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0;
+  }
+  pre:hover .copy-btn {
+    opacity: 1;
+  }
+  .copy-btn:hover {
+    background: rgba(16,185,129,.3);
+  }
+  .copy-btn.copied {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* Complete button */
+  .complete-section {
+    text-align: center;
+    margin: 32px 0;
+  }
+  .complete-btn {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .complete-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16,185,129,.4);
+  }
+  .complete-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .complete-btn.completed {
+    background: linear-gradient(135deg, #059669, #0891b2);
+  }
+
+  footer{color:var(--muted); text-align:center; padding:24px; font-size: 14px;}
+  a{color:#7dd3fc; text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  ul {
+    line-height: 1.6;
+  }
+  ul li {
+    margin: 8px 0;
+  }
+</style>
+</head>
+<body>
+  <header class="page-header">
+    <a href="../index.html">← Back to Shield House</a>
+    <span class="brand"><span>🛡️</span> Hexworth Prime</span>
+  </header>
+
+  <header>
+    <h1>OSINT: <span class="accent">Google Dorking</span> Laboratory</h1>
+    <p class="sub">Master advanced search operators to discover exposed resources and security vulnerabilities.</p>
+  </header>
+
+  <main class="wrap">
+    <!-- Ethical Warning -->
+    <div class="warning-box">
+      <div class="icon">⚠️</div>
+      <div>
+        <h3>Ethical Use Warning</h3>
+        <p><strong>This lab is for educational and authorized security testing only.</strong></p>
+        <p>Using these techniques to access systems without authorization is illegal and unethical. Always obtain proper permission before conducting security assessments.</p>
+        <p>As a Shield House member, you are expected to use these skills responsibly to protect systems, not exploit them.</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: Operators -->
+      <section class="card">
+        <h2>Core Google Dork Operators</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Operator</th>
+              <th>Purpose</th>
+              <th>Security Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>filetype:</code></td>
+              <td>Return specific file types (pdf, env, sql, log, etc.).</td>
+              <td><code>filetype:env "DB_PASSWORD"</code></td>
+            </tr>
+            <tr>
+              <td><code>intitle:</code></td>
+              <td>Term must appear in the page title.</td>
+              <td><code>intitle:"index of" /backup/</code></td>
+            </tr>
+            <tr>
+              <td><code>intext:</code></td>
+              <td>Term must appear in the page body.</td>
+              <td><code>intext:"confidential" filetype:pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>site:</code></td>
+              <td>Restrict to a domain or TLD.</td>
+              <td><code>site:example.com filetype:sql</code></td>
+            </tr>
+            <tr>
+              <td><code>-</code> (minus)</td>
+              <td>Exclude terms or domains.</td>
+              <td><code>intitle:admin -site:wordpress.org</code></td>
+            </tr>
+            <tr>
+              <td><code>"…"</code></td>
+              <td>Match an exact phrase.</td>
+              <td><code>"phpMyAdmin" "running on"</code></td>
+            </tr>
+            <tr>
+              <td><code>OR</code></td>
+              <td>Match either of two terms/phrases.</td>
+              <td><code>(admin OR administrator) login</code></td>
+            </tr>
+            <tr>
+              <td><code>inurl:</code></td>
+              <td>Term must appear in the URL.</td>
+              <td><code>inurl:admin.php</code></td>
+            </tr>
+            <tr>
+              <td><code>ext:</code></td>
+              <td>Alternative to filetype:</td>
+              <td><code>ext:log "error"</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="chips" aria-label="Key tactics">
+          <span class="chip">Combine multiple operators</span>
+          <span class="chip">Use quotes for exact matches</span>
+          <span class="chip">Exclude false positives</span>
+          <span class="chip">Target specific domains</span>
+        </div>
+      </section>
+
+      <!-- RIGHT: Tactics -->
+      <section class="card">
+        <h2>Reconnaissance Tactics</h2>
+        <ul>
+          <li><strong>Configuration Files:</strong> Search for <code>filetype:env</code>, <code>filetype:config</code>, or <code>filetype:yml</code> with keywords like "password" or "api_key".</li>
+          <li><strong>Directory Listings:</strong> Use <code>intitle:"index of"</code> to find exposed directories containing backups, logs, or sensitive files.</li>
+          <li><strong>Login Portals:</strong> Combine <code>inurl:admin</code> or <code>intitle:login</code> with domain targeting to map authentication surfaces.</li>
+          <li><strong>Sensitive Documents:</strong> Search for PDFs or DOCs with keywords like "confidential", "internal only", or "do not distribute".</li>
+          <li><strong>Version Disclosure:</strong> Find software versions with queries like <code>"powered by" "version"</code> to identify outdated systems.</li>
+        </ul>
+        <p class="tip">Google caches pages, so you may find content that has since been secured. Always verify current state.</p>
+      </section>
+    </div>
+
+    <!-- Copy-Paste Examples -->
+    <section class="card examples">
+      <h2>Security-Focused Examples</h2>
+      <p class="tip">Click the copy button to grab any query, then test it in Google (on authorized targets only).</p>
+      <ol>
+        <li>
+          <div class="tip">Exposed .env files with database credentials</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:env "DB_PASSWORD"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Configuration files containing API keys</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:config "api_key" OR "apikey"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Exposed directory listings for admin panels</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" /admin/</code></pre>
+        </li>
+        <li>
+          <div class="tip">Login portals and admin interfaces</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"admin login" OR intext:"administrator login"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Confidential PDF documents</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:pdf "confidential" OR "internal use only"</code></pre>
+        </li>
+        <li>
+          <div class="tip">SQL database dumps</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:sql "INSERT INTO" "VALUES"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Log files with potential credentials</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:log "password" OR "username"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Exposed backup files</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" (backup OR .bak OR .zip)</code></pre>
+        </li>
+        <li>
+          <div class="tip">phpMyAdmin installations</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"phpMyAdmin" "running on" inurl:phpmyadmin</code></pre>
+        </li>
+        <li>
+          <div class="tip">WordPress config files with credentials</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:txt inurl:wp-config.php "DB_PASSWORD"</code></pre>
+        </li>
+        <li>
+          <div class="tip">SSH private keys accidentally exposed</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" .ssh "id_rsa" OR "id_dsa"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Webcams and IoT devices with default credentials</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>inurl:"/view/index.shtml" OR intitle:"Live View / - AXIS"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Exposed Git repositories</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" ".git" "parent directory"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Server status pages revealing information</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"Apache Status" "Apache Server Status for"</code></pre>
+        </li>
+        <li>
+          <div class="tip">Error messages revealing paths and versions</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intext:"sql syntax near" OR intext:"syntax error has occurred"</code></pre>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Interactive Query Builder -->
+    <section class="card">
+      <h2>Interactive Query Builder</h2>
+      <p class="tip">Build custom Google dorks by selecting operators and entering your search terms.</p>
+
+      <div class="builder">
+        <label for="search-term">Primary Search Term:</label>
+        <input type="text" id="search-term" placeholder='e.g., "password", "admin", "confidential"' />
+
+        <label for="file-type">File Type (optional):</label>
+        <select id="file-type">
+          <option value="">-- None --</option>
+          <option value="env">.env</option>
+          <option value="pdf">PDF</option>
+          <option value="sql">SQL</option>
+          <option value="log">LOG</option>
+          <option value="config">CONFIG</option>
+          <option value="yml">YML</option>
+          <option value="xml">XML</option>
+          <option value="txt">TXT</option>
+          <option value="doc">DOC</option>
+          <option value="xls">XLS</option>
+        </select>
+
+        <label for="location">Location Constraint:</label>
+        <select id="location">
+          <option value="">-- None --</option>
+          <option value="intitle">In Title</option>
+          <option value="intext">In Text</option>
+          <option value="inurl">In URL</option>
+        </select>
+
+        <label for="site-target">Target Site (optional):</label>
+        <input type="text" id="site-target" placeholder="e.g., example.com or .edu" />
+
+        <label for="exclude-term">Exclude Term (optional):</label>
+        <input type="text" id="exclude-term" placeholder="e.g., pinterest.com, tutorial" />
+
+        <label for="advanced">Advanced: Additional Operators (optional):</label>
+        <textarea id="advanced" placeholder='e.g., OR "api_key" OR intitle:"backup"'></textarea>
+
+        <button onclick="buildQuery()">Generate Query</button>
+
+        <div id="query-output" class="output" style="display:none;"></div>
+        <button id="test-query" style="display:none; margin-top: 8px;" onclick="testQuery()">Test in Google (New Tab)</button>
+        <button id="copy-query" style="display:none; margin-top: 8px;" onclick="copyBuiltQuery()">Copy Query</button>
+      </div>
+    </section>
+
+    <!-- Practice Challenges -->
+    <section class="card">
+      <h2>Practice Challenges</h2>
+      <p class="tip">Test your dorking skills with these real-world scenarios. Try to craft the query yourself before revealing the solution.</p>
+
+      <div style="margin-top: 16px;">
+        <h3>Challenge 1: Find Exposed Database Backups</h3>
+        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
+          Task: Find SQL database backup files that contain the word "users" in their content, excluding tutorial sites.
+        </p>
+        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
+          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:sql intext:"users" -site:tutorial -site:stackoverflow.com</code></pre>
+        </details>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <h3>Challenge 2: Discover Admin Panels on a Specific Domain</h3>
+        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
+          Task: Find all admin login pages on educational institutions (.edu domains).
+        </p>
+        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
+          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>site:edu (intitle:"admin login" OR inurl:admin OR inurl:administrator)</code></pre>
+        </details>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <h3>Challenge 3: Locate Exposed Configuration Files</h3>
+        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
+          Task: Find configuration files (.yml or .config) that contain either "password" or "secret".
+        </p>
+        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
+          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>(filetype:yml OR filetype:config) ("password" OR "secret")</code></pre>
+        </details>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <h3>Challenge 4: Find Sensitive Internal Documents</h3>
+        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
+          Task: Discover PDF documents marked as "confidential" or "internal" on government domains (.gov).
+        </p>
+        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
+          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>site:gov filetype:pdf ("confidential" OR "internal" OR "classified")</code></pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- Completion Section -->
+    <div class="complete-section">
+      <button id="complete-btn" class="complete-btn" onclick="markComplete()">
+        Mark Lab as Complete
+      </button>
+      <p id="time-spent" style="margin-top: 12px; color: var(--muted); font-size: 14px;"></p>
+    </div>
+  </main>
+
+  <footer>
+    <p>Pro tip: Start broad, then narrow with <code>intitle:</code>, <code>intext:</code>, and <code>-site:</code> exclusions.</p>
+    <p style="margin-top: 8px; font-size: 12px;">Remember: With great power comes great responsibility. Use these skills ethically.</p>
+  </footer>
+
+  <script>
+    // Track time spent on page
+    let startTime = Date.now();
+    let completionTracked = false;
+
+    // Update time display
+    setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      document.getElementById('time-spent').textContent =
+        `Time spent: ${minutes}m ${seconds}s`;
+    }, 1000);
+
+    // Auto-complete after 5 minutes
+    setTimeout(() => {
+      if (!completionTracked) {
+        autoComplete();
+      }
+    }, 5 * 60 * 1000);
+
+    // Query Builder
+    function buildQuery() {
+      const term = document.getElementById('search-term').value.trim();
+      const fileType = document.getElementById('file-type').value;
+      const location = document.getElementById('location').value;
+      const site = document.getElementById('site-target').value.trim();
+      const exclude = document.getElementById('exclude-term').value.trim();
+      const advanced = document.getElementById('advanced').value.trim();
+
+      if (!term && !fileType && !location && !site && !advanced) {
+        alert('Please enter at least one search parameter.');
+        return;
+      }
+
+      let query = '';
+
+      // Add location constraint if specified
+      if (location && term) {
+        query += `${location}:"${term}" `;
+      } else if (term) {
+        query += `"${term}" `;
+      }
+
+      // Add file type
+      if (fileType) {
+        query += `filetype:${fileType} `;
+      }
+
+      // Add site constraint
+      if (site) {
+        query += `site:${site} `;
+      }
+
+      // Add exclusion
+      if (exclude) {
+        query += `-site:${exclude} `;
+      }
+
+      // Add advanced operators
+      if (advanced) {
+        query += advanced + ' ';
+      }
+
+      query = query.trim();
+
+      // Display the query
+      const output = document.getElementById('query-output');
+      output.textContent = query;
+      output.style.display = 'block';
+      document.getElementById('test-query').style.display = 'inline-block';
+      document.getElementById('copy-query').style.display = 'inline-block';
+
+      // Store for testing
+      window.currentQuery = query;
+    }
+
+    function testQuery() {
+      if (window.currentQuery) {
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(window.currentQuery)}`;
+        window.open(searchUrl, '_blank');
+      }
+    }
+
+    function copyBuiltQuery() {
+      const output = document.getElementById('query-output');
+      navigator.clipboard.writeText(output.textContent).then(() => {
+        const btn = document.getElementById('copy-query');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--accent)';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+        }, 2000);
+      });
+    }
+
+    // Copy code from pre blocks
+    function copyCode(btn) {
+      const code = btn.parentElement.querySelector('code').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    // Mark as complete
+    function markComplete() {
+      if (!completionTracked) {
+        completionTracked = true;
+        const btn = document.getElementById('complete-btn');
+        btn.textContent = '✓ Lab Completed';
+        btn.classList.add('completed');
+        btn.disabled = true;
+
+        // Track completion
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.completeModule('shield', 'osint-google-dorking');
+        }
+
+        // Optional: Track achievement
+        if (typeof AchievementManager !== 'undefined') {
+          // This could unlock a "Google Dork Master" achievement
+          // AchievementManager.unlock('dork-master');
+        }
+
+        alert('Lab completed! Progress saved.');
+      }
+    }
+
+    function autoComplete() {
+      if (!completionTracked) {
+        completionTracked = true;
+        const btn = document.getElementById('complete-btn');
+        btn.textContent = '✓ Lab Auto-Completed (5+ minutes)';
+        btn.classList.add('completed');
+        btn.disabled = true;
+
+        // Track completion
+        if (typeof ModuleProgress !== 'undefined') {
+          ModuleProgress.completeModule('shield', 'osint-google-dorking');
+        }
+      }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd + Enter to build query
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        buildQuery();
+      }
+    });
+  </script>
+</body>
+</html>
