@@ -22,7 +22,7 @@
         { id: 'code', name: 'Code', icon: '💻', color: '#4ade80', path: 'houses/code/index.html' },
         { id: 'key', name: 'Key', icon: '🔑', color: '#f472b6', path: 'houses/key/index.html' },
         { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
-        { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'dark-arts/index.html', gated: true }
+        { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'dark-arts/vault/index.html', gatePath: 'dark-arts/gate-1.html', gated: true }
     ];
 
     // ═══════════════════════════════════════════════════════════════
@@ -210,16 +210,27 @@
         }
 
         .flux-house.locked {
-            opacity: 0.5;
-            cursor: not-allowed;
+            opacity: 0.7;
+            cursor: pointer;
+        }
+
+        .flux-house.locked:hover {
+            border-color: #a855f7;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
         }
 
         .flux-house.locked::after {
-            content: '🔒';
+            content: '⚔️';
             position: absolute;
             top: 8px;
             right: 8px;
             font-size: 0.9rem;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .flux-house-icon {
@@ -480,11 +491,15 @@
             card.appendChild(name);
 
             // Click handler
-            if (!isLocked && !isCurrent) {
-                card.addEventListener('click', () => this.navigateTo(house.path));
-            } else if (isLocked) {
+            if (!isCurrent) {
                 card.addEventListener('click', () => {
-                    this.showLockedMessage();
+                    if (isLocked && house.gatePath) {
+                        // Navigate to gates for gated houses
+                        this.navigateTo(house.gatePath);
+                    } else if (!isLocked) {
+                        // Navigate to house/vault
+                        this.navigateTo(house.path);
+                    }
                 });
             }
 
@@ -495,19 +510,6 @@
             this.warp = document.createElement('div');
             this.warp.className = 'flux-warp';
             document.body.appendChild(this.warp);
-        }
-
-        showLockedMessage() {
-            // Brief shake animation on the locked card
-            const card = this.overlay.querySelector('.flux-house.locked');
-            if (card) {
-                card.style.animation = 'none';
-                card.offsetHeight; // Trigger reflow
-                card.style.animation = 'shake 0.3s ease';
-            }
-
-            // Could show a toast here, but keeping it simple
-            console.log('🔒 Dark Arts requires completing the Five Gates CTF');
         }
 
         navigateTo(path) {
