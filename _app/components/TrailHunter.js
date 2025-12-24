@@ -322,15 +322,17 @@
         }
 
         init() {
-            this.injectStyles();
             this.checkActiveHunts();
 
+            // Only do anything if there's an active hunt
             if (this.activeTrail) {
+                this.injectStyles();
                 this.createPatronus();
                 this.createProgressIndicator();
                 this.startPatronusMovement();
                 this.checkCurrentPage();
             }
+            // Otherwise, do nothing - no styles, no elements
         }
 
         injectStyles() {
