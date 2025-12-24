@@ -313,6 +313,28 @@
             font-family: 'Courier New', monospace;
             letter-spacing: 0.1em;
         }
+
+        /* Trail markers on module cards */
+        .trail-marker {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 1rem;
+            opacity: 0.8;
+            animation: trailMarkerPulse 2s ease-in-out infinite;
+            filter: drop-shadow(0 0 4px var(--patronus-glow));
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .trail-marker.found {
+            opacity: 0.4;
+        }
+
+        @keyframes trailMarkerPulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
     `;
 
     // ═══════════════════════════════════════════════════════════════
@@ -344,6 +366,7 @@
                     this.createProgressIndicator();
                     this.startPatronusMovement();
                     this.checkCurrentPage();
+                    this.markTrailModules();
                     console.log('[TrailHunter] Patronus active and hopping');
                 } catch (e) {
                     console.error('[TrailHunter] Error during init:', e);
@@ -569,6 +592,62 @@
 
             if (isTrailModule) {
                 this.handleModuleFound(currentPath);
+            }
+        }
+
+        markTrailModules() {
+            const trail = TRAILS[this.activeTrail];
+            if (!trail) return;
+
+            const huntData = this.getHuntData()[this.activeTrail] || {};
+            const foundModules = huntData.found || [];
+
+            // Find all links on the page
+            const links = document.querySelectorAll('a[href], [onclick]');
+            let markedCount = 0;
+
+            links.forEach(link => {
+                const href = link.getAttribute('href') || '';
+                const onclick = link.getAttribute('onclick') || '';
+
+                // Check if this link points to a trail module
+                const matchedModule = trail.modules.find(mod =>
+                    href.includes(mod) || onclick.includes(mod.replace('.html', ''))
+                );
+
+                if (matchedModule) {
+                    // Find the card container (parent with position relative or the link itself)
+                    let card = link.closest('.module-card, .card, .category-card, [class*="card"]');
+                    if (!card) card = link;
+
+                    // Make sure card has position relative for absolute positioning
+                    const computedStyle = window.getComputedStyle(card);
+                    if (computedStyle.position === 'static') {
+                        card.style.position = 'relative';
+                    }
+
+                    // Check if already marked
+                    if (card.querySelector('.trail-marker')) return;
+
+                    // Create marker
+                    const marker = document.createElement('span');
+                    marker.className = 'trail-marker';
+                    marker.textContent = trail.icon;
+                    marker.title = `${trail.name} Trail Module`;
+
+                    // Mark as found if already discovered
+                    if (foundModules.some(f => f.includes(matchedModule))) {
+                        marker.classList.add('found');
+                        marker.title += ' (Discovered!)';
+                    }
+
+                    card.appendChild(marker);
+                    markedCount++;
+                }
+            });
+
+            if (markedCount > 0) {
+                console.log(`[TrailHunter] Marked ${markedCount} trail modules on this page`);
             }
         }
 
