@@ -504,21 +504,33 @@ class QuizEngine {
 
         // Next module button
         const nextBtn = this.container.querySelector('.quiz-next-module-btn');
+        console.log('[QuizEngine] Next button element:', nextBtn);
+        console.log('[QuizEngine] Next module data:', nextModule);
+
         if (nextBtn && nextModule) {
+            console.log('[QuizEngine] Attaching click handler for next module:', nextModule.href);
             nextBtn.addEventListener('click', () => {
+                console.log('[QuizEngine] Continue button clicked!');
                 // Calculate correct path - hrefs in LearningPaths are relative to house root
                 // If we're in a subfolder (quizzes/, applets/, etc.), need to go up first
                 const currentPath = window.location.pathname;
                 const houseMatch = currentPath.match(/\/houses\/\w+\//);
+                console.log('[QuizEngine] Current path:', currentPath, 'House match:', houseMatch);
                 if (houseMatch) {
                     // Navigate relative to house root
                     const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
-                    window.location.href = houseBase + nextModule.href;
+                    const targetUrl = houseBase + nextModule.href;
+                    console.log('[QuizEngine] Navigating to:', targetUrl);
+                    window.location.href = targetUrl;
                 } else {
                     // Fallback: go up one level and try
-                    window.location.href = '../' + nextModule.href;
+                    const targetUrl = '../' + nextModule.href;
+                    console.log('[QuizEngine] Fallback navigating to:', targetUrl);
+                    window.location.href = targetUrl;
                 }
             });
+        } else {
+            console.log('[QuizEngine] WARNING: Could not attach next button handler - btn:', !!nextBtn, 'module:', !!nextModule);
         }
 
         // Back to house button
