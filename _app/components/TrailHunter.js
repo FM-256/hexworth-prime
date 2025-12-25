@@ -599,12 +599,16 @@
             if (!trail) return;
 
             const currentPath = window.location.pathname;
+            console.log('[TrailHunter] Checking current page:', currentPath);
 
             // Check if current page is a trail module
-            const isTrailModule = trail.modules.some(mod => currentPath.includes(mod));
+            const matchedModule = trail.modules.find(mod => currentPath.includes(mod));
 
-            if (isTrailModule) {
+            if (matchedModule) {
+                console.log('[TrailHunter] ✓ This is a trail module:', matchedModule);
                 this.handleModuleFound(currentPath);
+            } else {
+                console.log('[TrailHunter] Not a trail module. Trail modules:', trail.modules);
             }
         }
 
@@ -704,17 +708,20 @@
         }
 
         handleModuleFound(modulePath) {
+            console.log('[TrailHunter] handleModuleFound called with:', modulePath);
             const huntData = this.getHuntData();
             const trailData = huntData[this.activeTrail] || { active: true, found: [] };
+            console.log('[TrailHunter] Current found modules:', trailData.found);
 
             // Check if already found
-            const alreadyFound = trailData.found.some(f => modulePath.includes(f));
+            const alreadyFound = trailData.found.some(f => modulePath.includes(f) || f.includes(modulePath));
 
             if (!alreadyFound) {
                 // Mark as found
                 trailData.found.push(modulePath);
                 huntData[this.activeTrail] = trailData;
                 this.saveHuntData(huntData);
+                console.log('[TrailHunter] ★ NEW MODULE DISCOVERED! Total:', trailData.found.length);
 
                 // Excited patronus!
                 if (this.patronus) {
