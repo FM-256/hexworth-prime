@@ -1673,6 +1673,149 @@ const ContentRegistry = {
             ]
         },
 
+        'code-docker': {
+            id: 'code-docker',
+            title: 'Docker Fundamentals',
+            description: 'Containerization essentials for modern development',
+            house: 'code',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['docker', 'containers', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/docker-fundamentals.html',
+                applet: 'houses/code/applets/docker-playground.html',
+                quiz: 'houses/code/quizzes/docker-quiz.html',
+                lab: 'houses/code/labs/docker-lab.html'
+            },
+            prerequisites: ['code-git-basics'],
+            objectives: [
+                'Build and run Docker containers',
+                'Write effective Dockerfiles',
+                'Manage container lifecycles'
+            ]
+        },
+
+        'code-kubernetes': {
+            id: 'code-kubernetes',
+            title: 'Kubernetes Fundamentals',
+            description: 'Container orchestration at scale',
+            house: 'code',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['kubernetes', 'k8s', 'orchestration', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/kubernetes-fundamentals.html',
+                applet: 'houses/code/applets/kubernetes-cluster-sim.html',
+                quiz: 'houses/code/quizzes/kubernetes-quiz.html',
+                lab: 'houses/code/labs/kubernetes-lab.html'
+            },
+            prerequisites: ['code-docker'],
+            objectives: [
+                'Deploy applications to Kubernetes',
+                'Understand pods, services, and deployments',
+                'Scale and manage containerized workloads'
+            ]
+        },
+
+        'code-terraform': {
+            id: 'code-terraform',
+            title: 'Terraform Fundamentals',
+            description: 'Infrastructure as Code with HashiCorp Terraform',
+            house: 'code',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 65,
+            topics: ['terraform', 'iac', 'infrastructure', 'devops'],
+            paths: ['devops-fundamentals', 'cloud-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/terraform-fundamentals.html',
+                applet: 'houses/code/applets/terraform-visualizer.html',
+                quiz: 'houses/code/quizzes/terraform-quiz.html',
+                lab: 'houses/code/labs/terraform-lab.html'
+            },
+            prerequisites: ['code-git-basics'],
+            objectives: [
+                'Write Terraform configuration files',
+                'Manage state and providers',
+                'Deploy cloud infrastructure as code'
+            ]
+        },
+
+        'code-cloudformation': {
+            id: 'code-cloudformation',
+            title: 'CloudFormation Fundamentals',
+            description: 'AWS Infrastructure as Code',
+            house: 'code',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 55,
+            topics: ['cloudformation', 'aws', 'iac', 'devops'],
+            paths: ['devops-fundamentals', 'cloud-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/cloudformation-fundamentals.html',
+                applet: 'houses/code/applets/cloudformation-designer.html',
+                quiz: 'houses/code/quizzes/cloudformation-quiz.html',
+                lab: 'houses/code/labs/cloudformation-lab.html'
+            },
+            prerequisites: ['code-git-basics'],
+            objectives: [
+                'Write CloudFormation templates',
+                'Create and update stacks',
+                'Manage AWS resources declaratively'
+            ]
+        },
+
+        'code-cicd': {
+            id: 'code-cicd',
+            title: 'CI/CD Pipelines',
+            description: 'Continuous Integration and Deployment',
+            house: 'code',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 60,
+            topics: ['cicd', 'pipelines', 'automation', 'devops'],
+            paths: ['devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/cicd-fundamentals.html',
+                applet: 'houses/code/applets/pipeline-builder.html',
+                quiz: 'houses/code/quizzes/cicd-quiz.html',
+                lab: 'houses/code/labs/cicd-lab.html'
+            },
+            prerequisites: ['code-git-basics', 'code-docker'],
+            objectives: [
+                'Build CI/CD pipelines',
+                'Automate testing and deployment',
+                'Implement DevOps best practices'
+            ]
+        },
+
+        'code-agile': {
+            id: 'code-agile',
+            title: 'Agile & SDLC',
+            description: 'Software development methodologies',
+            house: 'code',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['agile', 'scrum', 'sdlc', 'project-management'],
+            paths: ['devops-fundamentals', 'developer-essentials'],
+            components: {
+                presentation: 'houses/code/presentations/agile-sdlc.html',
+                applet: 'houses/code/applets/sprint-simulator.html',
+                quiz: 'houses/code/quizzes/agile-quiz.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Understand Agile principles',
+                'Work in sprint cycles',
+                'Apply SDLC methodologies'
+            ]
+        },
+
         // ─────────────────────────────────────────────────────────────
         // EYE HOUSE - Monitoring & Analysis
         // ─────────────────────────────────────────────────────────────
