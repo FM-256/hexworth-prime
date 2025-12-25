@@ -270,6 +270,9 @@ class QuizEngine {
      * Show feedback after answer
      */
     showFeedback(selectedBtn, selectedIndex, question, isCorrect) {
+        // Store reference for inline handler
+        window._quizEngineInstance = this;
+
         // Disable all options
         this.container.querySelectorAll('.quiz-option').forEach(btn => {
             btn.disabled = true;
@@ -281,7 +284,10 @@ class QuizEngine {
             }
         });
 
-        // Show explanation
+        const isLastQuestion = this.state.currentQuestion >= this.config.questions.length - 1;
+        const buttonText = isLastQuestion ? 'See Results →' : 'Next Question →';
+
+        // Show explanation - using inline onclick for maximum reliability
         const feedbackHtml = `
             <div class="quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}">
                 <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
@@ -289,27 +295,12 @@ class QuizEngine {
                     <strong>${isCorrect ? 'Correct!' : 'Not quite...'}</strong>
                     ${question.explanation ? `<p>${question.explanation}</p>` : ''}
                 </div>
-                <button class="quiz-next-btn">${this.state.currentQuestion < this.config.questions.length - 1 ? 'Next Question →' : 'See Results →'}</button>
+                <button class="quiz-next-btn" onclick="window._quizEngineInstance.nextQuestion()" style="cursor:pointer; pointer-events:auto !important; position:relative; z-index:100;">${buttonText}</button>
             </div>
         `;
 
         const quizBody = this.container.querySelector('.quiz-body');
         quizBody.insertAdjacentHTML('beforeend', feedbackHtml);
-
-        const nextQuestionBtn = this.container.querySelector('.quiz-next-btn');
-        if (nextQuestionBtn) {
-            nextQuestionBtn.addEventListener('click', () => {
-                try {
-                    console.log('[QuizEngine] Next/See Results button clicked');
-                    this.nextQuestion();
-                } catch (e) {
-                    console.error('[QuizEngine] Error in nextQuestion:', e);
-                    alert('An error occurred. Check console for details.');
-                }
-            });
-        } else {
-            console.error('[QuizEngine] Could not find .quiz-next-btn element!');
-        }
     }
 
     /**

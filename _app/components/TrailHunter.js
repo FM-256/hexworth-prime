@@ -16,6 +16,9 @@
     // ═══════════════════════════════════════════════════════════════
 
     const TRAILS = {
+        // ═══════════════════════════════════════════════════════════════
+        // GATE 1: White Rabbit - Hex encoding, source inspection, basics
+        // ═══════════════════════════════════════════════════════════════
         rabbit: {
             icon: '🐇',
             name: 'White Rabbit',
@@ -23,30 +26,28 @@
             color: 'rgba(220, 230, 255, 0.8)',
             glowColor: 'rgba(180, 200, 255, 0.6)',
             modules: [
+                // Web House - Networking Fundamentals
                 'applets/ip-addressing/binary-decimal-converter.html',
-                'tools/subnet-calculator.html',
-                'tools/dns-header-reference.html',
-                'presentations/osi-model.html',
+                'applets/visualizers/osi-visualizer.html',
+                'applets/visualizers/osi-deep-dive-visualizer.html',
+                'quizzes/osi-quiz.html',
+                // Shield House - Encryption Basics
                 'applets/crypto/hashing_steganography/encryption_task.html',
+                'applets/crypto/encryption/encryption_jedit_6_1.html',
+                // Key House - Encryption Fundamentals
                 'presentations/encryption-basics.html',
+                'presentations/cryptography-fundamentals.html',
+                // Eye House - Traffic Analysis Intro
                 'tools/packet-analyzer.html',
                 'tools/wireshark-training.html',
+                // Forge House - Hardware Basics
                 'reference/cpu-architecture.html',
-                'applets/linux/linux-permissions-calculator.html'
+                'applets/hardware/cpu_architecture/cpu_architecture.html',
+                // Script House - Linux Basics
+                'applets/linux/linux-permissions-calculator.html',
+                'applets/linux/linux-filesystem-navigator.html'
             ],
-            // Keywords to match module cards by title/content
-            keywords: [
-                'binary/decimal', 'binary decimal', 'binary converter',
-                'subnet calculator', 'subnetting calculator',
-                'dns header',
-                'osi model',
-                'encryption task', 'hashing steganography',
-                'encryption basics',
-                'packet analyzer',
-                'wireshark',
-                'cpu architecture', '32-bit vs 64-bit',
-                'linux permissions', 'permissions calculator'
-            ],
+            keywords: [],  // Using exact path matching only
             achievements: {
                 started: { id: 'rabbit_hunter', name: 'Rabbit Hunter', desc: 'Began the White Rabbit trail' },
                 found3: { id: 'rabbit_spotter', name: 'Rabbit Spotter', desc: 'Found 3 rabbit trail modules' },
@@ -54,41 +55,168 @@
                 complete: { id: 'white_rabbit', name: 'White Rabbit', desc: 'Completed the rabbit trail and solved Gate 1' }
             }
         },
+
+        // ═══════════════════════════════════════════════════════════════
+        // GATE 2: Shadow Owl - CSS hidden text, Base64, web inspection
+        // Skills: Developer tools, OSINT, source code inspection
+        // ═══════════════════════════════════════════════════════════════
         owl: {
             icon: '🦉',
             name: 'Shadow Owl',
             gate: 2,
             color: 'rgba(100, 100, 140, 0.8)',
             glowColor: 'rgba(80, 80, 120, 0.6)',
-            modules: [],
-            achievements: {}
+            modules: [
+                // Shield House - OSINT and web inspection
+                'applets/threats/osint/OSINT.html',
+                'applets/threats/osint_challenge/OSINT_PD_Challenge.html',
+                'applets/threats/google_hacking/googlehacking.html',
+                'tools/google-dorking-osint.html',
+                'labs/osint-google-dorking.html',
+                // Shield House - Browser and web security
+                'applets/network/browser-security-hardening.html',
+                'applets/fundamentals/security-best-practices.html',
+                // Shield House - Encoding and crypto basics
+                'applets/crypto/encrypt_data/EncryptData.html',
+                'applets/crypto/hashing/Hashing.html',
+                'applets/crypto/hashing_narrated/Hashing_vo.html',
+                // Shield House - Cookie inspection and games
+                'applets/games/cookie_caper/cookies.html',
+                'applets/games/cyber_scramble/cyberscramble.html',
+                // Key House - Certificate inspection
+                'tools/cert-inspector.html',
+                'presentations/certificates.html'
+            ],
+            keywords: [],  // Using exact path matching only
+            achievements: {
+                started: { id: 'owl_watcher', name: 'Owl Watcher', desc: 'Began the Shadow Owl trail' },
+                found3: { id: 'owl_spotter', name: 'Owl Spotter', desc: 'Found 3 owl trail modules' },
+                found5: { id: 'owl_tracker', name: 'Owl Tracker', desc: 'Found 5 owl trail modules' },
+                complete: { id: 'shadow_owl', name: 'Shadow Owl', desc: 'Completed the owl trail and solved Gate 2' }
+            }
         },
+
+        // ═══════════════════════════════════════════════════════════════
+        // GATE 3: Phantom Chameleon - Steganography, hidden data in images
+        // Skills: Image analysis, hidden data extraction
+        // ═══════════════════════════════════════════════════════════════
         chameleon: {
             icon: '🦎',
             name: 'Phantom Chameleon',
             gate: 3,
             color: 'rgba(100, 180, 120, 0.8)',
             glowColor: 'rgba(80, 160, 100, 0.6)',
-            modules: [],
-            achievements: {}
+            modules: [
+                // Shield House - Steganography modules (primary)
+                'applets/crypto/hashing_steganography/Stego.html',
+                'applets/crypto/hashing_steganography/hash_steg_presentation.html',
+                'applets/crypto/hashing_steganography/Encryption_II.html',
+                'applets/crypto/hashing_steganography/Hash_Lab.html',
+                'applets/crypto/hashing_steganography/hashing_Lab.html',
+                'applets/crypto/hashing_steganography/hash_v3.html',
+                // Shield House - Verification
+                'applets/crypto/checksum-verifier.html',
+                'applets/crypto/digital_signatures/DigitalSignature.html',
+                // Key House - Hash & Stego intro
+                'modules/hash-stego-intro.html',
+                // Dark Arts Vault - Advanced steganography
+                'vault/steganography-lab.html'
+            ],
+            keywords: [],  // Using exact path matching only
+            achievements: {
+                started: { id: 'chameleon_seeker', name: 'Chameleon Seeker', desc: 'Began the Phantom Chameleon trail' },
+                found3: { id: 'chameleon_spotter', name: 'Chameleon Spotter', desc: 'Found 3 chameleon trail modules' },
+                found5: { id: 'chameleon_tracker', name: 'Chameleon Tracker', desc: 'Found 5 chameleon trail modules' },
+                complete: { id: 'phantom_chameleon', name: 'Phantom Chameleon', desc: 'Completed the chameleon trail and solved Gate 3' }
+            }
         },
+
+        // ═══════════════════════════════════════════════════════════════
+        // GATE 4: Echo Bat - DTMF audio, signals, traffic analysis
+        // Skills: Audio analysis, protocol analysis, signal detection
+        // ═══════════════════════════════════════════════════════════════
         bat: {
             icon: '🦇',
             name: 'Echo Bat',
             gate: 4,
             color: 'rgba(160, 100, 180, 0.8)',
             glowColor: 'rgba(140, 80, 160, 0.6)',
-            modules: [],
-            achievements: {}
+            modules: [
+                // Eye House - Traffic and protocol analysis (primary)
+                'tools/packet-analyzer.html',
+                'tools/wireshark-training.html',
+                'presentations/network-traffic-analysis.html',
+                'labs/traffic-lab.html',
+                // Eye House - Log analysis and correlation
+                'presentations/log-correlation.html',
+                'tools/correlation-engine.html',
+                'labs/correlation-lab.html',
+                // Eye House - SIEM fundamentals
+                'presentations/siem-fundamentals.html',
+                'tools/siem-simulator.html',
+                'labs/siem-lab.html',
+                // Shield House - Network protocol analysis
+                'applets/network/protocol_analysis/ProtocolAnalysis.html',
+                'applets/network/threeway_handshake/threeway_handshake1_audio.html',
+                'applets/network/wireless_security/WirelessSecurity.html',
+                // Web House - Network visualizers
+                'applets/visualizers/wireless-visualizer.html',
+                'applets/visualizers/wireless-architecture-visualizer.html'
+            ],
+            keywords: [],  // Using exact path matching only
+            achievements: {
+                started: { id: 'bat_listener', name: 'Bat Listener', desc: 'Began the Echo Bat trail' },
+                found3: { id: 'bat_spotter', name: 'Bat Spotter', desc: 'Found 3 bat trail modules' },
+                found5: { id: 'bat_tracker', name: 'Bat Tracker', desc: 'Found 5 bat trail modules' },
+                complete: { id: 'echo_bat', name: 'Echo Bat', desc: 'Completed the bat trail and solved Gate 4' }
+            }
         },
+
+        // ═══════════════════════════════════════════════════════════════
+        // GATE 5: Mystic Crystal - Synthesis of all skills
+        // Skills: Advanced crypto, threat hunting, forensics, CTF mindset
+        // ═══════════════════════════════════════════════════════════════
         crystal: {
             icon: '🔮',
             name: 'Mystic Crystal',
             gate: 5,
             color: 'rgba(180, 140, 220, 0.8)',
             glowColor: 'rgba(160, 120, 200, 0.6)',
-            modules: [],
-            achievements: {}
+            modules: [
+                // Key House - Cryptanalysis (breaking codes)
+                'presentations/cryptanalysis.html',
+                'tools/cryptanalysis-lab.html',
+                // Key House - Advanced crypto
+                'presentations/elliptic-curve.html',
+                'tools/ecc-visualizer.html',
+                'presentations/post-quantum.html',
+                'tools/pqc-explorer.html',
+                // Eye House - Threat hunting
+                'presentations/threat-hunting.html',
+                'tools/hunt-workbench.html',
+                'labs/hunting-lab.html',
+                // Eye House - SOC operations
+                'presentations/soc-operations.html',
+                'tools/soc-simulator.html',
+                'labs/soc-lab.html',
+                // Shield House - Advanced attacks understanding
+                'applets/threats/pen_testing/pen_testing.html',
+                'applets/threats/code_injection/codeinjection.html',
+                'applets/threats/buffer_overflow/bufferoverflow.html',
+                // Shield House - Advanced crypto applets
+                'applets/crypto/diffie_hellman/diffie_hellman.html',
+                'applets/crypto/rsa/RSA.html',
+                'applets/crypto/pki/pki.html',
+                // Shield House - Ethical hacking
+                'applets/games/ethical_hacking_case/EH_exam_1A.html'
+            ],
+            keywords: [],  // Using exact path matching only
+            achievements: {
+                started: { id: 'crystal_gazer', name: 'Crystal Gazer', desc: 'Began the Mystic Crystal trail' },
+                found3: { id: 'crystal_spotter', name: 'Crystal Spotter', desc: 'Found 3 crystal trail modules' },
+                found5: { id: 'crystal_tracker', name: 'Crystal Tracker', desc: 'Found 5 crystal trail modules' },
+                complete: { id: 'mystic_crystal', name: 'Mystic Crystal', desc: 'Mastered all trails and conquered the Dark Arts' }
+            }
         }
     };
 
@@ -275,56 +403,186 @@
             margin-top: 8px;
         }
 
-        /* Hunt progress indicator */
+        /* Hunt progress panel */
         .hunt-progress {
             position: fixed;
             top: 20px;
-            right: 80px;
-            background: rgba(20, 20, 30, 0.9);
+            right: 20px;
+            background: rgba(15, 15, 25, 0.95);
             border: 1px solid var(--patronus-glow);
-            border-radius: 20px;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.75rem;
+            border-radius: 12px;
+            padding: 12px 16px;
+            min-width: 200px;
+            max-width: 320px;
+            font-size: 0.8rem;
             color: var(--patronus-color);
             opacity: 0;
             transform: translateY(-20px);
             transition: all 0.3s ease;
             z-index: 9996;
+            pointer-events: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
         }
 
         .hunt-progress.show {
-            opacity: 0.8;
+            opacity: 1;
             transform: translateY(0);
         }
 
-        .hunt-progress:hover {
-            opacity: 1;
+        .hunt-progress-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hunt-progress-header:hover {
+            opacity: 0.9;
         }
 
         .hunt-progress .progress-icon {
-            font-size: 1.2rem;
+            font-size: 1.5rem;
+            animation: patronusFloat 2s ease-in-out infinite;
+        }
+
+        .hunt-progress .progress-info {
+            flex: 1;
+        }
+
+        .hunt-progress .progress-title {
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .hunt-progress .progress-subtitle {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .hunt-progress .progress-count {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .hunt-progress .progress-bar-container {
+            margin-top: 10px;
         }
 
         .hunt-progress .progress-bar {
-            width: 60px;
-            height: 4px;
+            width: 100%;
+            height: 6px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
         .hunt-progress .progress-fill {
             height: 100%;
-            background: var(--patronus-color);
+            background: linear-gradient(90deg, var(--patronus-color), var(--patronus-glow));
             transition: width 0.5s ease;
+            border-radius: 3px;
         }
 
-        .hunt-progress .progress-text {
-            font-family: 'Courier New', monospace;
+        /* Module checklist */
+        .hunt-modules {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .hunt-progress.expanded .hunt-modules {
+            max-height: 400px;
+            margin-top: 12px;
+            overflow-y: auto;
+        }
+
+        .hunt-modules-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
             letter-spacing: 0.1em;
+            opacity: 0.6;
+            margin-bottom: 8px;
+        }
+
+        .hunt-module-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .hunt-module-item:last-child {
+            border-bottom: none;
+        }
+
+        .hunt-module-item.found {
+            opacity: 0.5;
+        }
+
+        .hunt-module-item .module-status {
+            font-size: 0.9rem;
+        }
+
+        .hunt-module-item .module-name {
+            flex: 1;
+            color: #ccc;
+        }
+
+        .hunt-module-item.found .module-name {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .hunt-module-item .module-house {
+            font-size: 0.65rem;
+            opacity: 0.6;
+        }
+
+        .hunt-toggle {
+            font-size: 0.65rem;
+            text-align: center;
+            margin-top: 8px;
+            opacity: 0.5;
+            cursor: pointer;
+        }
+
+        .hunt-toggle:hover {
+            opacity: 0.8;
+        }
+
+        .hunt-progress.expanded .hunt-toggle::after {
+            content: '▲ Hide modules';
+        }
+
+        .hunt-progress:not(.expanded) .hunt-toggle::after {
+            content: '▼ Show modules';
+        }
+
+        /* End hunt button */
+        .hunt-end-btn {
+            margin-top: 10px;
+            padding: 6px 12px;
+            background: rgba(255, 100, 100, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.3);
+            border-radius: 6px;
+            color: #ff8888;
+            font-size: 0.7rem;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .hunt-end-btn:hover {
+            background: rgba(255, 100, 100, 0.3);
         }
 
         /* Trail markers on module cards */
@@ -451,9 +709,24 @@
         createProgressIndicator() {
             const trail = TRAILS[this.activeTrail];
             const huntData = this.getHuntData()[this.activeTrail] || {};
-            const found = (huntData.found || []).length;
+            const foundPaths = huntData.found || [];
+            const found = foundPaths.length;
             const total = trail.modules.length;
             const percent = Math.round((found / total) * 100);
+
+            // Build module list HTML
+            const moduleListHtml = trail.modules.map(mod => {
+                const isFound = foundPaths.some(f => mod.includes(f) || f.includes(mod));
+                const moduleName = this.getModuleDisplayName(mod);
+                const houseIcon = this.getHouseIcon(mod);
+                return `
+                    <div class="hunt-module-item ${isFound ? 'found' : ''}">
+                        <span class="module-status">${isFound ? '✓' : '○'}</span>
+                        <span class="module-name">${moduleName}</span>
+                        <span class="module-house">${houseIcon}</span>
+                    </div>
+                `;
+            }).join('');
 
             const progress = document.createElement('div');
             progress.className = 'hunt-progress';
@@ -461,16 +734,122 @@
             progress.style.setProperty('--patronus-color', trail.color);
             progress.style.setProperty('--patronus-glow', trail.glowColor);
             progress.innerHTML = `
-                <span class="progress-icon">${trail.icon}</span>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${percent}%"></div>
+                <div class="hunt-progress-header" onclick="document.getElementById('huntProgress').classList.toggle('expanded')">
+                    <span class="progress-icon">${trail.icon}</span>
+                    <div class="progress-info">
+                        <div class="progress-title">${trail.name} Hunt</div>
+                        <div class="progress-subtitle">Gate ${trail.gate} Trail</div>
+                    </div>
+                    <div class="progress-count">${found}/${total}</div>
                 </div>
-                <span class="progress-text">${found}/${total}</span>
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+                <div class="hunt-modules">
+                    <div class="hunt-modules-title">Modules to Find</div>
+                    ${moduleListHtml}
+                    <button class="hunt-end-btn" onclick="window.trailHunter.endHunt()">End Hunt</button>
+                </div>
+                <div class="hunt-toggle" onclick="document.getElementById('huntProgress').classList.toggle('expanded')"></div>
             `;
 
             document.body.appendChild(progress);
 
-            setTimeout(() => progress.classList.add('show'), 1000);
+            // Store reference globally for end hunt button
+            window.trailHunter = this;
+
+            setTimeout(() => progress.classList.add('show'), 500);
+        }
+
+        getModuleDisplayName(modulePath) {
+            // Extract a readable name from the module path
+            const names = {
+                'binary-decimal-converter': 'Binary/Decimal Converter',
+                'subnet-calculator': 'Subnet Calculator',
+                'dns-header-reference': 'DNS Header Reference',
+                'osi-model': 'OSI Model',
+                'encryption_task': 'Encryption Task',
+                'encryption-basics': 'Encryption Basics',
+                'packet-analyzer': 'Packet Analyzer',
+                'wireshark-training': 'Wireshark Training',
+                'cpu-architecture': 'CPU Architecture',
+                'linux-permissions-calculator': 'Linux Permissions',
+                'OSINT': 'OSINT Basics',
+                'OSINT_PD_Challenge': 'OSINT Challenge',
+                'googlehacking': 'Google Hacking',
+                'google-dorking-osint': 'Google Dorking',
+                'osint-google-dorking': 'OSINT Lab',
+                'browser-security-hardening': 'Browser Security',
+                'encryption_jedit': 'Encryption Tool',
+                'EncryptData': 'Encrypt Data',
+                'Hashing': 'Hashing',
+                'cookies': 'Cookie Caper',
+                'Stego': 'Steganography',
+                'hash_steg_presentation': 'Hash & Stego Intro',
+                'Encryption_II': 'Encryption II',
+                'Hash_Lab': 'Hash Lab',
+                'hashing_Lab': 'Hashing Lab',
+                'hash-stego-intro': 'Stego Introduction',
+                'crypto-stego-lab': 'Crypto Stego Lab',
+                'hash_v3': 'Hash v3',
+                'checksum-verifier': 'Checksum Verifier',
+                'DigitalSignature': 'Digital Signatures',
+                'network-traffic-analysis': 'Traffic Analysis',
+                'traffic-lab': 'Traffic Lab',
+                'ProtocolAnalysis': 'Protocol Analysis',
+                'threeway_handshake': '3-Way Handshake',
+                'WirelessSecurity': 'Wireless Security',
+                'log-correlation': 'Log Correlation',
+                'correlation-engine': 'Correlation Engine',
+                'siem-fundamentals': 'SIEM Basics',
+                'siem-simulator': 'SIEM Simulator',
+                'cryptanalysis': 'Cryptanalysis',
+                'cryptanalysis-lab': 'Cryptanalysis Lab',
+                'threat-hunting': 'Threat Hunting',
+                'hunt-workbench': 'Hunt Workbench',
+                'hunting-lab': 'Hunting Lab',
+                'pen_testing': 'Penetration Testing',
+                'codeinjection': 'Code Injection',
+                'bufferoverflow': 'Buffer Overflow',
+                'elliptic-curve': 'Elliptic Curve',
+                'ecc-visualizer': 'ECC Visualizer',
+                'diffie_hellman': 'Diffie-Hellman',
+                'RSA': 'RSA Encryption',
+                'EH_exam': 'Ethical Hacking'
+            };
+
+            // Try to match from the names map
+            for (const [key, name] of Object.entries(names)) {
+                if (modulePath.includes(key)) return name;
+            }
+
+            // Fallback: extract filename and clean it up
+            const filename = modulePath.split('/').pop().replace('.html', '');
+            return filename.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        getHouseIcon(modulePath) {
+            if (modulePath.includes('ip-addressing') || modulePath.includes('subnet') || modulePath.includes('dns') || modulePath.includes('osi')) return '🌐';
+            if (modulePath.includes('crypto') || modulePath.includes('encrypt') || modulePath.includes('hash') || modulePath.includes('stego')) return '🔑';
+            if (modulePath.includes('packet') || modulePath.includes('wireshark') || modulePath.includes('traffic') || modulePath.includes('siem') || modulePath.includes('correlation') || modulePath.includes('hunt')) return '👁️';
+            if (modulePath.includes('cpu') || modulePath.includes('reference')) return '⚒️';
+            if (modulePath.includes('linux') || modulePath.includes('script')) return '📜';
+            if (modulePath.includes('osint') || modulePath.includes('google') || modulePath.includes('browser') || modulePath.includes('cookie') || modulePath.includes('threat') || modulePath.includes('pen_testing') || modulePath.includes('injection') || modulePath.includes('buffer')) return '🛡️';
+            return '📚';
+        }
+
+        endHunt() {
+            if (confirm('End this hunt? Your progress will be saved but the Patronus will stop guiding you.')) {
+                const huntData = this.getHuntData();
+                if (huntData[this.activeTrail]) {
+                    huntData[this.activeTrail].active = false;
+                    this.saveHuntData(huntData);
+                }
+                this.destroy();
+                location.reload();
+            }
         }
 
         startPatronusMovement() {
@@ -619,47 +998,40 @@
 
         _doMarkTrailModules() {
             const trail = TRAILS[this.activeTrail];
-            if (!trail || !trail.keywords) return;
+            if (!trail || !trail.modules) return;
 
             const huntData = this.getHuntData()[this.activeTrail] || {};
             const foundModules = huntData.found || [];
 
             let markedCount = 0;
 
-            // Method 1: Find module cards by their text content
-            const cards = document.querySelectorAll('.module-card, .card, [class*="module"], [class*="card"]');
+            // Check elements with href, data-href, or onclick containing paths
+            const allElements = document.querySelectorAll('a[href], [data-href], [onclick*=".html"]');
 
-            cards.forEach(card => {
-                // Skip if already marked
-                if (card.querySelector('.trail-marker')) return;
+            allElements.forEach(el => {
+                const href = el.getAttribute('href') || '';
+                const dataHref = el.dataset.href || '';
+                const onclick = el.getAttribute('onclick') || '';
 
-                const cardText = card.textContent.toLowerCase();
-
-                // Check if card text matches any trail keyword
-                const matched = trail.keywords.some(keyword =>
-                    cardText.includes(keyword.toLowerCase())
-                );
-
-                if (matched) {
-                    this._addMarkerToCard(card, trail, foundModules);
-                    markedCount++;
-                }
-            });
-
-            // Method 2: Also check links with hrefs
-            const links = document.querySelectorAll('a[href]');
-            links.forEach(link => {
-                const href = link.getAttribute('href') || '';
-
-                const matchedModule = trail.modules.find(mod => href.includes(mod));
+                // Check if this element links to a trail module (exact match only)
+                const matchedModule = trail.modules.find(mod => {
+                    const modFile = mod.split('/').pop(); // Get filename
+                    // Require exact match of the full path OR exact filename match
+                    return href === mod || dataHref === mod ||
+                           href.endsWith(mod) || dataHref.endsWith(mod) ||
+                           href.endsWith(modFile) || dataHref.endsWith(modFile);
+                });
 
                 if (matchedModule) {
-                    let card = link.closest('.module-card, .card, [class*="card"]');
-                    if (!card) card = link;
+                    // Find the parent card element or use the element itself
+                    let card = el.closest('.module-card, .card, .path-card, .cert-step');
+                    if (!card) card = el;
 
+                    // Skip if already marked
                     if (!card.querySelector('.trail-marker')) {
                         this._addMarkerToCard(card, trail, foundModules);
                         markedCount++;
+                        console.log(`[TrailHunter] Marked: ${matchedModule}`);
                     }
                 }
             });
@@ -784,13 +1156,30 @@
 
         updateProgress(count) {
             const trail = TRAILS[this.activeTrail];
+            const huntData = this.getHuntData()[this.activeTrail] || {};
+            const foundPaths = huntData.found || [];
             const total = trail.modules.length;
             const percent = Math.round((count / total) * 100);
 
             const progressEl = document.getElementById('huntProgress');
             if (progressEl) {
+                // Update progress bar
                 progressEl.querySelector('.progress-fill').style.width = percent + '%';
-                progressEl.querySelector('.progress-text').textContent = `${count}/${total}`;
+
+                // Update count
+                const countEl = progressEl.querySelector('.progress-count');
+                if (countEl) countEl.textContent = `${count}/${total}`;
+
+                // Update module list checkmarks
+                const moduleItems = progressEl.querySelectorAll('.hunt-module-item');
+                moduleItems.forEach((item, index) => {
+                    const mod = trail.modules[index];
+                    const isFound = foundPaths.some(f => mod.includes(f) || f.includes(mod));
+                    if (isFound) {
+                        item.classList.add('found');
+                        item.querySelector('.module-status').textContent = '✓';
+                    }
+                });
             }
         }
 

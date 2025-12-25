@@ -145,9 +145,22 @@ const ModuleProgress = (function() {
         // Return to dashboard if passed
         if (returnToDashboard && passed) {
             setTimeout(() => {
-                const depth = (window.location.pathname.match(/\//g) || []).length;
-                const prefix = '../'.repeat(Math.max(0, depth - 2));
-                window.location.href = prefix + 'dashboard.html';
+                // Calculate path based on known structure
+                const path = window.location.pathname;
+
+                // Find where _app is in the path
+                const appIndex = path.indexOf('/_app/');
+                if (appIndex !== -1) {
+                    // We know where _app is, navigate relative to it
+                    const pathAfterApp = path.substring(appIndex + 6); // after "/_app/"
+                    const depth = (pathAfterApp.match(/\//g) || []).length;
+                    const prefix = '../'.repeat(depth);
+                    window.location.href = prefix + 'dashboard.html';
+                } else {
+                    // Fallback: assume houses/[house]/quizzes/ structure
+                    // Go up 3 levels: quizzes → house → houses → _app
+                    window.location.href = '../../../dashboard.html';
+                }
             }, silent ? 0 : 2000);
         }
 
