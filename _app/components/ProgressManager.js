@@ -151,7 +151,13 @@ class ProgressManager {
             // Still allow re-completion for practice, but reduced/no XP
             console.log(`Module ${moduleId} already completed - practice mode`);
             // Still provide next module even in practice mode
-            result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
+            try {
+                if (typeof LearningPaths !== 'undefined') {
+                    result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
+                }
+            } catch (e) {
+                console.error('Error getting next module:', e);
+            }
             return result;
         }
 
