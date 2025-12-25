@@ -176,6 +176,50 @@ sitemap.xml: 200
             </table>
         </section>
 
+        <!-- Interactive Lab -->
+        <div class="lab-section" style="background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(167, 139, 250, 0.1)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 25px; margin: 30px 0;">
+            <h3 style="color: #4ade80; margin-bottom: 15px;">🎯 LAB: Web Enumeration Simulator</h3>
+            <p style="color: #ccc; margin-bottom: 15px;">
+                Target: https://target-app.local - Enumerate this web server to find hidden paths and information leaks.
+            </p>
+
+            <div class="objectives" style="display:grid;gap:8px;margin:15px 0;">
+                <div class="objective" id="obj-headers" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:0.9rem;"><span class="objective-icon" style="width:20px;text-align:center;">☐</span><span>Check HTTP headers for server info</span></div>
+                <div class="objective" id="obj-robots" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:0.9rem;"><span class="objective-icon" style="width:20px;text-align:center;">☐</span><span>Retrieve robots.txt</span></div>
+                <div class="objective" id="obj-admin" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:0.9rem;"><span class="objective-icon" style="width:20px;text-align:center;">☐</span><span>Find a hidden admin path</span></div>
+                <div class="objective" id="obj-git" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:6px;font-size:0.9rem;"><span class="objective-icon" style="width:20px;text-align:center;">☐</span><span>Check for exposed .git directory</span></div>
+            </div>
+
+            <div class="interactive-terminal" style="background:#0d1117;border:1px solid rgba(74,222,128,0.3);border-radius:8px;overflow:hidden;margin:20px 0;">
+                <div class="terminal-header" style="background:rgba(255,255,255,0.05);padding:8px 15px;display:flex;align-items:center;gap:8px;">
+                    <span style="width:12px;height:12px;border-radius:50%;background:#ef4444;"></span>
+                    <span style="width:12px;height:12px;border-radius:50%;background:#fbbf24;"></span>
+                    <span style="width:12px;height:12px;border-radius:50%;background:#22c55e;"></span>
+                    <span style="color:#888;margin-left:10px;font-size:0.8rem;">web-enum</span>
+                </div>
+                <div class="terminal-body" style="padding:15px;">
+                    <div class="terminal-output" id="terminalOutput" style="color:#888;font-family:'Consolas',monospace;font-size:0.85rem;line-height:1.6;min-height:250px;max-height:350px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">Web Enumeration Lab
+====================
+Target: https://target-app.local
+
+Commands: curl -I [url], curl [url], wget [url]
+Try: curl -I https://target-app.local
+     curl https://target-app.local/robots.txt
+</div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="color:#4ade80;font-family:'Consolas',monospace;">$</span>
+                        <input type="text" id="terminalInput" style="flex:1;background:transparent;border:none;color:#fff;font-family:'Consolas',monospace;font-size:0.9rem;outline:none;" autocomplete="off" placeholder="curl -I https://target-app.local">
+                        <button onclick="runWebCmd()" style="padding:8px 20px;background:#4ade80;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage" style="display:none;background:rgba(34,197,94,0.2);border:1px solid #22c55e;border-radius:8px;padding:15px;margin-top:15px;">
+                <strong style="color:#22c55e;">🎉 WEB ENUM COMPLETE!</strong>
+                <p style="margin-top:10px;color:#ccc;">You've successfully enumerated the web server!</p>
+            </div>
+        </div>
+
         <div class="progress-section">
             <h3 style="color: var(--house-primary); margin-bottom: 20px;">Ready to Test Your Skills?</h3>
             <div class="module-nav">
@@ -187,5 +231,104 @@ sitemap.xml: 200
     </main>
     <script src="../../../components/TrailHunter.js"></script>
     <script src="../../../components/ModuleProgress.js"></script>
+
+    <script>
+        let completed = { headers: false, robots: false, admin: false, git: false };
+        const BASE = 'https://target-app.local';
+
+        const responses = {
+            headers: `HTTP/2 200
+server: Apache/2.4.41 (Ubuntu)
+x-powered-by: PHP/7.4.3
+content-type: text/html; charset=UTF-8
+set-cookie: PHPSESSID=abc123; path=/
+x-frame-options: SAMEORIGIN`,
+            '/': `<!DOCTYPE html><html><head><title>Target App</title></head><body><h1>Welcome</h1></body></html>`,
+            '/robots.txt': `User-agent: *
+Disallow: /admin/
+Disallow: /backup/
+Disallow: /config/
+Disallow: /.git/`,
+            '/admin': `HTTP/1.1 403 Forbidden
+<h1>403 Forbidden</h1><p>Access denied to /admin/</p>`,
+            '/admin/': `HTTP/1.1 403 Forbidden`,
+            '/.git/config': `HTTP/1.1 200 OK
+[core]
+    repositoryformatversion = 0
+    filemode = true
+[remote "origin"]
+    url = git@github.com:company/target-app.git`,
+            '/.git': `403 Forbidden - Directory listing denied`,
+            '/.env': `HTTP/1.1 404 Not Found`,
+            '/backup': `HTTP/1.1 301 Moved Permanently\nLocation: /backup/`,
+        };
+
+        function runWebCmd() {
+            const input = document.getElementById('terminalInput');
+            const output = document.getElementById('terminalOutput');
+            const cmd = input.value.trim();
+
+            if (!cmd) return;
+            output.innerHTML += `\n$ ${cmd}\n`;
+
+            // Parse command
+            if (cmd.includes('curl')) {
+                if (cmd.includes('-I') || cmd.includes('--head')) {
+                    // Headers request
+                    output.innerHTML += responses.headers + '\n';
+                    markComplete('headers');
+                } else {
+                    // Content request
+                    const path = cmd.match(/target-app\.local(\S*)/)?.[1] || '/';
+                    if (path.includes('robots')) {
+                        output.innerHTML += responses['/robots.txt'] + '\n';
+                        markComplete('robots');
+                    } else if (path.includes('admin')) {
+                        output.innerHTML += responses['/admin'] + '\n';
+                        markComplete('admin');
+                    } else if (path.includes('.git')) {
+                        output.innerHTML += responses['/.git/config'] + '\n';
+                        markComplete('git');
+                    } else if (responses[path]) {
+                        output.innerHTML += responses[path] + '\n';
+                    } else {
+                        output.innerHTML += responses['/'] + '\n';
+                    }
+                }
+            } else if (cmd.includes('wget')) {
+                const path = cmd.match(/target-app\.local(\S*)/)?.[1] || '/';
+                if (path.includes('robots')) {
+                    output.innerHTML += `Saving to: 'robots.txt'\nrobots.txt saved.\n`;
+                    markComplete('robots');
+                } else {
+                    output.innerHTML += `Downloaded ${path}\n`;
+                }
+            } else if (cmd === 'clear') {
+                output.innerHTML = '';
+            } else {
+                output.innerHTML += `Command not recognized. Try: curl -I ${BASE}\n`;
+            }
+
+            checkAllComplete();
+            output.scrollTop = output.scrollHeight;
+            input.value = '';
+        }
+
+        function markComplete(obj) {
+            if (!completed[obj]) {
+                completed[obj] = true;
+                const el = document.getElementById(`obj-${obj}`);
+                if (el) { el.style.background = 'rgba(34,197,94,0.15)'; el.style.color = '#4ade80'; el.querySelector('.objective-icon').textContent = '✓'; }
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(completed).every(v => v)) {
+                document.getElementById('successMessage').style.display = 'block';
+            }
+        }
+
+        document.getElementById('terminalInput').addEventListener('keypress', e => { if (e.key === 'Enter') runWebCmd(); });
+    </script>
 </body>
 </html>
