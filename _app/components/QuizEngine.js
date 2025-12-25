@@ -506,7 +506,18 @@ class QuizEngine {
         const nextBtn = this.container.querySelector('.quiz-next-module-btn');
         if (nextBtn && nextModule) {
             nextBtn.addEventListener('click', () => {
-                window.location.href = nextModule.href;
+                // Calculate correct path - hrefs in LearningPaths are relative to house root
+                // If we're in a subfolder (quizzes/, applets/, etc.), need to go up first
+                const currentPath = window.location.pathname;
+                const houseMatch = currentPath.match(/\/houses\/\w+\//);
+                if (houseMatch) {
+                    // Navigate relative to house root
+                    const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
+                    window.location.href = houseBase + nextModule.href;
+                } else {
+                    // Fallback: go up one level and try
+                    window.location.href = '../' + nextModule.href;
+                }
             });
         }
 
