@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-005: Process Investigation - Hexworth Prime</title>
+    <style>
+        :root {
+            --house-primary: #a78bfa;
+            --house-secondary: #8b5cf6;
+            --house-glow: rgba(167, 139, 250, 0.3);
+            --terminal-green: #4ade80;
+            --terminal-bg: #0d1117;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+        }
+
+        .module-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.8rem;
+            text-decoration: none;
+        }
+
+        .back-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+        .module-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 25px;
+        }
+
+        .module-badge-text {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: var(--warning);
+            text-transform: uppercase;
+        }
+
+        .content-wrapper { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+        .module-title {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--warning), var(--danger));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .module-subtitle { color: #888; font-size: 1.1rem; margin-bottom: 30px; }
+
+        .section {
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: var(--house-primary);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section p { line-height: 1.8; margin-bottom: 15px; color: #ccc; }
+
+        .alert-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15));
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .alert-box h3 {
+            color: var(--warning);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 20px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .terminal::before {
+            content: '$ terminal';
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--terminal-bg);
+            padding: 0 10px;
+            font-size: 0.7rem;
+            color: var(--terminal-green);
+        }
+
+        .terminal code {
+            color: var(--terminal-green);
+            display: block;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+        }
+
+        .terminal .prompt { color: #60a5fa; }
+        .terminal .command { color: #fff; }
+        .terminal .output { color: #888; }
+        .terminal .suspicious { color: var(--danger); font-weight: bold; }
+        .terminal .normal { color: var(--terminal-green); }
+
+        .command-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .command-table th, .command-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .command-table th {
+            background: rgba(167, 139, 250, 0.1);
+            color: var(--house-primary);
+        }
+
+        .command-table code {
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--terminal-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .key-points { display: grid; gap: 15px; margin: 20px 0; }
+
+        .key-point {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(167, 139, 250, 0.05);
+            border-left: 3px solid var(--house-primary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .key-point-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .key-point-content h4 { color: var(--house-primary); margin-bottom: 5px; }
+        .key-point-content p { margin: 0; font-size: 0.9rem; }
+
+        .lab-section {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(167, 139, 250, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .lab-section h3 {
+            color: var(--warning);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .process-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .process-table th, .process-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .process-table th { background: rgba(255, 255, 255, 0.05); color: #888; }
+        .process-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+        .process-table .suspicious-row { background: rgba(239, 68, 68, 0.1); }
+        .process-table .suspicious-row td { color: var(--danger); }
+
+        .interactive-terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #fbbf24; }
+        .terminal-dot.green { background: #22c55e; }
+
+        .terminal-body { padding: 15px; }
+
+        .terminal-output {
+            color: #888;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            min-height: 180px;
+            max-height: 350px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            white-space: pre;
+        }
+
+        .terminal-input-line { display: flex; align-items: center; gap: 10px; }
+
+        .terminal-prompt { color: var(--terminal-green); font-family: 'Consolas', monospace; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .run-btn {
+            padding: 8px 20px;
+            background: var(--warning);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .run-btn:hover { background: #d97706; }
+
+        .success-message {
+            display: none;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid var(--terminal-green);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .success-message.show { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .progress-section {
+            text-align: center;
+            padding: 40px;
+            background: rgba(167, 139, 250, 0.05);
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+
+        .progress-section h3 { color: var(--house-primary); margin-bottom: 20px; }
+        .module-nav { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+
+        .nav-btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary));
+            color: #fff;
+            border: none;
+        }
+
+        .nav-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .nav-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(167, 139, 250, 0.2));
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--warning);
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header class="module-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn"><span>&larr;</span> Script House</a>
+            <div class="module-badge">
+                <span style="font-size: 1.5rem;">⚡</span>
+                <span class="module-badge-text">Process Hunting</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <span style="color: #666; font-size: 0.8rem;">CLH-005 of 015</span>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        <h1 class="module-title">Process Investigation</h1>
+        <p class="module-subtitle">Find the rogue process. Malware hides in plain sight among legitimate services.</p>
+
+        <div class="alert-box">
+            <h3>⚠️ ANOMALY DETECTED</h3>
+            <p>
+                System monitoring flagged unusual CPU activity. A process snapshot has been captured.
+                Your mission: analyze the running processes and identify the suspicious one that doesn't belong.
+            </p>
+        </div>
+
+        <section class="section">
+            <h2>🔄 Understanding Linux Processes</h2>
+            <p>
+                Every program running on Linux is a <strong>process</strong> with a unique Process ID (PID).
+                Malware, backdoors, and crypto miners all run as processes - and they can't hide from
+                <code>ps</code>, <code>top</code>, and <code>htop</code>.
+            </p>
+            <p>
+                The key to finding malicious processes is knowing what's <em>normal</em>. Legitimate system
+                processes have recognizable names, run from standard locations, and consume expected resources.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>🛠️ Process Investigation Commands</h2>
+
+            <table class="command-table">
+                <tr><th>Command</th><th>Purpose</th></tr>
+                <tr><td><code>ps aux</code></td><td>List all processes with details (user, CPU, memory, command)</td></tr>
+                <tr><td><code>ps aux --sort=-%cpu</code></td><td>Sort by CPU usage (highest first)</td></tr>
+                <tr><td><code>top</code></td><td>Real-time process monitor (q to quit)</td></tr>
+                <tr><td><code>htop</code></td><td>Enhanced process viewer with colors</td></tr>
+                <tr><td><code>pstree</code></td><td>Show process hierarchy (parent/child relationships)</td></tr>
+                <tr><td><code>lsof -p [PID]</code></td><td>List files opened by a process</td></tr>
+                <tr><td><code>kill -9 [PID]</code></td><td>Force terminate a process</td></tr>
+            </table>
+
+            <div class="terminal">
+                <code><span class="prompt">analyst@system:~$</span> <span class="command">ps aux --sort=-%cpu | head -5</span>
+<span class="output">USER       PID %CPU %MEM    VSZ   RSS COMMAND
+root        11  <span class="suspicious">8.2</span>  5.1  16432  9760 <span class="suspicious">/usr/bin/unknown_process</span>
+user         9  2.4  1.3   8764  4236 /usr/lib/firefox/firefox
+user        10  3.1  1.8  11236  6344 /usr/lib/libreoffice/program/soffice.bin
+root         8  5.2  2.1  12348  5692 /usr/bin/apt-get update</span>
+
+<span class="output"># Wait... what is "unknown_process"? That's not normal!</span></code>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🚩 Red Flags in Process Lists</h2>
+
+            <div class="key-points">
+                <div class="key-point">
+                    <span class="key-point-icon">❓</span>
+                    <div class="key-point-content">
+                        <h4>Unknown Names</h4>
+                        <p>Processes with generic names like "update", "system", "unknown_process" that aren't standard.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📈</span>
+                    <div class="key-point-content">
+                        <h4>High Resource Usage</h4>
+                        <p>Crypto miners and malware often consume excessive CPU/memory with no apparent purpose.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📁</span>
+                    <div class="key-point-content">
+                        <h4>Unusual Paths</h4>
+                        <p>Legitimate binaries run from /usr/bin, /usr/sbin. Watch for /tmp, /dev/shm, or hidden directories.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">👤</span>
+                    <div class="key-point-content">
+                        <h4>Wrong User</h4>
+                        <p>Web servers shouldn't run as root. User processes shouldn't spawn system services.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Lab -->
+        <div class="lab-section">
+            <h3>🎯 LAB: Find the Anomaly</h3>
+
+            <p>A system administrator captured this process snapshot. One process doesn't belong.
+            Use the terminal to investigate and identify the suspicious process.</p>
+
+            <table class="process-table">
+                <tr>
+                    <th>TIME</th><th>PROCESS</th><th>PID</th><th>%CPU</th><th>%MEM</th><th>COMMAND</th>
+                </tr>
+                <tr><td>14:26:45</td><td>systemd</td><td>1</td><td>0.0</td><td>0.1</td><td>/lib/systemd/systemd</td></tr>
+                <tr><td>14:26:45</td><td>sshd</td><td>6</td><td>0.0</td><td>0.0</td><td>/usr/sbin/sshd</td></tr>
+                <tr><td>14:28:33</td><td>apt-get</td><td>8</td><td>5.2</td><td>2.1</td><td>/usr/bin/apt-get update</td></tr>
+                <tr><td>14:29:12</td><td>firefox</td><td>9</td><td>2.4</td><td>1.3</td><td>/usr/lib/firefox/firefox</td></tr>
+                <tr><td>14:29:15</td><td>libreoffice</td><td>10</td><td>3.1</td><td>1.8</td><td>/usr/lib/libreoffice/...</td></tr>
+                <tr class="suspicious-row"><td>14:30:00</td><td>unknown_process</td><td>11</td><td>8.2</td><td>5.1</td><td>/usr/bin/unknown_process</td></tr>
+                <tr><td>14:30:02</td><td>update-manager</td><td>12</td><td>1.3</td><td>0.7</td><td>/usr/bin/update-manager</td></tr>
+            </table>
+
+            <div class="interactive-terminal">
+                <div class="terminal-header">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span style="color: #888; margin-left: 10px; font-size: 0.8rem;">process-hunter</span>
+                </div>
+                <div class="terminal-body">
+                    <div class="terminal-output" id="terminalOutput">Process Investigation Lab
+==========================
+Process snapshot loaded. Find the anomaly.
+
+Commands available:
+  ps aux
+  ps aux --sort=-%cpu
+  ps aux | grep [name]
+  kill -9 [PID]
+  file /usr/bin/[process]
+</div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">hunter$</span>
+                        <input type="text" class="terminal-input" id="terminalInput" placeholder="ps aux ..." autocomplete="off">
+                        <button class="run-btn" onclick="runCommand()">Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                <strong style="color: var(--terminal-green);">🎯 THREAT NEUTRALIZED!</strong>
+                <p style="margin-top: 10px;">You identified and killed the malicious process:</p>
+                <ul style="margin-top: 10px; margin-left: 20px; color: #ccc;">
+                    <li>Process: <code style="color: var(--danger);">unknown_process</code> (PID 11)</li>
+                    <li>Red flags: Generic name, high CPU (8.2%), unknown origin</li>
+                    <li>Action: Terminated with <code>kill -9 11</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <h3>Ready to Test Your Skills?</h3>
+            <p style="color: #888; margin-bottom: 20px;">Complete the quiz to prove your process hunting abilities.</p>
+            <div class="module-nav">
+                <a href="clh-005-quiz.html" class="nav-btn primary">Take the Quiz &rarr;</a>
+                <a href="../index.html" class="nav-btn secondary">Back to Script House</a>
+            </div>
+            <div class="title-badge">🎖️ Completing CLH-004 to CLH-006 earns: CLI Analyst</div>
+        </div>
+    </main>
+
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <script>
+        const processes = [
+            { time: '14:26:45', name: 'systemd', pid: 1, cpu: 0.0, mem: 0.1, cmd: '/lib/systemd/systemd' },
+            { time: '14:26:45', name: 'klogd', pid: 2, cpu: 0.0, mem: 0.0, cmd: '/usr/sbin/klogd' },
+            { time: '14:26:45', name: 'rsyslogd', pid: 3, cpu: 0.0, mem: 0.1, cmd: '/usr/sbin/rsyslogd' },
+            { time: '14:26:45', name: 'crond', pid: 4, cpu: 0.0, mem: 0.0, cmd: '/usr/sbin/cron' },
+            { time: '14:26:45', name: 'NetworkManager', pid: 5, cpu: 0.1, mem: 0.2, cmd: '/usr/sbin/NetworkManager' },
+            { time: '14:26:45', name: 'sshd', pid: 6, cpu: 0.0, mem: 0.0, cmd: '/usr/sbin/sshd' },
+            { time: '14:26:45', name: 'bash', pid: 7, cpu: 0.2, mem: 0.1, cmd: '/bin/bash' },
+            { time: '14:28:33', name: 'apt-get', pid: 8, cpu: 5.2, mem: 2.1, cmd: '/usr/bin/apt-get update' },
+            { time: '14:29:12', name: 'firefox', pid: 9, cpu: 2.4, mem: 1.3, cmd: '/usr/lib/firefox/firefox' },
+            { time: '14:29:15', name: 'libreoffice', pid: 10, cpu: 3.1, mem: 1.8, cmd: '/usr/lib/libreoffice/program/soffice.bin' },
+            { time: '14:30:00', name: 'unknown_process', pid: 11, cpu: 8.2, mem: 5.1, cmd: '/usr/bin/unknown_process', suspicious: true },
+            { time: '14:30:02', name: 'update-manager', pid: 12, cpu: 1.3, mem: 0.7, cmd: '/usr/bin/update-manager' }
+        ];
+
+        let killed = false;
+
+        function formatProcess(p) {
+            return `${p.name.padEnd(18)} ${String(p.pid).padStart(3)}  ${p.cpu.toFixed(1).padStart(4)}  ${p.mem.toFixed(1).padStart(4)}  ${p.cmd}`;
+        }
+
+        function runCommand() {
+            const input = document.getElementById('terminalInput');
+            const output = document.getElementById('terminalOutput');
+            const cmd = input.value.trim();
+
+            if (!cmd) return;
+            output.innerHTML += `\nhunter$ ${cmd}\n`;
+
+            if (cmd.includes('ps aux')) {
+                let list = processes.filter(p => !killed || p.pid !== 11);
+                if (cmd.includes('--sort=-%cpu')) {
+                    list = [...list].sort((a, b) => b.cpu - a.cpu);
+                }
+                if (cmd.includes('grep')) {
+                    const term = cmd.split('grep')[1].trim();
+                    list = list.filter(p => p.name.includes(term) || p.cmd.includes(term));
+                }
+                if (cmd.includes('head')) {
+                    const n = parseInt(cmd.match(/head -?(\d+)/)?.[1] || 5);
+                    list = list.slice(0, n);
+                }
+                output.innerHTML += `USER       PID %CPU %MEM COMMAND\n`;
+                list.forEach(p => {
+                    const line = formatProcess(p);
+                    if (p.suspicious && !killed) {
+                        output.innerHTML += `<span style="color: #ef4444;">${line}</span>\n`;
+                    } else {
+                        output.innerHTML += line + '\n';
+                    }
+                });
+            } else if (cmd.includes('kill') && cmd.includes('11')) {
+                if (!killed) {
+                    killed = true;
+                    output.innerHTML += `Process 11 (unknown_process) terminated.\n`;
+                    document.getElementById('successMessage').classList.add('show');
+                } else {
+                    output.innerHTML += `No such process: 11\n`;
+                }
+            } else if (cmd.includes('file') && cmd.includes('unknown')) {
+                output.innerHTML += `/usr/bin/unknown_process: ELF 64-bit executable, dynamically linked\n`;
+                output.innerHTML += `WARNING: Binary not found in package database!\n`;
+            } else if (cmd === 'clear') {
+                output.innerHTML = '';
+            } else {
+                output.innerHTML += `Command executed: ${cmd}\n`;
+            }
+
+            output.scrollTop = output.scrollHeight;
+            input.value = '';
+        }
+
+        document.getElementById('terminalInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') runCommand();
+        });
+    </script>
+</body>
+</html>

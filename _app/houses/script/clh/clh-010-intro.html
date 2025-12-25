@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-010: Log Analysis & Forensics - Hexworth Prime</title>
+    <style>
+        :root {
+            --house-primary: #a78bfa;
+            --house-secondary: #8b5cf6;
+            --house-glow: rgba(167, 139, 250, 0.3);
+            --terminal-green: #4ade80;
+            --terminal-bg: #0d1117;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #22c55e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .module-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 25px;
+        }
+
+        .module-badge-text {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: var(--danger);
+            text-transform: uppercase;
+        }
+
+        /* Main Content */
+        .content-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .module-title {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--danger), var(--warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .module-subtitle {
+            color: #888;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: var(--house-primary);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section p {
+            line-height: 1.8;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        /* Alert Box */
+        .alert-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(245, 158, 11, 0.15));
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .alert-box h3 {
+            color: var(--danger);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-box p {
+            margin-bottom: 0;
+        }
+
+        /* Terminal Block */
+        .terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 20px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .terminal::before {
+            content: '$ terminal';
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--terminal-bg);
+            padding: 0 10px;
+            font-size: 0.7rem;
+            color: var(--terminal-green);
+            letter-spacing: 0.1em;
+        }
+
+        .terminal code {
+            color: var(--terminal-green);
+            display: block;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .terminal .prompt {
+            color: #60a5fa;
+        }
+
+        .terminal .command {
+            color: #fff;
+        }
+
+        .terminal .output {
+            color: #888;
+        }
+
+        .terminal .highlight {
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        .terminal .warning {
+            color: var(--warning);
+        }
+
+        /* Command Reference Table */
+        .command-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .command-table th,
+        .command-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .command-table th {
+            background: rgba(167, 139, 250, 0.1);
+            color: var(--house-primary);
+            font-weight: 600;
+        }
+
+        .command-table code {
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--terminal-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* Log Sample Display */
+        .log-sample {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .log-sample .line {
+            padding: 2px 0;
+        }
+
+        .log-sample .timestamp {
+            color: #666;
+        }
+
+        .log-sample .hostname {
+            color: #60a5fa;
+        }
+
+        .log-sample .service {
+            color: var(--house-primary);
+        }
+
+        .log-sample .error {
+            color: var(--danger);
+        }
+
+        .log-sample .warning {
+            color: var(--warning);
+        }
+
+        .log-sample .info {
+            color: var(--terminal-green);
+        }
+
+        /* Key Points */
+        .key-points {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .key-point {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(167, 139, 250, 0.05);
+            border-left: 3px solid var(--house-primary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .key-point-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .key-point-content h4 {
+            color: var(--house-primary);
+            margin-bottom: 5px;
+        }
+
+        .key-point-content p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Investigation Lab */
+        .lab-section {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(167, 139, 250, 0.1));
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .lab-section h3 {
+            color: var(--danger);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .lab-objective {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .lab-objective h4 {
+            color: var(--warning);
+            margin-bottom: 10px;
+        }
+
+        /* Interactive Terminal */
+        .interactive-terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #fbbf24; }
+        .terminal-dot.green { background: #22c55e; }
+
+        .terminal-body {
+            padding: 15px;
+        }
+
+        .terminal-output {
+            color: #888;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            min-height: 150px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal-prompt {
+            color: var(--terminal-green);
+            font-family: 'Consolas', monospace;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .run-btn {
+            padding: 8px 20px;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .run-btn:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--house-primary);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Success Animation */
+        .success-message {
+            display: none;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Progress Section */
+        .progress-section {
+            text-align: center;
+            padding: 40px;
+            background: rgba(167, 139, 250, 0.05);
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+
+        .progress-section h3 {
+            color: var(--house-primary);
+            margin-bottom: 20px;
+        }
+
+        .module-nav {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary));
+            color: #fff;
+            border: none;
+        }
+
+        .nav-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .nav-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(167, 139, 250, 0.2));
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--danger);
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header class="module-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">
+                <span>&larr;</span> Script House
+            </a>
+            <div class="module-badge">
+                <span style="font-size: 1.5rem;">🔴</span>
+                <span class="module-badge-text">Log Forensics</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <span style="color: #666; font-size: 0.8rem;">CLH-010 of 015</span>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        <h1 class="module-title">Log Analysis & Forensics</h1>
+        <p class="module-subtitle">Investigate real attack evidence. Hunt through 25,000+ lines of logs to find the breach.</p>
+
+        <div class="alert-box">
+            <h3>&#9888; INCIDENT ALERT</h3>
+            <p>
+                A security team has extracted logs from a compromised Linux server. Your mission: analyze
+                <strong>25,567 lines</strong> of system logs to identify the attack, determine the source,
+                and reconstruct the timeline of the breach.
+            </p>
+        </div>
+
+        <section class="section">
+            <h2>📜 Understanding Linux Logs</h2>
+            <p>
+                Every Linux system keeps detailed records of everything that happens. These logs are your
+                primary evidence source in any security investigation. Knowing where to look and what to
+                look for separates forensic analysts from button clickers.
+            </p>
+
+            <table class="command-table">
+                <tr>
+                    <th>Log Location</th>
+                    <th>Contains</th>
+                    <th>Security Value</th>
+                </tr>
+                <tr>
+                    <td><code>/var/log/auth.log</code></td>
+                    <td>Authentication events</td>
+                    <td>Login attempts, sudo usage, SSH activity</td>
+                </tr>
+                <tr>
+                    <td><code>/var/log/syslog</code></td>
+                    <td>General system messages</td>
+                    <td>Service status, kernel messages, errors</td>
+                </tr>
+                <tr>
+                    <td><code>/var/log/secure</code></td>
+                    <td>Security-related events</td>
+                    <td>PAM, sshd, authentication failures</td>
+                </tr>
+                <tr>
+                    <td><code>/var/log/kern.log</code></td>
+                    <td>Kernel messages</td>
+                    <td>Hardware issues, driver problems, crashes</td>
+                </tr>
+                <tr>
+                    <td><code>/var/log/apache2/</code></td>
+                    <td>Web server logs</td>
+                    <td>Web attacks, scanning, exploitation attempts</td>
+                </tr>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>🔍 Log Format Anatomy</h2>
+            <p>Understanding syslog format is essential for effective parsing:</p>
+
+            <div class="log-sample">
+                <div class="line">
+                    <span class="timestamp">Jun 11 09:45:45</span>
+                    <span class="hostname">combo</span>
+                    <span class="service">sshd(pam_unix)[6472]:</span>
+                    <span class="error">authentication failure;</span>
+                    logname= uid=0 euid=0 tty=NODEVssh ruser=
+                    <span class="error">rhost=unknown.sagonet.net  user=root</span>
+                </div>
+            </div>
+
+            <div class="key-points">
+                <div class="key-point">
+                    <span class="key-point-icon">📅</span>
+                    <div class="key-point-content">
+                        <h4>Timestamp</h4>
+                        <p><code>Jun 11 09:45:45</code> - When the event occurred. Critical for timeline reconstruction.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">🖥️</span>
+                    <div class="key-point-content">
+                        <h4>Hostname</h4>
+                        <p><code>combo</code> - Which system generated the log. Important in multi-server environments.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">⚙️</span>
+                    <div class="key-point-content">
+                        <h4>Service & PID</h4>
+                        <p><code>sshd(pam_unix)[6472]</code> - The service and process ID. Tells you what generated the event.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📝</span>
+                    <div class="key-point-content">
+                        <h4>Message</h4>
+                        <p>The actual event details. <code>authentication failure</code> and <code>rhost=unknown.sagonet.net</code> are your key evidence.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🛠️ Essential Log Analysis Commands</h2>
+
+            <div class="terminal">
+                <code><span class="prompt">analyst@kali:~$</span> <span class="command">grep -c "authentication failure" Linux.log</span>
+<span class="output">847</span>
+<span class="output"># 847 failed authentication attempts - definitely suspicious!</span>
+
+<span class="prompt">analyst@kali:~$</span> <span class="command">grep "authentication failure" Linux.log | awk '{print $14}' | sort | uniq -c | sort -rn | head</span>
+<span class="output">   532 rhost=unknown.sagonet.net</span>
+<span class="output">   189 rhost=itsc.iasi.astral.ro</span>
+<span class="output">    98 rhost=202.108.92.14</span>
+<span class="output"># Source IPs identified - attacker found!</span>
+
+<span class="prompt">analyst@kali:~$</span> <span class="command">grep "unknown.sagonet.net" Linux.log | head -5 | tail -1</span>
+<span class="output">Jun 11 09:45:55 combo sshd: <span class="highlight">authentication failure</span> ... user=root</span>
+<span class="output"># Brute force attack against root account!</span></code>
+            </div>
+        </section>
+
+        <!-- Investigation Lab -->
+        <div class="lab-section">
+            <h3>🔴 MISSION: Investigate the Breach</h3>
+
+            <div class="lab-objective">
+                <h4>INTELLIGENCE BRIEFING</h4>
+                <p>Linux.log has been extracted from server "combo". Reports indicate suspicious SSH activity.
+                Your task: identify the attacker IP, count the attack attempts, and determine if the attack succeeded.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">25,567</div>
+                    <div class="stat-label">Total Log Lines</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="failureCount">???</div>
+                    <div class="stat-label">Auth Failures</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="attackerIP">???</div>
+                    <div class="stat-label">Top Attacker</div>
+                </div>
+            </div>
+
+            <p><strong>Use the forensic terminal to analyze the logs:</strong></p>
+
+            <div class="interactive-terminal">
+                <div class="terminal-header">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span style="color: #888; margin-left: 10px; font-size: 0.8rem;">forensics-lab</span>
+                </div>
+                <div class="terminal-body">
+                    <div class="terminal-output" id="terminalOutput">Welcome to Forensics Lab - Log Analysis
+========================================
+Available file: Linux.log (25,567 lines)
+
+INVESTIGATION OBJECTIVES:
+1. Count total authentication failures
+2. Identify the attacker's hostname/IP
+3. Determine what account was targeted
+4. Check if any login succeeded
+
+Start your investigation. Try:
+  grep "failure" Linux.log | wc -l
+  grep -c "authentication failure" Linux.log
+</div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">forensics$</span>
+                        <input type="text" class="terminal-input" id="terminalInput" placeholder="grep ..." autocomplete="off">
+                        <button class="run-btn" onclick="runCommand()">Investigate</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                <strong style="color: var(--success);">&#128270; INVESTIGATION COMPLETE!</strong>
+                <p style="margin-top: 10px;">You've identified the attack:</p>
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Attacker: <code>unknown.sagonet.net</code></li>
+                    <li>Target: root account via SSH</li>
+                    <li>Method: Brute force password attack</li>
+                    <li>Status: Attack in progress (no successful login recorded)</li>
+                </ul>
+            </div>
+        </div>
+
+        <section class="section">
+            <h2>🎓 Forensic Techniques</h2>
+
+            <div class="key-points">
+                <div class="key-point">
+                    <span class="key-point-icon">⏱️</span>
+                    <div class="key-point-content">
+                        <h4>Timeline Analysis</h4>
+                        <p>Reconstruct attack sequence by sorting events chronologically. Look for patterns in timestamps.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📊</span>
+                    <div class="key-point-content">
+                        <h4>Frequency Analysis</h4>
+                        <p>Use <code>uniq -c | sort -rn</code> to find the most common events, IPs, or error types.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">🔗</span>
+                    <div class="key-point-content">
+                        <h4>Correlation</h4>
+                        <p>Cross-reference events across multiple log files to build a complete picture of the incident.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📌</span>
+                    <div class="key-point-content">
+                        <h4>IOC Extraction</h4>
+                        <p>Extract Indicators of Compromise (IPs, domains, hashes) for threat intelligence sharing.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="progress-section">
+            <h3>Ready to Test Your Skills?</h3>
+            <p style="color: #888; margin-bottom: 20px;">
+                Complete the quiz to prove your log forensics abilities.
+            </p>
+            <div class="module-nav">
+                <a href="clh-010-quiz.html" class="nav-btn primary">Take the Quiz &rarr;</a>
+                <a href="../index.html" class="nav-btn secondary">Back to Script House</a>
+            </div>
+            <div class="title-badge">
+                &#128681; Completing CLH-010 to CLH-012 earns: CLI Engineer
+            </div>
+        </div>
+    </main>
+
+    <!-- TrailHunter Integration -->
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <script>
+        // Simulated log data - key excerpts from Linux.log
+        const logData = {
+            totalLines: 25567,
+            authFailures: 847,
+            topAttacker: 'unknown.sagonet.net',
+            attackerCount: 532,
+            targetUser: 'root',
+            sampleLines: [
+                'Jun 11 09:45:45 combo sshd(pam_unix)[6472]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root',
+                'Jun 11 09:45:55 combo sshd(pam_unix)[6474]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root',
+                'Jun 11 09:45:58 combo sshd(pam_unix)[6476]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root',
+                'Jun 11 09:46:01 combo sshd(pam_unix)[6478]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root',
+                'Jun 11 09:46:05 combo sshd(pam_unix)[6480]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root',
+                'Jun 10 17:16:34 combo sshd(pam_unix)[3353]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=itsc.iasi.astral.ro',
+                'Jun  9 06:06:41 combo xinetd[2003]: Service telnet failed to start and is deactivated.',
+                'Jun  9 06:07:24 combo mdmpd: mdmpd failed',
+                'Jun  9 06:06:20 combo kernel: Linux version 2.6.5-1.358 (Red Hat Linux)'
+            ],
+            attackerIPs: {
+                'unknown.sagonet.net': 532,
+                'itsc.iasi.astral.ro': 189,
+                '202.108.92.14': 98
+            }
+        };
+
+        let discovered = {
+            failures: false,
+            attacker: false,
+            target: false
+        };
+
+        function runCommand() {
+            const input = document.getElementById('terminalInput');
+            const output = document.getElementById('terminalOutput');
+            const command = input.value.trim();
+
+            if (!command) return;
+
+            output.innerHTML += `\nforensics$ ${command}\n`;
+
+            // Parse and execute command
+            if (command.includes('wc -l') || command.includes('-c')) {
+                handleCountCommand(command, output);
+            } else if (command.startsWith('grep')) {
+                handleGrepCommand(command, output);
+            } else if (command === 'clear') {
+                output.innerHTML = '';
+            } else if (command === 'ls') {
+                output.innerHTML += 'Linux.log\n';
+            } else if (command.includes('head')) {
+                output.innerHTML += logData.sampleLines.slice(0, 5).join('\n') + '\n';
+            } else if (command.includes('cat')) {
+                output.innerHTML += '# File too large! Use grep to search.\n';
+            } else {
+                output.innerHTML += `Command simulated: ${command}\n`;
+            }
+
+            checkProgress();
+            output.scrollTop = output.scrollHeight;
+            input.value = '';
+        }
+
+        function handleCountCommand(command, output) {
+            if (command.includes('failure') || command.includes('authentication')) {
+                output.innerHTML += `${logData.authFailures}\n`;
+                discovered.failures = true;
+                document.getElementById('failureCount').textContent = logData.authFailures;
+            } else {
+                output.innerHTML += `${logData.totalLines}\n`;
+            }
+        }
+
+        function handleGrepCommand(command, output) {
+            const lowerCmd = command.toLowerCase();
+
+            if (lowerCmd.includes('uniq') && lowerCmd.includes('sort')) {
+                // Attacker analysis
+                let result = '';
+                for (const [ip, count] of Object.entries(logData.attackerIPs)) {
+                    result += `   ${count} rhost=${ip}\n`;
+                }
+                output.innerHTML += result;
+                discovered.attacker = true;
+                document.getElementById('attackerIP').textContent = 'sagonet.net';
+            } else if (lowerCmd.includes('sagonet') || lowerCmd.includes('unknown')) {
+                output.innerHTML += logData.sampleLines.filter(l => l.includes('sagonet')).slice(0, 5).join('\n') + '\n';
+                discovered.attacker = true;
+            } else if (lowerCmd.includes('failure') || lowerCmd.includes('failed')) {
+                output.innerHTML += logData.sampleLines.filter(l => l.includes('failure') || l.includes('failed')).slice(0, 5).join('\n') + '\n';
+                discovered.failures = true;
+            } else if (lowerCmd.includes('root')) {
+                output.innerHTML += logData.sampleLines.filter(l => l.includes('root')).slice(0, 3).join('\n') + '\n';
+                discovered.target = true;
+            } else if (lowerCmd.includes('success') || lowerCmd.includes('accepted')) {
+                output.innerHTML += '(no matches found - attack was unsuccessful)\n';
+            } else {
+                output.innerHTML += logData.sampleLines.slice(0, 3).join('\n') + '\n';
+            }
+        }
+
+        function checkProgress() {
+            if (discovered.failures && discovered.attacker) {
+                document.getElementById('successMessage').classList.add('show');
+            }
+        }
+
+        document.getElementById('terminalInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                runCommand();
+            }
+        });
+    </script>
+</body>
+</html>

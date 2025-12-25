@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-006: Permissions & Access Control - Hexworth Prime</title>
+    <style>
+        :root { --house-primary: #a78bfa; --house-secondary: #8b5cf6; --house-glow: rgba(167, 139, 250, 0.3); --terminal-green: #4ade80; --terminal-bg: #0d1117; --danger: #ef4444; --warning: #f59e0b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0a0f; font-family: 'Segoe UI', sans-serif; color: #e0e0e0; }
+        .module-header { padding: 20px 40px; border-bottom: 1px solid rgba(167, 139, 250, 0.2); background: rgba(10, 10, 15, 0.95); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #888; font-size: 0.8rem; text-decoration: none; }
+        .back-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .module-badge { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 25px; }
+        .module-badge-text { font-size: 0.75rem; letter-spacing: 0.15em; color: var(--house-primary); text-transform: uppercase; }
+        .content-wrapper { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        .module-title { font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(135deg, var(--house-primary), var(--terminal-green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .module-subtitle { color: #888; font-size: 1.1rem; margin-bottom: 30px; }
+        .section { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+        .section h2 { color: var(--house-primary); font-size: 1.4rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .section p { line-height: 1.8; margin-bottom: 15px; color: #ccc; }
+        .terminal { background: var(--terminal-bg); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 8px; padding: 20px; font-family: 'Consolas', monospace; margin: 20px 0; position: relative; overflow-x: auto; }
+        .terminal::before { content: '$ terminal'; position: absolute; top: -10px; left: 15px; background: var(--terminal-bg); padding: 0 10px; font-size: 0.7rem; color: var(--terminal-green); }
+        .terminal code { color: var(--terminal-green); display: block; line-height: 1.6; white-space: pre-wrap; font-size: 0.85rem; }
+        .terminal .prompt { color: #60a5fa; }
+        .terminal .command { color: #fff; }
+        .terminal .output { color: #888; }
+        .terminal .perm-r { color: #4ade80; }
+        .terminal .perm-w { color: #f59e0b; }
+        .terminal .perm-x { color: #ef4444; }
+        .command-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .command-table th, .command-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .command-table th { background: rgba(167, 139, 250, 0.1); color: var(--house-primary); }
+        .command-table code { background: rgba(74, 222, 128, 0.1); color: var(--terminal-green); padding: 2px 8px; border-radius: 4px; font-family: 'Consolas', monospace; }
+        .perm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+        .perm-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 20px; text-align: center; }
+        .perm-symbol { font-size: 2rem; font-family: monospace; margin-bottom: 10px; }
+        .perm-name { color: var(--house-primary); font-weight: 600; margin-bottom: 5px; }
+        .perm-desc { font-size: 0.85rem; color: #888; }
+        .key-points { display: grid; gap: 15px; margin: 20px 0; }
+        .key-point { display: flex; align-items: flex-start; gap: 15px; padding: 15px; background: rgba(167, 139, 250, 0.05); border-left: 3px solid var(--house-primary); border-radius: 0 8px 8px 0; }
+        .key-point-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .key-point-content h4 { color: var(--house-primary); margin-bottom: 5px; }
+        .key-point-content p { margin: 0; font-size: 0.9rem; }
+        .octal-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-family: monospace; }
+        .octal-table th, .octal-table td { padding: 10px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .octal-table th { background: rgba(167, 139, 250, 0.1); color: var(--house-primary); }
+        .progress-section { text-align: center; padding: 40px; background: rgba(167, 139, 250, 0.05); border-radius: 12px; margin-top: 40px; }
+        .progress-section h3 { color: var(--house-primary); margin-bottom: 20px; }
+        .module-nav { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .nav-btn { padding: 12px 30px; border-radius: 8px; font-size: 0.9rem; text-decoration: none; cursor: pointer; }
+        .nav-btn.primary { background: linear-gradient(135deg, var(--house-primary), var(--house-secondary)); color: #fff; border: none; }
+        .nav-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--house-glow); }
+        .nav-btn.secondary { background: rgba(255, 255, 255, 0.05); color: #ccc; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .title-badge { display: inline-block; background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(167, 139, 250, 0.2)); border: 1px solid rgba(74, 222, 128, 0.5); padding: 8px 20px; border-radius: 20px; font-size: 0.85rem; color: var(--terminal-green); margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <header class="module-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn"><span>&larr;</span> Script House</a>
+            <div class="module-badge">
+                <span style="font-size: 1.5rem;">🔐</span>
+                <span class="module-badge-text">Permissions</span>
+            </div>
+        </div>
+        <div class="header-right"><span style="color: #666; font-size: 0.8rem;">CLH-006 of 015</span></div>
+    </header>
+
+    <main class="content-wrapper">
+        <h1 class="module-title">Permissions & Access Control</h1>
+        <p class="module-subtitle">Control who can read, write, and execute. The foundation of Linux security.</p>
+
+        <section class="section">
+            <h2>🔒 The Linux Permission Model</h2>
+            <p>Every file and directory in Linux has three permission types for three user categories. Understanding this model is essential for both securing systems and finding privilege escalation vulnerabilities.</p>
+
+            <div class="perm-grid">
+                <div class="perm-card">
+                    <div class="perm-symbol" style="color: #4ade80;">r</div>
+                    <div class="perm-name">Read (4)</div>
+                    <div class="perm-desc">View file contents or list directory</div>
+                </div>
+                <div class="perm-card">
+                    <div class="perm-symbol" style="color: #f59e0b;">w</div>
+                    <div class="perm-name">Write (2)</div>
+                    <div class="perm-desc">Modify file or create/delete in directory</div>
+                </div>
+                <div class="perm-card">
+                    <div class="perm-symbol" style="color: #ef4444;">x</div>
+                    <div class="perm-name">Execute (1)</div>
+                    <div class="perm-desc">Run as program or enter directory</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>📊 Reading Permission Strings</h2>
+            <div class="terminal">
+                <code><span class="prompt">user@linux:~$</span> <span class="command">ls -la /etc/shadow</span>
+<span class="output">-<span class="perm-r">r</span><span class="perm-w">w</span>-<span class="perm-r">r</span>----- 1 root shadow 1423 Dec 18 16:30 /etc/shadow</span>
+
+<span class="output"># Breaking it down:</span>
+<span class="output"># -        = regular file (d = directory, l = link)</span>
+<span class="output"># rw-      = owner (root) can read and write</span>
+<span class="output"># r--      = group (shadow) can read only</span>
+<span class="output"># ---      = others have NO access</span></code>
+            </div>
+
+            <table class="octal-table">
+                <tr><th>Octal</th><th>Binary</th><th>Permission</th><th>Meaning</th></tr>
+                <tr><td>7</td><td>111</td><td>rwx</td><td>Full access</td></tr>
+                <tr><td>6</td><td>110</td><td>rw-</td><td>Read + Write</td></tr>
+                <tr><td>5</td><td>101</td><td>r-x</td><td>Read + Execute</td></tr>
+                <tr><td>4</td><td>100</td><td>r--</td><td>Read only</td></tr>
+                <tr><td>0</td><td>000</td><td>---</td><td>No access</td></tr>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>🛠️ Permission Commands</h2>
+            <table class="command-table">
+                <tr><th>Command</th><th>Purpose</th><th>Example</th></tr>
+                <tr><td><code>chmod 755 file</code></td><td>Set permissions (octal)</td><td>rwxr-xr-x</td></tr>
+                <tr><td><code>chmod u+x file</code></td><td>Add execute for user</td><td>Symbolic mode</td></tr>
+                <tr><td><code>chown user:group file</code></td><td>Change owner and group</td><td>chown root:www-data</td></tr>
+                <tr><td><code>chgrp group file</code></td><td>Change group only</td><td>chgrp developers</td></tr>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>🚨 Security Implications</h2>
+            <div class="key-points">
+                <div class="key-point">
+                    <span class="key-point-icon">⚠️</span>
+                    <div class="key-point-content">
+                        <h4>World-Writable Files</h4>
+                        <p><code>chmod 777</code> = anyone can modify. Never use on scripts or configs!</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">🔑</span>
+                    <div class="key-point-content">
+                        <h4>SUID Bit</h4>
+                        <p>Files with SUID run as the owner, not the user. Prime privilege escalation targets.</p>
+                    </div>
+                </div>
+                <div class="key-point">
+                    <span class="key-point-icon">📁</span>
+                    <div class="key-point-content">
+                        <h4>Sticky Bit</h4>
+                        <p>On directories (like /tmp), only owner can delete their files.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terminal">
+                <code><span class="prompt">hacker@target:~$</span> <span class="command">find / -perm -4000 2>/dev/null</span>
+<span class="output"># Find all SUID binaries - potential privesc vectors!</span>
+<span class="output">/usr/bin/passwd</span>
+<span class="output">/usr/bin/sudo</span>
+<span class="output">/usr/bin/pkexec</span></code>
+            </div>
+        </section>
+
+        <div class="progress-section">
+            <h3>Ready to Test Your Skills?</h3>
+            <p style="color: #888; margin-bottom: 20px;">Complete the quiz to prove your permission mastery.</p>
+            <div class="module-nav">
+                <a href="clh-006-quiz.html" class="nav-btn primary">Take the Quiz &rarr;</a>
+                <a href="../index.html" class="nav-btn secondary">Back to Script House</a>
+            </div>
+            <div class="title-badge">🎖️ Completing CLH-004 to CLH-006 earns: CLI Analyst</div>
+        </div>
+    </main>
+
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+</body>
+</html>
