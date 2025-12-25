@@ -150,6 +150,8 @@ class ProgressManager {
         if (progress.completedModules.includes(moduleId)) {
             // Still allow re-completion for practice, but reduced/no XP
             console.log(`Module ${moduleId} already completed - practice mode`);
+            // Still provide next module even in practice mode
+            result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
             return result;
         }
 
