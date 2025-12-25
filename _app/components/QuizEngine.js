@@ -296,9 +296,20 @@ class QuizEngine {
         const quizBody = this.container.querySelector('.quiz-body');
         quizBody.insertAdjacentHTML('beforeend', feedbackHtml);
 
-        this.container.querySelector('.quiz-next-btn').addEventListener('click', () => {
-            this.nextQuestion();
-        });
+        const nextQuestionBtn = this.container.querySelector('.quiz-next-btn');
+        if (nextQuestionBtn) {
+            nextQuestionBtn.addEventListener('click', () => {
+                try {
+                    console.log('[QuizEngine] Next/See Results button clicked');
+                    this.nextQuestion();
+                } catch (e) {
+                    console.error('[QuizEngine] Error in nextQuestion:', e);
+                    alert('An error occurred. Check console for details.');
+                }
+            });
+        } else {
+            console.error('[QuizEngine] Could not find .quiz-next-btn element!');
+        }
     }
 
     /**
@@ -318,35 +329,66 @@ class QuizEngine {
      * End the quiz and show results
      */
     endQuiz(timedOut = false) {
-        if (this.state.timerInterval) {
-            clearInterval(this.state.timerInterval);
+        console.log('[QuizEngine] endQuiz called');
+        try {
+            if (this.state.timerInterval) {
+                clearInterval(this.state.timerInterval);
+            }
+
+            this.state.endTime = Date.now();
+            this.state.isComplete = true;
+
+            const results = this.calculateResults(timedOut);
+            console.log('[QuizEngine] Results calculated:', results);
+
+            // Trigger quiz-specific achievement if passed
+            if (results.passed && this.config.achievement) {
+                try {
+                    this.triggerAchievement(this.config.achievement);
+                } catch (e) {
+                    console.error('[QuizEngine] Achievement error:', e);
+                }
+            }
+
+            // Process general quiz achievements (first_quiz, perfect_score, etc.)
+            try {
+                this.processQuizAchievements(results);
+            } catch (e) {
+                console.error('[QuizEngine] Quiz achievements error:', e);
+            }
+
+            // NEW: Track progress through ProgressManager
+            if (results.passed && this.config.trackProgress && this.config.moduleId) {
+                try {
+                    this.progressResult = this.trackQuizCompletion(results);
+                    results.progressResult = this.progressResult;
+                } catch (e) {
+                    console.error('[QuizEngine] Progress tracking error:', e);
+                }
+            }
+
+            // Callback
+            if (this.config.onComplete) {
+                try {
+                    this.config.onComplete(results);
+                } catch (e) {
+                    console.error('[QuizEngine] onComplete callback error:', e);
+                }
+            }
+
+            console.log('[QuizEngine] About to render results');
+            this.renderResults(results, timedOut);
+        } catch (e) {
+            console.error('[QuizEngine] Fatal error in endQuiz:', e);
+            this.container.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #f87171;">
+                    <h2>⚠️ Error</h2>
+                    <p>An error occurred showing results. Check browser console.</p>
+                    <p style="font-size: 12px; color: #888;">${e.message}</p>
+                    <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px;">Retry</button>
+                </div>
+            `;
         }
-
-        this.state.endTime = Date.now();
-        this.state.isComplete = true;
-
-        const results = this.calculateResults(timedOut);
-
-        // Trigger quiz-specific achievement if passed
-        if (results.passed && this.config.achievement) {
-            this.triggerAchievement(this.config.achievement);
-        }
-
-        // Process general quiz achievements (first_quiz, perfect_score, etc.)
-        this.processQuizAchievements(results);
-
-        // NEW: Track progress through ProgressManager
-        if (results.passed && this.config.trackProgress && this.config.moduleId) {
-            this.progressResult = this.trackQuizCompletion(results);
-            results.progressResult = this.progressResult;
-        }
-
-        // Callback
-        if (this.config.onComplete) {
-            this.config.onComplete(results);
-        }
-
-        this.renderResults(results, timedOut);
     }
 
     /**
