@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-015: Capstone Mission - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #fbbf24; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #fbbf24; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #0d1117; font-weight: bold; font-family: 'Cascadia Code', monospace; }
+        .header h1 { color: #fbbf24; font-size: 1.1em; margin: 0; font-weight: 600; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        .back-link { color: #fbbf24; text-decoration: none; padding: 6px 12px; background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 6px; transition: all 0.3s; font-size: 0.85em; }
+        .back-link:hover { background: rgba(251, 191, 36, 0.2); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #27ca3f; }
+        .terminal-title { color: #fbbf24; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .output { color: #8b949e; } .success { color: #3fb950; } .highlight { color: #ffa657; } .warning { color: #fbbf24; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #fbbf24; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #fbbf24; font-family: 'Cascadia Code', monospace; font-size: 14px; outline: none; }
+        #commandInput::placeholder { color: #484f58; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #fbbf24; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #fbbf24; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .mission-header h3::before { content: '🏆'; }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; background: transparent; color: #484f58; transition: all 0.3s; }
+        .step-dot.active { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); color: #fbbf24; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; } .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(251, 191, 36, 0.1); border-radius: 8px; border-left: 3px solid #fbbf24; }
+        .current-mission h4 { color: #fbbf24; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #fbbf24; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; border-left: 1px solid #fbbf24; }
+        .intel-panel h2 { color: #fbbf24; font-size: 0.9em; letter-spacing: 2px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #30363d; }
+        .intel-section { margin-bottom: 20px; }
+        .intel-section h3 { color: #fbbf24; font-size: 0.9em; margin-bottom: 10px; }
+        .intel-section p { color: #8b949e; font-size: 0.85em; line-height: 1.6; margin-bottom: 10px; }
+        .briefing-box { background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .briefing-box h4 { color: #fbbf24; font-size: 0.9em; margin-bottom: 10px; }
+        .briefing-box ul { color: #8b949e; font-size: 0.85em; padding-left: 20px; }
+        .briefing-box li { margin-bottom: 5px; }
+        .skill-badge { display: inline-block; background: rgba(0,255,65,0.2); color: #00ff41; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin: 2px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); border: 3px solid #fbbf24; border-radius: 12px; padding: 50px; text-align: center; max-width: 500px; transform: scale(0.9); transition: transform 0.3s; box-shadow: 0 0 50px rgba(251, 191, 36, 0.3); }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal h2 { color: #fbbf24; margin-bottom: 10px; font-size: 1.8em; text-shadow: 0 0 20px rgba(251, 191, 36, 0.5); }
+        .rank-title { color: #00ff41; font-size: 1.4em; margin-bottom: 20px; font-family: 'Cascadia Code', monospace; }
+        .modal p { color: #8b949e; margin-bottom: 25px; line-height: 1.6; font-size: 1.1em; }
+        .xp-earned { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #0d1117; padding: 15px 30px; border-radius: 25px; display: inline-block; font-weight: bold; margin-bottom: 25px; font-size: 1.2em; }
+        .achievement-badge { background: rgba(251, 191, 36, 0.2); border: 2px solid #fbbf24; border-radius: 50%; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2.5em; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 30px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 1em; }
+        .modal-btn.primary { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #0d1117; }
+        .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(251, 191, 36, 0.4); }
+        .modal-btn.secondary { background: transparent; border: 2px solid #30363d; color: #8b949e; }
+        .modal-btn.secondary:hover { border-color: #fbbf24; color: #fbbf24; }
+        @media (max-width: 1200px) { .container { grid-template-columns: 1fr; } .intel-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-015 FINAL</span>
+                        <h1>CAPSTONE MISSION</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line warning">╔══════════════════════════════════════════════════════════╗</div>
+                    <div class="terminal-line warning">║           OPERATION SHADOWSTRIKE - FINAL MISSION          ║</div>
+                    <div class="terminal-line warning">╚══════════════════════════════════════════════════════════╝</div>
+                    <div class="terminal-line output"></div>
+                    <div class="terminal-line output">[INTEL] A compromised server has been identified.</div>
+                    <div class="terminal-line output">[INTEL] Your mission: Investigate, analyze, and report.</div>
+                    <div class="terminal-line output">[INTEL] All skills from CLH-001 to CLH-014 will be tested.</div>
+                    <div class="terminal-line output"></div>
+                    <div class="terminal-line" style="color: #fbbf24;">> Apply everything you've learned. Good luck, Operator.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>FINAL OBJECTIVES</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>PHASE 1: Initial Reconnaissance</h4>
+                        <p>Navigate to the compromised directory and survey the evidence files.</p>
+                        <div class="hint">$ cd /evidence && ls -la</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>OPERATION BRIEFING</h2>
+            <div class="briefing-box">
+                <h4>Mission Summary</h4>
+                <p>A server was compromised at 03:47 UTC. Evidence has been preserved in /evidence. Your objectives:</p>
+                <ul>
+                    <li>Survey the evidence directory</li>
+                    <li>Analyze the access logs for anomalies</li>
+                    <li>Extract attacker IP addresses</li>
+                    <li>Identify the exfiltrated data</li>
+                    <li>Generate incident report</li>
+                </ul>
+            </div>
+            <div class="intel-section">
+                <h3>Skills Required</h3>
+                <p>
+                    <span class="skill-badge">Navigation</span>
+                    <span class="skill-badge">grep</span>
+                    <span class="skill-badge">cut/awk</span>
+                    <span class="skill-badge">sort/uniq</span>
+                    <span class="skill-badge">Pipes</span>
+                    <span class="skill-badge">Redirection</span>
+                    <span class="skill-badge">Permissions</span>
+                </p>
+            </div>
+            <div class="intel-section">
+                <h3>Evidence Files</h3>
+                <p><code style="color:#00ff41;">/evidence/access.log</code> - Web server logs</p>
+                <p><code style="color:#00ff41;">/evidence/auth.log</code> - Authentication logs</p>
+                <p><code style="color:#00ff41;">/evidence/exfil.log</code> - Data transfer records</p>
+                <p><code style="color:#00ff41;">/evidence/timeline.txt</code> - Known event timeline</p>
+            </div>
+            <div class="briefing-box">
+                <h4>Completion Reward</h4>
+                <p style="color: #fbbf24; font-weight: bold;">🏆 CLI ENGINEER CERTIFICATION</p>
+                <p>Upon successful completion, you will be awarded the CLI Engineer title and badge.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="achievement-badge">🏆</div>
+            <h2>MISSION COMPLETE</h2>
+            <div class="rank-title">CLI ENGINEER CERTIFIED</div>
+            <p>You have demonstrated mastery of command line operations.<br>The shadows welcome a new operator.</p>
+            <div class="xp-earned">+500 XP BONUS</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Review Mission</button>
+                <button class="modal-btn primary" onclick="goToScriptHouse()">Return to Base</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const missionData = {
+            1: { title: 'PHASE 1: Initial Reconnaissance', description: 'Navigate to the compromised directory and survey the evidence files.', hint: '$ cd /evidence && ls -la',
+                check: (cmd) => (cmd.includes('cd') && cmd.includes('evidence')) || (cmd.includes('ls') && cmd.includes('evidence')) },
+            2: { title: 'PHASE 2: Log Analysis', description: 'Search access.log for lines containing "POST" requests (potential data exfil).', hint: '$ grep "POST" /evidence/access.log',
+                check: (cmd) => cmd.includes('grep') && cmd.includes('POST') && cmd.includes('access') },
+            3: { title: 'PHASE 3: Extract Attacker IPs', description: 'Extract unique IP addresses from auth.log showing FAILED logins. Use cut, sort, and uniq.', hint: '$ grep FAILED /evidence/auth.log | cut -d " " -f 6 | sort | uniq',
+                check: (cmd) => cmd.includes('uniq') && (cmd.includes('auth') || cmd.includes('FAILED')) },
+            4: { title: 'PHASE 4: Identify Exfiltration', description: 'Find entries in exfil.log larger than 1MB. Look for size field > 1000000.', hint: '$ grep -E "[0-9]{7,}" /evidence/exfil.log',
+                check: (cmd) => cmd.includes('grep') && cmd.includes('exfil') },
+            5: { title: 'PHASE 5: Generate Report', description: 'Save the attacker summary to /evidence/report.txt using redirection.', hint: '$ echo "Investigation Complete" > /evidence/report.txt',
+                check: (cmd, terminal) => {
+                    if (cmd.includes('>') && cmd.includes('report')) {
+                        const file = terminal.resolvePath('/evidence/report.txt');
+                        return file && file.type === 'file';
+                    }
+                    return false;
+                }}
+        };
+
+        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
+        let currentMission = 1;
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal', inputElement: '#commandInput', user: 'operator', hostname: 'shadow', startDir: '/home/operator',
+            onCommand: (cmdLine) => { checkMissionCompletion(cmdLine); updatePromptDisplay(); }
+        });
+
+        // Create comprehensive evidence filesystem
+        terminal.fs['/evidence'] = { type: 'dir', contents: {
+            'access.log': { type: 'file', content: `192.168.1.105 - - [15/Jan/2024:03:42:15] "GET /index.html" 200
+192.168.1.105 - - [15/Jan/2024:03:43:22] "GET /admin/login.php" 200
+10.0.0.88 - - [15/Jan/2024:03:44:01] "POST /admin/login.php" 401
+10.0.0.88 - - [15/Jan/2024:03:44:15] "POST /admin/login.php" 401
+10.0.0.88 - - [15/Jan/2024:03:44:33] "POST /admin/login.php" 200
+10.0.0.88 - - [15/Jan/2024:03:45:12] "GET /admin/users.php" 200
+10.0.0.88 - - [15/Jan/2024:03:46:01] "POST /admin/export.php" 200
+10.0.0.88 - - [15/Jan/2024:03:47:22] "POST /admin/upload.php" 200
+10.0.0.88 - - [15/Jan/2024:03:48:45] "GET /admin/config.php" 200
+192.168.1.42 - - [15/Jan/2024:03:50:01] "GET /index.html" 200` },
+            'auth.log': { type: 'file', content: `Jan 15 03:42:01 shadow sshd[1234]: success login for admin from 192.168.1.105
+Jan 15 03:43:15 shadow sshd[1235]: FAILED login for root from 10.0.0.88
+Jan 15 03:43:22 shadow sshd[1235]: FAILED login for admin from 10.0.0.88
+Jan 15 03:43:45 shadow sshd[1235]: FAILED login for operator from 10.0.0.88
+Jan 15 03:44:01 shadow sshd[1235]: FAILED login for root from 10.0.0.88
+Jan 15 03:44:33 shadow sshd[1236]: success login for admin from 10.0.0.88
+Jan 15 03:50:15 shadow sshd[1237]: success login for operator from 192.168.1.42` },
+            'exfil.log': { type: 'file', content: `2024-01-15 03:46:15 TRANSFER 10.0.0.88 -> external user_database.sql 15728640 bytes
+2024-01-15 03:46:45 TRANSFER 10.0.0.88 -> external config_backup.tar 2097152 bytes
+2024-01-15 03:47:22 TRANSFER 10.0.0.88 -> external ssh_keys.tar.gz 524288 bytes
+2024-01-15 03:47:55 TRANSFER 10.0.0.88 -> external passwords.csv 1048576 bytes
+2024-01-15 03:48:30 TRANSFER 10.0.0.88 -> external shadow_copy 4096 bytes` },
+            'timeline.txt': { type: 'file', content: `INCIDENT TIMELINE - Operation Shadowstrike
+============================================
+03:42 - Normal admin login from 192.168.1.105
+03:43 - Brute force attempts begin from 10.0.0.88
+03:44 - Attacker gains access via compromised credentials
+03:45 - Reconnaissance of admin panel begins
+03:46 - Mass data exfiltration initiated
+03:47 - SSH keys and credentials stolen
+03:48 - Configuration files accessed
+03:50 - Legitimate user login (unaware of breach)
+============================================
+ATTACKER IP: 10.0.0.88
+STATUS: ACTIVE THREAT` }
+        }};
+
+        terminal.fs['/home/operator'] = { type: 'dir', contents: {
+            '.bash_history': { type: 'file', content: '', hidden: true }
+        }};
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            let displayPath = cwd;
+            if (cwd === '/home/operator') displayPath = '~';
+            else if (cwd.startsWith('/home/operator/')) displayPath = '~' + cwd.slice(14);
+            document.getElementById('promptDisplay').textContent = `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
+        }
+
+        function checkMissionCompletion(cmdLine) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+            if (mission.check(cmdLine, terminal)) completeMission(currentMission);
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active'); stepDot.classList.add('completed'); stepDot.innerHTML = '✓';
+            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            terminal.print(`[SUCCESS] Phase ${missionNum} complete`, 'success');
+            if (missionNum < 5) { currentMission = missionNum + 1; document.getElementById(`step-${currentMission}`).classList.add('active'); showNextMission(currentMission); }
+            else showAllComplete();
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${mission.title}</h4><p>${mission.description}</p><div class="hint">${mission.hint}</div></div>`;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `<div class="all-complete"><div class="checkmark">🏆</div><h4>OPERATION COMPLETE</h4><p>CLI Engineer Certification Earned</p></div>`;
+            setTimeout(() => { document.getElementById('completionModal').classList.add('show'); saveProgress(); }, 1000);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-015'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 500 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+
+            // Award CLI Engineer certification
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = 15;
+            clhProgress.rank = 'CLI Engineer';
+            clhProgress.certified = true;
+            clhProgress.certifiedAt = new Date().toISOString();
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+
+            // Award achievement
+            const achievements = JSON.parse(localStorage.getItem('hexworth_achievements') || '[]');
+            if (!achievements.includes('cli_engineer')) {
+                achievements.push('cli_engineer');
+                localStorage.setItem('hexworth_achievements', JSON.stringify(achievements));
+            }
+        }
+
+        function closeModal() { document.getElementById('completionModal').classList.remove('show'); }
+        function goToScriptHouse() { window.location.href = '../../index.html'; }
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

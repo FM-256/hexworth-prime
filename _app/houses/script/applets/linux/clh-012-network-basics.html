@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-012: Network Basics - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(56, 189, 248, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #38bdf8; border: 1px solid #38bdf8; font-family: 'Cascadia Code', monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; text-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; transition: all 0.3s; font-size: 0.85em; }
+        .back-link:hover { background: rgba(0, 255, 65, 0.2); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .output { color: #8b949e; } .success { color: #3fb950; } .highlight { color: #ffa657; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 14px; outline: none; }
+        #commandInput::placeholder { color: #484f58; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; background: transparent; color: #484f58; transition: all 0.3s; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; border-left: 1px solid #30363d; }
+        .intel-panel h2 { color: #38bdf8; font-size: 0.9em; letter-spacing: 2px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #30363d; }
+        .intel-section { margin-bottom: 20px; }
+        .intel-section h3 { color: #00ff41; font-size: 0.9em; margin-bottom: 10px; }
+        .intel-section p { color: #8b949e; font-size: 0.85em; line-height: 1.6; margin-bottom: 10px; }
+        .code-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; margin: 8px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; margin-bottom: 5px; }
+        .code-box .output { color: #8b949e; font-size: 0.9em; }
+        .tip-box { background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; padding: 12px; margin: 15px 0; }
+        .tip-box strong { color: #00ff41; display: block; margin-bottom: 5px; font-size: 0.85em; }
+        .tip-box p { color: #8b949e; font-size: 0.8em; margin: 0; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); border: 2px solid #38bdf8; border-radius: 12px; padding: 40px; text-align: center; max-width: 400px; transform: scale(0.9); transition: transform 0.3s; }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal h2 { color: #38bdf8; margin-bottom: 15px; font-size: 1.3em; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .xp-earned { background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 10px 20px; border-radius: 20px; display: inline-block; font-weight: bold; margin-bottom: 20px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn { padding: 10px 25px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .modal-btn.primary { background: #38bdf8; color: #0d1117; }
+        .modal-btn.primary:hover { background: #5fcffc; }
+        .modal-btn.secondary { background: transparent; border: 1px solid #30363d; color: #8b949e; }
+        .modal-btn.secondary:hover { border-color: #38bdf8; color: #38bdf8; }
+        @media (max-width: 1200px) { .container { grid-template-columns: 1fr; } .intel-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-012</span>
+                        <h1>NETWORK BASICS</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] Network reconnaissance module loaded</div>
+                    <div class="terminal-line output">[MISSION] Map the network and identify active connections</div>
+                    <div class="terminal-line output" style="margin-top: 10px; color: #38bdf8;">> Mission: Master ping, netstat, ss, and ip commands</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>RECON: Check Host Connectivity</h4>
+                        <p>Verify the target host 10.0.0.5 is reachable using ping.</p>
+                        <div class="hint">$ ping 10.0.0.5</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>NETWORK RECON TOOLKIT</h2>
+            <div class="intel-section">
+                <h3>The Mission</h3>
+                <p>Network reconnaissance is fundamental to security operations. Map active hosts, identify open connections, and understand network topology.</p>
+            </div>
+            <div class="intel-section">
+                <h3>ping - Test Connectivity</h3>
+                <div class="code-box">
+                    <div class="cmd">$ ping 10.0.0.5</div>
+                    <div class="output">Send ICMP echo requests</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ ping -c 4 host</div>
+                    <div class="output">Send only 4 packets</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>netstat - Network Statistics</h3>
+                <div class="code-box">
+                    <div class="cmd">$ netstat -tuln</div>
+                    <div class="output">Show listening TCP/UDP ports</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ netstat -an</div>
+                    <div class="output">All connections, numeric</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>ss - Socket Statistics</h3>
+                <div class="code-box">
+                    <div class="cmd">$ ss -tuln</div>
+                    <div class="output">Modern replacement for netstat</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ ss -tp</div>
+                    <div class="output">Show process using socket</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>ip - Network Configuration</h3>
+                <div class="code-box">
+                    <div class="cmd">$ ip addr</div>
+                    <div class="output">Show IP addresses</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ ip route</div>
+                    <div class="output">Show routing table</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>ss is faster than netstat on systems with many connections. Use ss -tuln for quick port scans.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>NETWORK MAPPED</h2>
+            <p>Reconnaissance complete.<br>Network analysis skills acquired.</p>
+            <div class="xp-earned">+130 XP</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay Here</button>
+                <button class="modal-btn primary" onclick="goToNextLab()">Next Mission ></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const missionData = {
+            1: { title: 'RECON: Check Host Connectivity', description: 'Verify the target host 10.0.0.5 is reachable using ping.', hint: '$ ping 10.0.0.5',
+                check: (cmd) => cmd.includes('ping') && (cmd.includes('10.0.0.5') || cmd.includes('target')) },
+            2: { title: 'SCAN: List Listening Ports', description: 'Use netstat to show all listening TCP and UDP ports on this system.', hint: '$ netstat -tuln',
+                check: (cmd) => cmd.includes('netstat') && (cmd.includes('-t') || cmd.includes('-u') || cmd.includes('-l')) },
+            3: { title: 'ANALYZE: Socket Statistics', description: 'Use ss command to display current TCP connections with process info.', hint: '$ ss -tp',
+                check: (cmd) => cmd.includes('ss') && (cmd.includes('-t') || cmd.includes('-p')) },
+            4: { title: 'IDENTIFY: Show IP Configuration', description: 'Display the network interfaces and IP addresses on this system.', hint: '$ ip addr',
+                check: (cmd) => cmd.includes('ip') && (cmd.includes('addr') || cmd.includes('a')) },
+            5: { title: 'MAP: View Routing Table', description: 'Show the routing table to understand network paths.', hint: '$ ip route',
+                check: (cmd) => cmd.includes('ip') && cmd.includes('route') }
+        };
+
+        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
+        let currentMission = 1;
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal', inputElement: '#commandInput', user: 'operator', hostname: 'shadow', startDir: '/home/operator',
+            onCommand: (cmdLine) => { checkMissionCompletion(cmdLine); updatePromptDisplay(); }
+        });
+
+        terminal.fs['/home/operator'] = { type: 'dir', contents: {
+            'intel': { type: 'dir', contents: {
+                'targets.txt': { type: 'file', content: '10.0.0.5 - Primary server\n10.0.0.10 - Database\n10.0.0.15 - Web server\n192.168.1.1 - Gateway\n' },
+                'scan_results.txt': { type: 'file', content: 'Port scan results:\n22/tcp open ssh\n80/tcp open http\n443/tcp open https\n3306/tcp open mysql\n' }
+            }},
+            '.bash_history': { type: 'file', content: '', hidden: true }
+        }};
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' : cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent = `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
+        }
+
+        function checkMissionCompletion(cmdLine) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+            if (mission.check(cmdLine, terminal)) completeMission(currentMission);
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active'); stepDot.classList.add('completed'); stepDot.innerHTML = '✓';
+            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
+            if (missionNum < 5) { currentMission = missionNum + 1; document.getElementById(`step-${currentMission}`).classList.add('active'); showNextMission(currentMission); }
+            else showAllComplete();
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${mission.title}</h4><p>${mission.description}</p><div class="hint">${mission.hint}</div></div>`;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `<div class="all-complete"><div class="checkmark">🌐</div><h4>NETWORK MAPPED</h4><p>Reconnaissance complete</p></div>`;
+            setTimeout(() => { document.getElementById('completionModal').classList.add('show'); saveProgress(); }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-012'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 130 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        function closeModal() { document.getElementById('completionModal').classList.remove('show'); }
+        function goToNextLab() { window.location.href = 'clh-013-environment.html'; }
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
