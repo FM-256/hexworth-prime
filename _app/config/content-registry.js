@@ -1319,6 +1319,7 @@ const ContentRegistry = {
             topics: ['python', 'programming', 'fundamentals'],
             paths: ['python-fundamentals', 'devops-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter1.html',
                 applet: 'houses/script/applets/python/python-chapter1-applet.html'
             },
             prerequisites: [],
@@ -1340,6 +1341,7 @@ const ContentRegistry = {
             topics: ['python', 'strings', 'text-processing'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter2.html',
                 applet: 'houses/script/applets/python/python-chapter2-strings.html'
             },
             prerequisites: ['script-python-basics'],
@@ -1361,6 +1363,7 @@ const ContentRegistry = {
             topics: ['python', 'conditionals', 'loops', 'flow-control'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter3.html',
                 applet: 'houses/script/applets/python/python-chapter3-flow-control.html'
             },
             prerequisites: ['script-python-strings'],
@@ -1382,6 +1385,7 @@ const ContentRegistry = {
             topics: ['python', 'functions', 'modularity'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter4.html',
                 applet: 'houses/script/applets/python/python-chapter4-functions.html'
             },
             prerequisites: ['script-python-flow-control'],
@@ -1403,6 +1407,7 @@ const ContentRegistry = {
             topics: ['python', 'lists', 'tuples', 'collections'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter5.html',
                 applet: 'houses/script/applets/python/python-chapter5-collections.html'
             },
             prerequisites: ['script-python-functions'],
@@ -1424,6 +1429,7 @@ const ContentRegistry = {
             topics: ['python', 'dictionaries', 'key-value', 'data-structures'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter6.html',
                 applet: 'houses/script/applets/python/python-chapter6-dictionaries.html'
             },
             prerequisites: ['script-python-collections'],
@@ -1445,6 +1451,7 @@ const ContentRegistry = {
             topics: ['python', 'files', 'io', 'data-processing'],
             paths: ['python-fundamentals', 'devops-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter7.html',
                 applet: 'houses/script/applets/python/python-chapter7-file-handling.html'
             },
             prerequisites: ['script-python-dictionaries'],
@@ -1466,6 +1473,7 @@ const ContentRegistry = {
             topics: ['python', 'oop', 'classes', 'objects'],
             paths: ['python-fundamentals'],
             components: {
+                presentation: 'houses/script/presentations/python/python-chapter8.html',
                 applet: 'houses/script/applets/python/python-chapter8-oop.html'
             },
             prerequisites: ['script-python-files'],
