@@ -1286,6 +1286,28 @@ const ContentRegistry = {
             ]
         },
 
+        'script-linux-lab-002': {
+            id: 'script-linux-lab-002',
+            title: 'L-002: File Navigation',
+            description: 'Navigate the Linux filesystem with pwd, ls, and cd',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['linux', 'navigation', 'pwd', 'ls', 'cd', 'filesystem', 'fundamentals'],
+            paths: ['comptia-linux'],
+            components: {
+                lab: 'houses/script/applets/linux/linux-lab-002-file-navigation.html'
+            },
+            prerequisites: ['script-linux-lab-001'],
+            objectives: [
+                'Use pwd to display current directory',
+                'Use ls to list directory contents',
+                'Use cd to navigate between directories',
+                'Understand hidden files with ls -la'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2072,6 +2094,7 @@ const ContentRegistry = {
                 // System Management
                 'script-linux-basics',
                 'script-linux-lab-001',  // L-001: User Identity
+                'script-linux-lab-002',  // L-002: File Navigation
                 'script-linux-filesystem',
                 'script-linux-permissions',
                 'script-command-translator',
