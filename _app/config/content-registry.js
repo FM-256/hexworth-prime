@@ -1486,6 +1486,72 @@ const ContentRegistry = {
             ]
         },
 
+        'script-clh-009': {
+            id: 'script-clh-009',
+            title: 'CLH-009: Text Processing',
+            description: 'Extract and transform data using cut, sort, uniq, awk, and sed',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['linux', 'hacking', 'text-processing', 'cut', 'sort', 'uniq', 'awk', 'sed'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-009-text-processing.html'
+            },
+            prerequisites: ['script-clh-008'],
+            objectives: [
+                'Extract columns with cut',
+                'Sort and deduplicate data',
+                'Parse fields with awk',
+                'Transform text with sed'
+            ]
+        },
+
+        'script-clh-010': {
+            id: 'script-clh-010',
+            title: 'CLH-010: I/O Redirection',
+            description: 'Control data streams with redirects, pipes, and tee',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['linux', 'hacking', 'io', 'redirection', 'pipes', 'tee'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
+            },
+            prerequisites: ['script-clh-009'],
+            objectives: [
+                'Redirect output to files',
+                'Append data with >>',
+                'Chain commands with pipes',
+                'Split output with tee'
+            ]
+        },
+
+        'script-clh-011': {
+            id: 'script-clh-011',
+            title: 'CLH-011: Advanced Grep & Regex',
+            description: 'Hunt patterns with grep flags and regular expressions',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
+            },
+            prerequisites: ['script-clh-010'],
+            objectives: [
+                'Use grep flags (-i, -v, -c, -n, -r)',
+                'Write basic regex patterns',
+                'Match complex patterns with extended regex',
+                'Hunt for specific data in logs'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2327,11 +2393,15 @@ const ContentRegistry = {
                 'script-clh-006',  // CLH-006: File Operations
                 'script-clh-007',  // CLH-007: Permissions & Access Control
                 'script-clh-008',  // CLH-008: Shell Scripting Basics
+                // Analysis (CLH-009 to CLH-011)
+                'script-clh-009',  // CLH-009: Text Processing
+                'script-clh-010',  // CLH-010: I/O Redirection
+                'script-clh-011',  // CLH-011: Advanced Grep & Regex
                 // Future labs:
-                // 'script-clh-010',  // CLH-010: Network Reconnaissance
-                // 'script-clh-011',  // CLH-011: Web Enumeration
-                // 'script-clh-013',  // CLH-013: Incident Response
-                // 'script-clh-015',  // CLH-015: Final Mission
+                // 'script-clh-012',  // CLH-012: Network Basics
+                // 'script-clh-013',  // CLH-013: Environment Variables
+                // 'script-clh-014',  // CLH-014: Process Control
+                // 'script-clh-015',  // CLH-015: Capstone Mission
             ]
         }
     },

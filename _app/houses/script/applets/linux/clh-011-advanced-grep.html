@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-011: Advanced Grep & Regex - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge {
+            background: rgba(255, 184, 108, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #ffb86c;
+            border: 1px solid #ffb86c;
+            font-family: 'Cascadia Code', monospace;
+        }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; text-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+        .back-link:hover { background: rgba(0, 255, 65, 0.2); }
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        #commandInput::placeholder { color: #484f58; }
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8em; font-weight: bold;
+            border: 2px solid #30363d;
+            background: transparent;
+            color: #484f58;
+            transition: all 0.3s;
+        }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+        }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            border-left: 1px solid #30363d;
+        }
+        .intel-panel h2 {
+            color: #ffb86c;
+            font-size: 0.9em;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+        .intel-section { margin-bottom: 20px; }
+        .intel-section h3 { color: #00ff41; font-size: 0.9em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .intel-section p { color: #8b949e; font-size: 0.85em; line-height: 1.6; margin-bottom: 10px; }
+        .code-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 8px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.85em;
+        }
+        .code-box .cmd { color: #00ff41; margin-bottom: 5px; }
+        .code-box .output { color: #8b949e; font-size: 0.9em; }
+        .regex-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.8em;
+        }
+        .regex-table th, .regex-table td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #30363d;
+        }
+        .regex-table th { background: rgba(255, 184, 108, 0.1); color: #ffb86c; }
+        .regex-table td:first-child { color: #00ff41; font-family: 'Cascadia Code', monospace; }
+        .warning-box {
+            background: rgba(255, 184, 108, 0.1);
+            border: 1px solid #ffb86c;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .warning-box strong { color: #ffb86c; display: block; margin-bottom: 5px; font-size: 0.85em; }
+        .warning-box p { color: #8b949e; font-size: 0.8em; margin: 0; }
+        .tip-box {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .tip-box strong { color: #00ff41; display: block; margin-bottom: 5px; font-size: 0.85em; }
+        .tip-box p { color: #8b949e; font-size: 0.8em; margin: 0; }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border: 2px solid #ffb86c;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal h2 { color: #ffb86c; margin-bottom: 15px; font-size: 1.3em; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .xp-earned {
+            background: rgba(255, 184, 108, 0.2);
+            color: #ffb86c;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .rank-badge {
+            background: linear-gradient(135deg, #ffb86c 0%, #ff79c6 100%);
+            color: #0d1117;
+            padding: 8px 16px;
+            border-radius: 15px;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .modal-btn.primary { background: #ffb86c; color: #0d1117; }
+        .modal-btn.primary:hover { background: #ffc98a; }
+        .modal-btn.secondary { background: transparent; border: 1px solid #30363d; color: #8b949e; }
+        .modal-btn.secondary:hover { border-color: #ffb86c; color: #ffb86c; }
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+            .intel-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-011</span>
+                        <h1>ADVANCED GREP & REGEX</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] Pattern matching module loaded</div>
+                    <div class="terminal-line output">[MISSION] Hunt for specific patterns in log files using regex</div>
+                    <div class="terminal-line output" style="margin-top: 10px; color: #ffb86c;">> Mission: Master grep flags and regular expressions</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4 id="missionTitle">HUNT: Case-Insensitive Search</h4>
+                        <p id="missionDescription">Find all lines containing "error" (case-insensitive) in system.log using grep -i.</p>
+                        <div class="hint" id="missionHint">$ grep -i "error" logs/system.log</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>PATTERN HUNTER'S GUIDE</h2>
+            <div class="intel-section">
+                <h3>The Mission</h3>
+                <p>Regular expressions are the language of pattern matching. Master grep and regex to hunt through massive log files and extract exactly what you need.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Grep Flags</h3>
+                <div class="code-box">
+                    <div class="cmd">-i</div>
+                    <div class="output">Case insensitive search</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">-v</div>
+                    <div class="output">Invert match (exclude pattern)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">-c</div>
+                    <div class="output">Count matching lines</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">-n</div>
+                    <div class="output">Show line numbers</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">-r</div>
+                    <div class="output">Recursive search in directories</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">-E</div>
+                    <div class="output">Extended regex (same as egrep)</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>Regex Basics</h3>
+                <table class="regex-table">
+                    <tr><th>Pattern</th><th>Matches</th></tr>
+                    <tr><td>.</td><td>Any single character</td></tr>
+                    <tr><td>*</td><td>Zero or more of previous</td></tr>
+                    <tr><td>+</td><td>One or more (extended regex)</td></tr>
+                    <tr><td>^</td><td>Start of line</td></tr>
+                    <tr><td>$</td><td>End of line</td></tr>
+                    <tr><td>[abc]</td><td>Any character in set</td></tr>
+                    <tr><td>[0-9]</td><td>Any digit</td></tr>
+                    <tr><td>\d</td><td>Any digit (extended)</td></tr>
+                </table>
+            </div>
+            <div class="intel-section">
+                <h3>IP Address Pattern</h3>
+                <div class="code-box">
+                    <div class="cmd">grep -E "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"</div>
+                    <div class="output">Match IP addresses</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>Use <code style="color:#00ff41;">grep -E</code> or <code style="color:#00ff41;">egrep</code> for extended regex with +, ?, |, and () without escaping.</p>
+            </div>
+            <div class="warning-box">
+                <strong>REGEX GOTCHA:</strong>
+                <p>In basic grep, special chars like + and | must be escaped: \+ and \|</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>PATTERN MASTER</h2>
+            <div class="rank-badge">CLI SPECIALIST ACHIEVED</div>
+            <p>Regex skills unlocked.<br>You can now hunt any pattern.</p>
+            <div class="xp-earned">+150 XP</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay Here</button>
+                <button class="modal-btn primary" onclick="goToNextLab()">Continue Training ></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const missionData = {
+            1: {
+                title: 'HUNT: Case-Insensitive Search',
+                description: 'Find all lines containing "error" (case-insensitive) in system.log using grep -i.',
+                hint: '$ grep -i "error" logs/system.log',
+                check: (cmd, terminal) => {
+                    return cmd.includes('grep') && cmd.includes('-i') &&
+                           (cmd.toLowerCase().includes('error') || cmd.includes('system.log'));
+                }
+            },
+            2: {
+                title: 'EXCLUDE: Invert the Match',
+                description: 'Show all lines in auth.log that do NOT contain "success" using grep -v.',
+                hint: '$ grep -v "success" logs/auth.log',
+                check: (cmd, terminal) => {
+                    return cmd.includes('grep') && cmd.includes('-v') &&
+                           (cmd.includes('success') || cmd.includes('auth.log'));
+                }
+            },
+            3: {
+                title: 'COUNT: Quantify the Threat',
+                description: 'Count how many "FAILED" login attempts appear in auth.log using grep -c.',
+                hint: '$ grep -c "FAILED" logs/auth.log',
+                check: (cmd, terminal) => {
+                    return cmd.includes('grep') && cmd.includes('-c') &&
+                           (cmd.includes('FAILED') || cmd.includes('auth.log'));
+                }
+            },
+            4: {
+                title: 'LOCATE: Show Line Numbers',
+                description: 'Find "192.168" in network.log and show line numbers with grep -n.',
+                hint: '$ grep -n "192.168" logs/network.log',
+                check: (cmd, terminal) => {
+                    return cmd.includes('grep') && cmd.includes('-n') &&
+                           (cmd.includes('192.168') || cmd.includes('network'));
+                }
+            },
+            5: {
+                title: 'REGEX: Match IP Pattern',
+                description: 'Use extended regex to find all IP addresses in network.log. Pattern: [0-9]+.[0-9]+.[0-9]+.[0-9]+',
+                hint: '$ grep -E "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" logs/network.log',
+                check: (cmd, terminal) => {
+                    return (cmd.includes('grep') && cmd.includes('-E')) ||
+                           cmd.includes('egrep') ||
+                           (cmd.includes('[0-9]') && cmd.includes('\\.'));
+                }
+            }
+        };
+
+        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
+        let currentMission = 1;
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal',
+            inputElement: '#commandInput',
+            user: 'operator',
+            hostname: 'shadow',
+            startDir: '/home/operator',
+            onCommand: (cmdLine, output, cmd, args) => {
+                checkMissionCompletion(cmdLine);
+                updatePromptDisplay();
+            }
+        });
+
+        // Create filesystem with realistic log data
+        terminal.fs['/home/operator'] = {
+            type: 'dir',
+            contents: {
+                'logs': { type: 'dir', contents: {
+                    'system.log': { type: 'file', content: `Jan 15 10:15:32 shadow kernel: [INFO] System started
+Jan 15 10:15:33 shadow systemd: [INFO] Network service started
+Jan 15 10:16:01 shadow kernel: [ERROR] Disk I/O timeout on /dev/sdb
+Jan 15 10:16:45 shadow cron: [INFO] Scheduled task executed
+Jan 15 10:17:22 shadow kernel: [Warning] High memory usage detected
+Jan 15 10:18:03 shadow systemd: [INFO] Service httpd restarted
+Jan 15 10:18:55 shadow kernel: [ERROR] Buffer overflow in module xyz
+Jan 15 10:19:12 shadow sshd: [INFO] Connection from 192.168.1.105
+Jan 15 10:20:01 shadow kernel: [error] Failed to allocate memory
+Jan 15 10:21:33 shadow systemd: [INFO] Backup completed
+Jan 15 10:22:15 shadow kernel: [ERROR] Watchdog timeout - system unstable` },
+                    'auth.log': { type: 'file', content: `Jan 15 10:15:32 shadow sshd[1234]: FAILED login for admin from 10.0.0.88
+Jan 15 10:15:45 shadow sshd[1234]: FAILED login for admin from 10.0.0.88
+Jan 15 10:16:01 shadow sshd[1235]: success login for operator from 192.168.1.42
+Jan 15 10:16:22 shadow sshd[1234]: FAILED login for root from 10.0.0.88
+Jan 15 10:17:03 shadow sshd[1236]: success login for analyst from 192.168.1.105
+Jan 15 10:17:45 shadow sshd[1234]: FAILED login for admin from 10.0.0.88
+Jan 15 10:18:12 shadow sshd[1237]: success login for backup from localhost
+Jan 15 10:18:55 shadow sshd[1234]: FAILED login for root from 10.0.0.88
+Jan 15 10:19:33 shadow sshd[1234]: FAILED login for test from 10.0.0.88
+Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23` },
+                    'network.log': { type: 'file', content: `10:15:32 TCP 192.168.1.105:44821 -> 10.0.0.5:443 ESTABLISHED
+10:15:45 TCP 192.168.1.42:55123 -> 10.0.0.5:80 ESTABLISHED
+10:16:01 UDP 10.0.0.88:53421 -> 8.8.8.8:53 DNS_QUERY
+10:16:22 TCP 192.168.1.105:44822 -> 10.0.0.5:22 ESTABLISHED
+10:17:03 TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT
+10:17:45 ICMP 10.0.0.88 -> 192.168.1.1 ECHO_REQUEST
+10:18:12 TCP 192.168.1.105:44823 -> 10.0.0.5:3306 ESTABLISHED
+10:18:55 UDP 192.168.1.42:12345 -> 10.0.0.5:161 SNMP
+10:19:33 TCP 10.0.0.88:55555 -> 192.168.1.1:445 SYN_SENT
+10:20:15 TCP 172.16.0.23:61235 -> 10.0.0.5:443 ESTABLISHED` }
+                }},
+                'reports': { type: 'dir', contents: {} },
+                '.bash_history': { type: 'file', content: '', hidden: true }
+            }
+        };
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' : cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent = `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
+        }
+
+        function checkMissionCompletion(cmdLine) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+            if (mission.check(cmdLine, terminal)) {
+                completeMission(currentMission);
+            }
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active');
+            stepDot.classList.add('completed');
+            stepDot.innerHTML = '✓';
+            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
+            if (missionNum < 5) {
+                currentMission = missionNum + 1;
+                document.getElementById(`step-${currentMission}`).classList.add('active');
+                showNextMission(currentMission);
+            } else {
+                showAllComplete();
+            }
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${mission.title}</h4>
+                    <p>${mission.description}</p>
+                    <div class="hint">${mission.hint}</div>
+                </div>`;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">🔍</div>
+                    <h4>PATTERN MASTER</h4>
+                    <p>Regex skills unlocked</p>
+                </div>`;
+            setTimeout(() => {
+                document.getElementById('completionModal').classList.add('show');
+                saveProgress();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-011'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 150 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
+            clhProgress.rank = 'CLI Specialist';
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+        }
+
+        function closeModal() { document.getElementById('completionModal').classList.remove('show'); }
+        function goToNextLab() { window.location.href = '../../index.html'; }
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
