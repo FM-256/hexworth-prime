@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Format Converter - House of the Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #6366F1;
+            --house-glow: rgba(99, 102, 241, 0.3);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --json-color: #f59e0b;
+            --xml-color: #ef4444;
+            --yaml-color: #10b981;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .title {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-panel h2 {
+            font-size: 1rem;
+            color: var(--house-color);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-panel p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .format-badges {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .format-badge {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .format-badge.json {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--json-color);
+        }
+
+        .format-badge.xml {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--xml-color);
+        }
+
+        .format-badge.yaml {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--yaml-color);
+        }
+
+        /* Converter Grid */
+        .converter-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .editor-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .editor-header {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-title.json { color: var(--json-color); }
+        .editor-title.xml { color: var(--xml-color); }
+        .editor-title.yaml { color: var(--yaml-color); }
+
+        .format-select {
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .format-select:focus {
+            outline: none;
+            border-color: var(--house-color);
+        }
+
+        .editor-textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .editor-textarea:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .editor-textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        /* Convert Button Area */
+        .convert-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px 0;
+        }
+
+        .convert-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--house-color), #4f46e5);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--house-glow);
+        }
+
+        .convert-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px var(--house-glow);
+        }
+
+        .convert-btn:active {
+            transform: scale(0.95);
+        }
+
+        .swap-btn {
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .swap-btn:hover {
+            background: rgba(99, 102, 241, 0.25);
+        }
+
+        /* Status Messages */
+        .status-bar {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-bar.success {
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .status-bar.error {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .copy-btn {
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+        }
+
+        /* Examples Section */
+        .examples-section {
+            margin-top: 30px;
+        }
+
+        .examples-header {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .example-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .example-card:hover {
+            border-color: var(--house-color);
+            transform: translateY(-2px);
+        }
+
+        .example-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .example-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Reference Section */
+        .reference-section {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .reference-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .reference-card.json { border-top: 3px solid var(--json-color); }
+        .reference-card.xml { border-top: 3px solid var(--xml-color); }
+        .reference-card.yaml { border-top: 3px solid var(--yaml-color); }
+
+        .reference-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .reference-card.json .reference-title { color: var(--json-color); }
+        .reference-card.xml .reference-title { color: var(--xml-color); }
+        .reference-card.yaml .reference-title { color: var(--yaml-color); }
+
+        .reference-list {
+            list-style: none;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .reference-list li {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .reference-list li:last-child {
+            border-bottom: none;
+        }
+
+        .reference-list code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .converter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .convert-controls {
+                flex-direction: row;
+                padding: 15px 0;
+            }
+
+            .reference-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">←</a>
+            <span class="title">Data Format Converter</span>
+        </div>
+        <span class="house-badge">HOUSE OF CODE</span>
+    </header>
+
+    <div class="container">
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <h2>📊 Data Format Interchange</h2>
+            <p>
+                Convert data between the three most common data serialization formats used in APIs,
+                configuration files, and data exchange. Each format has its strengths - JSON for APIs,
+                XML for documents, YAML for human-readable config files.
+            </p>
+            <div class="format-badges">
+                <span class="format-badge json">JSON - APIs & Web</span>
+                <span class="format-badge xml">XML - Documents & SOAP</span>
+                <span class="format-badge yaml">YAML - Config Files</span>
+            </div>
+        </div>
+
+        <!-- Converter -->
+        <div class="converter-grid">
+            <!-- Input Panel -->
+            <div class="editor-panel">
+                <div class="editor-header">
+                    <span class="editor-title" id="inputTitle">📥 INPUT</span>
+                    <select class="format-select" id="inputFormat">
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                        <option value="yaml">YAML</option>
+                    </select>
+                </div>
+                <textarea class="editor-textarea" id="inputEditor" placeholder="Paste or type your data here..."></textarea>
+                <div class="status-bar" id="inputStatus">
+                    <span>Ready for input</span>
+                    <button class="copy-btn" onclick="clearInput()">Clear</button>
+                </div>
+            </div>
+
+            <!-- Convert Controls -->
+            <div class="convert-controls">
+                <button class="convert-btn" onclick="convertData()" title="Convert">→</button>
+                <button class="swap-btn" onclick="swapFormats()">⇄ Swap</button>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="editor-panel">
+                <div class="editor-header">
+                    <span class="editor-title" id="outputTitle">📤 OUTPUT</span>
+                    <select class="format-select" id="outputFormat">
+                        <option value="yaml">YAML</option>
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                    </select>
+                </div>
+                <textarea class="editor-textarea" id="outputEditor" readonly placeholder="Converted output will appear here..."></textarea>
+                <div class="status-bar" id="outputStatus">
+                    <span>Waiting for conversion</span>
+                    <button class="copy-btn" onclick="copyOutput()">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Examples Section -->
+        <div class="examples-section">
+            <h3 class="examples-header">📚 Try These Examples</h3>
+            <div class="examples-grid">
+                <div class="example-card" onclick="loadExample('user')">
+                    <div class="example-title">👤 User Profile</div>
+                    <div class="example-desc">Simple user object with nested address</div>
+                </div>
+                <div class="example-card" onclick="loadExample('api')">
+                    <div class="example-title">🔌 API Response</div>
+                    <div class="example-desc">REST API response with data array</div>
+                </div>
+                <div class="example-card" onclick="loadExample('config')">
+                    <div class="example-title">⚙️ App Config</div>
+                    <div class="example-desc">Application configuration structure</div>
+                </div>
+                <div class="example-card" onclick="loadExample('network')">
+                    <div class="example-title">🌐 Network Device</div>
+                    <div class="example-desc">Router configuration data</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reference Section -->
+        <div class="reference-section">
+            <div class="reference-card json">
+                <h4 class="reference-title">JSON Syntax</h4>
+                <ul class="reference-list">
+                    <li>Objects: <code>{ "key": "value" }</code></li>
+                    <li>Arrays: <code>["item1", "item2"]</code></li>
+                    <li>Strings must use double quotes</li>
+                    <li>No trailing commas allowed</li>
+                    <li>Booleans: <code>true</code> / <code>false</code></li>
+                    <li>Null: <code>null</code></li>
+                </ul>
+            </div>
+            <div class="reference-card xml">
+                <h4 class="reference-title">XML Syntax</h4>
+                <ul class="reference-list">
+                    <li>Elements: <code>&lt;tag&gt;value&lt;/tag&gt;</code></li>
+                    <li>Attributes: <code>&lt;tag attr="val"&gt;</code></li>
+                    <li>Self-closing: <code>&lt;tag /&gt;</code></li>
+                    <li>Must have single root element</li>
+                    <li>Case-sensitive tags</li>
+                    <li>Special chars: <code>&amp;lt; &amp;gt; &amp;amp;</code></li>
+                </ul>
+            </div>
+            <div class="reference-card yaml">
+                <h4 class="reference-title">YAML Syntax</h4>
+                <ul class="reference-list">
+                    <li>Key-value: <code>key: value</code></li>
+                    <li>Lists: <code>- item</code> (dash + space)</li>
+                    <li>Indentation matters (2 spaces)</li>
+                    <li>Strings usually unquoted</li>
+                    <li>Comments: <code># comment</code></li>
+                    <li>Multiline: <code>|</code> or <code>&gt;</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // DATA FORMAT CONVERTER ENGINE
+        // ============================================
+
+        const examples = {
+            user: {
+                name: "John Doe",
+                email: "john@example.com",
+                age: 30,
+                active: true,
+                roles: ["admin", "user"],
+                address: {
+                    street: "123 Main St",
+                    city: "Springfield",
+                    zip: "12345"
+                }
+            },
+            api: {
+                status: "success",
+                code: 200,
+                data: [
+                    { id: 1, name: "Server Alpha", status: "online" },
+                    { id: 2, name: "Server Beta", status: "offline" },
+                    { id: 3, name: "Server Gamma", status: "online" }
+                ],
+                pagination: {
+                    page: 1,
+                    total: 50,
+                    per_page: 10
+                }
+            },
+            config: {
+                app: {
+                    name: "MyApplication",
+                    version: "2.0.0",
+                    debug: false
+                },
+                database: {
+                    host: "localhost",
+                    port: 5432,
+                    name: "appdb"
+                },
+                features: {
+                    auth: true,
+                    logging: true,
+                    cache: false
+                }
+            },
+            network: {
+                device: {
+                    hostname: "router-01",
+                    type: "router",
+                    vendor: "Cisco",
+                    model: "ISR4331"
+                },
+                interfaces: [
+                    { name: "GigabitEthernet0/0", ip: "192.168.1.1", mask: "255.255.255.0", status: "up" },
+                    { name: "GigabitEthernet0/1", ip: "10.0.0.1", mask: "255.255.255.252", status: "up" }
+                ],
+                routes: [
+                    { network: "0.0.0.0/0", gateway: "10.0.0.2", metric: 1 }
+                ]
+            }
+        };
+
+        // ============================================
+        // CONVERSION FUNCTIONS
+        // ============================================
+
+        function parseInput(text, format) {
+            try {
+                switch (format) {
+                    case 'json':
+                        return JSON.parse(text);
+                    case 'yaml':
+                        return parseYAML(text);
+                    case 'xml':
+                        return parseXML(text);
+                    default:
+                        throw new Error('Unknown input format');
+                }
+            } catch (e) {
+                throw new Error(`Parse error: ${e.message}`);
+            }
+        }
+
+        function formatOutput(obj, format) {
+            try {
+                switch (format) {
+                    case 'json':
+                        return JSON.stringify(obj, null, 2);
+                    case 'yaml':
+                        return toYAML(obj);
+                    case 'xml':
+                        return toXML(obj);
+                    default:
+                        throw new Error('Unknown output format');
+                }
+            } catch (e) {
+                throw new Error(`Format error: ${e.message}`);
+            }
+        }
+
+        // ============================================
+        // YAML PARSER/FORMATTER (Simple Implementation)
+        // ============================================
+
+        function parseYAML(text) {
+            const lines = text.split('\n');
+            const result = {};
+            const stack = [{ obj: result, indent: -1 }];
+            let currentArray = null;
+
+            for (let line of lines) {
+                // Skip empty lines and comments
+                if (!line.trim() || line.trim().startsWith('#')) continue;
+
+                const indent = line.search(/\S/);
+                const content = line.trim();
+
+                // Handle array items
+                if (content.startsWith('- ')) {
+                    const value = content.slice(2).trim();
+                    const parent = stack[stack.length - 1];
+
+                    if (!Array.isArray(parent.currentArray)) {
+                        parent.currentArray = [];
+                        if (parent.lastKey) {
+                            parent.obj[parent.lastKey] = parent.currentArray;
+                        }
+                    }
+
+                    if (value.includes(': ')) {
+                        const obj = {};
+                        const pairs = value.split(', ');
+                        for (const pair of pairs) {
+                            const [k, v] = pair.split(': ').map(s => s.trim());
+                            obj[k] = parseYAMLValue(v);
+                        }
+                        parent.currentArray.push(obj);
+                    } else {
+                        parent.currentArray.push(parseYAMLValue(value));
+                    }
+                    continue;
+                }
+
+                // Handle key-value pairs
+                const colonIndex = content.indexOf(':');
+                if (colonIndex > 0) {
+                    const key = content.slice(0, colonIndex).trim();
+                    const value = content.slice(colonIndex + 1).trim();
+
+                    // Pop stack to correct level
+                    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+                        stack.pop();
+                    }
+
+                    const parent = stack[stack.length - 1];
+                    parent.currentArray = null;
+
+                    if (value === '' || value === '|' || value === '>') {
+                        // Nested object
+                        parent.obj[key] = {};
+                        stack.push({ obj: parent.obj[key], indent: indent, lastKey: null });
+                        parent.lastKey = key;
+                    } else {
+                        parent.obj[key] = parseYAMLValue(value);
+                        parent.lastKey = key;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function parseYAMLValue(value) {
+            if (value === 'true') return true;
+            if (value === 'false') return false;
+            if (value === 'null' || value === '~') return null;
+            if (/^-?\d+$/.test(value)) return parseInt(value);
+            if (/^-?\d+\.\d+$/.test(value)) return parseFloat(value);
+            // Remove quotes if present
+            if ((value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))) {
+                return value.slice(1, -1);
+            }
+            return value;
+        }
+
+        function toYAML(obj, indent = 0) {
+            const spaces = '  '.repeat(indent);
+            let result = '';
+
+            if (Array.isArray(obj)) {
+                for (const item of obj) {
+                    if (typeof item === 'object' && item !== null) {
+                        result += `${spaces}- `;
+                        const itemYaml = toYAML(item, 0).trim().split('\n');
+                        result += itemYaml[0] + '\n';
+                        for (let i = 1; i < itemYaml.length; i++) {
+                            result += `${spaces}  ${itemYaml[i]}\n`;
+                        }
+                    } else {
+                        result += `${spaces}- ${formatYAMLValue(item)}\n`;
+                    }
+                }
+            } else if (typeof obj === 'object' && obj !== null) {
+                for (const [key, value] of Object.entries(obj)) {
+                    if (typeof value === 'object' && value !== null) {
+                        result += `${spaces}${key}:\n`;
+                        result += toYAML(value, indent + 1);
+                    } else {
+                        result += `${spaces}${key}: ${formatYAMLValue(value)}\n`;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function formatYAMLValue(value) {
+            if (value === null) return 'null';
+            if (typeof value === 'boolean') return value.toString();
+            if (typeof value === 'number') return value.toString();
+            if (typeof value === 'string') {
+                if (value.includes(':') || value.includes('#') || value.includes('\n')) {
+                    return `"${value}"`;
+                }
+                return value;
+            }
+            return String(value);
+        }
+
+        // ============================================
+        // XML PARSER/FORMATTER
+        // ============================================
+
+        function parseXML(text) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/xml');
+
+            const errorNode = doc.querySelector('parsererror');
+            if (errorNode) {
+                throw new Error('Invalid XML');
+            }
+
+            return xmlToObject(doc.documentElement);
+        }
+
+        function xmlToObject(node) {
+            const obj = {};
+
+            // Handle attributes
+            if (node.attributes && node.attributes.length > 0) {
+                for (const attr of node.attributes) {
+                    obj[`@${attr.name}`] = attr.value;
+                }
+            }
+
+            // Handle children
+            const children = Array.from(node.children);
+            if (children.length === 0) {
+                const text = node.textContent.trim();
+                if (text && Object.keys(obj).length === 0) {
+                    return parseYAMLValue(text);
+                }
+                if (text) {
+                    obj['#text'] = parseYAMLValue(text);
+                }
+            } else {
+                // Group children by tag name
+                const grouped = {};
+                for (const child of children) {
+                    const name = child.tagName;
+                    if (!grouped[name]) grouped[name] = [];
+                    grouped[name].push(xmlToObject(child));
+                }
+
+                for (const [name, values] of Object.entries(grouped)) {
+                    obj[name] = values.length === 1 ? values[0] : values;
+                }
+            }
+
+            return obj;
+        }
+
+        function toXML(obj, rootName = 'root', indent = 0) {
+            const spaces = '  '.repeat(indent);
+            let xml = '';
+
+            if (indent === 0) {
+                xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            }
+
+            if (Array.isArray(obj)) {
+                for (const item of obj) {
+                    xml += toXML(item, 'item', indent);
+                }
+            } else if (typeof obj === 'object' && obj !== null) {
+                // Collect attributes and children
+                const attrs = [];
+                const children = [];
+
+                for (const [key, value] of Object.entries(obj)) {
+                    if (key.startsWith('@')) {
+                        attrs.push(`${key.slice(1)}="${escapeXML(String(value))}"`);
+                    } else if (key === '#text') {
+                        // Skip, handled separately
+                    } else {
+                        children.push([key, value]);
+                    }
+                }
+
+                const attrStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+                const textContent = obj['#text'];
+
+                if (children.length === 0 && textContent === undefined) {
+                    xml += `${spaces}<${rootName}${attrStr} />\n`;
+                } else if (children.length === 0) {
+                    xml += `${spaces}<${rootName}${attrStr}>${escapeXML(String(textContent))}</${rootName}>\n`;
+                } else {
+                    xml += `${spaces}<${rootName}${attrStr}>\n`;
+                    for (const [key, value] of children) {
+                        if (Array.isArray(value)) {
+                            for (const item of value) {
+                                xml += toXML(item, key, indent + 1);
+                            }
+                        } else {
+                            xml += toXML(value, key, indent + 1);
+                        }
+                    }
+                    xml += `${spaces}</${rootName}>\n`;
+                }
+            } else {
+                xml += `${spaces}<${rootName}>${escapeXML(String(obj))}</${rootName}>\n`;
+            }
+
+            return xml;
+        }
+
+        function escapeXML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
+
+        function convertData() {
+            const inputText = document.getElementById('inputEditor').value.trim();
+            const inputFormat = document.getElementById('inputFormat').value;
+            const outputFormat = document.getElementById('outputFormat').value;
+            const outputEditor = document.getElementById('outputEditor');
+            const outputStatus = document.getElementById('outputStatus');
+
+            if (!inputText) {
+                showStatus('inputStatus', 'Please enter data to convert', 'error');
+                return;
+            }
+
+            try {
+                // Parse input
+                const parsed = parseInput(inputText, inputFormat);
+                showStatus('inputStatus', `Valid ${inputFormat.toUpperCase()} detected`, 'success');
+
+                // Format output
+                const output = formatOutput(parsed, outputFormat);
+                outputEditor.value = output;
+                showStatus('outputStatus', `Converted to ${outputFormat.toUpperCase()} successfully`, 'success');
+
+            } catch (e) {
+                showStatus('inputStatus', e.message, 'error');
+                outputEditor.value = '';
+                showStatus('outputStatus', 'Conversion failed', 'error');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.className = `status-bar ${type}`;
+            element.querySelector('span').textContent = message;
+        }
+
+        function swapFormats() {
+            const inputFormat = document.getElementById('inputFormat');
+            const outputFormat = document.getElementById('outputFormat');
+            const inputEditor = document.getElementById('inputEditor');
+            const outputEditor = document.getElementById('outputEditor');
+
+            // Swap formats
+            const tempFormat = inputFormat.value;
+            inputFormat.value = outputFormat.value;
+            outputFormat.value = tempFormat;
+
+            // Move output to input if there's content
+            if (outputEditor.value.trim()) {
+                inputEditor.value = outputEditor.value;
+                outputEditor.value = '';
+            }
+
+            updateTitleColors();
+        }
+
+        function loadExample(name) {
+            const example = examples[name];
+            if (!example) return;
+
+            document.getElementById('inputFormat').value = 'json';
+            document.getElementById('inputEditor').value = JSON.stringify(example, null, 2);
+            document.getElementById('outputEditor').value = '';
+            updateTitleColors();
+            showStatus('inputStatus', `Loaded "${name}" example`, 'success');
+            showStatus('outputStatus', 'Ready to convert', '');
+        }
+
+        function clearInput() {
+            document.getElementById('inputEditor').value = '';
+            document.getElementById('outputEditor').value = '';
+            showStatus('inputStatus', 'Ready for input', '');
+            showStatus('outputStatus', 'Waiting for conversion', '');
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('outputEditor').value;
+            if (!output) return;
+
+            navigator.clipboard.writeText(output).then(() => {
+                showStatus('outputStatus', 'Copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('outputStatus', 'Failed to copy', 'error');
+            });
+        }
+
+        function updateTitleColors() {
+            const inputFormat = document.getElementById('inputFormat').value;
+            const outputFormat = document.getElementById('outputFormat').value;
+            const inputTitle = document.getElementById('inputTitle');
+            const outputTitle = document.getElementById('outputTitle');
+
+            inputTitle.className = `editor-title ${inputFormat}`;
+            outputTitle.className = `editor-title ${outputFormat}`;
+        }
+
+        // Event listeners
+        document.getElementById('inputFormat').addEventListener('change', updateTitleColors);
+        document.getElementById('outputFormat').addEventListener('change', updateTitleColors);
+
+        // Initialize
+        updateTitleColors();
+        loadExample('user');
+
+        // Console message
+        console.log('%c💻 Data Format Converter', 'color: #6366F1; font-size: 14px;');
+        console.log('%cJSON ↔ XML ↔ YAML', 'color: #888; font-size: 10px;');
+    </script>
+
+    <!-- Progress Tracking -->
+    <script src="../../../components/ProgressManager.js"></script>
+</body>
+</html>

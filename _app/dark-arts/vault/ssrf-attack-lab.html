@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSRF Attack Lab | Dark Arts Vault</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f0a1a 0%, #1a0a2e 50%, #0f0a1a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .warning-banner {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .warning-banner .icon {
+            font-size: 2rem;
+        }
+
+        .warning-banner p {
+            color: #fca5a5;
+            font-size: 0.9rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #a855f7;
+            text-decoration: none;
+            margin-bottom: 1rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #c084fc;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(30, 20, 50, 0.8);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: rgba(168, 85, 247, 0.2);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 1.1rem;
+            color: #c084fc;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+        }
+
+        /* Simulated Application */
+        .app-header {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            padding: 1rem 1.5rem;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .app-header h3 {
+            color: white;
+            font-size: 1rem;
+        }
+
+        .app-body {
+            background: #1e293b;
+            border-radius: 0 0 8px 8px;
+            padding: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: #0f172a;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .preview-box {
+            margin-top: 1rem;
+            background: #0f172a;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            min-height: 150px;
+            padding: 1rem;
+        }
+
+        .preview-title {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .preview-content {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .preview-content.success {
+            color: #4ade80;
+        }
+
+        .preview-content.error {
+            color: #f87171;
+        }
+
+        .preview-content.sensitive {
+            color: #fbbf24;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            background: rgba(251, 191, 36, 0.1);
+            padding: 0.75rem;
+            border-radius: 4px;
+            border: 1px dashed rgba(251, 191, 36, 0.3);
+        }
+
+        /* Defense toggles */
+        .defense-toggles {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 6px;
+        }
+
+        .toggle-item.active {
+            border-color: rgba(74, 222, 128, 0.4);
+            background: rgba(74, 222, 128, 0.1);
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .toggle-name {
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        .toggle-desc {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #374151;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #4ade80;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Attack payloads */
+        .attack-section {
+            margin-top: 1.5rem;
+        }
+
+        .attack-section h3 {
+            color: #c084fc;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .payload-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .payload-item {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .payload-item:hover {
+            border-color: rgba(168, 85, 247, 0.6);
+            transform: translateX(4px);
+        }
+
+        .payload-item.blocked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .payload-item.blocked:hover {
+            transform: none;
+        }
+
+        .payload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .payload-name {
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .payload-tag {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .tag-internal {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .tag-cloud {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .tag-protocol {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+        }
+
+        .tag-bypass {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .payload-url {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: #a855f7;
+            word-break: break-all;
+        }
+
+        .payload-desc {
+            color: #64748b;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Network Diagram */
+        .network-diagram {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .network-title {
+            color: #64748b;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .network-visual {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .network-node {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            min-width: 100px;
+        }
+
+        .node-attacker {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .node-server {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .node-internal {
+            background: rgba(74, 222, 128, 0.2);
+            border: 1px solid rgba(74, 222, 128, 0.4);
+        }
+
+        .node-cloud {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .node-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .node-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .network-arrow {
+            color: #64748b;
+            font-size: 1.5rem;
+        }
+
+        /* Event Log */
+        .event-log {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+        }
+
+        .log-entry {
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #64748b;
+        }
+
+        .log-request {
+            color: #60a5fa;
+        }
+
+        .log-blocked {
+            color: #f87171;
+        }
+
+        .log-success {
+            color: #4ade80;
+        }
+
+        .log-warning {
+            color: #fbbf24;
+        }
+
+        /* Info sections */
+        .info-section {
+            margin-top: 2rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-card {
+            background: rgba(30, 20, 50, 0.6);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+
+        .info-card h3 {
+            color: #c084fc;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-card ul {
+            list-style: none;
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        .info-card li {
+            padding: 0.3rem 0;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .info-card li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #a855f7;
+        }
+
+        .info-card code {
+            background: rgba(168, 85, 247, 0.2);
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: #c084fc;
+        }
+
+        /* Quiz Section */
+        .quiz-section {
+            margin-top: 2rem;
+        }
+
+        .quiz-question {
+            background: rgba(30, 20, 50, 0.6);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .quiz-question h4 {
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .quiz-option {
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #94a3b8;
+        }
+
+        .quiz-option:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .quiz-option.correct {
+            background: rgba(74, 222, 128, 0.2);
+            border-color: rgba(74, 222, 128, 0.4);
+            color: #4ade80;
+        }
+
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+
+        .badge-vulnerable {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .badge-protected {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">
+            <span>&larr;</span> Back to Dark Arts
+        </a>
+
+        <div class="warning-banner">
+            <span class="icon">⚠️</span>
+            <div>
+                <strong>Educational Lab Environment</strong>
+                <p>This lab demonstrates SSRF (Server-Side Request Forgery) attacks. Never attempt these techniques on systems without explicit authorization.</p>
+            </div>
+        </div>
+
+        <div class="header">
+            <h1>SSRF Attack Lab</h1>
+            <p>Learn how attackers abuse server-side URL fetching to access internal resources</p>
+        </div>
+
+        <!-- Network Diagram -->
+        <div class="network-diagram">
+            <div class="network-title">Attack Flow</div>
+            <div class="network-visual">
+                <div class="network-node node-attacker">
+                    <div class="node-icon">🎭</div>
+                    <div class="node-label">Attacker</div>
+                </div>
+                <div class="network-arrow">→</div>
+                <div class="network-node node-server">
+                    <div class="node-icon">🌐</div>
+                    <div class="node-label">Web Server</div>
+                </div>
+                <div class="network-arrow">→</div>
+                <div class="network-node node-internal">
+                    <div class="node-icon">🔒</div>
+                    <div class="node-label">Internal API</div>
+                </div>
+                <div class="network-arrow">→</div>
+                <div class="network-node node-cloud">
+                    <div class="node-icon">☁️</div>
+                    <div class="node-label">Cloud Metadata</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Simulated Application -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Vulnerable Application</h2>
+                    <span id="appStatus" class="status-badge badge-vulnerable">VULNERABLE</span>
+                </div>
+                <div class="panel-content">
+                    <div class="app-header">
+                        <span>🔗</span>
+                        <h3>LinkPreview Pro - URL Preview Service</h3>
+                    </div>
+                    <div class="app-body">
+                        <div class="input-group">
+                            <label>Enter URL to preview:</label>
+                            <div class="input-row">
+                                <input type="text" id="urlInput" class="input-field"
+                                       placeholder="https://example.com"
+                                       value="https://example.com">
+                                <button class="btn btn-primary" onclick="fetchUrl()">Fetch</button>
+                            </div>
+                        </div>
+
+                        <div class="preview-box">
+                            <div class="preview-title">Server Response</div>
+                            <div id="previewContent" class="preview-content">
+                                Enter a URL and click Fetch to preview content
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="attack-section">
+                        <h3>Attack Payloads</h3>
+                        <div class="payload-grid">
+                            <div class="payload-item" onclick="tryPayload('http://localhost:8080/admin')">
+                                <div class="payload-header">
+                                    <span class="payload-name">Internal Admin Panel</span>
+                                    <span class="payload-tag tag-internal">INTERNAL</span>
+                                </div>
+                                <div class="payload-url">http://localhost:8080/admin</div>
+                                <div class="payload-desc">Access admin interface not exposed to internet</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://192.168.1.1/config')">
+                                <div class="payload-header">
+                                    <span class="payload-name">Internal Network Device</span>
+                                    <span class="payload-tag tag-internal">INTERNAL</span>
+                                </div>
+                                <div class="payload-url">http://192.168.1.1/config</div>
+                                <div class="payload-desc">Access router/switch configuration</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://169.254.169.254/latest/meta-data/')">
+                                <div class="payload-header">
+                                    <span class="payload-name">AWS Metadata Service</span>
+                                    <span class="payload-tag tag-cloud">CLOUD</span>
+                                </div>
+                                <div class="payload-url">http://169.254.169.254/latest/meta-data/</div>
+                                <div class="payload-desc">Steal AWS IAM credentials from EC2 instance</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://metadata.google.internal/computeMetadata/v1/')">
+                                <div class="payload-header">
+                                    <span class="payload-name">GCP Metadata Service</span>
+                                    <span class="payload-tag tag-cloud">CLOUD</span>
+                                </div>
+                                <div class="payload-url">http://metadata.google.internal/computeMetadata/v1/</div>
+                                <div class="payload-desc">Access Google Cloud service account tokens</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('file:///etc/passwd')">
+                                <div class="payload-header">
+                                    <span class="payload-name">Local File Read</span>
+                                    <span class="payload-tag tag-protocol">PROTOCOL</span>
+                                </div>
+                                <div class="payload-url">file:///etc/passwd</div>
+                                <div class="payload-desc">Read local files via file:// protocol</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://127.0.0.1:6379/')">
+                                <div class="payload-header">
+                                    <span class="payload-name">Internal Redis</span>
+                                    <span class="payload-tag tag-internal">INTERNAL</span>
+                                </div>
+                                <div class="payload-url">http://127.0.0.1:6379/</div>
+                                <div class="payload-desc">Connect to internal Redis cache</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://[::1]:8080/admin')">
+                                <div class="payload-header">
+                                    <span class="payload-name">IPv6 Localhost Bypass</span>
+                                    <span class="payload-tag tag-bypass">BYPASS</span>
+                                </div>
+                                <div class="payload-url">http://[::1]:8080/admin</div>
+                                <div class="payload-desc">Bypass localhost filter using IPv6</div>
+                            </div>
+
+                            <div class="payload-item" onclick="tryPayload('http://0x7f.0x0.0x0.0x1:8080/')">
+                                <div class="payload-header">
+                                    <span class="payload-name">IP Obfuscation (Hex)</span>
+                                    <span class="payload-tag tag-bypass">BYPASS</span>
+                                </div>
+                                <div class="payload-url">http://0x7f.0x0.0x0.0x1:8080/</div>
+                                <div class="payload-desc">127.0.0.1 in hexadecimal notation</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Defense & Log Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Defenses & Activity Log</h2>
+                </div>
+                <div class="panel-content">
+                    <h3 style="color: #c084fc; font-size: 0.9rem; margin-bottom: 1rem;">Defense Mechanisms</h3>
+                    <div class="defense-toggles">
+                        <div class="toggle-item" id="toggle-blocklist">
+                            <div class="toggle-label">
+                                <span class="toggle-name">IP Blocklist</span>
+                                <span class="toggle-desc">Block 127.0.0.1, 192.168.x.x, 10.x.x.x, 169.254.x.x</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="defense-blocklist" onchange="updateDefenses()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="toggle-item" id="toggle-allowlist">
+                            <div class="toggle-label">
+                                <span class="toggle-name">Protocol Allowlist</span>
+                                <span class="toggle-desc">Only allow http:// and https:// protocols</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="defense-protocol" onchange="updateDefenses()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="toggle-item" id="toggle-dns">
+                            <div class="toggle-label">
+                                <span class="toggle-name">DNS Resolution Check</span>
+                                <span class="toggle-desc">Resolve hostname and verify IP before request</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="defense-dns" onchange="updateDefenses()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="toggle-item" id="toggle-redirect">
+                            <div class="toggle-label">
+                                <span class="toggle-name">Redirect Prevention</span>
+                                <span class="toggle-desc">Don't follow redirects to blocked destinations</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="defense-redirect" onchange="updateDefenses()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #c084fc; font-size: 0.9rem; margin: 1.5rem 0 1rem;">Server Activity Log</h3>
+                    <div id="eventLog" class="event-log">
+                        <div class="log-entry">
+                            <span class="log-time">[System]</span>
+                            <span class="log-success">LinkPreview service started...</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" style="margin-top: 1rem; width: 100%;" onclick="clearLog()">Clear Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="info-section">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>What is SSRF?</h3>
+                    <ul>
+                        <li>Server-Side Request Forgery makes the server send requests on attacker's behalf</li>
+                        <li>Bypasses firewalls since requests originate from trusted server</li>
+                        <li>Access internal services not exposed to the internet</li>
+                        <li>Steal cloud credentials from metadata services</li>
+                        <li>Port scan internal networks</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Common Targets</h3>
+                    <ul>
+                        <li><code>169.254.169.254</code> - AWS/Azure/GCP metadata</li>
+                        <li><code>localhost:8080</code> - Internal admin panels</li>
+                        <li><code>192.168.x.x</code> - Internal network devices</li>
+                        <li><code>file:///etc/passwd</code> - Local file system</li>
+                        <li><code>redis://localhost:6379</code> - Cache servers</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Bypass Techniques</h3>
+                    <ul>
+                        <li>IPv6: <code>[::1]</code> instead of 127.0.0.1</li>
+                        <li>Decimal IP: <code>2130706433</code> = 127.0.0.1</li>
+                        <li>Hex IP: <code>0x7f000001</code></li>
+                        <li>URL encoding: <code>%31%32%37</code></li>
+                        <li>DNS rebinding attacks</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Defense Strategies</h3>
+                    <ul>
+                        <li>Allowlist approved domains only</li>
+                        <li>Block private IP ranges at DNS resolution</li>
+                        <li>Disable unnecessary URL schemes (file://, gopher://)</li>
+                        <li>Don't follow redirects automatically</li>
+                        <li>Use IMDSv2 for cloud metadata (requires token)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="quiz-section">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Knowledge Check</h2>
+                </div>
+                <div class="panel-content">
+                    <div class="quiz-question">
+                        <h4>1. What makes SSRF particularly dangerous in cloud environments?</h4>
+                        <div class="quiz-options">
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">It allows direct database access</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, true)">Metadata services can expose IAM credentials and secrets</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">It enables Cross-Site Scripting attacks</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">It bypasses HTTPS encryption</div>
+                        </div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <h4>2. Which IP address is commonly used for cloud metadata services?</h4>
+                        <div class="quiz-options">
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">192.168.1.1</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">10.0.0.1</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, true)">169.254.169.254</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">172.16.0.1</div>
+                        </div>
+                    </div>
+
+                    <div class="quiz-question">
+                        <h4>3. What is the MOST effective defense against SSRF?</h4>
+                        <div class="quiz-options">
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">Rate limiting requests</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">Using HTTPS only</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, true)">Allowlist of approved domains + DNS resolution validation</div>
+                            <div class="quiz-option" onclick="checkAnswer(this, false)">Adding CSRF tokens</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulated internal resources
+        const internalResources = {
+            'http://localhost:8080/admin': {
+                type: 'sensitive',
+                content: `ADMIN PANEL - Internal Access Only
+─────────────────────────────────
+Users: 147 active
+Database: mysql://root:P@ssw0rd123@db.internal:3306
+API Key: sk-live-abc123def456ghi789
+Redis: redis://cache.internal:6379
+─────────────────────────────────
+[Delete All Users] [Export DB] [Shutdown]`
+            },
+            'http://192.168.1.1/config': {
+                type: 'sensitive',
+                content: `Router Configuration
+─────────────────────
+Model: Cisco ISR 4000
+Admin Password: admin123
+WiFi Key: CompanyWiFi2024!
+VPN Secret: ikev2-psk-secret
+Internal DNS: 192.168.1.10
+SNMP Community: public`
+            },
+            'http://169.254.169.254/latest/meta-data/': {
+                type: 'sensitive',
+                content: `ami-id
+ami-launch-index
+ami-manifest-path
+hostname
+iam/
+instance-action
+instance-id
+instance-type
+local-hostname
+local-ipv4
+mac
+network/
+placement/
+public-hostname
+public-ipv4
+public-keys/
+security-groups`
+            },
+            'http://169.254.169.254/latest/meta-data/iam/security-credentials/': {
+                type: 'sensitive',
+                content: `EC2-Production-Role`
+            },
+            'http://169.254.169.254/latest/meta-data/iam/security-credentials/EC2-Production-Role': {
+                type: 'sensitive',
+                content: `{
+  "Code": "Success",
+  "LastUpdated": "2024-01-15T12:00:00Z",
+  "Type": "AWS-HMAC",
+  "AccessKeyId": "ASIAXXXXXXXXXEXAMPLE",
+  "SecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+  "Token": "AQoDYXdzEJr...[TRUNCATED]...ExampleToken",
+  "Expiration": "2024-01-15T18:00:00Z"
+}`
+            },
+            'http://metadata.google.internal/computeMetadata/v1/': {
+                type: 'sensitive',
+                content: `instance/
+project/
+oslogin/
+attributes/`
+            },
+            'file:///etc/passwd': {
+                type: 'sensitive',
+                content: `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false
+ubuntu:x:1000:1000:Ubuntu:/home/ubuntu:/bin/bash`
+            },
+            'http://127.0.0.1:6379/': {
+                type: 'sensitive',
+                content: `-ERR wrong number of arguments for 'get' command
+# Redis Server
+redis_version:6.2.6
+connected_clients:15
+used_memory:1024000
+keyspace_db0:keys=2847`
+            },
+            'http://[::1]:8080/admin': {
+                type: 'sensitive',
+                content: `[IPv6 BYPASS SUCCESSFUL]
+ADMIN PANEL - Internal Access Only
+─────────────────────────────────
+This request used IPv6 localhost [::1]
+to bypass basic localhost filters.`
+            },
+            'http://0x7f.0x0.0x0.0x1:8080/': {
+                type: 'sensitive',
+                content: `[HEX IP BYPASS SUCCESSFUL]
+127.0.0.1 accessed via hexadecimal notation
+0x7f.0x0.0x0.0x1 = 127.0.0.1
+
+Internal service response...`
+            }
+        };
+
+        const defenses = {
+            blocklist: false,
+            protocol: false,
+            dns: false,
+            redirect: false
+        };
+
+        // Private IP ranges for blocklist check
+        const privateIPPatterns = [
+            /^127\./,
+            /^192\.168\./,
+            /^10\./,
+            /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+            /^169\.254\./,
+            /^0\./,
+            /localhost/i,
+            /\[::1\]/,
+            /^0x/,
+            /\.internal/i
+        ];
+
+        function addLog(message, type = 'request') {
+            const log = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = `
+                <div class="log-entry">
+                    <span class="log-time">[System]</span>
+                    <span class="log-success">Log cleared.</span>
+                </div>
+            `;
+        }
+
+        function updateDefenses() {
+            defenses.blocklist = document.getElementById('defense-blocklist').checked;
+            defenses.protocol = document.getElementById('defense-protocol').checked;
+            defenses.dns = document.getElementById('defense-dns').checked;
+            defenses.redirect = document.getElementById('defense-redirect').checked;
+
+            // Update toggle styling
+            document.getElementById('toggle-blocklist').classList.toggle('active', defenses.blocklist);
+            document.getElementById('toggle-allowlist').classList.toggle('active', defenses.protocol);
+            document.getElementById('toggle-dns').classList.toggle('active', defenses.dns);
+            document.getElementById('toggle-redirect').classList.toggle('active', defenses.redirect);
+
+            // Update status badge
+            const anyDefense = defenses.blocklist || defenses.protocol || defenses.dns || defenses.redirect;
+            const statusBadge = document.getElementById('appStatus');
+            if (defenses.blocklist && defenses.protocol && defenses.dns) {
+                statusBadge.textContent = 'PROTECTED';
+                statusBadge.className = 'status-badge badge-protected';
+            } else if (anyDefense) {
+                statusBadge.textContent = 'PARTIAL';
+                statusBadge.className = 'status-badge badge-vulnerable';
+                statusBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+                statusBadge.style.color = '#fbbf24';
+            } else {
+                statusBadge.textContent = 'VULNERABLE';
+                statusBadge.className = 'status-badge badge-vulnerable';
+                statusBadge.style.background = '';
+                statusBadge.style.color = '';
+            }
+
+            addLog(`Defense updated: blocklist=${defenses.blocklist}, protocol=${defenses.protocol}, dns=${defenses.dns}`, 'success');
+        }
+
+        function isBlockedByBlocklist(url) {
+            for (const pattern of privateIPPatterns) {
+                if (pattern.test(url)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function isBlockedByProtocol(url) {
+            return !url.startsWith('http://') && !url.startsWith('https://');
+        }
+
+        function tryPayload(url) {
+            document.getElementById('urlInput').value = url;
+            fetchUrl();
+        }
+
+        function fetchUrl() {
+            const url = document.getElementById('urlInput').value.trim();
+            const preview = document.getElementById('previewContent');
+
+            if (!url) {
+                preview.textContent = 'Please enter a URL';
+                preview.className = 'preview-content error';
+                return;
+            }
+
+            addLog(`Received request for: ${url}`, 'request');
+
+            // Check defenses
+            if (defenses.protocol && isBlockedByProtocol(url)) {
+                addLog(`BLOCKED: Protocol not allowed - ${url}`, 'blocked');
+                preview.textContent = `Request blocked: Protocol not in allowlist.\nOnly http:// and https:// are permitted.`;
+                preview.className = 'preview-content error';
+                return;
+            }
+
+            if (defenses.blocklist && isBlockedByBlocklist(url)) {
+                addLog(`BLOCKED: Private IP range detected - ${url}`, 'blocked');
+                preview.textContent = `Request blocked: Destination resolves to private IP range.\nPrivate IPs (127.x, 192.168.x, 10.x, 169.254.x) are blocked.`;
+                preview.className = 'preview-content error';
+                return;
+            }
+
+            if (defenses.dns && isBlockedByBlocklist(url)) {
+                addLog(`BLOCKED: DNS resolution check failed - ${url}`, 'blocked');
+                preview.textContent = `Request blocked: DNS resolution revealed internal IP.\nPre-flight DNS check prevented SSRF attack.`;
+                preview.className = 'preview-content error';
+                return;
+            }
+
+            // Check if URL matches internal resources
+            const resource = internalResources[url];
+            if (resource) {
+                addLog(`SUCCESS: Fetched internal resource - ${url}`, 'warning');
+                preview.textContent = resource.content;
+                preview.className = 'preview-content sensitive';
+            } else if (url.startsWith('http://') || url.startsWith('https://')) {
+                // Simulate external fetch
+                addLog(`Fetching external URL: ${url}`, 'success');
+                preview.innerHTML = `<strong>External URL Preview</strong><br><br>
+Title: Example Domain<br>
+Description: This domain is for use in illustrative examples...<br>
+Content-Type: text/html<br>
+Status: 200 OK`;
+                preview.className = 'preview-content success';
+            } else {
+                addLog(`ERROR: Unsupported protocol - ${url}`, 'blocked');
+                preview.textContent = `Error: Could not fetch URL.\nProtocol may not be supported.`;
+                preview.className = 'preview-content error';
+            }
+        }
+
+        function checkAnswer(element, isCorrect) {
+            const options = element.parentElement.querySelectorAll('.quiz-option');
+            options.forEach(opt => {
+                opt.style.pointerEvents = 'none';
+            });
+
+            if (isCorrect) {
+                element.classList.add('correct');
+            } else {
+                element.classList.add('incorrect');
+                // Show correct answer
+                options.forEach(opt => {
+                    if (opt.onclick.toString().includes('true')) {
+                        opt.classList.add('correct');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
