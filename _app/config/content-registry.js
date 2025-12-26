@@ -1308,6 +1308,51 @@ const ContentRegistry = {
             ]
         },
 
+        // --- Command Line Hacker Series (CLH) ---
+        'script-clh-001': {
+            id: 'script-clh-001',
+            title: 'CLH-001: Introduction to Hacker CLI',
+            description: 'Begin your journey as a command line operator with reconnaissance basics',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['linux', 'hacking', 'reconnaissance', 'whoami', 'pwd', 'hostname', 'cli'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Identify your operator identity with whoami',
+                'Locate your position in the filesystem with pwd',
+                'Identify the target system with hostname',
+                'Survey your environment with ls'
+            ]
+        },
+
+        'script-clh-002': {
+            id: 'script-clh-002',
+            title: 'CLH-002: Navigation & Reconnaissance',
+            description: 'Navigate filesystems and extract intel from target directories',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['linux', 'hacking', 'navigation', 'reconnaissance', 'cd', 'cat', 'ls'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
+            },
+            prerequisites: ['script-clh-001'],
+            objectives: [
+                'Navigate directory structures with cd',
+                'Perform deep scans with ls -la',
+                'Extract intel from files with cat',
+                'Return to base operations'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2126,6 +2171,30 @@ const ContentRegistry = {
                 'script-python-dictionaries',
                 'script-python-files',
                 'script-python-oop'
+            ]
+        },
+
+        'command-line-hacker': {
+            id: 'command-line-hacker',
+            title: 'Command Line Hacker',
+            description: 'Master the terminal as a tool for reconnaissance, analysis, and operations',
+            icon: '💀',
+            certification: null,
+            difficulty: 'intermediate',
+            estimatedHours: 30,
+            color: '#00ff41',
+            modules: [
+                // Foundation
+                'script-clh-001',  // CLH-001: Introduction to Hacker CLI
+                'script-clh-002',  // CLH-002: Navigation & Reconnaissance
+                // Future labs:
+                // 'script-clh-003',  // CLH-003: File Operations
+                // 'script-clh-004',  // CLH-004: Pattern Hunting (grep)
+                // 'script-clh-005',  // CLH-005: Anomaly Detection
+                // 'script-clh-010',  // CLH-010: Network Reconnaissance
+                // 'script-clh-011',  // CLH-011: Log Analysis
+                // 'script-clh-013',  // CLH-013: Evidence Extraction
+                // 'script-clh-015',  // CLH-015: Final Mission
             ]
         }
     },
