@@ -875,6 +875,74 @@
             text-transform: uppercase;
         }
 
+        /* XP/Level Display */
+        .xp-level-container {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.6), rgba(30, 20, 50, 0.6));
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+        }
+
+        .level-badge-large {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary, var(--house-primary)));
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .level-badge-large .level-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .level-badge-large .level-label {
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+
+        .xp-progress-container {
+            flex: 1;
+        }
+
+        .xp-bar-large {
+            height: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .xp-fill-large {
+            height: 100%;
+            background: linear-gradient(90deg, var(--house-primary), #22c55e);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .xp-text-large {
+            font-size: 0.95rem;
+            color: #e0e0e0;
+        }
+
+        .xp-text-large .xp-next {
+            color: #888;
+            font-size: 0.85rem;
+            margin-left: 10px;
+        }
+
         /* Footer */
         .footer {
             padding: 20px 40px;
@@ -1822,14 +1890,32 @@
 
             <section class="stats-section">
                 <h2 class="section-title">Your Journey</h2>
+
+                <!-- XP/Level Display -->
+                <div class="xp-level-container" id="xpLevelContainer">
+                    <div class="level-badge-large">
+                        <span class="level-number" id="userLevel">1</span>
+                        <span class="level-label">LEVEL</span>
+                    </div>
+                    <div class="xp-progress-container">
+                        <div class="xp-bar-large">
+                            <div class="xp-fill-large" id="xpFill" style="width: 0%"></div>
+                        </div>
+                        <div class="xp-text-large">
+                            <span id="currentXP">0</span> XP
+                            <span class="xp-next" id="xpToNext">(500 to next level)</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="modulesComplete">0</div>
                         <div class="stat-label">Modules Complete</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="hoursLearned">0</div>
-                        <div class="stat-label">Hours Learned</div>
+                        <div class="stat-value" id="quizzesPassed">0</div>
+                        <div class="stat-label">Quizzes Passed</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="achievementsEarned">0</div>
@@ -2007,6 +2093,14 @@
     <script src="components/AccessGuard.js"></script>
     <script src="components/FirebaseAuth.js"></script>
     <script>AccessGuard.showContent();</script>
+
+    <!-- Progress Tracking System -->
+    <script src="components/SkillTreeData.js"></script>
+    <script src="components/LearningPaths.js"></script>
+    <script src="components/AchievementSystem.js"></script>
+    <script src="components/ProgressManager.js"></script>
+    <script src="components/ModuleProgress.js"></script>
+    <script src="components/ProgressDisplay.js"></script>
 
     <!-- Digital Life Scripts -->
     <script src="digital-life/core/Firefly.js"></script>
@@ -2598,47 +2692,89 @@
         }
 
         // ─────────────────────────────────────────────────────────────
-        // USER STATS
+        // USER STATS (Using ProgressManager)
         // ─────────────────────────────────────────────────────────────
 
         function loadUserStats() {
-            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            try {
+                // Use ProgressManager if available
+                if (typeof ProgressManager !== 'undefined') {
+                    const profile = ProgressManager.getProfile();
 
-            // Count total completed modules
-            let totalComplete = 0;
-            Object.values(progress).forEach(houseProgress => {
-                if (typeof houseProgress === 'object') {
-                    Object.values(houseProgress).forEach(moduleProgress => {
-                        if (moduleProgress.completed) totalComplete++;
+                    // Update XP/Level display
+                    document.getElementById('userLevel').textContent = profile.level;
+                    document.getElementById('currentXP').textContent = profile.xp.toLocaleString();
+                    document.getElementById('xpFill').style.width = `${profile.levelProgress}%`;
+
+                    if (profile.xpToNextLevel) {
+                        document.getElementById('xpToNext').textContent = `(${profile.xpToNextLevel.toLocaleString()} to next level)`;
+                    } else {
+                        document.getElementById('xpToNext').textContent = '(MAX LEVEL)';
+                    }
+
+                    // Update stats
+                    document.getElementById('modulesComplete').textContent = profile.totalModulesCompleted;
+                    document.getElementById('quizzesPassed').textContent = profile.totalQuizzesPassed;
+                    document.getElementById('achievementsEarned').textContent = profile.achievementCount;
+                } else {
+                    // Fallback to basic localStorage reading
+                    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                    let totalComplete = 0;
+                    let quizzesPassed = 0;
+
+                    Object.values(progress).forEach(houseProgress => {
+                        if (typeof houseProgress === 'object') {
+                            Object.values(houseProgress).forEach(moduleProgress => {
+                                if (moduleProgress.completed) {
+                                    totalComplete++;
+                                    if (moduleProgress.score !== undefined) quizzesPassed++;
+                                }
+                            });
+                        }
                     });
+
+                    document.getElementById('modulesComplete').textContent = totalComplete;
+                    document.getElementById('quizzesPassed').textContent = quizzesPassed;
+
+                    // Hide XP container if no ProgressManager
+                    const xpContainer = document.getElementById('xpLevelContainer');
+                    if (xpContainer) xpContainer.style.display = 'none';
                 }
-            });
 
-            document.getElementById('modulesComplete').textContent = totalComplete;
-            document.getElementById('hoursLearned').textContent = progress.hoursLearned || 0;
-            document.getElementById('achievementsEarned').textContent = progress.achievements || 0;
-
-            // Calculate streak
-            const lastVisit = localStorage.getItem('hexworth_last_visit');
-            const today = new Date().toDateString();
-            let streak = parseInt(localStorage.getItem('hexworth_streak') || '1');
-
-            if (lastVisit && lastVisit !== today) {
-                const lastDate = new Date(lastVisit);
-                const todayDate = new Date(today);
-                const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
-
-                if (diffDays === 1) {
-                    streak++;
-                } else if (diffDays > 1) {
-                    streak = 1;
+                // Get achievements count
+                if (typeof AchievementSystem !== 'undefined') {
+                    const achievements = AchievementSystem.getUnlockedAchievements();
+                    document.getElementById('achievementsEarned').textContent = achievements.length;
                 }
+
+                // Calculate and update streak
+                const lastVisit = localStorage.getItem('hexworth_last_visit');
+                const today = new Date().toDateString();
+                let streak = parseInt(localStorage.getItem('hexworth_streak') || '1');
+
+                if (lastVisit && lastVisit !== today) {
+                    const lastDate = new Date(lastVisit);
+                    const todayDate = new Date(today);
+                    const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+
+                    if (diffDays === 1) {
+                        streak++;
+                    } else if (diffDays > 1) {
+                        streak = 1;
+                    }
+                }
+
+                localStorage.setItem('hexworth_last_visit', today);
+                localStorage.setItem('hexworth_streak', streak.toString());
+                document.getElementById('streakDays').textContent = streak;
+
+            } catch (e) {
+                console.error('Error loading user stats:', e);
             }
-
-            localStorage.setItem('hexworth_last_visit', today);
-            localStorage.setItem('hexworth_streak', streak.toString());
-            document.getElementById('streakDays').textContent = streak;
         }
+
+        // Listen for progress updates
+        window.addEventListener('hexworth:progressUpdate', loadUserStats);
 
         // ─────────────────────────────────────────────────────────────
         // BACKUP RESTORE
