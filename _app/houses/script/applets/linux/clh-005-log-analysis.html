@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-005: Log Analysis - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .lab-badge {
+            background: rgba(210, 153, 34, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #d29922;
+            border: 1px solid #d29922;
+            white-space: nowrap;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; text-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .back-link:hover { background: rgba(0, 255, 65, 0.2); box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .prompt { color: #00ff41; font-weight: bold; }
+        .output { color: #8b949e; }
+        .error { color: #f85149; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .warning { color: #d29922; }
+        .log-error { color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 1px 4px; border-radius: 2px; }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', 'Courier New', monospace; margin-right: 8px; white-space: nowrap; }
+
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #commandInput::placeholder { color: #484f58; }
+
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+
+        .step-dot {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8em; font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid #30363d;
+            background: transparent;
+            color: #484f58;
+        }
+
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); box-shadow: 0 0 10px rgba(255, 166, 87, 0.3); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+
+        .step-connector { width: 20px; height: 2px; background: #30363d; transition: background 0.3s; }
+        .step-connector.completed { background: #3fb950; }
+
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+            animation: missionSlideIn 0.3s ease;
+        }
+
+        @keyframes missionSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; text-shadow: 0 0 20px rgba(63, 185, 80, 0.5); }
+
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            border-left: 1px solid #30363d;
+        }
+
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-panel h2::before { content: '['; color: #ffa657; }
+        .intel-panel h2::after { content: ']'; color: #ffa657; }
+
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #58a6ff; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; margin-bottom: 10px; }
+
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+
+        .warning-box { background: rgba(210, 153, 34, 0.1); border-left: 3px solid #d29922; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #d29922; }
+        .warning-box p { color: #c9d1d9; margin: 0; }
+
+        .tip-box { background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #00ff41; }
+        .tip-box p { color: #c9d1d9; margin: 0; }
+
+        .log-levels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .log-level {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.8em;
+        }
+
+        .log-level.error { background: rgba(248, 81, 73, 0.2); color: #f85149; border: 1px solid #f85149; }
+        .log-level.warning { background: rgba(210, 153, 34, 0.2); color: #d29922; border: 1px solid #d29922; }
+        .log-level.info { background: rgba(88, 166, 255, 0.2); color: #58a6ff; border: 1px solid #58a6ff; }
+        .log-level.debug { background: rgba(139, 148, 158, 0.2); color: #8b949e; border: 1px solid #8b949e; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 2px solid #d29922;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 450px;
+            animation: modalPop 0.3s ease;
+            box-shadow: 0 0 40px rgba(210, 153, 34, 0.3);
+        }
+
+        @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal h2 { color: #d29922; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal .xp-earned { color: #ffa657; font-size: 1.2em; font-weight: bold; margin-bottom: 20px; }
+
+        .modal .findings { background: rgba(210, 153, 34, 0.1); border: 1px solid #d29922; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: left; }
+        .modal .findings .label { color: #8b949e; font-size: 0.8em; margin-bottom: 10px; }
+        .modal .findings .item { color: #f85149; font-family: 'Cascadia Code', monospace; font-size: 0.9em; margin: 5px 0; }
+
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; transition: all 0.3s; font-family: 'Cascadia Code', monospace; }
+        .modal-btn.primary { background: #d29922; color: #0d1117; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(210, 153, 34, 0.5); }
+        .modal-btn.secondary { background: transparent; color: #d29922; border: 2px solid #d29922; }
+        .modal-btn.secondary:hover { background: rgba(210, 153, 34, 0.1); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d29922; }
+
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr; }
+            .intel-panel { border-top: 2px solid #00ff41; border-left: none; height: auto; max-height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-005</span>
+                        <h1>Log Analysis</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] Log analysis module activated</div>
+                    <div class="terminal-line output">[ALERT] System logs contain error entries requiring investigation</div>
+                    <div class="terminal-line output" style="margin-top: 10px; color: #d29922;">> Mission: Analyze system logs and identify error patterns</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> to see available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4 id="missionTitle">RECON: Locate Log Files</h4>
+                        <p id="missionDescription">System logs have been captured. Navigate to the logs directory.</p>
+                        <div class="hint" id="missionHint">$ ls</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="intel-panel">
+            <h2>LOG ANALYSIS BRIEFING</h2>
+
+            <div class="intel-section">
+                <h3>The Mission</h3>
+                <p>System logs are the flight recorder of any computer. They capture every significant event - both normal operations and problems.</p>
+                <p>Your objective: <strong style="color: #d29922;">Find and document all error entries</strong> in the captured system logs.</p>
+            </div>
+
+            <div class="intel-section">
+                <h3>Log Severity Levels</h3>
+                <div class="log-levels">
+                    <div class="log-level error">ERROR - Critical issues</div>
+                    <div class="log-level warning">WARN - Potential problems</div>
+                    <div class="log-level info">INFO - Normal events</div>
+                    <div class="log-level debug">DEBUG - Verbose details</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>grep for Log Analysis</h3>
+                <div class="code-box">
+                    <div class="cmd">$ grep -i "error" system.log</div>
+                    <div class="output">Find all error entries (case-insensitive)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ grep -c "error" file.log</div>
+                    <div class="output">Count matching lines</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>head and tail Commands</h3>
+                <div class="code-box">
+                    <div class="cmd">$ head -20 file.log</div>
+                    <div class="output">View first 20 lines</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ tail -20 file.log</div>
+                    <div class="output">View last 20 lines</div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>ANALYST NOTE:</strong>
+                <p>Real system logs can contain thousands of entries. Learning to filter with grep is essential for efficient log analysis.</p>
+            </div>
+
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>Use <code style="color: #00ff41;">grep -in</code> to get case-insensitive search with line numbers - perfect for documentation.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>ANALYSIS COMPLETE</h2>
+            <div class="findings">
+                <div class="label">ERRORS IDENTIFIED:</div>
+                <div class="item">• drm:intel_pipe_update_end - Display error (line 18)</div>
+                <div class="item">• drm:intel_pipe_update_end - Display error (line 45)</div>
+            </div>
+            <p>Log analysis successful.<br>Error patterns documented for remediation.</p>
+            <div class="xp-earned">+100 XP | CLI Specialist Rank Achieved!</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay Here</button>
+                <button class="modal-btn primary" onclick="goToScriptHouse()">Return to Script House</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LinuxTerminal Engine -->
+    <script src="../../../../components/LinuxTerminal.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // MISSION CONFIGURATION
+        // ═══════════════════════════════════════════════════════════
+
+        // Realistic system log content
+        const systemLogContent = `Jan 15 08:23:11 shadow kernel: [    0.000000] Linux version 5.15.0-91-generic
+Jan 15 08:23:11 shadow kernel: [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-5.15.0-91-generic
+Jan 15 08:23:11 shadow kernel: [    0.000000] KERNEL supported cpus:
+Jan 15 08:23:11 shadow kernel: [    0.000000]   Intel GenuineIntel
+Jan 15 08:23:11 shadow kernel: [    0.000000]   AMD AuthenticAMD
+Jan 15 08:23:12 shadow kernel: [    0.523417] Spectre V2 : Enabling Indirect Branch Prediction Barrier
+Jan 15 08:23:12 shadow kernel: [    0.523418] Spectre V2 : Spectre v2 / SpectreRSB mitigation: Filling RSB
+Jan 15 08:23:12 shadow kernel: [    1.234567] ACPI: Power Resource [PUBS] (on)
+Jan 15 08:23:12 shadow kernel: [    1.345678] PCI: Using host bridge windows from ACPI
+Jan 15 08:23:13 shadow kernel: [    2.456789] input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00
+Jan 15 08:23:13 shadow kernel: [    2.567890] ACPI: Video Device [GFX0] (multi-head: yes rom: no post: no)
+Jan 15 08:23:14 shadow kernel: [    3.678901] i915 0000:00:02.0: [drm] VT-d active for gfx access
+Jan 15 08:23:14 shadow kernel: [    3.789012] i915 0000:00:02.0: vgaarb: deactivate vga console
+Jan 15 08:23:14 shadow kernel: [    3.890123] [drm] Initialized i915 1.6.0 for 0000:00:02.0
+Jan 15 08:23:15 shadow kernel: [    4.012345] audit: type=1400 audit(1705312995.012:2): apparmor="STATUS"
+Jan 15 08:23:15 shadow kernel: [    4.123456] systemd[1]: Detected architecture x86-64.
+Jan 15 08:23:15 shadow kernel: [    4.234567] systemd[1]: Set hostname to <shadow>.
+Jan 15 08:23:16 shadow kernel: [    5.345678] [drm:intel_pipe_update_end [i915]] *ERROR* Atomic update failure
+Jan 15 08:23:16 shadow kernel: [    5.456789] NET: Registered protocol family 38
+Jan 15 08:23:17 shadow kernel: [    6.567890] systemd[1]: Starting Journal Service...
+Jan 15 08:23:17 shadow systemd[1]: Started Journal Service.
+Jan 15 08:23:18 shadow systemd[1]: Starting udev Kernel Device Manager...
+Jan 15 08:23:18 shadow systemd[1]: Started udev Kernel Device Manager.
+Jan 15 08:23:19 shadow kernel: [    8.789012] EXT4-fs (sda1): mounted filesystem with ordered data mode
+Jan 15 08:23:19 shadow kernel: [    8.890123] Adding 2097148k swap on /dev/sda2
+Jan 15 08:23:20 shadow systemd[1]: Starting Network Manager...
+Jan 15 08:23:20 shadow NetworkManager[512]: <info> NetworkManager is starting...
+Jan 15 08:23:21 shadow NetworkManager[512]: <info> Read config: /etc/NetworkManager/NetworkManager.conf
+Jan 15 08:23:21 shadow kernel: [   10.123456] wlp2s0: authenticate with AP
+Jan 15 08:23:22 shadow kernel: [   11.234567] wlp2s0: authenticated
+Jan 15 08:23:22 shadow kernel: [   11.345678] wlp2s0: associated
+Jan 15 08:23:23 shadow NetworkManager[512]: <info> device (wlp2s0): Activation: Stage 2 of 5
+Jan 15 08:23:23 shadow dhclient[678]: DHCPREQUEST for 192.168.1.100 on wlp2s0
+Jan 15 08:23:24 shadow dhclient[678]: DHCPACK from 192.168.1.1
+Jan 15 08:23:24 shadow dhclient[678]: bound to 192.168.1.100
+Jan 15 08:23:25 shadow systemd[1]: Starting Accounts Service...
+Jan 15 08:23:25 shadow accounts-daemon[789]: started daemon version 0.6.55
+Jan 15 08:23:26 shadow systemd[1]: Started Accounts Service.
+Jan 15 08:23:26 shadow gdm-password][901]: pam_unix(gdm-password:session): session opened
+Jan 15 08:23:27 shadow gnome-session[1024]: gnome-session-binary[1024]: CRITICAL: app startup
+Jan 15 08:23:27 shadow systemd[1]: Started User Manager for UID 1000.
+Jan 15 08:23:28 shadow systemd[1156]: Starting D-Bus User Message Bus Socket.
+Jan 15 08:23:28 shadow pulseaudio[1234]: [pulseaudio] main.c: User-configured server at /run/user
+Jan 15 08:23:29 shadow kernel: [   18.567890] [drm:intel_pipe_update_end [i915]] *ERROR* Atomic update failure
+Jan 15 08:23:29 shadow dbus-daemon[1345]: [session uid=1000] Activating service name='org.gnome.Shell'
+Jan 15 08:23:30 shadow gnome-shell[1456]: GNOME Shell started at Thu Jan 15 2024 08:23:30
+Jan 15 08:23:30 shadow systemd[1]: Started GNOME Display Manager.`;
+
+        const missionData = {
+            1: {
+                title: 'RECON: Locate Log Files',
+                description: 'System logs have been captured. Navigate to the logs directory.',
+                hint: '$ ls',
+                check: (cmd) => cmd.trim() === 'ls' || cmd.startsWith('ls ')
+            },
+            2: {
+                title: 'ACCESS: Enter Logs Directory',
+                description: 'Navigate to the logs directory containing captured system logs.',
+                hint: '$ cd logs',
+                check: (cmd, terminal) => terminal.getCwd().includes('logs')
+            },
+            3: {
+                title: 'PREVIEW: Quick Log Inspection',
+                description: 'Use head to preview the first 10 lines of the system log.',
+                hint: '$ head system.log',
+                check: (cmd) => cmd.includes('head') && cmd.includes('system')
+            },
+            4: {
+                title: 'HUNT: Find All Errors',
+                description: 'Use grep to search for all lines containing "ERROR" in the system log.',
+                hint: '$ grep "ERROR" system.log',
+                check: (cmd, terminal, output) => {
+                    return cmd.includes('grep') &&
+                           (cmd.toLowerCase().includes('error') || cmd.includes('ERROR')) &&
+                           output && output.includes('ERROR');
+                }
+            },
+            5: {
+                title: 'COUNT: Document Error Frequency',
+                description: 'Count how many error entries exist using grep -c.',
+                hint: '$ grep -c "ERROR" system.log',
+                check: (cmd) => cmd.includes('grep') && cmd.includes('-c') &&
+                               (cmd.toLowerCase().includes('error') || cmd.includes('ERROR'))
+            }
+        };
+
+        const missions = {
+            1: { completed: false },
+            2: { completed: false },
+            3: { completed: false },
+            4: { completed: false },
+            5: { completed: false }
+        };
+
+        let currentMission = 1;
+        let lastOutput = '';
+
+        // ═══════════════════════════════════════════════════════════
+        // TERMINAL INITIALIZATION
+        // ═══════════════════════════════════════════════════════════
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal',
+            inputElement: '#commandInput',
+            user: 'operator',
+            hostname: 'shadow',
+            startDir: '/home/operator',
+            onCommand: (cmdLine, output, cmd, args) => {
+                lastOutput = output;
+                checkMissionCompletion(cmdLine, output);
+                updatePromptDisplay();
+            }
+        });
+
+        // Customize filesystem for this mission
+        terminal.fs['/home/operator'] = {
+            type: 'dir',
+            contents: {
+                'logs': { type: 'dir', contents: {
+                    'system.log': { type: 'file', content: systemLogContent },
+                    'auth.log': { type: 'file', content: 'Jan 15 08:23:26 shadow sshd[512]: Server listening on 0.0.0.0 port 22\nJan 15 08:24:15 shadow sshd[623]: Accepted publickey for operator from 192.168.1.50\nJan 15 08:24:15 shadow sshd[623]: pam_unix(sshd:session): session opened for user operator\n' },
+                    'README.txt': { type: 'file', content: 'LOG ANALYSIS CASE FILE\n======================\nDate: January 15, 2024\nSystem: shadow\n\nOBJECTIVE: Identify error patterns in system.log\n\nNOTE: Focus on ERROR level entries.\nDisplay driver issues suspected.\n' }
+                }},
+                'reports': { type: 'dir', contents: {} },
+                '.bash_history': { type: 'file', content: 'ls\ncd logs\nhead system.log\n', hidden: true }
+            }
+        };
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' :
+                               cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent =
+                `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent =
+                `operator@shadow:${displayPath}`;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // MISSION MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+
+        function checkMissionCompletion(cmdLine, output) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+
+            let passed = false;
+            if (typeof mission.check === 'function') {
+                passed = mission.check(cmdLine, terminal, output);
+            }
+
+            if (passed) {
+                completeMission(currentMission);
+            }
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active');
+            stepDot.classList.add('completed');
+            stepDot.innerHTML = '✓';
+
+            if (missionNum < 5) {
+                document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            }
+
+            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
+
+            if (missionNum < 5) {
+                currentMission = missionNum + 1;
+                document.getElementById(`step-${currentMission}`).classList.add('active');
+                showNextMission(currentMission);
+            } else {
+                showAllComplete();
+            }
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4 id="missionTitle">${mission.title}</h4>
+                    <p id="missionDescription">${mission.description}</p>
+                    <div class="hint" id="missionHint">${mission.hint}</div>
+                </div>
+            `;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">📋</div>
+                    <h4>ANALYSIS COMPLETE</h4>
+                    <p>2 error entries documented</p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                document.getElementById('completionModal').classList.add('show');
+                saveProgress();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-005'] = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                xpEarned: 100,
+                errorsFound: 2
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
+            if (clhProgress.completedLabs >= 5) {
+                clhProgress.title = 'CLI Specialist';
+            }
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+        }
+
+        function closeModal() {
+            document.getElementById('completionModal').classList.remove('show');
+        }
+
+        function goToScriptHouse() {
+            window.location.href = '../../index.html';
+        }
+    </script>
+
+    <!-- Flux Capacitor - House Navigation -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

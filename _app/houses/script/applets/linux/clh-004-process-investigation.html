@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-004: Process Investigation - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .lab-badge {
+            background: rgba(248, 81, 73, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #f85149;
+            border: 1px solid #f85149;
+            white-space: nowrap;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .header h1 {
+            color: #00ff41;
+            font-size: 1.1em;
+            margin: 0;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+
+        .terminal-title {
+            color: #00ff41;
+            font-size: 0.9em;
+            margin-left: 10px;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; word-wrap: break-word; }
+        .prompt { color: #00ff41; font-weight: bold; }
+        .command { color: #00ff41; }
+        .output { color: #8b949e; }
+        .error { color: #f85149; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .warning { color: #d29922; }
+        .suspicious { color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 2px 4px; border-radius: 3px; }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .input-prompt {
+            color: #00ff41;
+            font-weight: bold;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #commandInput::placeholder { color: #484f58; }
+
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .mission-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mission-header h3 {
+            color: #00ff41;
+            font-size: 1.1em;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid #30363d;
+            background: transparent;
+            color: #484f58;
+        }
+
+        .step-dot.active {
+            border-color: #ffa657;
+            background: rgba(255, 166, 87, 0.2);
+            color: #ffa657;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 166, 87, 0.3);
+        }
+
+        .step-dot.completed {
+            border-color: #3fb950;
+            background: #3fb950;
+            color: #0d1117;
+        }
+
+        .step-connector { width: 20px; height: 2px; background: #30363d; transition: background 0.3s; }
+        .step-connector.completed { background: #3fb950; }
+
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+            animation: missionSlideIn 0.3s ease;
+        }
+
+        @keyframes missionSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; line-height: 1.5; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0, 0, 0, 0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; text-shadow: 0 0 20px rgba(63, 185, 80, 0.5); }
+
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+            border-left: 1px solid #30363d;
+        }
+
+        .intel-panel h2 {
+            color: #00ff41;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #00ff41;
+        }
+
+        .intel-panel h2::before { content: '['; color: #ffa657; }
+        .intel-panel h2::after { content: ']'; color: #ffa657; }
+
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #58a6ff; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; margin-bottom: 10px; }
+
+        .code-box {
+            background: #0a0a0a;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin: 10px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.85em;
+        }
+
+        .code-box .cmd { color: #00ff41; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+
+        .alert-box {
+            background: rgba(248, 81, 73, 0.1);
+            border-left: 3px solid #f85149;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .alert-box strong { color: #f85149; }
+        .alert-box p { color: #c9d1d9; margin: 0; }
+
+        .tip-box {
+            background: rgba(0, 255, 65, 0.1);
+            border-left: 3px solid #00ff41;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tip-box strong { color: #00ff41; }
+        .tip-box p { color: #c9d1d9; margin: 0; }
+
+        .threat-indicator {
+            background: rgba(248, 81, 73, 0.2);
+            border: 1px solid #f85149;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .threat-indicator .level { color: #f85149; font-size: 0.8em; letter-spacing: 0.2em; margin-bottom: 8px; }
+        .threat-indicator .process { color: #f85149; font-family: 'Cascadia Code', monospace; font-size: 1.2em; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 2px solid #f85149;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 450px;
+            animation: modalPop 0.3s ease;
+            box-shadow: 0 0 40px rgba(248, 81, 73, 0.3);
+        }
+
+        @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal h2 { color: #f85149; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal .xp-earned { color: #ffa657; font-size: 1.2em; font-weight: bold; margin-bottom: 20px; }
+
+        .modal .threat-found {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid #f85149;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal .threat-found .label { color: #8b949e; font-size: 0.8em; margin-bottom: 5px; }
+        .modal .threat-found .value { color: #f85149; font-family: 'Cascadia Code', monospace; font-size: 1.3em; }
+
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Cascadia Code', monospace;
+        }
+
+        .modal-btn.primary { background: #f85149; color: #fff; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(248, 81, 73, 0.5); }
+        .modal-btn.secondary { background: transparent; color: #f85149; border: 2px solid #f85149; }
+        .modal-btn.secondary:hover { background: rgba(248, 81, 73, 0.1); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f85149; }
+
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr; }
+            .intel-panel { border-top: 2px solid #00ff41; border-left: none; height: auto; max-height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-004</span>
+                        <h1>Process Investigation</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[ALERT] Anomalous system activity detected</div>
+                    <div class="terminal-line output">[SYSTEM] Process snapshot captured to analysis directory</div>
+                    <div class="terminal-line output" style="margin-top: 10px; color: #f85149;">> Mission: Identify the suspicious process consuming abnormal resources</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> to see available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4 id="missionTitle">RECON: Locate Analysis Data</h4>
+                        <p id="missionDescription">A process snapshot has been captured. Find the analysis directory.</p>
+                        <div class="hint" id="missionHint">$ ls</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="intel-panel">
+            <h2>THREAT BRIEFING</h2>
+
+            <div class="intel-section">
+                <h3>Situation</h3>
+                <p>System monitoring has detected abnormal CPU and memory usage. A process snapshot has been captured for your analysis.</p>
+                <p>Your mission: <strong style="color: #f85149;">Identify the rogue process</strong> hiding among legitimate system processes.</p>
+            </div>
+
+            <div class="intel-section">
+                <h3>Process Analysis Techniques</h3>
+                <p>When hunting malicious processes, look for:</p>
+                <ul style="margin-left: 20px; color: #8b949e; line-height: 1.8;">
+                    <li><strong style="color: #f85149;">Unknown names</strong> - processes with generic or suspicious names</li>
+                    <li><strong style="color: #f85149;">High resource usage</strong> - unusual CPU or memory consumption</li>
+                    <li><strong style="color: #f85149;">Strange PIDs</strong> - PIDs that don't match expected ranges</li>
+                </ul>
+            </div>
+
+            <div class="intel-section">
+                <h3>grep for Process Hunting</h3>
+                <div class="code-box">
+                    <div class="cmd">$ grep "unknown" processes.txt</div>
+                    <div class="output">Find processes with "unknown" in name</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ grep -v "^#" file.txt</div>
+                    <div class="output">Exclude comment lines</div>
+                </div>
+            </div>
+
+            <div class="intel-section">
+                <h3>sort for Analysis</h3>
+                <p>Sort data to find anomalies:</p>
+                <div class="code-box">
+                    <div class="cmd">$ sort -k2 -n file.txt</div>
+                    <div class="output">Sort by column 2 numerically</div>
+                </div>
+            </div>
+
+            <div class="alert-box">
+                <strong>THREAT INDICATOR:</strong>
+                <p>The malicious process is likely consuming between 5-10% CPU and memory - high enough to be suspicious, low enough to avoid automated detection.</p>
+            </div>
+
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>Real malware often uses innocent-sounding names. Look for processes that don't belong in the normal process list.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>THREAT IDENTIFIED</h2>
+            <div class="threat-found">
+                <div class="label">MALICIOUS PROCESS FOUND</div>
+                <div class="value" id="foundThreat">unknown_process</div>
+            </div>
+            <p>Investigation successful.<br>The rogue process has been identified for remediation.</p>
+            <div class="xp-earned">+100 XP</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay Here</button>
+                <button class="modal-btn primary" onclick="goToNextLab()">Next Mission ></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LinuxTerminal Engine -->
+    <script src="../../../../components/LinuxTerminal.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // MISSION CONFIGURATION
+        // ═══════════════════════════════════════════════════════════
+
+        const THREAT_PROCESS = 'unknown_process';
+        let threatFound = false;
+
+        // Process analysis data (simulated ps output)
+        const processData = `PID     CPU%    MEM%    PROCESS
+1       0.0     0.1     systemd
+2       0.0     0.0     kthreadd
+127     0.1     0.2     sshd
+256     0.3     1.2     nginx
+312     0.2     0.8     postgres
+445     1.2     2.1     python3
+512     0.1     0.3     cron
+623     8.2     5.1     unknown_process
+789     0.4     1.5     node
+834     0.2     0.6     redis-server
+901     0.1     0.4     docker
+945     0.3     0.9     mysql
+1024    0.0     0.2     rsyslogd
+1156    0.1     0.3     networkd`;
+
+        const missionData = {
+            1: {
+                title: 'RECON: Locate Analysis Data',
+                description: 'A process snapshot has been captured. Find the analysis directory.',
+                hint: '$ ls',
+                check: (cmd) => cmd.trim() === 'ls' || cmd.startsWith('ls ')
+            },
+            2: {
+                title: 'ACCESS: Enter Analysis Directory',
+                description: 'Navigate to the analysis directory containing the captured data.',
+                hint: '$ cd analysis',
+                check: (cmd, terminal) => terminal.getCwd().includes('analysis')
+            },
+            3: {
+                title: 'EXAMINE: Review Process List',
+                description: 'View the complete process snapshot to understand normal baselines.',
+                hint: '$ cat processes.txt',
+                check: (cmd) => cmd.includes('cat') && cmd.includes('processes')
+            },
+            4: {
+                title: 'HUNT: Find the Anomaly',
+                description: 'Use grep to search for processes with "unknown" in their name.',
+                hint: '$ grep "unknown" processes.txt',
+                check: (cmd, terminal, output) => {
+                    return output && output.includes(THREAT_PROCESS);
+                }
+            },
+            5: {
+                title: 'CONFIRM: Document the Threat',
+                description: 'Verify the suspicious process details. Search for processes with high CPU (8%).',
+                hint: '$ grep "8.2" processes.txt',
+                check: (cmd, terminal, output) => {
+                    return cmd.includes('grep') && output && output.includes('8.2');
+                }
+            }
+        };
+
+        const missions = {
+            1: { completed: false },
+            2: { completed: false },
+            3: { completed: false },
+            4: { completed: false },
+            5: { completed: false }
+        };
+
+        let currentMission = 1;
+        let lastOutput = '';
+
+        // ═══════════════════════════════════════════════════════════
+        // TERMINAL INITIALIZATION
+        // ═══════════════════════════════════════════════════════════
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal',
+            inputElement: '#commandInput',
+            user: 'operator',
+            hostname: 'shadow',
+            startDir: '/home/operator',
+            onCommand: (cmdLine, output, cmd, args) => {
+                lastOutput = output;
+                checkMissionCompletion(cmdLine, output);
+                updatePromptDisplay();
+            }
+        });
+
+        // Customize filesystem for this mission
+        terminal.fs['/home/operator'] = {
+            type: 'dir',
+            contents: {
+                'analysis': { type: 'dir', contents: {
+                    'processes.txt': { type: 'file', content: processData },
+                    'README.txt': { type: 'file', content: 'INCIDENT ANALYSIS\n=================\nProcess snapshot captured at: 2024-01-15 14:32:07 UTC\nAlert triggered by: Anomalous CPU usage\nAnalyst assigned: operator\n\nNOTE: One process shows suspicious resource consumption.\n' },
+                    'baseline.txt': { type: 'file', content: 'BASELINE PROCESSES\n==================\nsystemd, kthreadd, sshd, nginx, postgres,\npython3, cron, node, redis-server, docker,\nmysql, rsyslogd, networkd\n\nAny process NOT in this list should be investigated.\n' }
+                }},
+                'tools': { type: 'dir', contents: {
+                    'hunt.sh': { type: 'file', content: '#!/bin/bash\n# Process hunting script\ngrep -v "^PID" "$1" | sort -k2 -rn | head -5\necho "Top 5 CPU consumers listed"\n', permissions: 'rwxr-xr-x' }
+                }},
+                '.bash_history': { type: 'file', content: 'ls\ncd analysis\ncat processes.txt\n', hidden: true }
+            }
+        };
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' :
+                               cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent =
+                `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent =
+                `operator@shadow:${displayPath}`;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // MISSION MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+
+        function checkMissionCompletion(cmdLine, output) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+
+            let passed = false;
+            if (typeof mission.check === 'function') {
+                passed = mission.check(cmdLine, terminal, output);
+            }
+
+            if (output && output.includes(THREAT_PROCESS)) {
+                threatFound = true;
+            }
+
+            if (passed) {
+                completeMission(currentMission);
+            }
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active');
+            stepDot.classList.add('completed');
+            stepDot.innerHTML = '✓';
+
+            if (missionNum < 5) {
+                document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            }
+
+            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
+
+            if (missionNum < 5) {
+                currentMission = missionNum + 1;
+                document.getElementById(`step-${currentMission}`).classList.add('active');
+                showNextMission(currentMission);
+            } else {
+                showAllComplete();
+            }
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4 id="missionTitle">${mission.title}</h4>
+                    <p id="missionDescription">${mission.description}</p>
+                    <div class="hint" id="missionHint">${mission.hint}</div>
+                </div>
+            `;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">⚠️</div>
+                    <h4>THREAT IDENTIFIED</h4>
+                    <p>Malicious process: <span style="color: #f85149; font-family: monospace;">${THREAT_PROCESS}</span></p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                document.getElementById('completionModal').classList.add('show');
+                saveProgress();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-004'] = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                xpEarned: 100,
+                threatFound: THREAT_PROCESS
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
+            clhProgress.threatsFound = (clhProgress.threatsFound || []);
+            clhProgress.threatsFound.push(THREAT_PROCESS);
+            if (clhProgress.completedLabs >= 5) {
+                clhProgress.title = 'CLI Specialist';
+            }
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+        }
+
+        function closeModal() {
+            document.getElementById('completionModal').classList.remove('show');
+        }
+
+        function goToNextLab() {
+            window.location.href = 'clh-005-log-analysis.html';
+        }
+    </script>
+
+    <!-- Flux Capacitor - House Navigation -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1353,6 +1353,72 @@ const ContentRegistry = {
             ]
         },
 
+        'script-clh-003': {
+            id: 'script-clh-003',
+            title: 'CLH-003: Pattern Hunting',
+            description: 'Hunt for hidden codes using grep and pattern matching',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching', 'forensics'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
+            },
+            prerequisites: ['script-clh-002'],
+            objectives: [
+                'Use grep to search file contents',
+                'Extract hidden codes from text files',
+                'Use grep options (-i, -n, -c)',
+                'Document findings with line numbers'
+            ]
+        },
+
+        'script-clh-004': {
+            id: 'script-clh-004',
+            title: 'CLH-004: Process Investigation',
+            description: 'Identify malicious processes hiding among legitimate system processes',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['linux', 'hacking', 'processes', 'investigation', 'grep', 'malware'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
+            },
+            prerequisites: ['script-clh-003'],
+            objectives: [
+                'Analyze process snapshots',
+                'Identify anomalous resource usage',
+                'Hunt for unknown processes',
+                'Document threat indicators'
+            ]
+        },
+
+        'script-clh-005': {
+            id: 'script-clh-005',
+            title: 'CLH-005: Log Analysis',
+            description: 'Analyze system logs to identify error patterns and anomalies',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['linux', 'hacking', 'logs', 'forensics', 'grep', 'head', 'tail'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
+            },
+            prerequisites: ['script-clh-004'],
+            objectives: [
+                'Navigate log directories',
+                'Use head/tail for log preview',
+                'Search for error patterns with grep',
+                'Count and document error frequency'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2184,16 +2250,16 @@ const ContentRegistry = {
             estimatedHours: 30,
             color: '#00ff41',
             modules: [
-                // Foundation
+                // Foundation (CLH-001 to CLH-005)
                 'script-clh-001',  // CLH-001: Introduction to Hacker CLI
                 'script-clh-002',  // CLH-002: Navigation & Reconnaissance
+                'script-clh-003',  // CLH-003: Pattern Hunting (grep)
+                'script-clh-004',  // CLH-004: Process Investigation
+                'script-clh-005',  // CLH-005: Log Analysis
                 // Future labs:
-                // 'script-clh-003',  // CLH-003: File Operations
-                // 'script-clh-004',  // CLH-004: Pattern Hunting (grep)
-                // 'script-clh-005',  // CLH-005: Anomaly Detection
                 // 'script-clh-010',  // CLH-010: Network Reconnaissance
-                // 'script-clh-011',  // CLH-011: Log Analysis
-                // 'script-clh-013',  // CLH-013: Evidence Extraction
+                // 'script-clh-011',  // CLH-011: Web Enumeration
+                // 'script-clh-013',  // CLH-013: Incident Response
                 // 'script-clh-015',  // CLH-015: Final Mission
             ]
         }
