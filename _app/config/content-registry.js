@@ -1264,6 +1264,28 @@ const ContentRegistry = {
             ]
         },
 
+        // --- Linux Interactive Labs (L-Series) ---
+        'script-linux-lab-001': {
+            id: 'script-linux-lab-001',
+            title: 'L-001: User Identity',
+            description: 'Learn to identify your user and group memberships in Linux',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['linux', 'user-identity', 'whoami', 'id', 'groups', 'fundamentals'],
+            paths: ['comptia-linux'],
+            components: {
+                lab: 'houses/script/applets/linux/linux-lab-001-user-identity.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Use whoami to display your username',
+                'Use id to view UID, GID, and group memberships',
+                'Use groups to list your group memberships'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2049,6 +2071,7 @@ const ContentRegistry = {
             modules: [
                 // System Management
                 'script-linux-basics',
+                'script-linux-lab-001',  // L-001: User Identity
                 'script-linux-filesystem',
                 'script-linux-permissions',
                 'script-command-translator',
