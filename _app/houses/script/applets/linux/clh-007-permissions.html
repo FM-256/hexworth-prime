@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-007: Permissions & Access Control - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #00ff41;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #00ff41;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 10px 20px;
+            border-bottom: 2px solid #00ff41;
+            flex-shrink: 0;
+        }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge {
+            background: rgba(192, 132, 252, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #c084fc;
+            border: 1px solid #c084fc;
+            font-family: 'Cascadia Code', monospace;
+        }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link {
+            color: #00ff41;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .terminal-header {
+            background: #0d1117;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .perm-read { color: #58a6ff; }
+        .perm-write { color: #f85149; }
+        .perm-exec { color: #3fb950; }
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #00ff41;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8em; font-weight: bold;
+            border: 2px solid #30363d;
+            color: #484f58;
+        }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission {
+            padding: 15px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ffa657;
+        }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 25px;
+            overflow-y: auto;
+            height: 100vh;
+        }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #c084fc; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; margin-bottom: 10px; }
+        .perm-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .perm-table th, .perm-table td { padding: 8px; border: 1px solid #30363d; text-align: center; }
+        .perm-table th { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
+        .perm-table td { color: #8b949e; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+        .warning-box { background: rgba(248, 81, 73, 0.1); border-left: 3px solid #f85149; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #f85149; }
+        .warning-box p { color: #c9d1d9; margin: 0; }
+        .tip-box { background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #00ff41; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #c084fc; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #c084fc; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal .xp-earned { color: #ffa657; font-size: 1.2em; font-weight: bold; margin-bottom: 20px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; }
+        .modal-btn.primary { background: #c084fc; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #c084fc; border: 2px solid #c084fc; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-007</span>
+                        <h1>Permissions & Access Control</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line output">[SYSTEM] Access control module loaded</div>
+                    <div class="terminal-line output">[SECURITY] Permission management enabled</div>
+                    <div class="terminal-line output" style="color: #c084fc;">> Mission: Master file permissions and access control</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@shadow:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>RECON: Analyze Current Permissions</h4>
+                        <p>Examine the permissions on files in the secure directory.</p>
+                        <div class="hint">$ ls -la secure/</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>ACCESS CONTROL BRIEFING</h2>
+            <div class="intel-section">
+                <h3>Understanding Permissions</h3>
+                <p>Linux uses a three-tier permission system: <span class="perm-read">Read (r)</span>, <span class="perm-write">Write (w)</span>, <span class="perm-exec">Execute (x)</span></p>
+                <p>Each file has permissions for: Owner, Group, Others</p>
+            </div>
+            <div class="intel-section">
+                <h3>Permission Values</h3>
+                <table class="perm-table">
+                    <tr><th>Symbol</th><th>Octal</th><th>Meaning</th></tr>
+                    <tr><td><span class="perm-read">r</span></td><td>4</td><td>Read</td></tr>
+                    <tr><td><span class="perm-write">w</span></td><td>2</td><td>Write</td></tr>
+                    <tr><td><span class="perm-exec">x</span></td><td>1</td><td>Execute</td></tr>
+                </table>
+                <p>Example: <code style="color:#00ff41">755</code> = rwxr-xr-x (owner: all, others: read+exec)</p>
+            </div>
+            <div class="intel-section">
+                <h3>chmod - Change Mode</h3>
+                <div class="code-box">
+                    <div class="cmd">$ chmod 755 script.sh</div>
+                    <div class="output">Make executable by all</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ chmod 600 secret.txt</div>
+                    <div class="output">Owner only: read+write</div>
+                </div>
+            </div>
+            <div class="intel-section">
+                <h3>Symbolic Mode</h3>
+                <div class="code-box">
+                    <div class="cmd">$ chmod +x script.sh</div>
+                    <div class="output">Add execute permission</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ chmod u+x,g-w file</div>
+                    <div class="output">User +exec, group -write</div>
+                </div>
+            </div>
+            <div class="warning-box">
+                <strong>SECURITY ALERT:</strong>
+                <p>Never use chmod 777 on sensitive files! This gives everyone full access.</p>
+            </div>
+            <div class="tip-box">
+                <strong>PRO TIP:</strong>
+                <p>Use <code style="color:#00ff41">stat filename</code> for detailed permission info.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>ACCESS SECURED</h2>
+            <p>Permission management mastered.<br>Files are now properly secured.</p>
+            <div class="xp-earned">+100 XP</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Stay Here</button>
+                <button class="modal-btn primary" onclick="goToNextLab()">Next Mission ></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        let lastLsOutput = '';
+
+        const missionData = {
+            1: {
+                title: 'RECON: Analyze Current Permissions',
+                description: 'Examine the permissions on files in the secure directory.',
+                hint: '$ ls -la secure/',
+                check: (cmd) => cmd.includes('ls') && cmd.includes('-l') && cmd.includes('secure')
+            },
+            2: {
+                title: 'LOCKDOWN: Restrict Secret File',
+                description: 'The secret.txt file is too open. Set it to 600 (owner read/write only).',
+                hint: '$ chmod 600 secure/secret.txt',
+                check: (cmd) => cmd.includes('chmod') && cmd.includes('600') && cmd.includes('secret')
+            },
+            3: {
+                title: 'ENABLE: Make Script Executable',
+                description: 'The deploy.sh script needs execute permission. Set it to 755.',
+                hint: '$ chmod 755 secure/deploy.sh',
+                check: (cmd) => cmd.includes('chmod') && cmd.includes('755') && cmd.includes('deploy')
+            },
+            4: {
+                title: 'VERIFY: Check New Permissions',
+                description: 'Verify your permission changes took effect.',
+                hint: '$ ls -la secure/',
+                check: (cmd) => cmd.includes('ls') && cmd.includes('-l') && cmd.includes('secure')
+            },
+            5: {
+                title: 'AUDIT: Find World-Writable Files',
+                description: 'Use stat to examine the audit.log file permissions in detail.',
+                hint: '$ stat secure/audit.log',
+                check: (cmd) => cmd.includes('stat') && cmd.includes('audit')
+            }
+        };
+
+        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
+        let currentMission = 1;
+
+        const terminal = new LinuxTerminal({
+            container: '#terminal',
+            inputElement: '#commandInput',
+            user: 'operator',
+            hostname: 'shadow',
+            startDir: '/home/operator',
+            onCommand: (cmdLine, output, cmd, args) => {
+                lastLsOutput = output;
+                checkMissionCompletion(cmdLine);
+                updatePromptDisplay();
+            }
+        });
+
+        terminal.fs['/home/operator'] = {
+            type: 'dir',
+            contents: {
+                'secure': { type: 'dir', contents: {
+                    'secret.txt': { type: 'file', content: 'TOP SECRET ENCRYPTION KEYS\nKey1: a7f3b2c9d1e8f456\nKey2: 8b2e4f6a1c3d5789\n', permissions: 'rw-rw-r--' },
+                    'deploy.sh': { type: 'file', content: '#!/bin/bash\n# Deployment script\necho "Deploying to production..."\nrsync -avz ./build/ server:/var/www/\necho "Done"\n', permissions: 'rw-r--r--' },
+                    'audit.log': { type: 'file', content: '2024-01-15 08:00:00 - System startup\n2024-01-15 08:01:23 - User login: operator\n2024-01-15 08:05:45 - Permission change detected\n', permissions: 'rw-r--r--' },
+                    'config.ini': { type: 'file', content: '[database]\nhost=localhost\nport=5432\nuser=admin\n', permissions: 'rw-r--r--' }
+                }},
+                'public': { type: 'dir', contents: {
+                    'readme.txt': { type: 'file', content: 'Public information file\n', permissions: 'rw-r--r--' }
+                }}
+            }
+        };
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const displayPath = cwd === '/home/operator' ? '~' : cwd.replace('/home/operator', '~');
+            document.getElementById('promptDisplay').textContent = `operator@shadow:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
+        }
+
+        function checkMissionCompletion(cmdLine) {
+            const mission = missionData[currentMission];
+            if (!mission || missions[currentMission].completed) return;
+            if (mission.check(cmdLine, terminal)) {
+                completeMission(currentMission);
+            }
+        }
+
+        function completeMission(missionNum) {
+            missions[missionNum].completed = true;
+            const stepDot = document.getElementById(`step-${missionNum}`);
+            stepDot.classList.remove('active');
+            stepDot.classList.add('completed');
+            stepDot.innerHTML = '✓';
+            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
+            if (missionNum < 5) {
+                currentMission = missionNum + 1;
+                document.getElementById(`step-${currentMission}`).classList.add('active');
+                showNextMission(currentMission);
+            } else {
+                showAllComplete();
+            }
+        }
+
+        function showNextMission(missionNum) {
+            const mission = missionData[missionNum];
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${mission.title}</h4>
+                    <p>${mission.description}</p>
+                    <div class="hint">${mission.hint}</div>
+                </div>`;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">🔐</div>
+                    <h4>ACCESS SECURED</h4>
+                    <p>Permission management complete</p>
+                </div>`;
+            setTimeout(() => {
+                document.getElementById('completionModal').classList.add('show');
+                saveProgress();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-007'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 100 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
+            clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
+            localStorage.setItem('clh_progress', JSON.stringify(clhProgress));
+        }
+
+        function closeModal() { document.getElementById('completionModal').classList.remove('show'); }
+        function goToNextLab() { window.location.href = 'clh-008-shell-scripting.html'; }
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

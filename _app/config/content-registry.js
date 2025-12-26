@@ -1419,6 +1419,73 @@ const ContentRegistry = {
             ]
         },
 
+        'script-clh-006': {
+            id: 'script-clh-006',
+            title: 'CLH-006: File Operations',
+            description: 'Master file creation, copying, moving, and deletion in the field',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['linux', 'hacking', 'files', 'mkdir', 'touch', 'cp', 'mv', 'rm'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-006-file-operations.html'
+            },
+            prerequisites: ['script-clh-005'],
+            objectives: [
+                'Create directories with mkdir',
+                'Create files with touch',
+                'Copy intel with cp',
+                'Move and rename with mv',
+                'Secure delete with rm'
+            ]
+        },
+
+        'script-clh-007': {
+            id: 'script-clh-007',
+            title: 'CLH-007: Permissions & Access Control',
+            description: 'Decode permission matrices and secure sensitive files',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['linux', 'hacking', 'permissions', 'chmod', 'security', 'access-control'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-007-permissions.html'
+            },
+            prerequisites: ['script-clh-006'],
+            objectives: [
+                'Analyze file permissions with ls -la',
+                'Decode permission bits (rwx)',
+                'Modify permissions with chmod',
+                'Understand permission security'
+            ]
+        },
+
+        'script-clh-008': {
+            id: 'script-clh-008',
+            title: 'CLH-008: Shell Scripting Basics',
+            description: 'Write and execute shell scripts for automated operations',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['linux', 'hacking', 'bash', 'scripting', 'automation'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
+            },
+            prerequisites: ['script-clh-007'],
+            objectives: [
+                'Examine shell script structure',
+                'Run scripts with bash command',
+                'Understand shebang and execution',
+                'Analyze automation scripts'
+            ]
+        },
+
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -2256,6 +2323,10 @@ const ContentRegistry = {
                 'script-clh-003',  // CLH-003: Pattern Hunting (grep)
                 'script-clh-004',  // CLH-004: Process Investigation
                 'script-clh-005',  // CLH-005: Log Analysis
+                // Operations (CLH-006 to CLH-008)
+                'script-clh-006',  // CLH-006: File Operations
+                'script-clh-007',  // CLH-007: Permissions & Access Control
+                'script-clh-008',  // CLH-008: Shell Scripting Basics
                 // Future labs:
                 // 'script-clh-010',  // CLH-010: Network Reconnaissance
                 // 'script-clh-011',  // CLH-011: Web Enumeration
