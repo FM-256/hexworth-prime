@@ -749,6 +749,29 @@ const ContentRegistry = {
             ]
         },
 
+        'shield-cyber-arts-bootcamp': {
+            id: 'shield-cyber-arts-bootcamp',
+            title: 'Cyber Arts Bootcamp',
+            description: '5-day intensive: Foundations, Networking, Cryptography, Blue Team, Red Team',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 300,
+            topics: ['security', 'networking', 'cryptography', 'blue-team', 'red-team', 'bootcamp'],
+            paths: ['security-fundamentals', 'comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/operations/cyber-arts-bootcamp.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Understand CIA Triad and threat landscape',
+                'Apply OSI model and network protocols',
+                'Use encryption, hashing, and access controls',
+                'Perform network scanning with Nmap and Wireshark',
+                'Execute password cracking techniques ethically'
+            ]
+        },
+
         // ─────────────────────────────────────────────────────────────
         // CLOUD HOUSE - Infrastructure & Scale
         // ─────────────────────────────────────────────────────────────
