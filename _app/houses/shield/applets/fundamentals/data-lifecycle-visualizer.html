@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Lifecycle Visualizer | Shield House</title>
+    <style>
+        :root {
+            --shield-primary: #f87171;
+            --shield-secondary: #fca5a5;
+            --shield-accent: #dc2626;
+            --bg-dark: #0f0f0f;
+            --bg-card: #1a1a1a;
+            --bg-elevated: #242424;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border-color: #333;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #a855f7;
+            --cyan: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--shield-primary), var(--shield-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle { color: var(--text-secondary); }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-bottom: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover { color: var(--shield-primary); }
+
+        /* Lifecycle Visualization */
+        .lifecycle-container {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .lifecycle-track {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            padding: 0 2rem;
+        }
+
+        .lifecycle-line {
+            position: absolute;
+            left: 2rem;
+            right: 2rem;
+            top: 50%;
+            height: 4px;
+            background: linear-gradient(90deg,
+                var(--success) 0%,
+                var(--info) 20%,
+                var(--purple) 40%,
+                var(--warning) 60%,
+                var(--danger) 80%,
+                var(--shield-primary) 100%
+            );
+            z-index: 0;
+        }
+
+        .lifecycle-phase {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .lifecycle-phase:hover {
+            transform: scale(1.1);
+        }
+
+        .lifecycle-phase.active .phase-icon {
+            box-shadow: 0 0 30px currentColor;
+        }
+
+        .phase-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            background: var(--bg-card);
+            border: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .phase-create .phase-icon { border-color: var(--success); color: var(--success); }
+        .phase-store .phase-icon { border-color: var(--info); color: var(--info); }
+        .phase-use .phase-icon { border-color: var(--purple); color: var(--purple); }
+        .phase-archive .phase-icon { border-color: var(--warning); color: var(--warning); }
+        .phase-destroy .phase-icon { border-color: var(--danger); color: var(--danger); }
+
+        .phase-label {
+            margin-top: 1rem;
+            font-weight: 600;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .phase-number {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Phase Details */
+        .phase-details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .phase-details.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .phase-header-icon {
+            font-size: 2.5rem;
+        }
+
+        .phase-title {
+            flex: 1;
+        }
+
+        .phase-title h2 {
+            color: var(--shield-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .phase-title p {
+            color: var(--text-secondary);
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .detail-card {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .detail-card h3 {
+            color: var(--shield-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail-list {
+            list-style: none;
+        }
+
+        .detail-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-list li:last-child {
+            border-bottom: none;
+        }
+
+        .detail-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--shield-primary);
+        }
+
+        /* Destruction Methods */
+        .destruction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .destruction-card {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .destruction-card:hover {
+            border-color: var(--danger);
+        }
+
+        .destruction-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .destruction-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .destruction-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Data Tracker */
+        .tracker-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .tracker-title {
+            color: var(--shield-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tracker-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--shield-primary);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn.primary {
+            background: var(--shield-primary);
+            color: white;
+        }
+
+        .btn.primary:hover { background: var(--shield-accent); }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        /* Tracked Data Table */
+        .tracked-data {
+            margin-top: 1.5rem;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: var(--bg-elevated);
+            color: var(--shield-primary);
+        }
+
+        .phase-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .phase-badge.create { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+        .phase-badge.store { background: rgba(59, 130, 246, 0.2); color: var(--info); }
+        .phase-badge.use { background: rgba(168, 85, 247, 0.2); color: var(--purple); }
+        .phase-badge.archive { background: rgba(234, 179, 8, 0.2); color: var(--warning); }
+        .phase-badge.destroy { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        .phase-select {
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        /* Key Concepts */
+        .concepts-section {
+            margin-top: 2rem;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .concept-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .concept-card h4 {
+            color: var(--shield-primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .concept-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .lifecycle-track {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .lifecycle-line {
+                display: none;
+            }
+
+            .lifecycle-phase {
+                flex-direction: row;
+                gap: 1rem;
+            }
+
+            .phase-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+
+            .phase-label {
+                margin-top: 0;
+                text-align: left;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.75rem; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../../index.html" class="back-link">← Back to Shield House</a>
+
+        <header>
+            <h1>🔄 Data Lifecycle Visualizer</h1>
+            <p class="subtitle">Explore the journey of data from creation to destruction and track your data assets</p>
+        </header>
+
+        <!-- Lifecycle Visualization -->
+        <div class="lifecycle-container">
+            <div class="lifecycle-track">
+                <div class="lifecycle-line"></div>
+
+                <div class="lifecycle-phase phase-create active" onclick="showPhase('create')">
+                    <div class="phase-icon">📝</div>
+                    <div class="phase-label">
+                        <div class="phase-number">Phase 1</div>
+                        Creation
+                    </div>
+                </div>
+
+                <div class="lifecycle-phase phase-store" onclick="showPhase('store')">
+                    <div class="phase-icon">💾</div>
+                    <div class="phase-label">
+                        <div class="phase-number">Phase 2</div>
+                        Storage
+                    </div>
+                </div>
+
+                <div class="lifecycle-phase phase-use" onclick="showPhase('use')">
+                    <div class="phase-icon">⚙️</div>
+                    <div class="phase-label">
+                        <div class="phase-number">Phase 3</div>
+                        Usage
+                    </div>
+                </div>
+
+                <div class="lifecycle-phase phase-archive" onclick="showPhase('archive')">
+                    <div class="phase-icon">📦</div>
+                    <div class="phase-label">
+                        <div class="phase-number">Phase 4</div>
+                        Archival
+                    </div>
+                </div>
+
+                <div class="lifecycle-phase phase-destroy" onclick="showPhase('destroy')">
+                    <div class="phase-icon">🗑️</div>
+                    <div class="phase-label">
+                        <div class="phase-number">Phase 5</div>
+                        Destruction
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase Details -->
+        <div class="phase-details active" id="detail-create">
+            <div class="phase-header">
+                <span class="phase-header-icon">📝</span>
+                <div class="phase-title">
+                    <h2>Data Creation</h2>
+                    <p>The beginning of the data lifecycle - when new data is generated or acquired</p>
+                </div>
+            </div>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>📋 Key Activities</h3>
+                    <ul class="detail-list">
+                        <li>Data entry and capture</li>
+                        <li>Document creation</li>
+                        <li>System-generated data</li>
+                        <li>Data import/acquisition</li>
+                        <li>Sensor/IoT data collection</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>🛡️ Security Considerations</h3>
+                    <ul class="detail-list">
+                        <li>Classify data at point of creation</li>
+                        <li>Apply appropriate labels/tags</li>
+                        <li>Define data owner and steward</li>
+                        <li>Establish access controls immediately</li>
+                        <li>Document data lineage</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>⚖️ Compliance Requirements</h3>
+                    <ul class="detail-list">
+                        <li>GDPR: Consent for personal data</li>
+                        <li>HIPAA: PHI identification</li>
+                        <li>PCI-DSS: Cardholder data scope</li>
+                        <li>SOX: Financial data controls</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-details" id="detail-store">
+            <div class="phase-header">
+                <span class="phase-header-icon">💾</span>
+                <div class="phase-title">
+                    <h2>Data Storage</h2>
+                    <p>Where and how data is kept - critical for security and availability</p>
+                </div>
+            </div>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>📍 Location Considerations</h3>
+                    <ul class="detail-list">
+                        <li>Geographic location (data sovereignty)</li>
+                        <li>On-premises vs cloud storage</li>
+                        <li>Primary and backup locations</li>
+                        <li>Cross-border data transfer rules</li>
+                        <li>Physical infrastructure security</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>🔐 Security Controls</h3>
+                    <ul class="detail-list">
+                        <li>Encryption at rest</li>
+                        <li>Access control lists (ACLs)</li>
+                        <li>Storage redundancy (RAID)</li>
+                        <li>Backup encryption and protection</li>
+                        <li>Physical security measures</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>📊 Data States</h3>
+                    <ul class="detail-list">
+                        <li><strong>At Rest:</strong> Stored on media</li>
+                        <li><strong>In Transit:</strong> Being transmitted</li>
+                        <li><strong>In Use:</strong> Being processed</li>
+                        <li>Each state requires specific controls</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-details" id="detail-use">
+            <div class="phase-header">
+                <span class="phase-header-icon">⚙️</span>
+                <div class="phase-title">
+                    <h2>Data Usage</h2>
+                    <p>Active processing and consumption of data for business purposes</p>
+                </div>
+            </div>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>📈 Usage Types</h3>
+                    <ul class="detail-list">
+                        <li>Operational processing</li>
+                        <li>Analytics and reporting</li>
+                        <li>Decision making</li>
+                        <li>Sharing with authorized parties</li>
+                        <li>Machine learning training</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>🔒 Access Controls</h3>
+                    <ul class="detail-list">
+                        <li>Role-based access control (RBAC)</li>
+                        <li>Principle of least privilege</li>
+                        <li>Just-in-time access</li>
+                        <li>Multi-factor authentication</li>
+                        <li>Session management</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>📝 Monitoring & Audit</h3>
+                    <ul class="detail-list">
+                        <li>Access logging</li>
+                        <li>Activity monitoring</li>
+                        <li>Data loss prevention (DLP)</li>
+                        <li>User behavior analytics</li>
+                        <li>Compliance audits</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-details" id="detail-archive">
+            <div class="phase-header">
+                <span class="phase-header-icon">📦</span>
+                <div class="phase-title">
+                    <h2>Data Archival</h2>
+                    <p>Long-term retention of data that is no longer actively used</p>
+                </div>
+            </div>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>📋 Retention Drivers</h3>
+                    <ul class="detail-list">
+                        <li>Legal/regulatory requirements</li>
+                        <li>Litigation hold obligations</li>
+                        <li>Business continuity needs</li>
+                        <li>Historical analysis value</li>
+                        <li>Contractual obligations</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>💾 Archive Storage</h3>
+                    <ul class="detail-list">
+                        <li>Cold storage solutions</li>
+                        <li>Tape backup systems</li>
+                        <li>Cloud archive tiers (Glacier)</li>
+                        <li>Off-site secure storage</li>
+                        <li>Write-once read-many (WORM)</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>⏰ Retention Policies</h3>
+                    <ul class="detail-list">
+                        <li>Define retention periods</li>
+                        <li>Automated expiration rules</li>
+                        <li>Legal hold exceptions</li>
+                        <li>Periodic retention reviews</li>
+                        <li>Document destruction schedules</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-details" id="detail-destroy">
+            <div class="phase-header">
+                <span class="phase-header-icon">🗑️</span>
+                <div class="phase-title">
+                    <h2>Data Destruction</h2>
+                    <p>Secure, permanent removal of data per NIST SP 800-88 guidelines</p>
+                </div>
+            </div>
+
+            <h3 style="color: var(--shield-secondary); margin-bottom: 1rem;">🔥 Destruction Methods</h3>
+            <div class="destruction-grid">
+                <div class="destruction-card">
+                    <div class="destruction-icon">🧲</div>
+                    <div class="destruction-name">Degaussing</div>
+                    <div class="destruction-desc">Heavy magnetic field destroys data on magnetic media (HDDs, tapes)</div>
+                </div>
+                <div class="destruction-card">
+                    <div class="destruction-icon">✏️</div>
+                    <div class="destruction-name">Erasing</div>
+                    <div class="destruction-desc">Delete operation - data potentially recoverable without overwrites</div>
+                </div>
+                <div class="destruction-card">
+                    <div class="destruction-icon">📝</div>
+                    <div class="destruction-name">Clearing/Overwriting</div>
+                    <div class="destruction-desc">Overwrite sensitive data with non-sensitive data</div>
+                </div>
+                <div class="destruction-card">
+                    <div class="destruction-icon">🔄</div>
+                    <div class="destruction-name">Purging</div>
+                    <div class="destruction-desc">Multiple clearing passes + additional destruction methods</div>
+                </div>
+                <div class="destruction-card">
+                    <div class="destruction-icon">⚡</div>
+                    <div class="destruction-name">Disintegration</div>
+                    <div class="destruction-desc">For SSDs - physical destruction via shredding/crushing</div>
+                </div>
+                <div class="destruction-card">
+                    <div class="destruction-icon">🔥</div>
+                    <div class="destruction-name">Incineration</div>
+                    <div class="destruction-desc">Complete physical destruction by fire</div>
+                </div>
+            </div>
+
+            <div class="details-grid" style="margin-top: 1.5rem;">
+                <div class="detail-card">
+                    <h3>⚠️ Data Remanence</h3>
+                    <ul class="detail-list">
+                        <li>Residual data after erasure attempts</li>
+                        <li>Magnetic media retains traces</li>
+                        <li>SSD wear leveling complicates erasure</li>
+                        <li>Forensic recovery possible</li>
+                        <li>Verification required for sensitive data</li>
+                    </ul>
+                </div>
+                <div class="detail-card">
+                    <h3>📜 Documentation Requirements</h3>
+                    <ul class="detail-list">
+                        <li>Certificate of destruction</li>
+                        <li>Method used and verification</li>
+                        <li>Date and responsible party</li>
+                        <li>Serial numbers of destroyed media</li>
+                        <li>Retain records per policy</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Concepts -->
+        <div class="concepts-section">
+            <h2 style="color: var(--shield-primary); margin-bottom: 1rem;">📌 Key Concepts</h2>
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <h4>📍 Data Location</h4>
+                    <p>Geographic location matters for privacy regulations. GDPR requires EU data to stay in EU or have adequate protections for transfers.</p>
+                </div>
+                <div class="concept-card">
+                    <h4>🔧 Data Maintenance</h4>
+                    <p>Ongoing checks to ensure data is accurate, complete, reliable, relevant, timely, and valid according to corporate standards.</p>
+                </div>
+                <div class="concept-card">
+                    <h4>📋 Data Retention</h4>
+                    <p>Keeping data for compliance, litigation, business continuity, and historical analysis. Retention periods vary by data type and regulation.</p>
+                </div>
+                <div class="concept-card">
+                    <h4>🔓 Declassification</h4>
+                    <p>Process to purge media so it can be reused in unclassified environments. High-security environments destroy rather than declassify.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tracker -->
+        <div class="tracker-section">
+            <h2 class="tracker-title">📊 Data Asset Tracker</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Track your data assets through their lifecycle phases</p>
+
+            <form id="dataForm" class="tracker-form">
+                <div class="form-group">
+                    <label>Data Asset Name</label>
+                    <input type="text" id="dataName" placeholder="e.g., Customer Records" required>
+                </div>
+                <div class="form-group">
+                    <label>Data Type</label>
+                    <select id="dataType">
+                        <option value="pii">PII (Personal Info)</option>
+                        <option value="phi">PHI (Health Info)</option>
+                        <option value="financial">Financial Data</option>
+                        <option value="proprietary">Proprietary</option>
+                        <option value="operational">Operational</option>
+                        <option value="public">Public</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Current Phase</label>
+                    <select id="dataPhase">
+                        <option value="create">Creation</option>
+                        <option value="store">Storage</option>
+                        <option value="use">Usage</option>
+                        <option value="archive">Archival</option>
+                        <option value="destroy">Destruction</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Retention Period</label>
+                    <select id="dataRetention">
+                        <option value="30d">30 Days</option>
+                        <option value="1y">1 Year</option>
+                        <option value="3y">3 Years</option>
+                        <option value="7y">7 Years</option>
+                        <option value="permanent">Permanent</option>
+                    </select>
+                </div>
+            </form>
+            <div class="button-group">
+                <button class="btn primary" onclick="addData()">➕ Add Data Asset</button>
+            </div>
+
+            <div class="tracked-data" id="trackedData">
+                <div class="empty-state">
+                    <p>No data assets tracked yet. Add your first asset above.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trackedData = [];
+
+        // Load saved data
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('lifecycle_data');
+            if (saved) {
+                try { trackedData = JSON.parse(saved); } catch(e) {}
+            }
+            renderTrackedData();
+        });
+
+        function showPhase(phase) {
+            // Update active phase
+            document.querySelectorAll('.lifecycle-phase').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.phase-${phase}`).classList.add('active');
+
+            // Update details
+            document.querySelectorAll('.phase-details').forEach(d => d.classList.remove('active'));
+            document.getElementById(`detail-${phase}`).classList.add('active');
+        }
+
+        function addData() {
+            const name = document.getElementById('dataName').value.trim();
+            if (!name) return;
+
+            trackedData.push({
+                id: Date.now(),
+                name: name,
+                type: document.getElementById('dataType').value,
+                phase: document.getElementById('dataPhase').value,
+                retention: document.getElementById('dataRetention').value,
+                created: new Date().toLocaleDateString()
+            });
+
+            localStorage.setItem('lifecycle_data', JSON.stringify(trackedData));
+            renderTrackedData();
+            document.getElementById('dataName').value = '';
+        }
+
+        function updatePhase(id, newPhase) {
+            const item = trackedData.find(d => d.id === id);
+            if (item) {
+                item.phase = newPhase;
+                item.lastUpdated = new Date().toLocaleDateString();
+                localStorage.setItem('lifecycle_data', JSON.stringify(trackedData));
+                renderTrackedData();
+            }
+        }
+
+        function deleteData(id) {
+            trackedData = trackedData.filter(d => d.id !== id);
+            localStorage.setItem('lifecycle_data', JSON.stringify(trackedData));
+            renderTrackedData();
+        }
+
+        function renderTrackedData() {
+            const container = document.getElementById('trackedData');
+
+            if (trackedData.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No data assets tracked yet.</p></div>';
+                return;
+            }
+
+            const phaseNames = {
+                create: 'Creation',
+                store: 'Storage',
+                use: 'Usage',
+                archive: 'Archival',
+                destroy: 'Destruction'
+            };
+
+            const typeNames = {
+                pii: 'PII',
+                phi: 'PHI',
+                financial: 'Financial',
+                proprietary: 'Proprietary',
+                operational: 'Operational',
+                public: 'Public'
+            };
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Asset Name</th>
+                            <th>Type</th>
+                            <th>Current Phase</th>
+                            <th>Retention</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trackedData.map(d => `
+                            <tr>
+                                <td>${d.name}</td>
+                                <td>${typeNames[d.type]}</td>
+                                <td>
+                                    <select class="phase-select" onchange="updatePhase(${d.id}, this.value)">
+                                        ${Object.entries(phaseNames).map(([key, name]) =>
+                                            `<option value="${key}" ${d.phase === key ? 'selected' : ''}>${name}</option>`
+                                        ).join('')}
+                                    </select>
+                                </td>
+                                <td>${d.retention}</td>
+                                <td>
+                                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--danger);" onclick="deleteData(${d.id})">🗑️</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response & Forensics Lab - Shield House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --shield-primary: #f87171; --shield-light: #fca5a5; --shield-dark: #dc2626;
+            --dark-bg: #0f172a; --darker-bg: #020617; --card-bg: #1e293b;
+            --light-text: #f1f5f9; --gray-text: #94a3b8;
+            --accent-green: #10b981; --accent-orange: #f97316; --accent-purple: #a855f7; --accent-blue: #3b82f6; --accent-yellow: #eab308;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%); color: var(--light-text); line-height: 1.7; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, var(--shield-dark) 0%, var(--shield-primary) 100%); padding: 1.25rem 2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(248, 113, 113, 0.3); }
+        .header-content { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .back-button { background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.25); color: white; padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; transition: all 0.3s ease; text-decoration: none; }
+        .back-button:hover { background: rgba(255, 255, 255, 0.25); transform: translateX(-4px); }
+        .badge { background: white; color: var(--shield-dark); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.8rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .intro-section { text-align: center; padding: 2.5rem 2rem; background: var(--card-bg); border-radius: 20px; margin-bottom: 2rem; border: 1px solid rgba(248, 113, 113, 0.2); }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .intro-title { font-size: 2rem; color: var(--shield-primary); margin-bottom: 0.5rem; font-weight: 700; }
+        .intro-subtitle { color: var(--gray-text); max-width: 700px; margin: 0 auto; }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        .tab { padding: 0.75rem 1.5rem; background: var(--card-bg); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; color: var(--gray-text); font-size: 0.9rem; }
+        .tab:hover { border-color: var(--shield-primary); color: var(--light-text); }
+        .tab.active { background: var(--shield-primary); color: white; border-color: var(--shield-primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* IR Lifecycle */
+        .lifecycle-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .lifecycle-title { font-size: 1.4rem; color: var(--accent-blue); margin-bottom: 0.5rem; text-align: center; }
+        .lifecycle-ref { font-size: 0.85rem; color: var(--gray-text); text-align: center; margin-bottom: 1.5rem; }
+        .lifecycle-flow { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+        .lifecycle-step { flex: 1; min-width: 150px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        .lifecycle-step:hover { transform: translateY(-5px); }
+        .lifecycle-step.active .step-circle { border-color: var(--accent-green); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+        .step-circle { width: 80px; height: 80px; margin: 0 auto 0.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 3px solid rgba(255, 255, 255, 0.2); transition: all 0.3s ease; }
+        .lifecycle-step:nth-child(1) .step-circle { background: rgba(59, 130, 246, 0.2); }
+        .lifecycle-step:nth-child(2) .step-circle { background: rgba(249, 115, 22, 0.2); }
+        .lifecycle-step:nth-child(3) .step-circle { background: rgba(239, 68, 68, 0.2); }
+        .lifecycle-step:nth-child(4) .step-circle { background: rgba(168, 85, 247, 0.2); }
+        .lifecycle-step:nth-child(5) .step-circle { background: rgba(16, 185, 129, 0.2); }
+        .step-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .lifecycle-step:nth-child(1) .step-title { color: var(--accent-blue); }
+        .lifecycle-step:nth-child(2) .step-title { color: var(--accent-orange); }
+        .lifecycle-step:nth-child(3) .step-title { color: var(--shield-primary); }
+        .lifecycle-step:nth-child(4) .step-title { color: var(--accent-purple); }
+        .lifecycle-step:nth-child(5) .step-title { color: var(--accent-green); }
+        .step-desc { font-size: 0.75rem; color: var(--gray-text); }
+
+        .step-detail { background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; display: none; }
+        .step-detail.show { display: block; animation: fadeIn 0.3s ease; }
+        .step-detail h4 { margin-bottom: 1rem; }
+        .step-detail ul { list-style: none; }
+        .step-detail li { padding: 0.4rem 0; color: var(--light-text); font-size: 0.9rem; display: flex; gap: 0.5rem; }
+        .step-detail li::before { content: ">"; font-weight: bold; color: var(--accent-green); }
+
+        /* Forensics Section */
+        .forensics-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .forensics-title { font-size: 1.4rem; color: var(--accent-purple); margin-bottom: 1.5rem; text-align: center; }
+        .forensics-phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .forensics-phase { padding: 1.5rem; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s ease; position: relative; }
+        .forensics-phase::after { content: ">"; position: absolute; right: -0.75rem; top: 50%; transform: translateY(-50%); color: var(--accent-purple); font-weight: bold; font-size: 1.2rem; }
+        .forensics-phase:last-child::after { display: none; }
+        .forensics-phase:nth-child(1) { background: rgba(59, 130, 246, 0.15); border: 2px solid rgba(59, 130, 246, 0.3); }
+        .forensics-phase:nth-child(2) { background: rgba(249, 115, 22, 0.15); border: 2px solid rgba(249, 115, 22, 0.3); }
+        .forensics-phase:nth-child(3) { background: rgba(168, 85, 247, 0.15); border: 2px solid rgba(168, 85, 247, 0.3); }
+        .forensics-phase:nth-child(4) { background: rgba(16, 185, 129, 0.15); border: 2px solid rgba(16, 185, 129, 0.3); }
+        .forensics-phase:hover { transform: translateY(-5px); }
+        .phase-num { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .forensics-phase:nth-child(1) .phase-num { color: var(--accent-blue); }
+        .forensics-phase:nth-child(2) .phase-num { color: var(--accent-orange); }
+        .forensics-phase:nth-child(3) .phase-num { color: var(--accent-purple); }
+        .forensics-phase:nth-child(4) .phase-num { color: var(--accent-green); }
+        .phase-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; color: var(--light-text); }
+        .phase-desc { font-size: 0.8rem; color: var(--gray-text); }
+
+        /* Volatility Order */
+        .volatility-section { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(249, 115, 22, 0.1)); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .volatility-title { font-size: 1.4rem; color: var(--shield-primary); margin-bottom: 0.5rem; text-align: center; }
+        .volatility-ref { font-size: 0.85rem; color: var(--gray-text); text-align: center; margin-bottom: 1.5rem; }
+        .volatility-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .volatility-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 10px; transition: all 0.3s ease; }
+        .volatility-item:hover { background: rgba(0, 0, 0, 0.3); }
+        .volatility-rank { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+        .volatility-item:nth-child(1) .volatility-rank { background: var(--shield-primary); color: white; }
+        .volatility-item:nth-child(2) .volatility-rank { background: var(--accent-orange); color: white; }
+        .volatility-item:nth-child(3) .volatility-rank { background: var(--accent-yellow); color: var(--dark-bg); }
+        .volatility-item:nth-child(4) .volatility-rank { background: var(--accent-green); color: white; }
+        .volatility-item:nth-child(5) .volatility-rank { background: var(--accent-blue); color: white; }
+        .volatility-item:nth-child(6) .volatility-rank { background: var(--accent-purple); color: white; }
+        .volatility-content { flex: 1; }
+        .volatility-name { font-weight: 600; color: var(--light-text); margin-bottom: 0.25rem; }
+        .volatility-desc { font-size: 0.85rem; color: var(--gray-text); }
+        .volatility-indicator { width: 100px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; }
+        .volatility-bar { height: 100%; border-radius: 4px; }
+        .volatility-item:nth-child(1) .volatility-bar { width: 100%; background: var(--shield-primary); }
+        .volatility-item:nth-child(2) .volatility-bar { width: 85%; background: var(--accent-orange); }
+        .volatility-item:nth-child(3) .volatility-bar { width: 70%; background: var(--accent-yellow); }
+        .volatility-item:nth-child(4) .volatility-bar { width: 50%; background: var(--accent-green); }
+        .volatility-item:nth-child(5) .volatility-bar { width: 30%; background: var(--accent-blue); }
+        .volatility-item:nth-child(6) .volatility-bar { width: 15%; background: var(--accent-purple); }
+
+        /* IOC Section */
+        .ioc-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .ioc-title { font-size: 1.4rem; color: var(--accent-orange); margin-bottom: 1.5rem; text-align: center; }
+        .ioc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .ioc-card { padding: 1.25rem; background: rgba(249, 115, 22, 0.1); border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.2); }
+        .ioc-card h4 { color: var(--accent-orange); font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .ioc-card p { font-size: 0.85rem; color: var(--gray-text); }
+
+        /* Tools Section */
+        .tools-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .tools-title { font-size: 1.4rem; color: var(--accent-green); margin-bottom: 1.5rem; text-align: center; }
+        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .tool-card { padding: 1.25rem; background: rgba(16, 185, 129, 0.1); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2); text-align: center; transition: all 0.3s ease; }
+        .tool-card:hover { transform: translateY(-5px); border-color: var(--accent-green); }
+        .tool-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .tool-name { font-weight: 700; color: var(--accent-green); margin-bottom: 0.25rem; }
+        .tool-desc { font-size: 0.8rem; color: var(--gray-text); }
+
+        /* Triage Classifications */
+        .triage-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .triage-title { font-size: 1.4rem; color: var(--accent-blue); margin-bottom: 1.5rem; text-align: center; }
+        .triage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .triage-card { padding: 1.5rem; border-radius: 12px; text-align: center; }
+        .triage-card.tp { background: rgba(16, 185, 129, 0.15); border: 2px solid rgba(16, 185, 129, 0.3); }
+        .triage-card.fp { background: rgba(249, 115, 22, 0.15); border: 2px solid rgba(249, 115, 22, 0.3); }
+        .triage-card.tn { background: rgba(59, 130, 246, 0.15); border: 2px solid rgba(59, 130, 246, 0.3); }
+        .triage-card.fn { background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.3); }
+        .triage-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+        .triage-card.tp .triage-label { color: var(--accent-green); }
+        .triage-card.fp .triage-label { color: var(--accent-orange); }
+        .triage-card.tn .triage-label { color: var(--accent-blue); }
+        .triage-card.fn .triage-label { color: var(--shield-primary); }
+        .triage-name { font-size: 1.2rem; font-weight: 700; color: var(--light-text); margin-bottom: 0.5rem; }
+        .triage-desc { font-size: 0.85rem; color: var(--gray-text); }
+
+        /* Playbooks */
+        .playbook-section { background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(59, 130, 246, 0.1)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(168, 85, 247, 0.2); }
+        .playbook-title { font-size: 1.4rem; color: var(--accent-purple); margin-bottom: 1.5rem; text-align: center; }
+        .playbook-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .playbook-card { padding: 1.5rem; background: rgba(0, 0, 0, 0.2); border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        .playbook-card:hover { background: rgba(0, 0, 0, 0.3); transform: translateY(-3px); }
+        .playbook-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .playbook-name { font-weight: 700; color: var(--accent-purple); margin-bottom: 0.5rem; }
+        .playbook-steps { font-size: 0.8rem; color: var(--gray-text); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            .lifecycle-flow, .forensics-phases, .triage-grid, .playbook-grid { grid-template-columns: 1fr; }
+            .forensics-phase::after { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="../../index.html" class="back-button">< Shield House</a>
+            <span class="badge">CASP+ Domain 2</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="intro-section">
+            <div class="intro-icon">🔍</div>
+            <h1 class="intro-title">Incident Response & Forensics Lab</h1>
+            <p class="intro-subtitle">Master the IR lifecycle, forensic investigation phases, evidence collection, and analysis tools based on NIST SP 800-61.</p>
+        </section>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('lifecycle')">IR Lifecycle</div>
+            <div class="tab" onclick="showTab('forensics')">Forensics</div>
+            <div class="tab" onclick="showTab('volatility')">Order of Volatility</div>
+            <div class="tab" onclick="showTab('ioc')">IOC Detection</div>
+            <div class="tab" onclick="showTab('tools')">Analysis Tools</div>
+            <div class="tab" onclick="showTab('playbooks')">Playbooks</div>
+        </div>
+
+        <!-- IR Lifecycle -->
+        <div id="lifecycle" class="tab-content active">
+            <div class="lifecycle-section">
+                <h3 class="lifecycle-title">NIST Incident Response Life Cycle</h3>
+                <p class="lifecycle-ref">NIST SP 800-61R2: Computer Security Incident Handling Guide</p>
+                <div class="lifecycle-flow">
+                    <div class="lifecycle-step" onclick="showLifecycleStep(0)">
+                        <div class="step-circle">🛡️</div>
+                        <div class="step-title">Preparation</div>
+                        <div class="step-desc">Harden systems, write policies</div>
+                    </div>
+                    <div class="lifecycle-step" onclick="showLifecycleStep(1)">
+                        <div class="step-circle">🔎</div>
+                        <div class="step-title">Detection & Analysis</div>
+                        <div class="step-desc">Identify and triage incidents</div>
+                    </div>
+                    <div class="lifecycle-step" onclick="showLifecycleStep(2)">
+                        <div class="step-circle">🚧</div>
+                        <div class="step-title">Containment</div>
+                        <div class="step-desc">Limit scope and magnitude</div>
+                    </div>
+                    <div class="lifecycle-step" onclick="showLifecycleStep(3)">
+                        <div class="step-circle">🧹</div>
+                        <div class="step-title">Eradication & Recovery</div>
+                        <div class="step-desc">Remove cause, restore systems</div>
+                    </div>
+                    <div class="lifecycle-step" onclick="showLifecycleStep(4)">
+                        <div class="step-circle">📝</div>
+                        <div class="step-title">Post-Incident</div>
+                        <div class="step-desc">Lessons learned, improve</div>
+                    </div>
+                </div>
+                <div id="lifecycleDetail" class="step-detail"></div>
+            </div>
+        </div>
+
+        <!-- Forensics -->
+        <div id="forensics" class="tab-content">
+            <div class="forensics-section">
+                <h3 class="forensics-title">Digital Forensics Investigation Phases</h3>
+                <div class="forensics-phases">
+                    <div class="forensics-phase">
+                        <div class="phase-num">1</div>
+                        <div class="phase-name">Identification</div>
+                        <div class="phase-desc">Secure scene, identify evidence scope</div>
+                    </div>
+                    <div class="forensics-phase">
+                        <div class="phase-num">2</div>
+                        <div class="phase-name">Collection</div>
+                        <div class="phase-desc">Gather evidence with legal scrutiny</div>
+                    </div>
+                    <div class="forensics-phase">
+                        <div class="phase-num">3</div>
+                        <div class="phase-name">Analysis</div>
+                        <div class="phase-desc">Create copies, verify integrity</div>
+                    </div>
+                    <div class="forensics-phase">
+                        <div class="phase-num">4</div>
+                        <div class="phase-name">Reporting</div>
+                        <div class="phase-desc">Document methods and findings</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ioc-section">
+                <h3 class="ioc-title">Key Forensic Concepts</h3>
+                <div class="ioc-grid">
+                    <div class="ioc-card">
+                        <h4>🔗 Chain of Custody</h4>
+                        <p>Record of evidence handling from collection through presentation in court. Documentation reinforces integrity.</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>📸 Forensic Image</h4>
+                        <p>Bit-for-bit copy of storage media used for analysis. Original evidence remains preserved.</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>🔐 Hash Verification</h4>
+                        <p>Generate file hashes to detect unintended changes and verify evidence integrity.</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>💾 Memory Dump</h4>
+                        <p>Snapshot of RAM contents capturing running processes, passwords, and volatile data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Volatility Order -->
+        <div id="volatility" class="tab-content">
+            <div class="volatility-section">
+                <h3 class="volatility-title">Order of Volatility</h3>
+                <p class="volatility-ref">RFC 3227: Guidelines for Evidence Collection and Archiving</p>
+                <div class="volatility-list">
+                    <div class="volatility-item">
+                        <div class="volatility-rank">1</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">CPU Registers & Cache</div>
+                            <div class="volatility-desc">Most volatile - disappears in nanoseconds when power lost</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                    <div class="volatility-item">
+                        <div class="volatility-rank">2</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">System Memory (RAM)</div>
+                            <div class="volatility-desc">Routing table, ARP cache, process table, kernel statistics</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                    <div class="volatility-item">
+                        <div class="volatility-rank">3</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">Swap / Virtual Memory</div>
+                            <div class="volatility-desc">Temporary file systems and pagefile contents</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                    <div class="volatility-item">
+                        <div class="volatility-rank">4</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">Persistent Storage</div>
+                            <div class="volatility-desc">HDDs, SSDs, flash drives - file system and free space</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                    <div class="volatility-item">
+                        <div class="volatility-rank">5</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">Remote Logging</div>
+                            <div class="volatility-desc">Network topology, monitoring data, SIEM logs</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                    <div class="volatility-item">
+                        <div class="volatility-rank">6</div>
+                        <div class="volatility-content">
+                            <div class="volatility-name">Archival Media</div>
+                            <div class="volatility-desc">Backups, tapes - least volatile, longest retention</div>
+                        </div>
+                        <div class="volatility-indicator"><div class="volatility-bar"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IOC Detection -->
+        <div id="ioc" class="tab-content">
+            <div class="ioc-section">
+                <h3 class="ioc-title">Indicators of Compromise (IOC)</h3>
+                <div class="ioc-grid">
+                    <div class="ioc-card">
+                        <h4>📊 SIEM</h4>
+                        <p>Security Information & Event Management - aggregates logs and correlates events across sources</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>🤖 SOAR</h4>
+                        <p>Security Orchestration & Automated Response - uses playbooks for automated remediation</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>🛡️ IDS/IPS</h4>
+                        <p>Creates log entries when rules match. Outputs: Unified, Syslog, CSV, Tcpdump</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>📁 FIM</h4>
+                        <p>File Integrity Monitoring - detects unauthorized changes to critical files</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>🔒 DLP</h4>
+                        <p>Data Loss Prevention - enforces data classification and transfer policies</p>
+                    </div>
+                    <div class="ioc-card">
+                        <h4>🌊 NetFlow</h4>
+                        <p>Network flow analysis - metadata and statistics about traffic patterns</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="triage-section">
+                <h3 class="triage-title">Event Classification (Triage)</h3>
+                <div class="triage-grid">
+                    <div class="triage-card tp">
+                        <div class="triage-label">TRUE POSITIVE</div>
+                        <div class="triage-name">Correctly Identified</div>
+                        <div class="triage-desc">Alert fired, and it IS a real security issue</div>
+                    </div>
+                    <div class="triage-card fp">
+                        <div class="triage-label">FALSE POSITIVE</div>
+                        <div class="triage-name">Incorrectly Identified</div>
+                        <div class="triage-desc">Alert fired, but it's NOT a real issue</div>
+                    </div>
+                    <div class="triage-card tn">
+                        <div class="triage-label">TRUE NEGATIVE</div>
+                        <div class="triage-name">Correctly Ignored</div>
+                        <div class="triage-desc">No alert, and there IS no issue</div>
+                    </div>
+                    <div class="triage-card fn">
+                        <div class="triage-label">FALSE NEGATIVE</div>
+                        <div class="triage-name">Missed Detection</div>
+                        <div class="triage-desc">No alert, but there IS a real issue (worst case!)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools -->
+        <div id="tools" class="tab-content">
+            <div class="tools-section">
+                <h3 class="tools-title">Forensic Analysis Tools</h3>
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-icon">🦈</div>
+                        <div class="tool-name">Wireshark</div>
+                        <div class="tool-desc">Graphical packet capture and protocol analysis</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">📦</div>
+                        <div class="tool-name">tcpdump</div>
+                        <div class="tool-desc">Command-line packet capture for Linux</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">🧠</div>
+                        <div class="tool-name">Volatility</div>
+                        <div class="tool-desc">Memory forensics and analysis framework</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">📷</div>
+                        <div class="tool-name">exiftool</div>
+                        <div class="tool-desc">Read and write file metadata</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">🔍</div>
+                        <div class="tool-name">nmap</div>
+                        <div class="tool-desc">Network discovery and security scanning</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-icon">📡</div>
+                        <div class="tool-name">Aircrack-ng</div>
+                        <div class="tool-desc">Wi-Fi security assessment suite</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbooks -->
+        <div id="playbooks" class="tab-content">
+            <div class="playbook-section">
+                <h3 class="playbook-title">Incident Response Playbooks</h3>
+                <div class="playbook-grid">
+                    <div class="playbook-card" onclick="showPlaybook('ransomware')">
+                        <div class="playbook-icon">💰</div>
+                        <div class="playbook-name">Ransomware</div>
+                        <div class="playbook-steps">Isolate > Preserve > Analyze > Recover</div>
+                    </div>
+                    <div class="playbook-card" onclick="showPlaybook('exfiltration')">
+                        <div class="playbook-icon">📤</div>
+                        <div class="playbook-name">Data Exfiltration</div>
+                        <div class="playbook-steps">Notify > Investigate > Contain > Report</div>
+                    </div>
+                    <div class="playbook-card" onclick="showPlaybook('social')">
+                        <div class="playbook-icon">🎭</div>
+                        <div class="playbook-name">Social Engineering</div>
+                        <div class="playbook-steps">Reset > Replace > Retrain > Monitor</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const lifecycleDetails = [
+            {
+                title: "1. Preparation",
+                color: "var(--accent-blue)",
+                points: [
+                    "Harden systems against attacks",
+                    "Write security policies and procedures",
+                    "Set up confidential communication channels",
+                    "Create incident response resources",
+                    "Establish and train the CSIRT team"
+                ]
+            },
+            {
+                title: "2. Detection & Analysis",
+                color: "var(--accent-orange)",
+                points: [
+                    "Determine if an incident has occurred",
+                    "Triage - assess severity and priority",
+                    "Gather IOC evidence from logs and alerts",
+                    "Notify appropriate stakeholders",
+                    "Document timeline of events"
+                ]
+            },
+            {
+                title: "3. Containment",
+                color: "var(--shield-primary)",
+                points: [
+                    "Limit scope and magnitude of incident",
+                    "Short-term: Isolate affected systems",
+                    "Long-term: Implement temporary fixes",
+                    "Preserve forensic evidence",
+                    "Prevent lateral movement"
+                ]
+            },
+            {
+                title: "4. Eradication & Recovery",
+                color: "var(--accent-purple)",
+                points: [
+                    "Remove the root cause completely",
+                    "Restore systems to secure state",
+                    "Rebuild from known-good backups",
+                    "Apply patches and updates",
+                    "May iterate through detection again"
+                ]
+            },
+            {
+                title: "5. Post-Incident Activity",
+                color: "var(--accent-green)",
+                points: [
+                    "Conduct lessons learned meeting",
+                    "Document what worked and what didn't",
+                    "Update policies and procedures",
+                    "Improve detection capabilities",
+                    "Feed findings back into preparation"
+                ]
+            }
+        ];
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function showLifecycleStep(index) {
+            const steps = document.querySelectorAll('.lifecycle-step');
+            steps.forEach((s, i) => s.classList.toggle('active', i === index));
+
+            const detail = document.getElementById('lifecycleDetail');
+            const data = lifecycleDetails[index];
+            detail.innerHTML = `
+                <h4 style="color: ${data.color}">${data.title}</h4>
+                <ul>${data.points.map(p => `<li>${p}</li>`).join('')}</ul>
+            `;
+            detail.classList.add('show');
+        }
+
+        function showPlaybook(type) {
+            const playbooks = {
+                ransomware: {
+                    title: "Ransomware Response",
+                    steps: [
+                        "Disconnect and isolate networks immediately",
+                        "Preserve forensic integrity of systems",
+                        "Extract cryptographic keys from memory if possible",
+                        "Restore from clean backups",
+                        "Report to law enforcement"
+                    ]
+                },
+                exfiltration: {
+                    title: "Data Exfiltration Response",
+                    steps: [
+                        "Identify notification requirements",
+                        "Perform network forensic analysis",
+                        "Determine exactly what was accessed",
+                        "Document for regulatory compliance",
+                        "Never attempt hack-back actions"
+                    ]
+                },
+                social: {
+                    title: "Social Engineering Response",
+                    steps: [
+                        "Reset passwords for impacted users",
+                        "Consider replacing desktop systems",
+                        "Conduct targeted security awareness training",
+                        "Monitor for follow-up attacks",
+                        "Review and update phishing filters"
+                    ]
+                }
+            };
+
+            const pb = playbooks[type];
+            alert(`${pb.title}\n\n${pb.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
+        }
+
+        // Mark progress
+        if (typeof ProgressManager !== 'undefined') {
+            ProgressManager.markProgress('shield', 'ir-forensics-lab', 'complete');
+        }
+    </script>
+    <script src="../../../../components/ProgressManager.js"></script>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS/SCADA Security Simulator - Shield House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --shield-primary: #f87171; --shield-light: #fca5a5; --shield-dark: #dc2626;
+            --dark-bg: #0f172a; --darker-bg: #020617; --card-bg: #1e293b;
+            --light-text: #f1f5f9; --gray-text: #94a3b8;
+            --accent-green: #10b981; --accent-orange: #f97316; --accent-purple: #a855f7; --accent-blue: #3b82f6; --accent-yellow: #eab308;
+            --ics-primary: #14b8a6;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%); color: var(--light-text); line-height: 1.7; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #0d9488 0%, var(--ics-primary) 100%); padding: 1.25rem 2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(20, 184, 166, 0.3); }
+        .header-content { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .back-button { background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.25); color: white; padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; transition: all 0.3s ease; text-decoration: none; }
+        .back-button:hover { background: rgba(255, 255, 255, 0.25); transform: translateX(-4px); }
+        .badge { background: white; color: #0d9488; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.8rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .intro-section { text-align: center; padding: 2.5rem 2rem; background: var(--card-bg); border-radius: 20px; margin-bottom: 2rem; border: 1px solid rgba(20, 184, 166, 0.2); }
+        .intro-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .intro-title { font-size: 2rem; color: var(--ics-primary); margin-bottom: 0.5rem; font-weight: 700; }
+        .intro-subtitle { color: var(--gray-text); max-width: 700px; margin: 0 auto; }
+        .warning-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 1rem; margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+        .warning-banner span { color: var(--shield-primary); font-weight: 600; }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center; }
+        .tab { padding: 0.75rem 1.5rem; background: var(--card-bg); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; color: var(--gray-text); font-size: 0.9rem; }
+        .tab:hover { border-color: var(--ics-primary); color: var(--light-text); }
+        .tab.active { background: var(--ics-primary); color: white; border-color: var(--ics-primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Architecture Section */
+        .arch-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .arch-title { font-size: 1.4rem; color: var(--ics-primary); margin-bottom: 1.5rem; text-align: center; }
+        .ics-diagram { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .ics-layer { padding: 1.5rem; border-radius: 12px; text-align: center; }
+        .ics-layer.enterprise { background: rgba(59, 130, 246, 0.15); border: 2px solid rgba(59, 130, 246, 0.3); }
+        .ics-layer.control { background: rgba(168, 85, 247, 0.15); border: 2px solid rgba(168, 85, 247, 0.3); }
+        .ics-layer.field { background: rgba(20, 184, 166, 0.15); border: 2px solid rgba(20, 184, 166, 0.3); }
+        .layer-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .layer-name { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .ics-layer.enterprise .layer-name { color: var(--accent-blue); }
+        .ics-layer.control .layer-name { color: var(--accent-purple); }
+        .ics-layer.field .layer-name { color: var(--ics-primary); }
+        .layer-components { font-size: 0.85rem; color: var(--gray-text); }
+        .layer-components div { padding: 0.2rem 0; }
+
+        /* Components Grid */
+        .components-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .component-card { background: rgba(20, 184, 166, 0.1); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 12px; padding: 1.25rem; text-align: center; transition: all 0.3s ease; cursor: pointer; }
+        .component-card:hover { transform: translateY(-5px); border-color: var(--ics-primary); }
+        .component-card.active { border-color: var(--accent-green); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+        .component-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .component-name { font-weight: 700; color: var(--ics-primary); margin-bottom: 0.25rem; }
+        .component-abbr { font-size: 0.75rem; color: var(--gray-text); }
+
+        .component-detail { background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; display: none; }
+        .component-detail.show { display: block; animation: fadeIn 0.3s ease; }
+        .component-detail h4 { color: var(--ics-primary); margin-bottom: 1rem; }
+        .component-detail p { color: var(--gray-text); font-size: 0.95rem; }
+
+        /* Threats Section */
+        .threats-section { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(249, 115, 22, 0.1)); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .threats-title { font-size: 1.4rem; color: var(--shield-primary); margin-bottom: 1.5rem; text-align: center; }
+        .threats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .threat-card { background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 1.25rem; }
+        .threat-card h4 { color: var(--accent-orange); font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .threat-card p { font-size: 0.85rem; color: var(--gray-text); }
+
+        /* Protocols Section */
+        .protocols-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .protocols-title { font-size: 1.4rem; color: var(--accent-purple); margin-bottom: 1.5rem; text-align: center; }
+        .protocols-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+        .protocol-card { background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 10px; padding: 1rem; text-align: center; }
+        .protocol-name { font-weight: 700; color: var(--accent-purple); margin-bottom: 0.25rem; }
+        .protocol-desc { font-size: 0.8rem; color: var(--gray-text); }
+
+        /* Sectors Section */
+        .sectors-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+        .sectors-title { font-size: 1.4rem; color: var(--accent-orange); margin-bottom: 1.5rem; text-align: center; }
+        .sectors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
+        .sector-card { background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 10px; padding: 1.25rem; text-align: center; transition: all 0.3s ease; }
+        .sector-card:hover { transform: translateY(-3px); border-color: var(--accent-orange); }
+        .sector-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .sector-name { font-size: 0.85rem; font-weight: 600; color: var(--accent-orange); }
+
+        /* Security Controls */
+        .controls-section { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(20, 184, 166, 0.1)); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .controls-title { font-size: 1.4rem; color: var(--accent-green); margin-bottom: 1.5rem; text-align: center; }
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .control-card { background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 1.25rem; }
+        .control-card h4 { color: var(--accent-green); font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .control-card p { font-size: 0.85rem; color: var(--gray-text); }
+
+        /* Simulation */
+        .sim-section { background: var(--card-bg); border-radius: 16px; padding: 2rem; }
+        .sim-title { font-size: 1.4rem; color: var(--ics-primary); margin-bottom: 1.5rem; text-align: center; }
+        .sim-container { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+        .sim-visual { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 1.5rem; min-height: 300px; position: relative; }
+        .sim-controls { display: flex; flex-direction: column; gap: 1rem; }
+        .sim-btn { padding: 1rem; background: rgba(20, 184, 166, 0.2); border: 2px solid var(--ics-primary); border-radius: 10px; color: var(--ics-primary); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .sim-btn:hover { background: var(--ics-primary); color: white; }
+        .sim-btn.active { background: var(--ics-primary); color: white; }
+        .sim-btn.attack { border-color: var(--shield-primary); color: var(--shield-primary); background: rgba(239, 68, 68, 0.1); }
+        .sim-btn.attack:hover, .sim-btn.attack.active { background: var(--shield-primary); color: white; }
+        .sim-log { background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 1rem; margin-top: 1rem; max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; }
+        .log-entry { padding: 0.25rem 0; }
+        .log-entry.normal { color: var(--accent-green); }
+        .log-entry.warning { color: var(--accent-yellow); }
+        .log-entry.alert { color: var(--shield-primary); }
+
+        .plc-visual { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .plc-unit { background: rgba(20, 184, 166, 0.2); border: 2px solid var(--ics-primary); border-radius: 10px; padding: 1rem; text-align: center; transition: all 0.3s ease; }
+        .plc-unit.active { border-color: var(--accent-green); box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
+        .plc-unit.compromised { border-color: var(--shield-primary); box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.2); }
+        .plc-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .plc-name { font-size: 0.85rem; font-weight: 600; color: var(--light-text); }
+        .plc-status { font-size: 0.7rem; color: var(--gray-text); margin-top: 0.25rem; }
+        .plc-unit.active .plc-status { color: var(--accent-green); }
+        .plc-unit.compromised .plc-status { color: var(--shield-primary); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        @media (max-width: 768px) {
+            .ics-diagram, .sim-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="../../index.html" class="back-button">< Shield House</a>
+            <span class="badge">CASP+ Domain 3</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="intro-section">
+            <div class="intro-icon">🏭</div>
+            <h1 class="intro-title">ICS/SCADA Security Simulator</h1>
+            <p class="intro-subtitle">Explore Industrial Control Systems and Supervisory Control and Data Acquisition security concepts for critical infrastructure protection.</p>
+            <div class="warning-banner">
+                <span>⚠️</span>
+                <span>Critical Infrastructure - Security of ICS/SCADA can impact life safety</span>
+            </div>
+        </section>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('architecture')">Architecture</div>
+            <div class="tab" onclick="showTab('components')">Components</div>
+            <div class="tab" onclick="showTab('threats')">Threats</div>
+            <div class="tab" onclick="showTab('sectors')">Sectors</div>
+            <div class="tab" onclick="showTab('controls')">Security Controls</div>
+            <div class="tab" onclick="showTab('simulator')">Simulator</div>
+        </div>
+
+        <!-- Architecture -->
+        <div id="architecture" class="tab-content active">
+            <div class="arch-section">
+                <h3 class="arch-title">ICS/SCADA Architecture Layers</h3>
+                <div class="ics-diagram">
+                    <div class="ics-layer enterprise">
+                        <div class="layer-icon">🏢</div>
+                        <h4 class="layer-name">Enterprise Zone</h4>
+                        <div class="layer-components">
+                            <div>Business Systems</div>
+                            <div>Email / Internet</div>
+                            <div>Data Historian</div>
+                            <div>IT Network</div>
+                        </div>
+                    </div>
+                    <div class="ics-layer control">
+                        <div class="layer-icon">🖥️</div>
+                        <h4 class="layer-name">Control Zone</h4>
+                        <div class="layer-components">
+                            <div>SCADA Server</div>
+                            <div>HMI Workstations</div>
+                            <div>Engineering Stations</div>
+                            <div>Control Network</div>
+                        </div>
+                    </div>
+                    <div class="ics-layer field">
+                        <div class="layer-icon">⚙️</div>
+                        <h4 class="layer-name">Field Zone</h4>
+                        <div class="layer-components">
+                            <div>PLCs / RTUs</div>
+                            <div>Sensors</div>
+                            <div>Actuators</div>
+                            <div>Field Bus</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; padding: 1.5rem; background: rgba(0, 0, 0, 0.2); border-radius: 12px;">
+                    <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">🔒 DMZ (Demilitarized Zone)</h4>
+                    <p style="color: var(--gray-text); font-size: 0.9rem;">Air-gapped or firewalled boundary between IT and OT networks. Critical for protecting industrial systems from enterprise network threats.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Components -->
+        <div id="components" class="tab-content">
+            <div class="arch-section">
+                <h3 class="arch-title">ICS/SCADA Components</h3>
+                <div class="components-grid">
+                    <div class="component-card" onclick="showComponent(0)">
+                        <div class="component-icon">🔧</div>
+                        <div class="component-name">PLC</div>
+                        <div class="component-abbr">Programmable Logic Controller</div>
+                    </div>
+                    <div class="component-card" onclick="showComponent(1)">
+                        <div class="component-icon">📡</div>
+                        <div class="component-name">RTU</div>
+                        <div class="component-abbr">Remote Terminal Unit</div>
+                    </div>
+                    <div class="component-card" onclick="showComponent(2)">
+                        <div class="component-icon">🖥️</div>
+                        <div class="component-name">HMI</div>
+                        <div class="component-abbr">Human-Machine Interface</div>
+                    </div>
+                    <div class="component-card" onclick="showComponent(3)">
+                        <div class="component-icon">🏭</div>
+                        <div class="component-name">DCS</div>
+                        <div class="component-abbr">Distributed Control System</div>
+                    </div>
+                    <div class="component-card" onclick="showComponent(4)">
+                        <div class="component-icon">📊</div>
+                        <div class="component-name">SCADA</div>
+                        <div class="component-abbr">Supervisory Control & Data Acquisition</div>
+                    </div>
+                    <div class="component-card" onclick="showComponent(5)">
+                        <div class="component-icon">💾</div>
+                        <div class="component-name">Historian</div>
+                        <div class="component-abbr">Data Historian Database</div>
+                    </div>
+                </div>
+                <div id="componentDetail" class="component-detail"></div>
+            </div>
+
+            <div class="protocols-section">
+                <h3 class="protocols-title">Industrial Protocols</h3>
+                <div class="protocols-grid">
+                    <div class="protocol-card">
+                        <div class="protocol-name">Modbus</div>
+                        <div class="protocol-desc">Serial communication protocol</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-name">DNP3</div>
+                        <div class="protocol-desc">Distributed Network Protocol</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-name">OPC UA</div>
+                        <div class="protocol-desc">Open Platform Communications</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-name">EtherNet/IP</div>
+                        <div class="protocol-desc">Industrial Ethernet</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-name">PROFINET</div>
+                        <div class="protocol-desc">Siemens Industrial Ethernet</div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-name">BACnet</div>
+                        <div class="protocol-desc">Building Automation</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Threats -->
+        <div id="threats" class="tab-content">
+            <div class="threats-section">
+                <h3 class="threats-title">ICS/SCADA Threat Landscape</h3>
+                <div class="threats-grid">
+                    <div class="threat-card">
+                        <h4>💥 Stuxnet-Style Attacks</h4>
+                        <p>Sophisticated malware targeting specific PLCs to sabotage industrial processes. First documented cyber weapon.</p>
+                    </div>
+                    <div class="threat-card">
+                        <h4>🔌 Lack of Authentication</h4>
+                        <p>Many legacy ICS protocols lack authentication. Commands can be injected without verification.</p>
+                    </div>
+                    <div class="threat-card">
+                        <h4>🌐 IT/OT Convergence</h4>
+                        <p>Connecting OT to IT networks exposes industrial systems to internet-based threats.</p>
+                    </div>
+                    <div class="threat-card">
+                        <h4>📡 Remote Access Risks</h4>
+                        <p>VPN and remote maintenance access creates attack vectors if not properly secured.</p>
+                    </div>
+                    <div class="threat-card">
+                        <h4>⚡ Supply Chain Attacks</h4>
+                        <p>Compromised vendor software or firmware updates can introduce backdoors.</p>
+                    </div>
+                    <div class="threat-card">
+                        <h4>👤 Insider Threats</h4>
+                        <p>Employees with physical access can directly manipulate field devices.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sectors -->
+        <div id="sectors" class="tab-content">
+            <div class="sectors-section">
+                <h3 class="sectors-title">Critical Infrastructure Sectors</h3>
+                <div class="sectors-grid">
+                    <div class="sector-card">
+                        <div class="sector-icon">⚡</div>
+                        <div class="sector-name">Energy</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">💧</div>
+                        <div class="sector-name">Water</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">🏥</div>
+                        <div class="sector-name">Healthcare</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">🚂</div>
+                        <div class="sector-name">Transportation</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">🏭</div>
+                        <div class="sector-name">Manufacturing</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">☢️</div>
+                        <div class="sector-name">Nuclear</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">🛢️</div>
+                        <div class="sector-name">Oil & Gas</div>
+                    </div>
+                    <div class="sector-card">
+                        <div class="sector-icon">🌡️</div>
+                        <div class="sector-name">HVAC</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Controls -->
+        <div id="controls" class="tab-content">
+            <div class="controls-section">
+                <h3 class="controls-title">ICS Security Best Practices</h3>
+                <div class="controls-grid">
+                    <div class="control-card">
+                        <h4>🔒 Network Segmentation</h4>
+                        <p>Separate OT networks from IT with firewalls and DMZ. Use VLANs within OT.</p>
+                    </div>
+                    <div class="control-card">
+                        <h4>🛡️ Defense in Depth</h4>
+                        <p>Multiple layers of security controls from perimeter to individual devices.</p>
+                    </div>
+                    <div class="control-card">
+                        <h4>📊 Continuous Monitoring</h4>
+                        <p>ICS-specific intrusion detection and anomaly detection for OT protocols.</p>
+                    </div>
+                    <div class="control-card">
+                        <h4>🔐 Access Control</h4>
+                        <p>Role-based access, multi-factor authentication, principle of least privilege.</p>
+                    </div>
+                    <div class="control-card">
+                        <h4>🔄 Patch Management</h4>
+                        <p>Careful testing in staging environment before applying patches to production.</p>
+                    </div>
+                    <div class="control-card">
+                        <h4>📋 Change Management</h4>
+                        <p>Document all changes to ICS configurations. Maintain baselines.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulator -->
+        <div id="simulator" class="tab-content">
+            <div class="sim-section">
+                <h3 class="sim-title">ICS Control Loop Simulator</h3>
+                <div class="sim-container">
+                    <div class="sim-visual">
+                        <div class="plc-visual">
+                            <div class="plc-unit" id="plc1">
+                                <div class="plc-icon">🌡️</div>
+                                <div class="plc-name">Temperature Sensor</div>
+                                <div class="plc-status" id="plc1-status">Offline</div>
+                            </div>
+                            <div class="plc-unit" id="plc2">
+                                <div class="plc-icon">⚙️</div>
+                                <div class="plc-name">PLC Controller</div>
+                                <div class="plc-status" id="plc2-status">Offline</div>
+                            </div>
+                            <div class="plc-unit" id="plc3">
+                                <div class="plc-icon">🔥</div>
+                                <div class="plc-name">Heating Actuator</div>
+                                <div class="plc-status" id="plc3-status">Offline</div>
+                            </div>
+                            <div class="plc-unit" id="plc4">
+                                <div class="plc-icon">💧</div>
+                                <div class="plc-name">Pressure Sensor</div>
+                                <div class="plc-status" id="plc4-status">Offline</div>
+                            </div>
+                            <div class="plc-unit" id="plc5">
+                                <div class="plc-icon">🖥️</div>
+                                <div class="plc-name">HMI Station</div>
+                                <div class="plc-status" id="plc5-status">Offline</div>
+                            </div>
+                            <div class="plc-unit" id="plc6">
+                                <div class="plc-icon">🚰</div>
+                                <div class="plc-name">Valve Actuator</div>
+                                <div class="plc-status" id="plc6-status">Offline</div>
+                            </div>
+                        </div>
+                        <div class="sim-log" id="simLog">
+                            <div class="log-entry normal">> System ready. Click "Start System" to begin.</div>
+                        </div>
+                    </div>
+                    <div class="sim-controls">
+                        <button class="sim-btn" id="startBtn" onclick="startSystem()">▶️ Start System</button>
+                        <button class="sim-btn" id="stopBtn" onclick="stopSystem()" disabled>⏹️ Stop System</button>
+                        <button class="sim-btn attack" id="attackBtn" onclick="simulateAttack()" disabled>💥 Simulate Attack</button>
+                        <button class="sim-btn" id="defendBtn" onclick="activateDefense()" disabled>🛡️ Activate Defense</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const componentDetails = [
+            {
+                name: "Programmable Logic Controller (PLC)",
+                desc: "A form of computer designed to enable automation. PLCs can be programmed to perform actions in response to sensor triggers using Ladder Logic, a graphical flowchart-like programming language."
+            },
+            {
+                name: "Remote Terminal Unit (RTU)",
+                desc: "Microprocessor-controlled device that interfaces objects in the physical world to a SCADA system. Used in remote locations to collect data and transmit to central control."
+            },
+            {
+                name: "Human-Machine Interface (HMI)",
+                desc: "Software running on a host or local control panel that allows operators to monitor and control PLCs and industrial processes. Provides visualization of system state."
+            },
+            {
+                name: "Distributed Control System (DCS)",
+                desc: "ICS that manages process automation within a single site. PLCs are linked via OT fieldbus or industrial Ethernet to actuators and sensors in control loops."
+            },
+            {
+                name: "SCADA System",
+                desc: "Takes the place of a control server in large-scale, multiple-site ICS. Uses WAN communications (cellular, satellite) to link to geographically distributed field devices."
+            },
+            {
+                name: "Data Historian",
+                desc: "Database containing all information generated by the control loop. Used for trending, analysis, reporting, and regulatory compliance documentation."
+            }
+        ];
+
+        let systemRunning = false;
+        let attackActive = false;
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function showComponent(index) {
+            const cards = document.querySelectorAll('.component-card');
+            cards.forEach((c, i) => c.classList.toggle('active', i === index));
+
+            const detail = document.getElementById('componentDetail');
+            const data = componentDetails[index];
+            detail.innerHTML = `<h4>${data.name}</h4><p>${data.desc}</p>`;
+            detail.classList.add('show');
+        }
+
+        function addLog(message, type = 'normal') {
+            const log = document.getElementById('simLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `> [${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function startSystem() {
+            systemRunning = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('attackBtn').disabled = false;
+
+            addLog('Initializing ICS control loop...', 'normal');
+
+            const units = ['plc1', 'plc2', 'plc3', 'plc4', 'plc5', 'plc6'];
+            const names = ['Temperature Sensor', 'PLC Controller', 'Heating Actuator', 'Pressure Sensor', 'HMI Station', 'Valve Actuator'];
+
+            units.forEach((id, i) => {
+                setTimeout(() => {
+                    document.getElementById(id).classList.add('active');
+                    document.getElementById(`${id}-status`).textContent = 'Online';
+                    addLog(`${names[i]} online`, 'normal');
+                }, (i + 1) * 500);
+            });
+
+            setTimeout(() => {
+                addLog('Control loop established. System operational.', 'normal');
+            }, 3500);
+        }
+
+        function stopSystem() {
+            systemRunning = false;
+            attackActive = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('attackBtn').disabled = true;
+            document.getElementById('defendBtn').disabled = true;
+
+            const units = ['plc1', 'plc2', 'plc3', 'plc4', 'plc5', 'plc6'];
+            units.forEach(id => {
+                document.getElementById(id).classList.remove('active', 'compromised');
+                document.getElementById(`${id}-status`).textContent = 'Offline';
+            });
+
+            addLog('System shutdown complete.', 'warning');
+        }
+
+        function simulateAttack() {
+            if (!systemRunning) return;
+            attackActive = true;
+            document.getElementById('defendBtn').disabled = false;
+
+            addLog('⚠️ ALERT: Unauthorized access detected!', 'alert');
+            setTimeout(() => addLog('Malicious Modbus commands intercepted', 'alert'), 500);
+
+            setTimeout(() => {
+                document.getElementById('plc2').classList.add('compromised');
+                document.getElementById('plc2-status').textContent = 'COMPROMISED';
+                addLog('PLC Controller compromised! Ladder logic modified.', 'alert');
+            }, 1000);
+
+            setTimeout(() => {
+                document.getElementById('plc3').classList.add('compromised');
+                document.getElementById('plc3-status').textContent = 'MALFUNCTION';
+                addLog('Heating Actuator receiving false commands!', 'alert');
+            }, 1500);
+
+            setTimeout(() => {
+                addLog('⚠️ Temperature rising beyond safe limits!', 'alert');
+            }, 2000);
+        }
+
+        function activateDefense() {
+            if (!attackActive) return;
+
+            addLog('🛡️ Activating ICS defense protocols...', 'normal');
+
+            setTimeout(() => {
+                addLog('Isolating compromised segments...', 'normal');
+            }, 500);
+
+            setTimeout(() => {
+                document.getElementById('plc2').classList.remove('compromised');
+                document.getElementById('plc2').classList.add('active');
+                document.getElementById('plc2-status').textContent = 'Restored';
+                addLog('PLC Controller restored from backup config', 'normal');
+            }, 1000);
+
+            setTimeout(() => {
+                document.getElementById('plc3').classList.remove('compromised');
+                document.getElementById('plc3').classList.add('active');
+                document.getElementById('plc3-status').textContent = 'Online';
+                addLog('Heating Actuator control restored', 'normal');
+            }, 1500);
+
+            setTimeout(() => {
+                addLog('✅ Attack contained. System secured.', 'normal');
+                attackActive = false;
+                document.getElementById('defendBtn').disabled = true;
+            }, 2000);
+        }
+
+        // Mark progress
+        if (typeof ProgressManager !== 'undefined') {
+            ProgressManager.markProgress('shield', 'ics-scada-security', 'complete');
+        }
+    </script>
+    <script src="../../../../components/ProgressManager.js"></script>
+</body>
+</html>

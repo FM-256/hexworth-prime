@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSE-06 Quiz: Security Monitoring & IR - House of the Cloud</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --cloud-primary: #06b6d4; --cloud-light: #22d3ee; --cloud-dark: #0891b2;
+            --dark-bg: #0f172a; --darker-bg: #020617; --card-bg: #1e293b;
+            --light-text: #f1f5f9; --gray-text: #94a3b8;
+            --correct: #10b981; --incorrect: #ef4444;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%); color: var(--light-text); min-height: 100vh; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, var(--cloud-dark) 0%, var(--cloud-primary) 100%); padding: 1.25rem 2rem; position: sticky; top: 0; z-index: 100; }
+        .header-content { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .back-button { background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.25); color: white; padding: 0.5rem 1.25rem; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s ease; }
+        .back-button:hover { background: rgba(255, 255, 255, 0.25); }
+        .quiz-badge { background: white; color: var(--cloud-dark); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem; }
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .quiz-header { text-align: center; margin-bottom: 2rem; }
+        .quiz-title { font-size: 1.75rem; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .quiz-subtitle { color: var(--gray-text); }
+        .progress-bar { background: var(--card-bg); border-radius: 10px; height: 8px; margin-bottom: 2rem; overflow: hidden; }
+        .progress-fill { background: linear-gradient(90deg, var(--cloud-primary), var(--cloud-light)); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px; }
+        .question-card { background: var(--card-bg); border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .question-number { color: var(--cloud-primary); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .question-text { font-size: 1.1rem; margin-bottom: 1.5rem; color: var(--light-text); }
+        .options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .option { background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 1rem 1.25rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 0.75rem; }
+        .option:hover:not(.disabled) { border-color: var(--cloud-primary); background: rgba(6, 182, 212, 0.1); }
+        .option.selected { border-color: var(--cloud-primary); background: rgba(6, 182, 212, 0.15); }
+        .option.correct { border-color: var(--correct); background: rgba(16, 185, 129, 0.15); }
+        .option.incorrect { border-color: var(--incorrect); background: rgba(239, 68, 68, 0.15); }
+        .option.disabled { cursor: not-allowed; opacity: 0.7; }
+        .option-letter { width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; flex-shrink: 0; }
+        .option.selected .option-letter { background: var(--cloud-primary); color: var(--darker-bg); }
+        .option.correct .option-letter { background: var(--correct); color: white; }
+        .option.incorrect .option-letter { background: var(--incorrect); color: white; }
+        .explanation { margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 3px solid var(--correct); display: none; }
+        .explanation.show { display: block; }
+        .explanation-title { color: var(--correct); font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
+        .explanation-text { color: var(--gray-text); font-size: 0.9rem; }
+        .submit-btn { width: 100%; padding: 1rem; background: var(--cloud-primary); color: var(--darker-bg); border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; margin-top: 1rem; }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .results { background: var(--card-bg); border-radius: 16px; padding: 2rem; text-align: center; display: none; }
+        .results.show { display: block; }
+        .results-score { font-size: 3rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .results-text { color: var(--gray-text); margin-bottom: 1.5rem; }
+        .results-bar { background: rgba(255, 255, 255, 0.1); border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+        .results-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+        .retry-btn { background: transparent; border: 2px solid var(--cloud-primary); color: var(--cloud-primary); padding: 0.75rem 2rem; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .retry-btn:hover { background: var(--cloud-primary); color: var(--darker-bg); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="../index.html" class="back-button">< Cloud House</a>
+            <span class="quiz-badge">CSE-06 Quiz</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="quiz-header">
+            <h1 class="quiz-title">Security Monitoring & Incident Response</h1>
+            <p class="quiz-subtitle">Test your knowledge of cloud monitoring and IR concepts</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div id="quizContainer"></div>
+
+        <button class="submit-btn" id="submitBtn" disabled onclick="submitQuiz()">Submit Answers</button>
+
+        <div class="results" id="results">
+            <div class="results-score" id="scoreText">0%</div>
+            <p class="results-text" id="resultMessage">Keep studying!</p>
+            <div class="results-bar">
+                <div class="results-fill" id="resultsFill"></div>
+            </div>
+            <button class="retry-btn" onclick="retryQuiz()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                question: "What are the three types of data you should log to identify threats in cloud environments?",
+                options: ["Events, Activity, Metrics", "Users, Groups, Roles", "CPU, Memory, Storage", "Input, Output, Process"],
+                correct: 0,
+                explanation: "Cloud logging should capture Events (what's happening), Activity (who's doing what), and Metrics (how resources are performing) to identify potential threats and anomalies."
+            },
+            {
+                question: "Which AWS service is used for API audit logging and recording user activity?",
+                options: ["CloudWatch", "CloudTrail", "Inspector", "GuardDuty"],
+                correct: 1,
+                explanation: "AWS CloudTrail records user activity and API calls across AWS services, enabling auditing, security monitoring, and operational troubleshooting."
+            },
+            {
+                question: "What is the primary purpose of SIEM?",
+                options: ["Automate security responses", "Aggregate information from disparate sources for analysis", "Block malicious network traffic", "Encrypt data at rest"],
+                correct: 1,
+                explanation: "SIEM (Security Information and Event Management) aggregates information from disparate sources into a single platform for security incident analysis and investigation."
+            },
+            {
+                question: "What does SOAR stand for?",
+                options: ["Security Operations and Risk", "Security Orchestration and Automated Response", "System Operations and Recovery", "Security Oversight and Review"],
+                correct: 1,
+                explanation: "SOAR stands for Security Orchestration and Automated Response. It works with SIEM to provide efficiency through playbooks and automation tools that respond to threats proactively."
+            },
+            {
+                question: "What is CSPM used for?",
+                options: ["Managing cloud storage costs", "Identifying security risks and misconfigurations in cloud infrastructure", "Provisioning virtual machines", "Monitoring employee productivity"],
+                correct: 1,
+                explanation: "CSPM (Cloud Security Posture Management) is automated software that identifies security risks and misconfigurations in cloud infrastructure, including SaaS, PaaS, IaaS, containers, and serverless code."
+            },
+            {
+                question: "CNAPP combines which three security capabilities into one platform?",
+                options: ["SIEM, SOAR, and EDR", "CSPM, CWPP, and CIEM", "IAM, MFA, and SSO", "VPN, WAF, and DLP"],
+                correct: 1,
+                explanation: "CNAPP (Cloud Native Application Protection Platform) combines CSPM (Cloud Security Posture Management), CWPP (Cloud Workload Protection Platform), and CIEM (Cloud Infrastructure Entitlement Management) into one platform."
+            },
+            {
+                question: "What is the correct order in the timeline of a security breach?",
+                options: ["Incident > Event > Breach", "Breach > Event > Incident", "Event > Incident > Breach", "Incident > Breach > Event"],
+                correct: 2,
+                explanation: "The timeline is: Event (anomaly identified) > Incident (verified malicious activity) > Breach (sensitive information accessed and communication plan activated)."
+            },
+            {
+                question: "Which Azure service provides centralized management of multi-cloud and on-premises resources?",
+                options: ["Azure Monitor", "Azure Arc", "Log Analytics", "Network Watcher"],
+                correct: 1,
+                explanation: "Azure Arc provides centralized management and governance of multi-cloud and on-premises resources into Azure, managing VMs, containers, and databases with consistent management tools."
+            },
+            {
+                question: "What must an Incident Response Plan include?",
+                options: ["Only technical remediation steps", "Definition of incident, roles, process, and communication plan", "Just the escalation phone numbers", "Only the IT team contacts"],
+                correct: 1,
+                explanation: "An IR Plan must include: definition of an incident, roles and responsibilities, process from detection to resolution, communication plan, and understanding of legal/regulatory notification requirements."
+            },
+            {
+                question: "How should incidents be prioritized?",
+                options: ["By cost of resolution", "By urgency and impact (High-High first)", "By department affected", "By time of occurrence"],
+                correct: 1,
+                explanation: "Incidents should be prioritized based on Urgency and Impact using Low-Medium-High levels. High-High identified incidents (high urgency and high impact) should be addressed first."
+            }
+        ];
+
+        let selectedAnswers = {};
+        let submitted = false;
+
+        function renderQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = questions.map((q, i) => `
+                <div class="question-card" id="question${i}">
+                    <div class="question-number">Question ${i + 1} of ${questions.length}</div>
+                    <div class="question-text">${q.question}</div>
+                    <div class="options">
+                        ${q.options.map((opt, j) => `
+                            <div class="option" onclick="selectOption(${i}, ${j})" id="q${i}o${j}">
+                                <span class="option-letter">${String.fromCharCode(65 + j)}</span>
+                                <span>${opt}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="explanation" id="exp${i}">
+                        <div class="explanation-title">Explanation</div>
+                        <div class="explanation-text">${q.explanation}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectOption(questionIndex, optionIndex) {
+            if (submitted) return;
+            document.querySelectorAll(`#question${questionIndex} .option`).forEach(opt => opt.classList.remove('selected'));
+            document.getElementById(`q${questionIndex}o${optionIndex}`).classList.add('selected');
+            selectedAnswers[questionIndex] = optionIndex;
+            updateProgress();
+            document.getElementById('submitBtn').disabled = Object.keys(selectedAnswers).length !== questions.length;
+        }
+
+        function updateProgress() {
+            const progress = (Object.keys(selectedAnswers).length / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function submitQuiz() {
+            submitted = true;
+            let correct = 0;
+            questions.forEach((q, i) => {
+                const options = document.querySelectorAll(`#question${i} .option`);
+                options.forEach(opt => opt.classList.add('disabled'));
+                if (selectedAnswers[i] === q.correct) {
+                    document.getElementById(`q${i}o${q.correct}`).classList.add('correct');
+                    correct++;
+                } else {
+                    if (selectedAnswers[i] !== undefined) {
+                        document.getElementById(`q${i}o${selectedAnswers[i]}`).classList.add('incorrect');
+                    }
+                    document.getElementById(`q${i}o${q.correct}`).classList.add('correct');
+                }
+                document.getElementById(`exp${i}`).classList.add('show');
+            });
+            const percentage = Math.round((correct / questions.length) * 100);
+            document.getElementById('scoreText').textContent = percentage + '%';
+            document.getElementById('resultsFill').style.width = percentage + '%';
+            document.getElementById('resultsFill').style.background = percentage >= 70 ? 'var(--correct)' : 'var(--incorrect)';
+            document.getElementById('resultMessage').textContent = percentage >= 70 ? 'Great job! You passed!' : 'Keep studying and try again!';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('results').classList.add('show');
+            if (typeof ProgressManager !== 'undefined' && percentage >= 70) {
+                ProgressManager.markProgress('cloud', 'cse-06-quiz', 'complete');
+            }
+        }
+
+        function retryQuiz() {
+            submitted = false;
+            selectedAnswers = {};
+            document.getElementById('submitBtn').style.display = 'block';
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('results').classList.remove('show');
+            renderQuiz();
+            updateProgress();
+        }
+
+        renderQuiz();
+    </script>
+    <script src="../../../components/ProgressManager.js"></script>
+</body>
+</html>
