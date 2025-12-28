@@ -1067,7 +1067,11 @@
                             title: sample.title,
                             sampleUrl: sample.href,
                             registryUrl: null,
-                            status: 'sampleOnly'
+                            status: 'sampleOnly',
+                            // Fix location diagnostics
+                            diagnosis: 'Entry exists in SAMPLE_MODULES but not in ContentRegistry',
+                            fixLocation: '_app/config/content-registry.js',
+                            fixAction: `Add new entry with id: '${sample.id}' and house: '${house}'`
                         });
                         results.summary.sampleOnly++;
                     } else {
@@ -1091,13 +1095,33 @@
                             });
                             results.summary.synced++;
                         } else {
+                            // Diagnose WHY it's a mismatch
+                            let diagnosis, fixAction;
+                            const hasEmptyComponents = !registryUrl && registryEntry.components &&
+                                Object.keys(registryEntry.components).length === 0;
+
+                            if (hasEmptyComponents) {
+                                diagnosis = 'ContentRegistry entry exists but components object is empty';
+                                fixAction = 'Add component URLs to the components: {} object';
+                            } else if (!registryUrl) {
+                                diagnosis = 'ContentRegistry entry has no valid component URLs';
+                                fixAction = 'Add presentation/lab/quiz/applet URLs to components';
+                            } else {
+                                diagnosis = 'URLs differ between SAMPLE_MODULES and ContentRegistry';
+                                fixAction = 'Update the outdated URL to match the correct source';
+                            }
+
                             houseResults.mismatch.push({
                                 id: sample.id,
                                 title: sample.title || registryEntry.title,
                                 sampleUrl: sample.href,
                                 registryUrl: registryUrl,
                                 normalizedSample: sampleUrl,
-                                status: 'mismatch'
+                                status: 'mismatch',
+                                // Fix location diagnostics
+                                diagnosis: diagnosis,
+                                fixLocation: '_app/config/content-registry.js',
+                                fixAction: fixAction
                             });
                             results.summary.mismatch++;
                         }
@@ -1112,7 +1136,11 @@
                             title: entry.title,
                             sampleUrl: null,
                             registryUrl: extractPrimaryUrl(entry.components),
-                            status: 'registryOnly'
+                            status: 'registryOnly',
+                            // Fix location diagnostics
+                            diagnosis: 'Entry exists in ContentRegistry but not in SAMPLE_MODULES',
+                            fixLocation: `_app/houses/${house}/index.html`,
+                            fixAction: `Add entry to SAMPLE_MODULES array with id: '${id}'`
                         });
                         results.summary.registryOnly++;
                         results.summary.total++;
@@ -1275,6 +1303,28 @@
                 `;
             }
 
+            // Add fix location diagnostics (for non-synced items)
+            let fixHtml = '';
+            if (item.diagnosis && statusClass !== 'synced') {
+                fixHtml = `
+                    <div class="fix-guidance" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(139, 92, 246, 0.1); border-radius: 6px; border-left: 3px solid var(--accent-purple, #8b5cf6);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span style="font-size: 1.1rem;">📍</span>
+                            <span style="font-weight: 600; color: var(--accent-purple, #8b5cf6);">Fix Location</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                            <strong>File:</strong> <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">${item.fixLocation}</code>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                            <strong>Issue:</strong> ${item.diagnosis}
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <strong>Action:</strong> ${item.fixAction}
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="content-item ${statusClass}">
                     <span class="status-icon">${statusIcons[statusClass]}</span>
@@ -1282,6 +1332,7 @@
                         <div class="title">${item.title || 'Untitled'}</div>
                         <div class="id">${item.id}</div>
                         <div class="urls">${urlsHtml}</div>
+                        ${fixHtml}
                     </div>
                 </div>
             `;
