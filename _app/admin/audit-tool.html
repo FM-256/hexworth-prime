@@ -1769,18 +1769,29 @@
                         // Parse modules to get their IDs and titles
                         const modules = parseModulesBasic(modulesStr);
 
-                        // Generate category-based fix code
-                        const fixCode = generateCategoryBasedFix(categoryIds, modules, house);
+                        // Find modules missing category field
+                        const missingCategory = modules.filter(m => !m.hasCategory);
+                        const hasAllCategories = missingCategory.length === 0;
 
-                        fixes.push({
-                            type: 'category-based-fix',
-                            title: 'Convert to category-based filtering (Recommended)',
-                            description: `Category filtering is broken. RECOMMENDED: Convert to category-based approach where modules declare their category. This is better than path-based because modules in different folders (tools/, presentations/, labs/) can belong to the same category.`,
-                            file: `houses/${house}/index.html`,
-                            location: 'SAMPLE_MODULES array and openCategory function',
-                            code: fixCode,
-                            instruction: 'TWO STEPS: (1) Add category field to each module in SAMPLE_MODULES. (2) Replace the openCategory function with the category-based version.'
-                        });
+                        // Only report fix if modules are actually missing category
+                        if (!hasAllCategories) {
+                            // Generate category-based fix code
+                            const fixCode = generateCategoryBasedFix(categoryIds, modules, house);
+
+                            // Build list of missing modules for description
+                            const missingList = missingCategory.slice(0, 10).map(m => `• ${m.id} (${m.title})`).join('\n');
+                            const moreCount = missingCategory.length > 10 ? `\n... and ${missingCategory.length - 10} more` : '';
+
+                            fixes.push({
+                                type: 'category-based-fix',
+                                title: `Missing category field on ${missingCategory.length} modules`,
+                                description: `${missingCategory.length} of ${modules.length} modules missing 'category:' field.\n\nModules needing fix:\n${missingList}${moreCount}`,
+                                file: `houses/${house}/index.html`,
+                                location: 'SAMPLE_MODULES array',
+                                code: fixCode,
+                                instruction: 'Add category: field to each module listed above.'
+                            });
+                        }
                     }
                 }
 
@@ -1815,22 +1826,31 @@
         }
 
         function parseModulesBasic(modulesStr) {
-            // Extract module id, title, and href
+            // Extract module id, title, href, and whether it has category
             const modules = [];
-            const moduleRegex = /\{[^{}]*id:\s*['"]([^'"]+)['"][^{}]*title:\s*['"]([^'"]+)['"][^{}]*href:\s*['"]([^'"]+)['"][^{}]*\}/g;
 
-            // Simpler approach - find each module object
-            const idMatches = [...modulesStr.matchAll(/id:\s*['"]([^'"]+)['"]/g)];
-            const titleMatches = [...modulesStr.matchAll(/title:\s*['"]([^'"]+)['"]/g)];
-            const hrefMatches = [...modulesStr.matchAll(/href:\s*['"]([^'"]+)['"]/g)];
+            // Split by module objects - find each { ... } block with id:
+            const moduleBlocks = modulesStr.split(/\},\s*\{/).map((block, i, arr) => {
+                if (i === 0) block = block.replace(/^\s*\{/, '');
+                if (i === arr.length - 1) block = block.replace(/\}\s*$/, '');
+                return '{' + block + '}';
+            });
 
-            for (let i = 0; i < idMatches.length; i++) {
-                modules.push({
-                    id: idMatches[i] ? idMatches[i][1] : `module-${i}`,
-                    title: titleMatches[i] ? titleMatches[i][1] : 'Unknown',
-                    href: hrefMatches[i] ? hrefMatches[i][1] : ''
-                });
-            }
+            moduleBlocks.forEach((block, index) => {
+                const idMatch = block.match(/id:\s*['"]([^'"]+)['"]/);
+                const titleMatch = block.match(/title:\s*['"]([^'"]+)['"]/);
+                const hrefMatch = block.match(/href:\s*['"]([^'"]+)['"]/);
+                const hasCategory = block.includes('category:');
+
+                if (idMatch) {
+                    modules.push({
+                        id: idMatch[1],
+                        title: titleMatch ? titleMatch[1] : 'Unknown',
+                        href: hrefMatch ? hrefMatch[1] : '',
+                        hasCategory: hasCategory
+                    });
+                }
+            });
 
             return modules;
         }
