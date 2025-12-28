@@ -736,6 +736,10 @@
                     <span>🔧</span>
                     Fix Forge
                 </button>
+                <button class="btn btn-primary" id="runIncompleteAudit" onclick="runIncompleteAudit()" title="Find coming-soon modules and placeholder paths">
+                    <span>🚧</span>
+                    Incomplete Content
+                </button>
                 <button class="btn btn-secondary" id="runUrlValidation" onclick="runUrlValidation()" disabled title="Phase 3 - Coming Soon">
                     <span>🌐</span>
                     Validate URLs
@@ -2292,6 +2296,266 @@ function openPath(pathId) {
             const a = document.createElement('a');
             a.href = url;
             a.download = `audit-results-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // INCOMPLETE CONTENT AUDIT
+        // Find coming-soon modules, placeholder paths, and missing files
+        // ─────────────────────────────────────────────────────────────────────
+
+        async function runIncompleteAudit() {
+            if (auditState.isRunning) return;
+
+            auditState.isRunning = true;
+            setButtonState('runIncompleteAudit', false);
+            setStatus('running', 'Scanning for incomplete content...');
+
+            const results = {
+                summary: {
+                    comingSoon: 0,
+                    placeholderPaths: 0,
+                    missingFiles: 0
+                },
+                houses: {}
+            };
+
+            try {
+                for (const house of CONFIG.houses) {
+                    setStatus('running', `Scanning ${house} house...`);
+
+                    const houseResult = {
+                        comingSoon: [],
+                        placeholderPaths: [],
+                        missingFiles: []
+                    };
+
+                    try {
+                        const response = await fetch(CONFIG.houseIndexPath(house));
+                        if (!response.ok) continue;
+
+                        const html = await response.text();
+
+                        // 1. Find coming-soon modules
+                        const modulesMatch = html.match(/const\s+SAMPLE_MODULES\s*=\s*\[([\s\S]*?)\];/);
+                        if (modulesMatch) {
+                            const modulesStr = modulesMatch[1];
+                            // Split into module blocks
+                            const moduleBlocks = modulesStr.split(/\},\s*\{/);
+
+                            moduleBlocks.forEach(block => {
+                                const idMatch = block.match(/id:\s*['"]([^'"]+)['"]/);
+                                const titleMatch = block.match(/title:\s*['"]([^'"]+)['"]/);
+                                const statusMatch = block.match(/status:\s*['"]([^'"]+)['"]/);
+                                const hrefMatch = block.match(/href:\s*['"]([^'"]+)['"]/);
+
+                                if (statusMatch && statusMatch[1] === 'coming-soon') {
+                                    houseResult.comingSoon.push({
+                                        id: idMatch ? idMatch[1] : 'unknown',
+                                        title: titleMatch ? titleMatch[1] : 'Unknown Module',
+                                        href: hrefMatch ? hrefMatch[1] : null
+                                    });
+                                }
+                            });
+                        }
+
+                        // 2. Find placeholder openPath (learning paths)
+                        const openPathMatch = html.match(/function\s+openPath\s*\([^)]*\)\s*\{([\s\S]*?)\}/);
+                        if (openPathMatch) {
+                            const funcBody = openPathMatch[1];
+                            const isPlaceholder = funcBody.includes('alert(') &&
+                                (funcBody.includes('coming soon') || funcBody.includes('Coming Soon') || funcBody.includes('Coming soon'));
+
+                            if (isPlaceholder) {
+                                // Find the learning paths defined in HTML
+                                const pathMatches = [...html.matchAll(/onclick="openPath\('([^']+)'\)"/g)];
+                                const pathNameMatches = [...html.matchAll(/class="path-name">([^<]+)</g)];
+                                const pathCertMatches = [...html.matchAll(/class="path-cert">([^<]+)</g)];
+
+                                pathMatches.forEach((match, i) => {
+                                    houseResult.placeholderPaths.push({
+                                        pathId: match[1],
+                                        name: pathNameMatches[i] ? pathNameMatches[i][1] : 'Unknown Path',
+                                        certification: pathCertMatches[i] ? pathCertMatches[i][1] : ''
+                                    });
+                                });
+                            }
+                        }
+
+                        // 3. Check for missing files (modules with href that don't exist)
+                        // This requires checking if files exist - we'll do a HEAD request
+                        if (modulesMatch) {
+                            const modulesStr = modulesMatch[1];
+                            const hrefMatches = [...modulesStr.matchAll(/id:\s*['"]([^'"]+)['"][\s\S]*?title:\s*['"]([^'"]+)['"][\s\S]*?href:\s*['"]([^'"]+)['"]/g)];
+
+                            for (const match of hrefMatches) {
+                                const [, id, title, href] = match;
+                                // Skip external URLs
+                                if (href.startsWith('http')) continue;
+
+                                // Check if file exists
+                                try {
+                                    const filePath = `../houses/${house}/${href}`;
+                                    const fileCheck = await fetch(filePath, { method: 'HEAD' });
+                                    if (!fileCheck.ok) {
+                                        houseResult.missingFiles.push({
+                                            id: id,
+                                            title: title,
+                                            href: href,
+                                            status: fileCheck.status
+                                        });
+                                    }
+                                } catch (e) {
+                                    houseResult.missingFiles.push({
+                                        id: id,
+                                        title: title,
+                                        href: href,
+                                        status: 'FETCH_ERROR'
+                                    });
+                                }
+                            }
+                        }
+
+                    } catch (error) {
+                        console.error(`Error scanning ${house}:`, error);
+                    }
+
+                    // Only add house if it has incomplete content
+                    if (houseResult.comingSoon.length > 0 ||
+                        houseResult.placeholderPaths.length > 0 ||
+                        houseResult.missingFiles.length > 0) {
+                        results.houses[house] = houseResult;
+                        results.summary.comingSoon += houseResult.comingSoon.length;
+                        results.summary.placeholderPaths += houseResult.placeholderPaths.length;
+                        results.summary.missingFiles += houseResult.missingFiles.length;
+                    }
+                }
+
+                auditState.incompleteResults = results;
+                renderIncompleteResults(results);
+                setStatus('complete', `Found ${results.summary.comingSoon} coming-soon, ${results.summary.placeholderPaths} placeholder paths, ${results.summary.missingFiles} missing files`);
+
+            } catch (error) {
+                console.error('Incomplete audit failed:', error);
+                setStatus('error', 'Incomplete audit failed: ' + error.message);
+            }
+
+            auditState.isRunning = false;
+            setButtonState('runIncompleteAudit', true);
+        }
+
+        function renderIncompleteResults(results) {
+            const resultsBody = document.getElementById('resultsBody');
+
+            const totalIssues = results.summary.comingSoon + results.summary.placeholderPaths + results.summary.missingFiles;
+
+            let html = `
+                <div class="incomplete-audit-section">
+                    <div class="section-header" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); border-left: 3px solid #f59e0b;">
+                        <h3><span>🚧</span> Incomplete Content Audit</h3>
+                        <span>${totalIssues} items need attention</span>
+                    </div>
+                    <div class="summary-cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0;">
+                        <div class="summary-card" style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #fbbf24;">${results.summary.comingSoon}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Coming Soon</div>
+                        </div>
+                        <div class="summary-card" style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #ef4444;">${results.summary.placeholderPaths}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Placeholder Paths</div>
+                        </div>
+                        <div class="summary-card" style="background: rgba(168, 85, 247, 0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #a855f7;">${results.summary.missingFiles}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Missing Files</div>
+                        </div>
+                    </div>
+            `;
+
+            if (totalIssues === 0) {
+                html += `
+                    <div style="text-align: center; padding: 2rem; color: var(--accent-green);">
+                        <div style="font-size: 3rem;">✅</div>
+                        <p>All content is complete! No coming-soon modules or placeholder paths found.</p>
+                    </div>
+                `;
+            } else {
+                for (const [house, data] of Object.entries(results.houses)) {
+                    const houseIcon = CONFIG.houseIcons[house] || '🏠';
+                    const houseName = CONFIG.houseNames[house] || house;
+
+                    html += `<div class="house-section" style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">`;
+                    html += `<h4 style="margin-bottom: 1rem;">${houseIcon} ${houseName}</h4>`;
+
+                    // Coming Soon Modules
+                    if (data.comingSoon.length > 0) {
+                        html += `<div style="margin-bottom: 1rem;">`;
+                        html += `<div style="font-weight: bold; color: #fbbf24; margin-bottom: 0.5rem;">⏳ Coming Soon (${data.comingSoon.length})</div>`;
+                        html += `<ul style="list-style: none; padding-left: 1rem;">`;
+                        data.comingSoon.forEach(m => {
+                            html += `<li style="margin-bottom: 0.25rem; color: var(--text-secondary);">• <strong>${m.id}</strong> - ${m.title}</li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+
+                    // Placeholder Paths
+                    if (data.placeholderPaths.length > 0) {
+                        html += `<div style="margin-bottom: 1rem;">`;
+                        html += `<div style="font-weight: bold; color: #ef4444; margin-bottom: 0.5rem;">🚫 Placeholder Paths (${data.placeholderPaths.length})</div>`;
+                        html += `<ul style="list-style: none; padding-left: 1rem;">`;
+                        data.placeholderPaths.forEach(p => {
+                            html += `<li style="margin-bottom: 0.25rem; color: var(--text-secondary);">• <strong>${p.pathId}</strong> - ${p.name} ${p.certification ? `(${p.certification})` : ''}</li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+
+                    // Missing Files
+                    if (data.missingFiles.length > 0) {
+                        html += `<div style="margin-bottom: 1rem;">`;
+                        html += `<div style="font-weight: bold; color: #a855f7; margin-bottom: 0.5rem;">❌ Missing Files (${data.missingFiles.length})</div>`;
+                        html += `<ul style="list-style: none; padding-left: 1rem;">`;
+                        data.missingFiles.forEach(m => {
+                            html += `<li style="margin-bottom: 0.25rem; color: var(--text-secondary);">• <strong>${m.id}</strong> - ${m.href} <span style="color: #ef4444;">(${m.status})</span></li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+
+                    html += `</div>`;
+                }
+            }
+
+            html += `
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="exportIncompleteResults()">
+                            <span>📥</span> Export JSON
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            resultsBody.innerHTML = html;
+        }
+
+        function exportIncompleteResults() {
+            if (!auditState.incompleteResults) {
+                alert('No incomplete content results to export. Run the audit first.');
+                return;
+            }
+
+            const exportData = {
+                _readme: 'Incomplete content audit - coming-soon modules, placeholder paths, missing files',
+                ...auditState.incompleteResults,
+                exportedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `incomplete-content-${new Date().toISOString().slice(0,10)}.json`;
             a.click();
 
             URL.revokeObjectURL(url);
