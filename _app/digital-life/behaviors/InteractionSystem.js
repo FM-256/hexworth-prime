@@ -271,10 +271,10 @@ class InteractionSystem {
      * Touch start handler
      */
     _handleTouchStart(event) {
-        // Don't prevent default for controls area
-        if (event.target.closest('.controls')) return;
+        // Don't prevent default for interactive elements - let native behavior happen
+        if (event.target.closest('.controls, button, a, input, select, textarea, nav, [onclick]')) return;
 
-        event.preventDefault();
+        // Don't block scrolling - only track touch position for firefly reactions
 
         for (const touch of event.changedTouches) {
             this.touches.set(touch.identifier, {
@@ -299,9 +299,11 @@ class InteractionSystem {
      * Touch move handler
      */
     _handleTouchMove(event) {
-        if (event.target.closest('.controls')) return;
+        // Let interactive elements handle their own behavior
+        if (event.target.closest('.controls, button, a, input, select, textarea, nav, [onclick]')) return;
 
-        event.preventDefault();
+        // DON'T preventDefault - allow native scrolling
+        // Fireflies will still react to touch position while user scrolls
 
         for (const touch of event.changedTouches) {
             const touchData = this.touches.get(touch.identifier);
@@ -329,7 +331,8 @@ class InteractionSystem {
      * Touch end handler
      */
     _handleTouchEnd(event) {
-        event.preventDefault();
+        // Only process if we were tracking this touch (not on interactive elements)
+        // Don't preventDefault - let native behavior complete
 
         for (const touch of event.changedTouches) {
             const touchData = this.touches.get(touch.identifier);
