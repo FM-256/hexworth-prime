@@ -808,6 +808,16 @@
         // CONFIGURATION
         // ─────────────────────────────────────────────────────────────────────
 
+        // Check for debug mode via URL parameter: ?debug=true
+        const DEBUG_MODE = new URLSearchParams(window.location.search).get('debug') === 'true';
+
+        // Debug logging helper - only logs when debug mode is enabled
+        function debug(...args) {
+            if (DEBUG_MODE) {
+                console.log('[DEBUG]', ...args);
+            }
+        }
+
         const CONFIG = {
             houses: ['shield', 'web', 'cloud', 'forge', 'script', 'code', 'key', 'eye'],
             houseIcons: {
@@ -1018,6 +1028,158 @@
             // Return first available if none of priority keys found
             const keys = Object.keys(components);
             return keys.length > 0 ? components[keys[0]] : null;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // COMING SOON DETECTION HELPERS
+        // Full-text search approach - replaces broken regex extraction
+        // Added: 2025-12-28 (fixes template literal parsing bug)
+        // ─────────────────────────────────────────────────────────────────────
+
+        function categorizeComingSoon(line, context) {
+            const fullContext = context.join('\n').toLowerCase();
+            const lineLower = line.toLowerCase();
+
+            // Learning paths - openPath function or learning path cards
+            if (fullContext.includes('openpath') || fullContext.includes('learning path') || fullContext.includes('path-card')) {
+                return 'Learning Path';
+            }
+
+            // Quiz features
+            if (fullContext.includes('quiz') || lineLower.includes('quiz')) {
+                return 'Quiz Feature';
+            }
+
+            // Animation/interactive features
+            if (fullContext.includes('animation') || fullContext.includes('step-through')) {
+                return 'Interactive Feature';
+            }
+
+            // Module handlers
+            if (fullContext.includes('module') && fullContext.includes('onclick')) {
+                return 'Module Handler';
+            }
+
+            // Static HTML banners
+            if (lineLower.includes('<h') || lineLower.includes('<p>') || lineLower.includes('<div')) {
+                return 'Static Banner';
+            }
+
+            return 'Other';
+        }
+
+        function extractComingSoonIdentifier(context, category) {
+            const fullContext = context.join('\n');
+
+            // For learning paths, find the path ID and name
+            if (category === 'Learning Path') {
+                const pathIdMatch = fullContext.match(/openPath\(['"]([^'"]+)['"]\)/);
+                const pathNameMatch = fullContext.match(/class="path-name">([^<]+)</);
+
+                if (pathIdMatch || pathNameMatch) {
+                    return {
+                        id: pathIdMatch ? pathIdMatch[1] : null,
+                        name: pathNameMatch ? pathNameMatch[1] : (pathIdMatch ? pathIdMatch[1] : 'Unknown Path')
+                    };
+                }
+            }
+
+            // For quizzes, try to find quiz name
+            if (category === 'Quiz Feature') {
+                const quizMatch = fullContext.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*Quiz/);
+                if (quizMatch) {
+                    return { id: null, name: quizMatch[0] };
+                }
+            }
+
+            // For modules, find module title
+            const titleMatch = fullContext.match(/title:\s*['"]([^'"]+)['"]/);
+            if (titleMatch) {
+                return { id: null, name: titleMatch[1] };
+            }
+
+            // Try to find any button text
+            const buttonMatch = fullContext.match(/<button[^>]*>([^<]+)</);
+            if (buttonMatch) {
+                return { id: null, name: buttonMatch[1].trim() };
+            }
+
+            return { id: null, name: null };
+        }
+
+        /**
+         * Detect if a "coming soon" match is inside a function definition
+         * Returns the function name if found, null otherwise
+         */
+        function detectFunctionDefinition(context) {
+            const fullContext = context.join('\n');
+
+            // Look for function definition pattern in context
+            const funcMatch = fullContext.match(/function\s+(\w+)\s*\([^)]*\)\s*\{/);
+            if (funcMatch) {
+                return funcMatch[1]; // Return function name
+            }
+
+            // Also check for arrow functions assigned to variables
+            const arrowMatch = fullContext.match(/(?:const|let|var)\s+(\w+)\s*=\s*(?:\([^)]*\)|[^=])\s*=>/);
+            if (arrowMatch) {
+                return arrowMatch[1];
+            }
+
+            return null;
+        }
+
+        /**
+         * Find all callers of a function in the HTML file
+         * Returns array of { id, name, line } for each call
+         */
+        function findFunctionCallers(html, funcName, lines) {
+            const callers = [];
+
+            // Pattern to find function calls with string argument: funcName('arg') or funcName("arg")
+            const callPattern = new RegExp(`${funcName}\\s*\\(\\s*['"]([^'"]+)['"]\\s*\\)`, 'g');
+
+            let match;
+            while ((match = callPattern.exec(html)) !== null) {
+                const argValue = match[1];
+
+                // Calculate line number for this call
+                const beforeMatch = html.substring(0, match.index);
+                const lineNumber = (beforeMatch.match(/\n/g) || []).length + 1;
+
+                // Get context around the call to find display name
+                const contextStart = Math.max(0, lineNumber - 5);
+                const contextEnd = Math.min(lines.length, lineNumber + 3);
+                const callContext = lines.slice(contextStart, contextEnd);
+                const fullCallContext = callContext.join('\n');
+
+                // Try to find a human-readable name near the call
+                let displayName = argValue; // Default to the argument value
+
+                // Look for path-name, module title, or other display text
+                const namePatterns = [
+                    /class="path-name">([^<]+)</,
+                    /class="module-title">([^<]+)</,
+                    /title:\s*['"]([^'"]+)['"]/,
+                    />([A-Z][^<]{2,30})</  // Any capitalized text in a tag
+                ];
+
+                for (const pattern of namePatterns) {
+                    const nameMatch = fullCallContext.match(pattern);
+                    if (nameMatch && nameMatch[1].trim().length > 2) {
+                        displayName = nameMatch[1].trim();
+                        break;
+                    }
+                }
+
+                callers.push({
+                    id: argValue,
+                    name: displayName,
+                    line: lineNumber
+                });
+            }
+
+            return callers;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -2358,11 +2520,14 @@ function openPath(pathId) {
         // ─────────────────────────────────────────────────────────────────────
 
         async function runIncompleteAudit() {
+            debug('runIncompleteAudit() called');
+
             if (auditState.isRunning) return;
 
             auditState.isRunning = true;
             setButtonState('runIncompleteAudit', false);
             setStatus('running', 'Scanning for incomplete content...');
+            debug('Starting incomplete content scan...');
 
             const results = {
                 summary: {
@@ -2375,6 +2540,7 @@ function openPath(pathId) {
 
             try {
                 for (const house of CONFIG.houses) {
+                    debug(`Scanning house: ${house}`);
                     setStatus('running', `Scanning ${house} house...`);
 
                     const houseResult = {
@@ -2385,9 +2551,11 @@ function openPath(pathId) {
 
                     try {
                         const response = await fetch(CONFIG.houseIndexPath(house));
+                        debug(`${house} fetch response:`, response.ok, response.status);
                         if (!response.ok) continue;
 
                         const html = await response.text();
+                        debug(`${house} HTML length:`, html.length);
 
                         // 1. Find coming-soon modules
                         const modulesMatch = html.match(/const\s+SAMPLE_MODULES\s*=\s*\[([\s\S]*?)\];/);
@@ -2412,27 +2580,84 @@ function openPath(pathId) {
                             });
                         }
 
-                        // 2. Find placeholder openPath (learning paths)
-                        const openPathMatch = html.match(/function\s+openPath\s*\([^)]*\)\s*\{([\s\S]*?)\}/);
-                        if (openPathMatch) {
-                            const funcBody = openPathMatch[1];
-                            const isPlaceholder = funcBody.includes('alert(') &&
-                                (funcBody.includes('coming soon') || funcBody.includes('Coming Soon') || funcBody.includes('Coming soon'));
+                        // 2. Full-text search for "coming soon" patterns
+                        // This replaces the broken regex extraction that failed on template literals
+                        const lines = html.split('\n');
+                        const comingSoonMatches = [...html.matchAll(/coming\s*soon/gi)];
 
-                            if (isPlaceholder) {
-                                // Find the learning paths defined in HTML
-                                const pathMatches = [...html.matchAll(/onclick="openPath\('([^']+)'\)"/g)];
-                                const pathNameMatches = [...html.matchAll(/class="path-name">([^<]+)</g)];
-                                const pathCertMatches = [...html.matchAll(/class="path-cert">([^<]+)</g)];
+                        debug(`${house}: Found ${comingSoonMatches.length} "coming soon" matches`);
 
-                                pathMatches.forEach((match, i) => {
+                        // Track which functions we've already traced callers for (avoid duplicates)
+                        const tracedFunctions = new Set();
+
+                        for (const match of comingSoonMatches) {
+                            // Calculate line number
+                            const beforeMatch = html.substring(0, match.index);
+                            const lineNumber = (beforeMatch.match(/\n/g) || []).length + 1;
+                            const contextLine = lines[lineNumber - 1] || '';
+
+                            // Get surrounding context for categorization
+                            const contextStart = Math.max(0, lineNumber - 4);
+                            const contextEnd = Math.min(lines.length, lineNumber + 3);
+                            const context = lines.slice(contextStart, contextEnd);
+
+                            // Check if this match is inside a function definition
+                            const funcName = detectFunctionDefinition(context);
+
+                            // DEBUG: Log what we're finding
+                            debug(`Line ${lineNumber}: funcName=${funcName}, context:`, context.slice(0, 3));
+
+                            if (funcName && !tracedFunctions.has(funcName)) {
+                                // This "coming soon" is in a function - find all callers
+                                tracedFunctions.add(funcName);
+
+                                const callers = findFunctionCallers(html, funcName, lines);
+
+                                // DEBUG: Log callers found
+                                debug(`Function ${funcName}: found ${callers.length} callers:`, callers);
+
+                                if (callers.length > 0) {
+                                    // Add an entry for EACH caller
+                                    for (const caller of callers) {
+                                        const category = categorizeComingSoon(
+                                            lines[caller.line - 1] || '',
+                                            lines.slice(Math.max(0, caller.line - 4), Math.min(lines.length, caller.line + 3))
+                                        );
+
+                                        houseResult.placeholderPaths.push({
+                                            pathId: caller.id,
+                                            name: caller.name,
+                                            certification: category,
+                                            line: caller.line,
+                                            definedAt: lineNumber,
+                                            viaFunction: funcName,
+                                            text: `Calls ${funcName}('${caller.id}')`
+                                        });
+                                    }
+                                } else {
+                                    // Function exists but no callers found - still report it
                                     houseResult.placeholderPaths.push({
-                                        pathId: match[1],
-                                        name: pathNameMatches[i] ? pathNameMatches[i][1] : 'Unknown Path',
-                                        certification: pathCertMatches[i] ? pathCertMatches[i][1] : ''
+                                        pathId: `${funcName}-function`,
+                                        name: `${funcName}() function`,
+                                        certification: 'Function Definition',
+                                        line: lineNumber,
+                                        text: `Function "${funcName}" has coming soon but no callers found`
                                     });
+                                }
+                            } else if (!funcName) {
+                                // Not in a function - use original logic
+                                const category = categorizeComingSoon(contextLine, context);
+                                const identifier = extractComingSoonIdentifier(context, category);
+
+                                houseResult.placeholderPaths.push({
+                                    pathId: identifier.id || `line-${lineNumber}`,
+                                    name: identifier.name || 'Unknown',
+                                    certification: category,
+                                    line: lineNumber,
+                                    text: contextLine.trim().substring(0, 100)
                                 });
                             }
+                            // If funcName exists but already traced, skip (avoid duplicate entries)
                         }
 
                         // 3. Check for missing files (modules with href that don't exist)
@@ -2550,13 +2775,29 @@ function openPath(pathId) {
                         html += `</ul></div>`;
                     }
 
-                    // Placeholder Paths
+                    // Placeholder Paths / Coming Soon Content (from full-text search)
                     if (data.placeholderPaths.length > 0) {
                         html += `<div style="margin-bottom: 1rem;">`;
-                        html += `<div style="font-weight: bold; color: #ef4444; margin-bottom: 0.5rem;">🚫 Placeholder Paths (${data.placeholderPaths.length})</div>`;
+                        html += `<div style="font-weight: bold; color: #ef4444; margin-bottom: 0.5rem;">🔍 Coming Soon Content (${data.placeholderPaths.length})</div>`;
                         html += `<ul style="list-style: none; padding-left: 1rem;">`;
                         data.placeholderPaths.forEach(p => {
-                            html += `<li style="margin-bottom: 0.25rem; color: var(--text-secondary);">• <strong>${p.pathId}</strong> - ${p.name} ${p.certification ? `(${p.certification})` : ''}</li>`;
+                            const lineInfo = p.line ? `<span style="color: #6b7280; font-size: 0.8rem;">[Line ${p.line}]</span>` : '';
+
+                            // Show function tracing info if available
+                            let traceInfo = '';
+                            if (p.viaFunction) {
+                                traceInfo = `<div style="font-size: 0.75rem; color: #9ca3af; margin-left: 1rem; margin-top: 0.2rem;">
+                                    ↳ via <code style="background: rgba(99, 102, 241, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px;">${p.viaFunction}()</code>
+                                    <span style="color: #6b7280;">defined at line ${p.definedAt}</span>
+                                </div>`;
+                            }
+
+                            html += `<li style="margin-bottom: 0.5rem; color: var(--text-secondary);">
+                                • <strong>${p.name}</strong>
+                                <span style="background: rgba(239, 68, 68, 0.2); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; margin-left: 0.3rem;">${p.certification || 'Other'}</span>
+                                ${lineInfo}
+                                ${traceInfo}
+                            </li>`;
                         });
                         html += `</ul></div>`;
                     }
