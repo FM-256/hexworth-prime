@@ -740,6 +740,10 @@
                     <span>🚧</span>
                     Incomplete Content
                 </button>
+                <button class="btn btn-primary" id="runJsSyntaxAudit" onclick="runJsSyntaxAudit()" title="Check critical JS files for syntax errors">
+                    <span>🧪</span>
+                    JS Syntax Check
+                </button>
                 <button class="btn btn-secondary" id="runUrlValidation" onclick="runUrlValidation()" disabled title="Phase 3 - Coming Soon">
                     <span>🌐</span>
                     Validate URLs
@@ -1030,6 +1034,14 @@
             return keys.length > 0 ? components[keys[0]] : null;
         }
 
+        // ISSUE-013 Fix (Dec 30, 2025): Extract ALL component URLs for comparison
+        // This fixes false positives when SAMPLE_MODULES.href points to presentation
+        // but ContentRegistry has both applet AND presentation components
+        function extractAllUrls(components) {
+            if (!components || typeof components !== 'object') return [];
+            return Object.values(components).filter(url => url && typeof url === 'string');
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // COMING SOON DETECTION HELPERS
         // Full-text search approach - replaces broken regex extraction
@@ -1243,8 +1255,11 @@
                         const sampleUrl = normalizeUrl(sample.href, house);
                         const registryUrl = extractPrimaryUrl(registryEntry.components);
 
-                        // Compare URLs
-                        const urlsMatch = sampleUrl === registryUrl;
+                        // ISSUE-013 Fix (Dec 30, 2025): Compare against ALL component URLs
+                        // This fixes false positives when entry has both applet and presentation
+                        // but SAMPLE_MODULES.href points to the non-primary component
+                        const allRegistryUrls = extractAllUrls(registryEntry.components);
+                        const urlsMatch = allRegistryUrls.some(url => sampleUrl === url);
 
                         if (urlsMatch) {
                             houseResults.synced.push({
@@ -1625,6 +1640,7 @@
 
                 // ─────────────────────────────────────────────────────────────
                 // CHECK 1: CATEGORIES missing `path` property
+                // Updated ISSUE-013 (Dec 30, 2025): Skip if house uses category-based filtering
                 // ─────────────────────────────────────────────────────────────
                 const categoriesMatch = html.match(/const\s+CATEGORIES\s*=\s*\[([\s\S]*?)\];/);
                 if (categoriesMatch) {
@@ -1634,7 +1650,21 @@
                     const hasPathUsage = html.includes('category.path') || html.includes('categoryPath');
                     const hasPathProperty = categoriesStr.includes("path:");
 
-                    if (hasPathUsage && !hasPathProperty) {
+                    // ISSUE-013 Fix: Check if house migrated to category-based filtering
+                    // Modern pattern uses module.category instead of category.path
+                    const hasCategoryFiltering = html.includes('m.category ===') ||
+                                                  html.includes('module.category ===') ||
+                                                  html.includes('.category === categoryId') ||
+                                                  html.includes("m.category === category");
+
+                    if (hasCategoryFiltering) {
+                        // House uses modern category-based filtering - no path property needed
+                        results.passed.push({
+                            type: 'category-filtering',
+                            title: 'Uses category-based filtering (modern pattern)'
+                        });
+                    } else if (hasPathUsage && !hasPathProperty) {
+                        // Still uses old path-based filtering without path property
                         results.issues.push({
                             type: 'missing-category-path',
                             title: 'CATEGORIES missing path property',
@@ -2848,6 +2878,284 @@ function openPath(pathId) {
             const a = document.createElement('a');
             a.href = url;
             a.download = `incomplete-content-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // PHASE 6: JS SYNTAX CHECK (IMPLEMENTED - Dec 29, 2025)
+        // Detects: JavaScript syntax errors in critical config files
+        // Created in response to ISSUE-001 (cert filter empty after MX-6)
+        // ─────────────────────────────────────────────────────────────────────
+
+        const JS_SYNTAX_CONFIG = {
+            criticalFiles: [
+                { path: '../config/content-registry.js', name: 'Content Registry', critical: true },
+                { path: '../config/skill-tree.js', name: 'Skill Tree', critical: true },
+                { path: '../components/FileTreeExplorer.js', name: 'File Tree Explorer', critical: false }
+            ]
+        };
+
+        async function runJsSyntaxAudit() {
+            if (auditState.isRunning) return;
+
+            auditState.isRunning = true;
+            setButtonState('runJsSyntaxAudit', false);
+            setStatus('running', 'Checking JavaScript syntax...');
+
+            const results = {
+                summary: { passed: 0, failed: 0, skipped: 0 },
+                files: [],
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                for (const file of JS_SYNTAX_CONFIG.criticalFiles) {
+                    setStatus('running', `Checking ${file.name}...`);
+
+                    const fileResult = await checkJsSyntax(file);
+                    results.files.push(fileResult);
+
+                    if (fileResult.status === 'pass') {
+                        results.summary.passed++;
+                    } else if (fileResult.status === 'fail') {
+                        results.summary.failed++;
+                    } else {
+                        results.summary.skipped++;
+                    }
+                }
+
+                renderJsSyntaxResults(results);
+
+                const statusMsg = results.summary.failed > 0
+                    ? `JS Syntax Check: ${results.summary.failed} file(s) have errors!`
+                    : `JS Syntax Check: All ${results.summary.passed} files valid`;
+
+                setStatus(results.summary.failed > 0 ? 'error' : 'success', statusMsg);
+                auditState.jsSyntaxResults = results;
+
+            } catch (error) {
+                console.error('JS Syntax audit failed:', error);
+                setStatus('error', `Audit failed: ${error.message}`);
+            } finally {
+                auditState.isRunning = false;
+                setButtonState('runJsSyntaxAudit', true);
+            }
+        }
+
+        async function checkJsSyntax(file) {
+            const result = {
+                name: file.name,
+                path: file.path,
+                critical: file.critical,
+                status: 'unknown',
+                error: null,
+                line: null,
+                context: null
+            };
+
+            try {
+                // Fetch the file content
+                const response = await fetch(file.path);
+                if (!response.ok) {
+                    result.status = 'skip';
+                    result.error = `File not found (${response.status})`;
+                    return result;
+                }
+
+                const code = await response.text();
+                result.fileSize = code.length;
+                result.lineCount = code.split('\n').length;
+
+                // Try to parse the JavaScript
+                // Using Function constructor to check syntax without executing
+                try {
+                    new Function(code);
+                    result.status = 'pass';
+                } catch (syntaxError) {
+                    result.status = 'fail';
+                    result.error = syntaxError.message;
+
+                    // Try to extract line number from error
+                    // Different browsers format this differently
+                    const lineMatch = syntaxError.stack?.match(/<anonymous>:(\d+):(\d+)/) ||
+                                     syntaxError.message.match(/line (\d+)/i);
+                    if (lineMatch) {
+                        result.line = parseInt(lineMatch[1], 10);
+                        result.column = lineMatch[2] ? parseInt(lineMatch[2], 10) : null;
+                    }
+
+                    // Get context around error line
+                    if (result.line) {
+                        const lines = code.split('\n');
+                        const startLine = Math.max(0, result.line - 4);
+                        const endLine = Math.min(lines.length, result.line + 3);
+
+                        result.context = [];
+                        for (let i = startLine; i < endLine; i++) {
+                            result.context.push({
+                                lineNumber: i + 1,
+                                isErrorLine: (i + 1) === result.line,
+                                content: lines[i]
+                            });
+                        }
+                    }
+                }
+
+            } catch (error) {
+                result.status = 'skip';
+                result.error = `Cannot check: ${error.message}`;
+            }
+
+            return result;
+        }
+
+        function renderJsSyntaxResults(results) {
+            const container = document.getElementById('resultsBody');
+
+            let html = `
+                <div class="results-section">
+                    <h3>🧪 JavaScript Syntax Check</h3>
+                    <p class="timestamp">Checked: ${new Date(results.timestamp).toLocaleString()}</p>
+
+                    <div class="summary-cards">
+                        <div class="summary-card ${results.summary.failed > 0 ? 'error' : 'success'}">
+                            <span class="count">${results.summary.passed}</span>
+                            <span class="label">Passed</span>
+                        </div>
+                        <div class="summary-card ${results.summary.failed > 0 ? 'error' : ''}">
+                            <span class="count">${results.summary.failed}</span>
+                            <span class="label">Failed</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="count">${results.summary.skipped}</span>
+                            <span class="label">Skipped</span>
+                        </div>
+                    </div>
+
+                    <div class="file-results">
+            `;
+
+            for (const file of results.files) {
+                const statusIcon = file.status === 'pass' ? '✅' :
+                                   file.status === 'fail' ? '❌' : '⏭️';
+                const statusClass = file.status === 'pass' ? 'status-pass' :
+                                    file.status === 'fail' ? 'status-fail' : 'status-skip';
+                const criticalBadge = file.critical ? '<span class="badge critical">CRITICAL</span>' : '';
+
+                html += `
+                    <div class="file-result ${statusClass}">
+                        <div class="file-header">
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="file-name">${file.name}</span>
+                            ${criticalBadge}
+                            <span class="file-path">${file.path}</span>
+                        </div>
+                `;
+
+                if (file.status === 'pass') {
+                    html += `
+                        <div class="file-details success">
+                            Valid JavaScript • ${file.lineCount?.toLocaleString() || '?'} lines • ${(file.fileSize / 1024).toFixed(1)}KB
+                        </div>
+                    `;
+                } else if (file.status === 'fail') {
+                    html += `
+                        <div class="file-details error">
+                            <div class="error-message">
+                                <strong>Error:</strong> ${file.error}
+                            </div>
+                    `;
+
+                    if (file.line) {
+                        html += `<div class="error-location">Location: Line ${file.line}${file.column ? `, Column ${file.column}` : ''}</div>`;
+                    }
+
+                    if (file.context && file.context.length > 0) {
+                        html += `<div class="code-context"><pre>`;
+                        for (const ctx of file.context) {
+                            const marker = ctx.isErrorLine ? '>>> ' : '    ';
+                            const lineClass = ctx.isErrorLine ? 'error-line' : '';
+                            const escapedContent = ctx.content
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;');
+                            html += `<code class="${lineClass}">${marker}${ctx.lineNumber}: ${escapedContent}</code>\n`;
+                        }
+                        html += `</pre></div>`;
+                    }
+
+                    html += `</div>`;
+                } else {
+                    html += `
+                        <div class="file-details warning">
+                            ${file.error || 'Skipped'}
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
+            }
+
+            html += `
+                    </div>
+
+                    <div class="export-section">
+                        <button class="btn btn-secondary" onclick="exportJsSyntaxResults()">
+                            📥 Export Results
+                        </button>
+                    </div>
+                </div>
+
+                <style>
+                    .file-results { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+                    .file-result { border: 1px solid #333; border-radius: 8px; padding: 12px; background: #1a1a2e; }
+                    .file-result.status-pass { border-color: #2d5a2d; }
+                    .file-result.status-fail { border-color: #8b0000; background: #2a1a1a; }
+                    .file-result.status-skip { border-color: #555; opacity: 0.7; }
+                    .file-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+                    .status-icon { font-size: 1.2em; }
+                    .file-name { font-weight: bold; color: #00d4ff; }
+                    .file-path { color: #888; font-size: 0.85em; font-family: monospace; }
+                    .badge.critical { background: #ff4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; }
+                    .file-details { margin-top: 8px; padding: 8px; border-radius: 4px; }
+                    .file-details.success { background: #1a2d1a; color: #4ade80; }
+                    .file-details.error { background: #2d1a1a; }
+                    .file-details.warning { background: #2d2d1a; color: #fbbf24; }
+                    .error-message { color: #ff6b6b; margin-bottom: 8px; }
+                    .error-location { color: #fbbf24; font-family: monospace; margin-bottom: 8px; }
+                    .code-context { background: #0d0d0d; border-radius: 4px; padding: 10px; overflow-x: auto; }
+                    .code-context pre { margin: 0; font-size: 0.85em; }
+                    .code-context code { display: block; color: #ccc; white-space: pre; }
+                    .code-context code.error-line { background: #4a1a1a; color: #ff8888; }
+                    .export-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; }
+                </style>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function exportJsSyntaxResults() {
+            if (!auditState.jsSyntaxResults) {
+                alert('No JS syntax results to export. Run the audit first.');
+                return;
+            }
+
+            const exportData = {
+                _readme: 'JavaScript Syntax Check - validates critical config files',
+                _issue: 'Created in response to ISSUE-001 (cert filter empty after MX-6)',
+                ...auditState.jsSyntaxResults,
+                exportedAt: new Date().toISOString()
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `js-syntax-check-${new Date().toISOString().slice(0,10)}.json`;
             a.click();
 
             URL.revokeObjectURL(url);

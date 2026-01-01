@@ -21,6 +21,15 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // FORGE HOUSE - Hardware & Systems
         // ─────────────────────────────────────────────────────────────
+        // ORPHAN - commented out during ISSUE-002 fix (Dec 29, 2025)
+        //     prerequisites: [],
+        //     objectives: [
+        //         'Identify the four main Windows editions',
+        //         'Explain key feature differences (BitLocker, domain join)',
+        //         'Recommend appropriate editions for scenarios'
+        //     ]
+        // },
+
         'forge-windows-editions': {
             id: 'forge-windows-editions',
             title: 'Windows Editions',
@@ -59,11 +68,11 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/settings-explorer.html',
                 lab: 'houses/forge/labs/windows-settings-lab.html'
             },
-            prerequisites: ['forge-windows-editions'],
+            prerequisites: ['forge-windows-settings'],
             objectives: [
-                'Navigate all Settings app categories',
-                'Configure common system settings',
-                'Understand Settings vs Control Panel'
+                'Access Control Panel via multiple methods',
+                'Navigate category and icon views',
+                'Configure settings not in Settings app'
             ]
         },
 
@@ -82,11 +91,11 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/control-panel-explorer.html',
                 lab: 'houses/forge/labs/control-panel-lab.html'
             },
-            prerequisites: ['forge-windows-settings'],
+            prerequisites: ['forge-control-panel'],
             objectives: [
-                'Access Control Panel via multiple methods',
-                'Navigate category and icon views',
-                'Configure settings not in Settings app'
+                'Launch and use common MMC snap-ins',
+                'Manage services, events, and disks',
+                'Create custom MMC consoles'
             ]
         },
 
@@ -105,11 +114,11 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/admin-tools-explorer.html',
                 lab: 'houses/forge/labs/admin-tools-lab.html'
             },
-            prerequisites: ['forge-control-panel'],
+            prerequisites: ['forge-admin-tools'],
             objectives: [
-                'Launch and use common MMC snap-ins',
-                'Manage services, events, and disks',
-                'Create custom MMC consoles'
+                'Use Task Manager for process management',
+                'Analyze performance with Resource Monitor',
+                'Run system diagnostics and repairs'
             ]
         },
 
@@ -128,11 +137,11 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/system-tools-sim.html',
                 lab: 'houses/forge/labs/system-tools-lab.html'
             },
-            prerequisites: ['forge-admin-tools'],
+            prerequisites: ['forge-system-tools'],
             objectives: [
-                'Use Task Manager for process management',
-                'Analyze performance with Resource Monitor',
-                'Run system diagnostics and repairs'
+                'Navigate macOS and Linux file systems',
+                'Use common command-line utilities',
+                'Compare Windows, macOS, and Linux commands'
             ]
         },
 
@@ -151,11 +160,12 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/command-translator.html',
                 lab: 'houses/forge/labs/lab-macos-linux.html'
             },
-            prerequisites: ['forge-system-tools'],
+            prerequisites: [],
             objectives: [
-                'Navigate macOS and Linux file systems',
-                'Use common command-line utilities',
-                'Compare Windows, macOS, and Linux commands'
+                'Identify CPU types and specifications',
+                'Understand RAM types and configurations',
+                'Compare storage technologies (HDD, SSD, NVMe)',
+                'Recognize motherboard components'
             ]
         },
 
@@ -172,12 +182,11 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/forge/applets/hardware/hardware-trainer.html'
             },
-            prerequisites: [],
+            prerequisites: ['forge-hardware-fundamentals'],
             objectives: [
-                'Identify CPU types and specifications',
-                'Understand RAM types and configurations',
-                'Compare storage technologies (HDD, SSD, NVMe)',
-                'Recognize motherboard components'
+                'Explain RAID levels 0, 1, 5, 6, 10',
+                'Calculate storage capacity and fault tolerance',
+                'Choose appropriate RAID for scenarios'
             ]
         },
 
@@ -196,9 +205,9 @@ const ContentRegistry = {
             },
             prerequisites: ['forge-hardware-fundamentals'],
             objectives: [
-                'Explain RAID levels 0, 1, 5, 6, 10',
-                'Calculate storage capacity and fault tolerance',
-                'Choose appropriate RAID for scenarios'
+                'Identify expansion card types and slots',
+                'Configure display connections and settings',
+                'Set up and troubleshoot printers'
             ]
         },
 
@@ -215,14 +224,17 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/forge/applets/hardware/hardware-trainer.html'
             },
-            prerequisites: ['forge-hardware-fundamentals'],
+            prerequisites: [],
             objectives: [
-                'Identify expansion card types and slots',
-                'Configure display connections and settings',
-                'Set up and troubleshoot printers'
+                'Assess readiness for A+ Core 2 exam',
+                'Identify knowledge gaps',
+                'Practice exam-style questions'
             ]
         },
 
+        // ─────────────────────────────────────────────────────────────
+        // WEB HOUSE - Networking & Connections
+        // ─────────────────────────────────────────────────────────────
         'forge-aplus-quiz': {
             id: 'forge-aplus-quiz',
             title: 'A+ Core 2 Practice Quiz',
@@ -238,15 +250,12 @@ const ContentRegistry = {
             },
             prerequisites: [],
             objectives: [
-                'Assess readiness for A+ Core 2 exam',
-                'Identify knowledge gaps',
-                'Practice exam-style questions'
+                'Name and describe all seven OSI layers',
+                'Identify protocols at each layer',
+                'Troubleshoot using the OSI model'
             ]
         },
 
-        // ─────────────────────────────────────────────────────────────
-        // WEB HOUSE - Networking & Connections
-        // ─────────────────────────────────────────────────────────────
         'web-osi-model': {
             id: 'web-osi-model',
             title: 'OSI Model',
@@ -262,11 +271,11 @@ const ContentRegistry = {
                 applet: 'houses/web/applets/visualizers/osi-visualizer.html',
                 quiz: 'houses/web/quizzes/osi-quiz.html'
             },
-            prerequisites: [],
+            prerequisites: ['web-osi-model'],
             objectives: [
-                'Name and describe all seven OSI layers',
-                'Identify protocols at each layer',
-                'Troubleshoot using the OSI model'
+                'Compare TCP/IP to OSI model',
+                'Understand IP addressing basics',
+                'Analyze TCP vs UDP'
             ]
         },
 
@@ -284,11 +293,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/tcp-presentation.html',
                 applet: 'houses/web/applets/visualizers/port-visualizer.html'
             },
-            prerequisites: ['web-osi-model'],
+            prerequisites: ['web-tcpip'],
             objectives: [
-                'Compare TCP/IP to OSI model',
-                'Understand IP addressing basics',
-                'Analyze TCP vs UDP'
+                'Convert between binary and decimal',
+                'Identify IP address classes',
+                'Calculate subnet masks and ranges'
             ]
         },
 
@@ -306,11 +315,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/subnetting-presentation.html',
                 applet: 'houses/web/applets/visualizers/subnetting-visualizer.html'
             },
-            prerequisites: ['web-tcpip'],
+            prerequisites: ['web-ip-addressing'],
             objectives: [
-                'Convert between binary and decimal',
-                'Identify IP address classes',
-                'Calculate subnet masks and ranges'
+                'Apply VLSM to network designs',
+                'Optimize IP address allocation',
+                'Solve complex subnetting scenarios'
             ]
         },
 
@@ -325,13 +334,13 @@ const ContentRegistry = {
             topics: ['vlsm', 'subnetting', 'ip-addressing'],
             paths: ['comptia-network', 'ccna'],
             components: {
-                applet: 'houses/web/applets/ip-addressing/VLSM/'
+                applet: 'houses/web/applets/ip-addressing/VLSM/VLSM.html'
             },
             prerequisites: ['web-ip-addressing'],
             objectives: [
-                'Apply VLSM to network designs',
-                'Optimize IP address allocation',
-                'Solve complex subnetting scenarios'
+                'Understand IPv6 address structure',
+                'Configure IPv6 on devices',
+                'Compare IPv4 and IPv6'
             ]
         },
 
@@ -349,11 +358,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/ipv6-presentation.html',
                 applet: 'houses/web/applets/visualizers/ipv6-visualizer.html'
             },
-            prerequisites: ['web-ip-addressing'],
+            prerequisites: ['web-osi-model'],
             objectives: [
-                'Understand IPv6 address structure',
-                'Configure IPv6 on devices',
-                'Compare IPv4 and IPv6'
+                'Configure VLANs and trunk ports',
+                'Understand switch operations',
+                'Implement inter-VLAN routing'
             ]
         },
 
@@ -371,11 +380,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/vlan-presentation.html',
                 applet: 'houses/web/applets/visualizers/vlan-visualizer.html'
             },
-            prerequisites: ['web-osi-model'],
+            prerequisites: ['web-switching'],
             objectives: [
-                'Configure VLANs and trunk ports',
-                'Understand switch operations',
-                'Implement inter-VLAN routing'
+                'Explain STP operation and port states',
+                'Configure root bridge election',
+                'Troubleshoot STP issues'
             ]
         },
 
@@ -393,11 +402,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/stp-presentation.html',
                 applet: 'houses/web/applets/visualizers/stp-visualizer.html'
             },
-            prerequisites: ['web-switching'],
+            prerequisites: ['web-ip-addressing'],
             objectives: [
-                'Explain STP operation and port states',
-                'Configure root bridge election',
-                'Troubleshoot STP issues'
+                'Configure static routes',
+                'Understand OSPF and EIGRP basics',
+                'Analyze routing tables'
             ]
         },
 
@@ -415,11 +424,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/ospf-presentation.html',
                 applet: 'houses/web/applets/visualizers/ospf-cost-visualizer.html'
             },
-            prerequisites: ['web-ip-addressing'],
+            prerequisites: ['web-routing'],
             objectives: [
-                'Configure static routes',
-                'Understand OSPF and EIGRP basics',
-                'Analyze routing tables'
+                'Compare HSRP, VRRP, and GLBP',
+                'Configure first hop redundancy',
+                'Design highly available networks'
             ]
         },
 
@@ -437,11 +446,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/fhrp-presentation.html',
                 applet: 'houses/web/applets/visualizers/fhrp-visualizer.html'
             },
-            prerequisites: ['web-routing'],
+            prerequisites: ['web-osi-model'],
             objectives: [
-                'Compare HSRP, VRRP, and GLBP',
-                'Configure first hop redundancy',
-                'Design highly available networks'
+                'Identify wireless standards and frequencies',
+                'Configure wireless security',
+                'Design wireless networks'
             ]
         },
 
@@ -459,11 +468,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/wireless-presentation.html',
                 applet: 'houses/web/applets/visualizers/wireless-visualizer.html'
             },
-            prerequisites: ['web-osi-model'],
+            prerequisites: ['web-tcpip'],
             objectives: [
-                'Identify wireless standards and frequencies',
-                'Configure wireless security',
-                'Design wireless networks'
+                'Configure DHCP and DNS',
+                'Understand NAT and PAT',
+                'Implement network time services'
             ]
         },
 
@@ -481,11 +490,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/dhcp-presentation.html',
                 applet: 'houses/web/applets/visualizers/network-services-visualizer.html'
             },
-            prerequisites: ['web-tcpip'],
+            prerequisites: ['web-osi-model', 'web-tcpip'],
             objectives: [
-                'Configure DHCP and DNS',
-                'Understand NAT and PAT',
-                'Implement network time services'
+                'Apply OSI model to troubleshooting',
+                'Use network diagnostic tools',
+                'Develop systematic troubleshooting methodology'
             ]
         },
 
@@ -503,11 +512,11 @@ const ContentRegistry = {
                 presentation: 'houses/web/presentations/troubleshooting-presentation.html',
                 applet: 'houses/web/applets/visualizers/troubleshooting-visualizer.html'
             },
-            prerequisites: ['web-osi-model', 'web-tcpip'],
+            prerequisites: [],
             objectives: [
-                'Apply OSI model to troubleshooting',
-                'Use network diagnostic tools',
-                'Develop systematic troubleshooting methodology'
+                'Build virtual network topologies',
+                'Configure devices interactively',
+                'Test network connectivity'
             ]
         },
 
@@ -524,27 +533,6 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/web/simulators/packet-tracer-lite-v3.html'
             },
-            prerequisites: [],
-            objectives: [
-                'Build virtual network topologies',
-                'Configure devices interactively',
-                'Test network connectivity'
-            ]
-        },
-
-        'web-cumulative-labs': {
-            id: 'web-cumulative-labs',
-            title: 'Cumulative Lab Series',
-            description: 'Progressive hands-on labs building a complete enterprise network',
-            house: 'web',
-            type: 'lab',
-            difficulty: 'advanced',
-            duration: 360,
-            topics: ['packet-tracer', 'enterprise', 'hands-on', 'routing', 'switching'],
-            paths: ['comptia-network', 'ccna'],
-            components: {
-                lab: 'houses/web/labs/CUMULATIVE_LAB_SERIES.md'
-            },
             prerequisites: ['web-ip-addressing', 'web-switching', 'web-routing'],
             objectives: [
                 'Build enterprise network from scratch',
@@ -558,6 +546,27 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // SHIELD HOUSE - Security & Defense
         // ─────────────────────────────────────────────────────────────
+        'web-cumulative-labs': {
+            id: 'web-cumulative-labs',
+            title: 'Cumulative Lab Series',
+            description: 'Progressive hands-on labs building a complete enterprise network',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 360,
+            topics: ['packet-tracer', 'enterprise', 'hands-on', 'routing', 'switching'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                lab: 'houses/web/labs/CUMULATIVE_LAB_SERIES.md'
+            },
+            prerequisites: [],
+            objectives: [
+                'Define confidentiality, integrity, availability',
+                'Apply CIA triad to real scenarios',
+                'Identify threats to each pillar'
+            ]
+        },
+
         'shield-cia-triad': {
             id: 'shield-cia-triad',
             title: 'CIA Triad',
@@ -572,11 +581,11 @@ const ContentRegistry = {
                 presentation: 'houses/shield/presentations/cia-triad.html',
                 applet: 'houses/shield/applets/fundamentals/five_pillars/FivePillars.html'
             },
-            prerequisites: [],
+            prerequisites: ['shield-cia-triad'],
             objectives: [
-                'Define confidentiality, integrity, availability',
-                'Apply CIA triad to real scenarios',
-                'Identify threats to each pillar'
+                'Understand the five pillars of information assurance',
+                'Identify types of security controls',
+                'Apply defense-in-depth principles'
             ]
         },
 
@@ -592,13 +601,13 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 presentation: 'houses/shield/presentations/security-presentation.html',
-                applet: 'houses/shield/applets/fundamentals/'
+                applet: 'houses/shield/applets/fundamentals/five_pillars/FivePillars.html'
             },
-            prerequisites: ['shield-cia-triad'],
+            prerequisites: ['shield-security-fundamentals'],
             objectives: [
-                'Understand the five pillars of information assurance',
-                'Identify types of security controls',
-                'Apply defense-in-depth principles'
+                'Identify common malware types',
+                'Recognize social engineering techniques',
+                'Understand threat actor motivations'
             ]
         },
 
@@ -613,13 +622,13 @@ const ContentRegistry = {
             topics: ['threats', 'malware', 'attacks', 'vulnerabilities'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/threats/'
+                applet: 'houses/shield/applets/threats/attacks_malware/attacks.html'
             },
-            prerequisites: ['shield-security-fundamentals'],
+            prerequisites: ['shield-threat-types'],
             objectives: [
-                'Identify common malware types',
-                'Recognize social engineering techniques',
-                'Understand threat actor motivations'
+                'Identify social engineering attack types',
+                'Recognize phishing indicators',
+                'Apply user awareness training principles'
             ]
         },
 
@@ -638,9 +647,9 @@ const ContentRegistry = {
             },
             prerequisites: ['shield-threat-types'],
             objectives: [
-                'Identify social engineering attack types',
-                'Recognize phishing indicators',
-                'Apply user awareness training principles'
+                'Understand XSS attack vectors',
+                'Recognize SQL injection patterns',
+                'Apply OWASP mitigation strategies'
             ]
         },
 
@@ -655,13 +664,13 @@ const ContentRegistry = {
             topics: ['web-attacks', 'xss', 'sql-injection', 'owasp'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/threats/'
+                applet: 'houses/shield/applets/threats/sql_injection/SQLinjection.html'
             },
-            prerequisites: ['shield-threat-types'],
+            prerequisites: ['shield-security-fundamentals'],
             objectives: [
-                'Understand XSS attack vectors',
-                'Recognize SQL injection patterns',
-                'Apply OWASP mitigation strategies'
+                'Compare symmetric vs asymmetric encryption',
+                'Understand hashing and digital signatures',
+                'Explain PKI and certificate chains'
             ]
         },
 
@@ -676,13 +685,13 @@ const ContentRegistry = {
             topics: ['cryptography', 'encryption', 'hashing', 'pki'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/crypto/'
+                applet: 'houses/shield/applets/crypto/cryptography/cryptography.html'
             },
             prerequisites: ['shield-security-fundamentals'],
             objectives: [
-                'Compare symmetric vs asymmetric encryption',
-                'Understand hashing and digital signatures',
-                'Explain PKI and certificate chains'
+                'Configure firewall rules and policies',
+                'Compare IDS vs IPS capabilities',
+                'Implement secure network architectures'
             ]
         },
 
@@ -697,13 +706,13 @@ const ContentRegistry = {
             topics: ['network-security', 'firewalls', 'vpn', 'ids-ips'],
             paths: ['comptia-security', 'comptia-network'],
             components: {
-                applet: 'houses/shield/applets/network/'
+                applet: 'houses/shield/applets/network/firewalls/Firewalls.html'
             },
             prerequisites: ['shield-security-fundamentals'],
             objectives: [
-                'Configure firewall rules and policies',
-                'Compare IDS vs IPS capabilities',
-                'Implement secure network architectures'
+                'Implement multi-factor authentication',
+                'Apply role-based access control',
+                'Manage identity and access lifecycles'
             ]
         },
 
@@ -718,13 +727,13 @@ const ContentRegistry = {
             topics: ['access-control', 'authentication', 'authorization'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/access/'
+                applet: 'houses/shield/applets/access/access_control/access_control.html'
             },
             prerequisites: ['shield-security-fundamentals'],
             objectives: [
-                'Implement multi-factor authentication',
-                'Apply role-based access control',
-                'Manage identity and access lifecycles'
+                'Conduct risk assessments',
+                'Calculate risk using quantitative methods',
+                'Develop risk mitigation strategies'
             ]
         },
 
@@ -739,28 +748,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'risk-analysis', 'compliance'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/risk/'
-            },
-            prerequisites: ['shield-security-fundamentals'],
-            objectives: [
-                'Conduct risk assessments',
-                'Calculate risk using quantitative methods',
-                'Develop risk mitigation strategies'
-            ]
-        },
-
-        'shield-cyber-arts-bootcamp': {
-            id: 'shield-cyber-arts-bootcamp',
-            title: 'Cyber Arts Bootcamp',
-            description: '5-day intensive: Foundations, Networking, Cryptography, Blue Team, Red Team',
-            house: 'shield',
-            type: 'module',
-            difficulty: 'beginner',
-            duration: 300,
-            topics: ['security', 'networking', 'cryptography', 'blue-team', 'red-team', 'bootcamp'],
-            paths: ['security-fundamentals', 'comptia-security'],
-            components: {
-                applet: 'houses/shield/applets/operations/cyber-arts-bootcamp.html'
+                applet: 'houses/shield/applets/risk/risk_management/risk_management.html'
             },
             prerequisites: [],
             objectives: [
@@ -777,6 +765,125 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
 
         // --- Cloud Fundamentals ---
+        'shield-cyber-arts-bootcamp': {
+            id: 'shield-cyber-arts-bootcamp',
+            title: 'Cyber Arts Bootcamp',
+            description: '5-day intensive: Foundations, Networking, Cryptography, Blue Team, Red Team',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 300,
+            topics: ['security', 'networking', 'cryptography', 'blue-team', 'red-team', 'bootcamp'],
+            paths: ['security-fundamentals', 'comptia-security'],
+            components: {
+                applet: 'houses/shield/applets/operations/cyber-arts-bootcamp.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Differentiate IaaS, PaaS, and SaaS',
+                'Explain public, private, hybrid clouds',
+                'Identify cloud benefits and considerations'
+            ]
+        },
+
+        // EC-Council CSE Modules - Added during ISSUE-009 fix (Dec 29, 2025)
+        'cse-06-monitoring': {
+            id: 'cse-06-monitoring',
+            title: 'CSE: Security Monitoring & IR',
+            description: 'Cloud logging, SIEM/SOAR, CSPM, and incident response workflows',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['monitoring', 'siem', 'incident-response', 'cloud-security'],
+            paths: ['comptia-security', 'ec-council-cse'],
+            components: {
+                presentation: 'houses/shield/presentations/cse-06-security-monitoring-incident-response.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cse-07-risk': {
+            id: 'cse-07-risk',
+            title: 'CSE: Risk Assessment & Management',
+            description: 'Cloud risk categories, NIST RMF, controls, and risk response strategies',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['risk-management', 'nist', 'controls', 'cloud-security'],
+            paths: ['comptia-security', 'ec-council-cse'],
+            components: {
+                presentation: 'houses/shield/presentations/cse-07-risk-assessment-management.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cse-08-compliance': {
+            id: 'cse-08-compliance',
+            title: 'CSE: Compliance & Governance',
+            description: 'GDPR, HIPAA, PCI-DSS, SOX, NIST CSF, and cloud compliance tools',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['compliance', 'governance', 'gdpr', 'hipaa', 'pci-dss'],
+            paths: ['comptia-security', 'ec-council-cse'],
+            components: {
+                presentation: 'houses/shield/presentations/cse-08-compliance-governance.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cse-06-quiz': {
+            id: 'cse-06-quiz',
+            title: 'CSE: Security Monitoring Quiz',
+            description: 'Test SIEM, SOAR, and IR knowledge',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['monitoring', 'siem', 'incident-response'],
+            paths: ['ec-council-cse'],
+            components: {
+                quiz: 'houses/shield/quizzes/cse-06-quiz.html'
+            },
+            prerequisites: ['cse-06-monitoring'],
+            objectives: []
+        },
+        'cse-07-quiz': {
+            id: 'cse-07-quiz',
+            title: 'CSE: Risk Management Quiz',
+            description: 'Test risk assessment and NIST RMF knowledge',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['risk-management', 'nist'],
+            paths: ['ec-council-cse'],
+            components: {
+                quiz: 'houses/shield/quizzes/cse-07-quiz.html'
+            },
+            prerequisites: ['cse-07-risk'],
+            objectives: []
+        },
+        'cse-08-quiz': {
+            id: 'cse-08-quiz',
+            title: 'CSE: Compliance Quiz',
+            description: 'Test GDPR, HIPAA, PCI-DSS compliance knowledge',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['compliance', 'governance'],
+            paths: ['ec-council-cse'],
+            components: {
+                quiz: 'houses/shield/quizzes/cse-08-quiz.html'
+            },
+            prerequisites: ['cse-08-compliance'],
+            objectives: []
+        },
+
         'cloud-concepts': {
             id: 'cloud-concepts',
             title: 'Cloud Computing Concepts',
@@ -792,11 +899,11 @@ const ContentRegistry = {
                 applet: 'houses/cloud/applets/fundamentals/cloud-visualizer.html',
                 lab: 'houses/cloud/labs/cloud-lab-simulator.html'
             },
-            prerequisites: [],
+            prerequisites: ['cloud-concepts'],
             objectives: [
-                'Differentiate IaaS, PaaS, and SaaS',
-                'Explain public, private, hybrid clouds',
-                'Identify cloud benefits and considerations'
+                'Compare cloud service models',
+                'Understand shared responsibility model',
+                'Match services to appropriate model'
             ]
         },
 
@@ -816,9 +923,9 @@ const ContentRegistry = {
             },
             prerequisites: ['cloud-concepts'],
             objectives: [
-                'Compare cloud service models',
-                'Understand shared responsibility model',
-                'Match services to appropriate model'
+                'Compare major cloud providers',
+                'Identify equivalent services across platforms',
+                'Understand pricing models'
             ]
         },
 
@@ -835,14 +942,15 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.html'
             },
-            prerequisites: ['cloud-concepts'],
+            prerequisites: ['cloud-models'],
             objectives: [
-                'Compare major cloud providers',
-                'Identify equivalent services across platforms',
-                'Understand pricing models'
+                'Design basic cloud architectures',
+                'Apply well-architected principles',
+                'Select appropriate services for requirements'
             ]
         },
 
+        // --- AWS Fundamentals ---
         'cloud-architecture': {
             id: 'cloud-architecture',
             title: 'Cloud Architecture Designer',
@@ -856,15 +964,14 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/architecture/cloud-architecture-designer.html'
             },
-            prerequisites: ['cloud-models'],
+            prerequisites: ['cloud-concepts'],
             objectives: [
-                'Design basic cloud architectures',
-                'Apply well-architected principles',
-                'Select appropriate services for requirements'
+                'Navigate AWS account structure',
+                'Understand AWS Organizations',
+                'Manage billing and cost explorer'
             ]
         },
 
-        // --- AWS Fundamentals ---
         'cloud-aws-account': {
             id: 'cloud-aws-account',
             title: 'AWS Account Structure',
@@ -879,11 +986,11 @@ const ContentRegistry = {
                 presentation: 'houses/cloud/presentations/aws-fundamentals.html',
                 applet: 'houses/cloud/applets/aws/ch02-aws-account-explorer.html'
             },
-            prerequisites: ['cloud-concepts'],
+            prerequisites: ['cloud-aws-account'],
             objectives: [
-                'Navigate AWS account structure',
-                'Understand AWS Organizations',
-                'Manage billing and cost explorer'
+                'Compare AWS support plans',
+                'Understand Trusted Advisor checks',
+                'Choose appropriate support level'
             ]
         },
 
@@ -902,9 +1009,9 @@ const ContentRegistry = {
             },
             prerequisites: ['cloud-aws-account'],
             objectives: [
-                'Compare AWS support plans',
-                'Understand Trusted Advisor checks',
-                'Choose appropriate support level'
+                'Understand AWS global infrastructure',
+                'Select appropriate regions',
+                'Explain high availability concepts'
             ]
         },
 
@@ -923,9 +1030,9 @@ const ContentRegistry = {
             },
             prerequisites: ['cloud-aws-account'],
             objectives: [
-                'Understand AWS global infrastructure',
-                'Select appropriate regions',
-                'Explain high availability concepts'
+                'Create and manage IAM users and roles',
+                'Write IAM policies',
+                'Apply security best practices'
             ]
         },
 
@@ -945,12 +1052,13 @@ const ContentRegistry = {
             },
             prerequisites: ['cloud-aws-account'],
             objectives: [
-                'Create and manage IAM users and roles',
-                'Write IAM policies',
-                'Apply security best practices'
+                'Use AWS Management Console',
+                'Execute AWS CLI commands',
+                'Understand SDK options'
             ]
         },
 
+        // --- AWS Compute ---
         'cloud-aws-tools': {
             id: 'cloud-aws-tools',
             title: 'AWS Management Tools',
@@ -964,15 +1072,14 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/aws/ch06-aws-tools-explorer.html'
             },
-            prerequisites: ['cloud-aws-account'],
+            prerequisites: ['cloud-aws-security'],
             objectives: [
-                'Use AWS Management Console',
-                'Execute AWS CLI commands',
-                'Understand SDK options'
+                'Compare EC2 instance types',
+                'Understand serverless with Lambda',
+                'Choose appropriate compute service'
             ]
         },
 
-        // --- AWS Compute ---
         'cloud-aws-compute': {
             id: 'cloud-aws-compute',
             title: 'AWS Compute Services',
@@ -986,14 +1093,15 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/aws/ch07-compute-services-explorer.html'
             },
-            prerequisites: ['cloud-aws-security'],
+            prerequisites: ['cloud-aws-compute'],
             objectives: [
-                'Compare EC2 instance types',
-                'Understand serverless with Lambda',
-                'Choose appropriate compute service'
+                'Select appropriate instance types',
+                'Understand EC2 pricing models',
+                'Configure instance settings'
             ]
         },
 
+        // --- AWS Storage ---
         'cloud-aws-ec2': {
             id: 'cloud-aws-ec2',
             title: 'EC2 Instance Types',
@@ -1009,13 +1117,13 @@ const ContentRegistry = {
             },
             prerequisites: ['cloud-aws-compute'],
             objectives: [
-                'Select appropriate instance types',
-                'Understand EC2 pricing models',
-                'Configure instance settings'
+                'Compare S3 storage classes',
+                'Understand block vs object storage',
+                'Choose appropriate storage service'
             ]
         },
 
-        // --- AWS Storage ---
+        // --- AWS Database ---
         'cloud-aws-storage': {
             id: 'cloud-aws-storage',
             title: 'AWS Storage Services',
@@ -1030,15 +1138,15 @@ const ContentRegistry = {
                 applet: 'houses/cloud/applets/aws/ch08-storage-services-explorer.html',
                 quiz: 'houses/cloud/applets/aws/ch08-storage-quiz.html'
             },
-            prerequisites: ['cloud-aws-compute'],
+            prerequisites: ['cloud-aws-storage'],
             objectives: [
-                'Compare S3 storage classes',
-                'Understand block vs object storage',
-                'Choose appropriate storage service'
+                'Compare RDS database engines',
+                'Understand DynamoDB for NoSQL',
+                'Select appropriate database service'
             ]
         },
 
-        // --- AWS Database ---
+        // --- AWS Networking ---
         'cloud-aws-database': {
             id: 'cloud-aws-database',
             title: 'AWS Database Services',
@@ -1053,15 +1161,15 @@ const ContentRegistry = {
                 applet: 'houses/cloud/applets/aws/ch09-database-services-explorer.html',
                 quiz: 'houses/cloud/applets/aws/ch09-database-quiz.html'
             },
-            prerequisites: ['cloud-aws-storage'],
+            prerequisites: ['cloud-aws-security'],
             objectives: [
-                'Compare RDS database engines',
-                'Understand DynamoDB for NoSQL',
-                'Select appropriate database service'
+                'Design VPC architecture',
+                'Configure subnets and route tables',
+                'Implement security groups and NACLs'
             ]
         },
 
-        // --- AWS Networking ---
+        // --- AWS Advanced ---
         'cloud-aws-networking': {
             id: 'cloud-aws-networking',
             title: 'AWS VPC Networking',
@@ -1076,15 +1184,14 @@ const ContentRegistry = {
                 applet: 'houses/cloud/applets/aws/ch10-vpc-networking-visualizer.html',
                 quiz: 'houses/cloud/applets/aws/ch10-networking-quiz.html'
             },
-            prerequisites: ['cloud-aws-security'],
+            prerequisites: ['cloud-aws-compute'],
             objectives: [
-                'Design VPC architecture',
-                'Configure subnets and route tables',
-                'Implement security groups and NACLs'
+                'Create CloudFormation templates',
+                'Deploy with Elastic Beanstalk',
+                'Apply infrastructure as code'
             ]
         },
 
-        // --- AWS Advanced ---
         'cloud-aws-automation': {
             id: 'cloud-aws-automation',
             title: 'AWS Automation',
@@ -1098,11 +1205,11 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/aws/ch11-automation-explorer.html'
             },
-            prerequisites: ['cloud-aws-compute'],
+            prerequisites: [],
             objectives: [
-                'Create CloudFormation templates',
-                'Deploy with Elastic Beanstalk',
-                'Apply infrastructure as code'
+                'Navigate AWS service categories',
+                'Understand service purposes',
+                'Find appropriate services for use cases'
             ]
         },
 
@@ -1119,11 +1226,11 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/aws/aws-service-explorer.html'
             },
-            prerequisites: [],
+            prerequisites: ['cloud-aws-networking'],
             objectives: [
-                'Navigate AWS service categories',
-                'Understand service purposes',
-                'Find appropriate services for use cases'
+                'Apply AWS to real scenarios',
+                'Design solutions for requirements',
+                'Understand migration strategies'
             ]
         },
 
@@ -1140,14 +1247,15 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/cloud/applets/aws/ch12-use-cases-visualizer.html'
             },
-            prerequisites: ['cloud-aws-networking'],
+            prerequisites: ['cloud-aws-use-cases'],
             objectives: [
-                'Apply AWS to real scenarios',
-                'Design solutions for requirements',
-                'Understand migration strategies'
+                'Assess AWS CCP readiness',
+                'Identify knowledge gaps',
+                'Practice exam-style questions'
             ]
         },
 
+        // --- Azure ---
         'cloud-aws-practitioner': {
             id: 'cloud-aws-practitioner',
             title: 'AWS CCP Final Assessment',
@@ -1161,15 +1269,17 @@ const ContentRegistry = {
             components: {
                 quiz: 'houses/cloud/applets/aws/ch12-aws-practitioner-final-quiz.html'
             },
-            prerequisites: ['cloud-aws-use-cases'],
+            prerequisites: ['cloud-concepts'],
             objectives: [
-                'Assess AWS CCP readiness',
-                'Identify knowledge gaps',
-                'Practice exam-style questions'
+                'Navigate Azure portal',
+                'Understand Azure service categories',
+                'Compare Azure to AWS'
             ]
         },
 
-        // --- Azure ---
+        // ─────────────────────────────────────────────────────────────
+        // KEY HOUSE - Cryptography & Secrets
+        // ─────────────────────────────────────────────────────────────
         'cloud-azure-fundamentals': {
             id: 'cloud-azure-fundamentals',
             title: 'Azure Fundamentals',
@@ -1183,17 +1293,19 @@ const ContentRegistry = {
             components: {
                 presentation: 'houses/cloud/presentations/azure-fundamentals.html'
             },
-            prerequisites: ['cloud-concepts'],
+            prerequisites: [],
             objectives: [
-                'Navigate Azure portal',
-                'Understand Azure service categories',
-                'Compare Azure to AWS'
+                'Explain symmetric vs asymmetric encryption',
+                'Identify common algorithms (AES, RSA)',
+                'Understand key exchange concepts'
             ]
         },
 
         // ─────────────────────────────────────────────────────────────
-        // KEY HOUSE - Cryptography & Secrets
+        // SCRIPT HOUSE - Automation & Efficiency
         // ─────────────────────────────────────────────────────────────
+
+        // --- Linux Fundamentals ---
         'key-encryption-basics': {
             id: 'key-encryption-basics',
             title: 'Encryption Fundamentals',
@@ -1211,17 +1323,12 @@ const ContentRegistry = {
             },
             prerequisites: [],
             objectives: [
-                'Explain symmetric vs asymmetric encryption',
-                'Identify common algorithms (AES, RSA)',
-                'Understand key exchange concepts'
+                'Navigate the Linux file system',
+                'Execute essential Linux commands',
+                'Understand shell basics'
             ]
         },
 
-        // ─────────────────────────────────────────────────────────────
-        // SCRIPT HOUSE - Automation & Efficiency
-        // ─────────────────────────────────────────────────────────────
-
-        // --- Linux Fundamentals ---
         'script-linux-basics': {
             id: 'script-linux-basics',
             title: 'Linux Command Line Basics',
@@ -1237,11 +1344,11 @@ const ContentRegistry = {
                 applet: 'houses/script/applets/linux/linux-command-simulator.html',
                 lab: 'houses/script/applets/linux/lab-macos-linux.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-linux-basics'],
             objectives: [
-                'Navigate the Linux file system',
-                'Execute essential Linux commands',
-                'Understand shell basics'
+                'Navigate Linux directory hierarchy',
+                'Understand FHS structure',
+                'Manage files and directories'
             ]
         },
 
@@ -1258,14 +1365,15 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/linux/linux-filesystem-navigator.html'
             },
-            prerequisites: ['script-linux-basics'],
+            prerequisites: ['script-linux-filesystem'],
             objectives: [
-                'Navigate Linux directory hierarchy',
-                'Understand FHS structure',
-                'Manage files and directories'
+                'Understand rwx permissions',
+                'Calculate octal permission values',
+                'Apply chmod and chown commands'
             ]
         },
 
+        // --- Linux Interactive Labs (L-Series) ---
         'script-linux-permissions': {
             id: 'script-linux-permissions',
             title: 'Linux Permissions',
@@ -1279,15 +1387,14 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/linux/linux-permissions-calculator.html'
             },
-            prerequisites: ['script-linux-filesystem'],
+            prerequisites: [],
             objectives: [
-                'Understand rwx permissions',
-                'Calculate octal permission values',
-                'Apply chmod and chown commands'
+                'Use whoami to display your username',
+                'Use id to view UID, GID, and group memberships',
+                'Use groups to list your group memberships'
             ]
         },
 
-        // --- Linux Interactive Labs (L-Series) ---
         'script-linux-lab-001': {
             id: 'script-linux-lab-001',
             title: 'L-001: User Identity',
@@ -1301,14 +1408,16 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/linux-lab-001-user-identity.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-linux-lab-001'],
             objectives: [
-                'Use whoami to display your username',
-                'Use id to view UID, GID, and group memberships',
-                'Use groups to list your group memberships'
+                'Use pwd to display current directory',
+                'Use ls to list directory contents',
+                'Use cd to navigate between directories',
+                'Understand hidden files with ls -la'
             ]
         },
 
+        // --- Command Line Hacker Series (CLH) ---
         'script-linux-lab-002': {
             id: 'script-linux-lab-002',
             title: 'L-002: File Navigation',
@@ -1322,16 +1431,15 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/linux-lab-002-file-navigation.html'
             },
-            prerequisites: ['script-linux-lab-001'],
+            prerequisites: [],
             objectives: [
-                'Use pwd to display current directory',
-                'Use ls to list directory contents',
-                'Use cd to navigate between directories',
-                'Understand hidden files with ls -la'
+                'Identify your operator identity with whoami',
+                'Locate your position in the filesystem with pwd',
+                'Identify the target system with hostname',
+                'Survey your environment with ls'
             ]
         },
 
-        // --- Command Line Hacker Series (CLH) ---
         'script-clh-001': {
             id: 'script-clh-001',
             title: 'CLH-001: Introduction to Hacker CLI',
@@ -1345,12 +1453,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-clh-001'],
             objectives: [
-                'Identify your operator identity with whoami',
-                'Locate your position in the filesystem with pwd',
-                'Identify the target system with hostname',
-                'Survey your environment with ls'
+                'Navigate directory structures with cd',
+                'Perform deep scans with ls -la',
+                'Extract intel from files with cat',
+                'Return to base operations'
             ]
         },
 
@@ -1367,12 +1475,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
             },
-            prerequisites: ['script-clh-001'],
+            prerequisites: ['script-clh-002'],
             objectives: [
-                'Navigate directory structures with cd',
-                'Perform deep scans with ls -la',
-                'Extract intel from files with cat',
-                'Return to base operations'
+                'Use grep to search file contents',
+                'Extract hidden codes from text files',
+                'Use grep options (-i, -n, -c)',
+                'Document findings with line numbers'
             ]
         },
 
@@ -1389,12 +1497,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
             },
-            prerequisites: ['script-clh-002'],
+            prerequisites: ['script-clh-003'],
             objectives: [
-                'Use grep to search file contents',
-                'Extract hidden codes from text files',
-                'Use grep options (-i, -n, -c)',
-                'Document findings with line numbers'
+                'Analyze process snapshots',
+                'Identify anomalous resource usage',
+                'Hunt for unknown processes',
+                'Document threat indicators'
             ]
         },
 
@@ -1411,12 +1519,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
             },
-            prerequisites: ['script-clh-003'],
+            prerequisites: ['script-clh-004'],
             objectives: [
-                'Analyze process snapshots',
-                'Identify anomalous resource usage',
-                'Hunt for unknown processes',
-                'Document threat indicators'
+                'Navigate log directories',
+                'Use head/tail for log preview',
+                'Search for error patterns with grep',
+                'Count and document error frequency'
             ]
         },
 
@@ -1433,12 +1541,13 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
             },
-            prerequisites: ['script-clh-004'],
+            prerequisites: ['script-clh-005'],
             objectives: [
-                'Navigate log directories',
-                'Use head/tail for log preview',
-                'Search for error patterns with grep',
-                'Count and document error frequency'
+                'Create directories with mkdir',
+                'Create files with touch',
+                'Copy intel with cp',
+                'Move and rename with mv',
+                'Secure delete with rm'
             ]
         },
 
@@ -1455,13 +1564,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-006-file-operations.html'
             },
-            prerequisites: ['script-clh-005'],
+            prerequisites: ['script-clh-006'],
             objectives: [
-                'Create directories with mkdir',
-                'Create files with touch',
-                'Copy intel with cp',
-                'Move and rename with mv',
-                'Secure delete with rm'
+                'Analyze file permissions with ls -la',
+                'Decode permission bits (rwx)',
+                'Modify permissions with chmod',
+                'Understand permission security'
             ]
         },
 
@@ -1478,12 +1586,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-007-permissions.html'
             },
-            prerequisites: ['script-clh-006'],
+            prerequisites: ['script-clh-007'],
             objectives: [
-                'Analyze file permissions with ls -la',
-                'Decode permission bits (rwx)',
-                'Modify permissions with chmod',
-                'Understand permission security'
+                'Examine shell script structure',
+                'Run scripts with bash command',
+                'Understand shebang and execution',
+                'Analyze automation scripts'
             ]
         },
 
@@ -1500,12 +1608,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
             },
-            prerequisites: ['script-clh-007'],
+            prerequisites: ['script-clh-008'],
             objectives: [
-                'Examine shell script structure',
-                'Run scripts with bash command',
-                'Understand shebang and execution',
-                'Analyze automation scripts'
+                'Extract columns with cut',
+                'Sort and deduplicate data',
+                'Parse fields with awk',
+                'Transform text with sed'
             ]
         },
 
@@ -1522,12 +1630,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-009-text-processing.html'
             },
-            prerequisites: ['script-clh-008'],
+            prerequisites: ['script-clh-009'],
             objectives: [
-                'Extract columns with cut',
-                'Sort and deduplicate data',
-                'Parse fields with awk',
-                'Transform text with sed'
+                'Redirect output to files',
+                'Append data with >>',
+                'Chain commands with pipes',
+                'Split output with tee'
             ]
         },
 
@@ -1544,12 +1652,12 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
             },
-            prerequisites: ['script-clh-009'],
+            prerequisites: ['script-clh-010'],
             objectives: [
-                'Redirect output to files',
-                'Append data with >>',
-                'Chain commands with pipes',
-                'Split output with tee'
+                'Use grep flags (-i, -v, -c, -n, -r)',
+                'Write basic regex patterns',
+                'Match complex patterns with extended regex',
+                'Hunt for specific data in logs'
             ]
         },
 
@@ -1566,15 +1674,15 @@ const ContentRegistry = {
             components: {
                 lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
             },
-            prerequisites: ['script-clh-010'],
+            prerequisites: [],
             objectives: [
-                'Use grep flags (-i, -v, -c, -n, -r)',
-                'Write basic regex patterns',
-                'Match complex patterns with extended regex',
-                'Hunt for specific data in logs'
+                'Find equivalent commands across OSes',
+                'Understand command syntax differences',
+                'Work effectively in multi-platform environments'
             ]
         },
 
+        // --- Bash Scripting ---
         'script-command-translator': {
             id: 'script-command-translator',
             title: 'Cross-Platform Commands',
@@ -1588,15 +1696,15 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/linux/command-translator.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-linux-basics'],
             objectives: [
-                'Find equivalent commands across OSes',
-                'Understand command syntax differences',
-                'Work effectively in multi-platform environments'
+                'Write bash scripts with variables and loops',
+                'Use conditionals and functions',
+                'Automate repetitive tasks'
             ]
         },
 
-        // --- Bash Scripting ---
+        // --- Python Programming (8-chapter series) ---
         'script-bash-scripting': {
             id: 'script-bash-scripting',
             title: 'Bash Scripting',
@@ -1610,15 +1718,14 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/linux/bash-scripting-playground.html'
             },
-            prerequisites: ['script-linux-basics'],
+            prerequisites: [],
             objectives: [
-                'Write bash scripts with variables and loops',
-                'Use conditionals and functions',
-                'Automate repetitive tasks'
+                'Write and run Python code',
+                'Understand Python syntax',
+                'Use variables and data types'
             ]
         },
 
-        // --- Python Programming (8-chapter series) ---
         'script-python-basics': {
             id: 'script-python-basics',
             title: 'Python Basics',
@@ -1633,11 +1740,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter1.html',
                 applet: 'houses/script/applets/python/python-chapter1-applet.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-python-basics'],
             objectives: [
-                'Write and run Python code',
-                'Understand Python syntax',
-                'Use variables and data types'
+                'Manipulate strings effectively',
+                'Use string methods and formatting',
+                'Process text data'
             ]
         },
 
@@ -1655,11 +1762,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter2.html',
                 applet: 'houses/script/applets/python/python-chapter2-strings.html'
             },
-            prerequisites: ['script-python-basics'],
+            prerequisites: ['script-python-strings'],
             objectives: [
-                'Manipulate strings effectively',
-                'Use string methods and formatting',
-                'Process text data'
+                'Use if/elif/else statements',
+                'Write for and while loops',
+                'Control program execution flow'
             ]
         },
 
@@ -1677,11 +1784,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter3.html',
                 applet: 'houses/script/applets/python/python-chapter3-flow-control.html'
             },
-            prerequisites: ['script-python-strings'],
+            prerequisites: ['script-python-flow-control'],
             objectives: [
-                'Use if/elif/else statements',
-                'Write for and while loops',
-                'Control program execution flow'
+                'Define and call functions',
+                'Use parameters and return values',
+                'Understand scope and namespaces'
             ]
         },
 
@@ -1699,11 +1806,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter4.html',
                 applet: 'houses/script/applets/python/python-chapter4-functions.html'
             },
-            prerequisites: ['script-python-flow-control'],
+            prerequisites: ['script-python-functions'],
             objectives: [
-                'Define and call functions',
-                'Use parameters and return values',
-                'Understand scope and namespaces'
+                'Work with lists and tuples',
+                'Use list comprehensions',
+                'Manipulate collection data'
             ]
         },
 
@@ -1721,11 +1828,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter5.html',
                 applet: 'houses/script/applets/python/python-chapter5-collections.html'
             },
-            prerequisites: ['script-python-functions'],
+            prerequisites: ['script-python-collections'],
             objectives: [
-                'Work with lists and tuples',
-                'Use list comprehensions',
-                'Manipulate collection data'
+                'Create and manipulate dictionaries',
+                'Access and modify key-value pairs',
+                'Use dictionary methods effectively'
             ]
         },
 
@@ -1743,11 +1850,11 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter6.html',
                 applet: 'houses/script/applets/python/python-chapter6-dictionaries.html'
             },
-            prerequisites: ['script-python-collections'],
+            prerequisites: ['script-python-dictionaries'],
             objectives: [
-                'Create and manipulate dictionaries',
-                'Access and modify key-value pairs',
-                'Use dictionary methods effectively'
+                'Read from and write to files',
+                'Handle file exceptions',
+                'Process file data effectively'
             ]
         },
 
@@ -1765,14 +1872,15 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter7.html',
                 applet: 'houses/script/applets/python/python-chapter7-file-handling.html'
             },
-            prerequisites: ['script-python-dictionaries'],
+            prerequisites: ['script-python-files'],
             objectives: [
-                'Read from and write to files',
-                'Handle file exceptions',
-                'Process file data effectively'
+                'Define classes and create objects',
+                'Use inheritance and polymorphism',
+                'Apply OOP design principles'
             ]
         },
 
+        // --- PowerShell & Windows CLI ---
         'script-python-oop': {
             id: 'script-python-oop',
             title: 'Python OOP',
@@ -1787,15 +1895,14 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/python/python-chapter8.html',
                 applet: 'houses/script/applets/python/python-chapter8-oop.html'
             },
-            prerequisites: ['script-python-files'],
+            prerequisites: [],
             objectives: [
-                'Define classes and create objects',
-                'Use inheritance and polymorphism',
-                'Apply OOP design principles'
+                'Execute PowerShell commands',
+                'Understand cmdlet structure',
+                'Write basic PowerShell scripts'
             ]
         },
 
-        // --- PowerShell & Windows CLI ---
         'script-powershell-basics': {
             id: 'script-powershell-basics',
             title: 'PowerShell Basics',
@@ -1809,11 +1916,11 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/powershell/powershell-playground.html'
             },
-            prerequisites: [],
+            prerequisites: ['script-powershell-basics'],
             objectives: [
-                'Execute PowerShell commands',
-                'Understand cmdlet structure',
-                'Write basic PowerShell scripts'
+                'Use essential Windows CLI commands',
+                'Manage system from command line',
+                'Troubleshoot with CLI tools'
             ]
         },
 
@@ -1830,11 +1937,11 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/powershell/windows-cli-tools.html'
             },
-            prerequisites: ['script-powershell-basics'],
+            prerequisites: ['script-windows-cli'],
             objectives: [
-                'Use essential Windows CLI commands',
-                'Manage system from command line',
-                'Troubleshoot with CLI tools'
+                'Navigate registry hives',
+                'Understand registry data types',
+                'Safely modify registry entries'
             ]
         },
 
@@ -1853,12 +1960,13 @@ const ContentRegistry = {
             },
             prerequisites: ['script-windows-cli'],
             objectives: [
-                'Navigate registry hives',
-                'Understand registry data types',
-                'Safely modify registry entries'
+                'Use Windows diagnostic tools',
+                'Troubleshoot common issues',
+                'Analyze system health'
             ]
         },
 
+        // --- System Administration ---
         'script-windows-troubleshooting': {
             id: 'script-windows-troubleshooting',
             title: 'Windows Troubleshooting',
@@ -1872,15 +1980,14 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/powershell/windows-troubleshooting.html'
             },
-            prerequisites: ['script-windows-cli'],
+            prerequisites: ['script-linux-basics'],
             objectives: [
-                'Use Windows diagnostic tools',
-                'Troubleshoot common issues',
-                'Analyze system health'
+                'Monitor and manage processes',
+                'Control system services',
+                'Analyze resource usage'
             ]
         },
 
-        // --- System Administration ---
         'script-process-management': {
             id: 'script-process-management',
             title: 'Process Management',
@@ -1896,9 +2003,9 @@ const ContentRegistry = {
             },
             prerequisites: ['script-linux-basics'],
             objectives: [
-                'Monitor and manage processes',
-                'Control system services',
-                'Analyze resource usage'
+                'Locate and read log files',
+                'Configure logging systems',
+                'Analyze logs for issues'
             ]
         },
 
@@ -1917,9 +2024,9 @@ const ContentRegistry = {
             },
             prerequisites: ['script-linux-basics'],
             objectives: [
-                'Locate and read log files',
-                'Configure logging systems',
-                'Analyze logs for issues'
+                'Use package managers (apt, yum)',
+                'Install and remove software',
+                'Manage package repositories'
             ]
         },
 
@@ -1936,14 +2043,17 @@ const ContentRegistry = {
             components: {
                 applet: 'houses/script/applets/sysadmin/package-manager-simulator.html'
             },
-            prerequisites: ['script-linux-basics'],
+            prerequisites: ['script-bash-scripting'],
             objectives: [
-                'Use package managers (apt, yum)',
-                'Install and remove software',
-                'Manage package repositories'
+                'Understand REST APIs and data formats',
+                'Apply infrastructure as code concepts',
+                'Use configuration management tools'
             ]
         },
 
+        // ─────────────────────────────────────────────────────────────
+        // CODE HOUSE - Development & Engineering
+        // ─────────────────────────────────────────────────────────────
         'script-automation-concepts': {
             id: 'script-automation-concepts',
             title: 'Automation Concepts',
@@ -1958,17 +2068,14 @@ const ContentRegistry = {
                 presentation: 'houses/script/presentations/automation-presentation.html',
                 applet: 'houses/script/applets/sysadmin/automation-visualizer.html'
             },
-            prerequisites: ['script-bash-scripting'],
+            prerequisites: [],
             objectives: [
-                'Understand REST APIs and data formats',
-                'Apply infrastructure as code concepts',
-                'Use configuration management tools'
+                'Initialize and clone repositories',
+                'Commit, push, and pull changes',
+                'Understand branching basics'
             ]
         },
 
-        // ─────────────────────────────────────────────────────────────
-        // CODE HOUSE - Development & Engineering
-        // ─────────────────────────────────────────────────────────────
         'code-git-basics': {
             id: 'code-git-basics',
             title: 'Git Fundamentals',
@@ -1984,11 +2091,11 @@ const ContentRegistry = {
                 applet: 'houses/code/applets/pipeline-builder.html',
                 lab: 'houses/code/labs/cicd-lab.html'
             },
-            prerequisites: [],
+            prerequisites: ['code-git-basics'],
             objectives: [
-                'Initialize and clone repositories',
-                'Commit, push, and pull changes',
-                'Understand branching basics'
+                'Build and run Docker containers',
+                'Write effective Dockerfiles',
+                'Manage container lifecycles'
             ]
         },
 
@@ -2008,11 +2115,11 @@ const ContentRegistry = {
                 quiz: 'houses/code/quizzes/docker-quiz.html',
                 lab: 'houses/code/labs/docker-lab.html'
             },
-            prerequisites: ['code-git-basics'],
+            prerequisites: ['code-docker'],
             objectives: [
-                'Build and run Docker containers',
-                'Write effective Dockerfiles',
-                'Manage container lifecycles'
+                'Deploy applications to Kubernetes',
+                'Understand pods, services, and deployments',
+                'Scale and manage containerized workloads'
             ]
         },
 
@@ -2032,11 +2139,11 @@ const ContentRegistry = {
                 quiz: 'houses/code/quizzes/kubernetes-quiz.html',
                 lab: 'houses/code/labs/kubernetes-lab.html'
             },
-            prerequisites: ['code-docker'],
+            prerequisites: ['code-git-basics'],
             objectives: [
-                'Deploy applications to Kubernetes',
-                'Understand pods, services, and deployments',
-                'Scale and manage containerized workloads'
+                'Write Terraform configuration files',
+                'Manage state and providers',
+                'Deploy cloud infrastructure as code'
             ]
         },
 
@@ -2058,9 +2165,9 @@ const ContentRegistry = {
             },
             prerequisites: ['code-git-basics'],
             objectives: [
-                'Write Terraform configuration files',
-                'Manage state and providers',
-                'Deploy cloud infrastructure as code'
+                'Write CloudFormation templates',
+                'Create and update stacks',
+                'Manage AWS resources declaratively'
             ]
         },
 
@@ -2080,11 +2187,11 @@ const ContentRegistry = {
                 quiz: 'houses/code/quizzes/cloudformation-quiz.html',
                 lab: 'houses/code/labs/cloudformation-lab.html'
             },
-            prerequisites: ['code-git-basics'],
+            prerequisites: ['code-git-basics', 'code-docker'],
             objectives: [
-                'Write CloudFormation templates',
-                'Create and update stacks',
-                'Manage AWS resources declaratively'
+                'Build CI/CD pipelines',
+                'Automate testing and deployment',
+                'Implement DevOps best practices'
             ]
         },
 
@@ -2104,14 +2211,17 @@ const ContentRegistry = {
                 quiz: 'houses/code/quizzes/cicd-quiz.html',
                 lab: 'houses/code/labs/cicd-lab.html'
             },
-            prerequisites: ['code-git-basics', 'code-docker'],
+            prerequisites: [],
             objectives: [
-                'Build CI/CD pipelines',
-                'Automate testing and deployment',
-                'Implement DevOps best practices'
+                'Understand Agile principles',
+                'Work in sprint cycles',
+                'Apply SDLC methodologies'
             ]
         },
 
+        // ─────────────────────────────────────────────────────────────
+        // EYE HOUSE - Monitoring & Analysis
+        // ─────────────────────────────────────────────────────────────
         'code-agile': {
             id: 'code-agile',
             title: 'Agile & SDLC',
@@ -2129,14 +2239,32 @@ const ContentRegistry = {
             },
             prerequisites: [],
             objectives: [
-                'Understand Agile principles',
-                'Work in sprint cycles',
-                'Apply SDLC methodologies'
+                'Locate common log files',
+                'Parse log entries effectively',
+                'Identify indicators in logs'
             ]
         },
 
-        // ─────────────────────────────────────────────────────────────
-        // EYE HOUSE - Monitoring & Analysis
+        // Added during ISSUE-009 fix (Dec 29, 2025)
+        'code-unit-testing': {
+            id: 'code-unit-testing',
+            title: 'Unit Testing',
+            description: 'Test-driven development and unit testing fundamentals',
+            house: 'code',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['testing', 'tdd', 'unit-tests', 'quality-assurance'],
+            paths: ['developer-essentials', 'devops-fundamentals'],
+            components: {
+                presentation: 'houses/code/presentations/unit-testing.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+// ─────────────────────────────────────────────────────────────
+        // SHIELD HOUSE - 134 new entries
         // ─────────────────────────────────────────────────────────────
         'eye-log-analysis': {
             id: 'eye-log-analysis',
@@ -2154,16 +2282,27 @@ const ContentRegistry = {
                 lab: 'houses/eye/labs/soc-lab.html'
             },
             prerequisites: [],
-            objectives: [
-                'Locate common log files',
-                'Parse log entries effectively',
-                'Identify indicators in logs'
-            ]
+            objectives: []
         },
 
-// ─────────────────────────────────────────────────────────────
-        // SHIELD HOUSE - 134 new entries
-        // ─────────────────────────────────────────────────────────────
+        // Added during ISSUE-009 fix (Dec 29, 2025) - moved from orphan at line ~9230
+        'eye-soc-simulator': {
+            id: 'eye-soc-simulator',
+            title: 'SOC Simulator',
+            description: 'Simulate Security Operations Center workflows and triage',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['monitoring', 'soc', 'triage', 'incident-response'],
+            paths: ['security-operations', 'comptia-security'],
+            components: {
+                applet: 'houses/eye/tools/soc-simulator.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
         'shield-yara-training': {
             id: 'shield-yara-training',
             title: 'YARA Rules Training Lab',
@@ -2173,7 +2312,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/tools/yara-training.html'
             },
@@ -2189,7 +2328,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 55,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 lab: 'houses/shield/labs/osint-google-dorking.html'
             },
@@ -2205,7 +2344,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/presentations/security-fundamentals.html'
             },
@@ -2221,7 +2360,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['access-control', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/access/biometrics/Biometrics.html'
             },
@@ -2237,7 +2376,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['access-control', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/access/kerberos/kerberos.html'
             },
@@ -2253,25 +2392,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['access-control', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/access/aaa-flow-simulator.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-access-models': {
-            id: 'shield-access-models',
-            title: 'Access Control Models',
-            description: 'Compare RBAC, MAC, DAC, ABAC with scenario selector',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['access-control', 'security'],
-            paths: [],
-            components: {
-                applet: 'houses/shield/applets/access/access-control-models.html'
             },
             prerequisites: [],
             objectives: []
@@ -2286,6 +2409,22 @@ const ContentRegistry = {
         // CDN Base: https://d2hie3dpn9wvbb.cloudfront.net/CMMC/
         // ─────────────────────────────────────────────────────────────
 
+        'shield-access-models': {
+            id: 'shield-access-models',
+            title: 'Access Control Models',
+            description: 'Compare RBAC, MAC, DAC, ABAC with scenario selector',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['access-control', 'security'],
+            paths: ['comptia-security', 'security-fundamentals'],
+            components: {
+                applet: 'houses/shield/applets/access/access-control-models.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'shield-cmmc-ac': {
             id: 'shield-cmmc-ac',
             title: 'CMMC Access Control',
@@ -2295,7 +2434,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/ACv2/ACv2.html'
             },
@@ -2311,7 +2450,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/AUv2/AUv2.html'
             },
@@ -2327,7 +2466,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/ATv2/ATv2.html'
             },
@@ -2343,7 +2482,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CMv2/CMv2.html'
             },
@@ -2359,7 +2498,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CUI/CUI_2.html'
             },
@@ -2375,7 +2514,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/frameworkv2/CMMCFrameworkv2.html'
             },
@@ -2391,7 +2530,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/IAv2/IAv2.html'
             },
@@ -2407,7 +2546,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/IRv2/IRv2.html'
             },
@@ -2423,7 +2562,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/MAv2/MAv2.html'
             },
@@ -2439,7 +2578,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/MPv2/MPv2.html'
             },
@@ -2455,7 +2594,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/PSv2/PSv2.html'
             },
@@ -2471,7 +2610,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/PEv2/PEv2.html'
             },
@@ -2487,7 +2626,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 quiz: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CMMCTestKnowledge/CMMCTestKnowledge2.html'
             },
@@ -2503,7 +2642,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/RAv2/RAv2.html'
             },
@@ -2519,7 +2658,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CAv2/CAv2.html'
             },
@@ -2535,7 +2674,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/SCv2/SCv2.html'
             },
@@ -2551,7 +2690,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
                 applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/SIv2/SIv2.html'
             },
@@ -2567,7 +2706,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/compliance/framework-selector.html'
             },
@@ -2583,7 +2722,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/block_mode/Block.html'
             },
@@ -2599,7 +2738,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/blockchain/blockchain.html'
             },
@@ -2615,7 +2754,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/checksum-verifier.html'
             },
@@ -2631,7 +2770,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/cryptomatch/CryptoMatch.html'
             },
@@ -2647,7 +2786,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/diffie_hellman/diffie_hellman.html'
             },
@@ -2663,7 +2802,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'devops-fundamentals', 'comptia-network', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/digital_signatures/DigitalSignature.html'
             },
@@ -2679,7 +2818,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'encryption'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/encrypt_data/EncryptData.html'
             },
@@ -2695,7 +2834,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'encryption'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/encryption/encryption_jedit_6_1.html'
             },
@@ -2711,7 +2850,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/crypto/factor_prime/FactorPrime.html'
             },
@@ -2727,7 +2866,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography', 'security', 'encryption'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 lab: 'houses/shield/applets/crypto/gpg-encryption-lab.html'
             },
@@ -2743,7 +2882,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing/Hashing.html'
             },
@@ -2759,7 +2898,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_narrated/Hashing_vo.html'
             },
@@ -2775,7 +2914,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'encryption'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/Encryption_II.html'
             },
@@ -2791,7 +2930,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 lab: 'houses/shield/applets/crypto/hashing_steganography/Hash_Lab.html'
             },
@@ -2807,7 +2946,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/Stego.html'
             },
@@ -2823,7 +2962,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'encryption'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/encryption_task.html'
             },
@@ -2839,7 +2978,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 presentation: 'houses/shield/applets/crypto/hashing_steganography/hash_steg_presentation.html'
             },
@@ -2855,7 +2994,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/hash_v3.html'
             },
@@ -2871,7 +3010,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography', 'security', 'hashing'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 lab: 'houses/shield/applets/crypto/hashing_steganography/hashing_Lab.html'
             },
@@ -2887,7 +3026,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/pki/pki.html'
             },
@@ -2903,7 +3042,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/rsa/RSA.html'
             },
@@ -2919,7 +3058,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/career_exploration/index.html'
             },
@@ -2935,7 +3074,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/cybersecurity_controls/cybersecurity_controls.html'
             },
@@ -2951,7 +3090,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/data_roles/dataroles.html'
             },
@@ -2967,7 +3106,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/design_principles/cybersecuritydesignprinciples.html'
             },
@@ -2983,7 +3122,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/ethics_challenge/ethics_challenge.html'
             },
@@ -2999,7 +3138,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/ethics_conduct/EthicsProfConduct.html'
             },
@@ -3015,7 +3154,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/physical_protection/physical_environmental.html'
             },
@@ -3031,7 +3170,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/privacy/privacy.html'
             },
@@ -3047,7 +3186,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/security-best-practices.html'
             },
@@ -3063,7 +3202,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/the_cube/cube.html'
             },
@@ -3079,7 +3218,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/asset-classification-wizard.html'
             },
@@ -3095,7 +3234,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/fundamentals/data-lifecycle-visualizer.html'
             },
@@ -3111,7 +3250,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/cookie_caper/cookies.html'
             },
@@ -3127,7 +3266,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/cyber_hat_match/hatmatch.html'
             },
@@ -3143,7 +3282,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/cyber_scramble/cyberscramble.html'
             },
@@ -3159,7 +3298,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/ethical_hacking_case/EH_exam_1A.html'
             },
@@ -3175,7 +3314,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/hacker_hangman/hangman.html'
             },
@@ -3191,7 +3330,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/games/whats_my_crime/crime.html'
             },
@@ -3207,7 +3346,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/browser-security-hardening.html'
             },
@@ -3223,7 +3362,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/eap/EAP.html'
             },
@@ -3239,7 +3378,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security', 'networking'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network'],
             components: {
                 applet: 'houses/shield/applets/network/home-network-security.html'
             },
@@ -3255,7 +3394,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/ids_ips/IDS_IPS.html'
             },
@@ -3271,7 +3410,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security', 'linux'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-linux'],
             components: {
                 applet: 'houses/shield/applets/network/linux-firewall-builder.html'
             },
@@ -3287,7 +3426,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network'],
             components: {
                 applet: 'houses/shield/applets/network/nat_pat/NAT.html'
             },
@@ -3303,7 +3442,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network'],
             components: {
                 applet: 'houses/shield/applets/network/protocol_analysis/ProtocolAnalysis.html'
             },
@@ -3319,7 +3458,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/threeway_handshake/threeway_handshake1_audio.html'
             },
@@ -3335,7 +3474,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/vpn/vpn.html'
             },
@@ -3351,7 +3490,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['network-security', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/network/wireless_security/WirelessSecurity.html'
             },
@@ -3367,7 +3506,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/risk/change-management.html'
             },
@@ -3383,7 +3522,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/risk/config_management/ConfigMgmt.html'
             },
@@ -3399,7 +3538,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/risk/cybersecurity_scenario/cyber_scenario.html'
             },
@@ -3415,7 +3554,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/risk/incident-response-simulator.html'
             },
@@ -3431,7 +3570,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/risk/pspg/PSPG.html'
             },
@@ -3447,7 +3586,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/risk/risk_analysis/risk_analysis.html'
             },
@@ -3463,7 +3602,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/risk/bia-calculator.html'
             },
@@ -3479,7 +3618,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/risk/crisc-risk-calculator.html'
             },
@@ -3495,7 +3634,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/buffer_overflow/bufferoverflow.html'
             },
@@ -3511,7 +3650,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/code_injection/codeinjection.html'
             },
@@ -3527,7 +3666,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/cross_site_scripting/crosssitescripting.html'
             },
@@ -3543,7 +3682,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/google_hacking/googlehacking.html'
             },
@@ -3559,7 +3698,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/heartbleed/heartbleed.html'
             },
@@ -3575,7 +3714,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/malware-types-reference.html'
             },
@@ -3591,7 +3730,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/meltdown_spectre/meltdown_spectre.html'
             },
@@ -3607,7 +3746,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/os_command_injection/oscommandinjection.html'
             },
@@ -3623,7 +3762,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/threats/osint/OSINT.html'
             },
@@ -3639,7 +3778,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/threats/osint_challenge/OSINT_PD_Challenge.html'
             },
@@ -3655,7 +3794,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'devops-fundamentals', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/threats/pen_testing/pen_testing.html'
             },
@@ -3671,7 +3810,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/phishing_mystery/phishing.html'
             },
@@ -3687,7 +3826,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/ransomware/RansomwareAttack.html'
             },
@@ -3703,7 +3842,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/social_engineering_tactics/SocialEngineeringTactics.html'
             },
@@ -3719,7 +3858,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/spoofing/spoofing1.html'
             },
@@ -3735,7 +3874,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/stuxnet/stuxnet.html'
             },
@@ -3751,7 +3890,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/threat_actors/ThreatActors.html'
             },
@@ -3767,7 +3906,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 presentation: 'houses/shield/presentations/security-presentation.html'
             },
@@ -3783,7 +3922,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/quizzes/cia-triad-quiz.html'
             },
@@ -3799,7 +3938,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 presentation: 'houses/shield/presentations/cse-06-security-monitoring-incident-response.html'
             },
@@ -3815,7 +3954,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 presentation: 'houses/shield/presentations/cse-07-risk-assessment-management.html'
             },
@@ -3831,7 +3970,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 presentation: 'houses/shield/presentations/cse-08-compliance-governance.html'
             },
@@ -3847,7 +3986,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/quizzes/cse-06-quiz.html'
             },
@@ -3863,7 +4002,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/quizzes/cse-07-quiz.html'
             },
@@ -3879,7 +4018,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/quizzes/cse-08-quiz.html'
             },
@@ -3895,7 +4034,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['architecture', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/applets/architecture/zero-trust-visualizer.html'
             },
@@ -3911,7 +4050,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 55,
             topics: ['operations', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 lab: 'houses/shield/applets/operations/ir-forensics-lab.html'
             },
@@ -3927,7 +4066,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 55,
             topics: ['operations', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 lab: 'houses/shield/applets/operations/ics-scada-security.html'
             },
@@ -3943,7 +4082,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['compliance', 'security', 'aws'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'aws-ccp', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/compliance/laws-regulations-reference.html'
             },
@@ -3959,7 +4098,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['architecture', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/applets/architecture/security-models-visualizer.html'
             },
@@ -3975,7 +4114,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/fundamentals/secure-sdlc-framework.html'
             },
@@ -3991,7 +4130,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/applets/risk/business-continuity-planner.html'
             },
@@ -4007,7 +4146,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['compliance', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/fundamentals/security-governance-dashboard.html'
             },
@@ -4023,7 +4162,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/tools/cve-lookup.html'
             },
@@ -4039,7 +4178,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'houses/shield/tools/google-dorking-osint.html'
             },
@@ -4055,7 +4194,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/challenges/attack-vector-challenge.html'
             },
@@ -4071,7 +4210,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 lab: 'houses/shield/labs/security-fundamentals-lab.html'
             },
@@ -4087,7 +4226,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['fundamentals', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/quizzes/security-fundamentals-quiz.html'
             },
@@ -4103,7 +4242,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['network-security', 'security', 'networking'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network'],
             components: {
                 lab: 'houses/shield/labs/network-security-lab.html'
             },
@@ -4119,7 +4258,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['network-security', 'security', 'networking'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'comptia-network'],
             components: {
                 quiz: 'houses/shield/quizzes/network-security-quiz.html'
             },
@@ -4135,7 +4274,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 lab: 'houses/shield/labs/cryptography-lab.html'
             },
@@ -4151,7 +4290,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 quiz: 'houses/shield/quizzes/cryptography-quiz.html'
             },
@@ -4167,7 +4306,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['access-control', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 lab: 'houses/shield/labs/access-control-lab.html'
             },
@@ -4183,7 +4322,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['access-control', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/quizzes/access-control-quiz.html'
             },
@@ -4199,7 +4338,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['compliance', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 lab: 'houses/shield/labs/compliance-lab.html'
             },
@@ -4215,7 +4354,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['compliance', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/quizzes/compliance-quiz.html'
             },
@@ -4231,7 +4370,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 lab: 'houses/shield/labs/threats-lab.html'
             },
@@ -4247,7 +4386,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['threats', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 quiz: 'houses/shield/quizzes/threats-quiz.html'
             },
@@ -4263,7 +4402,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 25,
             topics: ['operations', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/operations/cysa-analyst-toolkit.html'
             },
@@ -4279,7 +4418,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 25,
             topics: ['operations', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/operations/cfr-310-incident-response.html'
             },
@@ -4295,25 +4434,9 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 25,
             topics: ['operations', 'security'],
-            paths: [],
+            paths: ['comptia-security', 'security-fundamentals', 'devops-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/shield/applets/operations/pentest-plus-toolkit.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-cism-dashboard': {
-            id: 'shield-cism-dashboard',
-            title: 'CISM Management Dashboard',
-            description: 'ISACA CISM 4 domains - governance, risk, program development, incident management',
-            house: 'shield',
-            type: 'quiz',
-            difficulty: 'beginner',
-            duration: 25,
-            topics: ['compliance', 'security'],
-            paths: [],
-            components: {
-                quiz: 'houses/shield/applets/governance/cism-management-dashboard.html'
             },
             prerequisites: [],
             objectives: []
@@ -4323,6 +4446,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // WEB HOUSE - 71 new entries
         // ─────────────────────────────────────────────────────────────
+        'shield-cism-dashboard': {
+            id: 'shield-cism-dashboard',
+            title: 'CISM Management Dashboard',
+            description: 'ISACA CISM 4 domains - governance, risk, program development, incident management',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['compliance', 'security'],
+            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
+            components: {
+                quiz: 'houses/shield/applets/governance/cism-management-dashboard.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'web-burp-training': {
             id: 'web-burp-training',
             title: 'Burp Suite Training Lab',
@@ -4332,7 +4471,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['simulators', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/tools/burp-training.html'
             },
@@ -4348,7 +4487,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['simulators', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/tools/sqlmap-training.html'
             },
@@ -4364,7 +4503,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['simulators', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/tools/gobuster-training.html'
             },
@@ -4380,7 +4519,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['simulators', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/tools/nikto-training.html'
             },
@@ -4396,7 +4535,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/applets/networking-interactive-guide.html'
             },
@@ -4412,7 +4551,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna', 'aws-ccp'],
             components: {
                 applet: 'houses/web/applets/networking-exam-flashcards.html'
             },
@@ -4428,7 +4567,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/IPv6Challenge/IPv6Challenge.html'
             },
@@ -4444,7 +4583,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/NAT/NAT.html'
             },
@@ -4460,7 +4599,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/VLSM_challenge/VLSM_challenge.html'
             },
@@ -4476,7 +4615,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/binary-decimal-converter.html'
             },
@@ -4492,7 +4631,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/binaryIP/binaryIP.html'
             },
@@ -4508,7 +4647,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/classA/classA.html'
             },
@@ -4524,7 +4663,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/classB/classB.html'
             },
@@ -4540,7 +4679,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/intro_subnetting/intro_subnetting.html'
             },
@@ -4556,7 +4695,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/macaddressing/EMate_pizzaparty_exercise_102918.html'
             },
@@ -4572,7 +4711,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/network_classes2/network_classes2.html'
             },
@@ -4588,7 +4727,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/networkaddressing/EMate_understanding_addresses.html'
             },
@@ -4604,7 +4743,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/acl-visualizer.html'
             },
@@ -4620,7 +4759,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/cable-visualizer.html'
             },
@@ -4636,7 +4775,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/devices-visualizer.html'
             },
@@ -4652,7 +4791,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/etherchannel-visualizer.html'
             },
@@ -4668,7 +4807,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/fhrp-visualizer.html'
             },
@@ -4684,7 +4823,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/ipv6-visualizer.html'
             },
@@ -4700,7 +4839,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/osi-deep-dive-visualizer.html'
             },
@@ -4716,7 +4855,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/osi-visualizer.html'
             },
@@ -4732,7 +4871,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/ospf-cost-visualizer.html'
             },
@@ -4748,7 +4887,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/port-visualizer.html'
             },
@@ -4764,7 +4903,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/qos-visualizer.html'
             },
@@ -4780,7 +4919,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna', 'comptia-security'],
             components: {
                 applet: 'houses/web/applets/visualizers/security-visualizer.html'
             },
@@ -4796,7 +4935,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/stp-visualizer.html'
             },
@@ -4812,7 +4951,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/subnetting-visualizer.html'
             },
@@ -4828,7 +4967,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/switch-operations-visualizer.html'
             },
@@ -4844,7 +4983,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/topology-visualizer.html'
             },
@@ -4860,7 +4999,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/troubleshooting-visualizer.html'
             },
@@ -4876,7 +5015,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['routing-switching', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/vlan-visualizer.html'
             },
@@ -4892,7 +5031,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['wireless', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/wireless-architecture-visualizer.html'
             },
@@ -4908,7 +5047,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['wireless', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/visualizers/wireless-visualizer.html'
             },
@@ -4924,7 +5063,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/services/http-status-codes.html'
             },
@@ -4940,7 +5079,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/services/smb-file-sharing-guide.html'
             },
@@ -4956,7 +5095,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/services/web-server-comparison.html'
             },
@@ -4972,7 +5111,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/arp-presentation.html'
             },
@@ -4988,7 +5127,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/cables-presentation.html'
             },
@@ -5004,7 +5143,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/devices-presentation.html'
             },
@@ -5020,7 +5159,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/dhcp-presentation.html'
             },
@@ -5036,7 +5175,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/dns-presentation.html'
             },
@@ -5052,7 +5191,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/eigrp-presentation.html'
             },
@@ -5068,7 +5207,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/etherchannel-presentation.html'
             },
@@ -5084,7 +5223,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/ipv6-presentation.html'
             },
@@ -5100,7 +5239,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/nat-presentation.html'
             },
@@ -5116,7 +5255,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/network-essentials-presentation.html'
             },
@@ -5132,7 +5271,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/ntp-presentation.html'
             },
@@ -5148,7 +5287,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/osi-deep-dive-presentation.html'
             },
@@ -5164,7 +5303,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/osi-model.html'
             },
@@ -5180,7 +5319,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/ports-presentation.html'
             },
@@ -5196,7 +5335,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/subnetting-presentation.html'
             },
@@ -5212,7 +5351,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/switch-operations-presentation.html'
             },
@@ -5228,7 +5367,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/topologies-presentation.html'
             },
@@ -5244,7 +5383,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/troubleshooting-presentation.html'
             },
@@ -5260,7 +5399,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['wireless', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 presentation: 'houses/web/presentations/wireless-architecture-presentation.html'
             },
@@ -5276,7 +5415,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['simulators', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 lab: 'houses/web/simulators/interactive-network-simulator.v2.html'
             },
@@ -5292,7 +5431,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/quizzes/osi-quiz.html'
             },
@@ -5308,7 +5447,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/quizzes/subnetting-quiz.html'
             },
@@ -5324,7 +5463,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 quiz: 'houses/web/quizzes/networking-fundamentals-ports.html'
             },
@@ -5340,7 +5479,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/tools/subnet-calculator.html'
             },
@@ -5356,7 +5495,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/tools/dns-header-reference.html'
             },
@@ -5372,7 +5511,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ip-addressing', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/modules/ip-addressing-ch7-10.html'
             },
@@ -5388,7 +5527,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['visualizers', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna', 'aws-ccp'],
             components: {
                 applet: 'houses/web/modules/networking-flashcards.html'
             },
@@ -5404,7 +5543,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['presentations', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/textbook/networking-textbook-ch7-20.html'
             },
@@ -5420,7 +5559,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['labs', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/exams/networking-midterm.html'
             },
@@ -5436,25 +5575,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['labs', 'networking'],
-            paths: [],
+            paths: ['comptia-network', 'ccna'],
             components: {
                 lab: 'houses/web/labs/networking-fundamentals-lab.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'web-static-routes-lab': {
-            id: 'web-static-routes-lab',
-            title: 'Static Routes Lab',
-            description: 'Build a multi-layer Packet Tracer topology with static routing',
-            house: 'web',
-            type: 'lab',
-            difficulty: 'beginner',
-            duration: 45,
-            topics: ['labs', 'networking'],
-            paths: [],
-            components: {
-                lab: 'houses/web/labs/static-routes-lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -5464,6 +5587,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // CLOUD HOUSE - 35 new entries
         // ─────────────────────────────────────────────────────────────
+        'web-static-routes-lab': {
+            id: 'web-static-routes-lab',
+            title: 'Static Routes Lab',
+            description: 'Build a multi-layer Packet Tracer topology with static routing',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['labs', 'networking'],
+            paths: ['comptia-network', 'ccna'],
+            components: {
+                lab: 'houses/web/labs/static-routes-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'cloud-architecture-designer': {
             id: 'cloud-architecture-designer',
             title: 'Cloud Architecture Designer',
@@ -5473,7 +5612,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 applet: 'houses/cloud/applets/architecture/cloud-architecture-designer.html'
             },
@@ -5489,7 +5628,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp', 'comptia-network'],
             components: {
                 applet: 'houses/cloud/applets/aws/ch03-support-plans-visualizer.html'
             },
@@ -5505,7 +5644,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 applet: 'houses/cloud/applets/aws/ch04-aws-regions-explorer.html'
             },
@@ -5521,7 +5660,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp', 'comptia-security'],
             components: {
                 quiz: 'houses/cloud/applets/aws/ch05-iam-security-quiz.html'
             },
@@ -5537,7 +5676,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 applet: 'houses/cloud/applets/aws/ch07-ec2-instance-visualizer.html'
             },
@@ -5553,7 +5692,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/applets/aws/ch08-storage-quiz.html'
             },
@@ -5569,7 +5708,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/applets/aws/ch09-database-quiz.html'
             },
@@ -5585,7 +5724,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud', 'networking'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp', 'comptia-network'],
             components: {
                 quiz: 'houses/cloud/applets/aws/ch10-networking-quiz.html'
             },
@@ -5601,7 +5740,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 applet: 'houses/cloud/applets/aws/ch11-automation-explorer.html'
             },
@@ -5617,7 +5756,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 applet: 'houses/cloud/applets/aws/ch12-use-cases-visualizer.html'
             },
@@ -5633,7 +5772,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/applets/fundamentals/ch01-cloud-fundamentals-quiz.html'
             },
@@ -5649,7 +5788,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 applet: 'houses/cloud/applets/fundamentals/cloud-visualizer.html'
             },
@@ -5665,7 +5804,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 lab: 'houses/cloud/labs/cloud-lab-simulator.html'
             },
@@ -5681,7 +5820,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 presentation: 'houses/cloud/presentations/aws-fundamentals.html'
             },
@@ -5697,7 +5836,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-presentation.html'
             },
@@ -5713,7 +5852,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-01-cloud-fundamentals.html'
             },
@@ -5729,7 +5868,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-02-identity-access-management.html'
             },
@@ -5745,7 +5884,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'encryption'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'cryptography-track'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-03-data-protection-encryption.html'
             },
@@ -5761,7 +5900,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'networking'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'comptia-network', 'comptia-security'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-04-network-security.html'
             },
@@ -5777,7 +5916,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'comptia-security'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-05-application-security.html'
             },
@@ -5793,7 +5932,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-01-quiz.html'
             },
@@ -5809,7 +5948,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-02-quiz.html'
             },
@@ -5825,7 +5964,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-03-quiz.html'
             },
@@ -5841,7 +5980,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud', 'networking'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'comptia-network', 'comptia-security'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-04-quiz.html'
             },
@@ -5857,7 +5996,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'comptia-security'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-05-quiz.html'
             },
@@ -5873,7 +6012,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'comptia-security'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-06-security-monitoring-ir.html'
             },
@@ -5889,7 +6028,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-06-quiz.html'
             },
@@ -5905,7 +6044,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'security-operations'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-07-risk-assessment.html'
             },
@@ -5921,7 +6060,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-07-quiz.html'
             },
@@ -5937,7 +6076,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'security-operations'],
             components: {
                 presentation: 'houses/cloud/presentations/cse-08-compliance-governance.html'
             },
@@ -5953,7 +6092,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'security-operations'],
             components: {
                 quiz: 'houses/cloud/quizzes/cse-08-quiz.html'
             },
@@ -5969,7 +6108,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 quiz: 'houses/cloud/quizzes/aws-fundamentals-quiz.html'
             },
@@ -5985,7 +6124,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cloud', 'aws'],
-            paths: [],
+            paths: ['cloud-fundamentals', 'aws-ccp'],
             components: {
                 lab: 'houses/cloud/labs/aws-services-lab.html'
             },
@@ -6001,25 +6140,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cloud'],
-            paths: [],
+            paths: ['cloud-fundamentals'],
             components: {
                 lab: 'houses/cloud/labs/cloud-architecture-lab.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'cloud-security-lab': {
-            id: 'cloud-security-lab',
-            title: 'Cloud Security Lab',
-            description: 'Shared responsibility, IAM, encryption, network security, and compliance for CLF-C02',
-            house: 'cloud',
-            type: 'lab',
-            difficulty: 'beginner',
-            duration: 45,
-            topics: ['cloud'],
-            paths: [],
-            components: {
-                lab: 'houses/cloud/labs/cloud-security-lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -6029,6 +6152,260 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // FORGE HOUSE - 37 new entries
         // ─────────────────────────────────────────────────────────────
+        'cloud-security-lab': {
+            id: 'cloud-security-lab',
+            title: 'Cloud Security Lab',
+            description: 'Shared responsibility, IAM, encryption, network security, and compliance for CLF-C02',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['cloud'],
+            paths: ['cloud-fundamentals', 'comptia-security'],
+            components: {
+                lab: 'houses/cloud/labs/cloud-security-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─────────────────────────────────────────────────────────────
+        // EC-Council CSE v1 Complete Modules (SPELL-023)
+        // ─────────────────────────────────────────────────────────────
+        'cse-module01': {
+            id: 'cse-module01',
+            title: 'CSE Module 01: Cloud Computing & Security Fundamentals',
+            description: 'Complete module covering cloud deployment models, service models, shared responsibility, CSP comparison, threats, and security architecture',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 90,
+            topics: ['cloud', 'security', 'iaas', 'paas', 'saas', 'shared-responsibility', 'zero-trust', 'cloud-architecture'],
+            paths: ['cloud-security-essentials', 'comptia-security'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module01-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module01-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module01-quiz.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Explain NIST cloud computing definition and characteristics',
+                'Differentiate between IaaS, PaaS, and SaaS service models',
+                'Identify Private, Public, and Hybrid deployment models',
+                'Apply the shared responsibility matrix across service models',
+                'Compare AWS, Azure, and GCP service equivalents',
+                'Recognize OWASP Cloud-Native Top 10 security risks',
+                'Apply CIA Triad, Defense in Depth, and Zero Trust principles',
+                'Describe secure landing zone architecture patterns'
+            ]
+        },
+
+        'cse-module02': {
+            id: 'cse-module02',
+            title: 'CSE Module 02: Identity and Access Management (IAM) in Cloud',
+            description: 'Complete module covering IAM fundamentals, RBAC, identity federation, SSO, MFA, least privilege, and IAM auditing',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 90,
+            topics: ['cloud', 'security', 'iam', 'rbac', 'sso', 'mfa', 'federation', 'zero-trust', 'least-privilege'],
+            paths: ['cloud-security-essentials', 'comptia-security'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module02-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module02-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module02-quiz.html'
+            },
+            prerequisites: ['cse-module01'],
+            objectives: [
+                'Define key IAM terminology (Identity, Access, AuthN, AuthZ, Accounting)',
+                'Compare legacy vs modern IAM architectures',
+                'Identify principal types (users, admins, service principals, managed identities)',
+                'Apply Role-Based Access Control (RBAC) with appropriate scopes',
+                'Configure identity federation for hybrid and multicloud environments',
+                'Implement SSO and SSPR for improved security and user experience',
+                'Enforce MFA using multiple factor types',
+                'Apply principle of least privilege with JEA, JIT, and conditional access',
+                'Configure IAM auditing and integrate with SIEM platforms'
+            ]
+        },
+
+        'cse-module03': {
+            id: 'cse-module03',
+            title: 'CSE Module 03: Data Protection and Encryption in Cloud',
+            description: 'Complete module covering data classification, encryption at rest/transit, key management services, DLP, and disaster recovery',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 100,
+            topics: ['cloud', 'security', 'encryption', 'data-protection', 'key-management', 'dlp', 'disaster-recovery', 'backup'],
+            paths: ['cloud-security-essentials', 'comptia-security'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module03-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module03-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module03-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02'],
+            objectives: [
+                'Apply data classification frameworks (Public, Internal, Confidential, Restricted)',
+                'Implement encryption at rest using AES-256 and provider-managed keys',
+                'Configure encryption in transit using TLS 1.2/1.3 protocols',
+                'Compare customer-managed vs cloud-managed key services',
+                'Evaluate HSM vs software-based key management solutions',
+                'Implement DLP policies across cloud storage and services',
+                'Design backup strategies with appropriate RTO/RPO targets',
+                'Differentiate between backup and replication for DR planning',
+                'Apply M01-02 concepts to data protection scenarios'
+            ]
+        },
+
+        'cse-module04': {
+            id: 'cse-module04',
+            title: 'CSE Module 04: Network Security in Cloud',
+            description: 'Complete module covering VPCs, network segmentation, NACLs, security groups, remote access, firewalls, and IDS/IPS',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 100,
+            topics: ['cloud', 'security', 'networking', 'vpc', 'firewall', 'nacl', 'security-groups', 'bastion', 'waf', 'ids', 'ips'],
+            paths: ['cloud-security-essentials', 'comptia-security'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module04-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module04-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module04-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02', 'cse-module03'],
+            objectives: [
+                'Understand cloud network fundamentals and software-defined networking',
+                'Configure Virtual Private Clouds (VPCs) and Virtual Networks',
+                'Design multi-tier network architectures with proper segmentation',
+                'Implement NACLs and Security Groups for access control',
+                'Differentiate between stateful and stateless firewalls',
+                'Configure secure remote access using VPC Endpoints and Bastion hosts',
+                'Implement Just-In-Time (JIT) VM access for least privilege',
+                'Deploy Web Application Firewalls (WAF) for Layer 7 protection',
+                'Compare IDS vs IPS capabilities for threat detection and prevention',
+                'Apply M01-03 concepts to network security scenarios'
+            ]
+        },
+
+        'cse-module05': {
+            id: 'cse-module05',
+            title: 'CSE Module 05: Application Security in Cloud',
+            description: 'Complete module covering Secure SDLC, WAF, OWASP Top 10, secure coding, API security, serverless, and containers',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 110,
+            topics: ['cloud', 'security', 'application-security', 'sdlc', 'waf', 'owasp', 'sast', 'dast', 'api', 'serverless', 'containers', 'kubernetes'],
+            paths: ['cloud-security-essentials', 'comptia-security'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module05-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module05-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module05-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02', 'cse-module03', 'cse-module04'],
+            objectives: [
+                'Apply Secure SDLC phases per NIST SP 800-64',
+                'Understand the 3 Rs of secure software (Reliability, Resiliency, Recovery)',
+                'Implement Web Application Firewalls for Layer 7 protection',
+                'Identify and mitigate OWASP Top 10 vulnerabilities',
+                'Apply security by design principles',
+                'Compare SAST, DAST, and RASP testing methodologies',
+                'Implement API security best practices',
+                'Secure serverless functions (Lambda, Azure Functions)',
+                'Apply container security for Docker and Kubernetes',
+                'Integrate M01-04 concepts into application security scenarios'
+            ]
+        },
+
+        'cse-module06': {
+            id: 'cse-module06',
+            title: 'CSE Module 06: Security Monitoring & Incident Response',
+            description: 'Complete module covering cloud logging, SIEM/SOAR, CSPM, CNAPP, and incident response procedures',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 120,
+            topics: ['cloud', 'security', 'monitoring', 'siem', 'soar', 'cspm', 'cnapp', 'incident-response', 'logging', 'forensics'],
+            paths: ['cloud-security-essentials', 'comptia-security', 'soc-analyst'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module06-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module06-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module06-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02', 'cse-module03', 'cse-module04', 'cse-module05'],
+            objectives: [
+                'Configure and analyze cloud-native logging services (CloudTrail, CloudWatch, Azure Monitor)',
+                'Understand SIEM architecture and log aggregation strategies',
+                'Implement SOAR playbooks for automated incident response',
+                'Differentiate between CSPM, CWPP, and CNAPP platforms',
+                'Apply the NIST Incident Response lifecycle (Prepare, Detect, Contain, Eradicate, Recover, Lessons)',
+                'Perform cloud forensics with proper evidence preservation',
+                'Configure real-time alerting and threat detection',
+                'Conduct post-incident reviews and documentation',
+                'Integrate M01-05 concepts into monitoring and IR scenarios'
+            ]
+        },
+
+        'cse-module07': {
+            id: 'cse-module07',
+            title: 'CSE Module 07: Risk Assessment & Management',
+            description: 'Complete module covering cloud security risks, NIST RMF, quantitative analysis, BCP/DRP, and risk response strategies',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 120,
+            topics: ['cloud', 'security', 'risk-assessment', 'nist-rmf', 'bcp', 'drp', 'quantitative-analysis', 'threat-modeling'],
+            paths: ['cloud-security-essentials', 'comptia-security', 'risk-management'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module07-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module07-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module07-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02', 'cse-module03', 'cse-module04', 'cse-module05', 'cse-module06'],
+            objectives: [
+                'Identify and categorize cloud security risks (attack surface, human error, misconfiguration)',
+                'Apply NIST Risk Management Framework (SP 800-37) 7-step lifecycle',
+                'Calculate ALE, SLE, and ARO for quantitative risk analysis',
+                'Differentiate qualitative vs quantitative risk assessment approaches',
+                'Develop Business Continuity Plans (BCP) and Disaster Recovery Plans (DRP)',
+                'Apply RTO/RPO requirements to cloud disaster recovery',
+                'Perform STRIDE and DREAD threat modeling',
+                'Execute vulnerability assessments and prioritize remediation',
+                'Apply risk response strategies (Mitigate, Avoid, Accept, Transfer)',
+                'Integrate M01-06 concepts into comprehensive risk assessment scenarios'
+            ]
+        },
+
+        'cse-module08': {
+            id: 'cse-module08',
+            title: 'CSE Module 08: Cloud Compliance & Governance',
+            description: 'Capstone module covering regulatory compliance (GDPR, HIPAA, PCI-DSS, SOX), security standards (NIST CSF, ISO 27001, CSA CCM, FedRAMP), and cloud security governance',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'advanced',
+            duration: 130,
+            topics: ['cloud', 'security', 'compliance', 'governance', 'gdpr', 'hipaa', 'pci-dss', 'nist', 'iso27001', 'fedramp', 'auditing', 'penetration-testing'],
+            paths: ['cloud-security-essentials', 'comptia-security', 'compliance-professional'],
+            components: {
+                presentation: 'houses/cloud/modules/cse/cse-module08-presentation.html',
+                lab: 'houses/cloud/modules/cse/cse-module08-lab.html',
+                quiz: 'houses/cloud/modules/cse/cse-module08-quiz.html'
+            },
+            prerequisites: ['cse-module01', 'cse-module02', 'cse-module03', 'cse-module04', 'cse-module05', 'cse-module06', 'cse-module07'],
+            objectives: [
+                'Understand regulatory compliance requirements (GDPR, HIPAA, PCI-DSS, SOX, FISMA, FERPA, GLBA)',
+                'Apply cloud security standards (NIST CSF, NIST 800-53, ISO 27001, CSA CCM, CIS Benchmarks)',
+                'Navigate FedRAMP authorization paths (Ready, Authorized, Tailored)',
+                'Implement HITRUST CSF for healthcare compliance',
+                'Configure cloud-native auditing tools (Azure Policy, AWS Config, GCP Compliance)',
+                'Apply cloud security governance principles',
+                'Perform cloud security assessments and penetration testing',
+                'Generate compliance evidence and audit reports',
+                'Integrate M01-07 concepts into comprehensive compliance scenarios'
+            ]
+        },
+
         'forge-admin-tools-explorer': {
             id: 'forge-admin-tools-explorer',
             title: 'Admin Tools Explorer',
@@ -6038,7 +6415,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/admin-tools-explorer.html'
             },
@@ -6054,7 +6431,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/command-translator.html'
             },
@@ -6070,7 +6447,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/control-panel-explorer.html'
             },
@@ -6086,7 +6463,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/settings-explorer.html'
             },
@@ -6102,7 +6479,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/system-tools-sim.html'
             },
@@ -6118,7 +6495,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'windows'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/windows-edition-selector.html'
             },
@@ -6134,7 +6511,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/backup-strategy-planner.html'
             },
@@ -6150,7 +6527,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/cpu_architecture/cpu_architecture.html'
             },
@@ -6166,7 +6543,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/display_types/display_types.html'
             },
@@ -6182,7 +6559,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/hard_drive_geometry/hard_drive_geometry1.html'
             },
@@ -6198,7 +6575,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/laptop_hardware/laptop_hardware.html'
             },
@@ -6214,7 +6591,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/mobile_accessories/mobile_accessories.html'
             },
@@ -6230,7 +6607,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials', 'aws-ccp'],
             components: {
                 applet: 'houses/forge/applets/hardware/motherboards/motherboards.html'
             },
@@ -6246,7 +6623,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/multimeter/multimeter_jedit_v1.html'
             },
@@ -6262,7 +6639,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
             components: {
                 applet: 'houses/forge/applets/hardware/network_cables/network_cables.html'
             },
@@ -6278,7 +6655,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
             components: {
                 applet: 'houses/forge/applets/hardware/network_ports/network_ports.html'
             },
@@ -6294,7 +6671,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/peripheral_devices/peripheral_devices.html'
             },
@@ -6310,7 +6687,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/power_supplies/power_supplies.html'
             },
@@ -6326,7 +6703,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/printers/printers.html'
             },
@@ -6342,7 +6719,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/raid_storage/raid_storage.html'
             },
@@ -6358,7 +6735,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/ram_types/ram_types.html'
             },
@@ -6374,7 +6751,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/storage_devices/storage_devices.html'
             },
@@ -6390,7 +6767,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/applets/hardware/virtualization/virtualization.html'
             },
@@ -6406,7 +6783,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
             components: {
                 applet: 'houses/forge/applets/hardware/wireless_networking/wireless_networking.html'
             },
@@ -6422,7 +6799,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/admin-tools-lab.html'
             },
@@ -6438,7 +6815,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/control-panel-lab.html'
             },
@@ -6454,7 +6831,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'linux'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-linux'],
             components: {
                 lab: 'houses/forge/labs/lab-macos-linux.html'
             },
@@ -6470,7 +6847,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/system-tools-lab.html'
             },
@@ -6486,7 +6863,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'windows'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/windows-editions-lab.html'
             },
@@ -6502,7 +6879,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'windows'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/windows-settings-lab.html'
             },
@@ -6518,7 +6895,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['systems', 'windows'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 quiz: 'houses/forge/quizzes/windows-admin-quiz.html'
             },
@@ -6534,7 +6911,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 quiz: 'houses/forge/quizzes/aplus-core2-ch19-22.html'
             },
@@ -6550,7 +6927,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/games/aplus-jeopardy.html'
             },
@@ -6566,7 +6943,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/reference/cpu-architecture.html'
             },
@@ -6582,7 +6959,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems', 'windows'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/forge/reference/windows-shortcuts.html'
             },
@@ -6598,25 +6975,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: [],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/forge/labs/hardware-essentials-lab.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'forge-hardware-quiz': {
-            id: 'forge-hardware-quiz',
-            title: 'Hardware Essentials Quiz',
-            description: '15 questions covering A+ Core 1 hardware topics',
-            house: 'forge',
-            type: 'quiz',
-            difficulty: 'beginner',
-            duration: 15,
-            topics: ['systems'],
-            paths: [],
-            components: {
-                quiz: 'houses/forge/quizzes/hardware-essentials-quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -6626,6 +6987,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // SCRIPT HOUSE - 68 new entries
         // ─────────────────────────────────────────────────────────────
+        'forge-hardware-quiz': {
+            id: 'forge-hardware-quiz',
+            title: 'Hardware Essentials Quiz',
+            description: '15 questions covering A+ Core 1 hardware topics',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['systems'],
+            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            components: {
+                quiz: 'houses/forge/quizzes/hardware-essentials-quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'script-macos-linux-lab': {
             id: 'script-macos-linux-lab',
             title: 'macOS & Linux Lab',
@@ -6635,7 +7012,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['scripting', 'linux'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/script/applets/linux/lab-macos-linux.html'
             },
@@ -6651,7 +7028,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['scripting', 'python'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 applet: 'houses/script/applets/python/python-chapter7-file-handling.html'
             },
@@ -6667,7 +7044,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 applet: 'houses/script/applets/sysadmin/package-manager-simulator.html'
             },
@@ -6683,7 +7060,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 presentation: 'houses/script/presentations/automation-presentation.html'
             },
@@ -6699,7 +7076,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['scripting', 'linux'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 presentation: 'houses/script/presentations/macos-linux-basics.html'
             },
@@ -6715,7 +7092,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 presentation: 'houses/script/presentations/scripting-basics.html'
             },
@@ -6731,7 +7108,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['scripting', 'linux'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 quiz: 'houses/script/quizzes/linux-basics-quiz.html'
             },
@@ -6747,7 +7124,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
             },
@@ -6763,7 +7140,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'security-operations', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
             },
@@ -6779,7 +7156,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'comptia-network', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
             },
@@ -6795,7 +7172,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
             },
@@ -6811,7 +7188,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
             },
@@ -6827,7 +7204,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-006-file-operations.html'
             },
@@ -6843,7 +7220,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-007-permissions.html'
             },
@@ -6859,7 +7236,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
             },
@@ -6875,7 +7252,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-009-text-processing.html'
             },
@@ -6891,7 +7268,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
             },
@@ -6907,7 +7284,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
             },
@@ -6923,7 +7300,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting', 'networking'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'comptia-network', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-012-network-basics.html'
             },
@@ -6939,7 +7316,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-013-environment.html'
             },
@@ -6955,7 +7332,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-014-process-control.html'
             },
@@ -6971,7 +7348,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 lab: 'houses/script/applets/linux/clh-015-capstone.html'
             },
@@ -6987,7 +7364,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-001-quiz.html'
             },
@@ -7003,7 +7380,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-002-quiz.html'
             },
@@ -7019,7 +7396,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-003-quiz.html'
             },
@@ -7035,7 +7412,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-004-quiz.html'
             },
@@ -7051,7 +7428,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-005-quiz.html'
             },
@@ -7067,7 +7444,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-006-quiz.html'
             },
@@ -7083,7 +7460,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-007-quiz.html'
             },
@@ -7099,7 +7476,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-008-quiz.html'
             },
@@ -7115,7 +7492,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-009-quiz.html'
             },
@@ -7131,7 +7508,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-010-quiz.html'
             },
@@ -7147,7 +7524,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-011-quiz.html'
             },
@@ -7163,7 +7540,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-012-quiz.html'
             },
@@ -7179,7 +7556,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-013-quiz.html'
             },
@@ -7195,7 +7572,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-014-quiz.html'
             },
@@ -7211,7 +7588,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-015-quiz.html'
             },
@@ -7227,7 +7604,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-001-intro.html'
             },
@@ -7243,7 +7620,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-002-intro.html'
             },
@@ -7259,7 +7636,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-003-intro.html'
             },
@@ -7275,7 +7652,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-004-intro.html'
             },
@@ -7291,7 +7668,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-005-intro.html'
             },
@@ -7307,7 +7684,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-006-intro.html'
             },
@@ -7323,7 +7700,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-007-intro.html'
             },
@@ -7339,7 +7716,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-008-intro.html'
             },
@@ -7355,7 +7732,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-009-intro.html'
             },
@@ -7371,7 +7748,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-010-intro.html'
             },
@@ -7387,7 +7764,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-011-intro.html'
             },
@@ -7403,7 +7780,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-012-intro.html'
             },
@@ -7419,7 +7796,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-013-intro.html'
             },
@@ -7435,7 +7812,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-014-intro.html'
             },
@@ -7451,7 +7828,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-015-intro.html'
             },
@@ -7467,7 +7844,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['linux', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/script/labs/linux-bash-lab.html'
             },
@@ -7483,7 +7860,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['linux', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 quiz: 'houses/script/quizzes/linux-bash-quiz.html'
             },
@@ -7499,7 +7876,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 lab: 'houses/script/labs/python-lab.html'
             },
@@ -7515,7 +7892,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 quiz: 'houses/script/quizzes/python-quiz.html'
             },
@@ -7531,7 +7908,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter1.html'
             },
@@ -7547,7 +7924,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter2.html'
             },
@@ -7563,7 +7940,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter3.html'
             },
@@ -7579,7 +7956,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter4.html'
             },
@@ -7595,7 +7972,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter5.html'
             },
@@ -7611,7 +7988,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter6.html'
             },
@@ -7627,7 +8004,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter7.html'
             },
@@ -7643,7 +8020,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['python', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials', 'python-fundamentals'],
             components: {
                 presentation: 'houses/script/presentations/python/python-chapter8.html'
             },
@@ -7659,7 +8036,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['powershell', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/script/labs/powershell-lab.html'
             },
@@ -7675,7 +8052,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['powershell', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 quiz: 'houses/script/quizzes/powershell-quiz.html'
             },
@@ -7691,25 +8068,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['sysadmin', 'scripting'],
-            paths: [],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
             components: {
                 lab: 'houses/script/labs/sysadmin-lab.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'script-sysadmin-quiz': {
-            id: 'script-sysadmin-quiz',
-            title: 'Sysadmin & Automation Quiz',
-            description: '15 questions on automation best practices and system administration',
-            house: 'script',
-            type: 'quiz',
-            difficulty: 'beginner',
-            duration: 15,
-            topics: ['sysadmin', 'scripting'],
-            paths: [],
-            components: {
-                quiz: 'houses/script/quizzes/sysadmin-quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -7719,6 +8080,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // CODE HOUSE - 31 new entries
         // ─────────────────────────────────────────────────────────────
+        'script-sysadmin-quiz': {
+            id: 'script-sysadmin-quiz',
+            title: 'Sysadmin & Automation Quiz',
+            description: '15 questions on automation best practices and system administration',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['sysadmin', 'scripting'],
+            paths: ['comptia-linux', 'sysadmin-essentials'],
+            components: {
+                quiz: 'houses/script/quizzes/sysadmin-quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'code-version-control': {
             id: 'code-version-control',
             title: 'Version Control Guide',
@@ -7728,7 +8105,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/presentations/git-basics.html'
             },
@@ -7744,7 +8121,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops', 'networking'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals', 'comptia-network'],
             components: {
                 presentation: 'houses/code/presentations/automation-presentation.html'
             },
@@ -7760,7 +8137,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/automation-visualizer.html'
             },
@@ -7776,7 +8153,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals', 'ccna'],
             components: {
                 applet: 'houses/code/applets/terraform-visualizer.html'
             },
@@ -7792,7 +8169,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/config_management/ConfigMgmt.html'
             },
@@ -7808,13 +8185,10 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 65,
             topics: ['devops', 'docker'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/presentations/docker-fundamentals.html'
             },
-            prerequisites: [],
-            objectives: []
-        },
         'code-unit-testing': {
             id: 'code-unit-testing',
             title: 'Unit Testing',
@@ -7824,8 +8198,11 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 65,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {},
+            prerequisites: [],
+            objectives: []
+        },
             prerequisites: [],
             objectives: []
         },
@@ -7838,7 +8215,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/cloudformation-designer.html'
             },
@@ -7854,7 +8231,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops', 'docker'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/docker-playground.html'
             },
@@ -7870,7 +8247,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/kubernetes-cluster-sim.html'
             },
@@ -7886,7 +8263,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals', 'python-fundamentals'],
             components: {
                 applet: 'houses/code/applets/pipeline-builder.html'
             },
@@ -7902,7 +8279,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/sprint-simulator.html'
             },
@@ -7918,7 +8295,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/cicd-lab.html'
             },
@@ -7934,7 +8311,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/cloudformation-lab.html'
             },
@@ -7950,7 +8327,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops', 'docker'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/docker-lab.html'
             },
@@ -7966,7 +8343,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/kubernetes-lab.html'
             },
@@ -7982,7 +8359,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/terraform-lab.html'
             },
@@ -7998,7 +8375,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 presentation: 'houses/code/presentations/agile-sdlc.html'
             },
@@ -8014,7 +8391,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 presentation: 'houses/code/presentations/cicd-fundamentals.html'
             },
@@ -8030,7 +8407,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 presentation: 'houses/code/presentations/cloudformation-fundamentals.html'
             },
@@ -8046,7 +8423,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 presentation: 'houses/code/presentations/kubernetes-fundamentals.html'
             },
@@ -8062,7 +8439,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 presentation: 'houses/code/presentations/terraform-fundamentals.html'
             },
@@ -8078,7 +8455,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/agile-quiz.html'
             },
@@ -8094,7 +8471,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/cicd-quiz.html'
             },
@@ -8110,7 +8487,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/cloudformation-quiz.html'
             },
@@ -8126,7 +8503,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops', 'docker'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/docker-quiz.html'
             },
@@ -8142,7 +8519,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/kubernetes-quiz.html'
             },
@@ -8158,7 +8535,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 quiz: 'houses/code/quizzes/terraform-quiz.html'
             },
@@ -8174,7 +8551,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/data-format-converter.html'
             },
@@ -8190,25 +8567,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['devops'],
-            paths: [],
+            paths: ['developer-essentials', 'devops-fundamentals'],
             components: {
                 applet: 'houses/code/applets/api-explorer.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'code-ansible-visualizer': {
-            id: 'code-ansible-visualizer',
-            title: 'Ansible Playbook Visualizer',
-            description: 'Parse and visualize Ansible playbook structure - plays, tasks, handlers, and variables',
-            house: 'code',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['devops'],
-            paths: [],
-            components: {
-                applet: 'houses/code/applets/ansible-playbook-visualizer.html'
             },
             prerequisites: [],
             objectives: []
@@ -8218,6 +8579,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // KEY HOUSE - 36 new entries
         // ─────────────────────────────────────────────────────────────
+        'code-ansible-visualizer': {
+            id: 'code-ansible-visualizer',
+            title: 'Ansible Playbook Visualizer',
+            description: 'Parse and visualize Ansible playbook structure - plays, tasks, handlers, and variables',
+            house: 'code',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['devops'],
+            paths: ['developer-essentials', 'devops-fundamentals'],
+            components: {
+                applet: 'houses/code/applets/ansible-playbook-visualizer.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'key-symmetric-vs-asymmetric': {
             id: 'key-symmetric-vs-asymmetric',
             title: 'Symmetric vs Asymmetric',
@@ -8227,7 +8604,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/advanced-symmetric.html'
             },
@@ -8243,7 +8620,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 65,
             topics: ['cryptography', 'hashing'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/tools/hmac-calculator.html'
             },
@@ -8259,7 +8636,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security', 'devops-fundamentals', 'comptia-network'],
             components: {
                 presentation: 'houses/key/tools/cert-inspector.html'
             },
@@ -8275,13 +8652,10 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 65,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/presentations/certificates.html'
             },
-            prerequisites: [],
-            objectives: []
-        },
         'key-tls-ssl': {
             id: 'key-tls-ssl',
             title: 'TLS/SSL Explained',
@@ -8291,8 +8665,11 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {},
+            prerequisites: [],
+            objectives: []
+        },
             prerequisites: [],
             objectives: []
         },
@@ -8305,7 +8682,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security', 'security-operations'],
             components: {
                 quiz: 'houses/key/presentations/cryptography-fundamentals.html'
             },
@@ -8321,7 +8698,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/aes-lab.html'
             },
@@ -8337,7 +8714,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/attack-lab.html'
             },
@@ -8353,7 +8730,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/cert-lab.html'
             },
@@ -8369,7 +8746,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/ecc-lab.html'
             },
@@ -8385,7 +8762,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/hmac-lab.html'
             },
@@ -8401,7 +8778,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/hsm-lab.html'
             },
@@ -8417,7 +8794,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/kdf-lab.html'
             },
@@ -8433,7 +8810,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 lab: 'houses/key/labs/pqc-lab.html'
             },
@@ -8449,7 +8826,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/cryptanalysis.html'
             },
@@ -8465,7 +8842,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/elliptic-curve.html'
             },
@@ -8481,7 +8858,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/key-derivation.html'
             },
@@ -8497,7 +8874,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/key-management.html'
             },
@@ -8513,7 +8890,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/message-authentication.html'
             },
@@ -8529,7 +8906,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 presentation: 'houses/key/presentations/post-quantum.html'
             },
@@ -8545,7 +8922,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/cert-quiz.html'
             },
@@ -8561,7 +8938,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/cryptanalysis-quiz.html'
             },
@@ -8577,7 +8954,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/ecc-quiz.html'
             },
@@ -8593,7 +8970,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/hsm-quiz.html'
             },
@@ -8609,7 +8986,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/kdf-quiz.html'
             },
@@ -8625,7 +9002,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/mac-quiz.html'
             },
@@ -8641,7 +9018,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/pqc-quiz.html'
             },
@@ -8657,7 +9034,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 quiz: 'houses/key/quizzes/symmetric-quiz.html'
             },
@@ -8673,7 +9050,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/aes-explorer.html'
             },
@@ -8689,7 +9066,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/cryptanalysis-lab.html'
             },
@@ -8705,7 +9082,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/ecc-visualizer.html'
             },
@@ -8721,7 +9098,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/kdf-analyzer.html'
             },
@@ -8737,7 +9114,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/key-lifecycle.html'
             },
@@ -8753,7 +9130,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cryptography'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/tools/pqc-explorer.html'
             },
@@ -8769,25 +9146,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['cryptography', 'hashing'],
-            paths: [],
+            paths: ['cryptography-track', 'comptia-security'],
             components: {
                 applet: 'houses/key/modules/hash-stego-intro.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'key-crypto-stego-lab': {
-            id: 'key-crypto-stego-lab',
-            title: 'Crypto & Steganography Lab',
-            description: 'Hands-on cryptography and steganography exercises',
-            house: 'key',
-            type: 'lab',
-            difficulty: 'beginner',
-            duration: 45,
-            topics: ['cryptography'],
-            paths: [],
-            components: {
-                lab: 'houses/key/labs/crypto-stego-lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -8797,6 +9158,22 @@ const ContentRegistry = {
         // ─────────────────────────────────────────────────────────────
         // EYE HOUSE - 21 new entries
         // ─────────────────────────────────────────────────────────────
+        'key-crypto-stego-lab': {
+            id: 'key-crypto-stego-lab',
+            title: 'Crypto & Steganography Lab',
+            description: 'Hands-on cryptography and steganography exercises',
+            house: 'key',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['cryptography'],
+            paths: ['cryptography-track', 'comptia-security'],
+            components: {
+                lab: 'houses/key/labs/crypto-stego-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'eye-wireshark-training': {
             id: 'eye-wireshark-training',
             title: 'Wireshark Training Lab',
@@ -8806,7 +9183,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/tools/wireshark-training.html'
             },
@@ -8822,7 +9199,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security', 'comptia-network'],
             components: {
                 applet: 'houses/eye/tools/packet-analyzer.html'
             },
@@ -8838,7 +9215,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 lab: 'houses/eye/labs/traffic-lab.html'
             },
@@ -8854,7 +9231,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 presentation: 'houses/eye/presentations/siem-fundamentals.html'
             },
@@ -8870,7 +9247,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 65,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 lab: 'houses/eye/tools/siem-simulator.html'
             },
@@ -8886,7 +9263,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/presentations/threat-hunting.html'
             },
@@ -8902,7 +9279,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 presentation: 'houses/eye/labs/correlation-lab.html'
             },
@@ -8918,7 +9295,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 lab: 'houses/eye/labs/hunting-lab.html'
             },
@@ -8934,7 +9311,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 lab: 'houses/eye/labs/siem-lab.html'
             },
@@ -8950,7 +9327,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 lab: 'houses/eye/labs/soc-lab.html'
             },
@@ -8966,7 +9343,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 presentation: 'houses/eye/presentations/log-correlation.html'
             },
@@ -8982,7 +9359,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['monitoring', 'networking'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security', 'comptia-network'],
             components: {
                 presentation: 'houses/eye/presentations/network-traffic-analysis.html'
             },
@@ -8998,7 +9375,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 presentation: 'houses/eye/presentations/soc-operations.html'
             },
@@ -9014,7 +9391,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/quizzes/correlation-quiz.html'
             },
@@ -9030,7 +9407,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/quizzes/hunting-quiz.html'
             },
@@ -9046,7 +9423,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/quizzes/siem-quiz.html'
             },
@@ -9062,7 +9439,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/quizzes/soc-quiz.html'
             },
@@ -9078,7 +9455,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 quiz: 'houses/eye/quizzes/traffic-quiz.html'
             },
@@ -9094,7 +9471,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 applet: 'houses/eye/tools/correlation-engine.html'
             },
@@ -9110,25 +9487,9 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['monitoring'],
-            paths: [],
+            paths: ['security-operations', 'comptia-security'],
             components: {
                 applet: 'houses/eye/tools/hunt-workbench.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'eye-soc-simulator': {
-            id: 'eye-soc-simulator',
-            title: 'SOC Simulator',
-            description: 'Simulate Security Operations Center workflows and triage',
-            house: 'eye',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['monitoring'],
-            paths: [],
-            components: {
-                applet: 'houses/eye/tools/soc-simulator.html'
             },
             prerequisites: [],
             objectives: []
@@ -9141,6 +9502,23 @@ const ContentRegistry = {
     // ═══════════════════════════════════════════════════════════════
 
     paths: {
+        // ORPHAN RESOLVED - moved to content section during ISSUE-009 fix (Dec 29, 2025)
+        // Original was incorrectly placed in paths section, now properly located near eye-log-analysis (line ~2289)
+        // 'eye-soc-simulator': {
+        //     id: 'eye-soc-simulator',
+        //     title: 'SOC Simulator',
+        //     description: 'Simulate Security Operations Center workflows and triage',
+        //     house: 'eye',
+        //     type: 'applet',
+        //     difficulty: 'beginner',
+        //     duration: 20,
+        //     topics: ['monitoring'],
+        //     paths: ['security-operations', 'comptia-security'],
+        //     components: {
+        //         applet: 'houses/eye/tools/soc-simulator.html'
+        //     },
+        // },
+
         'comptia-aplus': {
             id: 'comptia-aplus',
             title: 'CompTIA A+ Certification',
@@ -9368,38 +9746,6 @@ const ContentRegistry = {
                 'script-python-oop'
             ]
         },
-
-        'command-line-hacker': {
-            id: 'command-line-hacker',
-            title: 'Command Line Hacker',
-            description: 'Master the terminal as a tool for reconnaissance, analysis, and operations',
-            icon: '💀',
-            certification: null,
-            difficulty: 'intermediate',
-            estimatedHours: 30,
-            color: '#00ff41',
-            modules: [
-                // Foundation (CLH-001 to CLH-005)
-                'script-clh-001',  // CLH-001: Introduction to Hacker CLI
-                'script-clh-002',  // CLH-002: Navigation & Reconnaissance
-                'script-clh-003',  // CLH-003: Pattern Hunting (grep)
-                'script-clh-004',  // CLH-004: Process Investigation
-                'script-clh-005',  // CLH-005: Log Analysis
-                // Operations (CLH-006 to CLH-008)
-                'script-clh-006',  // CLH-006: File Operations
-                'script-clh-007',  // CLH-007: Permissions & Access Control
-                'script-clh-008',  // CLH-008: Shell Scripting Basics
-                // Analysis (CLH-009 to CLH-011)
-                'script-clh-009',  // CLH-009: Text Processing
-                'script-clh-010',  // CLH-010: I/O Redirection
-                'script-clh-011',  // CLH-011: Advanced Grep & Regex
-                // Future labs:
-                // 'script-clh-012',  // CLH-012: Network Basics
-                // 'script-clh-013',  // CLH-013: Environment Variables
-                // 'script-clh-014',  // CLH-014: Process Control
-                // 'script-clh-015',  // CLH-015: Capstone Mission
-            ]
-        }
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -9480,6 +9826,37 @@ const ContentRegistry = {
             color: '#c084fc',
             description: 'See everything, analyze all, miss nothing'
         },
+        'command-line-hacker': {
+            id: 'command-line-hacker',
+            title: 'Command Line Hacker',
+            description: 'Master the terminal as a tool for reconnaissance, analysis, and operations',
+            icon: '💀',
+            certification: null,
+            difficulty: 'intermediate',
+            estimatedHours: 30,
+            color: '#00ff41',
+            modules: [
+                // Foundation (CLH-001 to CLH-005)
+                'script-clh-001',  // CLH-001: Introduction to Hacker CLI
+                'script-clh-002',  // CLH-002: Navigation & Reconnaissance
+                'script-clh-003',  // CLH-003: Pattern Hunting (grep)
+                'script-clh-004',  // CLH-004: Process Investigation
+                'script-clh-005',  // CLH-005: Log Analysis
+                // Operations (CLH-006 to CLH-008)
+                'script-clh-006',  // CLH-006: File Operations
+                'script-clh-007',  // CLH-007: Permissions & Access Control
+                'script-clh-008',  // CLH-008: Shell Scripting Basics
+                // Analysis (CLH-009 to CLH-011)
+                'script-clh-009',  // CLH-009: Text Processing
+                'script-clh-010',  // CLH-010: I/O Redirection
+                'script-clh-011',  // CLH-011: Advanced Grep & Regex
+                // Future labs:
+                // 'script-clh-012',  // CLH-012: Network Basics
+                // 'script-clh-013',  // CLH-013: Environment Variables
+                // 'script-clh-014',  // CLH-014: Process Control
+                // 'script-clh-015',  // CLH-015: Capstone Mission
+            ]
+        },
         'dark-arts': {
             id: 'dark-arts',
             name: 'House of the Dark Arts',
@@ -9500,7 +9877,7 @@ const ContentRegistry = {
             color: '#ff00ff',
             description: 'You cannot be contained. All houses are open to you.',
             hidden: true  // Don't show in house lists - Divergents explore all houses
-        }
+        },
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -9641,3 +10018,16 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.ContentRegistry = ContentRegistry;
 }
+
+// ORPHAN RESOLVED - moved to houses section during ISSUE-012 fix (Dec 29, 2025)
+// Original location was outside ContentRegistry object, now properly placed at line ~9498
+// 'divergent': {
+//     id: 'divergent',
+//     name: 'The Factionless',
+//     shortName: 'Factionless',
+//     icon: '⚡',
+//     domain: 'All Domains',
+//     color: '#ff00ff',
+//     description: 'You cannot be contained. All houses are open to you.',
+//     hidden: true  // Don't show in house lists - Divergents explore all houses
+// }

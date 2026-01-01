@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Instruction Set, 32-bit vs 64-bit, x86 vs x64 – Deep Dive</title>
+  <style>
+    :root{
+      --bg:#0b0e13; --panel:#121723; --ink:#e9eef7; --muted:#aeb6c7;
+      --accent:#6ea8fe; --accent2:#7ee787; --border:#1f2533;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px}
+    header{display:grid;gap:6px;margin-bottom:22px}
+    h1{font-size:clamp(26px,3vw,36px);margin:0 0 2px 0;letter-spacing:.2px}
+    h2{font-size:clamp(20px,2.2vw,26px);margin:28px 0 10px}
+    h3{font-size:18px;margin:22px 0 8px}
+    p{margin:8px 0;color:var(--ink)}
+    .muted{color:var(--muted)}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset}
+    .grid{display:grid;gap:14px}
+    @media(min-width:880px){.grid-2{grid-template-columns:1fr 1fr}}
+    code,.tag{background:#0b1320;color:#dbe6ff;border:1px solid var(--border);padding:2px 6px;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .tag{display:inline-block;margin:0 6px 6px 0}
+    table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:var(--panel)}
+    th,td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+    th{text-align:left;background:#0f1420;color:#cfe1ff}
+    tr:last-child td{border-bottom:0}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#0f1420}
+    .accent{color:var(--accent)}
+    .accent2{color:var(--accent2)}
+    ul{margin:8px 0 8px 18px}
+    .kbd{border:1px solid var(--border);padding:0 8px;border-radius:6px;background:#0f1420}
+    footer{margin:30px 0 10px;color:var(--muted);font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Instruction Set • 32-bit vs 64-bit • x86 vs x64</h1>
+      <div class="muted">A practical deep dive into CPU “bitness,” instruction sets, and software compatibility.</div>
+      <div class="pill"><span>Quick terms:</span>
+        <span class="tag">ISA</span>
+        <span class="tag">Registers</span>
+        <span class="tag">Address space</span>
+        <span class="tag">WOW64</span>
+        <span class="tag">SSE/AVX</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>What is an Instruction Set (ISA)?</h2>
+      <p>
+        An instruction set architecture defines the machine language a CPU understands: the <em>instruction encodings</em>,
+        available <em>registers</em>, <em>addressing modes</em>, and the rules for how code interacts with memory and hardware.
+      </p>
+      <p>
+        In the PC world, the mainstream ISA family is <strong>x86</strong>. Its 64-bit extension is commonly called <strong>x64</strong>
+        (aka <em>AMD64</em> or <em>Intel 64</em>).
+      </p>
+      <div>
+        <span class="tag">ADD</span>
+        <span class="tag">MOV</span>
+        <span class="tag">JMP</span>
+        <span class="tag">PUSH/POP</span>
+        <span class="tag">CALL/RET</span>
+      </div>
+    </section>
+
+    <section class="grid grid-2">
+      <div class="card">
+        <h2>32-bit (x86)</h2>
+        <ul>
+          <li><strong>Register width:</strong> 32 bits (e.g., <code>EAX, EBX, ECX, EDX</code>)</li>
+          <li><strong>Address space:</strong> up to ~4 GB (2<sup>32</sup>)</li>
+          <li><strong>Typical use:</strong> legacy OS and apps, embedded or older PCs</li>
+          <li><strong>OS example:</strong> Windows 7 32-bit, older Linux distros</li>
+        </ul>
+        <p class="muted">Limited memory reduces performance for modern workloads like VMs, video editing, and large datasets.</p>
+      </div>
+      <div class="card">
+        <h2>64-bit (x64)</h2>
+        <ul>
+          <li><strong>Register width:</strong> 64 bits (e.g., <code>RAX, RBX, RCX, RDX</code>)</li>
+          <li><strong>More registers:</strong> 16 general purpose (vs 8 on x86)</li>
+          <li><strong>Address space:</strong> theoretical 16 exabytes (OS and hardware impose lower limits)</li>
+          <li><strong>OS example:</strong> Windows 10/11 64-bit, modern Linux/macOS</li>
+        </ul>
+        <p class="muted">Larger pointers and more registers improve performance, especially for memory-heavy and compute-heavy apps.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>x86 vs x64 (naming and lineage)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th>x86 (32-bit)</th>
+            <th>x64 (64-bit)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Origin</td>
+            <td>Intel 8086 → 80386 era</td>
+            <td>AMD64 extension, later Intel 64</td>
+          </tr>
+          <tr>
+            <td>Registers</td>
+            <td><code>EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP</code></td>
+            <td><code>RAX, RBX, RCX, RDX, RSI, RDI, RBP, RSP</code> + <code>R8-R15</code></td>
+          </tr>
+          <tr>
+            <td>Pointer size</td>
+            <td>32-bit</td>
+            <td>64-bit</td>
+          </tr>
+          <tr>
+            <td>Typical RAM ceiling</td>
+            <td>≈ 4 GB</td>
+            <td>Very high (OS limits apply, e.g., many TB)</td>
+          </tr>
+          <tr>
+            <td>SIMD extensions</td>
+            <td>SSE, SSE2 (varies)</td>
+            <td>SSE2+, AVX/AVX2/AVX-512 (CPU dependent)</td>
+          </tr>
+          <tr>
+            <td>Use today</td>
+            <td>Legacy support</td>
+            <td>Default for modern desktops and servers</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>CPU modes and compatibility</h2>
+      <ul>
+        <li><strong>Protected Mode (x86):</strong> 32-bit operating mode with virtual memory and privilege levels.</li>
+        <li><strong>Long Mode (x64):</strong> 64-bit operating mode; also includes a <em>compatibility sub-mode</em> so 64-bit CPUs can run 32-bit user apps.</li>
+        <li><strong>WOW64 (Windows-on-Windows 64):</strong> Windows layer that runs 32-bit apps on 64-bit Windows.</li>
+      </ul>
+      <p class="muted">Most 64-bit OS can run 32-bit applications, but 32-bit OS cannot run 64-bit applications.</p>
+    </section>
+
+    <section class="card">
+      <h2>Practical implications</h2>
+      <div class="grid grid-2">
+        <div>
+          <h3>When to choose 64-bit</h3>
+          <ul>
+            <li>Virtualization and containers</li>
+            <li>Databases, analytics, scientific computing</li>
+            <li>Media production and large creative projects</li>
+            <li>Modern games and engines</li>
+          </ul>
+        </div>
+        <div>
+          <h3>App packaging notes</h3>
+          <ul>
+            <li>Windows installers often label builds as <code>x86</code> and <code>x64</code>.</li>
+            <li>Linux packages may indicate arch (e.g., <code>amd64</code>, <code>i386</code>).</li>
+            <li>Mixing 32-bit and 64-bit libraries in one process is not supported.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Cheat sheet (at a glance)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Key point</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Instruction Set</td>
+            <td>The CPU’s language: opcodes, registers, encoding rules</td>
+          </tr>
+          <tr>
+            <td>32-bit (x86)</td>
+            <td>~4 GB address space, 8 GP registers, legacy focus</td>
+          </tr>
+          <tr>
+            <td>64-bit (x64)</td>
+            <td>Large address space, 16 GP registers, modern default</td>
+          </tr>
+          <tr>
+            <td>Compatibility</td>
+            <td>64-bit OS runs 32-bit apps (WOW64); not vice versa</td>
+          </tr>
+          <tr>
+            <td>Performance</td>
+            <td>More registers and wider pointers can speed modern workloads</td>
+          </tr>
+          <tr>
+            <td>Notation</td>
+            <td><span class="accent">x86 → 32-bit</span> • <span class="accent2">x64 → 64-bit</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Quick Q&A</h2>
+      <ul>
+        <li><strong>Can a 64-bit CPU run 32-bit OS?</strong> Yes, but you lose 64-bit benefits.</li>
+        <li><strong>Can a 32-bit OS use 8 GB RAM?</strong> Not natively; typical limit is ~4 GB.</li>
+        <li><strong>Do I need 64-bit apps?</strong> Prefer them for heavy tasks; 32-bit apps still run on 64-bit OS in most cases.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Tip: On Windows, check your build via <span class="kbd">Settings → System → About</span> or run <code>wmic os get osarchitecture</code> in a terminal.
+    </footer>
+  </div>
+</body>
+</html>
