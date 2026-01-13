@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Server Role Identification - A+ Core 1</title>
+    <style>
+        :root {
+            --forge-primary: #ea580c;
+            --forge-secondary: #f97316;
+            --forge-accent: #fdba74;
+            --forge-dark: #7c2d12;
+            --forge-light: #fff7ed;
+            --text-primary: #292524;
+            --text-secondary: #57534e;
+            --bg-main: #fafaf9;
+            --bg-card: #ffffff;
+            --border-color: #e7e5e4;
+            --success: #16a34a;
+            --warning: #eab308;
+            --danger: #dc2626;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--forge-primary);
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+
+        .instructions {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--forge-primary);
+        }
+
+        .instructions h3 { color: var(--forge-primary); margin-bottom: 10px; }
+
+        /* Game area */
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .game-area { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .panel h3 {
+            text-align: center;
+            color: var(--forge-dark);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        /* Server role cards - draggable */
+        .roles-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 400px;
+        }
+
+        .role-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 10px;
+            cursor: grab;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .role-card:hover {
+            transform: translateX(5px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--forge-secondary);
+        }
+
+        .role-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .role-icon {
+            font-size: 2rem;
+            width: 50px;
+            text-align: center;
+        }
+
+        .role-info h4 { font-size: 1rem; color: var(--text-primary); }
+        .role-info p { font-size: 0.8rem; color: var(--text-secondary); }
+
+        /* Scenario drop zones */
+        .scenarios-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .scenario-zone {
+            min-height: 70px;
+            border: 3px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .scenario-zone.drag-over {
+            border-color: var(--forge-primary);
+            background: rgba(234, 88, 12, 0.1);
+        }
+
+        .scenario-zone.correct {
+            border-color: var(--success);
+            background: rgba(22, 163, 74, 0.1);
+            border-style: solid;
+        }
+
+        .scenario-zone.incorrect {
+            border-color: var(--danger);
+            background: rgba(220, 38, 38, 0.1);
+            border-style: solid;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .scenario-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .scenario-label .port-badge {
+            background: var(--forge-light);
+            color: var(--forge-dark);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .scenario-label h4 { font-size: 0.9rem; color: var(--text-primary); }
+        .scenario-label p { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .scenario-zone .role-card {
+            margin-top: 10px;
+            cursor: default;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: white;
+        }
+
+        .status-badge.correct { background: var(--success); }
+        .status-badge.incorrect { background: var(--danger); }
+
+        /* Score display */
+        .score-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .score-panel h3 { color: var(--forge-primary); margin-bottom: 10px; }
+        .score-big { font-size: 3rem; font-weight: bold; color: var(--forge-dark); }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary { background: var(--forge-primary); color: white; }
+        .btn-primary:hover { background: var(--forge-dark); }
+        .btn-secondary { background: var(--border-color); color: var(--text-primary); }
+        .btn-secondary:hover { background: #d6d3d1; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-content h2 { font-size: 2rem; margin-bottom: 20px; }
+        .modal-content .score-big { font-size: 4rem; color: var(--forge-primary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../chapters/ch08-cloud/index.html" class="back-link">
+            &larr; Back to Chapter 8
+        </a>
+
+        <div class="header">
+            <h1>Server Role Identification Lab</h1>
+            <p>Match server roles to real-world scenarios</p>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Complete This Lab</h3>
+            <p>On the left are different server roles. On the right are scenarios describing what a server is doing. <strong>Drag each server role</strong> to the scenario it matches. Common ports are shown as hints!</p>
+        </div>
+
+        <div class="game-area">
+            <!-- Server Roles Panel -->
+            <div class="panel">
+                <h3>Server Roles</h3>
+                <div class="roles-container" id="roles-source">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Scenarios Panel -->
+            <div class="panel">
+                <h3>What Is This Server Doing?</h3>
+                <div class="scenarios-container" id="scenarios-container">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <div class="score-panel">
+            <h3>Progress</h3>
+            <div class="score-big"><span id="score">0</span> / 8</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" onclick="resetLab()">Reset Lab</button>
+            <button class="btn btn-primary" onclick="checkAll()">Check All</button>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal" id="results-modal">
+        <div class="modal-content">
+            <h2 id="result-title">Lab Complete!</h2>
+            <div class="score-big" id="final-score">8/8</div>
+            <p id="result-message">You've mastered server roles!</p>
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="closeModal(); resetLab();">Try Again</button>
+                <button class="btn btn-primary" onclick="closeModal();">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Server roles data
+        const serverRoles = [
+            {
+                id: 'web',
+                name: 'Web Server',
+                description: 'Hosts websites and web apps',
+                icon: '🌐',
+                scenario: 'hosting-website'
+            },
+            {
+                id: 'dns',
+                name: 'DNS Server',
+                description: 'Resolves domain names to IPs',
+                icon: '📖',
+                scenario: 'name-resolution'
+            },
+            {
+                id: 'dhcp',
+                name: 'DHCP Server',
+                description: 'Assigns IP addresses automatically',
+                icon: '🔢',
+                scenario: 'ip-assignment'
+            },
+            {
+                id: 'file',
+                name: 'File Server',
+                description: 'Centralized file storage and sharing',
+                icon: '📁',
+                scenario: 'shared-storage'
+            },
+            {
+                id: 'mail',
+                name: 'Mail Server',
+                description: 'Handles email sending/receiving',
+                icon: '📧',
+                scenario: 'email-handling'
+            },
+            {
+                id: 'print',
+                name: 'Print Server',
+                description: 'Manages network printers',
+                icon: '🖨️',
+                scenario: 'print-management'
+            },
+            {
+                id: 'proxy',
+                name: 'Proxy Server',
+                description: 'Intermediary for web requests',
+                icon: '🛡️',
+                scenario: 'web-filtering'
+            },
+            {
+                id: 'auth',
+                name: 'Authentication Server',
+                description: 'Validates user credentials',
+                icon: '🔐',
+                scenario: 'user-login'
+            }
+        ];
+
+        // Scenarios that match server roles
+        const scenarios = [
+            {
+                id: 'hosting-website',
+                description: 'Users browse www.company.com and see the homepage',
+                ports: '80, 443'
+            },
+            {
+                id: 'name-resolution',
+                description: 'Converting "google.com" into 142.250.190.14',
+                ports: '53'
+            },
+            {
+                id: 'ip-assignment',
+                description: 'New laptop joins network and automatically gets 192.168.1.105',
+                ports: '67, 68'
+            },
+            {
+                id: 'shared-storage',
+                description: 'Marketing team accesses shared documents from \\\\server\\docs',
+                ports: '445'
+            },
+            {
+                id: 'email-handling',
+                description: 'Sending messages using SMTP and retrieving with IMAP',
+                ports: '25, 143, 993'
+            },
+            {
+                id: 'print-management',
+                description: 'Office users submit print jobs to HP-LaserJet on 3rd floor',
+                ports: '515, 9100'
+            },
+            {
+                id: 'web-filtering',
+                description: 'All employee web traffic goes through this for caching and content filtering',
+                ports: '3128, 8080'
+            },
+            {
+                id: 'user-login',
+                description: 'Employees enter username/password to access company resources via RADIUS',
+                ports: '1812, 1813'
+            }
+        ];
+
+        let score = 0;
+        let draggedItem = null;
+
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initLab() {
+            const rolesContainer = document.getElementById('roles-source');
+            const scenariosContainer = document.getElementById('scenarios-container');
+
+            rolesContainer.innerHTML = '';
+            scenariosContainer.innerHTML = '';
+            score = 0;
+            updateScore();
+
+            // Shuffle and create role cards
+            const shuffledRoles = shuffle(serverRoles);
+            shuffledRoles.forEach(role => {
+                const card = createRoleCard(role);
+                rolesContainer.appendChild(card);
+            });
+
+            // Shuffle and create scenario zones
+            const shuffledScenarios = shuffle(scenarios);
+            shuffledScenarios.forEach(scenario => {
+                const zone = createScenarioZone(scenario);
+                scenariosContainer.appendChild(zone);
+            });
+        }
+
+        function createRoleCard(role) {
+            const div = document.createElement('div');
+            div.className = 'role-card';
+            div.draggable = true;
+            div.dataset.roleId = role.id;
+            div.dataset.scenario = role.scenario;
+
+            div.innerHTML = `
+                <div class="role-icon">${role.icon}</div>
+                <div class="role-info">
+                    <h4>${role.name}</h4>
+                    <p>${role.description}</p>
+                </div>
+            `;
+
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+
+            return div;
+        }
+
+        function createScenarioZone(scenario) {
+            const div = document.createElement('div');
+            div.className = 'scenario-zone';
+            div.dataset.scenarioId = scenario.id;
+
+            div.innerHTML = `
+                <div class="scenario-label">
+                    <div>
+                        <h4>${scenario.description}</h4>
+                        <span class="port-badge">Ports: ${scenario.ports}</span>
+                    </div>
+                </div>
+            `;
+
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('dragleave', handleDragLeave);
+            div.addEventListener('drop', handleDrop);
+
+            return div;
+        }
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedItem = null;
+            document.querySelectorAll('.scenario-zone').forEach(zone => {
+                zone.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!this.classList.contains('correct')) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (!draggedItem) return;
+            if (this.classList.contains('correct')) return;
+
+            const roleScenario = draggedItem.dataset.scenario;
+            const zoneScenario = this.dataset.scenarioId;
+
+            if (roleScenario === zoneScenario) {
+                // Correct!
+                this.classList.add('correct');
+
+                // Clone and add card
+                const clonedCard = draggedItem.cloneNode(true);
+                clonedCard.draggable = false;
+                clonedCard.style.cursor = 'default';
+                this.appendChild(clonedCard);
+
+                // Add status badge
+                const badge = document.createElement('div');
+                badge.className = 'status-badge correct';
+                badge.textContent = '✓';
+                this.appendChild(badge);
+
+                // Remove from source
+                draggedItem.remove();
+
+                score++;
+                updateScore();
+
+                if (score === 8) {
+                    setTimeout(() => showResults(), 500);
+                }
+            } else {
+                // Incorrect
+                this.classList.add('incorrect');
+                setTimeout(() => {
+                    this.classList.remove('incorrect');
+                }, 500);
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        function checkAll() {
+            if (score === 8) {
+                showResults();
+            } else {
+                alert(`You've matched ${score} of 8 server roles. Keep going!`);
+            }
+        }
+
+        function showResults() {
+            const modal = document.getElementById('results-modal');
+            const title = document.getElementById('result-title');
+            const finalScore = document.getElementById('final-score');
+            const message = document.getElementById('result-message');
+
+            finalScore.textContent = `${score}/8`;
+
+            if (score === 8) {
+                title.textContent = '🎉 Perfect Score!';
+                message.textContent = 'You correctly identified all server roles and their functions!';
+            } else if (score >= 6) {
+                title.textContent = 'Good Job!';
+                message.textContent = `You matched ${score} server roles correctly.`;
+            } else {
+                title.textContent = 'Keep Practicing';
+                message.textContent = 'Review the server roles and their typical ports.';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('results-modal').classList.remove('active');
+        }
+
+        function resetLab() {
+            initLab();
+        }
+
+        document.addEventListener('DOMContentLoaded', initLab);
+    </script>
+</body>
+</html>

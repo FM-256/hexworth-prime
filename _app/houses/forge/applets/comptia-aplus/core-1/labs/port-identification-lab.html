@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Port Identification - A+ Core 1</title>
+    <style>
+        :root {
+            --forge-primary: #ea580c;
+            --forge-secondary: #f97316;
+            --forge-accent: #fdba74;
+            --forge-dark: #7c2d12;
+            --forge-light: #fff7ed;
+            --text-primary: #292524;
+            --text-secondary: #57534e;
+            --bg-main: #fafaf9;
+            --bg-card: #ffffff;
+            --border-color: #e7e5e4;
+            --success: #16a34a;
+            --warning: #eab308;
+            --danger: #dc2626;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--forge-primary);
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, var(--forge-primary), var(--forge-secondary));
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+
+        .instructions {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--forge-primary);
+        }
+
+        .instructions h3 { color: var(--forge-primary); margin-bottom: 10px; }
+
+        /* I/O Panel Area */
+        .io-panel-wrapper {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 20px;
+        }
+
+        .io-panel {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #2c3e50, #1a252f);
+            border-radius: 8px;
+            padding: 30px;
+            aspect-ratio: 3/1;
+        }
+
+        /* Port hotspots */
+        .port-group {
+            position: absolute;
+            display: flex;
+            gap: 8px;
+        }
+
+        .port {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        .port:hover {
+            transform: scale(1.1);
+            border-color: var(--forge-accent);
+        }
+
+        .port.identified {
+            border-color: var(--success);
+        }
+
+        .port.wrong {
+            border-color: var(--danger);
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        .port-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            min-height: 30px;
+            background: #1a1a1a;
+            border-radius: 3px;
+            color: #666;
+            font-size: 0.7rem;
+        }
+
+        /* Port type styling */
+        .port-usb-a .port-visual {
+            width: 14px;
+            height: 5px;
+            background: linear-gradient(#333, #111);
+        }
+
+        .port-usb-c .port-visual {
+            width: 10px;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        .port-hdmi .port-visual {
+            width: 18px;
+            height: 6px;
+            background: linear-gradient(#333, #111);
+            clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+        }
+
+        .port-displayport .port-visual {
+            width: 16px;
+            height: 6px;
+            background: #333;
+            clip-path: polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%);
+        }
+
+        .port-ethernet .port-visual {
+            width: 14px;
+            height: 10px;
+            background: linear-gradient(#444, #222);
+        }
+
+        .port-audio .port-visual {
+            width: 8px;
+            height: 8px;
+            background: #333;
+            border-radius: 50%;
+        }
+
+        .port-audio.green .port-visual { background: #22c55e; }
+        .port-audio.pink .port-visual { background: #ec4899; }
+        .port-audio.blue .port-visual { background: #3b82f6; }
+
+        .port-ps2 .port-visual {
+            width: 12px;
+            height: 12px;
+            background: #333;
+            border-radius: 50%;
+        }
+
+        .port-ps2.purple .port-visual { background: #9333ea; }
+        .port-ps2.green .port-visual { background: #22c55e; }
+
+        .port-vga .port-visual {
+            width: 30px;
+            height: 10px;
+            background: linear-gradient(#0ea5e9, #0284c7);
+            clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
+        }
+
+        .port-dvi .port-visual {
+            width: 35px;
+            height: 12px;
+            background: #eee;
+        }
+
+        /* Port labels */
+        .port-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #94a3b8;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .port.identified .port-label {
+            opacity: 1;
+            color: var(--success);
+        }
+
+        /* Question panel */
+        .question-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .question-panel h3 {
+            color: var(--forge-primary);
+            margin-bottom: 10px;
+        }
+
+        .target-port {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--forge-dark);
+            padding: 15px 30px;
+            background: var(--forge-light);
+            border-radius: 8px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        .target-hint {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        /* Progress */
+        .progress-bar-container {
+            background: var(--border-color);
+            border-radius: 10px;
+            height: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--forge-primary), var(--forge-secondary));
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* Results */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .result-item.correct { background: rgba(22, 163, 74, 0.1); color: var(--success); }
+        .result-item.incorrect { background: rgba(220, 38, 38, 0.1); color: var(--danger); }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary { background: var(--forge-primary); color: white; }
+        .btn-primary:hover { background: var(--forge-dark); }
+        .btn-secondary { background: var(--border-color); color: var(--text-primary); }
+        .btn-secondary:hover { background: #d6d3d1; }
+
+        /* Completion screen */
+        .completion-screen {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .completion-screen.active { display: block; }
+        .completion-screen h2 { font-size: 2rem; margin-bottom: 20px; }
+        .score-display { font-size: 4rem; color: var(--forge-primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../chapters/ch03-peripherals/index.html" class="back-link">
+            &larr; Back to Chapter 3
+        </a>
+
+        <div class="header">
+            <h1>Port Identification Lab</h1>
+            <p>Click on the correct port on the I/O panel</p>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Complete This Lab</h3>
+            <p>A motherboard I/O panel is shown below. When prompted, <strong>click on the correct port</strong> to identify it. The panel includes USB, video, audio, network, and legacy ports commonly found on desktop computers.</p>
+        </div>
+
+        <!-- Game Area -->
+        <div id="game-area">
+            <div class="question-panel" id="question-panel">
+                <h3>Find and Click:</h3>
+                <div class="target-port" id="target-port">USB 3.0 Port</div>
+                <div class="target-hint" id="target-hint">Hint: Look for blue USB-A ports</div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar" style="width: 0%">0 / 10</div>
+            </div>
+
+            <div class="io-panel-wrapper">
+                <div class="io-panel" id="io-panel">
+                    <!-- PS/2 Ports (top left) -->
+                    <div class="port-group" style="top: 15%; left: 5%;">
+                        <div class="port port-ps2 purple" data-port="ps2-keyboard" onclick="checkPort(this)">
+                            <div class="port-visual"></div>
+                            <span class="port-label">PS/2 Keyboard</span>
+                        </div>
+                        <div class="port port-ps2 green" data-port="ps2-mouse" onclick="checkPort(this)">
+                            <div class="port-visual"></div>
+                            <span class="port-label">PS/2 Mouse</span>
+                        </div>
+                    </div>
+
+                    <!-- USB 2.0 Ports -->
+                    <div class="port-group" style="top: 15%; left: 18%;">
+                        <div class="port port-usb-a" data-port="usb2" onclick="checkPort(this)" style="background: #333; padding: 8px 4px;">
+                            <div class="port-visual" style="background: #111; width: 14px; height: 5px;"></div>
+                            <span class="port-label">USB 2.0</span>
+                        </div>
+                        <div class="port port-usb-a" data-port="usb2" onclick="checkPort(this)" style="background: #333; padding: 8px 4px;">
+                            <div class="port-visual" style="background: #111; width: 14px; height: 5px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- USB 3.0 Ports (Blue) -->
+                    <div class="port-group" style="top: 55%; left: 5%;">
+                        <div class="port port-usb-a" data-port="usb3" onclick="checkPort(this)" style="background: #1d4ed8; padding: 8px 4px;">
+                            <div class="port-visual" style="background: #1e40af; width: 14px; height: 5px;"></div>
+                            <span class="port-label">USB 3.0</span>
+                        </div>
+                        <div class="port port-usb-a" data-port="usb3" onclick="checkPort(this)" style="background: #1d4ed8; padding: 8px 4px;">
+                            <div class="port-visual" style="background: #1e40af; width: 14px; height: 5px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- USB Type-C -->
+                    <div class="port-group" style="top: 55%; left: 18%;">
+                        <div class="port" data-port="usb-c" onclick="checkPort(this)" style="background: #333; padding: 6px 8px; border-radius: 4px;">
+                            <div class="port-visual" style="background: #222; width: 12px; height: 4px; border-radius: 2px;"></div>
+                            <span class="port-label">USB-C</span>
+                        </div>
+                    </div>
+
+                    <!-- HDMI -->
+                    <div class="port-group" style="top: 30%; left: 32%;">
+                        <div class="port" data-port="hdmi" onclick="checkPort(this)" style="background: #333; padding: 8px;">
+                            <div class="port-visual" style="background: #111; width: 20px; height: 8px; clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);"></div>
+                            <span class="port-label">HDMI</span>
+                        </div>
+                    </div>
+
+                    <!-- DisplayPort -->
+                    <div class="port-group" style="top: 30%; left: 45%;">
+                        <div class="port" data-port="displayport" onclick="checkPort(this)" style="background: #333; padding: 8px;">
+                            <div class="port-visual" style="background: #111; width: 18px; height: 8px; clip-path: polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%);"></div>
+                            <span class="port-label">DisplayPort</span>
+                        </div>
+                    </div>
+
+                    <!-- VGA -->
+                    <div class="port-group" style="top: 30%; left: 58%;">
+                        <div class="port" data-port="vga" onclick="checkPort(this)" style="background: #0284c7; padding: 8px;">
+                            <div class="port-visual" style="background: linear-gradient(#0ea5e9, #0284c7); width: 35px; height: 12px; clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);"></div>
+                            <span class="port-label">VGA</span>
+                        </div>
+                    </div>
+
+                    <!-- DVI -->
+                    <div class="port-group" style="top: 65%; left: 32%;">
+                        <div class="port" data-port="dvi" onclick="checkPort(this)" style="background: #eee; padding: 8px;">
+                            <div class="port-visual" style="background: #fff; width: 40px; height: 14px; border: 1px solid #ccc;"></div>
+                            <span class="port-label">DVI</span>
+                        </div>
+                    </div>
+
+                    <!-- Ethernet -->
+                    <div class="port-group" style="top: 35%; left: 78%;">
+                        <div class="port" data-port="ethernet" onclick="checkPort(this)" style="background: #333; padding: 8px;">
+                            <div class="port-visual" style="background: linear-gradient(#444, #222); width: 16px; height: 14px;"></div>
+                            <span class="port-label">Ethernet (RJ-45)</span>
+                        </div>
+                    </div>
+
+                    <!-- Audio Ports -->
+                    <div class="port-group" style="top: 70%; left: 55%;">
+                        <div class="port port-audio pink" data-port="audio-mic" onclick="checkPort(this)">
+                            <div class="port-visual"></div>
+                            <span class="port-label">Mic In</span>
+                        </div>
+                        <div class="port port-audio green" data-port="audio-out" onclick="checkPort(this)">
+                            <div class="port-visual"></div>
+                            <span class="port-label">Line Out</span>
+                        </div>
+                        <div class="port port-audio blue" data-port="audio-in" onclick="checkPort(this)">
+                            <div class="port-visual"></div>
+                            <span class="port-label">Line In</span>
+                        </div>
+                    </div>
+
+                    <!-- SPDIF -->
+                    <div class="port-group" style="top: 70%; left: 78%;">
+                        <div class="port" data-port="spdif" onclick="checkPort(this)" style="background: #333; padding: 6px;">
+                            <div class="port-visual" style="background: #f97316; width: 10px; height: 10px; border-radius: 50%;"></div>
+                            <span class="port-label">S/PDIF</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Screen -->
+        <div class="completion-screen" id="completion-screen">
+            <h2 id="completion-title">Lab Complete!</h2>
+            <div class="score-display" id="final-score">10/10</div>
+            <p id="completion-message">You've mastered port identification!</p>
+            <div class="results-grid" id="results-grid"></div>
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="resetLab()">Try Again</button>
+                <button class="btn btn-primary" onclick="window.location.href='../chapters/ch03-peripherals/index.html'">Back to Chapter</button>
+            </div>
+        </div>
+
+        <div class="controls" id="game-controls">
+            <button class="btn btn-secondary" onclick="resetLab()">Reset Lab</button>
+            <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+        </div>
+    </div>
+
+    <script>
+        // Port challenges
+        const challenges = [
+            { port: 'usb3', name: 'USB 3.0 Port', hint: 'Look for blue USB-A ports - USB 3.0 uses blue color coding' },
+            { port: 'hdmi', name: 'HDMI Port', hint: 'Trapezoidal shape, commonly used for monitors and TVs' },
+            { port: 'ethernet', name: 'Ethernet Port (RJ-45)', hint: 'Network connection - looks like a wide phone jack' },
+            { port: 'audio-out', name: 'Line Out (Speakers)', hint: 'Green 3.5mm audio jack for speakers/headphones' },
+            { port: 'displayport', name: 'DisplayPort', hint: 'Asymmetrical shape with one angled corner - professional displays' },
+            { port: 'usb2', name: 'USB 2.0 Port', hint: 'Black or white USB-A ports - older standard' },
+            { port: 'vga', name: 'VGA Port', hint: 'Blue 15-pin D-sub connector - legacy analog video' },
+            { port: 'audio-mic', name: 'Microphone Input', hint: 'Pink 3.5mm audio jack for microphones' },
+            { port: 'ps2-keyboard', name: 'PS/2 Keyboard Port', hint: 'Purple round connector - legacy keyboard input' },
+            { port: 'usb-c', name: 'USB Type-C Port', hint: 'Small, reversible oval connector - modern standard' }
+        ];
+
+        let currentChallenge = 0;
+        let score = 0;
+        let results = [];
+        let shuffledChallenges = [];
+
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initLab() {
+            currentChallenge = 0;
+            score = 0;
+            results = [];
+            shuffledChallenges = shuffle(challenges);
+
+            // Reset all ports
+            document.querySelectorAll('.port').forEach(port => {
+                port.classList.remove('identified', 'wrong');
+            });
+
+            // Show game area, hide completion
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('game-controls').style.display = 'flex';
+            document.getElementById('completion-screen').classList.remove('active');
+
+            showChallenge();
+        }
+
+        function showChallenge() {
+            if (currentChallenge >= shuffledChallenges.length) {
+                showCompletion();
+                return;
+            }
+
+            const challenge = shuffledChallenges[currentChallenge];
+            document.getElementById('target-port').textContent = challenge.name;
+            document.getElementById('target-hint').textContent = `Hint: ${challenge.hint}`;
+            updateProgress();
+        }
+
+        function checkPort(element) {
+            const clickedPort = element.dataset.port;
+            const targetPort = shuffledChallenges[currentChallenge].port;
+
+            if (clickedPort === targetPort) {
+                // Correct!
+                element.classList.add('identified');
+                score++;
+                results.push({
+                    name: shuffledChallenges[currentChallenge].name,
+                    correct: true
+                });
+
+                setTimeout(() => {
+                    currentChallenge++;
+                    showChallenge();
+                }, 800);
+            } else {
+                // Wrong!
+                element.classList.add('wrong');
+                setTimeout(() => {
+                    element.classList.remove('wrong');
+                }, 300);
+            }
+        }
+
+        function skipQuestion() {
+            results.push({
+                name: shuffledChallenges[currentChallenge].name,
+                correct: false
+            });
+            currentChallenge++;
+            showChallenge();
+        }
+
+        function updateProgress() {
+            const percent = (currentChallenge / shuffledChallenges.length) * 100;
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = `${percent}%`;
+            progressBar.textContent = `${currentChallenge} / ${shuffledChallenges.length}`;
+        }
+
+        function showCompletion() {
+            document.getElementById('game-area').style.display = 'none';
+            document.getElementById('game-controls').style.display = 'none';
+
+            const completion = document.getElementById('completion-screen');
+            completion.classList.add('active');
+
+            document.getElementById('final-score').textContent = `${score}/${shuffledChallenges.length}`;
+
+            const title = document.getElementById('completion-title');
+            const message = document.getElementById('completion-message');
+
+            if (score === shuffledChallenges.length) {
+                title.textContent = '🎉 Perfect Score!';
+                message.textContent = 'You identified every port correctly!';
+            } else if (score >= 7) {
+                title.textContent = 'Great Job!';
+                message.textContent = 'You know your ports well!';
+            } else {
+                title.textContent = 'Keep Practicing';
+                message.textContent = 'Review the I/O port types and try again.';
+            }
+
+            // Show results grid
+            const grid = document.getElementById('results-grid');
+            grid.innerHTML = '';
+            results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = `result-item ${result.correct ? 'correct' : 'incorrect'}`;
+                item.textContent = `${result.correct ? '✓' : '✗'} ${result.name}`;
+                grid.appendChild(item);
+            });
+        }
+
+        function resetLab() {
+            initLab();
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initLab);
+    </script>
+</body>
+</html>

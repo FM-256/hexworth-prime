@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Bluetooth Pairing - A+ Core 1</title>
+    <style>
+        :root {
+            --forge-primary: #ea580c;
+            --forge-secondary: #f97316;
+            --forge-accent: #fdba74;
+            --forge-dark: #7c2d12;
+            --forge-light: #fff7ed;
+            --text-primary: #292524;
+            --text-secondary: #57534e;
+            --bg-main: #fafaf9;
+            --bg-card: #ffffff;
+            --border-color: #e7e5e4;
+            --success: #16a34a;
+            --warning: #eab308;
+            --danger: #dc2626;
+            --info: #0284c7;
+            --bluetooth: #0082fc;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, var(--forge-light) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--forge-primary);
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, var(--bluetooth), #00aaff);
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+
+        /* Progress bar */
+        .progress-container {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--bluetooth), var(--success));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .step-indicators {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .step-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+
+        .step-dot.active {
+            background: var(--bluetooth);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-dot.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Lab layout */
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .lab-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Bluetooth device mockup */
+        .device-panel {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .device-panel h3 {
+            color: var(--bluetooth);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .bluetooth-device {
+            width: 200px;
+            height: 80px;
+            background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+            border-radius: 40px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .device-logo {
+            font-size: 2rem;
+        }
+
+        .power-button {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #444;
+            cursor: pointer;
+            border: 2px solid #555;
+            transition: all 0.3s;
+        }
+
+        .power-button.on {
+            background: var(--success);
+            border-color: #4ade80;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        .led-indicator {
+            position: absolute;
+            top: 10px;
+            left: 30px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .led-indicator.pairing {
+            background: var(--bluetooth);
+            animation: blink 1s infinite;
+        }
+
+        .led-indicator.connected {
+            background: var(--success);
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .device-status {
+            text-align: center;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .device-status h4 {
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .status-text.active {
+            color: var(--bluetooth);
+            font-weight: 600;
+        }
+
+        .device-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .device-btn {
+            padding: 12px 20px;
+            border: 2px solid var(--border-color);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .device-btn:hover:not(:disabled) {
+            border-color: var(--bluetooth);
+            background: #f0f9ff;
+        }
+
+        .device-btn.highlight {
+            border-color: var(--forge-primary);
+            animation: pulse-border 1s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(234, 88, 12, 0); }
+        }
+
+        .device-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .device-btn.success {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        /* Phone mockup */
+        .phone-panel {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .phone-panel h3 {
+            color: var(--bluetooth);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .phone-mockup {
+            width: 280px;
+            height: 480px;
+            background: #1a1a1a;
+            border-radius: 35px;
+            padding: 10px;
+            margin: 0 auto 20px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f7;
+            border-radius: 28px;
+            overflow: hidden;
+        }
+
+        .phone-header {
+            background: var(--bluetooth);
+            padding: 35px 15px 15px;
+            color: white;
+        }
+
+        .phone-header h4 {
+            font-size: 1.1rem;
+        }
+
+        .phone-content {
+            padding: 15px;
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+
+        .bt-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .bt-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bt-toggle-label .icon {
+            font-size: 1.3rem;
+        }
+
+        .toggle-ios {
+            width: 51px;
+            height: 31px;
+            background: #e9e9eb;
+            border-radius: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-ios.active {
+            background: var(--bluetooth);
+        }
+
+        .toggle-ios::after {
+            content: '';
+            width: 27px;
+            height: 27px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: left 0.3s;
+        }
+
+        .toggle-ios.active::after {
+            left: 22px;
+        }
+
+        .device-list {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .device-list h5 {
+            padding: 12px 15px;
+            background: #f9f9f9;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.5px;
+        }
+
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .device-item:hover {
+            background: #f9f9f9;
+        }
+
+        .device-item:last-child {
+            border-bottom: none;
+        }
+
+        .device-item.selected {
+            background: #e0f2fe;
+        }
+
+        .device-item.connected {
+            background: #f0fdf4;
+        }
+
+        .device-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .device-icon {
+            font-size: 1.3rem;
+        }
+
+        .device-name {
+            font-weight: 500;
+        }
+
+        .device-type {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .connect-status {
+            font-size: 0.8rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .scanning-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: var(--bluetooth);
+        }
+
+        .scanning-indicator.active {
+            display: block;
+        }
+
+        .scanning-indicator .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #e0f2fe;
+            border-top-color: var(--bluetooth);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* PIN dialog */
+        .pin-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pin-dialog.show {
+            display: flex;
+        }
+
+        .pin-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .pin-content h4 {
+            color: var(--bluetooth);
+            margin-bottom: 10px;
+        }
+
+        .pin-content p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .pin-display {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 8px;
+            color: var(--text-primary);
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .pin-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 8px;
+            margin-bottom: 15px;
+        }
+
+        .pin-input:focus {
+            outline: none;
+            border-color: var(--bluetooth);
+        }
+
+        .pin-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pin-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pin-btn.cancel {
+            background: #f5f5f5;
+            color: var(--text-primary);
+        }
+
+        .pin-btn.confirm {
+            background: var(--bluetooth);
+            color: white;
+        }
+
+        .pin-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Instruction panel */
+        .instruction-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+            margin-top: 20px;
+        }
+
+        .instruction-panel h3 {
+            color: var(--bluetooth);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instruction-panel .step-number {
+            background: var(--bluetooth);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .instruction-content p {
+            margin-bottom: 10px;
+        }
+
+        .info-box {
+            background: #e0f2fe;
+            border-left: 4px solid var(--info);
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            margin: 15px 0;
+        }
+
+        .info-box.warning {
+            background: #fef3c7;
+            border-color: var(--warning);
+        }
+
+        .info-box.success {
+            background: #dcfce7;
+            border-color: var(--success);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--bluetooth), #00aaff);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 130, 252, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Completion screen */
+        .completion-screen {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .completion-screen.show {
+            display: block;
+        }
+
+        .completion-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+
+        .completion-screen h2 {
+            color: var(--success);
+            margin-bottom: 15px;
+        }
+
+        .steps-summary {
+            background: #f5f5f4;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px auto;
+            text-align: left;
+            max-width: 400px;
+        }
+
+        .steps-summary h4 {
+            color: var(--bluetooth);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .step-item:last-child {
+            border-bottom: none;
+        }
+
+        .step-check {
+            width: 24px;
+            height: 24px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../chapters/ch10-mobile/index.html" class="back-link">
+            &larr; Back to Chapter 10: Mobile Connectivity
+        </a>
+
+        <header class="header">
+            <h1>🔵 Bluetooth Pairing Lab</h1>
+            <p>Practice the 5-step Bluetooth pairing process</p>
+        </header>
+
+        <!-- Progress -->
+        <div class="progress-container">
+            <div class="progress-header">
+                <span>Pairing Progress</span>
+                <span id="progressText">Step 1 of 5</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 20%"></div>
+            </div>
+            <div class="step-indicators">
+                <div class="step-dot active" data-step="1">1</div>
+                <div class="step-dot" data-step="2">2</div>
+                <div class="step-dot" data-step="3">3</div>
+                <div class="step-dot" data-step="4">4</div>
+                <div class="step-dot" data-step="5">5</div>
+            </div>
+        </div>
+
+        <!-- Main Lab Content -->
+        <div id="labContent">
+            <div class="lab-layout">
+                <!-- Bluetooth Device Panel -->
+                <div class="device-panel">
+                    <h3>🎧 Bluetooth Headphones</h3>
+
+                    <div class="bluetooth-device">
+                        <span class="device-logo">🎧</span>
+                        <div class="led-indicator" id="deviceLed"></div>
+                        <div class="power-button" id="powerBtn" onclick="togglePower()"></div>
+                    </div>
+
+                    <div class="device-status">
+                        <h4>Device Status</h4>
+                        <p class="status-text" id="deviceStatus">Off</p>
+                    </div>
+
+                    <div class="device-actions">
+                        <button class="device-btn" id="btnPower" onclick="togglePower()">
+                            <span>⏻</span> Power On/Off
+                        </button>
+                        <button class="device-btn" id="btnPairing" onclick="enterPairingMode()" disabled>
+                            <span>🔵</span> Enter Pairing Mode (Hold 5 sec)
+                        </button>
+                        <button class="device-btn" id="btnConfirm" onclick="confirmOnDevice()" disabled>
+                            <span>✓</span> Confirm Pairing
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Phone Panel -->
+                <div class="phone-panel">
+                    <h3>📱 Mobile Device</h3>
+
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <div class="phone-header">
+                                <h4>Bluetooth Settings</h4>
+                            </div>
+                            <div class="phone-content">
+                                <div class="bt-toggle">
+                                    <div class="bt-toggle-label">
+                                        <span class="icon">🔵</span>
+                                        <span>Bluetooth</span>
+                                    </div>
+                                    <div class="toggle-ios" id="btToggle" onclick="toggleBluetooth()"></div>
+                                </div>
+
+                                <div class="scanning-indicator" id="scanning">
+                                    <div class="spinner"></div>
+                                    <span>Searching for devices...</span>
+                                </div>
+
+                                <div class="device-list" id="deviceList" style="display: none;">
+                                    <h5>Available Devices</h5>
+                                    <div class="device-item" id="targetDevice" onclick="selectDevice()">
+                                        <div class="device-info">
+                                            <span class="device-icon">🎧</span>
+                                            <div>
+                                                <div class="device-name">BT Headphones Pro</div>
+                                                <div class="device-type">Headphones</div>
+                                            </div>
+                                        </div>
+                                        <span class="connect-status" id="connectStatus"></span>
+                                    </div>
+                                    <div class="device-item" style="opacity: 0.5;">
+                                        <div class="device-info">
+                                            <span class="device-icon">🔊</span>
+                                            <div>
+                                                <div class="device-name">Other Speaker</div>
+                                                <div class="device-type">Speaker</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instruction Panel -->
+            <div class="instruction-panel">
+                <h3><span class="step-number" id="stepNumber">1</span> <span id="stepTitle">Turn On the Bluetooth Device</span></h3>
+
+                <div class="instruction-content" id="instructionContent">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="prevBtn" onclick="prevStep()" disabled>Previous</button>
+                    <button class="btn btn-primary" id="nextBtn" onclick="nextStep()" disabled>Step Complete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIN Dialog -->
+        <div class="pin-dialog" id="pinDialog">
+            <div class="pin-content">
+                <h4>Enter Pairing Code</h4>
+                <p>Enter the code shown on your device:</p>
+                <div class="pin-display">0000</div>
+                <input type="text" class="pin-input" id="pinInput" maxlength="4" placeholder="----">
+                <div class="pin-buttons">
+                    <button class="pin-btn cancel" onclick="cancelPin()">Cancel</button>
+                    <button class="pin-btn confirm" onclick="submitPin()">Pair</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Screen -->
+        <div class="completion-screen" id="completionScreen">
+            <div class="completion-icon">🎧</div>
+            <h2>Bluetooth Pairing Successful!</h2>
+            <p>You've completed the 5-step Bluetooth pairing process.</p>
+
+            <div class="steps-summary">
+                <h4>5 Steps Completed</h4>
+                <div class="step-item">
+                    <span class="step-check">✓</span>
+                    <span>Turn on the Bluetooth device</span>
+                </div>
+                <div class="step-item">
+                    <span class="step-check">✓</span>
+                    <span>Enable pairing mode on device</span>
+                </div>
+                <div class="step-item">
+                    <span class="step-check">✓</span>
+                    <span>Scan and locate device on phone</span>
+                </div>
+                <div class="step-item">
+                    <span class="step-check">✓</span>
+                    <span>Enter PIN/passcode</span>
+                </div>
+                <div class="step-item">
+                    <span class="step-check">✓</span>
+                    <span>Confirm and test connection</span>
+                </div>
+            </div>
+
+            <div class="info-box success">
+                <strong>Exam Tip:</strong> Remember the 5-step pairing process: <strong>TEPCT</strong><br>
+                <strong>T</strong>urn on → <strong>E</strong>nable pairing → <strong>P</strong>IN code → <strong>C</strong>onfirm → <strong>T</strong>est
+            </div>
+
+            <div class="action-buttons" style="justify-content: center; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="resetLab()">Start Over</button>
+                <button class="btn btn-primary" onclick="window.location.href='../chapters/ch10-mobile/index.html'">Back to Chapter</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        let devicePowered = false;
+        let pairingMode = false;
+        let bluetoothEnabled = false;
+        let deviceSelected = false;
+        let pinEntered = false;
+        let confirmed = false;
+
+        const steps = [
+            {
+                title: "Turn On the Bluetooth Device",
+                content: `
+                    <p>The first step in pairing any Bluetooth device is to <strong>turn it on</strong>. Most Bluetooth devices have a power button that needs to be pressed.</p>
+
+                    <div class="info-box">
+                        <strong>Tip:</strong> Make sure the device has sufficient battery charge. Low battery can cause pairing issues.
+                    </div>
+
+                    <p><strong>Your Task:</strong> Click the <strong>"Power On/Off"</strong> button on the Bluetooth headphones panel to turn on the device.</p>
+                `,
+                checkComplete: () => devicePowered
+            },
+            {
+                title: "Enable Pairing Mode",
+                content: `
+                    <p>After turning on the device, you need to put it into <strong>pairing mode</strong> (also called <em>discoverable mode</em>). This allows other devices to find it.</p>
+
+                    <div class="info-box warning">
+                        <strong>Common Methods to Enter Pairing Mode:</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>Hold the power button for 5+ seconds</li>
+                            <li>Press a dedicated pairing button</li>
+                            <li>Press multiple buttons simultaneously</li>
+                        </ul>
+                    </div>
+
+                    <p>When in pairing mode, the LED typically <strong>flashes blue</strong> or alternates colors.</p>
+
+                    <p><strong>Your Task:</strong> Click <strong>"Enter Pairing Mode"</strong> to put the headphones into discoverable mode.</p>
+                `,
+                checkComplete: () => pairingMode
+            },
+            {
+                title: "Scan for Devices on Your Phone",
+                content: `
+                    <p>Now use your mobile device to <strong>scan for available Bluetooth devices</strong>. The device in pairing mode should appear in the list.</p>
+
+                    <div class="info-box">
+                        <strong>On Your Phone:</strong>
+                        <ol style="margin: 10px 0 0 20px;">
+                            <li>Go to Settings > Bluetooth</li>
+                            <li>Enable Bluetooth if not already on</li>
+                            <li>Wait for available devices to appear</li>
+                            <li>Select your device from the list</li>
+                        </ol>
+                    </div>
+
+                    <p><strong>Your Task:</strong> Enable Bluetooth on the phone mockup, then select <strong>"BT Headphones Pro"</strong> from the list.</p>
+                `,
+                checkComplete: () => deviceSelected
+            },
+            {
+                title: "Enter the PIN/Passcode",
+                content: `
+                    <p>Many Bluetooth devices require a <strong>PIN code</strong> to complete pairing. This prevents unauthorized devices from connecting.</p>
+
+                    <div class="info-box warning">
+                        <strong>Common Default PINs:</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li><strong>0000</strong> - Most common default</li>
+                            <li><strong>1234</strong> - Second most common</li>
+                            <li>Check device manual for specific PIN</li>
+                        </ul>
+                    </div>
+
+                    <p>Some modern devices use <strong>Secure Simple Pairing (SSP)</strong> which displays matching codes on both devices instead of requiring PIN entry.</p>
+
+                    <p><strong>Your Task:</strong> Enter the PIN <strong>0000</strong> when prompted.</p>
+                `,
+                checkComplete: () => pinEntered
+            },
+            {
+                title: "Confirm Pairing and Test",
+                content: `
+                    <p>The final step is to <strong>confirm the pairing</strong> on the Bluetooth device and <strong>test the connection</strong> to ensure it's working properly.</p>
+
+                    <div class="info-box">
+                        <strong>Testing the Connection:</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>Play audio to test sound quality</li>
+                            <li>Test microphone if applicable</li>
+                            <li>Check connection stability</li>
+                        </ul>
+                    </div>
+
+                    <p><strong>Your Task:</strong> Click <strong>"Confirm Pairing"</strong> on the headphones to complete the process.</p>
+                `,
+                checkComplete: () => confirmed
+            }
+        ];
+
+        function updateUI() {
+            document.getElementById('progressText').textContent = `Step ${currentStep} of ${totalSteps}`;
+            document.getElementById('progressFill').style.width = `${(currentStep / totalSteps) * 100}%`;
+
+            document.querySelectorAll('.step-dot').forEach((dot, idx) => {
+                dot.classList.remove('active', 'completed');
+                if (idx + 1 < currentStep) {
+                    dot.classList.add('completed');
+                } else if (idx + 1 === currentStep) {
+                    dot.classList.add('active');
+                }
+            });
+
+            const step = steps[currentStep - 1];
+            document.getElementById('stepNumber').textContent = currentStep;
+            document.getElementById('stepTitle').textContent = step.title;
+            document.getElementById('instructionContent').innerHTML = step.content;
+
+            document.getElementById('prevBtn').disabled = currentStep === 1;
+            document.getElementById('nextBtn').textContent = currentStep === totalSteps ? 'Complete' : 'Step Complete';
+            document.getElementById('nextBtn').disabled = !step.checkComplete();
+
+            // Update button highlights
+            document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('highlight'));
+
+            if (currentStep === 1 && !devicePowered) {
+                document.getElementById('btnPower').classList.add('highlight');
+            } else if (currentStep === 2 && !pairingMode) {
+                document.getElementById('btnPairing').classList.add('highlight');
+            } else if (currentStep === 5 && pinEntered && !confirmed) {
+                document.getElementById('btnConfirm').classList.add('highlight');
+            }
+        }
+
+        function togglePower() {
+            devicePowered = !devicePowered;
+
+            const powerBtn = document.getElementById('powerBtn');
+            const led = document.getElementById('deviceLed');
+            const status = document.getElementById('deviceStatus');
+            const pairingBtn = document.getElementById('btnPairing');
+
+            if (devicePowered) {
+                powerBtn.classList.add('on');
+                status.textContent = 'Powered On';
+                status.classList.add('active');
+                pairingBtn.disabled = false;
+            } else {
+                powerBtn.classList.remove('on');
+                led.classList.remove('pairing', 'connected');
+                status.textContent = 'Off';
+                status.classList.remove('active');
+                pairingBtn.disabled = true;
+                pairingMode = false;
+            }
+
+            updateUI();
+        }
+
+        function enterPairingMode() {
+            if (!devicePowered) return;
+
+            pairingMode = true;
+            const led = document.getElementById('deviceLed');
+            const status = document.getElementById('deviceStatus');
+
+            led.classList.add('pairing');
+            status.textContent = 'Pairing Mode (Discoverable)';
+
+            updateUI();
+        }
+
+        function toggleBluetooth() {
+            bluetoothEnabled = !bluetoothEnabled;
+            const toggle = document.getElementById('btToggle');
+            const scanning = document.getElementById('scanning');
+            const deviceList = document.getElementById('deviceList');
+
+            if (bluetoothEnabled) {
+                toggle.classList.add('active');
+                scanning.classList.add('active');
+
+                // Simulate scanning
+                setTimeout(() => {
+                    scanning.classList.remove('active');
+                    if (pairingMode) {
+                        deviceList.style.display = 'block';
+                    }
+                }, 2000);
+            } else {
+                toggle.classList.remove('active');
+                scanning.classList.remove('active');
+                deviceList.style.display = 'none';
+            }
+        }
+
+        function selectDevice() {
+            if (!pairingMode || !bluetoothEnabled) return;
+
+            deviceSelected = true;
+            document.getElementById('targetDevice').classList.add('selected');
+
+            // Show PIN dialog
+            setTimeout(() => {
+                document.getElementById('pinDialog').classList.add('show');
+            }, 500);
+
+            updateUI();
+        }
+
+        function submitPin() {
+            const pin = document.getElementById('pinInput').value;
+
+            if (pin === '0000') {
+                pinEntered = true;
+                document.getElementById('pinDialog').classList.remove('show');
+                document.getElementById('connectStatus').textContent = 'Waiting...';
+                document.getElementById('btnConfirm').disabled = false;
+                updateUI();
+            } else {
+                document.getElementById('pinInput').style.borderColor = 'var(--danger)';
+                setTimeout(() => {
+                    document.getElementById('pinInput').style.borderColor = '';
+                }, 500);
+            }
+        }
+
+        function cancelPin() {
+            document.getElementById('pinDialog').classList.remove('show');
+            document.getElementById('pinInput').value = '';
+        }
+
+        function confirmOnDevice() {
+            if (!pinEntered) return;
+
+            confirmed = true;
+
+            const led = document.getElementById('deviceLed');
+            const status = document.getElementById('deviceStatus');
+            const targetDevice = document.getElementById('targetDevice');
+            const connectStatus = document.getElementById('connectStatus');
+            const confirmBtn = document.getElementById('btnConfirm');
+
+            led.classList.remove('pairing');
+            led.classList.add('connected');
+            status.textContent = 'Connected';
+            targetDevice.classList.remove('selected');
+            targetDevice.classList.add('connected');
+            connectStatus.textContent = 'Connected';
+            confirmBtn.classList.add('success');
+
+            updateUI();
+        }
+
+        function nextStep() {
+            const step = steps[currentStep - 1];
+
+            if (!step.checkComplete()) return;
+
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateUI();
+            } else {
+                completeLab();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateUI();
+            }
+        }
+
+        function completeLab() {
+            document.getElementById('labContent').style.display = 'none';
+            document.getElementById('completionScreen').classList.add('show');
+        }
+
+        function resetLab() {
+            currentStep = 1;
+            devicePowered = false;
+            pairingMode = false;
+            bluetoothEnabled = false;
+            deviceSelected = false;
+            pinEntered = false;
+            confirmed = false;
+
+            // Reset all UI elements
+            document.getElementById('powerBtn').classList.remove('on');
+            document.getElementById('deviceLed').classList.remove('pairing', 'connected');
+            document.getElementById('deviceStatus').textContent = 'Off';
+            document.getElementById('deviceStatus').classList.remove('active');
+            document.getElementById('btnPairing').disabled = true;
+            document.getElementById('btnConfirm').disabled = true;
+            document.getElementById('btnConfirm').classList.remove('success');
+            document.getElementById('btToggle').classList.remove('active');
+            document.getElementById('scanning').classList.remove('active');
+            document.getElementById('deviceList').style.display = 'none';
+            document.getElementById('targetDevice').classList.remove('selected', 'connected');
+            document.getElementById('connectStatus').textContent = '';
+            document.getElementById('pinInput').value = '';
+
+            document.getElementById('labContent').style.display = 'block';
+            document.getElementById('completionScreen').classList.remove('show');
+
+            updateUI();
+        }
+
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>
