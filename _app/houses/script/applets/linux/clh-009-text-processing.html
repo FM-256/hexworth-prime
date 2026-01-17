@@ -451,12 +451,24 @@
             }
         });
 
-        // Create filesystem with log data
+        // Create filesystem with log data - FLAT structure for LinuxTerminal.js
+        terminal.fs['/home'].children = ['operator'];
+
         terminal.fs['/home/operator'] = {
-            type: 'dir',
-            contents: {
-                'intel': { type: 'dir', contents: {
-                    'access.log': { type: 'file', content: `192.168.1.105 - - [15/Jan/2024:10:15:32] "GET /admin/login.php" 200
+            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+            children: ['intel', 'reports', '.bash_history', '.classified']
+        };
+
+        // Intel directory - intercepted logs
+        terminal.fs['/home/operator/intel'] = {
+            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+            children: ['access.log', 'users.db', 'network.log', 'exfil_attempts.log']
+        };
+
+        terminal.fs['/home/operator/intel/access.log'] = {
+            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+            size: 892,
+            content: `192.168.1.105 - - [15/Jan/2024:10:15:32] "GET /admin/login.php" 200
 192.168.1.42 - - [15/Jan/2024:10:16:01] "GET /index.html" 200
 10.0.0.88 - - [15/Jan/2024:10:16:45] "POST /api/upload" 403
 192.168.1.105 - - [15/Jan/2024:10:17:22] "GET /admin/config.php" 200
@@ -467,23 +479,91 @@
 192.168.1.105 - - [15/Jan/2024:10:21:33] "POST /admin/export" 200
 10.0.0.88 - - [15/Jan/2024:10:22:15] "POST /api/upload" 403
 192.168.1.42 - - [15/Jan/2024:10:23:44] "GET /contact.html" 200
-192.168.1.105 - - [15/Jan/2024:10:24:08] "GET /admin/logs.php" 200` },
-                    'users.db': { type: 'file', content: `admin:x:1000:1000:System Admin:/home/admin:/bin/bash
+192.168.1.105 - - [15/Jan/2024:10:24:08] "GET /admin/logs.php" 200`
+        };
+
+        terminal.fs['/home/operator/intel/users.db'] = {
+            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+            size: 412,
+            content: `admin:x:1000:1000:System Admin:/home/admin:/bin/bash
 jsmith:x:1001:1001:John Smith:/home/jsmith:/bin/bash
 operator:x:1002:1002:Field Operator:/home/operator:/bin/bash
 analyst:x:1003:1003:Data Analyst:/home/analyst:/bin/bash
-guest:x:1004:1004:Guest User:/home/guest:/bin/false
+ghost:x:1004:1004:REDACTED:/dev/null:/bin/false
 backup:x:1005:1005:Backup Service:/var/backup:/bin/false
-monitor:x:1006:1006:Monitor Daemon:/var/monitor:/bin/false` },
-                    'network.log': { type: 'file', content: `TCP 192.168.1.105:44821 -> 10.0.0.5:443 ESTABLISHED
+shadowman:x:0:0:Unknown Asset:/root:/bin/bash`
+        };
+
+        terminal.fs['/home/operator/intel/network.log'] = {
+            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+            size: 298,
+            content: `TCP 192.168.1.105:44821 -> 10.0.0.5:443 ESTABLISHED
 TCP 192.168.1.42:55123 -> 10.0.0.5:80 ESTABLISHED
 UDP 10.0.0.88:53421 -> 8.8.8.8:53 DNS_QUERY
 TCP 192.168.1.105:44822 -> 10.0.0.5:22 ESTABLISHED
-TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT` }
-                }},
-                'reports': { type: 'dir', contents: {} },
-                '.bash_history': { type: 'file', content: '', hidden: true }
-            }
+TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT
+TCP 192.168.1.105:44823 -> 198.51.100.7:4444 SYN_SENT`
+        };
+
+        terminal.fs['/home/operator/intel/exfil_attempts.log'] = {
+            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+            size: 445,
+            content: `[ALERT] 10.0.0.88 attempted POST to /api/upload - BLOCKED
+[ALERT] 10.0.0.88 attempted POST to /api/upload - BLOCKED
+[ALERT] 10.0.0.88 attempted POST to /api/upload - BLOCKED
+[WARN] 192.168.1.105 accessed /admin/export - DATA TRANSFERRED
+[CRIT] 192.168.1.105 connection to 198.51.100.7:4444 - POSSIBLE C2
+[INFO] Pattern matches known APT-29 behavior signature`
+        };
+
+        // Reports directory - for output
+        terminal.fs['/home/operator/reports'] = {
+            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+            children: ['README.txt']
+        };
+
+        terminal.fs['/home/operator/reports/README.txt'] = {
+            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+            size: 89,
+            content: `Place sanitized reports here before transmission.
+All data must be redacted per OPSEC protocol.`
+        };
+
+        // Hidden classified intel
+        terminal.fs['/home/operator/.classified'] = {
+            type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
+            children: ['handler_note.txt', 'asset_list.txt']
+        };
+
+        terminal.fs['/home/operator/.classified/handler_note.txt'] = {
+            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
+            size: 234,
+            content: `HANDLER: MONARCH
+DATE: 2024-01-15
+
+The logs you've intercepted are from COBALT SUNRISE.
+Focus on 192.168.1.105 - this is our primary target.
+The repeated 403s from 10.0.0.88 suggest another actor.
+
+Extract, analyze, sanitize. Standard protocol.`
+        };
+
+        terminal.fs['/home/operator/.classified/asset_list.txt'] = {
+            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
+            size: 156,
+            content: `ASSETS - COBALT SUNRISE
+========================
+RAVEN - Internal access
+SPECTER - Network monitor
+GHOST - Unknown (compromised?)
+SHADOWMAN - ROOT ACCESS (!)
+
+Priority: Identify SHADOWMAN`
+        };
+
+        terminal.fs['/home/operator/.bash_history'] = {
+            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
+            size: 0, content: ''
         };
 
         function updatePromptDisplay() {
