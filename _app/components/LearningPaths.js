@@ -773,6 +773,212 @@ class LearningPaths {
                     prerequisites: ['eye-hunt-workbench']
                 }
             ]
+        },
+
+        // DevOps Fundamentals Path (accessible from Script House)
+        'devops-fundamentals': {
+            name: 'DevOps Fundamentals',
+            description: 'Master CI/CD, containerization, and infrastructure as code',
+            icon: '⚙️',
+            color: '#8b5cf6',
+            modules: [
+                {
+                    id: 'devops-git-basics',
+                    title: 'Git Basics',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: '../code/presentations/git-basics.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'devops-agile',
+                    title: 'Agile & SDLC',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: '../code/presentations/agile-sdlc.html',
+                    prerequisites: ['devops-git-basics']
+                },
+                {
+                    id: 'devops-cicd',
+                    title: 'CI/CD Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: '../code/presentations/cicd-fundamentals.html',
+                    prerequisites: ['devops-agile']
+                },
+                {
+                    id: 'devops-pipeline',
+                    title: 'Pipeline Builder',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: '../code/applets/pipeline-builder.html',
+                    prerequisites: ['devops-cicd']
+                },
+                {
+                    id: 'devops-docker',
+                    title: 'Docker Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: '../code/presentations/docker-fundamentals.html',
+                    prerequisites: ['devops-pipeline']
+                },
+                {
+                    id: 'devops-docker-playground',
+                    title: 'Docker Playground',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: '../code/applets/docker-playground.html',
+                    prerequisites: ['devops-docker']
+                },
+                {
+                    id: 'devops-kubernetes',
+                    title: 'Kubernetes Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: '../code/presentations/kubernetes-fundamentals.html',
+                    prerequisites: ['devops-docker-playground']
+                },
+                {
+                    id: 'devops-terraform',
+                    title: 'Terraform Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: '../code/presentations/terraform-fundamentals.html',
+                    prerequisites: ['devops-kubernetes']
+                },
+                {
+                    id: 'devops-terraform-visualizer',
+                    title: 'Terraform Visualizer',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: '../code/applets/terraform-visualizer.html',
+                    prerequisites: ['devops-terraform']
+                }
+            ]
+        },
+
+        // CompTIA Linux+ XK0-005 Certification Path
+        'comptia-linux': {
+            name: 'CompTIA Linux+ (XK0-005)',
+            description: 'Complete Linux administration certification prep covering system management, security, scripting, and troubleshooting',
+            icon: '🐧',
+            color: '#22c55e',
+            modules: [
+                // Section 1: Linux Fundamentals
+                {
+                    id: 'linux-section1-intro',
+                    title: 'Section 1: Linux System Overview',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'applets/linux/ubuntu-components.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'linux-section1-quiz',
+                    title: 'Section 1 Quiz: Linux Fundamentals',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'quizzes/linux-section1-quiz.html',
+                    prerequisites: ['linux-section1-intro']
+                },
+                // Section 2: Command Line Essentials
+                {
+                    id: 'linux-section2-cli',
+                    title: 'Section 2: Command Line Essentials',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'applets/linux/linux-command-simulator.html',
+                    prerequisites: ['linux-section1-quiz']
+                },
+                {
+                    id: 'linux-section2-quiz',
+                    title: 'Section 2 Quiz: CLI Commands',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'quizzes/linux-basics-quiz.html',
+                    prerequisites: ['linux-section2-cli']
+                },
+                // Section 3: File System Navigation
+                {
+                    id: 'linux-section3-filesystem',
+                    title: 'Section 3: File System Navigation',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'applets/linux/linux-filesystem-navigator.html',
+                    prerequisites: ['linux-section2-quiz']
+                },
+                {
+                    id: 'linux-section3-lab',
+                    title: 'Section 3 Lab: File Navigation',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'applets/linux/linux-lab-002-file-navigation.html',
+                    prerequisites: ['linux-section3-filesystem']
+                },
+                // Section 4: Permissions & Security
+                {
+                    id: 'linux-section4-permissions',
+                    title: 'Section 4: Linux Permissions',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'applets/linux/linux-permissions-calculator.html',
+                    prerequisites: ['linux-section3-lab']
+                },
+                {
+                    id: 'linux-section4-lab',
+                    title: 'Section 4 Lab: User Identity',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'applets/linux/linux-lab-001-user-identity.html',
+                    prerequisites: ['linux-section4-permissions']
+                },
+                // Section 5: Scripting & Automation
+                {
+                    id: 'linux-section5-bash',
+                    title: 'Section 5: Bash Scripting',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'applets/linux/bash-scripting-playground.html',
+                    prerequisites: ['linux-section4-lab']
+                },
+                {
+                    id: 'linux-section5-quiz',
+                    title: 'Section 5 Quiz: Bash Scripting',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'quizzes/linux-bash-quiz.html',
+                    prerequisites: ['linux-section5-bash']
+                },
+                // Section 6: Cross-Platform
+                {
+                    id: 'linux-section6-macos',
+                    title: 'Section 6: macOS & Linux',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'applets/linux/lab-macos-linux.html',
+                    prerequisites: ['linux-section5-quiz']
+                }
+            ]
         }
     };
 

@@ -522,22 +522,22 @@
         const THREAT_PROCESS = 'unknown_process';
         let threatFound = false;
 
-        // Process analysis data (simulated ps output)
+        // Process analysis data (simulated ps output) - Black site monitoring station
         const processData = `PID     CPU%    MEM%    PROCESS
 1       0.0     0.1     systemd
 2       0.0     0.0     kthreadd
 127     0.1     0.2     sshd
-256     0.3     1.2     nginx
+256     0.3     1.2     signal_intercept
 312     0.2     0.8     postgres
-445     1.2     2.1     python3
+445     1.2     2.1     facial_recog_daemon
 512     0.1     0.3     cron
 623     8.2     5.1     unknown_process
-789     0.4     1.5     node
+789     0.4     1.5     sat_uplink_monitor
 834     0.2     0.6     redis-server
-901     0.1     0.4     docker
+901     0.1     0.4     drone_telemetry
 945     0.3     0.9     mysql
-1024    0.0     0.2     rsyslogd
-1156    0.1     0.3     networkd`;
+1024    0.0     0.2     comms_logger
+1156    0.1     0.3     perimeter_sensor`;
 
         const missionData = {
             1: {
@@ -604,20 +604,116 @@
             }
         });
 
-        // Customize filesystem for this mission
+        // Customize filesystem for this mission (FLAT structure with children arrays)
+        // Update /home to know about operator
+        terminal.fs['/home'].children = ['operator'];
+
         terminal.fs['/home/operator'] = {
             type: 'dir',
-            contents: {
-                'analysis': { type: 'dir', contents: {
-                    'processes.txt': { type: 'file', content: processData },
-                    'README.txt': { type: 'file', content: 'INCIDENT ANALYSIS\n=================\nProcess snapshot captured at: 2024-01-15 14:32:07 UTC\nAlert triggered by: Anomalous CPU usage\nAnalyst assigned: operator\n\nNOTE: One process shows suspicious resource consumption.\n' },
-                    'baseline.txt': { type: 'file', content: 'BASELINE PROCESSES\n==================\nsystemd, kthreadd, sshd, nginx, postgres,\npython3, cron, node, redis-server, docker,\nmysql, rsyslogd, networkd\n\nAny process NOT in this list should be investigated.\n' }
-                }},
-                'tools': { type: 'dir', contents: {
-                    'hunt.sh': { type: 'file', content: '#!/bin/bash\n# Process hunting script\ngrep -v "^PID" "$1" | sort -k2 -rn | head -5\necho "Top 5 CPU consumers listed"\n', permissions: 'rwxr-xr-x' }
-                }},
-                '.bash_history': { type: 'file', content: 'ls\ncd analysis\ncat processes.txt\n', hidden: true }
-            }
+            perms: 'drwxr-xr-x',
+            owner: 'operator',
+            group: 'operator',
+            children: ['analysis', 'tools', '.bash_history']
+        };
+
+        terminal.fs['/home/operator/analysis'] = {
+            type: 'dir',
+            perms: 'drwxr-xr-x',
+            owner: 'operator',
+            group: 'operator',
+            children: ['processes.txt', 'README.txt', 'baseline.txt', '.incident_log']
+        };
+
+        terminal.fs['/home/operator/analysis/processes.txt'] = {
+            type: 'file',
+            perms: '-rw-r--r--',
+            owner: 'operator',
+            group: 'operator',
+            size: 512,
+            content: processData
+        };
+
+        terminal.fs['/home/operator/analysis/README.txt'] = {
+            type: 'file',
+            perms: '-rw-r--r--',
+            owner: 'operator',
+            group: 'operator',
+            size: 384,
+            content: `BLACK SITE MONITORING STATION - INCIDENT REPORT
+================================================
+Facility: [REDACTED] - Codename "SHADOW MESA"
+Process snapshot captured: 2024-01-15 14:32:07 UTC
+Alert triggered by: Anomalous CPU usage spike
+Analyst assigned: operator
+
+SITUATION:
+Perimeter breach detected 0300 hours. Unknown entity
+gained access to monitoring subnet. One unauthorized
+process now running on primary analysis server.
+
+PRIORITY: CRITICAL
+Find and document the rogue process before it
+exfiltrates satellite telemetry data.
+`
+        };
+
+        terminal.fs['/home/operator/analysis/baseline.txt'] = {
+            type: 'file',
+            perms: '-rw-r--r--',
+            owner: 'operator',
+            group: 'operator',
+            size: 312,
+            content: `APPROVED PROCESS BASELINE - CLEARANCE LEVEL 4
+==============================================
+systemd, kthreadd, sshd, signal_intercept, postgres,
+facial_recog_daemon, cron, sat_uplink_monitor,
+redis-server, drone_telemetry, mysql, comms_logger,
+perimeter_sensor
+
+WARNING: Any process NOT in this list is potentially
+hostile and should be flagged for immediate review.
+`
+        };
+
+        terminal.fs['/home/operator/analysis/.incident_log'] = {
+            type: 'file',
+            perms: '-rw-------',
+            owner: 'operator',
+            group: 'operator',
+            size: 256,
+            content: `[0247] Perimeter alarm triggered - Sector 7G
+[0251] Guards dispatched - found nothing
+[0303] Anomalous network traffic detected
+[0315] Unknown process spawned - PID 623
+[0332] Process snapshot captured for analysis
+[0340] You are now investigating...
+`
+        };
+
+        terminal.fs['/home/operator/tools'] = {
+            type: 'dir',
+            perms: 'drwxr-xr-x',
+            owner: 'operator',
+            group: 'operator',
+            children: ['hunt.sh']
+        };
+
+        terminal.fs['/home/operator/tools/hunt.sh'] = {
+            type: 'file',
+            perms: '-rwxr-xr-x',
+            owner: 'operator',
+            group: 'operator',
+            size: 128,
+            content: '#!/bin/bash\n# Process hunting script\ngrep -v "^PID" "$1" | sort -k2 -rn | head -5\necho "Top 5 CPU consumers listed"\n'
+        };
+
+        terminal.fs['/home/operator/.bash_history'] = {
+            type: 'file',
+            perms: '-rw-------',
+            owner: 'operator',
+            group: 'operator',
+            size: 42,
+            content: 'ls\ncd analysis\ncat processes.txt\n'
         };
 
         function updatePromptDisplay() {

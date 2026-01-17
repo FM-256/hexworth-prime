@@ -331,23 +331,67 @@
         const houseId = urlParams.get('house') || urlParams.get('path');
         const pathId = urlParams.get('path') || houseId;
 
-        // Storage key for completed modules
-        const STORAGE_KEY = 'hexworth_completed_modules';
+        // For path lookup, try pathId first (for cert paths like 'comptia-linux'),
+        // then fall back to houseId (for house paths like 'script')
+        const lookupId = pathId;
+
+        // Storage keys - check both legacy and ProgressManager formats
+        const LEGACY_KEY = 'hexworth_completed_modules';
+        const PROGRESS_KEY = 'hexworth_progress';
 
         function getCompletedModules() {
+            const completed = new Set();
+
             try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                return stored ? JSON.parse(stored) : [];
-            } catch {
-                return [];
+                // Check ProgressManager format (primary)
+                const progressData = localStorage.getItem(PROGRESS_KEY);
+                if (progressData) {
+                    const progress = JSON.parse(progressData);
+                    if (progress.completedModules && Array.isArray(progress.completedModules)) {
+                        progress.completedModules.forEach(id => completed.add(id));
+                    }
+                }
+
+                // Also check legacy format for backwards compatibility
+                const legacyData = localStorage.getItem(LEGACY_KEY);
+                if (legacyData) {
+                    const legacyModules = JSON.parse(legacyData);
+                    if (Array.isArray(legacyModules)) {
+                        legacyModules.forEach(id => completed.add(id));
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading completed modules:', e);
             }
+
+            return Array.from(completed);
         }
 
         function markModuleComplete(moduleId) {
-            const completed = getCompletedModules();
-            if (!completed.includes(moduleId)) {
-                completed.push(moduleId);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+            // Mark in both systems for compatibility
+            try {
+                // Legacy system
+                const legacyData = localStorage.getItem(LEGACY_KEY);
+                const legacyModules = legacyData ? JSON.parse(legacyData) : [];
+                if (!legacyModules.includes(moduleId)) {
+                    legacyModules.push(moduleId);
+                    localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyModules));
+                }
+
+                // ProgressManager system
+                const progressData = localStorage.getItem(PROGRESS_KEY);
+                if (progressData) {
+                    const progress = JSON.parse(progressData);
+                    if (!progress.completedModules) {
+                        progress.completedModules = [];
+                    }
+                    if (!progress.completedModules.includes(moduleId)) {
+                        progress.completedModules.push(moduleId);
+                        localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+                    }
+                }
+            } catch (e) {
+                console.error('Error marking module complete:', e);
             }
         }
 
@@ -369,13 +413,24 @@
             document.body.classList.add(`house-${houseId}`);
 
             const completedModules = getCompletedModules();
-            const pathOverview = LearningPaths.getPathOverview(houseId, completedModules);
+            console.log('[path-view] lookupId:', lookupId);
+            console.log('[path-view] completedModules:', completedModules);
+
+            // Use lookupId (pathId) to find certification paths like 'comptia-linux'
+            const pathOverview = LearningPaths.getPathOverview(lookupId, completedModules);
+            console.log('[path-view] pathOverview:', pathOverview);
+
+            if (pathOverview && pathOverview.modules) {
+                pathOverview.modules.forEach((m, i) => {
+                    console.log(`[path-view] Module ${i}: ${m.id} | completed: ${m.completed} | available: ${m.available} | prereqs: ${m.prerequisites}`);
+                });
+            }
 
             if (!pathOverview) {
                 app.innerHTML = `
                     <div class="error">
                         <h2>Path not found</h2>
-                        <p>The learning path "${houseId}" was not found.</p>
+                        <p>The learning path "${lookupId}" was not found.</p>
                         <button class="back-btn" onclick="history.back()">Go Back</button>
                     </div>
                 `;
@@ -435,7 +490,7 @@
             }).join('');
 
             // Calculate duration
-            const duration = LearningPaths.getPathDuration(houseId);
+            const duration = LearningPaths.getPathDuration(lookupId);
 
             app.innerHTML = `
                 <div class="header">
