@@ -642,249 +642,88 @@
         </div>
     </div>
 
-    <!-- LinuxTerminal Engine -->
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <!-- CLH Terminal Engine -->
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
 
     <script>
         // ═══════════════════════════════════════════════════════════
-        // MISSION CONFIGURATION
+        // MODULE INITIALIZATION
         // ═══════════════════════════════════════════════════════════
 
-        const missionData = {
-            1: {
-                title: 'SURVEY: Map the Territory',
-                description: 'Use ls to survey your current location. What directories are available for exploration?',
-                hint: '$ ls',
-                check: (cmd) => cmd.trim() === 'ls' || cmd.startsWith('ls ')
-            },
-            2: {
-                title: 'INFILTRATE: Enter Intel Directory',
-                description: 'Navigate into the "intel" directory to search for valuable data.',
-                hint: '$ cd intel',
-                check: (cmd, terminal) => {
-                    return terminal.getCwd().includes('intel');
-                }
-            },
-            3: {
-                title: 'SCAN: Deep Reconnaissance',
-                description: 'Perform a deep scan to reveal all files, including hidden ones.',
-                hint: '$ ls -la',
-                check: (cmd) => cmd.includes('ls') && cmd.includes('-') &&
-                               (cmd.includes('l') && cmd.includes('a'))
-            },
-            4: {
-                title: 'EXTRACT: Read the Briefing',
-                description: 'Access the briefing.txt file to extract mission-critical intel.',
-                hint: '$ cat briefing.txt',
-                check: (cmd) => cmd.trim() === 'cat briefing.txt' ||
-                               cmd.trim() === 'cat ./briefing.txt'
-            },
-            5: {
-                title: 'EXFIL: Return to Base',
-                description: 'Navigate back to your home directory. Mission complete.',
-                hint: '$ cd ~ (or cd)',
-                check: (cmd, terminal) => {
-                    return terminal.getCwd() === '/home/operator';
-                }
-            }
-        };
+        const MODULE_ID = 'CLH-002';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
 
-        const missions = {
-            1: { completed: false },
-            2: { completed: false },
-            3: { completed: false },
-            4: { completed: false },
-            5: { completed: false }
-        };
-
-        let currentMission = 1;
-
-        // ═══════════════════════════════════════════════════════════
-        // TERMINAL INITIALIZATION
-        // ═══════════════════════════════════════════════════════════
-
-        const terminal = new LinuxTerminal({
+        // Initialize terminal with centralized engine
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
             container: '#terminal',
             inputElement: '#commandInput',
-            user: 'operator',
-            hostname: 'shadow',
-            startDir: '/home/operator',
-            onCommand: (cmdLine, output, cmd, args) => {
-                checkMissionCompletion(cmdLine);
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                updateMissionUI(objectiveId, totalCompleted, total);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
                 updatePromptDisplay();
             }
         });
 
-        // Customize filesystem for this mission (flat structure for LinuxTerminal.js)
-        // First, update /home to know about operator
-        terminal.fs['/home'].children = ['operator'];
-
-        terminal.fs['/home/operator'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['Documents', 'intel', 'scripts', 'logs', '.bash_history', '.bashrc']
-        };
-        terminal.fs['/home/operator/Documents'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['notes.txt']
-        };
-        terminal.fs['/home/operator/Documents/notes.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 40,
-            content: 'Meeting at 14:00 in the secure room.\n'
-        };
-        terminal.fs['/home/operator/intel'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['briefing.txt', 'targets.txt', '.secret.txt', '.classified']
-        };
-        terminal.fs['/home/operator/intel/briefing.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 186,
-            content: '=== MISSION BRIEFING ===\n\nAgent,\n\nYou have successfully infiltrated the target system.\nYour command line skills are progressing well.\n\nNext mission: Learn to hunt for patterns.\n\n-- Command\n'
-        };
-        terminal.fs['/home/operator/intel/targets.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 89,
-            content: 'Target Alpha: 192.168.1.100\nTarget Beta: 192.168.1.101\nTarget Gamma: [REDACTED]\n'
-        };
-        terminal.fs['/home/operator/intel/.secret.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 128,
-            content: '╔══════════════════════════════════════╗\n║   NUKE LAUNCH CODES - TOP SECRET     ║\n╠══════════════════════════════════════╣\n║  Serial: 0xDEADBEEF4A7C39E1          ║\n║  Auth:   0x8B5CF6A3E917D042          ║\n╚══════════════════════════════════════╝\n'
-        };
-        terminal.fs['/home/operator/intel/.classified'] = {
-            type: 'file',
-            perms: '-rw-------',
-            owner: 'operator',
-            group: 'operator',
-            size: 85,
-            content: 'ACCESS CODE: SHADOW-7749\nThis file is hidden from standard directory listings.\n'
-        };
-        terminal.fs['/home/operator/scripts'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['scan.sh']
-        };
-        terminal.fs['/home/operator/scripts/scan.sh'] = {
-            type: 'file',
-            perms: '-rwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            size: 42,
-            content: '#!/bin/bash\n# Network scanner\nnmap -sV $1\n'
-        };
-        terminal.fs['/home/operator/logs'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['access.log']
-        };
-        terminal.fs['/home/operator/logs/access.log'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 78,
-            content: '2024-01-15 08:23:11 - User login: operator\n2024-01-15 08:24:03 - Directory accessed: /intel\n'
-        };
-        terminal.fs['/home/operator/.bash_history'] = {
-            type: 'file',
-            perms: '-rw-------',
-            owner: 'operator',
-            group: 'operator',
-            size: 35,
-            content: 'whoami\nls\ncd intel\ncat briefing.txt\n'
-        };
-        terminal.fs['/home/operator/.bashrc'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 24,
-            content: '# Operator shell config\n'
-        };
+        // ═══════════════════════════════════════════════════════════
+        // UI UPDATE FUNCTIONS
+        // ═══════════════════════════════════════════════════════════
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
-            const displayPath = cwd === '/home/operator' ? '~' :
-                               cwd.replace('/home/operator', '~');
+            const user = config.user;
+            const hostname = config.hostname;
+            const displayPath = cwd === `/home/${user}` ? '~' :
+                               cwd.replace(`/home/${user}`, '~');
             document.getElementById('promptDisplay').textContent =
-                `operator@shadow:${displayPath}$`;
+                `${user}@${hostname}:${displayPath}$`;
             document.getElementById('terminalTitle').textContent =
-                `operator@shadow:${displayPath}`;
+                `${user}@${hostname}:${displayPath}`;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // MISSION MANAGEMENT
-        // ═══════════════════════════════════════════════════════════
-
-        function checkMissionCompletion(cmdLine) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-
-            let passed = false;
-            if (typeof mission.check === 'function') {
-                passed = mission.check(cmdLine, terminal);
+        function updateMissionUI(completedId, totalCompleted, total) {
+            // Mark step as completed
+            const stepDot = document.getElementById(`step-${completedId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '\u2713';
             }
 
-            if (passed) {
-                completeMission(currentMission);
-            }
-        }
-
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active');
-            stepDot.classList.add('completed');
-            stepDot.innerHTML = '✓';
-
-            if (missionNum < 5) {
-                document.getElementById(`conn-${missionNum}`).classList.add('completed');
+            // Mark connector as completed
+            if (completedId < total) {
+                const connector = document.getElementById(`conn-${completedId}`);
+                if (connector) {
+                    connector.classList.add('completed');
+                }
             }
 
-            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
-
-            if (missionNum < 5) {
-                currentMission = missionNum + 1;
-                document.getElementById(`step-${currentMission}`).classList.add('active');
-                showNextMission(currentMission);
+            // Activate next step
+            if (totalCompleted < total) {
+                const nextObjective = config.objectives[totalCompleted];
+                const nextStep = document.getElementById(`step-${nextObjective.id}`);
+                if (nextStep) {
+                    nextStep.classList.add('active');
+                }
+                showNextMission(nextObjective);
             } else {
                 showAllComplete();
             }
         }
 
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
+        function showNextMission(objective) {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="current-mission">
-                    <h4 id="missionTitle">${mission.title}</h4>
-                    <p id="missionDescription">${mission.description}</p>
-                    <div class="hint" id="missionHint">${mission.hint}</div>
+                    <h4 id="missionTitle">${objective.task}</h4>
+                    <p id="missionDescription">${objective.hint}</p>
+                    <div class="hint" id="missionHint">$ ${objective.hint.split(': ')[1] || objective.hint}</div>
                 </div>
             `;
         }
@@ -892,12 +731,14 @@
         function showAllComplete() {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="all-complete">
-                    <div class="checkmark">✓</div>
+                    <div class="checkmark">\u2713</div>
                     <h4>MISSION COMPLETE</h4>
                     <p>All objectives achieved. Intel secured.</p>
                 </div>
             `;
+        }
 
+        function showCompletionModal() {
             setTimeout(() => {
                 document.getElementById('completionModal').classList.add('show');
                 saveProgress();
@@ -928,8 +769,11 @@
         }
 
         function goToNextLab() {
-            window.location.href = 'clh-003-file-operations.html';
+            window.location.href = 'clh-003-pattern-hunting.html';
         }
+
+        // Initialize prompt display
+        updatePromptDisplay();
     </script>
 
     <!-- Flux Capacitor - House Navigation -->

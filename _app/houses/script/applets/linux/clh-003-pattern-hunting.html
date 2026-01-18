@@ -415,29 +415,6 @@
             margin: 0;
         }
 
-        .secret-code {
-            background: rgba(248, 81, 73, 0.2);
-            border: 1px solid #f85149;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            text-align: center;
-        }
-
-        .secret-code .label {
-            color: #f85149;
-            font-size: 0.8em;
-            letter-spacing: 0.2em;
-            margin-bottom: 8px;
-        }
-
-        .secret-code .code {
-            color: #00ff41;
-            font-family: 'Cascadia Code', monospace;
-            font-size: 1.5em;
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-        }
-
         .modal-overlay {
             display: none;
             position: fixed;
@@ -690,265 +667,92 @@
         </div>
     </div>
 
-    <!-- LinuxTerminal Engine -->
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <!-- CLH Terminal Engine -->
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
 
     <script>
         // ═══════════════════════════════════════════════════════════
-        // MISSION CONFIGURATION
+        // MODULE INITIALIZATION
         // ═══════════════════════════════════════════════════════════
 
-        const SECRET_CODE = '42XDFL';
+        const MODULE_ID = 'CLH-003';
+        const config = CLHConfig.getModule(MODULE_ID);
+        const SECRET_CODE = config.secretCode || '42XDFL';
         let codeFound = false;
 
-        const missionData = {
-            1: {
-                title: 'RECON: Survey the Evidence',
-                description: 'Examine the evidence directory. What files are available for analysis?',
-                hint: '$ ls evidence/',
-                check: (cmd) => cmd.includes('ls') && cmd.includes('evidence')
-            },
-            2: {
-                title: 'INTEL: Examine the Target File',
-                description: 'The mystery.txt file is your target. Preview its contents to understand what you\'re dealing with.',
-                hint: '$ cat evidence/mystery.txt',
-                check: (cmd) => cmd.includes('cat') && cmd.includes('mystery')
-            },
-            3: {
-                title: 'HUNT: Search for "Secret"',
-                description: 'Use grep to search for lines containing "Secret" in the mystery file.',
-                hint: '$ grep "Secret" evidence/mystery.txt',
-                check: (cmd) => cmd.includes('grep') && (cmd.includes('Secret') || cmd.includes('secret'))
-            },
-            4: {
-                title: 'EXTRACT: Find the Code Pattern',
-                description: 'The code follows "Secret Code:" - search for this exact pattern.',
-                hint: '$ grep "Secret Code" evidence/mystery.txt',
-                check: (cmd, terminal, output) => {
-                    // Check if output contains the secret code
-                    return output && output.includes(SECRET_CODE);
-                }
-            },
-            5: {
-                title: 'VERIFY: Confirm with Line Number',
-                description: 'Document your finding. Use grep -n to show which line contains the code.',
-                hint: '$ grep -n "Secret Code" evidence/mystery.txt',
-                check: (cmd) => cmd.includes('grep') && cmd.includes('-n') &&
-                               (cmd.includes('Secret') || cmd.includes('Code'))
-            }
-        };
-
-        const missions = {
-            1: { completed: false },
-            2: { completed: false },
-            3: { completed: false },
-            4: { completed: false },
-            5: { completed: false }
-        };
-
-        let currentMission = 1;
-        let lastOutput = '';
-
-        // ═══════════════════════════════════════════════════════════
-        // TERMINAL INITIALIZATION
-        // ═══════════════════════════════════════════════════════════
-
-        const terminal = new LinuxTerminal({
+        // Initialize terminal with centralized engine
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
             container: '#terminal',
             inputElement: '#commandInput',
-            user: 'operator',
-            hostname: 'shadow',
-            startDir: '/home/operator',
-            onCommand: (cmdLine, output, cmd, args) => {
-                lastOutput = output;
-                checkMissionCompletion(cmdLine, output);
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                updateMissionUI(objectiveId, totalCompleted, total);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
+                // Track if code was found in output
+                if (output && output.includes(SECRET_CODE)) {
+                    codeFound = true;
+                }
                 updatePromptDisplay();
             }
         });
 
-        // Mystery file content - UFO sighting report with hidden code
-        const mysteryContent = `CLASSIFIED INCIDENT REPORT - CASE FILE #2847
-============================================
-Date: November 12, 2025
-Location: Rural Nevada, 37.2431N 115.7930W
-Reporting Agent: Field Officer Martinez
-
-SUMMARY OF EVENTS:
-At approximately 0247 hours, multiple witnesses reported unusual
-aerial phenomena near the restricted airspace perimeter. Radar
-contact confirmed an unidentified craft traveling at impossible
-speeds - estimated 4,700 knots with instantaneous direction changes.
-
-WITNESS TESTIMONY (REDACTED):
-"The light just appeared out of nowhere. It wasn't like a plane
-or helicopter. It moved in ways that don't make sense. Then it
-just stopped, hovering maybe 200 feet above the treeline."
-
-ABDUCTION INCIDENT:
-Subject: [REDACTED] - Local rancher, age 47
-Duration: Approximately 3 hours 17 minutes of missing time
-Subject reports: Paralysis, bright examination room, non-human
-entities approximately 4 feet tall with elongated craniums.
-Medical examination revealed unexplained scarring and elevated
-radiation levels. Subject's GPS tracker data shows impossible
-location jump of 127 miles during the missing time window.
-
-PHYSICAL EVIDENCE RECOVERED:
-- Soil samples show vitrification consistent with extreme heat
-- Unusual metallic fragments (analysis pending)
-- Cattle mutilation discovered 0.3 miles from primary site
-Secret Code: ${SECRET_CODE}
-SIGNAL INTERCEPT:
-NSA listening post captured burst transmission during event.
-Frequency: 1420.405 MHz (hydrogen line - significant)
-Pattern analysis suggests non-random, possibly encoded message.
-
-CONCLUSION:
-This incident is classified TIER-3 UNEXPLAINED. All witnesses
-have been debriefed and signed non-disclosure agreements.
-Local law enforcement redirected with cover story (military
-training exercise). Recommend continued monitoring of subject
-for potential recontact scenario.
-
-END REPORT
-[EYES ONLY - UNAUTHORIZED ACCESS PROHIBITED]`;
-
-        // Customize filesystem for this mission (FLAT structure with children arrays)
-        // Update /home to know about operator
-        terminal.fs['/home'].children = ['operator'];
-
-        terminal.fs['/home/operator'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['evidence', 'tools', '.bash_history']
-        };
-
-        terminal.fs['/home/operator/evidence'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['mystery.txt', 'notes.txt', 'README.txt']
-        };
-
-        terminal.fs['/home/operator/evidence/mystery.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 2048,
-            content: mysteryContent
-        };
-
-        terminal.fs['/home/operator/evidence/notes.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 98,
-            content: 'Case #2847\nSuspect communications intercepted.\nEvidence stored in mystery.txt\nAnalyst notes: Look for patterns.\n'
-        };
-
-        terminal.fs['/home/operator/evidence/README.txt'] = {
-            type: 'file',
-            perms: '-rw-r--r--',
-            owner: 'operator',
-            group: 'operator',
-            size: 163,
-            content: 'EVIDENCE DIRECTORY\n==================\nFiles in this directory are part of ongoing investigation.\nUse grep to search for patterns.\nDo not modify original evidence.\n'
-        };
-
-        terminal.fs['/home/operator/tools'] = {
-            type: 'dir',
-            perms: 'drwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            children: ['search.sh']
-        };
-
-        terminal.fs['/home/operator/tools/search.sh'] = {
-            type: 'file',
-            perms: '-rwxr-xr-x',
-            owner: 'operator',
-            group: 'operator',
-            size: 54,
-            content: '#!/bin/bash\n# Quick search script\ngrep -rn "$1" ./evidence/\n'
-        };
-
-        terminal.fs['/home/operator/.bash_history'] = {
-            type: 'file',
-            perms: '-rw-------',
-            owner: 'operator',
-            group: 'operator',
-            size: 34,
-            content: 'ls\ncd evidence\ncat mystery.txt\n'
-        };
+        // ═══════════════════════════════════════════════════════════
+        // UI UPDATE FUNCTIONS
+        // ═══════════════════════════════════════════════════════════
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
-            const displayPath = cwd === '/home/operator' ? '~' :
-                               cwd.replace('/home/operator', '~');
+            const user = config.user;
+            const hostname = config.hostname;
+            const displayPath = cwd === `/home/${user}` ? '~' :
+                               cwd.replace(`/home/${user}`, '~');
             document.getElementById('promptDisplay').textContent =
-                `operator@shadow:${displayPath}$`;
+                `${user}@${hostname}:${displayPath}$`;
             document.getElementById('terminalTitle').textContent =
-                `operator@shadow:${displayPath}`;
+                `${user}@${hostname}:${displayPath}`;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // MISSION MANAGEMENT
-        // ═══════════════════════════════════════════════════════════
-
-        function checkMissionCompletion(cmdLine, output) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-
-            let passed = false;
-            if (typeof mission.check === 'function') {
-                passed = mission.check(cmdLine, terminal, output);
+        function updateMissionUI(completedId, totalCompleted, total) {
+            // Mark step as completed
+            const stepDot = document.getElementById(`step-${completedId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '\u2713';
             }
 
-            // Track if code was found
-            if (output && output.includes(SECRET_CODE)) {
-                codeFound = true;
+            // Mark connector as completed
+            if (completedId < total) {
+                const connector = document.getElementById(`conn-${completedId}`);
+                if (connector) {
+                    connector.classList.add('completed');
+                }
             }
 
-            if (passed) {
-                completeMission(currentMission);
-            }
-        }
-
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active');
-            stepDot.classList.add('completed');
-            stepDot.innerHTML = '✓';
-
-            if (missionNum < 5) {
-                document.getElementById(`conn-${missionNum}`).classList.add('completed');
-            }
-
-            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
-
-            if (missionNum < 5) {
-                currentMission = missionNum + 1;
-                document.getElementById(`step-${currentMission}`).classList.add('active');
-                showNextMission(currentMission);
+            // Activate next step
+            if (totalCompleted < total) {
+                const nextObjective = config.objectives[totalCompleted];
+                const nextStep = document.getElementById(`step-${nextObjective.id}`);
+                if (nextStep) {
+                    nextStep.classList.add('active');
+                }
+                showNextMission(nextObjective);
             } else {
                 showAllComplete();
             }
         }
 
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
+        function showNextMission(objective) {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="current-mission">
-                    <h4 id="missionTitle">${mission.title}</h4>
-                    <p id="missionDescription">${mission.description}</p>
-                    <div class="hint" id="missionHint">${mission.hint}</div>
+                    <h4 id="missionTitle">${objective.task}</h4>
+                    <p id="missionDescription">${objective.hint}</p>
+                    <div class="hint" id="missionHint">$ ${objective.hint.split(': ')[1] || objective.hint}</div>
                 </div>
             `;
         }
@@ -956,12 +760,15 @@ END REPORT
         function showAllComplete() {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="all-complete">
-                    <div class="checkmark">✓</div>
+                    <div class="checkmark">\u2713</div>
                     <h4>CODE EXTRACTED</h4>
                     <p>Secret Code: <span style="color: #00ff41; font-family: monospace;">${SECRET_CODE}</span></p>
                 </div>
             `;
+        }
 
+        function showCompletionModal() {
+            document.getElementById('foundCode').textContent = SECRET_CODE;
             setTimeout(() => {
                 document.getElementById('completionModal').classList.add('show');
                 saveProgress();
@@ -983,7 +790,9 @@ END REPORT
             const clhProgress = JSON.parse(localStorage.getItem('clh_progress') || '{}');
             clhProgress.completedLabs = (clhProgress.completedLabs || 0) + 1;
             clhProgress.codesFound = (clhProgress.codesFound || []);
-            clhProgress.codesFound.push(SECRET_CODE);
+            if (!clhProgress.codesFound.includes(SECRET_CODE)) {
+                clhProgress.codesFound.push(SECRET_CODE);
+            }
             if (clhProgress.completedLabs >= 5) {
                 clhProgress.title = 'CLI Specialist';
             }
@@ -997,6 +806,9 @@ END REPORT
         function goToNextLab() {
             window.location.href = 'clh-004-process-investigation.html';
         }
+
+        // Initialize prompt display
+        updatePromptDisplay();
     </script>
 
     <!-- Flux Capacitor - House Navigation -->

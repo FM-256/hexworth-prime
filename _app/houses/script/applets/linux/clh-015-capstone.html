@@ -33,7 +33,7 @@
         .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #fbbf24; padding: 20px; flex-shrink: 0; }
         .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .mission-header h3 { color: #fbbf24; font-size: 1.1em; margin: 0; display: flex; align-items: center; gap: 8px; }
-        .mission-header h3::before { content: '🏆'; }
+        .mission-header h3::before { content: '&#127942;'; }
         .step-indicators { display: flex; gap: 8px; align-items: center; }
         .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; background: transparent; color: #484f58; transition: all 0.3s; }
         .step-dot.active { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); color: #fbbf24; transform: scale(1.1); }
@@ -93,9 +93,9 @@
                     <span class="terminal-title" id="terminalTitle">operator@shadow:~</span>
                 </div>
                 <div class="terminal" id="terminal">
-                    <div class="terminal-line warning">╔══════════════════════════════════════════════════════════╗</div>
-                    <div class="terminal-line warning">║           OPERATION SHADOWSTRIKE - FINAL MISSION          ║</div>
-                    <div class="terminal-line warning">╚══════════════════════════════════════════════════════════╝</div>
+                    <div class="terminal-line warning">+==============================================================+</div>
+                    <div class="terminal-line warning">|           OPERATION SHADOWSTRIKE - FINAL MISSION           |</div>
+                    <div class="terminal-line warning">+==============================================================+</div>
                     <div class="terminal-line output"></div>
                     <div class="terminal-line output">[INTEL] A compromised server has been identified.</div>
                     <div class="terminal-line output">[INTEL] Your mission: Investigate, analyze, and report.</div>
@@ -167,7 +167,7 @@
             </div>
             <div class="briefing-box">
                 <h4>Completion Reward</h4>
-                <p style="color: #fbbf24; font-weight: bold;">🏆 CLI ENGINEER CERTIFICATION</p>
+                <p style="color: #fbbf24; font-weight: bold;">&#127942; CLI ENGINEER CERTIFICATION</p>
                 <p>Upon successful completion, you will be awarded the CLI Engineer title and badge.</p>
             </div>
         </div>
@@ -175,7 +175,7 @@
 
     <div class="modal-overlay" id="completionModal">
         <div class="modal">
-            <div class="achievement-badge">🏆</div>
+            <div class="achievement-badge">&#127942;</div>
             <h2>MISSION COMPLETE</h2>
             <div class="rank-title">CLI ENGINEER CERTIFIED</div>
             <p>You have demonstrated mastery of command line operations.<br>The shadows welcome a new operator.</p>
@@ -187,77 +187,28 @@
         </div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
     <script>
-        const missionData = {
-            1: { title: 'PHASE 1: Initial Reconnaissance', description: 'Navigate to the compromised directory and survey the evidence files.', hint: '$ cd /evidence && ls -la',
-                check: (cmd) => (cmd.includes('cd') && cmd.includes('evidence')) || (cmd.includes('ls') && cmd.includes('evidence')) },
-            2: { title: 'PHASE 2: Log Analysis', description: 'Search access.log for lines containing "POST" requests (potential data exfil).', hint: '$ grep "POST" /evidence/access.log',
-                check: (cmd) => cmd.includes('grep') && cmd.includes('POST') && cmd.includes('access') },
-            3: { title: 'PHASE 3: Extract Attacker IPs', description: 'Extract unique IP addresses from auth.log showing FAILED logins. Use cut, sort, and uniq.', hint: '$ grep FAILED /evidence/auth.log | cut -d " " -f 6 | sort | uniq',
-                check: (cmd) => cmd.includes('uniq') && (cmd.includes('auth') || cmd.includes('FAILED')) },
-            4: { title: 'PHASE 4: Identify Exfiltration', description: 'Find entries in exfil.log larger than 1MB. Look for size field > 1000000.', hint: '$ grep -E "[0-9]{7,}" /evidence/exfil.log',
-                check: (cmd) => cmd.includes('grep') && cmd.includes('exfil') },
-            5: { title: 'PHASE 5: Generate Report', description: 'Save the attacker summary to /evidence/report.txt using redirection.', hint: '$ echo "Investigation Complete" > /evidence/report.txt',
-                check: (cmd, terminal) => {
-                    if (cmd.includes('>') && cmd.includes('report')) {
-                        const file = terminal.resolvePath('/evidence/report.txt');
-                        return file && file.type === 'file';
-                    }
-                    return false;
-                }}
-        };
+        const MODULE_ID = 'CLH-015';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
 
-        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
-        let currentMission = 1;
-
-        const terminal = new LinuxTerminal({
-            container: '#terminal', inputElement: '#commandInput', user: 'operator', hostname: 'shadow', startDir: '/home/operator',
-            onCommand: (cmdLine) => { checkMissionCompletion(cmdLine); updatePromptDisplay(); }
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
+            container: '#terminal',
+            inputElement: '#commandInput',
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                completeObjective(objectiveId);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
+                updatePromptDisplay();
+            }
         });
-
-        // Create comprehensive evidence filesystem
-        terminal.fs['/evidence'] = { type: 'dir', contents: {
-            'access.log': { type: 'file', content: `192.168.1.105 - - [15/Jan/2024:03:42:15] "GET /index.html" 200
-192.168.1.105 - - [15/Jan/2024:03:43:22] "GET /admin/login.php" 200
-10.0.0.88 - - [15/Jan/2024:03:44:01] "POST /admin/login.php" 401
-10.0.0.88 - - [15/Jan/2024:03:44:15] "POST /admin/login.php" 401
-10.0.0.88 - - [15/Jan/2024:03:44:33] "POST /admin/login.php" 200
-10.0.0.88 - - [15/Jan/2024:03:45:12] "GET /admin/users.php" 200
-10.0.0.88 - - [15/Jan/2024:03:46:01] "POST /admin/export.php" 200
-10.0.0.88 - - [15/Jan/2024:03:47:22] "POST /admin/upload.php" 200
-10.0.0.88 - - [15/Jan/2024:03:48:45] "GET /admin/config.php" 200
-192.168.1.42 - - [15/Jan/2024:03:50:01] "GET /index.html" 200` },
-            'auth.log': { type: 'file', content: `Jan 15 03:42:01 shadow sshd[1234]: success login for admin from 192.168.1.105
-Jan 15 03:43:15 shadow sshd[1235]: FAILED login for root from 10.0.0.88
-Jan 15 03:43:22 shadow sshd[1235]: FAILED login for admin from 10.0.0.88
-Jan 15 03:43:45 shadow sshd[1235]: FAILED login for operator from 10.0.0.88
-Jan 15 03:44:01 shadow sshd[1235]: FAILED login for root from 10.0.0.88
-Jan 15 03:44:33 shadow sshd[1236]: success login for admin from 10.0.0.88
-Jan 15 03:50:15 shadow sshd[1237]: success login for operator from 192.168.1.42` },
-            'exfil.log': { type: 'file', content: `2024-01-15 03:46:15 TRANSFER 10.0.0.88 -> external user_database.sql 15728640 bytes
-2024-01-15 03:46:45 TRANSFER 10.0.0.88 -> external config_backup.tar 2097152 bytes
-2024-01-15 03:47:22 TRANSFER 10.0.0.88 -> external ssh_keys.tar.gz 524288 bytes
-2024-01-15 03:47:55 TRANSFER 10.0.0.88 -> external passwords.csv 1048576 bytes
-2024-01-15 03:48:30 TRANSFER 10.0.0.88 -> external shadow_copy 4096 bytes` },
-            'timeline.txt': { type: 'file', content: `INCIDENT TIMELINE - Operation Shadowstrike
-============================================
-03:42 - Normal admin login from 192.168.1.105
-03:43 - Brute force attempts begin from 10.0.0.88
-03:44 - Attacker gains access via compromised credentials
-03:45 - Reconnaissance of admin panel begins
-03:46 - Mass data exfiltration initiated
-03:47 - SSH keys and credentials stolen
-03:48 - Configuration files accessed
-03:50 - Legitimate user login (unaware of breach)
-============================================
-ATTACKER IP: 10.0.0.88
-STATUS: ACTIVE THREAT` }
-        }};
-
-        terminal.fs['/home/operator'] = { type: 'dir', contents: {
-            '.bash_history': { type: 'file', content: '', hidden: true }
-        }};
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
@@ -268,30 +219,48 @@ STATUS: ACTIVE THREAT` }
             document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
         }
 
-        function checkMissionCompletion(cmdLine) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-            if (mission.check(cmdLine, terminal)) completeMission(currentMission);
+        function completeObjective(objId) {
+            const stepDot = document.getElementById(`step-${objId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '&#10003;';
+            }
+            if (objId < totalObjectives) {
+                const connector = document.getElementById(`conn-${objId}`);
+                if (connector) connector.classList.add('completed');
+                currentObjective = objId + 1;
+                const nextDot = document.getElementById(`step-${currentObjective}`);
+                if (nextDot) nextDot.classList.add('active');
+                showObjective(currentObjective);
+            } else {
+                showAllComplete();
+            }
         }
 
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active'); stepDot.classList.add('completed'); stepDot.innerHTML = '✓';
-            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
-            terminal.print(`[SUCCESS] Phase ${missionNum} complete`, 'success');
-            if (missionNum < 5) { currentMission = missionNum + 1; document.getElementById(`step-${currentMission}`).classList.add('active'); showNextMission(currentMission); }
-            else showAllComplete();
-        }
-
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
-            document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${mission.title}</h4><p>${mission.description}</p><div class="hint">${mission.hint}</div></div>`;
+        function showObjective(objNum) {
+            const obj = config.objectives.find(o => o.id === objNum);
+            if (!obj) return;
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${obj.task}</h4>
+                    <p>${obj.hint}</p>
+                    <div class="hint">$ ${obj.hint.split(':').pop().trim()}</div>
+                </div>`;
         }
 
         function showAllComplete() {
-            document.getElementById('currentMissionDisplay').innerHTML = `<div class="all-complete"><div class="checkmark">🏆</div><h4>OPERATION COMPLETE</h4><p>CLI Engineer Certification Earned</p></div>`;
-            setTimeout(() => { document.getElementById('completionModal').classList.add('show'); saveProgress(); }, 1000);
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">&#127942;</div>
+                    <h4>OPERATION COMPLETE</h4>
+                    <p>CLI Engineer Certification Earned</p>
+                </div>`;
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
         }
 
         function saveProgress() {
