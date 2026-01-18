@@ -19,15 +19,32 @@
  */
 
 class LinuxTerminal {
-    constructor(options = {}) {
+    constructor(arg1, arg2, arg3) {
+        // Support both calling conventions:
+        // new LinuxTerminal({ container: '#terminal', ... })  - options object
+        // new LinuxTerminal('terminal', 'commandInput', { hostname: '...' })  - legacy positional args
+        let options = {};
+
+        if (typeof arg1 === 'object' && arg1 !== null) {
+            // New format: options object
+            options = arg1;
+        } else if (typeof arg1 === 'string') {
+            // Legacy format: positional arguments
+            options = arg3 || {};
+            options.container = arg1.startsWith('#') ? arg1 : '#' + arg1;
+            options.inputElement = arg2 ? (arg2.startsWith('#') ? arg2 : '#' + arg2) : '#commandInput';
+            // Map legacy property names
+            if (options.username) options.user = options.username;
+        }
+
         // Configuration
         this.config = {
             container: options.container || '#terminal',
             inputElement: options.inputElement || '#commandInput',
             promptElement: options.promptElement || null,
-            user: options.user || 'student',
+            user: options.user || options.username || 'student',
             hostname: options.hostname || 'hexworth',
-            startDir: options.startDir || '/home/student',
+            startDir: options.startDir || `/home/${options.user || options.username || 'student'}`,
             onCommand: options.onCommand || null,
             onOutput: options.onOutput || null,
         };

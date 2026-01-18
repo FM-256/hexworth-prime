@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-018: Archive Operations - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .tip-box { background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #00ff41; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-018</span>
+                        <h1>Archive Operations</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title">courier@DEAD-DROP:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION COURIER - Dead Drop Recovery</div>
+                    <div class="terminal-line output">[LOCATION] Dead drop site: /drops/alpha/</div>
+                    <div class="terminal-line output">[MISSION] Extract intel packages, prepare for transmission</div>
+                    <div class="terminal-line" style="color: #fbbf24;">&gt; Handler left encrypted archives. Extract and repackage.</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt">courier@DEAD-DROP:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>INSPECT: Dead Drop Contents</h4>
+                        <p>List the tarball contents WITHOUT extracting. Verify it's safe.</p>
+                        <div class="hint">$ tar -tvf /drops/alpha/intel_package.tar.gz</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>DEAD DROP BRIEFING</h2>
+            <div class="warning-box">
+                <strong>OPERATION COURIER</strong>
+                <p style="margin-top:8px;color:#ccc;">Handler left intel at dead drop. Extract, verify, repackage for HQ.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Archive Commands</h3>
+                <div class="code-box">
+                    <div class="cmd">$ tar -tvf archive.tar.gz</div>
+                    <div class="output">List contents (always first!)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ tar -xzvf archive.tar.gz</div>
+                    <div class="output">Extract tarball</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ tar -czvf new.tar.gz dir/</div>
+                    <div class="output">Create compressed archive</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ unzip -l archive.zip</div>
+                    <div class="output">List zip contents</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ unzip archive.zip</div>
+                    <div class="output">Extract zip file</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>SECURITY:</strong>
+                <p>ALWAYS inspect archives before extraction. Malicious archives can overwrite system files.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>DEAD DROP SECURED</h2>
+            <p>Intel extracted and repackaged. Ready for secure transmission to headquarters.</p>
+            <p style="color: #3fb950; margin-bottom: 20px;">Exfil package prepared: 47MB compressed</p>
+            <div class="modal-buttons">
+                <a href="../../clh/clh-019-intro.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'INSPECT: Dead Drop Contents', description: 'List the tarball contents WITHOUT extracting. Verify it\'s safe.', hint: '$ tar -tvf /drops/alpha/intel_package.tar.gz', check: cmd => cmd.includes('tar') && cmd.includes('-t') && cmd.includes('intel_package') },
+            { id: 2, title: 'EXTRACT: Intel Package', description: 'Extract the verified tarball to access the intelligence materials.', hint: '$ tar -xzvf /drops/alpha/intel_package.tar.gz', check: cmd => cmd.includes('tar') && cmd.includes('-x') && cmd.includes('intel_package') },
+            { id: 3, title: 'INSPECT: Encrypted Zip', description: 'List contents of the encrypted zip file found in the package.', hint: '$ unzip -l classified_docs.zip', check: cmd => cmd.includes('unzip') && cmd.includes('-l') },
+            { id: 4, title: 'EXTRACT: Classified Docs', description: 'Extract the encrypted zip archive (password: NIGHTFALL).', hint: '$ unzip classified_docs.zip', check: cmd => cmd.includes('unzip') && !cmd.includes('-l') },
+            { id: 5, title: 'PACKAGE: Exfil Archive', description: 'Create a compressed tarball of all intel for transmission to HQ.', hint: '$ tar -czvf exfil_package.tar.gz intel/', check: cmd => cmd.includes('tar') && cmd.includes('-c') && cmd.includes('exfil') }
+        ];
+
+        let currentTask = 0;
+        const completedTasks = new Set();
+
+        const terminal = new LinuxTerminal('terminal', 'commandInput', {
+            hostname: 'DEAD-DROP',
+            username: 'courier',
+            onCommand: handleCommand
+        });
+
+        const archiveResponses = {
+            'tar_list': `-rw-r--r-- handler/ops   2048 2024-01-15 03:42 HANDLER_NOTES.txt
+-rw-r--r-- handler/ops  15360 2024-01-15 03:42 ASSET_ROSTER.xlsx
+-rw-r--r-- handler/ops 524288 2024-01-15 03:42 classified_docs.zip
+-rw-r--r-- handler/ops   4096 2024-01-15 03:42 DEAD_DROP_PROTOCOL.pdf
+drwxr-xr-x handler/ops      0 2024-01-15 03:42 intel/
+-rw-r--r-- handler/ops  32768 2024-01-15 03:42 intel/ECHELON_INTERCEPTS.txt
+-rw-r--r-- handler/ops  65536 2024-01-15 03:42 intel/SIGINT_ANALYSIS.pdf
+
+<span style="color:#fbbf24;">[INTEL] Package verified - 7 files, no suspicious executables</span>
+<span style="color:#4ade80;">[SAFE] Proceed with extraction</span>`,
+
+            'tar_extract': `intel_package/HANDLER_NOTES.txt
+intel_package/ASSET_ROSTER.xlsx
+intel_package/classified_docs.zip
+intel_package/DEAD_DROP_PROTOCOL.pdf
+intel_package/intel/
+intel_package/intel/ECHELON_INTERCEPTS.txt
+intel_package/intel/SIGINT_ANALYSIS.pdf
+
+<span style="color:#4ade80;">[SUCCESS] Extracted 7 files to ./intel_package/</span>
+<span style="color:#fbbf24;">[NOTE] Found encrypted zip: classified_docs.zip</span>`,
+
+            'unzip_list': `Archive:  classified_docs.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+    15360  2024-01-15 03:30   MAJESTIC-12_BRIEFING.pdf
+    32768  2024-01-15 03:30   PROJECT_BLUEBOOK.txt
+    65536  2024-01-15 03:30   ROSWELL_AUTOPSY.jpg
+     8192  2024-01-15 03:30   ELEMENT_115_SPECS.doc
+---------                     -------
+   121856                     4 files
+
+<span style="color:#ef4444;">[ENCRYPTED] Password required for extraction</span>
+<span style="color:#fbbf24;">[HINT] Check HANDLER_NOTES.txt for passphrase</span>`,
+
+            'unzip_extract': `Archive:  classified_docs.zip
+[classified_docs.zip] MAJESTIC-12_BRIEFING.pdf password:
+  inflating: MAJESTIC-12_BRIEFING.pdf
+  inflating: PROJECT_BLUEBOOK.txt
+  inflating: ROSWELL_AUTOPSY.jpg
+  inflating: ELEMENT_115_SPECS.doc
+
+<span style="color:#4ade80;">[SUCCESS] Extracted 4 classified documents</span>
+<span style="color:#ef4444;">[TOP SECRET] MAJESTIC-12 materials recovered</span>`,
+
+            'tar_create': `intel/HANDLER_NOTES.txt
+intel/ASSET_ROSTER.xlsx
+intel/DEAD_DROP_PROTOCOL.pdf
+intel/ECHELON_INTERCEPTS.txt
+intel/SIGINT_ANALYSIS.pdf
+intel/MAJESTIC-12_BRIEFING.pdf
+intel/PROJECT_BLUEBOOK.txt
+intel/ROSWELL_AUTOPSY.jpg
+intel/ELEMENT_115_SPECS.doc
+
+<span style="color:#4ade80;">[SUCCESS] Created exfil_package.tar.gz</span>
+<span style="color:#fbbf24;">[SIZE] 47MB compressed (ready for transmission)</span>
+<span style="color:#4ade80;">[READY] Package prepared for secure uplink to HQ</span>`,
+
+            'ls_drops': `intel_package.tar.gz   <span style="color:#fbbf24;">(524KB - handler's dead drop)</span>
+README.txt             <span style="color:#8b949e;">(drop site instructions)</span>`,
+
+            'cat_handler': `OPERATION COURIER - HANDLER NOTES
+==================================
+Agent,
+
+Package contains critical MAJESTIC-12 documentation
+recovered from compromised NSA contractor.
+
+Encrypted zip password: NIGHTFALL
+
+Extract all materials and prepare exfil package
+for satellite uplink at 0300 UTC.
+
+Destroy this note after reading.
+
+- RAVEN`,
+
+            'gzip_file': `<span style="color:#4ade80;">[COMPRESSED] File compressed successfully</span>`,
+            'gunzip_file': `<span style="color:#4ade80;">[DECOMPRESSED] File decompressed successfully</span>`
+        };
+
+        function handleCommand(cmd) {
+            const trimmedCmd = cmd.trim().toLowerCase();
+            const output = document.getElementById('terminal');
+            let response = null;
+
+            // tar commands
+            if (trimmedCmd.includes('tar')) {
+                if (trimmedCmd.includes('-t') && trimmedCmd.includes('intel_package')) {
+                    response = archiveResponses['tar_list'];
+                } else if (trimmedCmd.includes('-x') && trimmedCmd.includes('intel_package')) {
+                    response = archiveResponses['tar_extract'];
+                } else if (trimmedCmd.includes('-c') && (trimmedCmd.includes('exfil') || trimmedCmd.includes('intel'))) {
+                    response = archiveResponses['tar_create'];
+                } else if (trimmedCmd.includes('-t')) {
+                    response = `tar: specify archive file with -f\nUsage: tar -tvf archive.tar.gz`;
+                } else if (trimmedCmd.includes('-x')) {
+                    response = `tar: specify archive file with -f\nUsage: tar -xzvf archive.tar.gz`;
+                } else if (trimmedCmd.includes('-c')) {
+                    response = `tar: specify output file with -f\nUsage: tar -czvf output.tar.gz directory/`;
+                } else {
+                    response = `tar: missing operation\n  -c = create\n  -x = extract\n  -t = list contents`;
+                }
+            }
+            // unzip commands
+            else if (trimmedCmd.includes('unzip')) {
+                if (trimmedCmd.includes('-l')) {
+                    response = archiveResponses['unzip_list'];
+                } else if (trimmedCmd.includes('classified') || trimmedCmd.includes('.zip')) {
+                    response = archiveResponses['unzip_extract'];
+                } else {
+                    response = `unzip: specify archive\nUsage: unzip [-l] archive.zip`;
+                }
+            }
+            // gzip/gunzip
+            else if (trimmedCmd.includes('gzip')) {
+                response = archiveResponses['gzip_file'];
+            } else if (trimmedCmd.includes('gunzip')) {
+                response = archiveResponses['gunzip_file'];
+            }
+            // ls
+            else if (trimmedCmd.includes('ls') && trimmedCmd.includes('drops')) {
+                response = archiveResponses['ls_drops'];
+            }
+            // cat handler notes
+            else if (trimmedCmd.includes('cat') && (trimmedCmd.includes('handler') || trimmedCmd.includes('notes'))) {
+                response = archiveResponses['cat_handler'];
+            }
+
+            if (response) {
+                const line = document.createElement('div');
+                line.className = 'terminal-line output';
+                line.innerHTML = response;
+                output.appendChild(line);
+            }
+
+            checkTaskCompletion(trimmedCmd);
+            return !!response;
+        }
+
+        function checkTaskCompletion(cmd) {
+            const task = tasks[currentTask];
+            if (task && task.check(cmd) && !completedTasks.has(task.id)) {
+                completedTasks.add(task.id);
+                markStepComplete(task.id);
+                if (currentTask < tasks.length - 1) {
+                    currentTask++;
+                    setTimeout(() => updateMissionDisplay(), 500);
+                } else {
+                    setTimeout(() => showCompletionModal(), 1000);
+                }
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const dot = document.getElementById(`step-${stepNum}`);
+            const connector = document.getElementById(`conn-${stepNum}`);
+            if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.textContent = '✓'; }
+            if (connector) connector.classList.add('completed');
+            const nextDot = document.getElementById(`step-${stepNum + 1}`);
+            if (nextDot && !nextDot.classList.contains('completed')) nextDot.classList.add('active');
+
+            const output = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line success';
+            line.innerHTML = `\n[✓] OBJECTIVE ${stepNum} COMPLETE\n`;
+            output.appendChild(line);
+        }
+
+        function updateMissionDisplay() {
+            const task = tasks[currentTask];
+            const display = document.getElementById('currentMissionDisplay');
+            if (task) {
+                display.innerHTML = `<div class="current-mission"><h4>${task.title}</h4><p>${task.description}</p><div class="hint">${task.hint}</div></div>`;
+            }
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.markComplete('clh-018-archive-ops');
+        }
+
+        document.getElementById('step-1').classList.add('active');
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

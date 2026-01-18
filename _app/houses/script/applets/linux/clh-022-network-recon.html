@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-022: Network Reconnaissance - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-022</span>
+                        <h1>Network Reconnaissance</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title">recon@OUTPOST-7:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION IRON FORTRESS - Network Infiltration</div>
+                    <div class="terminal-line output">[TARGET] ironfortress.hostile.gov - Research facility</div>
+                    <div class="terminal-line output">[OBJECTIVE] Map infrastructure, probe services, download intel</div>
+                    <div class="terminal-line" style="color: #fbbf24;">&gt; DNS enumeration, HTTP fingerprinting, port scanning, file retrieval</div>
+                    <div class="terminal-line output">Type <span style="color:#ffa657;">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt">recon@OUTPOST-7:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>DNS: Enumerate Infrastructure</h4>
+                        <p>Query DNS records to map the target's network.</p>
+                        <div class="hint">$ dig ironfortress.hostile.gov</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>RECON BRIEFING</h2>
+            <div class="warning-box">
+                <strong>OPERATION IRON FORTRESS</strong>
+                <p style="margin-top:8px;color:#ccc;">Hostile research facility. Map network, probe services, extract intel.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Reconnaissance Commands</h3>
+                <div class="code-box"><div class="cmd">$ dig domain</div><div style="color:#8b949e;">DNS enumeration</div></div>
+                <div class="code-box"><div class="cmd">$ curl -I url</div><div style="color:#8b949e;">HTTP header fingerprinting</div></div>
+                <div class="code-box"><div class="cmd">$ nc -zv host ports</div><div style="color:#8b949e;">Port scanning</div></div>
+                <div class="code-box"><div class="cmd">$ wget url</div><div style="color:#8b949e;">Download files</div></div>
+            </div>
+            <div style="background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+                <strong style="color: #00ff41;">TARGET:</strong>
+                <p style="color:#ccc;">ironfortress.hostile.gov</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>FORTRESS MAPPED</h2>
+            <p>Network infrastructure documented. Research documents extracted. Vulnerable services identified.</p>
+            <p style="color: #3fb950; margin-bottom: 20px;">nginx 1.18.0 + PHP 7.4.3 = exploitable</p>
+            <div class="modal-buttons">
+                <a href="../../clh/clh-023-intro.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'DNS: Enumerate Infrastructure', description: 'Query DNS records to map the target\'s network.', hint: '$ dig ironfortress.hostile.gov', check: cmd => cmd.includes('dig') },
+            { id: 2, title: 'PROBE: HTTP Headers', description: 'Fingerprint the web server to identify software versions.', hint: '$ curl -I https://ironfortress.hostile.gov', check: cmd => cmd.includes('curl') && cmd.includes('-I') },
+            { id: 3, title: 'SCAN: Open Ports', description: 'Identify running services and potential entry points.', hint: '$ nc -zv ironfortress.hostile.gov 22 80 443', check: cmd => cmd.includes('nc') && cmd.includes('-z') },
+            { id: 4, title: 'DOWNLOAD: Research Documents', description: 'Retrieve leaked intelligence from exposed directory.', hint: '$ wget https://ironfortress.hostile.gov/docs/research.pdf', check: cmd => cmd.includes('wget') },
+            { id: 5, title: 'VERIFY: Downloaded Intel', description: 'Confirm successful extraction of research files.', hint: '$ ls -la research.pdf', check: cmd => cmd.includes('ls') && cmd.includes('research') }
+        ];
+
+        let currentTask = 0;
+        const completedTasks = new Set();
+
+        const terminal = new LinuxTerminal('terminal', 'commandInput', {
+            hostname: 'OUTPOST-7',
+            username: 'recon',
+            onCommand: handleCommand
+        });
+
+        const reconResponses = {
+            'dig': `; <<>> DiG 9.16.1-Ubuntu <<>> ironfortress.hostile.gov
+;; ANSWER SECTION:
+ironfortress.hostile.gov.  300  IN  A     203.0.113.50
+ironfortress.hostile.gov.  300  IN  MX    10 mail.ironfortress.hostile.gov.
+ironfortress.hostile.gov.  300  IN  NS    ns1.hostile.gov.
+ironfortress.hostile.gov.  300  IN  NS    ns2.hostile.gov.
+ironfortress.hostile.gov.  300  IN  TXT   "v=spf1 include:_spf.hostile.gov ~all"
+
+;; Query time: 47 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)
+
+<span style="color:#3fb950;">[DNS] Primary IP: 203.0.113.50</span>
+<span style="color:#fbbf24;">[INTEL] Mail server: mail.ironfortress.hostile.gov</span>
+<span style="color:#fbbf24;">[INTEL] Nameservers: ns1/ns2.hostile.gov</span>`,
+
+            'curl': `HTTP/2 200
+server: nginx/1.18.0
+date: Mon, 15 Jan 2024 04:35:00 GMT
+content-type: text/html; charset=utf-8
+x-powered-by: PHP/7.4.3
+strict-transport-security: max-age=31536000
+x-frame-options: SAMEORIGIN
+x-content-type-options: nosniff
+content-security-policy: default-src 'self'
+
+<span style="color:#ef4444;">[VULN] nginx/1.18.0 - CVE-2021-23017 potential</span>
+<span style="color:#ef4444;">[VULN] PHP/7.4.3 - Multiple CVEs, outdated</span>
+<span style="color:#fbbf24;">[INTEL] Server stack fingerprinted: nginx + PHP</span>
+<span style="color:#fbbf24;">[INTEL] Security headers present but versions exposed</span>`,
+
+            'nc': `Connection to ironfortress.hostile.gov 22 port [tcp/ssh] succeeded!
+Connection to ironfortress.hostile.gov 80 port [tcp/http] succeeded!
+Connection to ironfortress.hostile.gov 443 port [tcp/https] succeeded!
+nc: connect to ironfortress.hostile.gov port 3389 (tcp) failed: Connection refused
+
+<span style="color:#3fb950;">[OPEN] Port 22 (SSH) - Remote access possible</span>
+<span style="color:#3fb950;">[OPEN] Port 80 (HTTP) - Web server active</span>
+<span style="color:#3fb950;">[OPEN] Port 443 (HTTPS) - Encrypted web</span>
+<span style="color:#fbbf24;">[CLOSED] Port 3389 (RDP) - No Windows remote</span>
+<span style="color:#fbbf24;">[INTEL] SSH brute-force or key theft viable attack vectors</span>`,
+
+            'wget': `--2024-01-15 04:37:22--  https://ironfortress.hostile.gov/docs/research.pdf
+Resolving ironfortress.hostile.gov... 203.0.113.50
+Connecting to ironfortress.hostile.gov|203.0.113.50|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 2519244 (2.4M) [application/pdf]
+Saving to: 'research.pdf'
+
+research.pdf        100%[===================>]   2.40M  3.21MB/s    in 0.7s
+
+2024-01-15 04:37:23 (3.21 MB/s) - 'research.pdf' saved [2519244/2519244]
+
+<span style="color:#3fb950;">[DOWNLOADED] research.pdf (2.4MB)</span>
+<span style="color:#fbbf24;">[INTEL] Document extracted from exposed /docs/ directory</span>
+<span style="color:#fbbf24;">[OPSEC] Directory listing may contain more files</span>`,
+
+            'ls-research': `-rw-r--r-- 1 recon recon 2519244 Jan 15 04:37 research.pdf
+
+<span style="color:#3fb950;">[VERIFIED] research.pdf - 2.4MB, intact</span>
+<span style="color:#fbbf24;">[INTEL] File secured for analysis</span>
+<span style="color:#fbbf24;">[NEXT] Forward to handler for intelligence processing</span>`
+        };
+
+        function handleCommand(cmd) {
+            const trimmedCmd = cmd.trim().toLowerCase();
+            const output = document.getElementById('terminal');
+            let response = null;
+
+            if (trimmedCmd.includes('dig')) {
+                response = reconResponses['dig'];
+            } else if (trimmedCmd.includes('curl') && trimmedCmd.includes('-i')) {
+                response = reconResponses['curl'];
+            } else if (trimmedCmd.includes('nc') && trimmedCmd.includes('-z')) {
+                response = reconResponses['nc'];
+            } else if (trimmedCmd.includes('wget')) {
+                response = reconResponses['wget'];
+            } else if (trimmedCmd.includes('ls') && trimmedCmd.includes('research')) {
+                response = reconResponses['ls-research'];
+            }
+
+            if (response) {
+                const line = document.createElement('div');
+                line.className = 'terminal-line output';
+                line.innerHTML = response;
+                output.appendChild(line);
+            }
+
+            checkTaskCompletion(trimmedCmd);
+            return !!response;
+        }
+
+        function checkTaskCompletion(cmd) {
+            const task = tasks[currentTask];
+            if (task && task.check(cmd) && !completedTasks.has(task.id)) {
+                completedTasks.add(task.id);
+                markStepComplete(task.id);
+                if (currentTask < tasks.length - 1) {
+                    currentTask++;
+                    setTimeout(() => updateMissionDisplay(), 500);
+                } else {
+                    setTimeout(() => showCompletionModal(), 1000);
+                }
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const dot = document.getElementById(`step-${stepNum}`);
+            const connector = document.getElementById(`conn-${stepNum}`);
+            if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.textContent = '✓'; }
+            if (connector) connector.classList.add('completed');
+            const nextDot = document.getElementById(`step-${stepNum + 1}`);
+            if (nextDot && !nextDot.classList.contains('completed')) nextDot.classList.add('active');
+
+            const output = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line success';
+            line.innerHTML = `\n[✓] OBJECTIVE ${stepNum} COMPLETE\n`;
+            output.appendChild(line);
+        }
+
+        function updateMissionDisplay() {
+            const task = tasks[currentTask];
+            const display = document.getElementById('currentMissionDisplay');
+            if (task) display.innerHTML = `<div class="current-mission"><h4>${task.title}</h4><p>${task.description}</p><div class="hint">${task.hint}</div></div>`;
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.markComplete('clh-022-network-recon');
+        }
+
+        document.getElementById('step-1').classList.add('active');
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

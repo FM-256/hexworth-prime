@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-028 Lab: System Monitoring - Hexworth Prime</title>
+    <style>
+        :root { --house-primary: #a78bfa; --house-secondary: #8b5cf6; --terminal-green: #4ade80; --terminal-bg: #0d1117; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0a0f; font-family: 'Segoe UI', sans-serif; color: #e0e0e0; }
+        .lab-header { padding: 15px 30px; background: rgba(10, 10, 15, 0.95); border-bottom: 1px solid rgba(167, 139, 250, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { padding: 8px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #888; text-decoration: none; font-size: 0.85rem; }
+        .lab-title { color: var(--house-primary); font-size: 1.1rem; }
+        .step-indicator { display: flex; gap: 8px; }
+        .step-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+        .step-dot.active { background: var(--house-primary); box-shadow: 0 0 10px var(--house-primary); }
+        .step-dot.completed { background: var(--terminal-green); }
+        .lab-container { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 60px); }
+        .mission-panel { padding: 30px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05); }
+        .mission-badge { display: inline-block; padding: 6px 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 20px; font-size: 0.7rem; letter-spacing: 0.1em; color: #ef4444; margin-bottom: 20px; }
+        .mission-title { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
+        .mission-subtitle { color: #666; margin-bottom: 25px; font-size: 0.9rem; }
+        .task-card { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .task-card.active { border-color: var(--house-primary); box-shadow: 0 0 20px rgba(167, 139, 250, 0.1); }
+        .task-card.completed { border-color: var(--terminal-green); opacity: 0.7; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .task-number { font-size: 0.75rem; color: var(--house-primary); letter-spacing: 0.1em; }
+        .task-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #666; }
+        .task-card.active .task-status { background: rgba(167, 139, 250, 0.2); color: var(--house-primary); }
+        .task-card.completed .task-status { background: rgba(74, 222, 128, 0.2); color: var(--terminal-green); }
+        .task-title { font-size: 1.1rem; color: #fff; margin-bottom: 8px; }
+        .task-hint { font-size: 0.85rem; color: #888; font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; margin-top: 10px; }
+        .terminal-panel { background: var(--terminal-bg); display: flex; flex-direction: column; }
+        .terminal-header { padding: 12px 20px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; }
+        .terminal-dots { display: flex; gap: 6px; }
+        .terminal-dots span { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-dots span:nth-child(1) { background: #ef4444; }
+        .terminal-dots span:nth-child(2) { background: #fbbf24; }
+        .terminal-dots span:nth-child(3) { background: #22c55e; }
+        .terminal-title { color: #666; font-size: 0.8rem; margin-left: 10px; }
+        .terminal-body { flex: 1; padding: 20px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .terminal-line { margin-bottom: 8px; line-height: 1.5; }
+        .terminal-line.command { color: var(--terminal-green); }
+        .terminal-line.output { color: #888; }
+        .terminal-line.error { color: #ef4444; }
+        .terminal-line.success { color: var(--terminal-green); }
+        .terminal-line.warning { color: #fbbf24; }
+        .terminal-input-line { display: flex; align-items: center; margin-top: 10px; }
+        .terminal-prompt { color: #ef4444; margin-right: 10px; font-weight: bold; }
+        .terminal-input { flex: 1; background: transparent; border: none; color: var(--terminal-green); font-family: inherit; font-size: inherit; outline: none; }
+        .completion-banner { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 10, 20, 0.98); border: 2px solid var(--terminal-green); border-radius: 16px; padding: 50px; text-align: center; z-index: 1000; box-shadow: 0 0 60px rgba(74, 222, 128, 0.3); }
+        .completion-banner.show { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+        .completion-icon { font-size: 4rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: var(--terminal-green); margin-bottom: 10px; }
+        .completion-text { color: #888; margin-bottom: 25px; }
+        .completion-btn { padding: 12px 30px; background: linear-gradient(135deg, var(--house-primary), var(--house-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-block; }
+        .intel-panel { background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .intel-panel h4 { color: #ef4444; font-size: 0.8rem; margin-bottom: 8px; letter-spacing: 0.1em; }
+        .intel-panel p { color: #999; font-size: 0.85rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <a href="../../clh/clh-028-intro.html" class="back-btn">&larr; Back to Lesson</a>
+        <span class="lab-title">CLH-028: System Monitoring Lab</span>
+        <div class="step-indicator" id="stepIndicator"></div>
+    </header>
+
+    <div class="lab-container">
+        <div class="mission-panel">
+            <div class="mission-badge">OPERATION GRANITE SHIELD</div>
+            <h1 class="mission-title">Hunt the Threat</h1>
+            <p class="mission-subtitle">Investigate compromised server. Identify and analyze the hostile process.</p>
+
+            <div class="intel-panel">
+                <h4>SITUATION REPORT</h4>
+                <p>GRANITE SHIELD facility reports unusual CPU load on primary server. Counter-intelligence suspects crypto-mining malware. Your mission: use system monitoring tools to identify the threat, gather intel on the attacker's infrastructure, and document the compromise.</p>
+            </div>
+
+            <div id="taskContainer"></div>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <div class="terminal-dots"><span></span><span></span><span></span></div>
+                <span class="terminal-title">analyst@granite-shield:~$</span>
+            </div>
+            <div class="terminal-body" id="terminalBody">
+                <div class="terminal-line output">=== GRANITE SHIELD FACILITY - THREAT INVESTIGATION ===</div>
+                <div class="terminal-line output">Analyst workstation connected to compromised server.</div>
+                <div class="terminal-line warning">[ALERT] Unusual CPU activity detected. Begin investigation.</div>
+                <div class="terminal-line output">Type 'help' for available commands.</div>
+                <div class="terminal-line output">&nbsp;</div>
+            </div>
+            <div style="padding: 0 20px 20px;">
+                <div class="terminal-input-line">
+                    <span class="terminal-prompt">analyst@granite:#</span>
+                    <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" spellcheck="false" autofocus>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <div class="completion-icon">&#128202;</div>
+        <div class="completion-title">THREAT IDENTIFIED</div>
+        <p class="completion-text">Crypto miner detected and documented. Intel gathered on attacker infrastructure.</p>
+        <a href="../../clh/clh-029-intro.html" class="completion-btn">Continue to CLH-029 &rarr;</a>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/TrailHunter.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'RECON: Check System Load', hint: '$ uptime', check: cmd => cmd.includes('uptime') },
+            { id: 2, title: 'IDENTIFY: Find CPU-Hungry Process', hint: '$ top OR ps aux --sort=-%cpu', check: cmd => cmd.includes('top') || (cmd.includes('ps') && cmd.includes('cpu')) },
+            { id: 3, title: 'ANALYZE: Get Process Details', hint: '$ ps aux | grep [process] OR htop', check: cmd => (cmd.includes('ps') && cmd.includes('grep')) || cmd.includes('htop') },
+            { id: 4, title: 'NETWORK: Track Connections', hint: '$ ss -tunapl OR netstat -tunapl', check: cmd => cmd.includes('ss') || cmd.includes('netstat') },
+            { id: 5, title: 'DOCUMENT: Memory Analysis', hint: '$ free -h OR vmstat', check: cmd => cmd.includes('free') || cmd.includes('vmstat') }
+        ];
+
+        let currentTask = 0;
+        let foundThreat = false;
+        let currentDir = '/home/analyst';
+
+        // Filesystem for navigation
+        const fs = {
+            '/': { type: 'dir', children: ['home', 'etc', 'var', 'tmp', 'proc'] },
+            '/home': { type: 'dir', children: ['analyst', 'admin'] },
+            '/home/analyst': { type: 'dir', children: ['reports', 'tools', '.bashrc'] },
+            '/home/analyst/reports': { type: 'dir', children: ['threat-log.txt'] },
+            '/home/analyst/tools': { type: 'dir', children: ['scanner.sh'] },
+            '/etc': { type: 'dir', children: ['passwd', 'hosts', 'crontab'] },
+            '/var': { type: 'dir', children: ['log', 'tmp'] },
+            '/var/log': { type: 'dir', children: ['syslog', 'auth.log', 'messages'] },
+            '/tmp': { type: 'dir', children: ['.hidden'] },
+            '/tmp/.hidden': { type: 'dir', children: ['xmrig', 'config.json'] },
+            '/proc': { type: 'dir', children: ['31337', 'cpuinfo', 'meminfo'] }
+        };
+
+        const fileContents = {
+            '/etc/hosts': `127.0.0.1   localhost
+127.0.1.1   granite-shield
+192.168.1.50 granite.local`,
+            '/tmp/.hidden/config.json': `{
+  "pool": "pool.evil.net:3333",
+  "wallet": "wallet123",
+  "threads": 4,
+  "donate-level": 0
+}`,
+            '/home/analyst/reports/threat-log.txt': `[THREAT LOG]
+2026-01-15 - Anomalous CPU spike detected
+2026-01-15 - PID 31337 identified as xmrig
+2026-01-16 - C2 connection traced to 185.243.115.84`,
+            '/var/log/auth.log': `Jan 15 03:42:17 granite sshd[1234]: Failed password for root from 185.243.115.84
+Jan 15 03:42:19 granite sshd[1234]: Accepted password for nobody from 185.243.115.84
+Jan 15 03:42:20 granite sudo: nobody : command not allowed`,
+        };
+
+        const commands = ['help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'whoami', 'hostname', 'uptime', 'top', 'htop', 'ps', 'ss', 'netstat', 'free', 'vmstat', 'watch', 'grep', 'kill'];
+
+        const monitorResponses = {
+            'uptime': `<span style="color:#fbbf24;"> 14:32:17 up 45 days, 3:21, 2 users, load average: 4.52, 3.18, 1.05</span>
+
+<span style="color:#ef4444;">[ALERT] Load average 4.52 on 4-core system = 113% utilization!</span>
+<span style="color:#fbbf24;">[ANALYSIS] System overloaded. Something consuming significant CPU.</span>`,
+            'top': `top - 14:32:17 up 45 days, load average: 4.52, 3.18, 1.05
+Tasks: 203 total, 3 running, 200 sleeping
+%Cpu(s): <span style="color:#ef4444;">87.3 us</span>, 4.2 sy, 0.0 ni, 8.1 id, 0.0 wa
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+<span style="color:#ef4444;">31337</span> nobody    20   0 4194304   3.8G   512K R <span style="color:#ef4444;">85.2</span> 23.4  142:17.89 <span style="color:#ef4444;">xmrig</span>
+ 1842 mysql     20   0 1835648 512000  8192 S   2.3  3.1   45:23.12 mysqld
+  892 www-data  20   0  256000  64000  4096 S   0.7  0.4    8:42.33 apache2
+  422 root      20   0   28416   5120  3200 S   0.3  0.0    1:42.10 sshd
+
+<span style="color:#ef4444;">[THREAT DETECTED] PID 31337 - Process 'xmrig' consuming 85% CPU!</span>
+<span style="color:#fbbf24;">[INTEL] xmrig = Known cryptocurrency mining software</span>`,
+            'htop': `  CPU[|||||||||||||||||||||||||||||||||||||||| <span style="color:#ef4444;">90.2%</span>]
+  Mem[||||||||||||||||||                        12.0G/16G]
+  Swp[                                           0K/2.0G]
+
+  PID USER     PRI  NI  VIRT   RES   SHR S CPU% MEM%   Command
+<span style="color:#ef4444;">31337</span> nobody    20   0 4.0G  3.8G  512K R <span style="color:#ef4444;">85.2</span> 23.4 <span style="color:#ef4444;">/tmp/.hidden/xmrig -o pool.evil.net:3333</span>
+ 1842 mysql     20   0 1.8G  500M 8192K S  2.3  3.1 /usr/sbin/mysqld
+  892 www-data  20   0 250M   62M 4096K S  0.7  0.4 /usr/sbin/apache2
+  422 root      20   0  28M  5.1M 3.2MK S  0.3  0.0 /usr/sbin/sshd -D
+
+<span style="color:#ef4444;">[FULL PATH] /tmp/.hidden/xmrig - Hidden directory!</span>
+<span style="color:#fbbf24;">[C2 SERVER] pool.evil.net:3333 - Mining pool connection</span>`,
+            'ps-cpu': `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+<span style="color:#ef4444;">nobody   31337 85.2 23.4 4194304 3984384 ?   R    Jan15 142:17 /tmp/.hidden/xmrig -o pool.evil.net:3333 -u wallet123</span>
+mysql     1842  2.3  3.1 1835648 524288 ?   S    Dec01  45:23 /usr/sbin/mysqld
+www-data   892  0.7  0.4  256000  65536 ?   S    Dec01   8:42 /usr/sbin/apache2
+root       422  0.3  0.0   28416   5120 ?   Ss   Dec01   1:42 /usr/sbin/sshd
+
+<span style="color:#ef4444;">[WALLET] wallet123 - Attacker's cryptocurrency wallet!</span>
+<span style="color:#fbbf24;">[EVIDENCE] Full command line reveals attacker infrastructure</span>`,
+            'ps-grep-xmrig': `<span style="color:#ef4444;">nobody   31337 85.2 23.4 4194304 3984384 ?   R    Jan15 142:17 /tmp/.hidden/xmrig -o pool.evil.net:3333 -u wallet123</span>
+
+<span style="color:#3fb950;">[DETAILED ANALYSIS]</span>
+  Location: /tmp/.hidden/xmrig
+  Pool: pool.evil.net:3333
+  Wallet: wallet123
+  Run Time: 142+ minutes
+  Memory: 3.8 GB
+
+<span style="color:#ef4444;">[COMPROMISE CONFIRMED] System running unauthorized crypto miner</span>`,
+            'ss': `State    Recv-Q Send-Q Local Address:Port    Peer Address:Port    Process
+ESTAB    0      0      192.168.1.50:22       10.0.0.5:54321        users:(("sshd",pid=422))
+<span style="color:#ef4444;">ESTAB    0      0      192.168.1.50:45678    185.243.115.84:3333   users:(("xmrig",pid=31337))</span>
+ESTAB    0      0      192.168.1.50:3306     192.168.1.100:52341   users:(("mysqld",pid=1842))
+LISTEN   0      128    0.0.0.0:22             0.0.0.0:*             users:(("sshd",pid=422))
+LISTEN   0      80     127.0.0.1:3306        0.0.0.0:*             users:(("mysqld",pid=1842))
+
+<span style="color:#ef4444;">[C2 CONNECTION] 185.243.115.84:3333 - Active mining pool connection!</span>
+<span style="color:#fbbf24;">[GEO] IP likely Eastern European mining pool infrastructure</span>`,
+            'netstat': `Proto Recv-Q Send-Q Local Address         Foreign Address        State       PID/Program
+tcp        0      0 192.168.1.50:22       10.0.0.5:54321         ESTABLISHED 422/sshd
+<span style="color:#ef4444;">tcp        0      0 192.168.1.50:45678    185.243.115.84:3333    ESTABLISHED 31337/xmrig</span>
+tcp        0      0 192.168.1.50:3306     192.168.1.100:52341    ESTABLISHED 1842/mysqld
+
+<span style="color:#ef4444;">[OUTBOUND] Active connection to 185.243.115.84:3333</span>
+<span style="color:#fbbf24;">[ATTRIBUTION] Track this IP for threat intelligence</span>`,
+            'free': `              total        used        free      shared  buff/cache   available
+Mem:           16Gi        12Gi       2.0Gi       256Mi       2.0Gi       3.5Gi
+Swap:         2.0Gi          0B       2.0Gi
+
+<span style="color:#fbbf24;">[MEMORY] 12GB used of 16GB (75%)</span>
+<span style="color:#ef4444;">[ALERT] xmrig process alone consuming 3.8GB (23.4%)</span>
+<span style="color:#3fb950;">[STATUS] No swap usage - system not memory-starved yet</span>`,
+            'vmstat': `procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 3  0      0 2097152 262144 524288    0    0    12   156  892 1245 <span style="color:#ef4444;">87</span>  4  8  0  1
+ 3  0      0 2088960 262144 524288    0    0     0   128  912 1312 <span style="color:#ef4444;">89</span>  3  7  0  1
+ 4  0      0 2080768 262144 524288    0    0     0   112  945 1356 <span style="color:#ef4444;">91</span>  2  6  0  1
+
+<span style="color:#ef4444;">[CPU] User CPU (us) consistently 87-91% - abnormal!</span>
+<span style="color:#fbbf24;">[ANALYSIS] r=3-4 runnable processes, but only crypto miner active</span>
+<span style="color:#3fb950;">[SWAP] si/so = 0, no swapping occurring</span>`,
+            'help': `<span style="color:#fbbf24;">MONITORING COMMANDS:</span>
+  uptime           - Check system load averages
+  top              - Real-time process monitor
+  htop             - Enhanced process viewer
+  ps aux           - List all processes
+  ps aux --sort=-%cpu  - Sort by CPU usage
+  ps aux | grep PROC   - Search for process
+  ss -tunapl       - Show network connections
+  netstat -tunapl  - Network connections (legacy)
+  free -h          - Memory usage
+  vmstat           - Virtual memory statistics
+
+<span style="color:#8b949e;">NAVIGATION & FILES:</span>
+  ls [path]        - List directory contents
+  cd [path]        - Change directory
+  pwd              - Print working directory
+  cat FILE         - View file contents
+  whoami           - Current user
+  hostname         - System name
+  clear            - Clear terminal`
+        };
+
+        function initTasks() {
+            const container = document.getElementById('taskContainer');
+            const indicator = document.getElementById('stepIndicator');
+            tasks.forEach((task, i) => {
+                container.innerHTML += `<div class="task-card" id="task${i}"><div class="task-header"><span class="task-number">TASK ${task.id}</span><span class="task-status" id="status${i}">PENDING</span></div><div class="task-title">${task.title}</div><div class="task-hint">${task.hint}</div></div>`;
+                indicator.innerHTML += `<div class="step-dot" id="dot${i}"></div>`;
+            });
+            updateTaskDisplay();
+        }
+
+        function updateTaskDisplay() {
+            tasks.forEach((_, i) => {
+                const card = document.getElementById(`task${i}`);
+                const status = document.getElementById(`status${i}`);
+                const dot = document.getElementById(`dot${i}`);
+                card.classList.remove('active', 'completed');
+                dot.classList.remove('active', 'completed');
+                if (i < currentTask) { card.classList.add('completed'); status.textContent = 'COMPLETE'; dot.classList.add('completed'); }
+                else if (i === currentTask) { card.classList.add('active'); status.textContent = 'ACTIVE'; dot.classList.add('active'); }
+                else { status.textContent = 'PENDING'; }
+            });
+        }
+
+        function addOutput(text, type = 'output') {
+            const body = document.getElementById('terminalBody');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.innerHTML = text;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function handleCommand(cmd) {
+            const trimmed = cmd.trim().toLowerCase();
+            addOutput(`<span style="color:#ef4444;">analyst@granite:#</span> ${cmd}`, 'command');
+
+            // Help
+            if (trimmed === 'help') {
+                addOutput(monitorResponses['help']);
+                return;
+            }
+
+            // uptime
+            if (trimmed === 'uptime') {
+                addOutput(monitorResponses['uptime']);
+                checkTask(cmd);
+                return;
+            }
+
+            // top
+            if (trimmed === 'top' || trimmed.startsWith('top ')) {
+                addOutput(monitorResponses['top']);
+                foundThreat = true;
+                checkTask(cmd);
+                return;
+            }
+
+            // htop
+            if (trimmed === 'htop') {
+                addOutput(monitorResponses['htop']);
+                foundThreat = true;
+                checkTask(cmd);
+                return;
+            }
+
+            // ps aux --sort=-%cpu
+            if (trimmed.includes('ps') && trimmed.includes('cpu')) {
+                addOutput(monitorResponses['ps-cpu']);
+                foundThreat = true;
+                checkTask(cmd);
+                return;
+            }
+
+            // ps aux | grep xmrig
+            if (trimmed.includes('ps') && trimmed.includes('grep') && (trimmed.includes('xmrig') || trimmed.includes('31337'))) {
+                addOutput(monitorResponses['ps-grep-xmrig']);
+                checkTask(cmd);
+                return;
+            }
+
+            // ps aux | grep (general)
+            if (trimmed.includes('ps') && trimmed.includes('grep')) {
+                addOutput(monitorResponses['ps-cpu']);
+                checkTask(cmd);
+                return;
+            }
+
+            // ps aux
+            if (trimmed.includes('ps aux') || trimmed === 'ps') {
+                addOutput(monitorResponses['ps-cpu']);
+                checkTask(cmd);
+                return;
+            }
+
+            // ss
+            if (trimmed.includes('ss')) {
+                addOutput(monitorResponses['ss']);
+                checkTask(cmd);
+                return;
+            }
+
+            // netstat
+            if (trimmed.includes('netstat')) {
+                addOutput(monitorResponses['netstat']);
+                checkTask(cmd);
+                return;
+            }
+
+            // free
+            if (trimmed.includes('free')) {
+                addOutput(monitorResponses['free']);
+                checkTask(cmd);
+                return;
+            }
+
+            // vmstat
+            if (trimmed.includes('vmstat')) {
+                addOutput(monitorResponses['vmstat']);
+                checkTask(cmd);
+                return;
+            }
+
+            // watch
+            if (trimmed.startsWith('watch')) {
+                addOutput('<span style="color:#fbbf24;">[SIMULATION] watch command would run continuously.</span>', 'warning');
+                addOutput('In real environment, press Ctrl+C to exit watch mode.', 'output');
+                return;
+            }
+
+            // whoami
+            if (trimmed === 'whoami') {
+                addOutput('analyst', 'output');
+                return;
+            }
+
+            // hostname
+            if (trimmed === 'hostname') {
+                addOutput('granite-shield');
+                return;
+            }
+
+            // clear
+            if (trimmed === 'clear') {
+                document.getElementById('terminalBody').innerHTML = '';
+                return;
+            }
+
+            // pwd
+            if (trimmed === 'pwd') {
+                addOutput(currentDir);
+                return;
+            }
+
+            // ls
+            if (trimmed === 'ls' || trimmed.startsWith('ls ')) {
+                let targetPath = currentDir;
+                if (trimmed !== 'ls') {
+                    const arg = cmd.trim().split(/\s+/)[1];
+                    if (arg && !arg.startsWith('-')) {
+                        targetPath = arg.startsWith('/') ? arg : (currentDir === '/' ? '/' + arg : currentDir + '/' + arg);
+                    }
+                }
+                targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                if (fs[targetPath]) {
+                    const items = fs[targetPath].children || [];
+                    if (items.length === 0) addOutput('(empty directory)');
+                    else {
+                        const colored = items.map(item => {
+                            const itemPath = targetPath === '/' ? '/' + item : targetPath + '/' + item;
+                            return fs[itemPath] ? `<span style="color:#60a5fa;">${item}/</span>` : item;
+                        });
+                        addOutput(colored.join('  '));
+                    }
+                } else {
+                    addOutput(`ls: cannot access '${targetPath}': No such file or directory`, 'error');
+                }
+                return;
+            }
+
+            // cd
+            if (trimmed === 'cd' || trimmed.startsWith('cd ')) {
+                let target = trimmed === 'cd' ? '/home/analyst' : cmd.trim().split(/\s+/)[1];
+                if (target === '~') target = '/home/analyst';
+                if (target === '..') {
+                    const parts = currentDir.split('/').filter(p => p);
+                    parts.pop();
+                    target = '/' + parts.join('/') || '/';
+                }
+                if (!target.startsWith('/')) target = currentDir === '/' ? '/' + target : currentDir + '/' + target;
+                target = target.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                if (fs[target]) currentDir = target;
+                else addOutput(`cd: ${target}: No such file or directory`, 'error');
+                return;
+            }
+
+            // cat for other files
+            if (trimmed.startsWith('cat ')) {
+                const file = cmd.trim().split(/\s+/)[1];
+                let filePath = file.startsWith('/') ? file : (currentDir === '/' ? '/' + file : currentDir + '/' + file);
+                filePath = filePath.replace(/\/+/g, '/');
+                if (fileContents[filePath]) addOutput(fileContents[filePath]);
+                else if (fs[filePath]) addOutput(`cat: ${file}: Is a directory`, 'error');
+                else addOutput(`cat: ${file}: No such file or directory`, 'error');
+                return;
+            }
+
+            // Unknown command
+            addOutput(`${cmd.split(' ')[0]}: command not found`, 'error');
+        }
+
+        function checkTask(cmd) {
+            if (currentTask < tasks.length && tasks[currentTask].check(cmd.toLowerCase())) {
+                currentTask++;
+                updateTaskDisplay();
+                if (currentTask >= tasks.length) {
+                    setTimeout(() => {
+                        addOutput('', 'output');
+                        addOutput('<span style="color:#4ade80;">═══════════════════════════════════════════════</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  OPERATION GRANITE SHIELD - INVESTIGATION COMPLETE</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  </span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  THREAT SUMMARY:</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  - Malware: xmrig cryptocurrency miner</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  - Location: /tmp/.hidden/xmrig</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  - C2 Server: pool.evil.net (185.243.115.84:3333)</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  - Wallet: wallet123</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  - Impact: 85% CPU, 3.8GB RAM consumed</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">═══════════════════════════════════════════════</span>', 'success');
+                        document.getElementById('completionBanner').classList.add('show');
+                        if (typeof ModuleProgress !== 'undefined') {
+                            ModuleProgress.completeLab('script', 'clh-028-monitoring', { returnToDashboard: false });
+                        }
+                    }, 500);
+                }
+            }
+        }
+
+        // Tab completion
+        function autoComplete(input) {
+            const parts = input.split(' ');
+            if (parts.length === 1) {
+                const partial = parts[0].toLowerCase();
+                const matches = commands.filter(cmd => cmd.startsWith(partial));
+                if (matches.length === 1) return matches[0] + ' ';
+                return input;
+            } else {
+                const cmd = parts[0];
+                const partial = parts.slice(1).join(' ') || '';
+                let basePath = partial.includes('/') ? partial.substring(0, partial.lastIndexOf('/')) || '/' : currentDir;
+                const searchTerm = partial.includes('/') ? partial.substring(partial.lastIndexOf('/') + 1) : partial;
+                if (!basePath.startsWith('/')) basePath = currentDir + '/' + basePath;
+                basePath = basePath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                const dir = fs[basePath];
+                if (dir && dir.children) {
+                    const matches = dir.children.filter(c => c.toLowerCase().startsWith(searchTerm.toLowerCase()));
+                    if (matches.length === 1) {
+                        const completedPath = partial.includes('/') ? partial.substring(0, partial.lastIndexOf('/') + 1) + matches[0] : matches[0];
+                        const fullPath = (basePath + '/' + matches[0]).replace(/\/+/g, '/');
+                        return cmd + ' ' + completedPath + (fs[fullPath] ? '/' : '');
+                    }
+                }
+                return input;
+            }
+        }
+
+        document.getElementById('terminalInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                handleCommand(this.value);
+                this.value = '';
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                this.value = autoComplete(this.value);
+                this.selectionStart = this.selectionEnd = this.value.length;
+            }
+        });
+
+        initTasks();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

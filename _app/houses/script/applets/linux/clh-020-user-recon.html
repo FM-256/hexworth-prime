@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-020: User Reconnaissance - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-020</span>
+                        <h1>User Reconnaissance</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title">auditor@BLACKSITE-7:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION MOLE HUNT - Black Site Security Audit</div>
+                    <div class="terminal-line output">[ALERT] MAJESTIC-12 files accessed from unauthorized terminal at 0347</div>
+                    <div class="terminal-line output">[INTEL] Insider threat detected - identify the mole</div>
+                    <div class="terminal-line" style="color: #fbbf24;">&gt; Audit user accounts, trace access history, find the infiltrator</div>
+                    <div class="terminal-line output">Type <span style="color:#ffa657;">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt">auditor@BLACKSITE-7:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>IDENTIFY: Your Access Level</h4>
+                        <p>Check your current identity and group memberships.</p>
+                        <div class="hint">$ id</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>USER RECON BRIEFING</h2>
+            <div class="warning-box">
+                <strong>OPERATION MOLE HUNT</strong>
+                <p style="margin-top:8px;color:#ccc;">MAJESTIC-12 breach at 0347. Find the insider who accessed classified files.</p>
+            </div>
+            <div class="intel-section">
+                <h3>User Tracking Commands</h3>
+                <div class="code-box"><div class="cmd">$ id</div><div style="color:#8b949e;">Your UID, GID, and groups</div></div>
+                <div class="code-box"><div class="cmd">$ w</div><div style="color:#8b949e;">Currently logged-in users + activity</div></div>
+                <div class="code-box"><div class="cmd">$ who</div><div style="color:#8b949e;">Logged-in users (simple view)</div></div>
+                <div class="code-box"><div class="cmd">$ last</div><div style="color:#8b949e;">Login history from wtmp</div></div>
+                <div class="code-box"><div class="cmd">$ lastlog</div><div style="color:#8b949e;">Last login for all users</div></div>
+            </div>
+            <div style="background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+                <strong style="color: #00ff41;">TIP:</strong>
+                <p style="color:#ccc;">Check for users in <code>sudo</code> or <code>docker</code> groups - they have elevated privileges!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>MOLE IDENTIFIED</h2>
+            <p>User "SPECTER" confirmed as insider threat. Access logs document MAJESTIC breach at 0347.</p>
+            <p style="color: #ef4444; margin-bottom: 20px;">Suspect apprehended for interrogation</p>
+            <div class="modal-buttons">
+                <a href="../../clh/clh-021-intro.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'IDENTIFY: Your Access Level', description: 'Check your current identity and group memberships.', hint: '$ id', check: cmd => cmd.includes('id') && !cmd.includes('lastlog') },
+            { id: 2, title: 'SCAN: Active Sessions', description: 'See who is currently logged in and what they\'re doing.', hint: '$ w', check: cmd => cmd === 'w' || cmd.startsWith('w ') },
+            { id: 3, title: 'TRACE: Login History', description: 'Review recent login records to find 0347 access.', hint: '$ last', check: cmd => cmd.includes('last') && !cmd.includes('lastlog') },
+            { id: 4, title: 'AUDIT: All Accounts', description: 'Check last login times for ALL users - find dormant accounts.', hint: '$ lastlog', check: cmd => cmd.includes('lastlog') },
+            { id: 5, title: 'INVESTIGATE: Suspicious Groups', description: 'Check group memberships for the suspect user.', hint: '$ groups SPECTER', check: cmd => cmd.includes('groups') }
+        ];
+
+        let currentTask = 0;
+        const completedTasks = new Set();
+
+        const terminal = new LinuxTerminal('terminal', 'commandInput', {
+            hostname: 'BLACKSITE-7',
+            username: 'auditor',
+            onCommand: handleCommand
+        });
+
+        const userResponses = {
+            'id': `uid=1001(auditor) gid=1001(auditor) groups=1001(auditor),27(sudo),998(security)
+
+<span style="color:#3fb950;">[YOUR ACCESS] Security auditor with sudo privileges</span>
+<span style="color:#fbbf24;">[CLEARANCE] Level 4 - Full audit access granted</span>`,
+
+            'whoami': `auditor
+
+<span style="color:#8b949e;">[INFO] You are logged in as security auditor</span>`,
+
+            'w': ` 03:52:17 up 127 days,  4:31,  4 users,  load average: 0.08, 0.12, 0.15
+USER     TTY      FROM             LOGIN@   IDLE   WHAT
+admin    pts/0    10.0.0.1         22:30    5:22m  -bash
+analyst  pts/1    10.0.0.50        01:15    2:37m  vim report.doc
+auditor  pts/2    10.0.0.75        03:50    0.00s  w
+<span style="color:#ef4444;">SPECTER  pts/3    192.168.1.99     03:47    0.00s  cat /classified/MAJESTIC-12/*</span>
+
+<span style="color:#ef4444;">[ALERT] User SPECTER accessing MAJESTIC files RIGHT NOW!</span>
+<span style="color:#ef4444;">[ALERT] External IP 192.168.1.99 - NOT on approved network!</span>
+<span style="color:#fbbf24;">[SUSPECT] Login at 03:47 matches breach timestamp</span>`,
+
+            'who': `admin    pts/0        Jan 15 22:30 (10.0.0.1)
+analyst  pts/1        Jan 15 01:15 (10.0.0.50)
+auditor  pts/2        Jan 15 03:50 (10.0.0.75)
+<span style="color:#ef4444;">SPECTER  pts/3        Jan 15 03:47 (192.168.1.99)</span>
+
+<span style="color:#ef4444;">[DETECTED] SPECTER logged in at 03:47 from external IP</span>`,
+
+            'last': `SPECTER  pts/3        192.168.1.99     Mon Jan 15 03:47   still logged in
+auditor  pts/2        10.0.0.75        Mon Jan 15 03:50   still logged in
+analyst  pts/1        10.0.0.50        Mon Jan 15 01:15   still logged in
+admin    pts/0        10.0.0.1         Sun Jan 14 22:30   still logged in
+<span style="color:#ef4444;">SPECTER  pts/4        192.168.1.99     Sun Jan 14 03:45 - 04:02  (00:17)</span>
+<span style="color:#ef4444;">SPECTER  pts/5        192.168.1.99     Sat Jan 13 03:42 - 03:58  (00:16)</span>
+<span style="color:#ef4444;">SPECTER  pts/3        192.168.1.99     Fri Jan 12 03:48 - 04:05  (00:17)</span>
+admin    pts/0        10.0.0.1         Fri Jan 12 08:00 - 18:30  (10:30)
+
+<span style="color:#ef4444;">[PATTERN] SPECTER only logs in between 03:00-04:00!</span>
+<span style="color:#fbbf24;">[INTEL] Same external IP (192.168.1.99) every time</span>
+<span style="color:#fbbf24;">[ANALYSIS] Short sessions (~17 min) - data exfiltration window</span>`,
+
+            'lastlog': `Username         Port     From             Latest
+root             pts/0    10.0.0.1         Mon Jan  8 09:00:00 -0500 2024
+admin            pts/0    10.0.0.1         Sun Jan 14 22:30:00 -0500 2024
+analyst          pts/1    10.0.0.50        Mon Jan 15 01:15:00 -0500 2024
+auditor          pts/2    10.0.0.75        Mon Jan 15 03:50:00 -0500 2024
+<span style="color:#ef4444;">SPECTER          pts/3    192.168.1.99     Mon Jan 15 03:47:00 -0500 2024</span>
+sysbackup                                  **Never logged in**
+oldadmin                                   **Never logged in**
+
+<span style="color:#fbbf24;">[AUDIT] 'sysbackup' and 'oldadmin' never logged in - dormant accounts</span>
+<span style="color:#ef4444;">[SUSPECT] SPECTER: external IP, 0347 login matches breach time!</span>`,
+
+            'groups': `auditor : auditor sudo security
+
+<span style="color:#8b949e;">[INFO] Your group memberships</span>`,
+
+            'groups SPECTER': `SPECTER : SPECTER sudo docker wheel classified
+
+<span style="color:#ef4444;">[CRITICAL] SPECTER is in 'classified' group - has MAJESTIC access!</span>
+<span style="color:#ef4444;">[CRITICAL] SPECTER is in 'docker' group - container escape possible!</span>
+<span style="color:#ef4444;">[CRITICAL] SPECTER is in 'sudo' and 'wheel' - full root access!</span>
+<span style="color:#fbbf24;">[VERDICT] Excessive privileges for an unknown user - INSIDER THREAT CONFIRMED</span>`
+        };
+
+        function handleCommand(cmd) {
+            const trimmedCmd = cmd.trim().toLowerCase();
+            const output = document.getElementById('terminal');
+            let response = null;
+
+            if (trimmedCmd === 'id') {
+                response = userResponses['id'];
+            } else if (trimmedCmd === 'whoami') {
+                response = userResponses['whoami'];
+            } else if (trimmedCmd === 'w') {
+                response = userResponses['w'];
+            } else if (trimmedCmd === 'who') {
+                response = userResponses['who'];
+            } else if (trimmedCmd === 'last' || trimmedCmd.startsWith('last ')) {
+                response = userResponses['last'];
+            } else if (trimmedCmd === 'lastlog') {
+                response = userResponses['lastlog'];
+            } else if (trimmedCmd === 'groups') {
+                response = userResponses['groups'];
+            } else if (trimmedCmd.includes('groups') && trimmedCmd.includes('specter')) {
+                response = userResponses['groups SPECTER'];
+            } else if (trimmedCmd.includes('groups')) {
+                response = userResponses['groups'];
+            }
+
+            if (response) {
+                const line = document.createElement('div');
+                line.className = 'terminal-line output';
+                line.innerHTML = response;
+                output.appendChild(line);
+            }
+
+            checkTaskCompletion(trimmedCmd);
+            return !!response;
+        }
+
+        function checkTaskCompletion(cmd) {
+            const task = tasks[currentTask];
+            if (task && task.check(cmd) && !completedTasks.has(task.id)) {
+                completedTasks.add(task.id);
+                markStepComplete(task.id);
+                if (currentTask < tasks.length - 1) {
+                    currentTask++;
+                    setTimeout(() => updateMissionDisplay(), 500);
+                } else {
+                    setTimeout(() => showCompletionModal(), 1000);
+                }
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const dot = document.getElementById(`step-${stepNum}`);
+            const connector = document.getElementById(`conn-${stepNum}`);
+            if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.textContent = '✓'; }
+            if (connector) connector.classList.add('completed');
+            const nextDot = document.getElementById(`step-${stepNum + 1}`);
+            if (nextDot && !nextDot.classList.contains('completed')) nextDot.classList.add('active');
+
+            const output = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line success';
+            line.innerHTML = `\n[✓] OBJECTIVE ${stepNum} COMPLETE\n`;
+            output.appendChild(line);
+        }
+
+        function updateMissionDisplay() {
+            const task = tasks[currentTask];
+            const display = document.getElementById('currentMissionDisplay');
+            if (task) display.innerHTML = `<div class="current-mission"><h4>${task.title}</h4><p>${task.description}</p><div class="hint">${task.hint}</div></div>`;
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.markComplete('clh-020-user-recon');
+        }
+
+        document.getElementById('step-1').classList.add('active');
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-023: Service Management - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-023</span>
+                        <h1>Service Management</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title">analyst@COMPROMISED-SRV:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION GHOST SERVICE - Persistence Investigation</div>
+                    <div class="terminal-line output">[ALERT] Suspicious service detected on compromised server</div>
+                    <div class="terminal-line output">[OBJECTIVE] Investigate services, identify malicious persistence</div>
+                    <div class="terminal-line" style="color: #fbbf24;">&gt; List services, inspect suspicious ones, analyze logs</div>
+                    <div class="terminal-line output">Type <span style="color:#ffa657;">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt">analyst@COMPROMISED-SRV:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>LIST: Running Services</h4>
+                        <p>Enumerate all running services to find anomalies.</p>
+                        <div class="hint">$ systemctl list-units --type=service --state=running</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>SERVICE OPS BRIEFING</h2>
+            <div class="warning-box">
+                <strong>OPERATION GHOST SERVICE</strong>
+                <p style="margin-top:8px;color:#ccc;">Server compromised. Find the malicious persistence mechanism.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Service Commands</h3>
+                <div class="code-box"><div class="cmd">$ systemctl list-units --type=service</div><div style="color:#8b949e;">List services</div></div>
+                <div class="code-box"><div class="cmd">$ systemctl status service</div><div style="color:#8b949e;">Service details</div></div>
+                <div class="code-box"><div class="cmd">$ journalctl -u service</div><div style="color:#8b949e;">Service logs</div></div>
+                <div class="code-box"><div class="cmd">$ systemctl stop service</div><div style="color:#8b949e;">Stop service</div></div>
+            </div>
+            <div style="background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+                <strong style="color: #00ff41;">TIP:</strong>
+                <p style="color:#ccc;">Look for services with unusual names or those not in default installations.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>IMPLANT NEUTRALIZED</h2>
+            <p>Malicious "system-monitor" service identified and stopped. Persistence mechanism documented for threat intel.</p>
+            <p style="color: #3fb950; margin-bottom: 20px;">C2 beacon disabled, logs preserved</p>
+            <div class="modal-buttons">
+                <a href="../../clh/clh-024-intro.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'LIST: Running Services', description: 'Enumerate all running services to find anomalies.', hint: '$ systemctl list-units --type=service --state=running', check: cmd => cmd.includes('systemctl') && cmd.includes('list') },
+            { id: 2, title: 'INSPECT: Suspicious Service', description: 'Get detailed status of the suspicious service.', hint: '$ systemctl status system-monitor', check: cmd => cmd.includes('systemctl') && cmd.includes('status') },
+            { id: 3, title: 'ANALYZE: Service Logs', description: 'Review logs to understand the implant\'s activity.', hint: '$ journalctl -u system-monitor', check: cmd => cmd.includes('journalctl') },
+            { id: 4, title: 'DISABLE: Persistence', description: 'Prevent the malicious service from starting on boot.', hint: '$ sudo systemctl disable system-monitor', check: cmd => cmd.includes('systemctl') && cmd.includes('disable') },
+            { id: 5, title: 'NEUTRALIZE: Stop Service', description: 'Terminate the active implant process.', hint: '$ sudo systemctl stop system-monitor', check: cmd => cmd.includes('systemctl') && cmd.includes('stop') }
+        ];
+
+        let currentTask = 0;
+        const completedTasks = new Set();
+
+        const terminal = new LinuxTerminal('terminal', 'commandInput', {
+            hostname: 'COMPROMISED-SRV',
+            username: 'analyst',
+            onCommand: handleCommand
+        });
+
+        const serviceResponses = {
+            'list': `UNIT                        LOAD   ACTIVE SUB     DESCRIPTION
+cron.service                loaded active running Regular background program processing
+dbus.service                loaded active running D-Bus System Message Bus
+networking.service          loaded active running Raise network interfaces
+rsyslog.service             loaded active running System Logging Service
+ssh.service                 loaded active running OpenSSH server daemon
+<span style="color:#ef4444;">system-monitor.service      loaded active running System Performance Monitor</span>
+systemd-journald.service    loaded active running Journal Service
+systemd-logind.service      loaded active running Login Service
+systemd-udevd.service       loaded active running udev Kernel Device Manager
+
+LOAD   = Reflects whether the unit definition was properly loaded.
+ACTIVE = The high-level unit activation state, i.e. generalization of SUB.
+SUB    = The low-level unit activation state, values depend on unit type.
+
+9 loaded units listed.
+
+<span style="color:#ef4444;">[SUSPICIOUS] "system-monitor" is NOT a standard Linux service!</span>
+<span style="color:#fbbf24;">[INVESTIGATE] Check status and logs for this service</span>`,
+
+            'status': `● system-monitor.service - System Performance Monitor
+     Loaded: loaded (/etc/systemd/system/system-monitor.service; <span style="color:#ef4444;">enabled</span>)
+     Active: <span style="color:#3fb950;">active (running)</span> since Mon 2024-01-15 03:45:00 UTC; 1h ago
+   Main PID: 6666 (system-monitor)
+      Tasks: 2 (limit: 4915)
+     Memory: 12.8M
+        CPU: 2min 34s
+     CGroup: /system.slice/system-monitor.service
+             └─6666 /opt/.hidden/system-monitor --beacon --interval=300
+
+Jan 15 03:45:00 COMPROMISED-SRV systemd[1]: Started System Performance Monitor.
+Jan 15 03:45:01 COMPROMISED-SRV system-monitor[6666]: Beacon initialized
+Jan 15 03:50:01 COMPROMISED-SRV system-monitor[6666]: C2 check-in successful
+
+<span style="color:#ef4444;">[MALWARE] Running from /opt/.hidden/ - HIDDEN DIRECTORY!</span>
+<span style="color:#ef4444;">[MALWARE] "--beacon --interval=300" = C2 callback every 5 min!</span>
+<span style="color:#ef4444;">[PERSISTENCE] Service is ENABLED = starts on boot!</span>
+<span style="color:#fbbf24;">[PID] 6666 - suspicious process ID</span>`,
+
+            'journalctl': `-- Logs begin at Mon 2024-01-15 00:00:00 UTC --
+Jan 15 03:45:00 COMPROMISED-SRV systemd[1]: Starting System Performance Monitor...
+Jan 15 03:45:00 COMPROMISED-SRV systemd[1]: Started System Performance Monitor.
+Jan 15 03:45:01 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">Beacon initialized: 192.168.1.99:4444</span>
+Jan 15 03:50:01 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">C2 check-in successful</span>
+Jan 15 03:55:01 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">C2 check-in successful</span>
+Jan 15 04:00:01 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">C2 check-in successful</span>
+Jan 15 04:00:02 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">Received task: exfiltrate /etc/passwd</span>
+Jan 15 04:00:05 COMPROMISED-SRV system-monitor[6666]: <span style="color:#ef4444;">Task complete: 2.1KB sent</span>
+
+<span style="color:#ef4444;">[C2 SERVER] 192.168.1.99:4444 - HOSTILE!</span>
+<span style="color:#ef4444;">[EXFIL] /etc/passwd stolen at 04:00!</span>
+<span style="color:#fbbf24;">[PATTERN] Check-ins every 5 minutes (--interval=300)</span>`,
+
+            'disable': `Removed /etc/systemd/system/multi-user.target.wants/system-monitor.service.
+
+<span style="color:#3fb950;">[DISABLED] Service will NOT start on next boot</span>
+<span style="color:#fbbf24;">[PERSISTENCE] Boot persistence removed</span>
+<span style="color:#fbbf24;">[NEXT] Stop the currently running service</span>`,
+
+            'stop': `<span style="color:#3fb950;">[STOPPED] system-monitor.service terminated</span>
+<span style="color:#3fb950;">[NEUTRALIZED] C2 beacon connection severed</span>
+<span style="color:#fbbf24;">[FORENSICS] Preserve /opt/.hidden/ for analysis</span>
+<span style="color:#fbbf24;">[RECOMMEND] Block 192.168.1.99 at firewall</span>`
+        };
+
+        function handleCommand(cmd) {
+            const trimmedCmd = cmd.trim().toLowerCase();
+            const output = document.getElementById('terminal');
+            let response = null;
+
+            if (trimmedCmd.includes('systemctl') && trimmedCmd.includes('list')) {
+                response = serviceResponses['list'];
+            } else if (trimmedCmd.includes('systemctl') && trimmedCmd.includes('status')) {
+                response = serviceResponses['status'];
+            } else if (trimmedCmd.includes('journalctl')) {
+                response = serviceResponses['journalctl'];
+            } else if (trimmedCmd.includes('systemctl') && trimmedCmd.includes('disable')) {
+                response = serviceResponses['disable'];
+            } else if (trimmedCmd.includes('systemctl') && trimmedCmd.includes('stop')) {
+                response = serviceResponses['stop'];
+            }
+
+            if (response) {
+                const line = document.createElement('div');
+                line.className = 'terminal-line output';
+                line.innerHTML = response;
+                output.appendChild(line);
+            }
+
+            checkTaskCompletion(trimmedCmd);
+            return !!response;
+        }
+
+        function checkTaskCompletion(cmd) {
+            const task = tasks[currentTask];
+            if (task && task.check(cmd) && !completedTasks.has(task.id)) {
+                completedTasks.add(task.id);
+                markStepComplete(task.id);
+                if (currentTask < tasks.length - 1) {
+                    currentTask++;
+                    setTimeout(() => updateMissionDisplay(), 500);
+                } else {
+                    setTimeout(() => showCompletionModal(), 1000);
+                }
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const dot = document.getElementById(`step-${stepNum}`);
+            const connector = document.getElementById(`conn-${stepNum}`);
+            if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.textContent = '✓'; }
+            if (connector) connector.classList.add('completed');
+            const nextDot = document.getElementById(`step-${stepNum + 1}`);
+            if (nextDot && !nextDot.classList.contains('completed')) nextDot.classList.add('active');
+
+            const output = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line success';
+            line.innerHTML = `\n[✓] OBJECTIVE ${stepNum} COMPLETE\n`;
+            output.appendChild(line);
+        }
+
+        function updateMissionDisplay() {
+            const task = tasks[currentTask];
+            const display = document.getElementById('currentMissionDisplay');
+            if (task) display.innerHTML = `<div class="current-mission"><h4>${task.title}</h4><p>${task.description}</p><div class="hint">${task.hint}</div></div>`;
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.markComplete('clh-023-services');
+        }
+
+        document.getElementById('step-1').classList.add('active');
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-029 Lab: Vim Essentials - Hexworth Prime</title>
+    <style>
+        :root { --house-primary: #a78bfa; --house-secondary: #8b5cf6; --terminal-green: #4ade80; --terminal-bg: #0d1117; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0a0a0f; font-family: 'Segoe UI', sans-serif; color: #e0e0e0; }
+        .lab-header { padding: 15px 30px; background: rgba(10, 10, 15, 0.95); border-bottom: 1px solid rgba(167, 139, 250, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { padding: 8px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #888; text-decoration: none; font-size: 0.85rem; }
+        .lab-title { color: var(--house-primary); font-size: 1.1rem; }
+        .step-indicator { display: flex; gap: 8px; }
+        .step-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+        .step-dot.active { background: var(--house-primary); box-shadow: 0 0 10px var(--house-primary); }
+        .step-dot.completed { background: var(--terminal-green); }
+        .lab-container { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 60px); }
+        .mission-panel { padding: 30px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05); }
+        .mission-badge { display: inline-block; padding: 6px 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 20px; font-size: 0.7rem; letter-spacing: 0.1em; color: #ef4444; margin-bottom: 20px; }
+        .mission-title { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
+        .mission-subtitle { color: #666; margin-bottom: 25px; font-size: 0.9rem; }
+        .task-card { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .task-card.active { border-color: var(--house-primary); box-shadow: 0 0 20px rgba(167, 139, 250, 0.1); }
+        .task-card.completed { border-color: var(--terminal-green); opacity: 0.7; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .task-number { font-size: 0.75rem; color: var(--house-primary); letter-spacing: 0.1em; }
+        .task-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #666; }
+        .task-card.active .task-status { background: rgba(167, 139, 250, 0.2); color: var(--house-primary); }
+        .task-card.completed .task-status { background: rgba(74, 222, 128, 0.2); color: var(--terminal-green); }
+        .task-title { font-size: 1.1rem; color: #fff; margin-bottom: 8px; }
+        .task-hint { font-size: 0.85rem; color: #888; font-family: monospace; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; margin-top: 10px; }
+        .terminal-panel { background: var(--terminal-bg); display: flex; flex-direction: column; }
+        .terminal-header { padding: 12px 20px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; }
+        .terminal-dots { display: flex; gap: 6px; }
+        .terminal-dots span { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-dots span:nth-child(1) { background: #ef4444; }
+        .terminal-dots span:nth-child(2) { background: #fbbf24; }
+        .terminal-dots span:nth-child(3) { background: #22c55e; }
+        .terminal-title { color: #666; font-size: 0.8rem; margin-left: 10px; }
+        .terminal-body { flex: 1; padding: 20px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+        .terminal-line { margin-bottom: 8px; line-height: 1.5; }
+        .terminal-line.command { color: var(--terminal-green); }
+        .terminal-line.output { color: #888; }
+        .terminal-line.error { color: #ef4444; }
+        .terminal-line.success { color: var(--terminal-green); }
+        .terminal-line.warning { color: #fbbf24; }
+        .terminal-input-line { display: flex; align-items: center; margin-top: 10px; }
+        .terminal-prompt { color: #ef4444; margin-right: 10px; font-weight: bold; }
+        .terminal-input { flex: 1; background: transparent; border: none; color: var(--terminal-green); font-family: inherit; font-size: inherit; outline: none; }
+        .completion-banner { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 10, 20, 0.98); border: 2px solid var(--terminal-green); border-radius: 16px; padding: 50px; text-align: center; z-index: 1000; box-shadow: 0 0 60px rgba(74, 222, 128, 0.3); }
+        .completion-banner.show { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+        .completion-icon { font-size: 4rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: var(--terminal-green); margin-bottom: 10px; }
+        .completion-text { color: #888; margin-bottom: 25px; }
+        .completion-btn { padding: 12px 30px; background: linear-gradient(135deg, var(--house-primary), var(--house-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-block; }
+        .intel-panel { background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .intel-panel h4 { color: #ef4444; font-size: 0.8rem; margin-bottom: 8px; letter-spacing: 0.1em; }
+        .intel-panel p { color: #999; font-size: 0.85rem; line-height: 1.5; }
+        .vim-mode { display: inline-block; padding: 4px 10px; background: rgba(74, 222, 128, 0.2); border: 1px solid var(--terminal-green); border-radius: 4px; font-size: 0.8rem; color: var(--terminal-green); margin-left: 10px; }
+        .vim-mode.insert { background: rgba(251, 191, 36, 0.2); border-color: #fbbf24; color: #fbbf24; }
+        .vim-mode.command { background: rgba(167, 139, 250, 0.2); border-color: var(--house-primary); color: var(--house-primary); }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <a href="../../clh/clh-029-intro.html" class="back-btn">&larr; Back to Lesson</a>
+        <span class="lab-title">CLH-029: Vim Lab</span>
+        <div class="step-indicator" id="stepIndicator"></div>
+    </header>
+
+    <div class="lab-container">
+        <div class="mission-panel">
+            <div class="mission-badge">OPERATION PHOENIX NEST</div>
+            <h1 class="mission-title">Field Editing</h1>
+            <p class="mission-subtitle">Modify critical configs using vim. No GUI available.</p>
+
+            <div class="intel-panel">
+                <h4>SITUATION REPORT</h4>
+                <p>You've compromised PHOENIX NEST server via SSH. No graphical interface available. Your objectives: Open /etc/hosts in vim, add an entry to redirect enemy C2, save changes, then verify the modification. Vim commands only.</p>
+            </div>
+
+            <div id="taskContainer"></div>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <div class="terminal-dots"><span></span><span></span><span></span></div>
+                <span class="terminal-title">operator@phoenix:~$</span>
+                <span class="vim-mode" id="vimMode" style="display:none;">NORMAL</span>
+            </div>
+            <div class="terminal-body" id="terminalBody">
+                <div class="terminal-line output">=== PHOENIX NEST - TERMINAL ACCESS ===</div>
+                <div class="terminal-line output">SSH connection established. GUI unavailable.</div>
+                <div class="terminal-line warning">[MISSION] Redirect enemy C2 via /etc/hosts modification</div>
+                <div class="terminal-line output">Type 'help' for available commands.</div>
+                <div class="terminal-line output">&nbsp;</div>
+            </div>
+            <div style="padding: 0 20px 20px;">
+                <div class="terminal-input-line">
+                    <span class="terminal-prompt" id="terminalPrompt">operator@phoenix:#</span>
+                    <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" spellcheck="false" autofocus>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <div class="completion-icon">&#128221;</div>
+        <div class="completion-title">C2 REDIRECTED</div>
+        <p class="completion-text">Enemy command & control now points to localhost. Mission accomplished.</p>
+        <a href="../../clh/clh-030-intro.html" class="completion-btn">Continue to CLH-030 &rarr;</a>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/TrailHunter.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script>
+        const tasks = [
+            { id: 1, title: 'OPEN: Launch vim with /etc/hosts', hint: '$ vim /etc/hosts', check: cmd => cmd.includes('vim') && cmd.includes('/etc/hosts') },
+            { id: 2, title: 'NAVIGATE: Go to end of file', hint: 'In vim: G (capital G)', check: cmd => cmd === 'g' || cmd === 'G' },
+            { id: 3, title: 'INSERT: Open new line and add entry', hint: 'Press o, then type: 127.0.0.1    c2.enemy.net', check: cmd => cmd.includes('127.0.0.1') && cmd.includes('c2') },
+            { id: 4, title: 'EXIT INSERT: Return to Normal mode', hint: 'Press Esc key (type "esc" here)', check: cmd => cmd.toLowerCase() === 'esc' || cmd.toLowerCase() === 'escape' },
+            { id: 5, title: 'SAVE: Write and quit', hint: 'Type :wq and press Enter', check: cmd => cmd === ':wq' || cmd === ':x' || cmd === 'zz' }
+        ];
+
+        let currentTask = 0;
+        let inVim = false;
+        let vimMode = 'normal';
+        let hostsModified = false;
+        let insertedLine = '';
+        let currentDir = '/home/operator';
+
+        // Filesystem for navigation
+        const fs = {
+            '/': { type: 'dir', children: ['home', 'etc', 'var', 'tmp'] },
+            '/home': { type: 'dir', children: ['operator', 'admin'] },
+            '/home/operator': { type: 'dir', children: ['intel', 'scripts', '.vimrc'] },
+            '/home/operator/intel': { type: 'dir', children: ['targets.txt', 'c2-list.txt'] },
+            '/home/operator/scripts': { type: 'dir', children: ['redirect.sh'] },
+            '/etc': { type: 'dir', children: ['passwd', 'hosts', 'shadow', 'resolv.conf'] },
+            '/var': { type: 'dir', children: ['log', 'www'] },
+            '/var/log': { type: 'dir', children: ['syslog', 'auth.log'] },
+            '/tmp': { type: 'dir', children: [] }
+        };
+
+        const fileContents = {
+            '/home/operator/intel/targets.txt': `Target: c2.enemy.net
+Purpose: Malware command & control
+Action: Redirect to localhost via /etc/hosts`,
+            '/home/operator/intel/c2-list.txt': `Known C2 Domains:
+- c2.enemy.net (primary)
+- backup.enemy.net (secondary)
+- exfil.enemy.net (data exfiltration)`,
+            '/etc/passwd': `root:x:0:0:root:/root:/bin/bash
+operator:x:1000:1000:Operator:/home/operator:/bin/bash
+admin:x:1001:1001:Admin:/home/admin:/bin/bash`,
+            '/etc/resolv.conf': `nameserver 8.8.8.8
+nameserver 8.8.4.4`,
+        };
+
+        const commands = ['help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'vim', 'whoami', 'hostname'];
+
+        const hostsContent = `127.0.0.1       localhost
+127.0.1.1       phoenix-nest
+192.168.1.1     gateway
+10.0.0.5        db-server
+10.0.0.6        web-server`;
+
+        function initTasks() {
+            const container = document.getElementById('taskContainer');
+            const indicator = document.getElementById('stepIndicator');
+            tasks.forEach((task, i) => {
+                container.innerHTML += `<div class="task-card" id="task${i}"><div class="task-header"><span class="task-number">TASK ${task.id}</span><span class="task-status" id="status${i}">PENDING</span></div><div class="task-title">${task.title}</div><div class="task-hint">${task.hint}</div></div>`;
+                indicator.innerHTML += `<div class="step-dot" id="dot${i}"></div>`;
+            });
+            updateTaskDisplay();
+        }
+
+        function updateTaskDisplay() {
+            tasks.forEach((_, i) => {
+                const card = document.getElementById(`task${i}`);
+                const status = document.getElementById(`status${i}`);
+                const dot = document.getElementById(`dot${i}`);
+                card.classList.remove('active', 'completed');
+                dot.classList.remove('active', 'completed');
+                if (i < currentTask) { card.classList.add('completed'); status.textContent = 'COMPLETE'; dot.classList.add('completed'); }
+                else if (i === currentTask) { card.classList.add('active'); status.textContent = 'ACTIVE'; dot.classList.add('active'); }
+                else { status.textContent = 'PENDING'; }
+            });
+        }
+
+        function updateVimMode(mode) {
+            vimMode = mode;
+            const modeEl = document.getElementById('vimMode');
+            modeEl.textContent = mode.toUpperCase();
+            modeEl.className = 'vim-mode';
+            if (mode === 'insert') modeEl.classList.add('insert');
+            else if (mode === 'command') modeEl.classList.add('command');
+        }
+
+        function addOutput(text, type = 'output') {
+            const body = document.getElementById('terminalBody');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.innerHTML = text;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function showVimEditor() {
+            const body = document.getElementById('terminalBody');
+            body.innerHTML = '';
+
+            const lines = hostsContent.split('\n');
+            lines.forEach((l, i) => {
+                addOutput(`<span style="color:#666;margin-right:10px;">${(i+1).toString().padStart(2)}</span>${l}`);
+            });
+            if (insertedLine) {
+                addOutput(`<span style="color:#666;margin-right:10px;">${(lines.length+1).toString().padStart(2)}</span><span style="color:#4ade80;">${insertedLine}</span>`);
+            }
+            addOutput('~');
+            addOutput('~');
+            addOutput(`<span style="color:#666;">"${hostsModified ? '[Modified] ' : ''}/etc/hosts" ${lines.length + (insertedLine ? 1 : 0)}L</span>`);
+        }
+
+        function handleCommand(cmd) {
+            const trimmed = cmd.trim();
+            const lower = trimmed.toLowerCase();
+
+            // Not in vim - shell commands
+            if (!inVim) {
+                addOutput(`<span style="color:#ef4444;">operator@phoenix:#</span> ${cmd}`, 'command');
+
+                if (lower === 'help') {
+                    addOutput(`<span style="color:#fbbf24;">VIM COMMANDS:</span>
+  vim [file]  - Open file in vim editor
+
+<span style="color:#8b949e;">IN VIM (Normal mode):</span>
+  i, a        - Enter insert mode
+  o           - New line below, enter insert
+  G           - Go to end of file
+  :wq         - Save and quit
+  :q!         - Quit without saving
+  ZZ          - Save and quit (shortcut)
+
+<span style="color:#8b949e;">NAVIGATION & FILES:</span>
+  ls [path]   - List directory contents
+  cd [path]   - Change directory
+  pwd         - Print working directory
+  cat FILE    - View file contents
+  whoami      - Current user
+  hostname    - System name
+  clear       - Clear terminal`);
+                    return;
+                }
+
+                if (lower === 'clear') {
+                    document.getElementById('terminalBody').innerHTML = '';
+                    return;
+                }
+
+                if (lower === 'pwd') {
+                    addOutput(currentDir);
+                    return;
+                }
+
+                if (lower === 'whoami') {
+                    addOutput('operator');
+                    return;
+                }
+
+                if (lower === 'hostname') {
+                    addOutput('phoenix-nest');
+                    return;
+                }
+
+                if (lower === 'ls' || lower.startsWith('ls ')) {
+                    let targetPath = currentDir;
+                    if (lower !== 'ls') {
+                        const arg = cmd.trim().split(/\s+/)[1];
+                        if (arg && !arg.startsWith('-')) {
+                            targetPath = arg.startsWith('/') ? arg : (currentDir === '/' ? '/' + arg : currentDir + '/' + arg);
+                        }
+                    }
+                    targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                    if (fs[targetPath]) {
+                        const items = fs[targetPath].children || [];
+                        if (items.length === 0) addOutput('(empty directory)');
+                        else {
+                            const colored = items.map(item => {
+                                const itemPath = targetPath === '/' ? '/' + item : targetPath + '/' + item;
+                                return fs[itemPath] ? `<span style="color:#60a5fa;">${item}/</span>` : item;
+                            });
+                            addOutput(colored.join('  '));
+                        }
+                    } else {
+                        addOutput(`ls: cannot access '${targetPath}': No such file or directory`, 'error');
+                    }
+                    return;
+                }
+
+                if (lower === 'cd' || lower.startsWith('cd ')) {
+                    let target = lower === 'cd' ? '/home/operator' : cmd.trim().split(/\s+/)[1];
+                    if (target === '~') target = '/home/operator';
+                    if (target === '..') {
+                        const parts = currentDir.split('/').filter(p => p);
+                        parts.pop();
+                        target = '/' + parts.join('/') || '/';
+                    }
+                    if (!target.startsWith('/')) target = currentDir === '/' ? '/' + target : currentDir + '/' + target;
+                    target = target.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                    if (fs[target]) currentDir = target;
+                    else addOutput(`cd: ${target}: No such file or directory`, 'error');
+                    return;
+                }
+
+                if (lower.includes('vim') && lower.includes('/etc/hosts')) {
+                    inVim = true;
+                    document.getElementById('vimMode').style.display = 'inline-block';
+                    document.getElementById('terminalPrompt').textContent = ':';
+                    updateVimMode('normal');
+                    showVimEditor();
+                    checkTask(cmd);
+                    return;
+                }
+
+                if (lower.startsWith('cat')) {
+                    const file = cmd.trim().split(/\s+/)[1];
+                    if (!file) {
+                        addOutput('cat: missing operand', 'error');
+                        return;
+                    }
+                    if (file.includes('/etc/hosts')) {
+                        addOutput(hostsContent);
+                        if (insertedLine) {
+                            addOutput(`<span style="color:#4ade80;">${insertedLine}</span>`);
+                            addOutput('<span style="color:#4ade80;">[VERIFIED] C2 redirect entry present!</span>', 'success');
+                        }
+                        return;
+                    }
+                    let filePath = file.startsWith('/') ? file : (currentDir === '/' ? '/' + file : currentDir + '/' + file);
+                    filePath = filePath.replace(/\/+/g, '/');
+                    if (fileContents[filePath]) addOutput(fileContents[filePath]);
+                    else if (fs[filePath]) addOutput(`cat: ${file}: Is a directory`, 'error');
+                    else addOutput(`cat: ${file}: No such file or directory`, 'error');
+                    return;
+                }
+
+                addOutput(`${cmd.split(' ')[0]}: command not found`, 'error');
+                return;
+            }
+
+            // In vim - vim commands
+            if (vimMode === 'normal') {
+                // Go to end of file
+                if (trimmed === 'G' || trimmed === 'g') {
+                    addOutput('<span style="color:#fbbf24;">[CURSOR] Moved to last line</span>', 'warning');
+                    checkTask(trimmed);
+                    return;
+                }
+
+                // Open new line below (enter insert mode)
+                if (trimmed === 'o') {
+                    updateVimMode('insert');
+                    document.getElementById('terminalPrompt').textContent = '-- INSERT --';
+                    addOutput('<span style="color:#fbbf24;">[INSERT MODE] Type your text, then press Esc</span>', 'warning');
+                    return;
+                }
+
+                // Enter insert mode
+                if (trimmed === 'i' || trimmed === 'a') {
+                    updateVimMode('insert');
+                    document.getElementById('terminalPrompt').textContent = '-- INSERT --';
+                    addOutput('<span style="color:#fbbf24;">[INSERT MODE] Type your text, then press Esc</span>', 'warning');
+                    return;
+                }
+
+                // Command mode
+                if (trimmed.startsWith(':')) {
+                    if (trimmed === ':wq' || trimmed === ':x') {
+                        if (hostsModified) {
+                            inVim = false;
+                            document.getElementById('vimMode').style.display = 'none';
+                            document.getElementById('terminalPrompt').textContent = 'operator@phoenix:#';
+                            document.getElementById('terminalBody').innerHTML = '';
+                            addOutput('<span style="color:#4ade80;">[SAVED] /etc/hosts written</span>', 'success');
+                            addOutput('<span style="color:#4ade80;">[REDIRECT] c2.enemy.net -> 127.0.0.1</span>', 'success');
+                            addOutput('<span style="color:#fbbf24;">[EFFECT] Enemy malware can no longer reach C2!</span>', 'warning');
+                            checkTask(trimmed);
+                        } else {
+                            addOutput('<span style="color:#fbbf24;">No changes to save. Add the redirect entry first.</span>', 'warning');
+                        }
+                        return;
+                    }
+                    if (trimmed === ':q') {
+                        if (hostsModified) {
+                            addOutput('<span style="color:#ef4444;">E37: No write since last change (add ! to override)</span>', 'error');
+                        } else {
+                            inVim = false;
+                            document.getElementById('vimMode').style.display = 'none';
+                            document.getElementById('terminalPrompt').textContent = 'operator@phoenix:#';
+                        }
+                        return;
+                    }
+                    if (trimmed === ':q!') {
+                        inVim = false;
+                        hostsModified = false;
+                        insertedLine = '';
+                        document.getElementById('vimMode').style.display = 'none';
+                        document.getElementById('terminalPrompt').textContent = 'operator@phoenix:#';
+                        addOutput('<span style="color:#fbbf24;">[QUIT] Changes discarded</span>', 'warning');
+                        return;
+                    }
+                    if (trimmed === ':w') {
+                        addOutput('<span style="color:#4ade80;">[SAVED] /etc/hosts written</span>', 'success');
+                        return;
+                    }
+                }
+
+                // ZZ - save and quit
+                if (trimmed === 'ZZ' || lower === 'zz') {
+                    if (hostsModified) {
+                        inVim = false;
+                        document.getElementById('vimMode').style.display = 'none';
+                        document.getElementById('terminalPrompt').textContent = 'operator@phoenix:#';
+                        document.getElementById('terminalBody').innerHTML = '';
+                        addOutput('<span style="color:#4ade80;">[SAVED] /etc/hosts written</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">[REDIRECT] c2.enemy.net -> 127.0.0.1</span>', 'success');
+                        checkTask(':wq');
+                    }
+                    return;
+                }
+
+                addOutput(`<span style="color:#666;">Key: ${trimmed} (Normal mode)</span>`);
+                return;
+            }
+
+            // Insert mode
+            if (vimMode === 'insert') {
+                // Exit insert mode
+                if (lower === 'esc' || lower === 'escape') {
+                    updateVimMode('normal');
+                    document.getElementById('terminalPrompt').textContent = ':';
+                    addOutput('<span style="color:#fbbf24;">[NORMAL MODE] Ready for commands</span>', 'warning');
+                    checkTask(lower);
+                    return;
+                }
+
+                // Check for the redirect entry
+                if (trimmed.includes('127.0.0.1') && (trimmed.includes('c2') || trimmed.includes('enemy'))) {
+                    insertedLine = trimmed;
+                    hostsModified = true;
+                    showVimEditor();
+                    addOutput('<span style="color:#4ade80;">[ENTRY ADDED] C2 redirect configured!</span>', 'success');
+                    addOutput('<span style="color:#fbbf24;">Press Esc to exit insert mode, then :wq to save</span>', 'warning');
+                    checkTask(trimmed);
+                    return;
+                }
+
+                // Generic text insertion
+                if (trimmed.length > 0) {
+                    insertedLine = trimmed;
+                    hostsModified = true;
+                    showVimEditor();
+                    addOutput(`<span style="color:#666;">Inserted: ${trimmed}</span>`);
+                }
+                return;
+            }
+        }
+
+        function checkTask(cmd) {
+            if (currentTask < tasks.length && tasks[currentTask].check(cmd)) {
+                currentTask++;
+                updateTaskDisplay();
+                if (currentTask >= tasks.length) {
+                    setTimeout(() => {
+                        addOutput('', 'output');
+                        addOutput('<span style="color:#4ade80;">===============================================</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  OPERATION PHOENIX NEST - COMPLETE</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  </span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  /etc/hosts modified successfully</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  Enemy C2: c2.enemy.net -> 127.0.0.1</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">  Malware neutralized via DNS redirect</span>', 'success');
+                        addOutput('<span style="color:#4ade80;">===============================================</span>', 'success');
+                        document.getElementById('completionBanner').classList.add('show');
+                        if (typeof ModuleProgress !== 'undefined') {
+                            ModuleProgress.completeLab('script', 'clh-029-vim', { returnToDashboard: false });
+                        }
+                    }, 500);
+                }
+            }
+        }
+
+        // Tab completion (only when not in vim)
+        function autoComplete(input) {
+            if (inVim) return input;
+            const parts = input.split(' ');
+            if (parts.length === 1) {
+                const partial = parts[0].toLowerCase();
+                const matches = commands.filter(cmd => cmd.startsWith(partial));
+                if (matches.length === 1) return matches[0] + ' ';
+                return input;
+            } else {
+                const cmd = parts[0];
+                const partial = parts.slice(1).join(' ') || '';
+                let basePath = partial.includes('/') ? partial.substring(0, partial.lastIndexOf('/')) || '/' : currentDir;
+                const searchTerm = partial.includes('/') ? partial.substring(partial.lastIndexOf('/') + 1) : partial;
+                if (!basePath.startsWith('/')) basePath = currentDir + '/' + basePath;
+                basePath = basePath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+                const dir = fs[basePath];
+                if (dir && dir.children) {
+                    const matches = dir.children.filter(c => c.toLowerCase().startsWith(searchTerm.toLowerCase()));
+                    if (matches.length === 1) {
+                        const completedPath = partial.includes('/') ? partial.substring(0, partial.lastIndexOf('/') + 1) + matches[0] : matches[0];
+                        const fullPath = (basePath + '/' + matches[0]).replace(/\/+/g, '/');
+                        return cmd + ' ' + completedPath + (fs[fullPath] ? '/' : '');
+                    }
+                }
+                return input;
+            }
+        }
+
+        document.getElementById('terminalInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                handleCommand(this.value);
+                this.value = '';
+            }
+            // Tab completion
+            if (e.key === 'Tab' && !inVim) {
+                e.preventDefault();
+                this.value = autoComplete(this.value);
+                this.selectionStart = this.selectionEnd = this.value.length;
+            }
+            // Handle Escape key directly
+            if (e.key === 'Escape' && inVim && vimMode === 'insert') {
+                handleCommand('esc');
+                e.preventDefault();
+            }
+        });
+
+        initTasks();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

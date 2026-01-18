@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-016: System Intel - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: 'Cascadia Code', monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: 'Cascadia Code', monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; margin-bottom: 10px; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .code-box .comment { color: #6e7681; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+        .tip-box { background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #00ff41; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-016</span>
+                        <h1>System Intel</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@EMBASSY-WS-07:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION IRON HARVEST - Embassy Workstation Access</div>
+                    <div class="terminal-line output">[SYSTEM] Remote shell established via compromised SSH key</div>
+                    <div class="terminal-line output">[INTEL] Target: Foreign embassy IT administrator workstation</div>
+                    <div class="terminal-line" style="color: #fbbf24;">&gt; Mission: Profile system specs before deploying collection tools</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@EMBASSY-WS-07:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>IDENTIFY: System Architecture</h4>
+                        <p>Determine the kernel version and CPU architecture to know which tools will execute.</p>
+                        <div class="hint">$ uname -a</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>SYSTEM INTEL BRIEFING</h2>
+            <div class="warning-box">
+                <strong>CLASSIFIED: OPERATION IRON HARVEST</strong>
+                <p style="margin-top:8px;color:#ccc;">Embassy workstation access obtained. Profile before deploying KEYLOGGER implant.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Why System Profiling?</h3>
+                <p>Before deploying tools on a compromised system, you must know:</p>
+                <ul style="margin-left: 20px; color: #8b949e; line-height: 1.8;">
+                    <li>CPU architecture (x86_64, ARM, etc.)</li>
+                    <li>Available memory for implants</li>
+                    <li>Disk space for staging data</li>
+                    <li>Kernel version for exploit compatibility</li>
+                </ul>
+            </div>
+            <div class="intel-section">
+                <h3>Key Commands</h3>
+                <div class="code-box">
+                    <div class="cmd">$ uname -a</div>
+                    <div class="output">System identity (kernel, arch)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ lscpu</div>
+                    <div class="output">CPU details and capabilities</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ free -h</div>
+                    <div class="output">Memory usage (human-readable)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ uptime</div>
+                    <div class="output">System uptime and load</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ df -h</div>
+                    <div class="output">Disk free space</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ du -sh /path</div>
+                    <div class="output">Directory size summary</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>OPERATIONAL TIP:</strong>
+                <p>Long uptime = likely unpatched. Check kernel version against CVE databases.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>MISSION COMPLETE</h2>
+            <p>System profile acquired. Target workstation specs documented for IRON HARVEST deployment team.</p>
+            <p style="color: #3fb950; margin-bottom: 20px;">Intel Package Ready for Transmission</p>
+            <div class="modal-buttons">
+                <a href="../../clh/clh-017-intro.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tasks = [
+            { id: 1, title: 'IDENTIFY: System Architecture', description: 'Determine the kernel version and CPU architecture to know which tools will execute.', hint: '$ uname -a', check: cmd => cmd.includes('uname') },
+            { id: 2, title: 'PROFILE: CPU Capabilities', description: 'Get detailed CPU info - cores, threads, virtualization support.', hint: '$ lscpu', check: cmd => cmd.includes('lscpu') },
+            { id: 3, title: 'ASSESS: Memory Resources', description: 'Check available RAM to determine implant loading capacity.', hint: '$ free -h', check: cmd => cmd.includes('free') },
+            { id: 4, title: 'ANALYZE: Disk Space', description: 'Find available disk space for staging exfiltrated data.', hint: '$ df -h', check: cmd => cmd.includes('df') },
+            { id: 5, title: 'ESTIMATE: Target Directory Size', description: 'Measure size of /home to estimate exfiltration volume.', hint: '$ du -sh /home', check: cmd => cmd.includes('du') && cmd.includes('/home') }
+        ];
+
+        let currentTask = 0;
+        const completedTasks = new Set();
+
+        // Terminal filesystem
+        const terminal = {
+            fs: {
+                '/': { type: 'dir', children: ['home', 'var', 'etc', 'tmp', 'data'] },
+                '/home': { type: 'dir', children: ['operator', 'ambassador', 'attache'] },
+                '/home/operator': { type: 'dir', children: ['.ssh', 'intel', 'tools'] },
+                '/home/operator/.ssh': { type: 'dir', children: ['id_rsa', 'id_rsa.pub', 'known_hosts'] },
+                '/home/operator/intel': { type: 'dir', children: ['notes.txt', 'targets.list'] },
+                '/home/operator/tools': { type: 'dir', children: ['recon.sh', 'exfil.py'] },
+                '/home/ambassador': { type: 'dir', children: ['documents', 'emails', '.classified'] },
+                '/home/ambassador/documents': { type: 'dir', children: ['treaties', 'cables', 'dossiers'] },
+                '/home/ambassador/.classified': { type: 'dir', children: ['MAJESTIC-12.pdf', 'TREATY-DRAFT.doc', 'ASSET-LIST.xlsx'] },
+                '/home/attache': { type: 'dir', children: ['reports', 'schedules'] },
+                '/var': { type: 'dir', children: ['log', 'tmp', 'cache'] },
+                '/var/log': { type: 'dir', children: ['auth.log', 'syslog', 'messages'] },
+                '/etc': { type: 'dir', children: ['passwd', 'shadow', 'hostname', 'hosts'] },
+                '/tmp': { type: 'dir', children: [] },
+                '/data': { type: 'dir', children: ['backups', 'archives', 'diplomatic-cables'] },
+                '/data/diplomatic-cables': { type: 'dir', children: ['2024-Q1', '2024-Q2', '2024-Q3', '2024-Q4'] }
+            }
+        };
+
+        // System info responses
+        const systemResponses = {
+            'help': `<span style="color:#fbbf24;">SYSTEM INTEL COMMANDS:</span>
+  uname -a     System identity (kernel, architecture)
+  lscpu        CPU details and capabilities
+  free -h      Memory usage (human-readable)
+  uptime       System uptime and load average
+  df -h        Disk free space
+  du -sh PATH  Directory size (e.g., du -sh /home)
+
+<span style="color:#8b949e;">NAVIGATION & FILES:</span>
+  ls           List directory contents
+  pwd          Print working directory
+  cd PATH      Change directory (cd .., cd /etc)
+  cat FILE     View file contents (cat /etc/passwd)
+  whoami       Show current user
+  hostname     Show system hostname`,
+
+            'uname -a': `Linux EMBASSY-WS-07 5.15.0-91-generic #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux
+
+<span style="color:#fbbf24;">[INTEL] Ubuntu 22.04 LTS, kernel 5.15.0-91 - Check CVE-2023-* for exploits</span>
+<span style="color:#fbbf24;">[INTEL] x86_64 architecture - Standard tools will execute</span>`,
+
+            'uname': `Linux`,
+            'uname -r': `5.15.0-91-generic`,
+            'uname -m': `x86_64`,
+            'uname -n': `EMBASSY-WS-07`,
+
+            'lscpu': `Architecture:            x86_64
+CPU op-mode(s):          32-bit, 64-bit
+Address sizes:           46 bits physical, 48 bits virtual
+Byte Order:              Little Endian
+CPU(s):                  8
+On-line CPU(s) list:     0-7
+Vendor ID:               GenuineIntel
+Model name:              Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz
+CPU family:              6
+Thread(s) per core:      2
+Core(s) per socket:      4
+Socket(s):               1
+Stepping:                5
+CPU max MHz:             4800.0000
+CPU min MHz:             800.0000
+Virtualization:          VT-x
+L1d cache:               128 KiB
+L1i cache:               128 KiB
+L2 cache:                1 MiB
+L3 cache:                16 MiB
+
+<span style="color:#fbbf24;">[INTEL] 8 logical CPUs - Can handle parallel operations</span>
+<span style="color:#fbbf24;">[INTEL] VT-x enabled - Virtualization possible for hiding</span>`,
+
+            'free': `               total        used        free      shared  buff/cache   available
+Mem:        32768420     8234512    18234908      524288     6299000    23456789
+Swap:        4194304           0     4194304
+
+<span style="color:#fbbf24;">[INTEL] 32GB RAM total, ~23GB available</span>
+<span style="color:#fbbf24;">[INTEL] Sufficient for memory-resident implant deployment</span>`,
+
+            'free -h': `               total        used        free      shared  buff/cache   available
+Mem:            31Gi       7.8Gi        17Gi       512Mi       6.0Gi        22Gi
+Swap:          4.0Gi          0B       4.0Gi
+
+<span style="color:#fbbf24;">[INTEL] 32GB RAM total, 22GB available for operations</span>
+<span style="color:#fbbf24;">[INTEL] No swap usage - system not under memory pressure</span>`,
+
+            'free -m': `               total        used        free      shared  buff/cache   available
+Mem:           32000        7850       17800         512        5850       22900
+Swap:           4096           0        4096`,
+
+            'free -g': `               total        used        free      shared  buff/cache   available
+Mem:              31           7          17           0           5          22
+Swap:              4           0           4`,
+
+            'uptime': ` 14:32:17 up 127 days, 5:41,  3 users,  load average: 0.15, 0.21, 0.18
+
+<span style="color:#ef4444;">[CRITICAL] 127 days uptime - NO SECURITY PATCHES since boot</span>
+<span style="color:#fbbf24;">[INTEL] Low load average - System idle, detection risk minimal</span>`,
+
+            'df': `Filesystem     1K-blocks      Used Available Use% Mounted on
+/dev/sda1      461373440 130234880 307644288  30% /
+tmpfs            1638420         0   1638420   0% /dev/shm
+/dev/sdb1     1922174976 1267234816 557072384  70% /data
+
+<span style="color:#fbbf24;">[INTEL] 300GB free on root, 530GB free on /data</span>
+<span style="color:#fbbf24;">[INTEL] /data partition likely contains diplomatic files</span>`,
+
+            'df -h': `Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       440G  124G  294G  30% /
+tmpfs           1.6G     0  1.6G   0% /dev/shm
+/dev/sdb1       1.8T  1.2T  531G  70% /data
+
+<span style="color:#fbbf24;">[INTEL] 294GB free on root for staging</span>
+<span style="color:#fbbf24;">[INTEL] 531GB free on /data - massive exfil capacity</span>
+<span style="color:#ef4444;">[TARGET] /data contains 1.2TB of data - HIGH VALUE</span>`,
+
+            'df -T': `Filesystem     Type  1K-blocks      Used Available Use% Mounted on
+/dev/sda1      ext4  461373440 130234880 307644288  30% /
+tmpfs          tmpfs   1638420         0   1638420   0% /dev/shm
+/dev/sdb1      ext4 1922174976 1267234816 557072384  70% /data`,
+
+            'du -sh /home': `47G     /home
+
+<span style="color:#fbbf24;">[INTEL] /home contains 47GB - User data and profiles</span>
+<span style="color:#fbbf24;">[TARGET] Ambassador folder likely contains classified materials</span>`,
+
+            'du -sh /home/ambassador': `32G     /home/ambassador
+
+<span style="color:#ef4444;">[HIGH VALUE] Ambassador home: 32GB of diplomatic data</span>`,
+
+            'du -sh /data': `1.2T    /data
+
+<span style="color:#ef4444;">[CRITICAL] /data partition: 1.2TB diplomatic cables and archives</span>`,
+
+            'du -sh /home/operator': `1.2G    /home/operator`,
+            'du -sh /tmp': `24M     /tmp`,
+            'du -sh /var': `8.3G    /var`
+        };
+
+        let currentDir = '/home/operator';
+
+        function handleCommand(cmd) {
+            const trimmedCmd = cmd.trim();
+            const lowerCmd = trimmedCmd.toLowerCase();
+            const output = document.getElementById('terminal');
+
+            // Add command echo
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'terminal-line';
+            cmdLine.innerHTML = `<span style="color:#00ff41;">operator@EMBASSY-WS-07:${currentDir}$</span> ${trimmedCmd}`;
+            output.appendChild(cmdLine);
+
+            let response = null;
+
+            // Help command
+            if (lowerCmd === 'help') {
+                response = systemResponses['help'];
+            }
+            // Clear command
+            else if (lowerCmd === 'clear') {
+                output.innerHTML = '<div class="terminal-line output">Terminal cleared.</div>';
+                return true;
+            }
+            // pwd command
+            else if (lowerCmd === 'pwd') {
+                response = currentDir;
+            }
+            // ls command
+            else if (lowerCmd === 'ls' || lowerCmd.startsWith('ls ')) {
+                const path = lowerCmd === 'ls' ? currentDir : (lowerCmd.includes('-') ? currentDir : trimmedCmd.split(' ').pop());
+                const targetPath = path.startsWith('/') ? path : currentDir + '/' + path;
+                const normalizedPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+
+                if (terminal.fs[normalizedPath]) {
+                    const contents = terminal.fs[normalizedPath].children || [];
+                    response = contents.join('  ') || '(empty directory)';
+                } else {
+                    response = `ls: cannot access '${path}': No such file or directory`;
+                }
+            }
+            // cd command
+            else if (lowerCmd === 'cd' || lowerCmd.startsWith('cd ')) {
+                const parts = trimmedCmd.split(' ');
+                let target = parts[1] || '/home/operator';
+                if (target === '~') target = '/home/operator';
+                if (target === '..') {
+                    const parts = currentDir.split('/').filter(p => p);
+                    parts.pop();
+                    target = '/' + parts.join('/') || '/';
+                }
+                if (!target.startsWith('/')) {
+                    target = currentDir + '/' + target;
+                }
+                target = target.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+
+                if (terminal.fs[target]) {
+                    currentDir = target;
+                    response = '';
+                } else {
+                    response = `cd: ${parts[1]}: No such file or directory`;
+                }
+            }
+            // uname commands
+            else if (lowerCmd.includes('uname')) {
+                if (lowerCmd.includes('-a')) {
+                    response = systemResponses['uname -a'];
+                } else if (lowerCmd.includes('-r')) {
+                    response = systemResponses['uname -r'];
+                } else if (lowerCmd.includes('-m')) {
+                    response = systemResponses['uname -m'];
+                } else if (lowerCmd.includes('-n')) {
+                    response = systemResponses['uname -n'];
+                } else {
+                    response = systemResponses['uname'];
+                }
+            }
+            // lscpu
+            else if (lowerCmd.includes('lscpu')) {
+                response = systemResponses['lscpu'];
+            }
+            // free
+            else if (lowerCmd.includes('free')) {
+                if (lowerCmd.includes('-m')) {
+                    response = systemResponses['free -m'];
+                } else if (lowerCmd.includes('-g')) {
+                    response = systemResponses['free -g'];
+                } else {
+                    response = systemResponses['free -h'];
+                }
+            }
+            // uptime
+            else if (lowerCmd === 'uptime') {
+                response = systemResponses['uptime'];
+            }
+            // df
+            else if (lowerCmd.includes('df')) {
+                if (lowerCmd.includes('-t')) {
+                    response = systemResponses['df -T'];
+                } else {
+                    response = systemResponses['df -h'];
+                }
+            }
+            // du
+            else if (lowerCmd.includes('du')) {
+                if (lowerCmd.includes('/home/ambassador')) {
+                    response = systemResponses['du -sh /home/ambassador'];
+                } else if (lowerCmd.includes('/home/operator')) {
+                    response = systemResponses['du -sh /home/operator'];
+                } else if (lowerCmd.includes('/data')) {
+                    response = systemResponses['du -sh /data'];
+                } else if (lowerCmd.includes('/home')) {
+                    response = systemResponses['du -sh /home'];
+                } else if (lowerCmd.includes('/tmp')) {
+                    response = systemResponses['du -sh /tmp'];
+                } else if (lowerCmd.includes('/var')) {
+                    response = systemResponses['du -sh /var'];
+                } else {
+                    response = `du: missing operand\nTry 'du --help' for more information.`;
+                }
+            }
+            // whoami
+            else if (lowerCmd === 'whoami') {
+                response = 'operator';
+            }
+            // hostname
+            else if (lowerCmd === 'hostname') {
+                response = 'EMBASSY-WS-07';
+            }
+            // cat command
+            else if (lowerCmd === 'cat' || lowerCmd.startsWith('cat ')) {
+                if (lowerCmd === 'cat') {
+                    response = 'cat: missing operand';
+                } else {
+                const file = trimmedCmd.split(' ').slice(1).join(' ');
+                const fileContents = {
+                    '/etc/passwd': `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+operator:x:1000:1000:Operator:/home/operator:/bin/bash
+ambassador:x:1001:1001:Ambassador:/home/ambassador:/bin/bash
+attache:x:1002:1002:Attache:/home/attache:/bin/bash`,
+                    '/etc/hostname': 'EMBASSY-WS-07',
+                    '/etc/hosts': `127.0.0.1   localhost
+127.0.1.1   EMBASSY-WS-07
+10.0.0.1    embassy-gateway
+10.0.0.50   secure-file-server`,
+                    '/home/ambassador/.classified/MAJESTIC-12.pdf': '<span style="color:#ef4444;">[BINARY FILE - PDF DOCUMENT]</span>\n<span style="color:#fbbf24;">[CLASSIFIED] Contains references to Project MAJESTIC-12</span>',
+                    '/home/ambassador/.classified/ASSET-LIST.xlsx': '<span style="color:#ef4444;">[BINARY FILE - SPREADSHEET]</span>\n<span style="color:#fbbf24;">[CLASSIFIED] Embedded agent roster - HIGH VALUE</span>',
+                    '/home/operator/intel/notes.txt': `OPERATION IRON HARVEST - Field Notes
+=====================================
+Target: Embassy IT Infrastructure
+Access: SSH key compromise
+Priority: Exfil diplomatic cables from /data partition
+Warning: 127 days uptime = unpatched system`,
+                    '/home/operator/intel/targets.list': `PRIMARY: /data/diplomatic-cables
+SECONDARY: /home/ambassador/.classified
+TERTIARY: /var/log (for cleanup)`,
+                    '/var/log/auth.log': `Jan 15 03:42:17 EMBASSY-WS-07 sshd[2847]: Accepted publickey for operator
+Jan 15 03:42:18 EMBASSY-WS-07 systemd-logind[456]: New session 7 of user operator
+Jan 15 03:47:02 EMBASSY-WS-07 sudo: operator : TTY=pts/0 ; PWD=/home/operator ; COMMAND=/bin/cat /etc/shadow`,
+                };
+
+                // Normalize path
+                let filePath = file;
+                if (!filePath.startsWith('/')) {
+                    filePath = currentDir + '/' + filePath;
+                }
+                filePath = filePath.replace(/\/+/g, '/');
+
+                if (fileContents[filePath]) {
+                    response = fileContents[filePath];
+                } else if (terminal.fs[filePath]) {
+                    response = `cat: ${file}: Is a directory`;
+                } else {
+                    response = `cat: ${file}: No such file or directory`;
+                }
+                }
+            }
+            // Unknown command
+            else {
+                response = `${trimmedCmd.split(' ')[0]}: command not found`;
+            }
+
+            // Display response
+            if (response !== null && response !== '') {
+                const line = document.createElement('div');
+                line.className = 'terminal-line output';
+                line.innerHTML = response;
+                output.appendChild(line);
+            }
+
+            // Scroll to bottom
+            output.scrollTop = output.scrollHeight;
+
+            // Check task completion
+            checkTaskCompletion(lowerCmd);
+
+            return true;
+        }
+
+        function checkTaskCompletion(cmd) {
+            const task = tasks[currentTask];
+            if (task && task.check(cmd) && !completedTasks.has(task.id)) {
+                completedTasks.add(task.id);
+                markStepComplete(task.id);
+
+                if (currentTask < tasks.length - 1) {
+                    currentTask++;
+                    setTimeout(() => updateMissionDisplay(), 500);
+                } else {
+                    setTimeout(() => showCompletionModal(), 1000);
+                }
+            }
+        }
+
+        function markStepComplete(stepNum) {
+            const dot = document.getElementById(`step-${stepNum}`);
+            const connector = document.getElementById(`conn-${stepNum}`);
+            if (dot) {
+                dot.classList.remove('active');
+                dot.classList.add('completed');
+                dot.textContent = '✓';
+            }
+            if (connector) {
+                connector.classList.add('completed');
+            }
+
+            const nextDot = document.getElementById(`step-${stepNum + 1}`);
+            if (nextDot && !nextDot.classList.contains('completed')) {
+                nextDot.classList.add('active');
+            }
+
+            // Add success message
+            const output = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line success';
+            line.innerHTML = `\n[✓] OBJECTIVE ${stepNum} COMPLETE\n`;
+            output.appendChild(line);
+        }
+
+        function updateMissionDisplay() {
+            const task = tasks[currentTask];
+            const display = document.getElementById('currentMissionDisplay');
+            if (task) {
+                display.innerHTML = `
+                    <div class="current-mission">
+                        <h4>${task.title}</h4>
+                        <p>${task.description}</p>
+                        <div class="hint">${task.hint}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.markComplete('clh-016-system-intel');
+            }
+        }
+
+        // Initialize
+        document.getElementById('step-1').classList.add('active');
+
+        // Available commands for auto-completion
+        const commands = ['help', 'clear', 'ls', 'pwd', 'cd', 'cat', 'uname', 'lscpu', 'free', 'uptime', 'df', 'du', 'whoami', 'hostname'];
+
+        // Auto-complete function
+        function autoComplete(input) {
+            const parts = input.split(' ');
+            const isPathCompletion = parts.length > 1 || input.endsWith(' ');
+
+            if (!isPathCompletion) {
+                // Command completion
+                const partial = parts[0].toLowerCase();
+                const matches = commands.filter(cmd => cmd.startsWith(partial));
+                if (matches.length === 1) {
+                    return matches[0] + ' ';
+                } else if (matches.length > 1) {
+                    // Find common prefix
+                    let common = matches[0];
+                    for (let i = 1; i < matches.length; i++) {
+                        while (!matches[i].startsWith(common)) {
+                            common = common.slice(0, -1);
+                        }
+                    }
+                    return common;
+                }
+                return input;
+            } else {
+                // Path completion
+                const cmd = parts[0];
+                const partial = parts.slice(1).join(' ') || '';
+
+                // Determine base path and search term
+                let basePath, searchTerm;
+                if (partial.includes('/')) {
+                    const lastSlash = partial.lastIndexOf('/');
+                    basePath = partial.substring(0, lastSlash) || '/';
+                    searchTerm = partial.substring(lastSlash + 1);
+                } else {
+                    basePath = currentDir;
+                    searchTerm = partial;
+                }
+
+                // Normalize base path
+                if (!basePath.startsWith('/')) {
+                    basePath = currentDir + '/' + basePath;
+                }
+                basePath = basePath.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+
+                // Find matches in filesystem
+                const dir = terminal.fs[basePath];
+                if (dir && dir.children) {
+                    const matches = dir.children.filter(child =>
+                        child.toLowerCase().startsWith(searchTerm.toLowerCase())
+                    );
+
+                    if (matches.length === 1) {
+                        const completedPath = partial.includes('/')
+                            ? partial.substring(0, partial.lastIndexOf('/') + 1) + matches[0]
+                            : matches[0];
+                        // Check if it's a directory to add trailing slash
+                        const fullPath = (basePath + '/' + matches[0]).replace(/\/+/g, '/');
+                        const isDir = terminal.fs[fullPath];
+                        return cmd + ' ' + completedPath + (isDir ? '/' : '');
+                    } else if (matches.length > 1) {
+                        // Find common prefix among matches
+                        let common = matches[0];
+                        for (let i = 1; i < matches.length; i++) {
+                            while (!matches[i].toLowerCase().startsWith(common.toLowerCase())) {
+                                common = common.slice(0, -1);
+                            }
+                        }
+                        const completedPath = partial.includes('/')
+                            ? partial.substring(0, partial.lastIndexOf('/') + 1) + common
+                            : common;
+                        return cmd + ' ' + completedPath;
+                    }
+                }
+                return input;
+            }
+        }
+
+        // Input handler
+        const commandInput = document.getElementById('commandInput');
+        commandInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const cmd = this.value.trim();
+                if (cmd) {
+                    handleCommand(cmd);
+                    this.value = '';
+                }
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                const completed = autoComplete(this.value);
+                this.value = completed;
+                // Move cursor to end
+                this.selectionStart = this.selectionEnd = this.value.length;
+            }
+        });
+
+        // Focus input on click
+        document.getElementById('terminal').addEventListener('click', function() {
+            commandInput.focus();
+        });
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
