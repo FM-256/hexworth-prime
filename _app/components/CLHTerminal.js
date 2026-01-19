@@ -4237,6 +4237,9 @@ class CLHTerminal {
             case 'exit': output = 'logout'; break;
             case 'true': exitCode = 0; break;
             case 'false': exitCode = 1; break;
+            // Script execution
+            case 'bash': case 'sh': output = this._cmdBash(args); break;
+            case 'source': output = this._cmdBash(args); break;
             // Text processing commands
             case 'sort': output = this._cmdSort(args); break;
             case 'uniq': output = this._cmdUniq(args); break;
@@ -4267,8 +4270,27 @@ class CLHTerminal {
             case 'hollywood': output = this._cmdHollywood(); break;
             case '': break;
             default:
-                output = `${cmd}: command not found`;
-                exitCode = 127;
+                // Check for direct script execution (./script.sh or /path/to/script)
+                if (cmd.startsWith('./') || cmd.startsWith('/')) {
+                    const resolved = this._resolvePath(cmd);
+                    const entry = this.fs[resolved];
+
+                    if (entry) {
+                        if (entry.type === 'dir') {
+                            output = `bash: ${cmd}: Is a directory`;
+                        } else if (!entry.perms || !entry.perms.includes('x')) {
+                            output = `bash: ${cmd}: Permission denied`;
+                        } else {
+                            output = this._cmdBash([cmd]);
+                        }
+                    } else {
+                        output = `bash: ${cmd}: No such file or directory`;
+                    }
+                    exitCode = output.includes('Permission denied') || output.includes('No such file') ? 126 : 0;
+                } else {
+                    output = `${cmd}: command not found`;
+                    exitCode = 127;
+                }
         }
 
         return { output, exitCode };
@@ -4365,7 +4387,29 @@ class CLHTerminal {
             case 'vmstat': output = this._cmdVmstat(); break;
             case 'iostat': output = this._cmdIostat(); break;
             case 'sar': output = this._cmdSar(); break;
-            default: output = `${cmd}: command not found`;
+            // Script execution
+            case 'bash': case 'sh': output = this._cmdBash(args); break;
+            case 'source': output = this._cmdBash(args); break;
+            default:
+                // Check for direct script execution (./script.sh or /path/to/script)
+                if (cmd.startsWith('./') || cmd.startsWith('/')) {
+                    const resolved = this._resolvePath(cmd);
+                    const entry = this.fs[resolved];
+
+                    if (entry) {
+                        if (entry.type === 'dir') {
+                            output = `bash: ${cmd}: Is a directory`;
+                        } else if (!entry.perms || !entry.perms.includes('x')) {
+                            output = `bash: ${cmd}: Permission denied`;
+                        } else {
+                            output = this._cmdBash([cmd]);
+                        }
+                    } else {
+                        output = `bash: ${cmd}: No such file or directory`;
+                    }
+                } else {
+                    output = `${cmd}: command not found`;
+                }
         }
 
         if (output) {
@@ -4516,6 +4560,108 @@ class CLHTerminal {
             else results.push(entry.content || '');
         }
         return results.join('\n');
+    }
+
+    _cmdBash(args) {
+        // No arguments - just show bash info
+        if (!args.length) {
+            return 'GNU bash, version 5.1.16(1)-release\nType \'exit\' to exit the shell.';
+        }
+
+        // Handle flags
+        const flags = args.filter(a => a.startsWith('-'));
+        const scriptPath = args.find(a => !a.startsWith('-'));
+
+        if (!scriptPath) {
+            if (flags.includes('-c')) {
+                return '[bash -c execution simulated]';
+            }
+            return 'bash: no script specified';
+        }
+
+        // Resolve script path
+        const resolved = this._resolvePath(scriptPath);
+        const entry = this.fs[resolved];
+
+        if (!entry) {
+            return `bash: ${scriptPath}: No such file or directory`;
+        }
+
+        if (entry.type === 'dir') {
+            return `bash: ${scriptPath}: Is a directory`;
+        }
+
+        // Get script content
+        const content = entry.content || '';
+        const lines = content.split('\n');
+
+        // Build simulated output
+        const outputLines = [];
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            // Skip empty lines, comments, shebang
+            if (!trimmed || trimmed.startsWith('#')) continue;
+
+            // Simulate common commands in scripts
+            if (trimmed.startsWith('echo ')) {
+                // Handle echo with variable expansion
+                let echoArg = trimmed.substring(5).trim();
+                // Remove quotes if present
+                echoArg = echoArg.replace(/^["']|["']$/g, '');
+                // Expand $() command substitution with simulated values
+                echoArg = echoArg
+                    .replace(/\$\(whoami\)/g, this.user)
+                    .replace(/\$\(hostname\)/g, this.hostname)
+                    .replace(/\$\(pwd\)/g, this.currentDir)
+                    .replace(/\$\(date[^)]*\)/g, new Date().toISOString().slice(0, 19).replace('T', '-'))
+                    .replace(/\$USER/g, this.user)
+                    .replace(/\$HOME/g, `/home/${this.user}`)
+                    .replace(/\$PWD/g, this.currentDir);
+                outputLines.push(echoArg);
+            }
+            else if (trimmed === 'whoami') {
+                outputLines.push(this.user);
+            }
+            else if (trimmed === 'hostname') {
+                outputLines.push(this.hostname);
+            }
+            else if (trimmed === 'pwd') {
+                outputLines.push(this.currentDir);
+            }
+            else if (trimmed.startsWith('date')) {
+                outputLines.push(new Date().toString());
+            }
+            else if (trimmed.startsWith('ls')) {
+                outputLines.push(this._cmdLs(trimmed.split(' ').slice(1)));
+            }
+            else if (trimmed.startsWith('cat ')) {
+                const catFile = trimmed.substring(4).trim();
+                outputLines.push(this._cmdCat([catFile]));
+            }
+            else if (trimmed.startsWith('mkdir ')) {
+                const mkdirResult = this._cmdMkdir(trimmed.split(' ').slice(1));
+                if (mkdirResult) outputLines.push(mkdirResult);
+            }
+            else if (trimmed.startsWith('cp ')) {
+                // Simulate cp
+                outputLines.push('[cp simulated]');
+            }
+            else if (trimmed.startsWith('ip ') || trimmed === 'ifconfig') {
+                outputLines.push(this._cmdIfconfig());
+            }
+            else {
+                // For unrecognized commands, just show them as simulated
+                outputLines.push(`[${trimmed}]`);
+            }
+        }
+
+        if (outputLines.length === 0) {
+            return '[script executed - no output]';
+        }
+
+        return outputLines.join('\n');
     }
 
     _cmdUname(args) {
