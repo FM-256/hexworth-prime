@@ -381,170 +381,28 @@
         </div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
     <script>
-        const missionData = {
-            1: {
-                title: 'CAPTURE: Redirect Output to File',
-                description: 'List the intel directory contents and save to reports/filelist.txt using output redirection.',
-                hint: '$ ls intel > reports/filelist.txt',
-                check: (cmd, terminal) => {
-                    if (cmd.includes('>') && !cmd.includes('>>') && cmd.includes('reports')) {
-                        const file = terminal.resolvePath('reports/filelist.txt');
-                        return file && file.type === 'file';
-                    }
-                    return false;
-                }
-            },
-            2: {
-                title: 'APPEND: Add Timestamp to Log',
-                description: 'Append the current date to reports/mission.log using >> redirection.',
-                hint: '$ date >> reports/mission.log',
-                check: (cmd, terminal) => {
-                    if (cmd.includes('>>') && cmd.includes('mission.log')) {
-                        const file = terminal.resolvePath('reports/mission.log');
-                        return file && file.type === 'file' && file.content.length > 0;
-                    }
-                    return false;
-                }
-            },
-            3: {
-                title: 'PIPELINE: Filter and Count',
-                description: 'Use a pipe to count how many lines contain "192.168" in access.log.',
-                hint: '$ grep "192.168" intel/access.log | wc -l',
-                check: (cmd, terminal) => {
-                    return cmd.includes('|') && cmd.includes('grep') &&
-                           (cmd.includes('wc') || cmd.includes('access'));
-                }
-            },
-            4: {
-                title: 'CHAIN: Multi-Stage Pipeline',
-                description: 'Extract IPs from access.log, sort them, remove duplicates, and count occurrences.',
-                hint: '$ cut -d \' \' -f 1 intel/access.log | sort | uniq -c',
-                check: (cmd, terminal) => {
-                    const pipeCount = (cmd.match(/\|/g) || []).length;
-                    return pipeCount >= 2 && (cmd.includes('sort') || cmd.includes('uniq'));
-                }
-            },
-            5: {
-                title: 'TEE: Split the Stream',
-                description: 'List intel files, save to reports/inventory.txt, AND display on screen using tee.',
-                hint: '$ ls -la intel | tee reports/inventory.txt',
-                check: (cmd, terminal) => {
-                    if (cmd.includes('tee') && cmd.includes('reports')) {
-                        const file = terminal.resolvePath('reports/inventory.txt');
-                        return file && file.type === 'file';
-                    }
-                    return false;
-                }
-            }
-        };
+        const MODULE_ID = 'CLH-010';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
 
-        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
-        let currentMission = 1;
-
-        const terminal = new LinuxTerminal({
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
             container: '#terminal',
             inputElement: '#commandInput',
-            user: 'operator',
-            hostname: 'shadow',
-            startDir: '/home/operator',
-            onCommand: (cmdLine, output, cmd, args) => {
-                checkMissionCompletion(cmdLine);
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                completeObjective(objectiveId);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
                 updatePromptDisplay();
             }
         });
-
-        // Create filesystem - FLAT structure for LinuxTerminal.js
-        terminal.fs['/home'].children = ['operator'];
-
-        terminal.fs['/home/operator'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['intel', 'reports', '.bash_history']
-        };
-
-        terminal.fs['/home/operator/intel'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['access.log', 'targets.txt', 'notes.txt']
-        };
-
-        terminal.fs['/home/operator/intel/access.log'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 1247,
-            content: `192.168.1.105 ECHELON-7 [15/Jan/2024:03:15:32] INTERCEPT "SATCOM-KEYHOLE-12" PRIORITY-1
-192.168.1.105 ECHELON-7 [15/Jan/2024:03:16:01] INTERCEPT "VORTEX-SIGINT" PRIORITY-2
-10.0.0.88 UNKNOWN [15/Jan/2024:03:16:45] PROBE "CARNIVORE-NODE" BLOCKED
-192.168.1.105 ECHELON-7 [15/Jan/2024:03:17:22] DECRYPT "UMBRA-CLASSIFIED" SUCCESS
-192.168.1.42 PRISM-TAP [15/Jan/2024:03:18:03] COLLECT "FIBER-OPTIC-TAP-7" ACTIVE
-10.0.0.88 UNKNOWN [15/Jan/2024:03:18:55] PROBE "CARNIVORE-NODE" BLOCKED
-192.168.1.105 ECHELON-7 [15/Jan/2024:03:19:12] EXTRACT "MAJESTIC-DOCS" 47MB
-172.16.0.23 TEMPEST [15/Jan/2024:03:20:01] EMANATION "BLDG-7-SCIF" CAPTURED
-192.168.1.105 ECHELON-7 [15/Jan/2024:03:21:33] EXFIL "ZODIAC-FILES" TO-DROPBOX
-10.0.0.88 HOSTILE [15/Jan/2024:03:22:15] INJECT "WANNACRY-VAR" QUARANTINED`
-        };
-
-        terminal.fs['/home/operator/intel/targets.txt'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 534,
-            content: `CLASSIFIED - NOFORN - ORCON
-TARGET DESIGNATION LIST - OPERATION GLASS CEILING
-===================================================
-192.168.1.105 - CODENAME: NORTHERN STAR
-  Status: NSA Listening Post, Utah Data Center
-  Priority: ALPHA - Full spectrum collection authorized
-
-192.168.1.42 - CODENAME: WHISPER
-  Status: CIA black site relay, [REDACTED] Romania
-  Priority: BETA - Passive monitoring only
-
-10.0.0.88 - CODENAME: UNKNOWN/HOSTILE
-  Status: Suspected FSB proxy, St. Petersburg
-  Priority: GAMMA - Trace and track, do not engage
-
-172.16.0.23 - CODENAME: RABBIT HOLE
-  Status: Tor exit node, suspected Wikileaks associate
-  Priority: DELTA - Log all traffic for FISA review`
-        };
-
-        terminal.fs['/home/operator/intel/notes.txt'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 623,
-            content: `TOP SECRET // SI // TK // NOFORN
-ANALYST NOTES - OPERATION GLASS CEILING
-========================================
-DATE: 2024-01-15 03:47 UTC
-ANALYST: [REDACTED] - NSA/CSS
-
-NORTHERN STAR accessed MAJESTIC archive 0317 hrs.
-Files retrieved include 1952 Roswell debris analysis
-and 1961 Betty/Barney Hill medical examination notes.
-
-Concerning: MAJESTIC-12 clearance was revoked in 1969.
-How did this terminal authenticate?
-
-HOSTILE (10.0.0.88) attempted injection at 0318, 0322.
-Signature matches FANCY BEAR toolkit. Recommend:
-- Immediate SIGINT on source
-- Notify CYBERCOM
-- Preserve all logs for congressional oversight
-
-THIS DOCUMENT WILL SELF-CLASSIFY AFTER 72 HOURS`
-        };
-
-        terminal.fs['/home/operator/reports'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['mission.log']
-        };
-
-        terminal.fs['/home/operator/reports/mission.log'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 0, content: ''
-        };
-
-        terminal.fs['/home/operator/.bash_history'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 0, content: ''
-        };
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
@@ -553,52 +411,48 @@ THIS DOCUMENT WILL SELF-CLASSIFY AFTER 72 HOURS`
             document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
         }
 
-        function checkMissionCompletion(cmdLine) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-            if (mission.check(cmdLine, terminal)) {
-                completeMission(currentMission);
+        function completeObjective(objId) {
+            const stepDot = document.getElementById(`step-${objId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '✓';
             }
-        }
-
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active');
-            stepDot.classList.add('completed');
-            stepDot.innerHTML = '✓';
-            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
-            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
-            if (missionNum < 5) {
-                currentMission = missionNum + 1;
-                document.getElementById(`step-${currentMission}`).classList.add('active');
-                showNextMission(currentMission);
+            if (objId < totalObjectives) {
+                const connector = document.getElementById(`conn-${objId}`);
+                if (connector) connector.classList.add('completed');
+                currentObjective = objId + 1;
+                const nextDot = document.getElementById(`step-${currentObjective}`);
+                if (nextDot) nextDot.classList.add('active');
+                showObjective(currentObjective);
             } else {
                 showAllComplete();
             }
         }
 
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
+        function showObjective(objNum) {
+            const obj = config.objectives.find(o => o.id === objNum);
+            if (!obj) return;
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="current-mission">
-                    <h4>${mission.title}</h4>
-                    <p>${mission.description}</p>
-                    <div class="hint">${mission.hint}</div>
+                    <h4>${obj.task}</h4>
+                    <p>${obj.hint}</p>
+                    <div class="hint">$ ${obj.hint.split(':').pop().trim()}</div>
                 </div>`;
         }
 
         function showAllComplete() {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="all-complete">
-                    <div class="checkmark">🔀</div>
+                    <div class="checkmark">&#128256;</div>
                     <h4>STREAMS MASTERED</h4>
                     <p>Data flow under control</p>
                 </div>`;
-            setTimeout(() => {
-                document.getElementById('completionModal').classList.add('show');
-                saveProgress();
-            }, 800);
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
         }
 
         function saveProgress() {

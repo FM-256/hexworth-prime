@@ -172,139 +172,28 @@
         </div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
     <script>
-        const missionData = {
-            1: { title: 'SURVEY: List All Variables', description: 'Display all environment variables using the env command.', hint: '$ env',
-                check: (cmd) => cmd.includes('env') || cmd.includes('printenv') },
-            2: { title: 'INSPECT: Check Your PATH', description: 'Display the current PATH variable to see command search locations.', hint: '$ echo $PATH',
-                check: (cmd) => cmd.includes('echo') && cmd.includes('PATH') },
-            3: { title: 'IDENTIFY: Find Your Home', description: 'Display the HOME environment variable.', hint: '$ echo $HOME',
-                check: (cmd) => cmd.includes('echo') && cmd.includes('HOME') },
-            4: { title: 'CREATE: Set Mission Variable', description: 'Create a new environment variable called MISSION with value "active".', hint: '$ export MISSION=active',
-                check: (cmd) => cmd.includes('export') && cmd.includes('MISSION') },
-            5: { title: 'EXTEND: Add Tools to PATH', description: 'Add /opt/shadow-tools to your PATH for custom tools.', hint: '$ export PATH=$PATH:/opt/shadow-tools',
-                check: (cmd) => cmd.includes('export') && cmd.includes('PATH') && cmd.includes('/opt') }
-        };
+        const MODULE_ID = 'CLH-013';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
 
-        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
-        let currentMission = 1;
-
-        const terminal = new LinuxTerminal({
-            container: '#terminal', inputElement: '#commandInput', user: 'operator', hostname: 'shadow', startDir: '/home/operator',
-            onCommand: (cmdLine) => { checkMissionCompletion(cmdLine); updatePromptDisplay(); }
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
+            container: '#terminal',
+            inputElement: '#commandInput',
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                completeObjective(objectiveId);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
+                updatePromptDisplay();
+            }
         });
-
-        // Create filesystem - FLAT structure for LinuxTerminal.js
-        terminal.fs['/home'].children = ['operator'];
-
-        terminal.fs['/home/operator'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['.bashrc', '.profile', '.bash_history', '.classified']
-        };
-
-        terminal.fs['/home/operator/.bashrc'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 567,
-            content: `# OPERATOR SHELL CONFIGURATION
-# CLASSIFICATION: TOP SECRET // ORCON // NOFORN
-# WORKSTATION: SPECTER-7 (Mobile NOC)
-# WARNING: Unauthorized access is a federal crime
-
-export PS1="[\\u@SPECTER-7 \\W]\\$ "
-alias ll="ls -la"
-alias shred="srm -vz"
-alias panic="kill -9 -1 && srm -rfz ~/.classified"
-alias deadman="echo 'COMPROMISE' | nc handler.onion 31337"
-
-# Auto-wipe if wrong password 3x
-export FAILSAFE_ENABLED=1
-export WIPE_ON_TAMPER=1`
-        };
-
-        terminal.fs['/home/operator/.profile'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 445,
-            content: `# SPECTER-7 PROFILE - OPERATION NORTHERN LIGHTS
-# Last Modified: 2024-01-15 by HANDLER:RAVEN
-
-export PATH=$PATH:$HOME/bin:/opt/shadow-tools:/opt/implants
-export MISSION_STATUS=ACTIVE
-export COVER_IDENTITY="John Smith, IT Contractor"
-export EXFIL_POINT="48.8566,2.3522"
-export HANDLER_FREQ="7.039 MHz USB"
-export DURESS_CODE="BROKEN ARROW"
-export SAFE_CODE="NORTHERN STAR"
-
-# Tor routing for all traffic
-export ALL_PROXY=socks5://127.0.0.1:9050`
-        };
-
-        terminal.fs['/home/operator/.classified'] = {
-            type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
-            children: ['env_secrets.txt', 'dead_drops.txt', 'handler_protocol.txt']
-        };
-
-        terminal.fs['/home/operator/.classified/env_secrets.txt'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 534,
-            content: `TOP SECRET // SPECTER EYES ONLY
-================================
-# DO NOT EXPORT - MEMORIZE AND DESTROY
-
-JWICS_TOKEN=TS-SCI-4729-GAMMA-NOFORN
-SIPRNET_KEY=8f3a9c7d2e1b5f8a3c9d7e2f
-NSANET_CERT=/opt/.hidden/nsa_operator.pem
-PALANTIR_API=pk_live_XXXXXXXXXXXXXXXX
-XKEYSCORE_SESSION=xs_7f8a9b2c4d5e6f7a
-
-# Emergency contacts
-CIA_SOG=+1-703-XXX-XXXX (Vienna)
-NSA_TAO=+1-410-XXX-XXXX (Fort Meade)
-MI6_SIS=+44-20-XXXX-XXXX (Vauxhall Cross)
-MOSSAD=+972-X-XXX-XXXX (Gilot Junction)`
-        };
-
-        terminal.fs['/home/operator/.classified/dead_drops.txt'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 423,
-            content: `DEAD DROP LOCATIONS - ROTATE WEEKLY
-=====================================
-ALPHA: 48.8584,2.2945 (Trocadero bench 7)
-BRAVO: 51.5007,-0.1246 (Westminster Bridge south)
-CHARLIE: 40.7128,-74.0060 (WTC memorial, NE corner)
-DELTA: 38.8977,-77.0365 (Lincoln Memorial steps)
-
-SIGNAL: Red chalk mark = loaded
-COUNTERSIGNAL: Newspaper under bench
-
-NEXT SCHEDULED: BRAVO - 2024-01-20 14:00 UTC
-PASSPHRASE: "The weather in Prague is cold"
-RESPONSE: "But the coffee is always hot"`
-        };
-
-        terminal.fs['/home/operator/.classified/handler_protocol.txt'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 378,
-            content: `HANDLER: CODENAME RAVEN
-========================
-Primary: Shortwave 7.039 MHz, 0300 UTC daily
-Backup: Tor hidden service raven3j5k...onion
-Emergency: SATPHONE +88216XXXXXXX
-
-DURESS PROTOCOL:
-- Duress word: "BROKEN ARROW" = compromised
-- Safe word: "NORTHERN STAR" = all clear
-- Abort word: "GLASS HOUSE" = extract immediately
-
-If no contact in 72 hours, assume compromised.
-Execute PANDORA protocol and go dark.`
-        };
-
-        terminal.fs['/home/operator/.bash_history'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 0, content: ''
-        };
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
@@ -313,30 +202,48 @@ Execute PANDORA protocol and go dark.`
             document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
         }
 
-        function checkMissionCompletion(cmdLine) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-            if (mission.check(cmdLine, terminal)) completeMission(currentMission);
+        function completeObjective(objId) {
+            const stepDot = document.getElementById(`step-${objId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '&#10003;';
+            }
+            if (objId < totalObjectives) {
+                const connector = document.getElementById(`conn-${objId}`);
+                if (connector) connector.classList.add('completed');
+                currentObjective = objId + 1;
+                const nextDot = document.getElementById(`step-${currentObjective}`);
+                if (nextDot) nextDot.classList.add('active');
+                showObjective(currentObjective);
+            } else {
+                showAllComplete();
+            }
         }
 
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active'); stepDot.classList.add('completed'); stepDot.innerHTML = '✓';
-            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
-            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
-            if (missionNum < 5) { currentMission = missionNum + 1; document.getElementById(`step-${currentMission}`).classList.add('active'); showNextMission(currentMission); }
-            else showAllComplete();
-        }
-
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
-            document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${mission.title}</h4><p>${mission.description}</p><div class="hint">${mission.hint}</div></div>`;
+        function showObjective(objNum) {
+            const obj = config.objectives.find(o => o.id === objNum);
+            if (!obj) return;
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${obj.task}</h4>
+                    <p>${obj.hint}</p>
+                    <div class="hint">$ ${obj.hint.split(':').pop().trim()}</div>
+                </div>`;
         }
 
         function showAllComplete() {
-            document.getElementById('currentMissionDisplay').innerHTML = `<div class="all-complete"><div class="checkmark">⚙️</div><h4>ENVIRONMENT MASTERED</h4><p>Shell control achieved</p></div>`;
-            setTimeout(() => { document.getElementById('completionModal').classList.add('show'); saveProgress(); }, 800);
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">&#9881;</div>
+                    <h4>ENVIRONMENT MASTERED</h4>
+                    <p>Shell control achieved</p>
+                </div>`;
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
         }
 
         function saveProgress() {

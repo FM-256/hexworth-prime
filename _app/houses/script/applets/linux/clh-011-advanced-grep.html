@@ -405,140 +405,28 @@
         </div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
     <script>
-        const missionData = {
-            1: {
-                title: 'HUNT: Case-Insensitive Search',
-                description: 'Find all lines containing "error" (case-insensitive) in system.log using grep -i.',
-                hint: '$ grep -i "error" logs/system.log',
-                check: (cmd, terminal) => {
-                    return cmd.includes('grep') && cmd.includes('-i') &&
-                           (cmd.toLowerCase().includes('error') || cmd.includes('system.log'));
-                }
-            },
-            2: {
-                title: 'EXCLUDE: Invert the Match',
-                description: 'Show all lines in auth.log that do NOT contain "success" using grep -v.',
-                hint: '$ grep -v "success" logs/auth.log',
-                check: (cmd, terminal) => {
-                    return cmd.includes('grep') && cmd.includes('-v') &&
-                           (cmd.includes('success') || cmd.includes('auth.log'));
-                }
-            },
-            3: {
-                title: 'COUNT: Quantify the Threat',
-                description: 'Count how many "FAILED" login attempts appear in auth.log using grep -c.',
-                hint: '$ grep -c "FAILED" logs/auth.log',
-                check: (cmd, terminal) => {
-                    return cmd.includes('grep') && cmd.includes('-c') &&
-                           (cmd.includes('FAILED') || cmd.includes('auth.log'));
-                }
-            },
-            4: {
-                title: 'LOCATE: Show Line Numbers',
-                description: 'Find "192.168" in network.log and show line numbers with grep -n.',
-                hint: '$ grep -n "192.168" logs/network.log',
-                check: (cmd, terminal) => {
-                    return cmd.includes('grep') && cmd.includes('-n') &&
-                           (cmd.includes('192.168') || cmd.includes('network'));
-                }
-            },
-            5: {
-                title: 'REGEX: Match IP Pattern',
-                description: 'Use extended regex to find all IP addresses in network.log. Pattern: [0-9]+.[0-9]+.[0-9]+.[0-9]+',
-                hint: '$ grep -E "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" logs/network.log',
-                check: (cmd, terminal) => {
-                    return (cmd.includes('grep') && cmd.includes('-E')) ||
-                           cmd.includes('egrep') ||
-                           (cmd.includes('[0-9]') && cmd.includes('\\.'));
-                }
-            }
-        };
+        const MODULE_ID = 'CLH-011';
+        const config = CLHConfig.getModule(MODULE_ID);
+        let currentObjective = 1;
+        const totalObjectives = config.objectives.length;
 
-        const missions = { 1: {completed:false}, 2: {completed:false}, 3: {completed:false}, 4: {completed:false}, 5: {completed:false} };
-        let currentMission = 1;
-
-        const terminal = new LinuxTerminal({
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
             container: '#terminal',
             inputElement: '#commandInput',
-            user: 'operator',
-            hostname: 'shadow',
-            startDir: '/home/operator',
-            onCommand: (cmdLine, output, cmd, args) => {
-                checkMissionCompletion(cmdLine);
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                completeObjective(objectiveId);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
                 updatePromptDisplay();
             }
         });
-
-        // Create filesystem - FLAT structure for LinuxTerminal.js
-        terminal.fs['/home'].children = ['operator'];
-
-        terminal.fs['/home/operator'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['logs', 'reports', '.bash_history']
-        };
-
-        terminal.fs['/home/operator/logs'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: ['system.log', 'auth.log', 'network.log']
-        };
-
-        terminal.fs['/home/operator/logs/system.log'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 1456,
-            content: `Jan 15 03:15:32 REDSTONE kernel: [INFO] HAARP array calibration complete
-Jan 15 03:15:33 REDSTONE systemd: [INFO] Project BLUEBIRD daemon started
-Jan 15 03:16:01 REDSTONE kernel: [ERROR] Anomalous signal detected - 1420.405 MHz
-Jan 15 03:16:45 REDSTONE cron: [INFO] Scheduled SETI data purge executed
-Jan 15 03:17:22 REDSTONE kernel: [Warning] Non-terrestrial signal pattern matched
-Jan 15 03:18:03 REDSTONE systemd: [INFO] MK-ULTRA archive sync restarted
-Jan 15 03:18:55 REDSTONE kernel: [ERROR] Buffer overflow in PRISM intercept module
-Jan 15 03:19:12 REDSTONE sshd: [INFO] Connection from GCHQ-RELAY-7
-Jan 15 03:20:01 REDSTONE kernel: [error] MONARCH programming sequence interrupted
-Jan 15 03:21:33 REDSTONE systemd: [INFO] BLACK VAULT backup completed
-Jan 15 03:22:15 REDSTONE kernel: [ERROR] Watchdog timeout - LOOKING GLASS unstable`
-        };
-
-        terminal.fs['/home/operator/logs/auth.log'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 1289,
-            content: `Jan 15 03:15:32 REDSTONE sshd[1234]: FAILED login for POTUS from 10.0.0.88
-Jan 15 03:15:45 REDSTONE sshd[1234]: FAILED login for Q-CLEARANCE from 10.0.0.88
-Jan 15 03:16:01 REDSTONE sshd[1235]: success login for DEEP_THROAT from 192.168.1.42
-Jan 15 03:16:22 REDSTONE sshd[1234]: FAILED login for root from 10.0.0.88
-Jan 15 03:17:03 REDSTONE sshd[1236]: success login for MOCKINGBIRD from 192.168.1.105
-Jan 15 03:17:45 REDSTONE sshd[1234]: FAILED login for MAJESTIC from 10.0.0.88
-Jan 15 03:18:12 REDSTONE sshd[1237]: success login for PAPERCLIP from localhost
-Jan 15 03:18:55 REDSTONE sshd[1234]: FAILED login for ZODIAC from 10.0.0.88
-Jan 15 03:19:33 REDSTONE sshd[1234]: FAILED login for CICADA from 10.0.0.88
-Jan 15 03:20:15 REDSTONE sshd[1238]: success login for ECHELON from 172.16.0.23`
-        };
-
-        terminal.fs['/home/operator/logs/network.log'] = {
-            type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
-            size: 1178,
-            content: `03:15:32 TCP 192.168.1.105:44821 -> GROOM-LAKE.MIL:443 CLASSIFIED
-03:15:45 TCP 192.168.1.42:55123 -> LANGLEY-RELAY.CIA:80 ENCRYPTED
-03:16:01 UDP 10.0.0.88:53421 -> HOSTILE-DNS:53 SUSPICIOUS
-03:16:22 TCP 192.168.1.105:44822 -> PINE-GAP.AUS:22 FVEY-LINK
-03:17:03 TCP 172.16.0.23:61234 -> TEMPORA-UK.GCHQ:80 SIGINT
-03:17:45 ICMP 10.0.0.88 -> AREA51-GW:1 PROBE-ATTEMPT
-03:18:12 TCP 192.168.1.105:44823 -> UTAH-DATACENTER:3306 XKEYSCORE
-03:18:55 UDP 192.168.1.42:12345 -> FORT-MEADE:161 TAO-IMPLANT
-03:19:33 TCP 10.0.0.88:55555 -> WRIGHT-PATT:445 BLUEBOOK-ACCESS
-03:20:15 TCP 172.16.0.23:61235 -> MENWITH-HILL.UK:443 FORNSAT`
-        };
-
-        terminal.fs['/home/operator/reports'] = {
-            type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-            children: []
-        };
-
-        terminal.fs['/home/operator/.bash_history'] = {
-            type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
-            size: 0, content: ''
-        };
 
         function updatePromptDisplay() {
             const cwd = terminal.getCwd();
@@ -547,52 +435,48 @@ Jan 15 03:20:15 REDSTONE sshd[1238]: success login for ECHELON from 172.16.0.23`
             document.getElementById('terminalTitle').textContent = `operator@shadow:${displayPath}`;
         }
 
-        function checkMissionCompletion(cmdLine) {
-            const mission = missionData[currentMission];
-            if (!mission || missions[currentMission].completed) return;
-            if (mission.check(cmdLine, terminal)) {
-                completeMission(currentMission);
+        function completeObjective(objId) {
+            const stepDot = document.getElementById(`step-${objId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '&#10003;';
             }
-        }
-
-        function completeMission(missionNum) {
-            missions[missionNum].completed = true;
-            const stepDot = document.getElementById(`step-${missionNum}`);
-            stepDot.classList.remove('active');
-            stepDot.classList.add('completed');
-            stepDot.innerHTML = '✓';
-            if (missionNum < 5) document.getElementById(`conn-${missionNum}`).classList.add('completed');
-            terminal.print(`[SUCCESS] Objective ${missionNum} complete`, 'success');
-            if (missionNum < 5) {
-                currentMission = missionNum + 1;
-                document.getElementById(`step-${currentMission}`).classList.add('active');
-                showNextMission(currentMission);
+            if (objId < totalObjectives) {
+                const connector = document.getElementById(`conn-${objId}`);
+                if (connector) connector.classList.add('completed');
+                currentObjective = objId + 1;
+                const nextDot = document.getElementById(`step-${currentObjective}`);
+                if (nextDot) nextDot.classList.add('active');
+                showObjective(currentObjective);
             } else {
                 showAllComplete();
             }
         }
 
-        function showNextMission(missionNum) {
-            const mission = missionData[missionNum];
+        function showObjective(objNum) {
+            const obj = config.objectives.find(o => o.id === objNum);
+            if (!obj) return;
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="current-mission">
-                    <h4>${mission.title}</h4>
-                    <p>${mission.description}</p>
-                    <div class="hint">${mission.hint}</div>
+                    <h4>${obj.task}</h4>
+                    <p>${obj.hint}</p>
+                    <div class="hint">$ ${obj.hint.split(':').pop().trim()}</div>
                 </div>`;
         }
 
         function showAllComplete() {
             document.getElementById('currentMissionDisplay').innerHTML = `
                 <div class="all-complete">
-                    <div class="checkmark">🔍</div>
+                    <div class="checkmark">&#128269;</div>
                     <h4>PATTERN MASTER</h4>
                     <p>Regex skills unlocked</p>
                 </div>`;
-            setTimeout(() => {
-                document.getElementById('completionModal').classList.add('show');
-                saveProgress();
-            }, 800);
+        }
+
+        function showCompletionModal() {
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
         }
 
         function saveProgress() {
@@ -607,7 +491,7 @@ Jan 15 03:20:15 REDSTONE sshd[1238]: success login for ECHELON from 172.16.0.23`
         }
 
         function closeModal() { document.getElementById('completionModal').classList.remove('show'); }
-        function goToNextLab() { window.location.href = '../../index.html'; }
+        function goToNextLab() { window.location.href = 'clh-012-network-basics.html'; }
     </script>
     <script src="../../../../components/FluxCapacitor.js"></script>
 </body>
