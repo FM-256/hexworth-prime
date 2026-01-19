@@ -3091,6 +3091,9 @@ class CLHTerminal {
                 if (cmd) {
                     this._execute(cmd);
                 }
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                this._handleTabCompletion();
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 this._historyUp();
@@ -3099,6 +3102,146 @@ class CLHTerminal {
                 this._historyDown();
             }
         });
+    }
+
+    _handleTabCompletion() {
+        const input = this.inputEl.value;
+        const cursorPos = this.inputEl.selectionStart;
+
+        // Get the text up to cursor
+        const textToCursor = input.substring(0, cursorPos);
+        const parts = textToCursor.split(/\s+/);
+        const currentWord = parts[parts.length - 1] || '';
+        const isFirstWord = parts.length === 1;
+
+        let completions = [];
+
+        if (isFirstWord) {
+            // Complete command names
+            completions = this._getCommandCompletions(currentWord);
+        } else {
+            // Complete file/directory paths
+            completions = this._getPathCompletions(currentWord);
+        }
+
+        if (completions.length === 0) {
+            return;
+        }
+
+        if (completions.length === 1) {
+            // Single match - complete it
+            const completion = completions[0];
+            const beforeWord = textToCursor.substring(0, textToCursor.length - currentWord.length);
+            const afterCursor = input.substring(cursorPos);
+
+            // Add trailing slash for directories, space for commands/files
+            let suffix = '';
+            if (isFirstWord) {
+                suffix = ' ';
+            } else {
+                const resolved = this._resolvePath(completion);
+                const entry = this.fs[resolved];
+                suffix = (entry && entry.type === 'dir') ? '/' : ' ';
+            }
+
+            this.inputEl.value = beforeWord + completion + suffix + afterCursor;
+            this.inputEl.selectionStart = this.inputEl.selectionEnd =
+                beforeWord.length + completion.length + suffix.length;
+        } else {
+            // Multiple matches - find common prefix and show options
+            const commonPrefix = this._findCommonPrefix(completions);
+
+            if (commonPrefix.length > currentWord.length) {
+                // Complete to common prefix
+                const beforeWord = textToCursor.substring(0, textToCursor.length - currentWord.length);
+                const afterCursor = input.substring(cursorPos);
+                this.inputEl.value = beforeWord + commonPrefix + afterCursor;
+                this.inputEl.selectionStart = this.inputEl.selectionEnd =
+                    beforeWord.length + commonPrefix.length;
+            } else {
+                // Show available completions
+                this._printOutput(completions.join('  '));
+            }
+        }
+    }
+
+    _getCommandCompletions(prefix) {
+        const commands = [
+            'pwd', 'ls', 'cd', 'cat', 'whoami', 'hostname', 'id', 'echo', 'uname',
+            'date', 'clear', 'help', 'grep', 'find', 'head', 'tail', 'wc', 'ps',
+            'env', 'export', 'history', 'df', 'du', 'ip', 'ifconfig', 'netstat', 'ss',
+            'last', 'w', 'uptime', 'free', 'top', 'systemctl', 'service', 'crontab',
+            'dpkg', 'apt', 'apt-get', 'apt-cache', 'sudo', 'su', 'chmod', 'chown',
+            'chgrp', 'mkdir', 'touch', 'rm', 'cp', 'mv', 'file', 'stat', 'tar',
+            'gzip', 'gunzip', 'zip', 'unzip', 'ssh-keygen', 'ssh', 'scp', 'curl',
+            'wget', 'ping', 'nslookup', 'dig', 'traceroute', 'arp', 'route', 'lsblk',
+            'mount', 'fdisk', 'getfacl', 'useradd', 'userdel', 'usermod', 'passwd',
+            'groupadd', 'vim', 'vi', 'nano', 'less', 'more', 'man', 'which', 'type',
+            'alias', 'vmstat', 'iostat', 'sar'
+        ];
+
+        if (!prefix) return commands.slice(0, 10); // Show first 10 if empty
+        return commands.filter(cmd => cmd.startsWith(prefix)).sort();
+    }
+
+    _getPathCompletions(partial) {
+        // Handle ~ expansion
+        let searchPath = partial;
+        let prefix = '';
+
+        if (partial.startsWith('~/')) {
+            searchPath = `/home/${this.user}${partial.substring(1)}`;
+            prefix = '~';
+        } else if (partial === '~') {
+            return ['~/'];
+        } else if (!partial.startsWith('/')) {
+            // Relative path
+            searchPath = this.currentDir + '/' + partial;
+        }
+
+        // Get directory and partial filename
+        const lastSlash = searchPath.lastIndexOf('/');
+        const dirPath = lastSlash >= 0 ? searchPath.substring(0, lastSlash) || '/' : this.currentDir;
+        const filePrefix = lastSlash >= 0 ? searchPath.substring(lastSlash + 1) : partial;
+
+        const normalizedDir = this._normalizePath(dirPath);
+        const dirEntry = this.fs[normalizedDir];
+
+        if (!dirEntry || dirEntry.type !== 'dir') {
+            return [];
+        }
+
+        const children = dirEntry.children || [];
+        const matches = children.filter(name => name.startsWith(filePrefix));
+
+        // Return paths relative to what user typed
+        return matches.map(name => {
+            if (partial.startsWith('~/')) {
+                return '~/' + (dirPath === `/home/${this.user}` ? '' :
+                    dirPath.replace(`/home/${this.user}/`, '')) +
+                    (dirPath === `/home/${this.user}` ? '' : '/') + name;
+            } else if (partial.startsWith('/')) {
+                return normalizedDir + (normalizedDir === '/' ? '' : '/') + name;
+            } else if (partial.includes('/')) {
+                const userDir = partial.substring(0, partial.lastIndexOf('/') + 1);
+                return userDir + name;
+            }
+            return name;
+        }).sort();
+    }
+
+    _findCommonPrefix(strings) {
+        if (strings.length === 0) return '';
+        if (strings.length === 1) return strings[0];
+
+        let prefix = strings[0];
+        for (let i = 1; i < strings.length; i++) {
+            while (!strings[i].startsWith(prefix)) {
+                prefix = prefix.substring(0, prefix.length - 1);
+                if (prefix === '') return '';
+            }
+        }
+        return prefix;
     }
 
     _historyUp() {

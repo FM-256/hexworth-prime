@@ -552,8 +552,16 @@
 
             // Keyboard
             document.addEventListener('keydown', (e) => {
-                // Toggle with ~ or `
+                // Toggle with ~ or ` (but not when typing in an input field)
                 if (e.key === '`' || e.key === '~') {
+                    // Allow tilde in input fields (for terminal commands like cd ~)
+                    const target = e.target;
+                    const isInputField = target.tagName === 'INPUT' ||
+                                        target.tagName === 'TEXTAREA' ||
+                                        target.isContentEditable;
+                    if (isInputField) {
+                        return; // Let the character be typed
+                    }
                     e.preventDefault();
                     this.toggle();
                     return;
