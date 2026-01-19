@@ -1008,6 +1008,11 @@ const _CLHTerminalModule = (function() {
             case 'sudo': return _cmd_sudo(args);
             case 'su': return _cmd_su(args);
 
+            // Script Execution
+            case 'bash': return _cmd_bash(args);
+            case 'sh': return _cmd_bash(args);
+            case 'source': return _cmd_bash(['.', ...args]);
+
             // Advanced
             case 'tree': return _cmd_tree(args);
             case 'tar': return _cmd_tar(args);
@@ -1038,6 +1043,26 @@ const _CLHTerminalModule = (function() {
                     state.env[name] = vals.join('=');
                     return null;
                 }
+
+                // Check for direct script execution (./script.sh or /path/to/script)
+                if (cmd.startsWith('./') || cmd.startsWith('/')) {
+                    const scriptPath = _resolvePath(cmd);
+                    const scriptNode = state.fs[scriptPath];
+
+                    if (scriptNode) {
+                        if (scriptNode.type === 'dir') {
+                            return _err(`bash: ${cmd}: Is a directory`);
+                        }
+                        // Check for execute permission
+                        if (!scriptNode.perms || !scriptNode.perms.includes('x')) {
+                            return _err(`bash: ${cmd}: Permission denied`);
+                        }
+                        // Execute the script
+                        return _cmd_bash([cmd]);
+                    }
+                    return _err(`bash: ${cmd}: No such file or directory`);
+                }
+
                 return _err(`${cmd}: command not found`);
         }
     }
@@ -1757,6 +1782,116 @@ MiB Swap:  2048.0 total,   2048.0 free,      0.0 used,   5500.0 avail Mem
     }
 
     function _cmd_tr(args) { return '<span class="clh-dim">tr: character translation - use: tr SET1 SET2</span>'; }
+
+    // ═══════════════════════════════════════════════════════════════
+    // BASH/SCRIPT EXECUTION
+    // ═══════════════════════════════════════════════════════════════
+
+    function _cmd_bash(args) {
+        // No arguments - just show bash info
+        if (args.length === 0) {
+            return '<span class="clh-dim">GNU bash, version 5.1.16(1)-release\nType \'exit\' to exit the shell.</span>';
+        }
+
+        // Handle flags
+        const flags = args.filter(a => a.startsWith('-'));
+        const scriptPath = args.find(a => !a.startsWith('-'));
+
+        if (!scriptPath) {
+            if (flags.includes('-c')) {
+                // bash -c "command" - just return simulation notice
+                return '<span class="clh-dim">[bash -c execution simulated]</span>';
+            }
+            return '<span class="clh-dim">bash: no script specified</span>';
+        }
+
+        // Resolve script path
+        const resolvedPath = _resolvePath(scriptPath);
+        const scriptNode = state.fs[resolvedPath];
+
+        if (!scriptNode) {
+            return _err(`bash: ${scriptPath}: No such file or directory`);
+        }
+
+        if (scriptNode.type === 'dir') {
+            return _err(`bash: ${scriptPath}: Is a directory`);
+        }
+
+        // Get script content
+        const content = scriptNode.content || '';
+        const lines = content.split('\n');
+
+        // Build simulated output
+        const outputLines = [];
+        let lineNumber = 0;
+
+        for (const line of lines) {
+            lineNumber++;
+            const trimmed = line.trim();
+
+            // Skip empty lines, comments, shebang
+            if (!trimmed || trimmed.startsWith('#')) continue;
+
+            // Simulate common commands in scripts
+            if (trimmed.startsWith('echo ')) {
+                // Handle echo with variable expansion
+                let echoArg = trimmed.substring(5).trim();
+                // Remove quotes if present
+                echoArg = echoArg.replace(/^["']|["']$/g, '');
+                // Expand $() command substitution with simulated values
+                echoArg = echoArg
+                    .replace(/\$\(whoami\)/g, currentUser.username)
+                    .replace(/\$\(hostname\)/g, config.hostname)
+                    .replace(/\$\(pwd\)/g, state.currentDir)
+                    .replace(/\$\(date[^)]*\)/g, new Date().toISOString().slice(0, 19).replace('T', '-'))
+                    .replace(/\$USER/g, currentUser.username)
+                    .replace(/\$HOME/g, `/home/${currentUser.username}`)
+                    .replace(/\$PWD/g, state.currentDir);
+                outputLines.push(echoArg);
+            }
+            else if (trimmed === 'whoami') {
+                outputLines.push(currentUser.username);
+            }
+            else if (trimmed === 'hostname') {
+                outputLines.push(config.hostname);
+            }
+            else if (trimmed === 'pwd') {
+                outputLines.push(state.currentDir);
+            }
+            else if (trimmed.startsWith('date')) {
+                outputLines.push(new Date().toString());
+            }
+            else if (trimmed.startsWith('ls')) {
+                // Simple ls simulation
+                outputLines.push(_cmd_ls(trimmed.split(' ').slice(1)));
+            }
+            else if (trimmed.startsWith('cat ')) {
+                const catFile = trimmed.substring(4).trim();
+                outputLines.push(_cmd_cat([catFile]));
+            }
+            else if (trimmed.startsWith('mkdir ')) {
+                const mkdirResult = _cmd_mkdir(trimmed.split(' ').slice(1));
+                if (mkdirResult) outputLines.push(mkdirResult);
+            }
+            else if (trimmed.startsWith('cp ')) {
+                const cpResult = _cmd_cp(trimmed.split(' ').slice(1));
+                if (cpResult) outputLines.push(cpResult);
+            }
+            else if (trimmed.startsWith('ip ') || trimmed === 'ifconfig') {
+                outputLines.push(_cmd_ifconfig());
+            }
+            else {
+                // For unrecognized commands, just show them as simulated
+                outputLines.push(`<span class="clh-dim">[${trimmed}]</span>`);
+            }
+        }
+
+        if (outputLines.length === 0) {
+            return '<span class="clh-dim">[script executed - no output]</span>';
+        }
+
+        return outputLines.join('\n');
+    }
 
     function _cmd_chmod(args) {
         if (args.length < 2) return _err('chmod: missing operand');

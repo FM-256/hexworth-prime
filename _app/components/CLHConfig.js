@@ -2212,6 +2212,17 @@ Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23`
                 },
             ],
 
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "Based on the scan results, what database port is open on the target?",
+                acceptedAnswers: ["3306", "mysql", "3306/tcp"],
+                hint: "Check the scan_results.txt file in the intel directory.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Port not confirmed. Review the scan results in intel/.",
+                correctAnswerMessage: "Confirmed: MySQL on port 3306. Database access possible."
+            },
+
             remoteHosts: null,
         },
 
@@ -2295,6 +2306,17 @@ Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23`
                     check: (cmd, state) => cmd.includes('export') && cmd.includes('PATH') && cmd.includes('/opt')
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "What alias is defined in the operator's .bashrc file?",
+                acceptedAnswers: ["ll", "ls -la", "ll="],
+                hint: "Read the .bashrc file to see what shortcuts are configured.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Alias not found. Check cat .bashrc for defined aliases.",
+                correctAnswerMessage: "Confirmed: 'll' alias maps to 'ls -la'. Shell configured."
+            },
 
             remoteHosts: null,
         },
@@ -2394,6 +2416,17 @@ done`
                     check: (cmd, state) => cmd.includes('nohup')
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "According to intel, what is the name of the cryptominer process?",
+                acceptedAnswers: ["rogue_agent", "rogue agent", "rogueagent"],
+                hint: "Check the processes.txt file in the intel directory for known threats.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Process not recognized. Review intel/processes.txt for malicious process names.",
+                correctAnswerMessage: "Threat identified: rogue_agent (cryptominer). Terminate with extreme prejudice."
+            },
 
             remoteHosts: null,
         },
@@ -2534,6 +2567,17 @@ STATUS: ACTIVE THREAT`
                 },
             ],
 
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "What is the attacker's IP address?",
+                acceptedAnswers: ["10.0.0.88", "10.0.0.88."],
+                hint: "Check the timeline.txt or auth.log for the threat actor's IP.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "IP not confirmed. Review the evidence logs for the attacker's source.",
+                correctAnswerMessage: "ATTACKER CONFIRMED: 10.0.0.88. Intel package ready for command."
+            },
+
             remoteHosts: null,
         },
 
@@ -2605,6 +2649,17 @@ STATUS: ACTIVE THREAT`
                 { id: 4, task: 'ANALYZE: Disk Space', hint: '$ df -h', check: (cmd) => cmd.includes('df') },
                 { id: 5, task: 'ESTIMATE: Target Directory Size', hint: '$ du -sh /home', check: (cmd) => cmd.includes('du') && cmd.includes('/home') },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "What is the operation codename according to the intel notes?",
+                acceptedAnswers: ["iron harvest", "operation iron harvest", "ironharvest"],
+                hint: "Check the notes.txt file in the intel directory.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Codename not recognized. Review intel/notes.txt for mission details.",
+                correctAnswerMessage: "OPERATION IRON HARVEST confirmed. Implant deployment authorized."
+            },
 
             remoteHosts: null,
         },
@@ -2697,6 +2752,17 @@ STATUS: ACTIVE THREAT`
                 { id: 4, task: 'TRACK: Recent Modifications', hint: '$ find / -mtime -1 -type f 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-mtime') },
                 { id: 5, task: 'VERIFY: Binary Locations', hint: '$ which sudo && whereis bash', check: (cmd) => cmd.includes('which') || cmd.includes('whereis') },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "What port does the analyst's backdoor connect to?",
+                acceptedAnswers: ["4444", "port 4444", "4444."],
+                hint: "Read the .backdoor.sh file in /home/analyst to see the C2 connection details.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Port not confirmed. Check the backdoor script for netcat parameters.",
+                correctAnswerMessage: "C2 PORT CONFIRMED: 4444. Mole's communication channel identified."
+            },
 
             remoteHosts: null,
         },
