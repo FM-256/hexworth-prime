@@ -4802,6 +4802,71 @@ OPERATOR NOTES
 SEE ALSO
        apropos(1), whatis(1), less(1), groff(1)`,
 
+            // Shell
+            'bash': `BASH(1)                        Shell Commands                         BASH(1)
+
+NAME
+       bash - GNU Bourne-Again SHell
+
+SYNOPSIS
+       bash [options] [file]
+
+DESCRIPTION
+       Bash is a command language interpreter that executes commands read from
+       standard input or from a file. Bash also incorporates useful features
+       from the Korn and C shells (ksh and csh).
+
+RUNNING SCRIPTS
+       bash script.sh
+              Execute script.sh using the bash interpreter.
+
+       ./script.sh
+              Execute script directly (requires execute permission).
+              Use: chmod +x script.sh first.
+
+       source script.sh
+              Execute script in current shell (variables persist).
+
+SCRIPT BASICS
+       #!/bin/bash
+              Shebang - first line declares the interpreter.
+
+       # comment
+              Lines starting with # are comments (except shebang).
+
+       VARIABLE="value"
+              Set a variable (no spaces around =).
+
+       $VARIABLE or \${VARIABLE}
+              Expand/use a variable's value.
+
+       $(command)
+              Command substitution - replaced with command output.
+
+COMMON PATTERNS
+       #!/bin/bash
+       # Recon script example
+       TARGET=$(hostname)
+       echo "Target: $TARGET"
+       echo "User: $(whoami)"
+       echo "Time: $(date +%Y%m%d_%H%M)"
+
+OPERATOR NOTES
+       Use bash when you need to:
+       • Automate repetitive tasks during operations
+       • Chain multiple commands into reusable scripts
+       • Create portable tools that work across systems
+       • Set up persistence or scheduled tasks
+
+       Pro tip: Always start scripts with #!/bin/bash and add comments.
+       When you find scripts on a target, cat them first to understand
+       what they do before executing. Never run unknown scripts blindly.
+
+       Debugging: Use bash -x script.sh to see each command as it runs.
+
+SEE ALSO
+       sh(1), source(1), chmod(1), echo(1)`,
+
             // Navigation
             'ls': `LS(1)                           User Commands                          LS(1)
 
