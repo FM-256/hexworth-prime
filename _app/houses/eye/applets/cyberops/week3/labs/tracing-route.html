@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Traceroute Lab | CyberOps Week 3 | Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1628 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+        }
+
+        /* Header */
+        .lab-header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border-bottom: 2px solid #06b6d4;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lab-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .lab-title h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .lab-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            background: rgba(51, 65, 85, 0.8);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+
+        .control-btn:hover {
+            background: rgba(71, 85, 105, 0.8);
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Network Visualization */
+        .network-viz {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.8);
+            border-bottom: 1px solid #334155;
+            position: relative;
+            overflow: hidden;
+            min-height: 300px;
+        }
+
+        .network-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .viz-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+
+        .viz-overlay h4 {
+            color: #8b5cf6;
+            margin-bottom: 8px;
+        }
+
+        .viz-legend {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.local { background: #22c55e; }
+        .legend-dot.isp { background: #f97316; }
+        .legend-dot.internet { background: #06b6d4; }
+        .legend-dot.target { background: #8b5cf6; }
+        .legend-dot.timeout { background: #64748b; }
+
+        /* Terminal Section */
+        .terminal-section {
+            height: 300px;
+            background: #0c0c14;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            background: #1e293b;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .terminal-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #eab308; }
+        .terminal-dot.green { background: #22c55e; }
+
+        .terminal-title {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-left: 8px;
+        }
+
+        .terminal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line {
+            margin-bottom: 3px;
+            white-space: pre-wrap;
+        }
+
+        .terminal-line .prompt { color: #10b981; }
+        .terminal-line .command { color: #06b6d4; }
+        .terminal-line .hop-num { color: #8b5cf6; font-weight: bold; }
+        .terminal-line .hostname { color: #f97316; }
+        .terminal-line .ip { color: #06b6d4; }
+        .terminal-line .latency { color: #22c55e; }
+        .terminal-line .timeout { color: #ef4444; }
+        .terminal-line .muted { color: #64748b; }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+        }
+
+        .terminal-prompt {
+            color: #10b981;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-right: 8px;
+        }
+
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #06b6d4;
+            font-family: monospace;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: rgba(15, 23, 42, 0.95);
+            border-left: 2px solid rgba(139, 92, 246, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .sidebar-section h3 {
+            color: #8b5cf6;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Concepts Panel */
+        .concept-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .concept-card h4 {
+            color: #06b6d4;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .concept-card p {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .concept-card code {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* Quick Targets */
+        .target-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .target-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .target-btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+        }
+
+        .target-btn .target-name {
+            font-size: 0.85rem;
+            color: #06b6d4;
+            margin-bottom: 4px;
+        }
+
+        .target-btn .target-ip {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-family: monospace;
+        }
+
+        /* Hop Analysis */
+        .hop-analysis {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .hop-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+
+        .hop-card:hover {
+            border-color: #06b6d4;
+        }
+
+        .hop-card.active {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .hop-card.timeout {
+            opacity: 0.5;
+        }
+
+        .hop-num-badge {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .hop-card.timeout .hop-num-badge {
+            background: #64748b;
+        }
+
+        .hop-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .hop-hostname {
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hop-ip {
+            color: #06b6d4;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        .hop-latency {
+            color: #22c55e;
+            font-size: 0.9rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .hop-latency.high {
+            color: #f97316;
+        }
+
+        .hop-latency.timeout {
+            color: #ef4444;
+        }
+
+        /* Footer */
+        .lab-footer {
+            grid-column: 1 / -1;
+            background: #0f172a;
+            border-top: 1px solid #334155;
+            padding: 10px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-nav a {
+            color: #06b6d4;
+            text-decoration: none;
+        }
+
+        .footer-stats {
+            display: flex;
+            gap: 25px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-value {
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        /* Animations */
+        @keyframes packetMove {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+
+        .packet {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            position: absolute;
+            animation: packetMove 1s linear;
+            box-shadow: 0 0 10px #22c55e;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                border-left: none;
+                border-top: 2px solid rgba(139, 92, 246, 0.3);
+                max-height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <!-- Header -->
+        <header class="lab-header">
+            <div class="lab-title">
+                <h1>🌐 Interactive Traceroute Lab</h1>
+                <span class="lab-badge">NETWORK PATH ANALYSIS</span>
+            </div>
+            <div>
+                <button class="control-btn" onclick="showHelp()">📖 Help</button>
+                <button class="control-btn" onclick="clearTrace()">🔄 Clear</button>
+                <button class="control-btn primary" onclick="completeLab()">✓ Complete</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <section class="main-content">
+            <!-- Network Visualization -->
+            <div class="network-viz">
+                <canvas id="networkCanvas" class="network-canvas"></canvas>
+                <div class="viz-overlay">
+                    <h4>Network Path Visualization</h4>
+                    <div class="viz-legend">
+                        <div class="legend-item"><span class="legend-dot local"></span> Local</div>
+                        <div class="legend-item"><span class="legend-dot isp"></span> ISP</div>
+                        <div class="legend-item"><span class="legend-dot internet"></span> Internet</div>
+                        <div class="legend-item"><span class="legend-dot target"></span> Target</div>
+                        <div class="legend-item"><span class="legend-dot timeout"></span> Timeout</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal -->
+            <div class="terminal-section">
+                <div class="terminal-header">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span class="terminal-title">traceroute terminal</span>
+                </div>
+                <div class="terminal-body" id="terminalOutput">
+                    <div class="terminal-line">
+                        <span class="muted">Welcome to the Traceroute Lab. Enter a target to trace the network path.</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="muted">Try: traceroute 8.8.8.8 or traceroute google.com</span>
+                    </div>
+                </div>
+                <div class="terminal-input-line">
+                    <span class="terminal-prompt">$</span>
+                    <input type="text" id="commandInput" placeholder="traceroute [target]" autocomplete="off">
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Concepts -->
+            <div class="sidebar-section">
+                <h3>📚 How Traceroute Works</h3>
+                <div class="concept-card">
+                    <h4>TTL (Time To Live)</h4>
+                    <p>Each packet has a TTL value. Routers decrement it by 1. When TTL=0, the router sends back an ICMP "Time Exceeded" message, revealing its identity.</p>
+                </div>
+                <div class="concept-card">
+                    <h4>Incremental Probing</h4>
+                    <p>Traceroute sends packets with <code>TTL=1</code>, then <code>TTL=2</code>, etc. Each hop responds, mapping the entire path.</p>
+                </div>
+                <div class="concept-card">
+                    <h4>Three Probes</h4>
+                    <p>By default, 3 packets per hop measure latency variance. <code>* * *</code> means the router didn't respond (firewall or timeout).</p>
+                </div>
+            </div>
+
+            <!-- Quick Targets -->
+            <div class="sidebar-section">
+                <h3>🎯 Quick Targets</h3>
+                <div class="target-grid">
+                    <button class="target-btn" onclick="runTrace('8.8.8.8')">
+                        <div class="target-name">Google DNS</div>
+                        <div class="target-ip">8.8.8.8</div>
+                    </button>
+                    <button class="target-btn" onclick="runTrace('1.1.1.1')">
+                        <div class="target-name">Cloudflare DNS</div>
+                        <div class="target-ip">1.1.1.1</div>
+                    </button>
+                    <button class="target-btn" onclick="runTrace('192.168.1.10')">
+                        <div class="target-name">Web Server</div>
+                        <div class="target-ip">192.168.1.10</div>
+                    </button>
+                    <button class="target-btn" onclick="runTrace('192.168.1.1')">
+                        <div class="target-name">Gateway</div>
+                        <div class="target-ip">192.168.1.1</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hop Analysis -->
+            <div class="hop-analysis">
+                <h3 style="color: #8b5cf6; font-size: 0.9rem; margin-bottom: 15px;">📊 Hop Analysis</h3>
+                <div id="hopList">
+                    <p style="color: #64748b; font-size: 0.85rem;">Run a traceroute to see hop details...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Footer -->
+        <footer class="lab-footer">
+            <nav class="footer-nav">
+                <a href="../index.html">← Back to Week 3</a>
+            </nav>
+            <div class="footer-stats">
+                <div class="stat-item">
+                    <span>Total Hops:</span>
+                    <span class="stat-value" id="totalHops">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Avg Latency:</span>
+                    <span class="stat-value" id="avgLatency">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Timeouts:</span>
+                    <span class="stat-value" id="timeoutCount">-</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // INTERACTIVE TRACEROUTE LAB
+        // ═══════════════════════════════════════════════════════════════
+
+        // Virtual Network Topology
+        const networkTopology = {
+            'local': {
+                nodes: [
+                    { id: 'workstation', ip: '192.168.1.100', name: 'Your PC', type: 'local' },
+                    { id: 'gateway', ip: '192.168.1.1', name: 'gateway.local', type: 'local', latency: 1 }
+                ]
+            },
+            'isp': {
+                nodes: [
+                    { id: 'isp-edge', ip: '10.0.0.1', name: 'edge-router.isp.net', type: 'isp', latency: 8 },
+                    { id: 'isp-core', ip: '172.16.0.1', name: 'core-router.isp.net', type: 'isp', latency: 15 }
+                ]
+            },
+            'internet': {
+                nodes: [
+                    { id: 'ix', ip: '198.32.124.1', name: 'ix.equinix.com', type: 'internet', latency: 25 },
+                    { id: 'timeout', ip: null, name: '* * *', type: 'timeout', latency: null }
+                ]
+            },
+            'targets': {
+                'google': [
+                    { id: 'google-edge', ip: '142.250.80.1', name: 'edge.google.com', type: 'internet', latency: 38 },
+                    { id: 'google-dns', ip: '8.8.8.8', name: 'dns.google', type: 'target', latency: 42 }
+                ],
+                'cloudflare': [
+                    { id: 'cf', ip: '1.1.1.1', name: 'one.one.one.one', type: 'target', latency: 35 }
+                ],
+                'local-web': [
+                    { id: 'webserver', ip: '192.168.1.10', name: 'web01.internal', type: 'target', latency: 1 }
+                ],
+                'local-gw': [
+                    { id: 'gw', ip: '192.168.1.1', name: 'gateway.local', type: 'target', latency: 1 }
+                ]
+            }
+        };
+
+        // Canvas and context
+        let canvas, ctx;
+        let currentRoute = [];
+        let animationFrame;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('networkCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Input handler
+            document.getElementById('commandInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const input = e.target.value.trim();
+                    if (input) {
+                        parseCommand(input);
+                        e.target.value = '';
+                    }
+                }
+            });
+
+            drawEmptyNetwork();
+        });
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (currentRoute.length > 0) {
+                drawRoute(currentRoute);
+            } else {
+                drawEmptyNetwork();
+            }
+        }
+
+        function parseCommand(input) {
+            const parts = input.toLowerCase().split(/\s+/);
+            const cmd = parts[0];
+            const target = parts[1];
+
+            if (cmd === 'traceroute' || cmd === 'tracert') {
+                if (!target) {
+                    addOutput('Usage: traceroute [target]', 'error');
+                    return;
+                }
+                runTrace(target);
+            } else if (cmd === 'mtr') {
+                if (!target) {
+                    addOutput('Usage: mtr [target]', 'error');
+                    return;
+                }
+                runMtr(target);
+            } else if (cmd === 'help') {
+                showHelp();
+            } else if (cmd === 'clear') {
+                clearTrace();
+            } else {
+                addOutput(`Command not found: ${cmd}. Try: traceroute, mtr, help`, 'error');
+            }
+        }
+
+        function runTrace(target) {
+            // Clear previous
+            const terminalBody = document.getElementById('terminalOutput');
+            terminalBody.innerHTML = '';
+
+            // Build route based on target
+            const route = buildRoute(target);
+            currentRoute = route;
+
+            // Add header
+            addOutput(`<span class="prompt">$</span> <span class="command">traceroute ${target}</span>`);
+            addOutput(`traceroute to ${target}, 30 hops max, 60 byte packets`);
+            addOutput('');
+
+            // Animate hops
+            animateTrace(route, 0);
+        }
+
+        function buildRoute(target) {
+            let route = [];
+
+            // Always start with gateway
+            route.push({ ...networkTopology.local.nodes[1] });
+
+            // Check if local target
+            if (target.startsWith('192.168.1.')) {
+                if (target === '192.168.1.1') {
+                    route[0].type = 'target';
+                    return route;
+                }
+                route.push({
+                    ip: target,
+                    name: target === '192.168.1.10' ? 'web01.internal' : target,
+                    type: 'target',
+                    latency: 1
+                });
+                return route;
+            }
+
+            // Add ISP hops
+            route = route.concat(networkTopology.isp.nodes.map(n => ({ ...n })));
+
+            // Add internet hops
+            route.push({ ...networkTopology.internet.nodes[0] }); // IX
+
+            // Add timeout (simulated)
+            if (Math.random() > 0.3) {
+                route.push({ ...networkTopology.internet.nodes[1] }); // timeout
+            }
+
+            // Add target-specific hops
+            if (target === '8.8.8.8' || target.includes('google')) {
+                route = route.concat(networkTopology.targets.google.map(n => ({ ...n })));
+            } else if (target === '1.1.1.1' || target.includes('cloudflare')) {
+                route = route.concat(networkTopology.targets.cloudflare.map(n => ({ ...n })));
+            } else {
+                // Generic target
+                route.push({
+                    ip: target,
+                    name: target,
+                    type: 'target',
+                    latency: 50 + Math.random() * 30
+                });
+            }
+
+            return route;
+        }
+
+        function animateTrace(route, index) {
+            if (index >= route.length) {
+                // Trace complete
+                addOutput('');
+                updateStats(route);
+                drawRoute(route);
+                return;
+            }
+
+            const hop = route[index];
+            const hopNum = (index + 1).toString().padStart(2, ' ');
+
+            setTimeout(() => {
+                if (hop.type === 'timeout' || !hop.ip) {
+                    addOutput(`<span class="hop-num">${hopNum}</span>  <span class="timeout">* * *</span>`);
+                    addHopCard(index + 1, hop);
+                } else {
+                    const lat1 = (hop.latency + Math.random() * 2).toFixed(3);
+                    const lat2 = (hop.latency + Math.random() * 2).toFixed(3);
+                    const lat3 = (hop.latency + Math.random() * 2).toFixed(3);
+                    addOutput(`<span class="hop-num">${hopNum}</span>  <span class="hostname">${hop.name}</span> (<span class="ip">${hop.ip}</span>)  <span class="latency">${lat1} ms  ${lat2} ms  ${lat3} ms</span>`);
+                    addHopCard(index + 1, hop);
+                }
+
+                // Draw partial route
+                drawRoute(route.slice(0, index + 1), route);
+
+                // Continue
+                animateTrace(route, index + 1);
+            }, 300 + Math.random() * 200);
+        }
+
+        function addOutput(html) {
+            const terminalBody = document.getElementById('terminalOutput');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = html || '&nbsp;';
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addHopCard(num, hop) {
+            const hopList = document.getElementById('hopList');
+
+            // Clear placeholder on first hop
+            if (num === 1) {
+                hopList.innerHTML = '';
+            }
+
+            const card = document.createElement('div');
+            card.className = `hop-card${hop.type === 'timeout' ? ' timeout' : ''}`;
+            card.id = `hop-${num}`;
+
+            const latencyClass = hop.latency > 50 ? 'high' : (hop.type === 'timeout' ? 'timeout' : '');
+
+            card.innerHTML = `
+                <div class="hop-num-badge">${num}</div>
+                <div class="hop-info">
+                    <div class="hop-hostname">${hop.name || '* * *'}</div>
+                    <div class="hop-ip">${hop.ip || 'No response'}</div>
+                </div>
+                <div class="hop-latency ${latencyClass}">${hop.latency ? hop.latency.toFixed(1) + ' ms' : '---'}</div>
+            `;
+
+            hopList.appendChild(card);
+        }
+
+        function updateStats(route) {
+            const validHops = route.filter(h => h.latency);
+            const totalHops = route.length;
+            const timeouts = route.filter(h => h.type === 'timeout').length;
+            const avgLatency = validHops.length > 0
+                ? (validHops.reduce((sum, h) => sum + h.latency, 0) / validHops.length).toFixed(1)
+                : '-';
+
+            document.getElementById('totalHops').textContent = totalHops;
+            document.getElementById('avgLatency').textContent = avgLatency !== '-' ? avgLatency + ' ms' : '-';
+            document.getElementById('timeoutCount').textContent = timeouts;
+
+            // Save completion
+            localStorage.setItem('cyberops_lab_tracing_route', 'visited');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CANVAS VISUALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        function drawEmptyNetwork() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw placeholder text
+            ctx.fillStyle = '#334155';
+            ctx.font = '16px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText('Run a traceroute to visualize the network path', canvas.width / 2, canvas.height / 2);
+        }
+
+        function drawRoute(route, fullRoute = null) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (route.length === 0) {
+                drawEmptyNetwork();
+                return;
+            }
+
+            const padding = 60;
+            const nodeRadius = 20;
+            const width = canvas.width - padding * 2;
+            const height = canvas.height - padding * 2;
+
+            const totalNodes = (fullRoute || route).length;
+            const spacing = width / Math.max(totalNodes - 1, 1);
+
+            // Draw connections first
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < route.length - 1; i++) {
+                const x1 = padding + i * spacing;
+                const x2 = padding + (i + 1) * spacing;
+                const y = canvas.height / 2;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y);
+                ctx.lineTo(x2, y);
+                ctx.stroke();
+            }
+
+            // Draw active connection (animated)
+            if (route.length > 1) {
+                const gradient = ctx.createLinearGradient(
+                    padding,
+                    canvas.height / 2,
+                    padding + (route.length - 1) * spacing,
+                    canvas.height / 2
+                );
+                gradient.addColorStop(0, '#22c55e');
+                gradient.addColorStop(1, '#06b6d4');
+
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(padding, canvas.height / 2);
+                for (let i = 1; i < route.length; i++) {
+                    ctx.lineTo(padding + i * spacing, canvas.height / 2);
+                }
+                ctx.stroke();
+            }
+
+            // Draw nodes
+            route.forEach((hop, i) => {
+                const x = padding + i * spacing;
+                const y = canvas.height / 2;
+
+                // Node color based on type
+                let color;
+                switch (hop.type) {
+                    case 'local': color = '#22c55e'; break;
+                    case 'isp': color = '#f97316'; break;
+                    case 'internet': color = '#06b6d4'; break;
+                    case 'target': color = '#8b5cf6'; break;
+                    case 'timeout': color = '#64748b'; break;
+                    default: color = '#06b6d4';
+                }
+
+                // Glow effect
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 15;
+
+                // Draw node
+                ctx.beginPath();
+                ctx.arc(x, y, nodeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // Draw hop number
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(i + 1, x, y);
+
+                // Draw label
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '11px Segoe UI';
+                ctx.fillText(hop.name?.split('.')[0] || '???', x, y + nodeRadius + 15);
+
+                // Draw latency
+                if (hop.latency) {
+                    ctx.fillStyle = '#22c55e';
+                    ctx.fillText(hop.latency.toFixed(0) + 'ms', x, y - nodeRadius - 10);
+                } else if (hop.type === 'timeout') {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillText('* * *', x, y - nodeRadius - 10);
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+
+        function runMtr(target) {
+            addOutput(`<span class="prompt">$</span> <span class="command">mtr ${target}</span>`);
+            addOutput('<span class="muted">MTR (My Traceroute) - Continuous path monitoring</span>');
+            addOutput('');
+
+            const route = buildRoute(target);
+            currentRoute = route;
+
+            addOutput('Host                          Loss%   Snt   Last   Avg  Best  Wrst StDev');
+
+            route.forEach((hop, i) => {
+                const num = (i + 1).toString().padStart(2);
+                if (hop.type === 'timeout') {
+                    addOutput(`${num}.|-- ???                        100.0    10    0.0   0.0   0.0   0.0   0.0`);
+                } else {
+                    const loss = (Math.random() * 2).toFixed(1);
+                    const best = hop.latency - 1;
+                    const worst = hop.latency + 3;
+                    const stdev = (Math.random() * 2).toFixed(1);
+                    addOutput(`${num}.|-- ${hop.name.padEnd(28)} ${loss.padStart(5)}    10  ${hop.latency.toFixed(1).padStart(5)}  ${hop.latency.toFixed(1).padStart(5)}  ${best.toFixed(1).padStart(5)}  ${worst.toFixed(1).padStart(5)}   ${stdev.padStart(4)}`);
+                }
+                addHopCard(i + 1, hop);
+            });
+
+            updateStats(route);
+            drawRoute(route);
+        }
+
+        function showHelp() {
+            addOutput('');
+            addOutput('<span class="command">═══════════════════════════════════════════════════</span>');
+            addOutput('<span class="command">              TRACEROUTE LAB HELP</span>');
+            addOutput('<span class="command">═══════════════════════════════════════════════════</span>');
+            addOutput('');
+            addOutput('<span class="hostname">COMMANDS:</span>');
+            addOutput('  traceroute [target]   <span class="muted">Trace path to target</span>');
+            addOutput('  mtr [target]          <span class="muted">My Traceroute (detailed)</span>');
+            addOutput('  clear                 <span class="muted">Clear terminal and visualization</span>');
+            addOutput('  help                  <span class="muted">Show this help</span>');
+            addOutput('');
+            addOutput('<span class="hostname">EXAMPLES:</span>');
+            addOutput('  traceroute 8.8.8.8');
+            addOutput('  traceroute google.com');
+            addOutput('  mtr 1.1.1.1');
+            addOutput('');
+        }
+
+        function clearTrace() {
+            currentRoute = [];
+            document.getElementById('terminalOutput').innerHTML = `
+                <div class="terminal-line"><span class="muted">Terminal cleared. Ready for new trace.</span></div>
+            `;
+            document.getElementById('hopList').innerHTML = `
+                <p style="color: #64748b; font-size: 0.85rem;">Run a traceroute to see hop details...</p>
+            `;
+            document.getElementById('totalHops').textContent = '-';
+            document.getElementById('avgLatency').textContent = '-';
+            document.getElementById('timeoutCount').textContent = '-';
+            drawEmptyNetwork();
+        }
+
+        function completeLab() {
+            localStorage.setItem('cyberops_lab_tracing_route', 'completed');
+            localStorage.setItem('cyberops_lab_tracing_route_time', new Date().toISOString());
+            alert('Lab completed! Your progress has been saved.');
+        }
+    </script>
+</body>
+</html>

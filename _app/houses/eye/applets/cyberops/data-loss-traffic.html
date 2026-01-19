@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Loss from Traffic Analysis | CyberOps - Eye House</title>
+    <style>
+        :root {
+            --eye-primary: #06B6D4;
+            --eye-secondary: #8B5CF6;
+            --eye-dark: #0F172A;
+            --eye-darker: #020617;
+            --eye-card: #1E293B;
+            --eye-border: #334155;
+            --eye-text: #E2E8F0;
+            --eye-muted: #94A3B8;
+            --eye-success: #10B981;
+            --eye-warning: #F59E0B;
+            --eye-error: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--eye-darker);
+            color: var(--eye-text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--eye-border);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle { color: var(--eye-muted); font-size: 1.1rem; }
+
+        .breadcrumb {
+            display: flex; gap: 0.5rem; align-items: center;
+            margin-bottom: 1rem; font-size: 0.9rem; color: var(--eye-muted);
+        }
+
+        .breadcrumb a { color: var(--eye-primary); text-decoration: none; }
+
+        .section-nav {
+            display: flex; gap: 0.5rem; margin-bottom: 2rem;
+            flex-wrap: wrap; justify-content: center;
+        }
+
+        .section-nav button {
+            padding: 0.75rem 1.5rem; background: var(--eye-card);
+            border: 1px solid var(--eye-border); color: var(--eye-text);
+            border-radius: 8px; cursor: pointer; transition: all 0.2s;
+        }
+
+        .section-nav button:hover { border-color: var(--eye-primary); }
+
+        .section-nav button.active {
+            background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary));
+            border-color: transparent; color: white;
+        }
+
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--eye-card); border: 1px solid var(--eye-border);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+
+        .card h2 { color: var(--eye-primary); margin-bottom: 1rem; }
+        .card h3 { color: var(--eye-secondary); margin-bottom: 0.75rem; }
+
+        /* Exfiltration Techniques */
+        .technique-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem; margin: 1.5rem 0;
+        }
+
+        .technique-card {
+            background: var(--eye-dark); border: 1px solid var(--eye-border);
+            border-radius: 10px; padding: 1.25rem; transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .technique-card:hover {
+            border-color: var(--eye-primary);
+            transform: translateY(-3px);
+        }
+
+        .technique-card.selected {
+            border-color: var(--eye-secondary);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .technique-card .icon { font-size: 1.75rem; margin-bottom: 0.75rem; }
+
+        .technique-card h4 {
+            color: var(--eye-text); margin-bottom: 0.5rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .technique-card .tag {
+            font-size: 0.7rem; padding: 0.2rem 0.4rem;
+            border-radius: 4px; background: var(--eye-card);
+        }
+
+        .technique-card.high .tag { color: var(--eye-error); }
+        .technique-card.medium .tag { color: var(--eye-warning); }
+
+        .technique-card p { color: var(--eye-muted); font-size: 0.9rem; }
+
+        /* Traffic Display */
+        .traffic-display {
+            background: var(--eye-darker); border: 1px solid var(--eye-border);
+            border-radius: 8px; overflow: hidden; margin: 1rem 0;
+        }
+
+        .traffic-header {
+            background: var(--eye-dark); padding: 0.75rem 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--eye-border);
+        }
+
+        .traffic-header h4 { color: var(--eye-primary); font-size: 0.95rem; }
+
+        .traffic-content {
+            padding: 1rem; font-family: 'Consolas', monospace;
+            font-size: 0.85rem; max-height: 300px; overflow-y: auto;
+        }
+
+        .traffic-line {
+            padding: 0.25rem 0.5rem; margin: 0.25rem 0;
+            border-radius: 4px; display: flex; gap: 1rem;
+        }
+
+        .traffic-line.suspicious {
+            background: rgba(239, 68, 68, 0.15);
+            border-left: 3px solid var(--eye-error);
+        }
+
+        .traffic-line.normal {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--eye-success);
+        }
+
+        .traffic-line .time { color: var(--eye-muted); width: 80px; }
+        .traffic-line .src { color: var(--eye-primary); width: 140px; }
+        .traffic-line .dst { color: var(--eye-secondary); width: 140px; }
+        .traffic-line .proto { color: var(--eye-warning); width: 50px; }
+        .traffic-line .size { color: var(--eye-text); width: 80px; }
+        .traffic-line .info { color: var(--eye-muted); flex: 1; }
+
+        /* Indicator Panel */
+        .indicator-panel {
+            background: var(--eye-dark); border-radius: 8px;
+            padding: 1rem; margin: 1rem 0;
+        }
+
+        .indicator-list { list-style: none; padding: 0; }
+
+        .indicator-list li {
+            padding: 0.5rem 0; padding-left: 1.5rem;
+            position: relative; color: var(--eye-muted);
+        }
+
+        .indicator-list li::before {
+            content: "⚠"; position: absolute; left: 0;
+            color: var(--eye-warning);
+        }
+
+        .indicator-list li.alert::before {
+            content: "🚨"; color: var(--eye-error);
+        }
+
+        /* Analysis Tool */
+        .analysis-tool {
+            background: var(--eye-dark); border-radius: 12px;
+            padding: 1.5rem; margin: 1.5rem 0;
+        }
+
+        .flow-selector {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem; margin: 1rem 0;
+        }
+
+        .flow-option {
+            background: var(--eye-card); border: 1px solid var(--eye-border);
+            border-radius: 8px; padding: 0.75rem; cursor: pointer;
+            transition: all 0.2s; font-size: 0.9rem;
+        }
+
+        .flow-option:hover { border-color: var(--eye-primary); }
+
+        .flow-option.selected {
+            border-color: var(--eye-primary);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .analysis-result {
+            background: var(--eye-darker); border-radius: 8px;
+            padding: 1rem; margin-top: 1rem; display: none;
+        }
+
+        .analysis-result.show { display: block; }
+
+        .verdict {
+            font-size: 1.25rem; font-weight: 600;
+            padding: 0.75rem; border-radius: 8px; text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .verdict.suspicious {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--eye-error);
+        }
+
+        .verdict.normal {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--eye-success);
+        }
+
+        /* Concept Box */
+        .concept-box {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid var(--eye-primary); border-radius: 12px;
+            padding: 1.25rem; margin: 1.5rem 0;
+        }
+
+        .concept-box h4 { color: var(--eye-primary); margin-bottom: 0.75rem; }
+        .concept-box ul { list-style: none; padding-left: 0; }
+
+        .concept-box li {
+            padding: 0.5rem 0; padding-left: 1.5rem; position: relative;
+        }
+
+        .concept-box li::before {
+            content: ">"; position: absolute; left: 0;
+            color: var(--eye-secondary); font-weight: bold;
+        }
+
+        /* Scenario Challenge */
+        .scenario-challenge {
+            background: var(--eye-dark); border-radius: 12px;
+            padding: 1.5rem; margin: 1.5rem 0;
+        }
+
+        .scenario-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .scenario-header h3 { color: var(--eye-primary); margin: 0; }
+
+        .scenario-number {
+            background: var(--eye-card); padding: 0.25rem 0.75rem;
+            border-radius: 4px; font-size: 0.9rem; color: var(--eye-muted);
+        }
+
+        .scenario-question {
+            background: var(--eye-darker); border-radius: 8px;
+            padding: 1rem; margin: 1rem 0;
+        }
+
+        .answer-options {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem; margin-top: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .answer-options { grid-template-columns: 1fr; }
+        }
+
+        .answer-btn {
+            padding: 0.75rem 1rem; background: var(--eye-card);
+            border: 1px solid var(--eye-border); border-radius: 8px;
+            cursor: pointer; color: var(--eye-text); text-align: left;
+            transition: all 0.2s;
+        }
+
+        .answer-btn:hover:not(:disabled) { border-color: var(--eye-primary); }
+        .answer-btn.correct { border-color: var(--eye-success); background: rgba(16, 185, 129, 0.2); }
+        .answer-btn.incorrect { border-color: var(--eye-error); background: rgba(239, 68, 68, 0.2); }
+        .answer-btn:disabled { cursor: not-allowed; }
+
+        /* Progress */
+        .progress-container { margin-bottom: 1.5rem; }
+
+        .progress-bar {
+            height: 6px; background: var(--eye-dark);
+            border-radius: 3px; overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary));
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            display: flex; justify-content: space-between;
+            margin-top: 0.5rem; font-size: 0.85rem; color: var(--eye-muted);
+        }
+
+        .nav-footer {
+            display: flex; justify-content: space-between;
+            margin-top: 2rem; padding-top: 1.5rem;
+            border-top: 1px solid var(--eye-border);
+        }
+
+        .nav-footer button {
+            padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .btn-prev {
+            background: var(--eye-card); border: 1px solid var(--eye-border);
+            color: var(--eye-text);
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary));
+            border: none; color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="../../../index.html">Eye House</a>
+            <span>/</span>
+            <a href="../../modules/cyberops/index.html">CyberOps 200-201</a>
+            <span>/</span>
+            <span>Week 1</span>
+            <span>/</span>
+            <span>Data Loss from Traffic</span>
+        </nav>
+
+        <header class="header">
+            <h1>Data Loss from Traffic Analysis</h1>
+            <p class="subtitle">Detecting Data Exfiltration Through Network Patterns</p>
+        </header>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">
+                <span id="progressLabel">Section 1 of 4</span>
+                <span id="progressPercent">0% Complete</span>
+            </div>
+        </div>
+
+        <nav class="section-nav">
+            <button class="active" data-section="techniques">Exfil Techniques</button>
+            <button data-section="indicators">Indicators</button>
+            <button data-section="analysis">Traffic Analysis</button>
+            <button data-section="challenge">Challenge</button>
+        </nav>
+
+        <!-- Section 1: Exfiltration Techniques -->
+        <section id="techniques" class="section active">
+            <div class="card">
+                <h2>Common Data Exfiltration Techniques</h2>
+                <p>Attackers use various methods to steal data from compromised networks. Understanding these techniques helps you recognize the traffic patterns they create.</p>
+
+                <div class="technique-grid">
+                    <div class="technique-card high" onclick="showTechnique('dns')">
+                        <div class="icon">🌐</div>
+                        <h4>DNS Tunneling <span class="tag">HIGH RISK</span></h4>
+                        <p>Encodes data in DNS queries to bypass security controls.</p>
+                    </div>
+
+                    <div class="technique-card high" onclick="showTechnique('https')">
+                        <div class="icon">🔒</div>
+                        <h4>HTTPS Exfil <span class="tag">HIGH RISK</span></h4>
+                        <p>Hides data in encrypted HTTPS POST requests.</p>
+                    </div>
+
+                    <div class="technique-card medium" onclick="showTechnique('icmp')">
+                        <div class="icon">📡</div>
+                        <h4>ICMP Tunneling <span class="tag">MEDIUM</span></h4>
+                        <p>Embeds data in ping packet payloads.</p>
+                    </div>
+
+                    <div class="technique-card medium" onclick="showTechnique('cloud')">
+                        <div class="icon">☁️</div>
+                        <h4>Cloud Storage <span class="tag">MEDIUM</span></h4>
+                        <p>Uploads to legitimate cloud services (Dropbox, Google Drive).</p>
+                    </div>
+
+                    <div class="technique-card high" onclick="showTechnique('steganography')">
+                        <div class="icon">🖼️</div>
+                        <h4>Steganography <span class="tag">HIGH RISK</span></h4>
+                        <p>Hides data within images or other files.</p>
+                    </div>
+
+                    <div class="technique-card medium" onclick="showTechnique('email')">
+                        <div class="icon">📧</div>
+                        <h4>Email Exfil <span class="tag">MEDIUM</span></h4>
+                        <p>Sends data as attachments or in message body.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="techniqueDetail">
+                <h3>Select a technique to learn more</h3>
+                <p style="color: var(--eye-muted);">Click on any technique card above to see traffic patterns and detection methods.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Indicators -->
+        <section id="indicators" class="section">
+            <div class="card">
+                <h2>Exfiltration Indicators</h2>
+                <p>Look for these red flags in network traffic that may indicate data theft in progress.</p>
+
+                <div class="indicator-panel">
+                    <h4 style="color: var(--eye-warning); margin-bottom: 1rem;">Volume Indicators</h4>
+                    <ul class="indicator-list">
+                        <li>Unusual outbound data volume (especially after hours)</li>
+                        <li>Large uploads to external IPs not in whitelist</li>
+                        <li>Sustained high-bandwidth connections</li>
+                        <li class="alert">Single endpoint transferring more than peers</li>
+                    </ul>
+                </div>
+
+                <div class="indicator-panel">
+                    <h4 style="color: var(--eye-warning); margin-bottom: 1rem;">Protocol Indicators</h4>
+                    <ul class="indicator-list">
+                        <li>DNS queries with unusually long hostnames</li>
+                        <li>High volume of TXT record requests</li>
+                        <li>ICMP packets with non-standard payload sizes</li>
+                        <li class="alert">HTTP POST to rarely-accessed domains</li>
+                    </ul>
+                </div>
+
+                <div class="indicator-panel">
+                    <h4 style="color: var(--eye-warning); margin-bottom: 1rem;">Behavioral Indicators</h4>
+                    <ul class="indicator-list">
+                        <li>Access to sensitive files followed by network activity</li>
+                        <li>Compression/archiving before transfer</li>
+                        <li>Connections to known file-sharing sites</li>
+                        <li class="alert">Encrypted traffic to non-standard ports</li>
+                    </ul>
+                </div>
+
+                <div class="concept-box">
+                    <h4>Key Insight</h4>
+                    <ul>
+                        <li>Single indicators rarely confirm exfiltration — look for <strong>patterns</strong></li>
+                        <li>Correlate network data with endpoint activity (file access, process execution)</li>
+                        <li>Baseline normal traffic to identify anomalies</li>
+                        <li>Some techniques blend with legitimate traffic — context matters</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Traffic Analysis -->
+        <section id="analysis" class="section">
+            <div class="card">
+                <h2>Analyze Traffic Flows</h2>
+                <p>Examine these network flows and identify potential data exfiltration. Click on suspicious flows to analyze them.</p>
+
+                <div class="traffic-display">
+                    <div class="traffic-header">
+                        <h4>NetFlow Records - Last Hour</h4>
+                        <span style="color: var(--eye-muted); font-size: 0.85rem;">Click a flow to analyze</span>
+                    </div>
+                    <div class="traffic-content" id="trafficContent">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="analysis-result" id="analysisResult">
+                    <div class="verdict" id="verdict"></div>
+                    <div id="analysisDetails"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Quick Reference: Normal vs. Suspicious</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--eye-border);">
+                            <th style="text-align: left; padding: 0.75rem; color: var(--eye-primary);">Metric</th>
+                            <th style="text-align: left; padding: 0.75rem; color: var(--eye-success);">Normal</th>
+                            <th style="text-align: left; padding: 0.75rem; color: var(--eye-error);">Suspicious</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--eye-border);">
+                            <td style="padding: 0.75rem;">DNS Query Length</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">10-50 characters</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">100+ characters (encoded data)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--eye-border);">
+                            <td style="padding: 0.75rem;">HTTPS Upload</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">Small POST (form data)</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">Large POST (100KB+) to unknown domain</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--eye-border);">
+                            <td style="padding: 0.75rem;">ICMP Payload</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">32-64 bytes (standard ping)</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">Variable/large payloads</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.75rem;">After-Hours Traffic</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">Minimal, known services</td>
+                            <td style="padding: 0.75rem; color: var(--eye-muted);">Large outbound transfers</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Section 4: Challenge -->
+        <section id="challenge" class="section">
+            <div class="card">
+                <h2>Exfiltration Detection Challenge</h2>
+                <p>You're a SOC analyst reviewing alerts. Analyze each scenario and determine the appropriate response.</p>
+
+                <div class="scenario-challenge" id="challengeContainer">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div style="text-align: center; margin-top: 1rem;">
+                    <span id="challengeScore" style="font-size: 1.2rem; color: var(--eye-muted);"></span>
+                </div>
+            </div>
+        </section>
+
+        <footer class="nav-footer">
+            <button class="btn-prev" onclick="previousSection()">← Previous</button>
+            <button class="btn-next" onclick="nextSection()">Next →</button>
+        </footer>
+    </div>
+
+    <script>
+        // Section Navigation
+        const sections = ['techniques', 'indicators', 'analysis', 'challenge'];
+        let currentSection = 0;
+        let sectionCompleted = [false, false, false, false];
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            currentSection = sections.indexOf(sectionId);
+            sectionCompleted[currentSection] = true;
+            updateProgress();
+            if (sectionId === 'analysis') initTrafficAnalysis();
+            if (sectionId === 'challenge') initChallenge();
+        }
+
+        document.querySelectorAll('.section-nav button').forEach(btn => {
+            btn.addEventListener('click', () => showSection(btn.dataset.section));
+        });
+
+        function nextSection() {
+            if (currentSection < sections.length - 1) showSection(sections[currentSection + 1]);
+        }
+
+        function previousSection() {
+            if (currentSection > 0) showSection(sections[currentSection - 1]);
+        }
+
+        function updateProgress() {
+            const completed = sectionCompleted.filter(Boolean).length;
+            const percent = Math.round((completed / sections.length) * 100);
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressLabel').textContent = `Section ${currentSection + 1} of ${sections.length}`;
+            document.getElementById('progressPercent').textContent = percent + '% Complete';
+        }
+
+        // Technique Details
+        const techniques = {
+            dns: {
+                title: 'DNS Tunneling',
+                traffic: `Query: aGVsbG8gd29ybGQgdGhpcyBpcyBzZWNyZXQgZGF0YQ.evil.com
+Type: TXT
+Response: 192.168.1.1 (but contains encoded response data)`,
+                detection: [
+                    'Unusually long subdomain names (base64 encoded data)',
+                    'High volume of TXT or NULL record requests',
+                    'Queries to newly registered domains',
+                    'Consistent DNS traffic to single domain'
+                ],
+                mitigation: 'Monitor DNS query length, block known tunneling domains, use DNS inspection'
+            },
+            https: {
+                title: 'HTTPS Exfiltration',
+                traffic: `POST /upload HTTP/1.1
+Host: legitimate-looking.com
+Content-Length: 2097152
+Content-Type: application/octet-stream
+
+[2MB of encrypted data]`,
+                detection: [
+                    'Large POST requests to external hosts',
+                    'Connections to uncategorized domains',
+                    'TLS connections to non-standard ports',
+                    'Sudden upload spikes from single host'
+                ],
+                mitigation: 'TLS inspection, DLP for outbound content, cloud access security broker'
+            },
+            icmp: {
+                title: 'ICMP Tunneling',
+                traffic: `ICMP Echo Request
+Payload: 1024 bytes (normally 32-64)
+Content: Encoded binary data
+Destination: External IP`,
+                detection: [
+                    'ICMP packets with non-standard payload sizes',
+                    'High volume of ICMP to single destination',
+                    'ICMP traffic during off-hours',
+                    'Asymmetric ICMP (more out than in)'
+                ],
+                mitigation: 'Limit ICMP payload sizes, monitor ICMP volume, block ICMP to internet'
+            },
+            cloud: {
+                title: 'Cloud Storage Exfil',
+                traffic: `HTTPS to www.dropbox.com
+PUT /upload/file.zip
+Authorization: Bearer [token]
+Size: 500MB`,
+                detection: [
+                    'Uploads to personal cloud accounts',
+                    'Large file transfers to cloud storage',
+                    'Access from unauthorized applications',
+                    'Sync activity outside business hours'
+                ],
+                mitigation: 'CASB policies, block personal cloud accounts, DLP integration'
+            },
+            steganography: {
+                title: 'Steganography',
+                traffic: `HTTP POST /images/vacation.jpg
+Content-Type: image/jpeg
+Size: 5MB
+Note: Image contains hidden data in LSB`,
+                detection: [
+                    'Image files larger than expected for dimensions',
+                    'Repeated uploads of similar images',
+                    'Images to suspicious destinations',
+                    'Statistical analysis of image entropy'
+                ],
+                mitigation: 'Deep content inspection, steg detection tools, behavioral analysis'
+            },
+            email: {
+                title: 'Email Exfiltration',
+                traffic: `SMTP to external server
+From: employee@company.com
+To: personal@gmail.com
+Attachment: financial_report.xlsx.zip (password protected)`,
+                detection: [
+                    'Large attachments to external recipients',
+                    'Emails to personal accounts',
+                    'Password-protected attachments',
+                    'Unusual recipient domains'
+                ],
+                mitigation: 'Email DLP, attachment scanning, recipient restrictions'
+            }
+        };
+
+        function showTechnique(tech) {
+            const t = techniques[tech];
+            document.querySelectorAll('.technique-card').forEach(c => c.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+
+            document.getElementById('techniqueDetail').innerHTML = `
+                <h3>${t.title} — Traffic Pattern</h3>
+                <div style="background: var(--eye-darker); font-family: Consolas, monospace; font-size: 0.85rem; padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 3px solid var(--eye-error);">
+                    <pre style="margin: 0; white-space: pre-wrap;">${t.traffic}</pre>
+                </div>
+                <h4 style="color: var(--eye-warning); margin-bottom: 0.5rem;">Detection Indicators</h4>
+                <ul style="padding-left: 1.25rem; color: var(--eye-muted);">
+                    ${t.detection.map(d => `<li>${d}</li>`).join('')}
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Mitigation:</strong> ${t.mitigation}</p>
+            `;
+        }
+
+        // Traffic Analysis
+        const trafficFlows = [
+            { time: '14:22:31', src: '192.168.1.100', dst: '8.8.8.8', proto: 'UDP', size: '128B', info: 'DNS query: google.com', suspicious: false },
+            { time: '14:22:35', src: '192.168.1.105', dst: '185.220.101.1', proto: 'TCP', size: '2.1MB', info: 'HTTPS POST to unknown domain', suspicious: true, reason: 'Large upload to uncategorized external IP, possible data exfiltration' },
+            { time: '14:23:01', src: '192.168.1.110', dst: '13.107.42.14', proto: 'TCP', size: '45KB', info: 'HTTPS to Microsoft 365', suspicious: false },
+            { time: '14:23:15', src: '192.168.1.100', dst: '45.33.32.156', proto: 'UDP', size: '256B', info: 'DNS TXT query: YWJjZGVm...evil.com', suspicious: true, reason: 'Base64-encoded subdomain to suspicious domain - DNS tunneling indicator' },
+            { time: '14:24:00', src: '192.168.1.120', dst: '162.125.66.1', proto: 'TCP', size: '500MB', info: 'HTTPS to dropbox.com', suspicious: true, reason: 'Large upload to cloud storage outside of approved business use' },
+            { time: '14:24:30', src: '192.168.1.115', dst: '192.168.1.1', proto: 'ICMP', size: '64B', info: 'Echo request', suspicious: false }
+        ];
+
+        function initTrafficAnalysis() {
+            const content = document.getElementById('trafficContent');
+            content.innerHTML = trafficFlows.map((f, i) => `
+                <div class="traffic-line ${f.suspicious ? 'suspicious' : 'normal'}" onclick="analyzeFlow(${i})" style="cursor: pointer;">
+                    <span class="time">${f.time}</span>
+                    <span class="src">${f.src}</span>
+                    <span class="dst">${f.dst}</span>
+                    <span class="proto">${f.proto}</span>
+                    <span class="size">${f.size}</span>
+                    <span class="info">${f.info}</span>
+                </div>
+            `).join('');
+        }
+
+        function analyzeFlow(index) {
+            const f = trafficFlows[index];
+            const result = document.getElementById('analysisResult');
+            result.classList.add('show');
+
+            document.getElementById('verdict').className = 'verdict ' + (f.suspicious ? 'suspicious' : 'normal');
+            document.getElementById('verdict').textContent = f.suspicious ? '⚠️ SUSPICIOUS - Investigate' : '✓ NORMAL TRAFFIC';
+
+            document.getElementById('analysisDetails').innerHTML = f.suspicious ? `
+                <h4 style="color: var(--eye-error); margin-bottom: 0.5rem;">Analysis</h4>
+                <p style="color: var(--eye-muted);">${f.reason}</p>
+                <h4 style="color: var(--eye-primary); margin: 1rem 0 0.5rem;">Recommended Actions</h4>
+                <ul style="color: var(--eye-muted); padding-left: 1.25rem;">
+                    <li>Isolate source host for investigation</li>
+                    <li>Capture additional traffic for analysis</li>
+                    <li>Check endpoint for compromise indicators</li>
+                    <li>Block destination IP at firewall</li>
+                </ul>
+            ` : `
+                <h4 style="color: var(--eye-success); margin-bottom: 0.5rem;">Analysis</h4>
+                <p style="color: var(--eye-muted);">This traffic appears to be legitimate business activity. No immediate action required.</p>
+            `;
+        }
+
+        // Challenge
+        const challenges = [
+            {
+                scenario: 'Alert: Host 192.168.1.50 has made 500 DNS TXT queries to random subdomains of "update-service.xyz" in the last hour. Average query length is 120 characters.',
+                question: 'What is the most likely explanation?',
+                options: ['Normal software update check', 'DNS tunneling exfiltration', 'Misconfigured DNS client', 'CDN load balancing'],
+                correct: 1,
+                explanation: 'Long DNS queries (120+ chars) with encoded subdomains to a suspicious domain strongly indicate DNS tunneling for data exfiltration.'
+            },
+            {
+                scenario: 'SIEM alert: User jsmith (Finance department) uploaded 2GB to personal Dropbox at 11:30 PM from their work laptop.',
+                question: 'What is the appropriate initial response?',
+                options: ['Ignore - personal cloud use is allowed', 'Immediately terminate employee access', 'Investigate context and file contents', 'Reset user password'],
+                correct: 2,
+                explanation: 'Large after-hours uploads warrant investigation, but context matters. Check what files were accessed, whether this is normal behavior, and if there\'s a business justification.'
+            },
+            {
+                scenario: 'Network baseline shows average outbound traffic of 50MB/day per workstation. One host has transferred 15GB outbound today to various external IPs.',
+                question: 'Which detection method would have caught this earliest?',
+                options: ['Signature-based IDS', 'Anomaly-based detection', 'Firewall rules', 'Antivirus scan'],
+                correct: 1,
+                explanation: 'Anomaly detection compares behavior against established baselines. A 300x increase in outbound traffic is a clear statistical deviation.'
+            }
+        ];
+
+        let currentChallenge = 0;
+        let challengeScore = 0;
+
+        function initChallenge() {
+            currentChallenge = 0;
+            challengeScore = 0;
+            renderChallenge();
+        }
+
+        function renderChallenge() {
+            if (currentChallenge >= challenges.length) {
+                showChallengeResults();
+                return;
+            }
+
+            const c = challenges[currentChallenge];
+            document.getElementById('challengeContainer').innerHTML = `
+                <div class="scenario-header">
+                    <h3>Scenario Analysis</h3>
+                    <span class="scenario-number">${currentChallenge + 1} / ${challenges.length}</span>
+                </div>
+                <div class="scenario-question">
+                    <p style="color: var(--eye-muted); margin-bottom: 1rem;">${c.scenario}</p>
+                    <p style="font-weight: 500;">${c.question}</p>
+                </div>
+                <div class="answer-options">
+                    ${c.options.map((opt, i) => `
+                        <button class="answer-btn" onclick="checkChallengeAnswer(${i})">${opt}</button>
+                    `).join('')}
+                </div>
+                <div id="challengeFeedback" style="margin-top: 1rem;"></div>
+            `;
+        }
+
+        function checkChallengeAnswer(selected) {
+            const c = challenges[currentChallenge];
+            const buttons = document.querySelectorAll('.answer-btn');
+
+            buttons.forEach((btn, i) => {
+                btn.disabled = true;
+                if (i === c.correct) btn.classList.add('correct');
+                if (i === selected && selected !== c.correct) btn.classList.add('incorrect');
+            });
+
+            if (selected === c.correct) challengeScore++;
+
+            document.getElementById('challengeFeedback').innerHTML = `
+                <div style="background: var(--eye-darker); padding: 1rem; border-radius: 8px; border-left: 3px solid ${selected === c.correct ? 'var(--eye-success)' : 'var(--eye-error)'};">
+                    <strong>${selected === c.correct ? '✓ Correct!' : '✗ Incorrect'}</strong><br>
+                    <span style="color: var(--eye-muted);">${c.explanation}</span>
+                </div>
+            `;
+
+            setTimeout(() => {
+                currentChallenge++;
+                renderChallenge();
+            }, 3000);
+        }
+
+        function showChallengeResults() {
+            const percent = Math.round((challengeScore / challenges.length) * 100);
+            document.getElementById('challengeContainer').innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <h3 style="color: ${percent >= 66 ? 'var(--eye-success)' : 'var(--eye-warning)'};">
+                        ${percent >= 66 ? 'Challenge Complete!' : 'Keep Practicing'}
+                    </h3>
+                    <p style="font-size: 2rem; margin: 1rem 0;">
+                        ${challengeScore} / ${challenges.length}
+                    </p>
+                    <p style="color: var(--eye-muted);">${percent}% Correct</p>
+                    <button onclick="initChallenge()" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: var(--eye-primary); border: none; color: var(--eye-darker); border-radius: 8px; cursor: pointer;">
+                        Retry Challenge
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('challengeScore').textContent = '';
+            sectionCompleted[3] = percent >= 66;
+            updateProgress();
+        }
+
+        updateProgress();
+    </script>
+</body>
+</html>

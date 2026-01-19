@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Visibility & Control | CyberOps Week 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .top-nav {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb .separator { color: #64748b; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .nav-progress { display: flex; align-items: center; gap: 1rem; }
+        .progress-bar { width: 200px; height: 8px; background: rgba(100, 116, 139, 0.3); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); transition: width 0.5s; }
+        .progress-text { font-size: 0.85rem; color: #94a3b8; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .section-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .section-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #94a3b8; cursor: pointer; transition: all 0.3s; }
+        .section-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .section-btn.active { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border-color: #8b5cf6; color: #fff; }
+        .section-btn.completed { border-color: #10b981; color: #10b981; }
+        .section-btn.completed::after { content: ' ✓'; }
+
+        .section { display: none; animation: fadeIn 0.5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .section-header { text-align: center; margin-bottom: 2rem; }
+        .section-header h1 { font-size: 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+        .section-header p { color: #94a3b8; font-size: 1.1rem; }
+
+        .card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(100, 116, 139, 0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h3 { color: #06b6d4; margin-bottom: 1rem; }
+
+        /* OSI Layer Visualization */
+        .osi-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .osi-layer {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .osi-layer:hover { transform: translateX(10px); }
+        .osi-layer.highlighted { box-shadow: 0 0 20px rgba(6, 182, 212, 0.5); }
+
+        .osi-layer .number { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 1rem; }
+        .osi-layer .name { flex: 1; font-weight: 600; }
+        .osi-layer .visibility { font-size: 0.85rem; color: #94a3b8; }
+
+        .layer-7 { background: linear-gradient(90deg, rgba(139, 92, 246, 0.3), rgba(6, 182, 212, 0.2)); border: 2px solid #8b5cf6; }
+        .layer-7 .number { background: #8b5cf6; }
+        .layer-4 { background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.5); }
+        .layer-4 .number { background: #06b6d4; }
+        .layer-3 { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5); }
+        .layer-3 .number { background: #10b981; }
+
+        /* App Identification Demo */
+        .app-demo {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .traffic-sample {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .traffic-sample .icon { font-size: 2rem; }
+        .traffic-sample .details { flex: 1; }
+        .traffic-sample .port { color: #06b6d4; font-family: monospace; }
+        .traffic-sample .app-id { display: none; background: rgba(139, 92, 246, 0.2); padding: 0.5rem 1rem; border-radius: 6px; margin-top: 0.5rem; }
+        .traffic-sample.revealed .app-id { display: block; }
+
+        .reveal-btn {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        /* App Categories */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .app-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .app-card:hover { border-color: #06b6d4; }
+        .app-card.risky { border-color: #ef4444; }
+        .app-card.sanctioned { border-color: #10b981; }
+
+        .app-card .app-icon { font-size: 2rem; text-align: center; margin-bottom: 0.5rem; }
+        .app-card .app-name { font-weight: 600; text-align: center; }
+        .app-card .app-risk { font-size: 0.8rem; text-align: center; margin-top: 0.5rem; }
+        .app-card .app-risk.low { color: #10b981; }
+        .app-card .app-risk.medium { color: #f59e0b; }
+        .app-card .app-risk.high { color: #ef4444; }
+
+        /* Policy Table */
+        .policy-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .policy-table th, .policy-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .policy-table th { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+        .action-allow { color: #10b981; }
+        .action-block { color: #ef4444; }
+        .action-limit { color: #f59e0b; }
+
+        /* Quiz */
+        .quiz-container { background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 2rem; }
+        .quiz-question { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .quiz-question h4 { color: #f1f5f9; margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .quiz-option { padding: 1rem; background: rgba(30, 41, 59, 0.6); border: 2px solid rgba(100, 116, 139, 0.3); border-radius: 8px; cursor: pointer; }
+        .quiz-option:hover { border-color: #06b6d4; }
+        .quiz-option.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+
+        .submit-btn { padding: 1rem 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+
+        .quiz-results { text-align: center; padding: 2rem; display: none; }
+        .quiz-results.show { display: block; }
+        .score-display { font-size: 3rem; font-weight: bold; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(100, 116, 139, 0.2); }
+        .nav-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #e2e8f0; cursor: pointer; }
+        .nav-btn:hover { border-color: #06b6d4; }
+        .nav-btn.primary { background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span class="separator">›</span>
+            <a href="../../modules/cyberops/index.html">CyberOps</a>
+            <span class="separator">›</span>
+            <a href="week2/index.html">Week 2</a>
+            <span class="separator">›</span>
+            <span class="current">App Visibility & Control</span>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-nav">
+            <button class="section-btn active" data-section="overview">1. Layer 7 Basics</button>
+            <button class="section-btn" data-section="identification">2. App Identification</button>
+            <button class="section-btn" data-section="policies">3. AVC Policies</button>
+            <button class="section-btn" data-section="quiz">4. Assessment</button>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div class="section active" id="overview">
+            <div class="section-header">
+                <h1>Application Visibility & Control</h1>
+                <p>Moving beyond ports to understand application-level traffic</p>
+            </div>
+
+            <div class="card">
+                <h3>📊 The Evolution of Network Visibility</h3>
+                <p>Traditional firewalls inspect traffic at Layer 3/4 (IP addresses and ports). Modern NGFWs add Layer 7 application awareness.</p>
+
+                <div class="osi-stack">
+                    <div class="osi-layer layer-7 highlighted">
+                        <div class="number">7</div>
+                        <div class="name">Application Layer</div>
+                        <div class="visibility">🎯 NGFW/AVC: Sees actual application (Slack, Zoom, BitTorrent)</div>
+                    </div>
+                    <div class="osi-layer layer-4">
+                        <div class="number">4</div>
+                        <div class="name">Transport Layer</div>
+                        <div class="visibility">Traditional: Sees TCP/UDP ports (443, 80, 53)</div>
+                    </div>
+                    <div class="osi-layer layer-3">
+                        <div class="number">3</div>
+                        <div class="name">Network Layer</div>
+                        <div class="visibility">Traditional: Sees IP addresses only</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>❓ Why Ports Aren't Enough</h3>
+                <p>Consider these scenarios where port-based filtering fails:</p>
+                <ul style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li><strong style="color: #06b6d4;">Port 443 (HTTPS)</strong> — Could be legitimate banking, cloud storage, or malware C2</li>
+                    <li><strong style="color: #06b6d4;">Port 80 (HTTP)</strong> — Could be web browsing, software updates, or data exfiltration</li>
+                    <li><strong style="color: #06b6d4;">Port 53 (DNS)</strong> — Could be DNS queries or DNS tunneling</li>
+                    <li><strong style="color: #06b6d4;">Non-standard ports</strong> — Applications can run on any port</li>
+                </ul>
+            </div>
+
+            <div class="nav-buttons">
+                <div></div>
+                <button class="nav-btn primary" onclick="goToSection('identification')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 2: App Identification -->
+        <div class="section" id="identification">
+            <div class="section-header">
+                <h1>Application Identification</h1>
+                <p>How NGFWs identify applications regardless of port</p>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Deep Packet Inspection Demo</h3>
+                <p>Click "Identify" to see how AVC recognizes applications beyond port numbers.</p>
+
+                <div class="app-demo">
+                    <div class="traffic-sample" id="sample1">
+                        <div class="icon">🔒</div>
+                        <div class="details">
+                            <div><strong>Source:</strong> 192.168.1.100 → <strong>Dest:</strong> 52.96.x.x</div>
+                            <div class="port">Port: 443 (HTTPS)</div>
+                            <div class="app-id">📧 <strong>Identified:</strong> Microsoft Office 365 - Outlook</div>
+                        </div>
+                        <button class="reveal-btn" onclick="revealApp('sample1')">Identify</button>
+                    </div>
+
+                    <div class="traffic-sample" id="sample2">
+                        <div class="icon">🔒</div>
+                        <div class="details">
+                            <div><strong>Source:</strong> 192.168.1.101 → <strong>Dest:</strong> 34.107.x.x</div>
+                            <div class="port">Port: 443 (HTTPS)</div>
+                            <div class="app-id">💬 <strong>Identified:</strong> Slack - Messaging</div>
+                        </div>
+                        <button class="reveal-btn" onclick="revealApp('sample2')">Identify</button>
+                    </div>
+
+                    <div class="traffic-sample" id="sample3">
+                        <div class="icon">🔒</div>
+                        <div class="details">
+                            <div><strong>Source:</strong> 192.168.1.102 → <strong>Dest:</strong> 185.x.x.x</div>
+                            <div class="port">Port: 443 (HTTPS)</div>
+                            <div class="app-id" style="background: rgba(239,68,68,0.2);">⚠️ <strong>Identified:</strong> BitTorrent - P2P File Sharing</div>
+                        </div>
+                        <button class="reveal-btn" onclick="revealApp('sample3')">Identify</button>
+                    </div>
+
+                    <div class="traffic-sample" id="sample4">
+                        <div class="icon">🔒</div>
+                        <div class="details">
+                            <div><strong>Source:</strong> 192.168.1.103 → <strong>Dest:</strong> Unknown IP</div>
+                            <div class="port">Port: 443 (HTTPS)</div>
+                            <div class="app-id" style="background: rgba(239,68,68,0.2);">🚨 <strong>Identified:</strong> Unknown Encrypted Tunnel - Possible C2</div>
+                        </div>
+                        <button class="reveal-btn" onclick="revealApp('sample4')">Identify</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🏷️ Identification Methods</h3>
+                <table class="policy-table">
+                    <tr>
+                        <th>Method</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td>Signatures</td>
+                        <td>Pattern matching in packet headers/payload</td>
+                        <td>BitTorrent protocol markers</td>
+                    </tr>
+                    <tr>
+                        <td>SNI/Certificate</td>
+                        <td>TLS Server Name Indication field</td>
+                        <td>zoom.us in TLS handshake</td>
+                    </tr>
+                    <tr>
+                        <td>Behavioral</td>
+                        <td>Traffic patterns and timing</td>
+                        <td>VoIP call characteristics</td>
+                    </tr>
+                    <tr>
+                        <td>Heuristics</td>
+                        <td>Statistical analysis</td>
+                        <td>Encrypted tunnel detection</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('overview')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('policies')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 3: AVC Policies -->
+        <div class="section" id="policies">
+            <div class="section-header">
+                <h1>AVC Policies</h1>
+                <p>Controlling applications based on business and security requirements</p>
+            </div>
+
+            <div class="card">
+                <h3>📱 Application Risk Categories</h3>
+                <p>Click applications to see their risk profile.</p>
+
+                <div class="app-grid">
+                    <div class="app-card sanctioned" onclick="showAppInfo('office365')">
+                        <div class="app-icon">📧</div>
+                        <div class="app-name">Office 365</div>
+                        <div class="app-risk low">Risk: Low</div>
+                    </div>
+                    <div class="app-card sanctioned" onclick="showAppInfo('salesforce')">
+                        <div class="app-icon">☁️</div>
+                        <div class="app-name">Salesforce</div>
+                        <div class="app-risk low">Risk: Low</div>
+                    </div>
+                    <div class="app-card" onclick="showAppInfo('dropbox')">
+                        <div class="app-icon">📦</div>
+                        <div class="app-name">Dropbox</div>
+                        <div class="app-risk medium">Risk: Medium</div>
+                    </div>
+                    <div class="app-card" onclick="showAppInfo('youtube')">
+                        <div class="app-icon">🎬</div>
+                        <div class="app-name">YouTube</div>
+                        <div class="app-risk medium">Risk: Medium</div>
+                    </div>
+                    <div class="app-card risky" onclick="showAppInfo('bittorrent')">
+                        <div class="app-icon">🔄</div>
+                        <div class="app-name">BitTorrent</div>
+                        <div class="app-risk high">Risk: High</div>
+                    </div>
+                    <div class="app-card risky" onclick="showAppInfo('tor')">
+                        <div class="app-icon">🧅</div>
+                        <div class="app-name">Tor</div>
+                        <div class="app-risk high">Risk: High</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Sample AVC Policy</h3>
+                <table class="policy-table">
+                    <tr>
+                        <th>Application</th>
+                        <th>Category</th>
+                        <th>Action</th>
+                        <th>Reason</th>
+                    </tr>
+                    <tr>
+                        <td>Office 365</td>
+                        <td>Sanctioned SaaS</td>
+                        <td class="action-allow">ALLOW</td>
+                        <td>Business critical</td>
+                    </tr>
+                    <tr>
+                        <td>YouTube</td>
+                        <td>Streaming</td>
+                        <td class="action-limit">LIMIT (1 Mbps)</td>
+                        <td>Bandwidth management</td>
+                    </tr>
+                    <tr>
+                        <td>Personal Dropbox</td>
+                        <td>File Sharing</td>
+                        <td class="action-block">BLOCK UPLOAD</td>
+                        <td>Data loss prevention</td>
+                    </tr>
+                    <tr>
+                        <td>BitTorrent</td>
+                        <td>P2P</td>
+                        <td class="action-block">BLOCK</td>
+                        <td>Legal/security risk</td>
+                    </tr>
+                    <tr>
+                        <td>Unknown Encrypted</td>
+                        <td>Evasive</td>
+                        <td class="action-block">BLOCK + ALERT</td>
+                        <td>Possible malware</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('identification')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('quiz')">Continue to Assessment →</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Quiz -->
+        <div class="section" id="quiz">
+            <div class="section-header">
+                <h1>Knowledge Assessment</h1>
+                <p>Test your understanding of Application Visibility & Control</p>
+            </div>
+
+            <div class="quiz-container" id="quizContainer"></div>
+            <div class="quiz-results" id="quizResults">
+                <h2>Assessment Complete!</h2>
+                <div class="score-display" id="scoreDisplay">0%</div>
+                <p id="scoreMessage"></p>
+                <button class="submit-btn" onclick="retakeQuiz()">Retake Quiz</button>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('policies')">← Back</button>
+                <button class="nav-btn primary" id="finishBtn" style="display: none;" onclick="completeModule()">Complete Module →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentSection: 'overview',
+            sectionsCompleted: { overview: false, identification: false, policies: false, quiz: false },
+            quizAnswers: {}
+        };
+
+        const quizQuestions = [
+            { id: 1, question: "What OSI layer does Application Visibility & Control (AVC) primarily operate at?", options: ["Layer 3 - Network", "Layer 4 - Transport", "Layer 7 - Application", "Layer 2 - Data Link"], correct: 2 },
+            { id: 2, question: "Why can't traditional port-based filtering effectively control modern applications?", options: ["Ports are deprecated", "Many applications use common ports like 443", "Applications don't use ports anymore", "Ports change every minute"], correct: 1 },
+            { id: 3, question: "What technique do NGFWs use to identify applications in encrypted TLS traffic?", options: ["Decrypting all traffic", "Reading the SNI field in TLS handshake", "Guessing based on IP", "Blocking all encrypted traffic"], correct: 1 },
+            { id: 4, question: "An AVC policy that allows an application but restricts bandwidth is called:", options: ["BLOCK", "DENY", "LIMIT/THROTTLE", "QUARANTINE"], correct: 2 },
+            { id: 5, question: "Which type of application should typically be BLOCKED with an ALERT in enterprise environments?", options: ["Office 365", "YouTube", "Unknown encrypted tunnels", "Salesforce"], correct: 2 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            setupQuiz();
+            updateProgress();
+        });
+
+        function revealApp(id) {
+            document.getElementById(id).classList.add('revealed');
+        }
+
+        function showAppInfo(app) {
+            const info = {
+                office365: "Office 365: Sanctioned business application. Low risk when properly configured.",
+                salesforce: "Salesforce: Sanctioned CRM. Contains sensitive customer data.",
+                dropbox: "Dropbox: File sharing. Medium risk - potential data exfiltration vector.",
+                youtube: "YouTube: Streaming. Medium risk - bandwidth consumption, potential distraction.",
+                bittorrent: "BitTorrent: P2P protocol. High risk - copyright issues, malware distribution.",
+                tor: "Tor: Anonymization network. High risk - evasion, dark web access."
+            };
+            alert(info[app] || "Unknown application");
+        }
+
+        function setupQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, idx) => `
+                <div class="quiz-question">
+                    <h4>${idx + 1}. ${q.question}</h4>
+                    <div class="quiz-options">
+                        ${q.options.map((opt, optIdx) => `
+                            <div class="quiz-option" data-question="${q.id}" data-option="${optIdx}">${opt}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('') + '<button class="submit-btn" onclick="submitQuiz()">Submit Answers</button>';
+
+            container.querySelectorAll('.quiz-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const qId = opt.dataset.question;
+                    document.querySelectorAll(`[data-question="${qId}"]`).forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    state.quizAnswers[qId] = parseInt(opt.dataset.option);
+                });
+            });
+        }
+
+        document.querySelectorAll('.section-btn').forEach(btn => {
+            btn.addEventListener('click', () => goToSection(btn.dataset.section));
+        });
+
+        function goToSection(sectionId) {
+            if (['overview', 'identification', 'policies'].includes(state.currentSection)) {
+                state.sectionsCompleted[state.currentSection] = true;
+                document.querySelector(`[data-section="${state.currentSection}"]`).classList.add('completed');
+            }
+            state.currentSection = sectionId;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            updateProgress();
+            saveProgress();
+        }
+
+        function submitQuiz() {
+            if (Object.keys(state.quizAnswers).length < quizQuestions.length) {
+                alert('Please answer all questions.');
+                return;
+            }
+
+            let correct = 0;
+            quizQuestions.forEach(q => { if (state.quizAnswers[q.id] === q.correct) correct++; });
+
+            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizResults').classList.add('show');
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            document.getElementById('scoreMessage').textContent = percentage >= 80
+                ? `Excellent! You passed with ${correct}/${quizQuestions.length} correct!`
+                : `You scored ${correct}/${quizQuestions.length}. 80% required to pass.`;
+
+            if (percentage >= 80) {
+                state.sectionsCompleted.quiz = true;
+                document.querySelector('[data-section="quiz"]').classList.add('completed');
+                document.getElementById('finishBtn').style.display = 'block';
+            }
+            updateProgress();
+            saveProgress();
+        }
+
+        function retakeQuiz() {
+            state.quizAnswers = {};
+            document.getElementById('quizContainer').style.display = 'block';
+            document.getElementById('quizResults').classList.remove('show');
+            document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+        }
+
+        function completeModule() { window.location.href = 'week2/index.html'; }
+
+        function updateProgress() {
+            const completed = Object.values(state.sectionsCompleted).filter(v => v).length;
+            const percentage = Math.round((completed / 4) * 100);
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}% Complete`;
+        }
+
+        function saveProgress() { localStorage.setItem('cyberops_avc', JSON.stringify(state)); }
+        function loadProgress() {
+            const saved = localStorage.getItem('cyberops_avc');
+            if (saved) {
+                Object.assign(state, JSON.parse(saved));
+                Object.entries(state.sectionsCompleted).forEach(([s, c]) => {
+                    if (c) document.querySelector(`[data-section="${s}"]`).classList.add('completed');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

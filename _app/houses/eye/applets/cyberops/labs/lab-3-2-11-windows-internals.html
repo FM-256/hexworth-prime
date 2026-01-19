@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 3.2.11: Processes, Threads, Handles & Registry | CyberOps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .breadcrumb {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb span { color: #64748b; margin: 0 8px; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .lab-header {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .lab-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .lab-header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .section {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .section h2 { color: #06b6d4; font-size: 1.3rem; margin-bottom: 15px; }
+        .section p { color: #94a3b8; line-height: 1.7; margin-bottom: 15px; }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .concept-card .icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .concept-card h3 { color: #e2e8f0; margin-bottom: 8px; font-size: 1.1rem; }
+        .concept-card p { color: #94a3b8; font-size: 0.85rem; margin: 0; }
+
+        .terminal-section {
+            background: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .terminal-header {
+            background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-btn { width: 12px; height: 12px; border-radius: 50%; }
+        .terminal-btn.red { background: #ff5f56; }
+        .terminal-btn.yellow { background: #ffbd2e; }
+        .terminal-btn.green { background: #27ca40; }
+        .terminal-title { flex: 1; text-align: center; color: #999; font-size: 0.85rem; }
+
+        .terminal-body {
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #0a0a0a;
+        }
+
+        .terminal-output { color: #e2e8f0; white-space: pre-wrap; }
+        .terminal-output .prompt { color: #60a5fa; }
+        .terminal-output .output { color: #94a3b8; }
+        .terminal-output .highlight { color: #f59e0b; }
+
+        .terminal-input-line { display: flex; align-items: center; margin-top: 10px; }
+        .terminal-prompt { color: #60a5fa; margin-right: 10px; }
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .exercise-block {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .exercise-block h3 { color: #8b5cf6; margin-bottom: 15px; }
+
+        .exercise-step {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .exercise-step h4 { color: #e2e8f0; margin-bottom: 8px; }
+        .exercise-step p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px; }
+
+        .exercise-step code {
+            display: block;
+            background: #0f172a;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            color: #22c55e;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .registry-tree {
+            font-family: 'Consolas', monospace;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 20px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        .registry-tree .key { color: #f59e0b; }
+        .registry-tree .value { color: #22c55e; }
+        .registry-tree .type { color: #8b5cf6; }
+
+        .quiz-section {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .quiz-section h3 { color: #22c55e; margin-bottom: 20px; }
+
+        .quiz-question {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .quiz-question p { color: #e2e8f0; margin-bottom: 15px; }
+
+        .quiz-options label {
+            display: block;
+            padding: 10px 15px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quiz-options label:hover { border-color: #8b5cf6; }
+        .quiz-options input { margin-right: 10px; }
+        .quiz-options label.correct { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+        .quiz-options label.incorrect { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+        .submit-section {
+            text-align: center;
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); }
+        .submit-btn:disabled { background: #475569; cursor: not-allowed; transform: none; }
+
+        .completion-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(6, 182, 212, 0.2));
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .completion-banner.show { display: block; }
+        .completion-banner h2 { color: #22c55e; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span>›</span>
+            <a href="../../../modules/cyberops/index.html">CyberOps</a>
+            <span>›</span>
+            <a href="../week1/index.html">Week 1</a>
+            <span>›</span>
+            <span class="current">Lab 3.2.11</span>
+        </nav>
+
+        <header class="lab-header">
+            <div class="lab-badge">Windows Internals Lab</div>
+            <h1>Processes, Threads, Handles & Registry</h1>
+            <p style="color: #94a3b8;">Explore Windows internals using PowerShell — essential knowledge for malware analysis and incident response.</p>
+        </header>
+
+        <section class="section">
+            <h2>🔧 Core Concepts</h2>
+            <p>Understanding Windows internals is crucial for security analysts. These four components form the foundation of how Windows operates:</p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="icon">⚙️</div>
+                    <h3>Process</h3>
+                    <p>A running program with its own memory space, security token, and resources.</p>
+                </div>
+                <div class="concept-card">
+                    <div class="icon">🧵</div>
+                    <h3>Thread</h3>
+                    <p>A unit of execution within a process. Processes can have multiple threads.</p>
+                </div>
+                <div class="concept-card">
+                    <div class="icon">🔗</div>
+                    <h3>Handle</h3>
+                    <p>A reference to a system resource (file, registry key, mutex, etc.).</p>
+                </div>
+                <div class="concept-card">
+                    <div class="icon">📁</div>
+                    <h3>Registry</h3>
+                    <p>Hierarchical database storing system and application configuration.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>💻 Part 1: Process Investigation</h2>
+
+            <div class="exercise-block">
+                <h3>Exercise 1.1: List Process Details</h3>
+                <div class="exercise-step">
+                    <h4>Get detailed process information</h4>
+                    <p>List all processes with their ID, name, memory usage, and path:</p>
+                    <code onclick="runCommand(this.textContent)">Get-Process | Select-Object Id, ProcessName, WorkingSet64, Path | Format-Table</code>
+                </div>
+
+                <div class="exercise-step">
+                    <h4>Find a specific process</h4>
+                    <p>Search for processes by name pattern:</p>
+                    <code onclick="runCommand(this.textContent)">Get-Process -Name *svc* | Select-Object Id, ProcessName, StartTime</code>
+                </div>
+
+                <div class="exercise-step">
+                    <h4>Get process owner</h4>
+                    <p>Identify which user account is running each process:</p>
+                    <code onclick="runCommand(this.textContent)">Get-WmiObject Win32_Process | Select-Object ProcessId, Name, @{N='Owner';E={$_.GetOwner().User}}</code>
+                </div>
+            </div>
+
+            <div class="terminal-section">
+                <div class="terminal-header">
+                    <span class="terminal-btn red"></span>
+                    <span class="terminal-btn yellow"></span>
+                    <span class="terminal-btn green"></span>
+                    <span class="terminal-title">PowerShell - Windows Internals Lab</span>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-output" id="terminalOutput"><span class="output">Windows PowerShell Internals Lab
+Type commands to explore processes, threads, handles, and registry.
+
+</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">PS></span>
+                        <input type="text" class="terminal-input" id="terminalInput" onkeydown="handleCommand(event)">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🧵 Part 2: Threads & Handles</h2>
+
+            <div class="exercise-block">
+                <h3>Exercise 2.1: Examine Threads</h3>
+                <div class="exercise-step">
+                    <h4>Count threads per process</h4>
+                    <p>See which processes have the most threads (potential indicator of complexity or malicious activity):</p>
+                    <code onclick="runCommand(this.textContent)">Get-Process | Select-Object ProcessName, Id, @{N='Threads';E={$_.Threads.Count}} | Sort-Object Threads -Descending | Select-Object -First 10</code>
+                </div>
+            </div>
+
+            <div class="exercise-block">
+                <h3>Exercise 2.2: Examine Handles</h3>
+                <div class="exercise-step">
+                    <h4>Count handles per process</h4>
+                    <p>High handle counts may indicate resource leaks or suspicious activity:</p>
+                    <code onclick="runCommand(this.textContent)">Get-Process | Select-Object ProcessName, Id, HandleCount | Sort-Object HandleCount -Descending | Select-Object -First 10</code>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>📁 Part 3: Windows Registry</h2>
+            <p>The registry stores critical configuration. Attackers often use it for persistence.</p>
+
+            <div class="registry-tree">
+<span class="key">HKEY_LOCAL_MACHINE (HKLM)</span>
+├── <span class="key">SOFTWARE</span>
+│   ├── <span class="key">Microsoft</span>
+│   │   └── <span class="key">Windows</span>
+│   │       └── <span class="key">CurrentVersion</span>
+│   │           └── <span class="key">Run</span>  ← <span class="highlight">Startup programs (persistence!)</span>
+│   └── <span class="key">[Installed Applications]</span>
+├── <span class="key">SYSTEM</span>
+│   └── <span class="key">CurrentControlSet</span>
+│       └── <span class="key">Services</span>  ← <span class="highlight">Windows services</span>
+└── <span class="key">SECURITY</span>  ← <span class="highlight">SAM, security policies</span>
+
+<span class="key">HKEY_CURRENT_USER (HKCU)</span>
+└── <span class="key">SOFTWARE</span>
+    └── <span class="key">Microsoft</span>
+        └── <span class="key">Windows</span>
+            └── <span class="key">CurrentVersion</span>
+                └── <span class="key">Run</span>  ← <span class="highlight">User-specific startup</span>
+            </div>
+
+            <div class="exercise-block">
+                <h3>Exercise 3.1: Query Registry for Persistence</h3>
+                <div class="exercise-step">
+                    <h4>Check Run keys (common persistence mechanism)</h4>
+                    <p>Malware often adds entries here to survive reboots:</p>
+                    <code onclick="runCommand(this.textContent)">Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'</code>
+                </div>
+
+                <div class="exercise-step">
+                    <h4>Check user-specific Run key</h4>
+                    <code onclick="runCommand(this.textContent)">Get-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'</code>
+                </div>
+
+                <div class="exercise-step">
+                    <h4>List all services</h4>
+                    <p>Services are another persistence mechanism:</p>
+                    <code onclick="runCommand(this.textContent)">Get-Service | Where-Object {$_.StartType -eq 'Automatic'} | Select-Object Name, DisplayName, Status</code>
+                </div>
+            </div>
+        </section>
+
+        <section class="quiz-section">
+            <h3>📝 Knowledge Check</h3>
+
+            <div class="quiz-question" id="q1">
+                <p><strong>1.</strong> Which registry key is commonly used by malware for persistence?</p>
+                <div class="quiz-options">
+                    <label><input type="radio" name="q1" value="a"> HKLM\SYSTEM\Services</label>
+                    <label><input type="radio" name="q1" value="b"> HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</label>
+                    <label><input type="radio" name="q1" value="c"> HKCU\Control Panel\Desktop</label>
+                    <label><input type="radio" name="q1" value="d"> HKLM\HARDWARE\DEVICEMAP</label>
+                </div>
+            </div>
+
+            <div class="quiz-question" id="q2">
+                <p><strong>2.</strong> What is a "handle" in Windows?</p>
+                <div class="quiz-options">
+                    <label><input type="radio" name="q2" value="a"> A physical device attached to the computer</label>
+                    <label><input type="radio" name="q2" value="b"> A reference to a system resource like a file or registry key</label>
+                    <label><input type="radio" name="q2" value="c"> A type of malware</label>
+                    <label><input type="radio" name="q2" value="d"> A network connection</label>
+                </div>
+            </div>
+
+            <div class="quiz-question" id="q3">
+                <p><strong>3.</strong> Why might a security analyst be suspicious of a process with an unusually high thread count?</p>
+                <div class="quiz-options">
+                    <label><input type="radio" name="q3" value="a"> High threads always indicate malware</label>
+                    <label><input type="radio" name="q3" value="b"> It could indicate multithreaded malware or resource abuse</label>
+                    <label><input type="radio" name="q3" value="c"> Threads are always malicious</label>
+                    <label><input type="radio" name="q3" value="d"> High threads mean the process is safe</label>
+                </div>
+            </div>
+
+            <div class="quiz-question" id="q4">
+                <p><strong>4.</strong> Which PowerShell command retrieves the owner of a running process?</p>
+                <div class="quiz-options">
+                    <label><input type="radio" name="q4" value="a"> Get-Process -Owner</label>
+                    <label><input type="radio" name="q4" value="b"> Get-WmiObject Win32_Process with GetOwner()</label>
+                    <label><input type="radio" name="q4" value="c"> Get-Service -Owner</label>
+                    <label><input type="radio" name="q4" value="d"> whoami /process</label>
+                </div>
+            </div>
+        </section>
+
+        <div class="submit-section">
+            <button class="submit-btn" id="submitBtn" onclick="submitLab()">Submit Lab</button>
+            <p style="margin-top: 15px; color: #64748b; font-size: 0.9rem;">Answer all questions to complete the lab.</p>
+        </div>
+
+        <div class="completion-banner" id="completionBanner">
+            <h2>🎉 Lab Complete!</h2>
+            <p>You now understand Windows internals at a level useful for security analysis. These skills are essential for malware analysis and incident response.</p>
+            <p style="margin-top: 15px;"><a href="../week1/index.html" style="color: #06b6d4;">← Return to Week 1</a></p>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'cyberops_lab_3_2_11';
+        const correctAnswers = { q1: 'b', q2: 'b', q3: 'b', q4: 'b' };
+        let commandHistory = [];
+
+        const responses = {
+            'get-process | select-object id, processname, workingset64, path | format-table': `Id ProcessName       WorkingSet64 Path
+-- -----------       ------------ ----
+ 4 System                 131072
+456 svchost             23456789 C:\\Windows\\System32\\svchost.exe
+892 chrome             156789012 C:\\Program Files\\Google\\Chrome\\chrome.exe
+1234 explorer           45678901 C:\\Windows\\explorer.exe
+4567 notmalware.exe     12345678 C:\\Users\\Public\\notmalware.exe`,
+
+            'get-process -name *svc* | select-object id, processname, starttime': `Id ProcessName StartTime
+-- ----------- ---------
+456 svchost    1/4/2026 00:01:23
+789 svchost    1/4/2026 00:01:24
+1011 svchost   1/4/2026 00:01:25`,
+
+            'get-wmiobject win32_process | select-object processid, name, @{n=\'owner\';e={$_.getowner().user}}': `ProcessId Name              Owner
+--------- ----              -----
+        4 System
+      456 svchost.exe       SYSTEM
+      892 chrome.exe        analyst
+     1234 explorer.exe      analyst
+     4567 notmalware.exe    analyst`,
+
+            'get-process | select-object processname, id, @{n=\'threads\';e={$_.threads.count}} | sort-object threads -descending | select-object -first 10': `ProcessName    Id Threads
+-----------    -- -------
+chrome        892      45
+svchost       456      23
+explorer     1234      18
+notmalware   4567      15
+System          4      12`,
+
+            'get-process | select-object processname, id, handlecount | sort-object handlecount -descending | select-object -first 10': `ProcessName    Id HandleCount
+-----------    -- -----------
+chrome        892        2345
+svchost       456        1234
+explorer     1234         987
+notmalware   4567         567
+System          4         456`,
+
+            'get-itemproperty -path \'hklm:\\software\\microsoft\\windows\\currentversion\\run\'': `SecurityHealth     : C:\\Windows\\System32\\SecurityHealthSystray.exe
+VMware User Process : "C:\\Program Files\\VMware\\VMware Tools\\vmtoolsd.exe"
+SuspiciousEntry    : C:\\Users\\Public\\notmalware.exe`,
+
+            'get-itemproperty -path \'hkcu:\\software\\microsoft\\windows\\currentversion\\run\'': `OneDrive : "C:\\Users\\analyst\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe"
+Discord  : C:\\Users\\analyst\\AppData\\Local\\Discord\\Update.exe`,
+
+            'get-service | where-object {$_.starttype -eq \'automatic\'} | select-object name, displayname, status': `Name                  DisplayName                              Status
+----                  -----------                              ------
+wuauserv              Windows Update                          Running
+Spooler               Print Spooler                           Running
+SuspiciousSvc         Suspicious Background Service           Running`,
+
+            'clear': 'CLEAR',
+            'cls': 'CLEAR'
+        };
+
+        function runCommand(cmd) {
+            document.getElementById('terminalInput').value = cmd;
+            document.getElementById('terminalInput').focus();
+        }
+
+        function handleCommand(event) {
+            if (event.key !== 'Enter') return;
+            const input = document.getElementById('terminalInput');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            commandHistory.push(cmd);
+            executeCommand(cmd);
+            input.value = '';
+        }
+
+        function executeCommand(cmd) {
+            const output = document.getElementById('terminalOutput');
+            output.innerHTML += `<span class="prompt">PS></span> ${cmd}\n`;
+
+            const lowerCmd = cmd.toLowerCase();
+            if (lowerCmd === 'clear' || lowerCmd === 'cls') {
+                output.innerHTML = '<span class="output">Terminal cleared.\n\n</span>';
+                return;
+            }
+
+            let response = responses[lowerCmd];
+            if (!response) {
+                for (const key of Object.keys(responses)) {
+                    if (lowerCmd.includes(key.split(' ')[0])) {
+                        response = responses[key];
+                        break;
+                    }
+                }
+            }
+
+            if (response) {
+                let formatted = response.replace(/notmalware/g, '<span class="highlight">notmalware</span>');
+                formatted = formatted.replace(/SuspiciousEntry|SuspiciousSvc/g, '<span class="highlight">$&</span>');
+                output.innerHTML += `<span class="output">${formatted}</span>\n\n`;
+            } else {
+                output.innerHTML += `<span class="output">Command executed (simulated).\n\n</span>`;
+            }
+
+            document.getElementById('terminalBody').scrollTop = document.getElementById('terminalBody').scrollHeight;
+            saveProgress();
+        }
+
+        function checkQuiz() {
+            let correct = 0;
+            for (const [q, answer] of Object.entries(correctAnswers)) {
+                const selected = document.querySelector(`input[name="${q}"]:checked`);
+                const labels = document.querySelectorAll(`#${q} label`);
+                labels.forEach(l => l.classList.remove('correct', 'incorrect'));
+
+                if (selected) {
+                    if (selected.value === answer) {
+                        selected.parentElement.classList.add('correct');
+                        correct++;
+                    } else {
+                        selected.parentElement.classList.add('incorrect');
+                        document.querySelector(`input[name="${q}"][value="${answer}"]`).parentElement.classList.add('correct');
+                    }
+                }
+            }
+            return correct;
+        }
+
+        function submitLab() {
+            const answered = Object.keys(correctAnswers).every(q =>
+                document.querySelector(`input[name="${q}"]:checked`)
+            );
+
+            if (!answered) {
+                alert('Please answer all questions before submitting.');
+                return;
+            }
+
+            const score = checkQuiz();
+            const total = Object.keys(correctAnswers).length;
+            const passed = score >= 3;
+
+            if (passed) {
+                const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                data.completed = true;
+                data.score = score;
+                data.completedAt = new Date().toISOString();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+                document.getElementById('completionBanner').classList.add('show');
+                document.getElementById('submitBtn').textContent = `Lab Completed (${score}/${total}) ✓`;
+                document.getElementById('submitBtn').disabled = true;
+            } else {
+                alert(`You scored ${score}/${total}. You need at least 3 correct to pass. Review the material and try again.`);
+            }
+        }
+
+        function saveProgress() {
+            const answers = {};
+            Object.keys(correctAnswers).forEach(q => {
+                const selected = document.querySelector(`input[name="${q}"]:checked`);
+                if (selected) answers[q] = selected.value;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ answers, commandHistory }));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.answers) {
+                    Object.entries(data.answers).forEach(([q, v]) => {
+                        const input = document.querySelector(`input[name="${q}"][value="${v}"]`);
+                        if (input) input.checked = true;
+                    });
+                }
+                if (data.completed) {
+                    checkQuiz();
+                    document.getElementById('completionBanner').classList.add('show');
+                    document.getElementById('submitBtn').textContent = 'Lab Completed ✓';
+                    document.getElementById('submitBtn').disabled = true;
+                }
+            }
+        }
+
+        loadProgress();
+        document.querySelectorAll('input[type="radio"]').forEach(r => r.addEventListener('change', saveProgress));
+    </script>
+</body>
+</html>

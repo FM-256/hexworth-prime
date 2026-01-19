@@ -1436,16 +1436,26 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
     }
 
     function _cmd_grep(args) {
-        let ignoreCase = false, showLineNumbers = false;
+        let ignoreCase = false, showLineNumbers = false, countOnly = false, invertMatch = false;
         let pattern = null;
         const files = [];
 
         for (let i = 0; i < args.length; i++) {
-            if (args[i] === '-i') ignoreCase = true;
-            else if (args[i] === '-n') showLineNumbers = true;
-            else if (args[i].startsWith('-')) continue;
-            else if (!pattern) pattern = args[i];
-            else files.push(args[i]);
+            const arg = args[i];
+            if (arg === '-i') ignoreCase = true;
+            else if (arg === '-n') showLineNumbers = true;
+            else if (arg === '-c') countOnly = true;
+            else if (arg === '-v') invertMatch = true;
+            else if (arg.startsWith('-') && arg.length > 1) {
+                // Handle combined flags like -ci, -in, -cin
+                for (const char of arg.slice(1)) {
+                    if (char === 'i') ignoreCase = true;
+                    else if (char === 'n') showLineNumbers = true;
+                    else if (char === 'c') countOnly = true;
+                    else if (char === 'v') invertMatch = true;
+                }
+            } else if (!pattern) pattern = arg;
+            else files.push(arg);
         }
 
         if (!pattern) return _err('grep: missing pattern');
@@ -1460,14 +1470,26 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
             if (!node || node.type === 'dir' || !node.content) continue;
 
             const lines = node.content.split('\n');
+            let fileMatchCount = 0;
+
             for (let i = 0; i < lines.length; i++) {
-                if (regex.test(lines[i])) {
-                    const prefix = files.length > 1 ? `${f}:` : '';
-                    const lineNum = showLineNumbers ? `${i + 1}:` : '';
-                    const highlighted = lines[i].replace(regex, '<span class="clh-highlight">$&</span>');
-                    results.push(`${prefix}${lineNum}${highlighted}`);
-                }
+                const isMatch = regex.test(lines[i]);
                 regex.lastIndex = 0;
+
+                if (invertMatch ? !isMatch : isMatch) {
+                    fileMatchCount++;
+                    if (!countOnly) {
+                        const prefix = files.length > 1 ? `${f}:` : '';
+                        const lineNum = showLineNumbers ? `${i + 1}:` : '';
+                        const highlighted = lines[i].replace(regex, '<span class="clh-highlight">$&</span>');
+                        results.push(`${prefix}${lineNum}${highlighted}`);
+                    }
+                }
+            }
+
+            if (countOnly) {
+                const prefix = files.length > 1 ? `${f}:` : '';
+                results.push(`${prefix}${fileMatchCount}`);
             }
         }
         return results.join('\n');
@@ -3040,6 +3062,26 @@ class CLHTerminal {
         this._vimMessage = '';
         this._vimModified = false;
 
+        // Job control state
+        this._jobs = []; // Array of {id, command, status: 'running'|'stopped', pid}
+        this._nextJobId = 1;
+        this._nextPid = 1000;
+        this._currentForegroundJob = null;
+
+        // Achievement tracking
+        this._achievements = this._loadAchievements();
+        this._achievementStats = {
+            commandCount: 0,
+            tabCount: 0,
+            pipeCount: 0,
+            wildcardCount: 0,
+            redirectCount: 0,
+            ctrlRUsed: false,
+            vimExitedClean: false,
+            easterEggsFound: new Set(),
+            startTime: Date.now()
+        };
+
         // Get DOM elements
         const containerSelector = this.options.container || '#terminal';
         const inputSelector = this.options.inputElement || '#commandInput';
@@ -3159,6 +3201,10 @@ class CLHTerminal {
                         e.preventDefault();
                         this._startReverseSearch();
                         return;
+                    case 'z': // Ctrl+Z - Suspend foreground job
+                        e.preventDefault();
+                        this._handleCtrlZ();
+                        return;
                 }
             }
 
@@ -3205,6 +3251,34 @@ class CLHTerminal {
         this.inputEl.selectionStart = this.inputEl.selectionEnd = newBefore.length;
     }
 
+    _handleCtrlZ() {
+        // Simulate suspending the current foreground process
+        if (this._currentForegroundJob) {
+            // Suspend the running job
+            const job = this._currentForegroundJob;
+            job.status = 'stopped';
+            this._printOutput(`^Z`);
+            this._printOutput(`[${job.id}]+  Stopped                 ${job.command}`);
+            this._currentForegroundJob = null;
+        } else if (this.inputEl.value.trim()) {
+            // If there's text in the input, simulate stopping a "command"
+            const cmd = this.inputEl.value.trim();
+            const job = {
+                id: this._nextJobId++,
+                pid: this._nextPid++,
+                command: cmd,
+                status: 'stopped'
+            };
+            this._jobs.push(job);
+            this._printCommand(cmd + '^Z');
+            this._printOutput(`[${job.id}]+  Stopped                 ${cmd}`);
+            this.inputEl.value = '';
+        } else {
+            // Nothing to suspend
+            this._printCommand('^Z');
+        }
+    }
+
     _startReverseSearch() {
         this._reverseSearchMode = true;
         this._reverseSearchQuery = '';
@@ -3227,6 +3301,10 @@ class CLHTerminal {
             e.preventDefault();
             this._reverseSearchMode = false;
             this.inputEl.placeholder = '';
+            // Track Ctrl+R achievement if a match was found
+            if (this.inputEl.value !== this._savedInputValue && this.inputEl.value.trim()) {
+                this._trackCtrlR();
+            }
             return;
         }
 
@@ -3392,6 +3470,21 @@ class CLHTerminal {
         // Print command
         this._printCommand(cmdLine);
 
+        // Check for background execution (&)
+        const isBackground = cmdLine.trim().endsWith('&');
+        if (isBackground) {
+            cmdLine = cmdLine.trim().slice(0, -1).trim();
+            const job = {
+                id: this._nextJobId++,
+                pid: this._nextPid++,
+                command: cmdLine,
+                status: 'running'
+            };
+            this._jobs.push(job);
+            this._printOutput(`[${job.id}] ${job.pid}`);
+            return { output: '', exitCode: 0 };
+        }
+
         // Expand variables and tildes
         cmdLine = this._expandVariables(cmdLine);
 
@@ -3423,6 +3516,15 @@ class CLHTerminal {
 
         // Check objectives
         this._checkObjectives(cmdLine, output);
+
+        // Track achievements
+        this._trackAchievements(cmdLine);
+
+        // Show smart hints (educational feedback)
+        const hint = this._getSmartHint(cmdLine, output);
+        if (hint) {
+            this._showSmartHint(hint);
+        }
 
         // Callback
         this._onCommand(cmdLine, output);
@@ -3834,6 +3936,9 @@ class CLHTerminal {
         this.inputEl.value = before + newWord + suffix + after;
         const newPos = before.length + newWord.length + suffix.length;
         this.inputEl.selectionStart = this.inputEl.selectionEnd = newPos;
+
+        // Track tab completion for achievements
+        this._trackTabCompletion();
     }
 
     _showCompletions(completions, isCommand) {
@@ -3938,6 +4043,9 @@ class CLHTerminal {
             case 'tail': output = this._cmdTail(args); break;
             case 'wc': output = this._cmdWc(args); break;
             case 'ps': output = this._cmdPs(args); break;
+            case 'jobs': output = this._cmdJobs(); break;
+            case 'fg': output = this._cmdFg(args); break;
+            case 'bg': output = this._cmdBg(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
             case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
@@ -4066,6 +4174,9 @@ class CLHTerminal {
             case 'tail': output = this._cmdTail(args); break;
             case 'wc': output = this._cmdWc(args); break;
             case 'ps': output = this._cmdPs(args); break;
+            case 'jobs': output = this._cmdJobs(); break;
+            case 'fg': output = this._cmdFg(args); break;
+            case 'bg': output = this._cmdBg(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
             case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
@@ -4288,7 +4399,7 @@ class CLHTerminal {
   Crypto:       base64, md5sum, sha1sum, sha256sum, strings
   Archives:     tar, gzip, gunzip, zip, unzip
   System:       uname, hostname, whoami, id, date, uptime, free, vmstat, iostat
-  Process:      ps, top, kill, pkill
+  Process:      ps, top, kill, pkill, jobs, fg, bg
   Network:      ip, ifconfig, netstat, ss, ping, nslookup, dig, traceroute, arp, route
   Security:     nmap, nc, tcpdump, whois
   Disk:         df, du, lsblk, mount, fdisk
@@ -4301,8 +4412,8 @@ class CLHTerminal {
   Other:        echo, env, export, history, alias, clear, help, man, which, type
 
 Shell features:
-  Tab completion, history (Up/Down), Ctrl+C/L/R/A/E/U/K/W/D
-  Pipes (|), redirection (>, >>, <), chaining (&&, ||, ;)
+  Tab completion, history (Up/Down), Ctrl+C/L/R/Z/A/E/U/K/W/D
+  Pipes (|), redirection (>, >>, <), chaining (&&, ||, ;), background (&)
   Wildcards (*, ?, {a,b}), variables ($VAR)
 
 Type 'man <cmd>' for help on specific commands.`;
@@ -6011,6 +6122,128 @@ OPERATOR NOTES
 SEE ALSO
        pkill(1), killall(1), ps(1), signal(7)`,
 
+            'jobs': `JOBS(1)                       Bash Builtins                        JOBS(1)
+
+NAME
+       jobs - display status of jobs in the current session
+
+SYNOPSIS
+       jobs [-lnprs] [jobspec ...]
+
+DESCRIPTION
+       Lists the active jobs. The -l option lists process IDs in addition
+       to the normal information. The -p option lists only process IDs.
+
+       Without options, the status of all active jobs is displayed.
+
+       [n]+  - Current job (most recently stopped/backgrounded)
+       [n]-  - Previous job
+
+EXAMPLES
+       jobs
+              List all jobs.
+
+       jobs -l
+              List jobs with PIDs.
+
+OPERATOR NOTES
+       Use jobs when you need to:
+       • Track background processes you've started
+       • Find stopped (suspended) tasks
+       • Manage multiple concurrent operations
+
+       Pro tip: Job control is essential for multitasking:
+       sleep 100 &       # Start in background, get [1] 1234
+       jobs              # See what's running
+       Ctrl+Z            # Suspend current process
+       bg %1             # Resume job 1 in background
+       fg %1             # Bring job 1 to foreground
+
+SEE ALSO
+       fg(1), bg(1), kill(1)`,
+
+            'fg': `FG(1)                         Bash Builtins                          FG(1)
+
+NAME
+       fg - move job to the foreground
+
+SYNOPSIS
+       fg [jobspec]
+
+DESCRIPTION
+       Move the specified job to the foreground, making it the current job.
+       If no job is specified, uses the current job (most recently stopped
+       or backgrounded).
+
+       Job specifiers:
+       %n     Job number n
+       %str   Job whose command begins with str
+       %%     Current job
+       %+     Current job
+       %-     Previous job
+
+EXAMPLES
+       fg
+              Bring current job to foreground.
+
+       fg %1
+              Bring job 1 to foreground.
+
+       fg %vim
+              Bring the vim job to foreground.
+
+OPERATOR NOTES
+       Use fg when you need to:
+       • Resume a suspended process (after Ctrl+Z)
+       • Interact with a backgrounded process
+       • Check on a long-running task
+
+       Pro tip: Workflow for suspending and resuming:
+       vim file.txt      # Start editing
+       Ctrl+Z            # Suspend vim (shows [1]+ Stopped)
+       ls -la            # Do other stuff
+       fg                # Resume vim right where you left off
+
+SEE ALSO
+       bg(1), jobs(1)`,
+
+            'bg': `BG(1)                         Bash Builtins                          BG(1)
+
+NAME
+       bg - move job to the background
+
+SYNOPSIS
+       bg [jobspec ...]
+
+DESCRIPTION
+       Resume the specified stopped job in the background, as if it had been
+       started with &. If no job is specified, uses the current job.
+
+EXAMPLES
+       bg
+              Resume current job in background.
+
+       bg %1
+              Resume job 1 in background.
+
+OPERATOR NOTES
+       Use bg when you need to:
+       • Continue a stopped process without blocking your terminal
+       • Let a long-running task complete while you work
+       • Convert a foreground process to background
+
+       Pro tip: Common workflow:
+       ./long_script.sh  # Oops, forgot the &
+       Ctrl+Z            # Suspend it
+       bg                # Let it run in background
+       # Now you can use your terminal while it runs
+
+       Remember: Background jobs may still print to your terminal.
+       Redirect output to avoid: cmd > output.log 2>&1 &
+
+SEE ALSO
+       fg(1), jobs(1)`,
+
             'chmod': `CHMOD(1)                        User Commands                       CHMOD(1)
 
 NAME
@@ -6832,14 +7065,69 @@ SEE ALSO
     }
 
     _cmdGrep(args) {
-        const pattern = args.find(a => !a.startsWith('-'));
-        const file = args.filter(a => !a.startsWith('-'))[1];
+        // Parse flags
+        let countOnly = false;      // -c
+        let showLineNumbers = false; // -n
+        let ignoreCase = false;      // -i
+        let invertMatch = false;     // -v
+        let recursiveSearch = false; // -r (just acknowledge, don't implement)
+
+        const nonFlagArgs = [];
+        for (const arg of args) {
+            if (arg === '-c') countOnly = true;
+            else if (arg === '-n') showLineNumbers = true;
+            else if (arg === '-i') ignoreCase = true;
+            else if (arg === '-v') invertMatch = true;
+            else if (arg === '-r') recursiveSearch = true;
+            else if (arg.startsWith('-') && arg.length > 1) {
+                // Handle combined flags like -ci, -in, -cin
+                for (const char of arg.slice(1)) {
+                    if (char === 'c') countOnly = true;
+                    else if (char === 'n') showLineNumbers = true;
+                    else if (char === 'i') ignoreCase = true;
+                    else if (char === 'v') invertMatch = true;
+                    else if (char === 'r') recursiveSearch = true;
+                }
+            } else {
+                nonFlagArgs.push(arg);
+            }
+        }
+
+        const pattern = nonFlagArgs[0];
+        const file = nonFlagArgs[1];
+
         if (!pattern) return 'grep: missing pattern';
         if (!file) return 'grep: missing file operand';
+
         const content = this._cmdCat([file]);
         if (content.startsWith('cat:')) return content.replace('cat:', 'grep:');
-        const regex = new RegExp(pattern, 'gi');
-        return content.split('\n').filter(line => regex.test(line)).join('\n') || '';
+
+        const regexFlags = ignoreCase ? 'gi' : 'g';
+        const regex = new RegExp(pattern, regexFlags);
+
+        const lines = content.split('\n');
+        const matches = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const isMatch = regex.test(line);
+            regex.lastIndex = 0; // Reset regex state for global flag
+
+            if (invertMatch ? !isMatch : isMatch) {
+                if (showLineNumbers) {
+                    matches.push(`${i + 1}:${line}`);
+                } else {
+                    matches.push(line);
+                }
+            }
+        }
+
+        // -c flag: return count only
+        if (countOnly) {
+            return String(matches.length);
+        }
+
+        return matches.join('\n') || '';
     }
 
     _cmdFind(args) {
@@ -6901,6 +7189,67 @@ ${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
         return `  PID TTY          TIME CMD
  1234 pts/0    00:00:00 bash
  5678 pts/0    00:00:00 ps`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // JOB CONTROL COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdJobs() {
+        if (this._jobs.length === 0) {
+            return '';
+        }
+        return this._jobs.map(job => {
+            const statusStr = job.status === 'running' ? 'Running' : 'Stopped';
+            const current = job === this._jobs[this._jobs.length - 1] ? '+' : '-';
+            return `[${job.id}]${current}  ${statusStr.padEnd(20)} ${job.command}`;
+        }).join('\n');
+    }
+
+    _cmdFg(args) {
+        let job;
+        if (args.length === 0) {
+            // Get most recent job
+            job = this._jobs[this._jobs.length - 1];
+        } else {
+            // Parse job specifier (%1 or just 1)
+            const jobId = parseInt(args[0].replace('%', ''), 10);
+            job = this._jobs.find(j => j.id === jobId);
+        }
+
+        if (!job) {
+            return 'fg: no current job';
+        }
+
+        // Remove from jobs list and "run" in foreground
+        job.status = 'running';
+        this._currentForegroundJob = job;
+        // Simulate immediate completion
+        this._jobs = this._jobs.filter(j => j.id !== job.id);
+        this._currentForegroundJob = null;
+        return job.command;
+    }
+
+    _cmdBg(args) {
+        let job;
+        if (args.length === 0) {
+            // Get most recent stopped job
+            job = [...this._jobs].reverse().find(j => j.status === 'stopped');
+        } else {
+            const jobId = parseInt(args[0].replace('%', ''), 10);
+            job = this._jobs.find(j => j.id === jobId);
+        }
+
+        if (!job) {
+            return 'bg: no current job';
+        }
+
+        if (job.status === 'running') {
+            return `bg: job ${job.id} already in background`;
+        }
+
+        job.status = 'running';
+        return `[${job.id}]+ ${job.command} &`;
     }
 
     _cmdDf(args) {
@@ -7593,6 +7942,7 @@ other::r--`;
             case 'wq':
             case 'x':
                 this._vimSave();
+                this._trackVimExit(true); // Clean exit achievement
                 this._exitVim();
                 return; // Exit before resetting _vimMode
             case 'set nu':
@@ -8583,10 +8933,332 @@ ${matrix}
 ╚════════════════════════════════════════════════════════════════╝`;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ACHIEVEMENT SYSTEM
+    // ═══════════════════════════════════════════════════════════════
+
+    _loadAchievements() {
+        try {
+            const saved = localStorage.getItem('clh_achievements');
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    _saveAchievements() {
+        try {
+            localStorage.setItem('clh_achievements', JSON.stringify(this._achievements));
+        } catch (e) {
+            // Storage not available
+        }
+    }
+
+    _unlockAchievement(id) {
+        if (this._achievements[id]) return; // Already unlocked
+
+        const achievements = {
+            'first_command': { name: 'First Steps', icon: '🌱', desc: 'Run your first command' },
+            'pipeline_master': { name: 'Pipeline Master', icon: '🔗', desc: 'Use 3+ pipes in one command' },
+            'speed_demon': { name: 'Speed Demon', icon: '⚡', desc: 'Complete a module in under 2 minutes' },
+            'tab_master': { name: 'Tab Master', icon: '⌨️', desc: 'Use tab completion 50 times' },
+            'history_buff': { name: 'History Buff', icon: '📜', desc: 'Successfully use Ctrl+R search' },
+            'vim_survivor': { name: 'Vim Survivor', icon: '🏆', desc: 'Exit vim gracefully with :wq' },
+            'wildcard_wizard': { name: 'Wildcard Wizard', icon: '✨', desc: 'Use wildcards in 10 commands' },
+            'redirect_pro': { name: 'Redirect Pro', icon: '➡️', desc: 'Use >, >>, and < operators' },
+            'easter_hunter': { name: 'Easter Egg Hunter', icon: '🥚', desc: 'Discover 5 hidden commands' },
+            'job_juggler': { name: 'Job Juggler', icon: '🎪', desc: 'Use job control (Ctrl+Z, fg, bg)' }
+        };
+
+        const achievement = achievements[id];
+        if (!achievement) return;
+
+        this._achievements[id] = {
+            unlockedAt: new Date().toISOString(),
+            ...achievement
+        };
+        this._saveAchievements();
+
+        // Show achievement notification
+        this._showAchievementNotification(achievement);
+    }
+
+    _showAchievementNotification(achievement) {
+        const notification = document.createElement('div');
+        notification.className = 'clh-achievement-popup';
+        notification.innerHTML = `
+            <div class="clh-achievement-icon">${achievement.icon}</div>
+            <div class="clh-achievement-text">
+                <div class="clh-achievement-title">Achievement Unlocked!</div>
+                <div class="clh-achievement-name">${achievement.name}</div>
+            </div>
+        `;
+
+        // Add styles if not present
+        if (!document.querySelector('#clh-achievement-styles')) {
+            const style = document.createElement('style');
+            style.id = 'clh-achievement-styles';
+            style.textContent = `
+                .clh-achievement-popup {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #1a1a2e, #16213e);
+                    border: 2px solid #fbbf24;
+                    border-radius: 12px;
+                    padding: 15px 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    z-index: 10000;
+                    animation: clh-achievement-slide 0.5s ease-out, clh-achievement-fade 0.5s ease-out 3s forwards;
+                    box-shadow: 0 4px 20px rgba(251, 191, 36, 0.3);
+                }
+                .clh-achievement-icon { font-size: 2.5em; }
+                .clh-achievement-title {
+                    color: #fbbf24;
+                    font-size: 0.8em;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+                .clh-achievement-name {
+                    color: #fff;
+                    font-size: 1.2em;
+                    font-weight: bold;
+                }
+                @keyframes clh-achievement-slide {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes clh-achievement-fade {
+                    to { opacity: 0; transform: translateY(20px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 4000);
+    }
+
+    _trackAchievements(cmdLine) {
+        const stats = this._achievementStats;
+        stats.commandCount++;
+
+        // First command
+        if (stats.commandCount === 1) {
+            this._unlockAchievement('first_command');
+        }
+
+        // Pipeline master (3+ pipes)
+        const pipeCount = (cmdLine.match(/\|/g) || []).length;
+        if (pipeCount >= 3) {
+            this._unlockAchievement('pipeline_master');
+        }
+
+        // Wildcard usage
+        if (/[*?]/.test(cmdLine) || /\{.*,.*\}/.test(cmdLine)) {
+            stats.wildcardCount++;
+            if (stats.wildcardCount >= 10) {
+                this._unlockAchievement('wildcard_wizard');
+            }
+        }
+
+        // Redirect usage
+        if (/>(?!>)/.test(cmdLine)) stats.redirectCount |= 1;
+        if (/>>/.test(cmdLine)) stats.redirectCount |= 2;
+        if (/</.test(cmdLine)) stats.redirectCount |= 4;
+        if (stats.redirectCount === 7) {
+            this._unlockAchievement('redirect_pro');
+        }
+
+        // Easter eggs
+        const easterEggs = ['sl', 'cowsay', 'fortune', 'cmatrix', 'figlet', 'lolcat', 'hollywood'];
+        const cmd = cmdLine.split(/\s+/)[0];
+        if (easterEggs.includes(cmd)) {
+            stats.easterEggsFound.add(cmd);
+            if (stats.easterEggsFound.size >= 5) {
+                this._unlockAchievement('easter_hunter');
+            }
+        }
+
+        // Job control
+        if (['jobs', 'fg', 'bg'].includes(cmd) || cmdLine.trim().endsWith('&')) {
+            this._unlockAchievement('job_juggler');
+        }
+    }
+
+    _trackTabCompletion() {
+        this._achievementStats.tabCount++;
+        if (this._achievementStats.tabCount >= 50) {
+            this._unlockAchievement('tab_master');
+        }
+    }
+
+    _trackCtrlR() {
+        if (!this._achievementStats.ctrlRUsed) {
+            this._achievementStats.ctrlRUsed = true;
+            this._unlockAchievement('history_buff');
+        }
+    }
+
+    _trackVimExit(clean) {
+        if (clean && !this._achievementStats.vimExitedClean) {
+            this._achievementStats.vimExitedClean = true;
+            this._unlockAchievement('vim_survivor');
+        }
+    }
+
+    getAchievements() {
+        return this._achievements;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SMART HINTS SYSTEM
+    // ═══════════════════════════════════════════════════════════════
+
+    _getSmartHint(cmdLine, output) {
+        const cmd = cmdLine.split(/\s+/)[0];
+        const isError = output && (output.includes('not found') || output.includes('No such') ||
+                                   output.includes('Permission denied') || output.includes('command not found'));
+
+        // Command not found hints
+        if (output && output.includes('command not found')) {
+            const typoHints = {
+                'lss': 'Did you mean: ls',
+                'cta': 'Did you mean: cat',
+                'grpe': 'Did you mean: grep',
+                'gerp': 'Did you mean: grep',
+                'sl': 'Try: ls (or run sl for a surprise!)',
+                'cd..': 'Did you mean: cd ..',
+                'dir': 'Linux uses: ls',
+                'cls': 'Linux uses: clear',
+                'ipconfig': 'Linux uses: ifconfig or ip addr',
+                'type': 'Linux uses: cat or file'
+            };
+            if (typoHints[cmd]) {
+                return { type: 'typo', hint: typoHints[cmd] };
+            }
+        }
+
+        // File not found hints
+        if (output && output.includes('No such file')) {
+            return {
+                type: 'tip',
+                hint: 'Pro tip: Use tab completion to auto-complete file paths, or ls to see available files.'
+            };
+        }
+
+        // Permission denied hints
+        if (output && output.includes('Permission denied')) {
+            return {
+                type: 'tip',
+                hint: 'Try: sudo ' + cmdLine + ' (run as administrator)'
+            };
+        }
+
+        // Educational tips based on commands used
+        const educationalTips = {
+            'cat': {
+                condition: () => !cmdLine.includes('|') && !cmdLine.includes('>'),
+                tip: 'Pro tip: Pipe cat output to grep for searching: cat file | grep pattern'
+            },
+            'ls': {
+                condition: () => !cmdLine.includes('-la') && !cmdLine.includes('-l'),
+                tip: 'Pro tip: Use ls -la to see hidden files and permissions'
+            },
+            'grep': {
+                condition: () => !cmdLine.includes('-r') && !cmdLine.includes('-i'),
+                tip: 'Pro tip: grep -r searches recursively, grep -i ignores case'
+            },
+            'find': {
+                condition: () => true,
+                tip: 'Pro tip: Combine with -exec for powerful workflows: find . -name "*.log" -exec grep "error" {} \\;'
+            },
+            'ps': {
+                condition: () => !cmdLine.includes('aux'),
+                tip: 'Pro tip: ps aux shows all processes with details'
+            }
+        };
+
+        if (educationalTips[cmd] && !isError) {
+            const tipInfo = educationalTips[cmd];
+            if (tipInfo.condition() && Math.random() < 0.3) { // 30% chance to show tip
+                return { type: 'tip', hint: tipInfo.tip };
+            }
+        }
+
+        return null;
+    }
+
+    _showSmartHint(hint) {
+        if (!hint) return;
+
+        const hintEl = document.createElement('div');
+        hintEl.className = 'clh-smart-hint';
+        hintEl.innerHTML = `
+            <span class="clh-hint-icon">${hint.type === 'typo' ? '💡' : '📚'}</span>
+            <span class="clh-hint-text">${hint.hint}</span>
+        `;
+
+        // Add styles if not present
+        if (!document.querySelector('#clh-hint-styles')) {
+            const style = document.createElement('style');
+            style.id = 'clh-hint-styles';
+            style.textContent = `
+                .clh-smart-hint {
+                    background: rgba(59, 130, 246, 0.15);
+                    border-left: 3px solid #3b82f6;
+                    padding: 8px 12px;
+                    margin: 8px 0;
+                    border-radius: 0 6px 6px 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 0.9em;
+                    animation: clh-hint-fade-in 0.3s ease-out;
+                }
+                .clh-hint-icon { font-size: 1.2em; }
+                .clh-hint-text { color: #93c5fd; }
+                @keyframes clh-hint-fade-in {
+                    from { opacity: 0; transform: translateX(-10px); }
+                    to { opacity: 1; transform: translateX(0); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        this.outputEl.appendChild(hintEl);
+        this.outputEl.scrollTop = this.outputEl.scrollHeight;
+    }
+
     // Public methods
     getCwd() { return this.currentDir; }
     getUser() { return this.user; }
     getHostname() { return this.hostname; }
+
+    getObjectives() { return this.objectives; }
+
+    getCurrentObjective() {
+        for (const obj of this.objectives) {
+            if (!this.objectivesCompleted[obj.id]) {
+                return obj;
+            }
+        }
+        return null; // All complete
+    }
+
+    isObjectiveComplete(id) { return !!this.objectivesCompleted[id]; }
+    getCompletedCount() { return this.completedCount; }
+
+    // Public print method for external callers
+    print(text, className = '') {
+        const line = document.createElement('div');
+        line.className = 'terminal-line' + (className ? ` ${className}` : '');
+        line.innerHTML = text;
+        this.outputEl.appendChild(line);
+        this.outputEl.scrollTop = this.outputEl.scrollHeight;
+    }
 }
 
 // Export for module usage

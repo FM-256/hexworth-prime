@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Filtering Data | CyberOps Week 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .top-nav {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb a:hover { color: #22d3ee; }
+        .breadcrumb .separator { color: #64748b; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .nav-progress { display: flex; align-items: center; gap: 1rem; }
+        .progress-bar { width: 200px; height: 8px; background: rgba(100, 116, 139, 0.3); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); border-radius: 4px; transition: width 0.5s ease; }
+        .progress-text { font-size: 0.85rem; color: #94a3b8; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .section-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .section-btn {
+            padding: 0.75rem 1.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .section-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .section-btn.active { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border-color: #8b5cf6; color: #fff; }
+        .section-btn.completed { border-color: #10b981; color: #10b981; }
+        .section-btn.completed::after { content: ' ✓'; }
+
+        .section { display: none; animation: fadeIn 0.5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .section-header { text-align: center; margin-bottom: 2rem; }
+        .section-header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .section-header p { color: #94a3b8; font-size: 1.1rem; }
+
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h3 { color: #06b6d4; margin-bottom: 1rem; }
+
+        /* Category Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .category-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .category-card:hover { border-color: #06b6d4; transform: translateY(-2px); }
+        .category-card.blocked { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .category-card.allowed { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .category-card.flagged { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+
+        .category-card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .category-card .name { font-size: 0.85rem; color: #e2e8f0; }
+
+        /* Log Viewer */
+        .log-viewer {
+            background: #0a0a0a;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.1);
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .log-entry:hover { background: rgba(6, 182, 212, 0.05); }
+
+        .log-entry .timestamp { color: #64748b; min-width: 80px; }
+        .log-entry .action { min-width: 60px; font-weight: bold; }
+        .log-entry .action.ALLOW { color: #10b981; }
+        .log-entry .action.BLOCK { color: #ef4444; }
+        .log-entry .action.WARN { color: #f59e0b; }
+        .log-entry .category { color: #8b5cf6; min-width: 100px; }
+        .log-entry .url { color: #06b6d4; word-break: break-all; }
+        .log-entry .user { color: #94a3b8; min-width: 80px; }
+
+        /* Filter Controls */
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover { border-color: #06b6d4; }
+        .filter-btn.active { background: rgba(6, 182, 212, 0.2); border-color: #06b6d4; color: #06b6d4; }
+
+        /* Policy Builder */
+        .policy-builder {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .policy-rule {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .policy-rule select, .policy-rule input {
+            padding: 0.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 6px;
+            color: #e2e8f0;
+        }
+
+        .policy-rule select:focus, .policy-rule input:focus {
+            outline: none;
+            border-color: #06b6d4;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-card .label { color: #94a3b8; font-size: 0.9rem; }
+
+        /* Quiz styles */
+        .quiz-container { background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 2rem; }
+        .quiz-question { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .quiz-question h4 { color: #f1f5f9; margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .quiz-option {
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quiz-option:hover { border-color: #06b6d4; }
+        .quiz-option.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+
+        .submit-btn {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .submit-btn:hover { transform: translateY(-2px); }
+
+        .quiz-results { text-align: center; padding: 2rem; display: none; }
+        .quiz-results.show { display: block; }
+        .score-display { font-size: 3rem; font-weight: bold; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(100, 116, 139, 0.2); }
+        .nav-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #e2e8f0; cursor: pointer; }
+        .nav-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .nav-btn.primary { background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .log-entry { flex-direction: column; gap: 0.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span class="separator">›</span>
+            <a href="../../modules/cyberops/index.html">CyberOps</a>
+            <span class="separator">›</span>
+            <a href="week2/index.html">Week 2</a>
+            <span class="separator">›</span>
+            <span class="current">Content Filtering Data</span>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-nav">
+            <button class="section-btn active" data-section="overview">1. Overview</button>
+            <button class="section-btn" data-section="categories">2. Categories</button>
+            <button class="section-btn" data-section="logs">3. Log Analysis</button>
+            <button class="section-btn" data-section="quiz">4. Assessment</button>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div class="section active" id="overview">
+            <div class="section-header">
+                <h1>Content Filtering Data</h1>
+                <p>Understanding web proxy and content filter logs for security monitoring</p>
+            </div>
+
+            <div class="card">
+                <h3>🌐 What is Content Filtering?</h3>
+                <p>Content filtering systems (web proxies, secure web gateways) inspect and control web traffic based on policies. They provide valuable security telemetry including:</p>
+                <ul style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li>URLs and domains accessed by users</li>
+                    <li>Content categories (productivity, security risk, etc.)</li>
+                    <li>Blocked and allowed actions</li>
+                    <li>User identity and source IP</li>
+                    <li>Bytes transferred and response times</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>📊 Security Value</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="value">~70%</div>
+                        <div class="label">of malware uses web for C2</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">User</div>
+                        <div class="label">attribution built-in</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">URL</div>
+                        <div class="label">reputation scoring</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">Policy</div>
+                        <div class="label">enforcement visibility</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🏢 Common Content Filtering Solutions</h3>
+                <div class="category-grid">
+                    <div class="category-card">
+                        <div class="icon">🔷</div>
+                        <div class="name">Zscaler</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="icon">🟠</div>
+                        <div class="name">Cisco Umbrella</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="icon">🔵</div>
+                        <div class="name">Palo Alto NGFW</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="icon">🟣</div>
+                        <div class="name">Symantec WSS</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="icon">🟢</div>
+                        <div class="name">Forcepoint</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="icon">⬜</div>
+                        <div class="name">Squid Proxy</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <div></div>
+                <button class="nav-btn primary" onclick="goToSection('categories')">Continue to Categories →</button>
+            </div>
+        </div>
+
+        <!-- Section 2: Categories -->
+        <div class="section" id="categories">
+            <div class="section-header">
+                <h1>URL Categories</h1>
+                <p>Understanding how web content is classified</p>
+            </div>
+
+            <div class="card">
+                <h3>🏷️ Category Classifications</h3>
+                <p>Click categories to see their typical policy action. Build your understanding of how organizations classify web content.</p>
+
+                <div class="category-grid" id="categoryGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⚠️ Security-Relevant Categories</h3>
+                <p>These categories are particularly important for threat detection:</p>
+                <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid rgba(100,116,139,0.2);">
+                        <td style="padding: 0.75rem; color: #ef4444;">🚫 Malware</td>
+                        <td style="padding: 0.75rem; color: #94a3b8;">Known malicious sites hosting exploits or payloads</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(100,116,139,0.2);">
+                        <td style="padding: 0.75rem; color: #ef4444;">🎣 Phishing</td>
+                        <td style="padding: 0.75rem; color: #94a3b8;">Credential harvesting and impersonation sites</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(100,116,139,0.2);">
+                        <td style="padding: 0.75rem; color: #f59e0b;">☁️ File Sharing</td>
+                        <td style="padding: 0.75rem; color: #94a3b8;">Potential data exfiltration vector</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(100,116,139,0.2);">
+                        <td style="padding: 0.75rem; color: #f59e0b;">🔧 Hacking</td>
+                        <td style="padding: 0.75rem; color: #94a3b8;">Tools and techniques (may indicate compromise)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; color: #f59e0b;">❓ Uncategorized</td>
+                        <td style="padding: 0.75rem; color: #94a3b8;">New or suspicious domains - high risk</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('overview')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('logs')">Continue to Log Analysis →</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Log Analysis -->
+        <div class="section" id="logs">
+            <div class="section-header">
+                <h1>Proxy Log Analysis</h1>
+                <p>Analyzing content filter logs for security investigations</p>
+            </div>
+
+            <div class="card">
+                <h3>📋 Sample Proxy Logs</h3>
+                <p>Filter and analyze these simulated proxy logs to identify suspicious activity.</p>
+
+                <div class="filter-controls">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="BLOCK">Blocked</button>
+                    <button class="filter-btn" data-filter="ALLOW">Allowed</button>
+                    <button class="filter-btn" data-filter="suspicious">🔍 Suspicious</button>
+                </div>
+
+                <div class="log-viewer" id="logViewer">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Investigation Questions</h3>
+                <p>Based on the logs above, identify:</p>
+                <ol style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li>Which user visited a phishing site?</li>
+                    <li>What category had the most blocks?</li>
+                    <li>Which domain might indicate data exfiltration?</li>
+                    <li>What time did the suspicious file sharing occur?</li>
+                </ol>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('categories')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('quiz')">Continue to Assessment →</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Quiz -->
+        <div class="section" id="quiz">
+            <div class="section-header">
+                <h1>Knowledge Assessment</h1>
+                <p>Test your understanding of content filtering data</p>
+            </div>
+
+            <div class="quiz-container" id="quizContainer"></div>
+            <div class="quiz-results" id="quizResults">
+                <h2>Assessment Complete!</h2>
+                <div class="score-display" id="scoreDisplay">0%</div>
+                <p id="scoreMessage"></p>
+                <button class="submit-btn" onclick="retakeQuiz()">Retake Quiz</button>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('logs')">← Back</button>
+                <button class="nav-btn primary" id="finishBtn" style="display: none;" onclick="completeModule()">Complete Module →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentSection: 'overview',
+            sectionsCompleted: { overview: false, categories: false, logs: false, quiz: false },
+            quizAnswers: {}
+        };
+
+        const categories = [
+            { name: 'Business', icon: '💼', action: 'allowed' },
+            { name: 'News', icon: '📰', action: 'allowed' },
+            { name: 'Social Media', icon: '💬', action: 'flagged' },
+            { name: 'Streaming', icon: '🎬', action: 'flagged' },
+            { name: 'Gaming', icon: '🎮', action: 'blocked' },
+            { name: 'Shopping', icon: '🛒', action: 'allowed' },
+            { name: 'Malware', icon: '🦠', action: 'blocked' },
+            { name: 'Phishing', icon: '🎣', action: 'blocked' },
+            { name: 'File Sharing', icon: '📁', action: 'flagged' },
+            { name: 'Hacking', icon: '💻', action: 'blocked' },
+            { name: 'Adult', icon: '🔞', action: 'blocked' },
+            { name: 'Education', icon: '📚', action: 'allowed' }
+        ];
+
+        const proxyLogs = [
+            { time: '09:15:23', action: 'ALLOW', category: 'Business', url: 'salesforce.com/login', user: 'jsmith' },
+            { time: '09:17:45', action: 'ALLOW', category: 'News', url: 'reuters.com/technology', user: 'mwilson' },
+            { time: '09:22:11', action: 'BLOCK', category: 'Gaming', url: 'twitch.tv/stream', user: 'bchen' },
+            { time: '09:25:33', action: 'WARN', category: 'Social Media', url: 'twitter.com/feed', user: 'jsmith', suspicious: true },
+            { time: '09:31:02', action: 'BLOCK', category: 'Malware', url: 'evil-download.ru/payload.exe', user: 'apatel', suspicious: true },
+            { time: '09:35:18', action: 'ALLOW', category: 'Business', url: 'microsoft.com/office365', user: 'mwilson' },
+            { time: '09:42:55', action: 'BLOCK', category: 'Phishing', url: 'micros0ft-login.tk/verify', user: 'bchen', suspicious: true },
+            { time: '09:48:30', action: 'WARN', category: 'File Sharing', url: 'dropbox.com/upload?size=500mb', user: 'apatel', suspicious: true },
+            { time: '09:55:12', action: 'ALLOW', category: 'Education', url: 'coursera.org/course/security', user: 'jsmith' },
+            { time: '10:02:44', action: 'BLOCK', category: 'Hacking', url: 'hacktools.io/exploits', user: 'bchen', suspicious: true },
+            { time: '10:08:19', action: 'ALLOW', category: 'Business', url: 'slack.com/workspace', user: 'mwilson' },
+            { time: '10:15:37', action: 'BLOCK', category: 'Adult', url: 'blocked-content.com', user: 'unknown' },
+            { time: '10:22:08', action: 'WARN', category: 'Uncategorized', url: 'newdomain-xyz123.com/data', user: 'apatel', suspicious: true }
+        ];
+
+        const quizQuestions = [
+            { id: 1, question: "What type of data does a web proxy/content filter primarily capture?", options: ["Raw packet captures", "URL requests and categorizations", "CPU utilization metrics", "Physical access logs"], correct: 1 },
+            { id: 2, question: "Which URL category is MOST concerning from a data loss perspective?", options: ["News", "File Sharing", "Business", "Education"], correct: 1 },
+            { id: 3, question: "Why are 'Uncategorized' URLs considered high risk?", options: ["They are always malicious", "They have the longest URLs", "New/unknown domains may be malicious", "They use the most bandwidth"], correct: 2 },
+            { id: 4, question: "What user attribute makes proxy logs valuable for investigations?", options: ["Browser version", "User identity/attribution", "Screen resolution", "Operating system"], correct: 1 },
+            { id: 5, question: "A proxy log shows multiple BLOCK actions for 'Hacking' category from one user. This might indicate:", options: ["Normal IT staff research", "Possible insider threat or compromised account", "Bandwidth optimization", "Scheduled maintenance"], correct: 1 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            setupCategories();
+            setupLogs();
+            setupQuiz();
+            updateProgress();
+        });
+
+        function setupCategories() {
+            const grid = document.getElementById('categoryGrid');
+            grid.innerHTML = categories.map(cat => `
+                <div class="category-card ${cat.action}" title="${cat.action.toUpperCase()}">
+                    <div class="icon">${cat.icon}</div>
+                    <div class="name">${cat.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function setupLogs() {
+            renderLogs('all');
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderLogs(btn.dataset.filter);
+                });
+            });
+        }
+
+        function renderLogs(filter) {
+            const viewer = document.getElementById('logViewer');
+            let logs = proxyLogs;
+
+            if (filter === 'BLOCK') logs = proxyLogs.filter(l => l.action === 'BLOCK');
+            else if (filter === 'ALLOW') logs = proxyLogs.filter(l => l.action === 'ALLOW');
+            else if (filter === 'suspicious') logs = proxyLogs.filter(l => l.suspicious);
+
+            viewer.innerHTML = logs.map(log => `
+                <div class="log-entry">
+                    <span class="timestamp">${log.time}</span>
+                    <span class="action ${log.action}">${log.action}</span>
+                    <span class="category">${log.category}</span>
+                    <span class="user">${log.user}</span>
+                    <span class="url">${log.url}</span>
+                </div>
+            `).join('');
+        }
+
+        function setupQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, idx) => `
+                <div class="quiz-question">
+                    <h4>${idx + 1}. ${q.question}</h4>
+                    <div class="quiz-options">
+                        ${q.options.map((opt, optIdx) => `
+                            <div class="quiz-option" data-question="${q.id}" data-option="${optIdx}">${opt}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('') + '<button class="submit-btn" onclick="submitQuiz()">Submit Answers</button>';
+
+            container.querySelectorAll('.quiz-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const qId = opt.dataset.question;
+                    document.querySelectorAll(`[data-question="${qId}"]`).forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    state.quizAnswers[qId] = parseInt(opt.dataset.option);
+                });
+            });
+        }
+
+        document.querySelectorAll('.section-btn').forEach(btn => {
+            btn.addEventListener('click', () => goToSection(btn.dataset.section));
+        });
+
+        function goToSection(sectionId) {
+            markCurrentComplete();
+            state.currentSection = sectionId;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            updateProgress();
+            saveProgress();
+        }
+
+        function markCurrentComplete() {
+            if (['overview', 'categories', 'logs'].includes(state.currentSection)) {
+                state.sectionsCompleted[state.currentSection] = true;
+                document.querySelector(`[data-section="${state.currentSection}"]`).classList.add('completed');
+            }
+        }
+
+        function submitQuiz() {
+            if (Object.keys(state.quizAnswers).length < quizQuestions.length) {
+                alert('Please answer all questions.');
+                return;
+            }
+
+            let correct = 0;
+            quizQuestions.forEach(q => { if (state.quizAnswers[q.id] === q.correct) correct++; });
+
+            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizResults').classList.add('show');
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            document.getElementById('scoreMessage').textContent = percentage >= 80
+                ? `Excellent! You passed with ${correct}/${quizQuestions.length} correct!`
+                : `You scored ${correct}/${quizQuestions.length}. 80% required to pass.`;
+
+            if (percentage >= 80) {
+                state.sectionsCompleted.quiz = true;
+                document.querySelector('[data-section="quiz"]').classList.add('completed');
+                document.getElementById('finishBtn').style.display = 'block';
+            }
+            updateProgress();
+            saveProgress();
+        }
+
+        function retakeQuiz() {
+            state.quizAnswers = {};
+            document.getElementById('quizContainer').style.display = 'block';
+            document.getElementById('quizResults').classList.remove('show');
+            document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+        }
+
+        function completeModule() {
+            window.location.href = 'week2/index.html';
+        }
+
+        function updateProgress() {
+            const completed = Object.values(state.sectionsCompleted).filter(v => v).length;
+            const percentage = Math.round((completed / 4) * 100);
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}% Complete`;
+        }
+
+        function saveProgress() {
+            localStorage.setItem('cyberops_content_filtering', JSON.stringify(state));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('cyberops_content_filtering');
+            if (saved) {
+                Object.assign(state, JSON.parse(saved));
+                Object.entries(state.sectionsCompleted).forEach(([s, c]) => {
+                    if (c) document.querySelector(`[data-section="${s}"]`).classList.add('completed');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Evaluation - CyberOps Host-Based Analysis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1628 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #64748b;
+        }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+
+        header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border: 2px solid #06b6d4;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .eval-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        .icon { font-size: 3em; margin-bottom: 15px; }
+        h1 { color: #06b6d4; font-size: 2em; margin-bottom: 10px; }
+        .subtitle { color: #94a3b8; }
+
+        .info-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .info-box h3 { color: #06b6d4; margin-bottom: 15px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        .info-item {
+            text-align: center;
+        }
+        .info-item .value {
+            font-size: 1.5em;
+            color: #06b6d4;
+            font-weight: bold;
+        }
+        .info-item .label {
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: #1e293b;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+            transition: width 0.5s;
+        }
+
+        .question-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .question-card.answered { border-color: #06b6d4; }
+        .question-card.correct { border-color: #22c55e; }
+        .question-card.incorrect { border-color: #ef4444; }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .question-number {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+        .question-category {
+            font-size: 0.8em;
+            color: #64748b;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option {
+            padding: 15px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover:not(.disabled) { border-color: #06b6d4; }
+        .option.selected { border-color: #06b6d4; background: rgba(6, 182, 212, 0.1); }
+        .option.correct { border-color: #22c55e; background: rgba(34, 197, 94, 0.2); }
+        .option.incorrect { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+        .option.disabled { cursor: default; opacity: 0.7; }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.correct { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; color: #22c55e; }
+        .feedback.incorrect { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; }
+
+        .btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(6, 182, 212, 0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .results-card {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border: 2px solid #8b5cf6;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+        .results-card.show { display: block; }
+        .score-display {
+            font-size: 4em;
+            color: #06b6d4;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .score-display.pass { color: #22c55e; }
+        .score-display.fail { color: #ef4444; }
+        .results-message { font-size: 1.2em; margin-bottom: 20px; }
+
+        .score-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .breakdown-item {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .breakdown-item .number { font-size: 1.5em; color: #06b6d4; font-weight: bold; }
+        .breakdown-item .label { font-size: 0.85em; color: #94a3b8; }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+        .navigation a {
+            color: #06b6d4;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="../../../index.html">House of Eye</a>
+            <span>/</span>
+            <a href="../../index.html">CyberOps</a>
+            <span>/</span>
+            <a href="index.html">Week 3</a>
+            <span>/</span>
+            <span>Evaluation</span>
+        </nav>
+
+        <header>
+            <span class="eval-badge">📋 ASSESSMENT</span>
+            <div class="icon">📝</div>
+            <h1>Week 3 Evaluation</h1>
+            <p class="subtitle">Host-Based Analysis Knowledge Assessment</p>
+        </header>
+
+        <div class="info-box">
+            <h3>Assessment Information</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="value">15</div>
+                    <div class="label">Questions</div>
+                </div>
+                <div class="info-item">
+                    <div class="value">80%</div>
+                    <div class="label">Pass Threshold</div>
+                </div>
+                <div class="info-item">
+                    <div class="value">∞</div>
+                    <div class="label">Time Limit</div>
+                </div>
+                <div class="info-item">
+                    <div class="value">1</div>
+                    <div class="label">Attempt</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <p id="progressText" style="text-align: center; color: #64748b; margin-bottom: 20px;">Question 1 of 15</p>
+
+        <div id="quizContainer"></div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Assessment Complete!</h2>
+            <div class="score-display" id="scoreDisplay">0%</div>
+            <p class="results-message" id="resultsMessage"></p>
+
+            <div class="score-breakdown">
+                <div class="breakdown-item">
+                    <div class="number" id="correctCount">0</div>
+                    <div class="label">Correct</div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="number" id="incorrectCount">0</div>
+                    <div class="label">Incorrect</div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="number" id="timeSpent">0:00</div>
+                    <div class="label">Time Spent</div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="window.location.href='index.html'">Return to Week 3</button>
+        </div>
+
+        <div class="navigation">
+            <a href="index.html">← Back to Week 3</a>
+            <span id="submitSection">
+                <button class="btn" id="submitBtn" onclick="submitQuiz()" disabled>Submit Assessment</button>
+            </span>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            // Endpoint Attacks
+            {
+                category: "Endpoint Attacks",
+                question: "Which Windows Event ID indicates a successful logon that should be monitored for anomalies?",
+                options: ["4624", "4625", "4672", "4688"],
+                correct: 0,
+                explanation: "Event ID 4624 indicates a successful logon. 4625 is failed logon, 4672 is special privileges assigned, and 4688 is process creation."
+            },
+            // Endpoint Attacks 2
+            {
+                category: "Endpoint Attacks",
+                question: "A user's machine shows repeated Event ID 4625 from multiple source IPs. What attack is likely occurring?",
+                options: ["Lateral movement", "Password spraying attack", "Privilege escalation", "Data exfiltration"],
+                correct: 1,
+                explanation: "Multiple failed logon attempts (4625) from various IPs indicates password spraying—trying common passwords against many accounts."
+            },
+            // Windows Security
+            {
+                category: "Windows Security",
+                question: "Which Windows 10 feature uses hardware-based virtualization to isolate sensitive credentials?",
+                options: ["Windows Defender", "SmartScreen", "Credential Guard", "BitLocker"],
+                correct: 2,
+                explanation: "Credential Guard uses Virtualization Based Security (VBS) to isolate LSASS and protect credentials from memory-scraping attacks like Mimikatz."
+            },
+            // Ubuntu Security
+            {
+                category: "Ubuntu Security",
+                question: "Which Linux security module provides mandatory access control (MAC) in Ubuntu by default?",
+                options: ["SELinux", "AppArmor", "TOMOYO", "Smack"],
+                correct: 1,
+                explanation: "AppArmor is Ubuntu's default MAC system, using path-based access control to restrict application capabilities beyond standard permissions."
+            },
+            // Attribution
+            {
+                category: "Attribution",
+                question: "In David Bianco's Pyramid of Pain, which indicator type causes the MOST pain to adversaries when blocked?",
+                options: ["Hash values", "IP addresses", "TTPs (Tactics, Techniques, Procedures)", "Domain names"],
+                correct: 2,
+                explanation: "TTPs at the pyramid's top are hardest to change. Adversaries can easily change hashes/IPs, but changing their attack methodology is difficult."
+            },
+            // Attribution 2
+            {
+                category: "Attribution",
+                question: "Which MITRE ATT&CK category describes HOW an attacker accomplishes a tactical goal?",
+                options: ["Tactics", "Techniques", "Procedures", "Groups"],
+                correct: 1,
+                explanation: "Techniques describe HOW objectives are achieved. Tactics describe WHY (goals). Procedures are specific implementations by threat actors."
+            },
+            // Evidence Types
+            {
+                category: "Digital Forensics",
+                question: "According to RFC 3227 Order of Volatility, which should be collected FIRST?",
+                options: ["Hard disk contents", "System memory (RAM)", "Backup tapes", "Network logs"],
+                correct: 1,
+                explanation: "RAM is most volatile—data is lost when powered off. Collection order: RAM → swap → network → running processes → disk → backups."
+            },
+            // Evidence Types 2
+            {
+                category: "Digital Forensics",
+                question: "What ensures digital evidence hasn't been modified since collection?",
+                options: ["Chain of custody", "Cryptographic hash verification", "Write blocker", "Forensic imaging"],
+                correct: 1,
+                explanation: "Hash values (MD5, SHA-256) create a digital fingerprint. If hashes match before/after, integrity is verified."
+            },
+            // Disk Images
+            {
+                category: "Disk Imaging",
+                question: "Which forensic image format stores both image data AND case metadata in a single container?",
+                options: ["Raw (.dd/.img)", "E01 (EnCase)", "AFF", "VMDK"],
+                correct: 1,
+                explanation: "E01 format includes image data plus case metadata, examiner notes, and built-in hash verification in one forensic container."
+            },
+            // Disk Images 2
+            {
+                category: "Disk Imaging",
+                question: "Before creating a forensic disk image, what hardware should be used to prevent accidental writes?",
+                options: ["Network isolator", "Faraday cage", "Write blocker", "USB hub"],
+                correct: 2,
+                explanation: "A write blocker allows read access while physically preventing any write operations, preserving evidence integrity."
+            },
+            // Malware Analysis
+            {
+                category: "Malware Analysis",
+                question: "Which VirusTotal detection ratio would be MOST concerning: 0/70, 5/70, or 45/70?",
+                options: ["0/70 (zero detections)", "5/70 (few detections)", "45/70 (most detected)", "All are equally concerning"],
+                correct: 1,
+                explanation: "5/70 suggests a new or targeted malware—known to some engines but evading most. Zero could be clean; 45/70 is known malware."
+            },
+            // Malware Analysis 2
+            {
+                category: "Malware Analysis",
+                question: "The 'strings' utility output shows 'cmd.exe', 'powershell', 'HKEY_CURRENT_USER'. What does this suggest?",
+                options: ["Harmless system utility", "Potential malware with system manipulation capabilities", "Encrypted ransomware", "Clean document file"],
+                correct: 1,
+                explanation: "References to command shells and registry keys indicate potential for command execution and persistence—common malware behaviors."
+            },
+            // Traceroute Lab
+            {
+                category: "Network Analysis",
+                question: "In traceroute output, what does '* * *' indicate for a particular hop?",
+                options: ["Fastest path", "Router didn't respond (likely ICMP blocked)", "Destination reached", "Network congestion"],
+                correct: 1,
+                explanation: "Asterisks mean no response was received—typically because a router's firewall blocks ICMP Time Exceeded messages."
+            },
+            // Nmap Lab
+            {
+                category: "Network Scanning",
+                question: "Which Nmap scan type completes the full TCP handshake and is most easily logged?",
+                options: ["-sS (SYN scan)", "-sT (TCP connect)", "-sU (UDP scan)", "-sn (Ping scan)"],
+                correct: 1,
+                explanation: "-sT performs a complete TCP connection (SYN→SYN-ACK→ACK), making it easily logged. -sS only sends SYN and is stealthier."
+            },
+            // Wireshark Lab
+            {
+                category: "Packet Analysis",
+                question: "In Wireshark, which filter shows only packets from a specific IP establishing NEW TCP connections?",
+                options: ["ip.addr == 192.168.1.1", "ip.src == 192.168.1.1 && tcp.flags.syn == 1 && tcp.flags.ack == 0", "tcp.port == 80", "eth.src == aa:bb:cc:dd:ee:ff"],
+                correct: 1,
+                explanation: "This filter matches SYN-only packets (new connections) from a specific source. SYN=1, ACK=0 identifies connection initiators."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let answers = new Array(questions.length).fill(null);
+        let startTime = Date.now();
+        let submitted = false;
+
+        function renderQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = questions.map((q, i) => `
+                <div class="question-card" id="question${i}" style="${i > 0 ? 'display: none;' : ''}">
+                    <div class="question-header">
+                        <span class="question-number">Question ${i + 1} of ${questions.length}</span>
+                        <span class="question-category">${q.category}</span>
+                    </div>
+                    <div class="question-text">${q.question}</div>
+                    <div class="options">
+                        ${q.options.map((opt, j) => `
+                            <div class="option" onclick="selectAnswer(${i}, ${j})" data-option="${j}">${opt}</div>
+                        `).join('')}
+                    </div>
+                    <div class="feedback" id="feedback${i}"></div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                        <button class="btn" onclick="prevQuestion()" ${i === 0 ? 'disabled' : ''} style="background: #334155;">← Previous</button>
+                        <button class="btn" onclick="nextQuestion()" ${i === questions.length - 1 ? 'style="display:none"' : ''}>Next →</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectAnswer(qIndex, optIndex) {
+            if (submitted) return;
+
+            answers[qIndex] = optIndex;
+
+            // Update UI
+            const card = document.getElementById(`question${qIndex}`);
+            card.querySelectorAll('.option').forEach((opt, i) => {
+                opt.classList.remove('selected');
+                if (i === optIndex) opt.classList.add('selected');
+            });
+            card.classList.add('answered');
+
+            // Enable submit if all answered
+            const allAnswered = answers.every(a => a !== null);
+            document.getElementById('submitBtn').disabled = !allAnswered;
+
+            updateProgress();
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1) {
+                document.getElementById(`question${currentQuestion}`).style.display = 'none';
+                currentQuestion++;
+                document.getElementById(`question${currentQuestion}`).style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                document.getElementById(`question${currentQuestion}`).style.display = 'none';
+                currentQuestion--;
+                document.getElementById(`question${currentQuestion}`).style.display = 'block';
+                updateProgress();
+            }
+        }
+
+        function updateProgress() {
+            const answered = answers.filter(a => a !== null).length;
+            const percent = (answered / questions.length) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `${answered} of ${questions.length} questions answered`;
+        }
+
+        function submitQuiz() {
+            if (!confirm('Are you sure you want to submit? You cannot change answers after submission.')) return;
+
+            submitted = true;
+            let correct = 0;
+
+            questions.forEach((q, i) => {
+                const card = document.getElementById(`question${i}`);
+                const options = card.querySelectorAll('.option');
+                const feedback = document.getElementById(`feedback${i}`);
+
+                options.forEach(opt => opt.classList.add('disabled'));
+
+                if (answers[i] === q.correct) {
+                    correct++;
+                    options[answers[i]].classList.add('correct');
+                    card.classList.add('correct');
+                    feedback.className = 'feedback show correct';
+                    feedback.textContent = '✓ Correct! ' + q.explanation;
+                } else {
+                    options[answers[i]].classList.add('incorrect');
+                    options[q.correct].classList.add('correct');
+                    card.classList.add('incorrect');
+                    feedback.className = 'feedback show incorrect';
+                    feedback.textContent = '✗ Incorrect. ' + q.explanation;
+                }
+
+                card.style.display = 'block';
+            });
+
+            // Calculate results
+            const score = Math.round((correct / questions.length) * 100);
+            const passed = score >= 80;
+            const timeSpent = Math.round((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(timeSpent / 60);
+            const seconds = timeSpent % 60;
+
+            // Display results
+            document.getElementById('scoreDisplay').textContent = score + '%';
+            document.getElementById('scoreDisplay').className = 'score-display ' + (passed ? 'pass' : 'fail');
+            document.getElementById('correctCount').textContent = correct;
+            document.getElementById('incorrectCount').textContent = questions.length - correct;
+            document.getElementById('timeSpent').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('resultsMessage').textContent = passed
+                ? '🎉 Congratulations! You passed the Week 3 Assessment.'
+                : '📚 You need 80% to pass. Review the material and try again.';
+
+            document.getElementById('resultsCard').classList.add('show');
+            document.getElementById('submitSection').style.display = 'none';
+
+            // Save completion
+            if (passed) {
+                localStorage.setItem('cyberops_week3_evaluation', 'completed');
+            }
+
+            // Scroll to results
+            document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Initialize
+        renderQuiz();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

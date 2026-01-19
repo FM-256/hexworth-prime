@@ -930,7 +930,73 @@ NOTE: This facility does not officially exist.
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: []
+                    children: ['TEMPLATE.txt', 'previous_incidents.log', '.analyst_notes']
+                },
+                '/home/operator/reports/TEMPLATE.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 412,
+                    content: `INCIDENT REPORT TEMPLATE
+========================
+Classification: [SECRET/TOP SECRET/MAJIC]
+Date: [YYYY-MM-DD]
+Analyst: [NAME]
+Event ID: [CONTACT-XXXX]
+
+SUMMARY:
+[Brief description of the incident]
+
+ERROR LOG ANALYSIS:
+- Total ERROR entries found: [X]
+- First occurrence: [timestamp]
+- Last occurrence: [timestamp]
+
+FINDINGS:
+[Detailed analysis]
+
+RECOMMENDATION:
+[Suggested action]
+
+SIGNATURES:
+Analyst: _________________
+Supervisor: _________________
+`
+                },
+                '/home/operator/reports/previous_incidents.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 384,
+                    content: `CONTACT-2841 | 2024-01-03 | FALSE POSITIVE | Satellite interference
+CONTACT-2842 | 2024-01-05 | FALSE POSITIVE | Solar flare noise
+CONTACT-2843 | 2024-01-08 | UNRESOLVED | Pattern detected, lost signal
+CONTACT-2844 | 2024-01-10 | FALSE POSITIVE | Military satellite
+CONTACT-2845 | 2024-01-12 | FALSE POSITIVE | Amateur radio bounce
+CONTACT-2846 | 2024-01-14 | UNRESOLVED | Mathematical structure, 12sec
+CONTACT-2847 | 2024-01-15 | PENDING | **YOU ARE HERE** - 72sec signal
+`
+                },
+                '/home/operator/reports/.analyst_notes': {
+                    type: 'file',
+                    perms: '-rw-------',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `Personal notes - DO NOT INCLUDE IN OFFICIAL REPORT
+
+The 2847 signal is different. The others were noise or
+satellites, but this one... the math doesn't lie.
+
+Prime number headers. Binary image encoding. 72 seconds
+of structured data from OUTSIDE the solar system.
+
+If this is real, everything changes.
+
+- J.
+`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
@@ -994,6 +1060,26 @@ The official cover story is "equipment malfunction."
                     check: (cmd, state) => cmd.includes('grep') && cmd.includes('-c') && (cmd.toLowerCase().includes('error') || cmd.includes('ERROR'))
                 },
             ],
+
+            // Insight Phase - analysis question after objectives complete
+            insightPhase: {
+                enabled: true,
+                question: "According to the anomaly detector, where did the signal originate?",
+                acceptedAnswers: [
+                    "extrasolar",
+                    "extra-solar",
+                    "extra solar",
+                    "outside the solar system",
+                    "outside solar system",
+                    "not terrestrial",
+                    "non-terrestrial",
+                    "beyond the solar system"
+                ],
+                hint: "Look at the ERROR entries in system.log - what location is mentioned?",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Intelligence not confirmed. Review the ERROR entries in system.log.",
+                correctAnswerMessage: "Signal origin confirmed: EXTRASOLAR. Excellent analysis, Operator."
+            },
 
             remoteHosts: null,
         },
@@ -3283,6 +3369,66 @@ HANDLER: SPECTER-1
         return ids[index - 1];
     }
 
+    /**
+     * Get the URL to the next module's INTRO page (not the lab)
+     * This implements the correct learning flow: Lab → Next Intro → Quiz → Lab
+     * @param {string} moduleId - Current module ID (e.g., 'CLH-002')
+     * @returns {object} { url: string, isLast: boolean, nextModuleId: string|null }
+     */
+    function getNextIntroUrl(moduleId) {
+        const nextModuleId = getNextModule(moduleId);
+
+        if (!nextModuleId) {
+            // This is the last module - return to Script House
+            return {
+                url: '../../index.html',
+                isLast: true,
+                nextModuleId: null
+            };
+        }
+
+        // Extract the number from CLH-XXX format
+        const match = nextModuleId.match(/CLH-(\d+)/i);
+        if (!match) {
+            return {
+                url: '../../index.html',
+                isLast: true,
+                nextModuleId: null
+            };
+        }
+
+        const nextNum = match[1]; // e.g., '003'
+
+        // From lab (applets/linux/), intro is at ../../clh/clh-XXX-intro.html
+        return {
+            url: `../../clh/clh-${nextNum}-intro.html`,
+            isLast: false,
+            nextModuleId: nextModuleId
+        };
+    }
+
+    /**
+     * Get the URL to the current module's intro page
+     * @param {string} moduleId - Module ID (e.g., 'CLH-002')
+     * @returns {string} URL to intro page
+     */
+    function getIntroUrl(moduleId) {
+        const match = moduleId.match(/CLH-(\d+)/i);
+        if (!match) return '../../clh/clh-001-intro.html';
+        return `../../clh/clh-${match[1]}-intro.html`;
+    }
+
+    /**
+     * Get the URL to the current module's quiz page
+     * @param {string} moduleId - Module ID (e.g., 'CLH-002')
+     * @returns {string} URL to quiz page
+     */
+    function getQuizUrl(moduleId) {
+        const match = moduleId.match(/CLH-(\d+)/i);
+        if (!match) return '../../clh/clh-001-quiz.html';
+        return `../../clh/clh-${match[1]}-quiz.html`;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // EXPOSE PUBLIC API
     // ═══════════════════════════════════════════════════════════════
@@ -3296,6 +3442,9 @@ HANDLER: SPECTER-1
         isValidModule,
         getNextModule,
         getPreviousModule,
+        getNextIntroUrl,
+        getIntroUrl,
+        getQuizUrl,
 
         // Expose constants for debugging
         _MODULES: MODULES,

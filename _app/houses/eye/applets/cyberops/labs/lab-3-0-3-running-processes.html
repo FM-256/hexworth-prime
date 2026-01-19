@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 3.0.3: Identify Running Processes | CyberOps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .breadcrumb {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb span { color: #64748b; margin: 0 8px; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .lab-header {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2));
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .lab-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .lab-header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .training-wheels {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+
+        .training-wheels label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #f59e0b;
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input { display: none; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #475569;
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background: #22c55e; }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
+
+        .os-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .os-tab {
+            flex: 1;
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px solid #334155;
+            border-radius: 10px;
+            color: #94a3b8;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .os-tab:hover { border-color: #8b5cf6; }
+        .os-tab.active { border-color: #06b6d4; background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+        .lab-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .guidance-panel {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .guidance-panel.hidden { display: none; }
+
+        .guidance-panel h3 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .step.completed { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+
+        .step h4 {
+            color: #e2e8f0;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px; }
+
+        .step code {
+            display: block;
+            background: #0f172a;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            color: #22c55e;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .step code:hover { background: #1e293b; }
+
+        .terminal-panel {
+            background: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .terminal-panel.full-width { grid-column: 1 / -1; }
+
+        .terminal-header {
+            background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-btn.red { background: #ff5f56; }
+        .terminal-btn.yellow { background: #ffbd2e; }
+        .terminal-btn.green { background: #27ca40; }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            color: #999;
+            font-size: 0.85rem;
+        }
+
+        .terminal-body {
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            height: 450px;
+            overflow-y: auto;
+            background: #0a0a0a;
+        }
+
+        .terminal-output {
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .terminal-output .prompt { color: #22c55e; }
+        .terminal-output .command { color: #60a5fa; }
+        .terminal-output .output { color: #94a3b8; }
+        .terminal-output .error { color: #f87171; }
+        .terminal-output .highlight { color: #f59e0b; }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .terminal-prompt {
+            color: #22c55e;
+            margin-right: 10px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .challenge-section {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .challenge-section h3 { color: #8b5cf6; margin-bottom: 15px; }
+
+        .challenge-task {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .challenge-task.completed { border-color: #22c55e; }
+
+        .task-check {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #475569;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: transparent;
+            flex-shrink: 0;
+        }
+
+        .challenge-task.completed .task-check {
+            background: #22c55e;
+            border-color: #22c55e;
+            color: white;
+        }
+
+        .submit-section {
+            text-align: center;
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); }
+        .submit-btn:disabled { background: #475569; cursor: not-allowed; transform: none; }
+
+        .completion-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(6, 182, 212, 0.2));
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .completion-banner.show { display: block; }
+        .completion-banner h2 { color: #22c55e; margin-bottom: 10px; }
+
+        @media (max-width: 900px) {
+            .lab-content { grid-template-columns: 1fr; }
+            .terminal-panel { grid-column: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span>›</span>
+            <a href="../../../modules/cyberops/index.html">CyberOps</a>
+            <span>›</span>
+            <a href="../week1/index.html">Week 1</a>
+            <span>›</span>
+            <span class="current">Lab 3.0.3</span>
+        </nav>
+
+        <header class="lab-header">
+            <div class="lab-badge">Terminal Lab</div>
+            <h1>Identify Running Processes</h1>
+            <p style="color: #94a3b8;">Learn to enumerate and analyze running processes on Linux and Windows systems — a critical skill for incident response.</p>
+        </header>
+
+        <div class="training-wheels">
+            <label>
+                <span>🚲</span>
+                <span>Training Wheels</span>
+            </label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="trainingToggle" checked onchange="toggleTraining()">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="os-tabs">
+            <button class="os-tab active" data-os="linux" onclick="switchOS('linux')">🐧 Linux</button>
+            <button class="os-tab" data-os="windows" onclick="switchOS('windows')">🪟 Windows</button>
+        </div>
+
+        <div class="lab-content">
+            <div class="guidance-panel" id="guidancePanel">
+                <h3>📋 Step-by-Step Guide</h3>
+
+                <div id="linuxSteps">
+                    <div class="step" data-step="1">
+                        <h4><span>1</span> List All Processes</h4>
+                        <p>Display a snapshot of all running processes with detailed info.</p>
+                        <code onclick="copyCommand(this)">ps aux</code>
+                    </div>
+
+                    <div class="step" data-step="2">
+                        <h4><span>2</span> Real-time Process Monitor</h4>
+                        <p>View processes sorted by resource usage (CPU/Memory). Press 'q' to exit.</p>
+                        <code onclick="copyCommand(this)">top</code>
+                    </div>
+
+                    <div class="step" data-step="3">
+                        <h4><span>3</span> Process Tree View</h4>
+                        <p>See parent-child relationships between processes.</p>
+                        <code onclick="copyCommand(this)">pstree</code>
+                    </div>
+
+                    <div class="step" data-step="4">
+                        <h4><span>4</span> Find Specific Process</h4>
+                        <p>Search for a process by name (e.g., ssh, apache, nginx).</p>
+                        <code onclick="copyCommand(this)">ps aux | grep ssh</code>
+                    </div>
+
+                    <div class="step" data-step="5">
+                        <h4><span>5</span> Network Connections</h4>
+                        <p>Show processes with network connections — useful for finding backdoors.</p>
+                        <code onclick="copyCommand(this)">netstat -tulnp</code>
+                    </div>
+
+                    <div class="step" data-step="6">
+                        <h4><span>6</span> Open Files by Process</h4>
+                        <p>List files opened by a specific process (requires PID).</p>
+                        <code onclick="copyCommand(this)">lsof -p 1</code>
+                    </div>
+                </div>
+
+                <div id="windowsSteps" style="display: none;">
+                    <div class="step" data-step="1">
+                        <h4><span>1</span> List All Processes</h4>
+                        <p>Get a list of all running processes with details.</p>
+                        <code onclick="copyCommand(this)">Get-Process</code>
+                    </div>
+
+                    <div class="step" data-step="2">
+                        <h4><span>2</span> Detailed Process Info</h4>
+                        <p>View specific process with all properties.</p>
+                        <code onclick="copyCommand(this)">Get-Process | Select-Object Name, Id, CPU, WorkingSet</code>
+                    </div>
+
+                    <div class="step" data-step="3">
+                        <h4><span>3</span> Process by Name</h4>
+                        <p>Find processes matching a name pattern.</p>
+                        <code onclick="copyCommand(this)">Get-Process -Name *chrome*</code>
+                    </div>
+
+                    <div class="step" data-step="4">
+                        <h4><span>4</span> Network Connections</h4>
+                        <p>Show active TCP connections with owning process.</p>
+                        <code onclick="copyCommand(this)">Get-NetTCPConnection | Select-Object LocalPort, RemoteAddress, State, OwningProcess</code>
+                    </div>
+
+                    <div class="step" data-step="5">
+                        <h4><span>5</span> Task List with Services</h4>
+                        <p>Classic command showing processes and associated services.</p>
+                        <code onclick="copyCommand(this)">tasklist /svc</code>
+                    </div>
+
+                    <div class="step" data-step="6">
+                        <h4><span>6</span> Process Path</h4>
+                        <p>Find the executable path of running processes — spot impersonators.</p>
+                        <code onclick="copyCommand(this)">Get-Process | Select-Object Name, Path | Where-Object { $_.Path }</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terminal-panel" id="terminalPanel">
+                <div class="terminal-header">
+                    <span class="terminal-btn red"></span>
+                    <span class="terminal-btn yellow"></span>
+                    <span class="terminal-btn green"></span>
+                    <span class="terminal-title" id="terminalTitle">analyst@soc-workstation: ~</span>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-output" id="terminalOutput">
+<span class="output">Welcome to the Process Analysis Lab
+Type commands to explore running processes.
+Training mode: Simulated environment with realistic output.
+
+</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt" id="promptText">analyst@soc:~$</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus onkeydown="handleCommand(event)">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="challenge-section">
+            <h3>🎯 Challenges</h3>
+            <div class="challenge-task" id="task1">
+                <span class="task-check">✓</span>
+                <span>Find the process using the most CPU</span>
+            </div>
+            <div class="challenge-task" id="task2">
+                <span class="task-check">✓</span>
+                <span>Identify a process listening on a network port</span>
+            </div>
+            <div class="challenge-task" id="task3">
+                <span class="task-check">✓</span>
+                <span>View the process tree to understand parent-child relationships</span>
+            </div>
+            <div class="challenge-task" id="task4">
+                <span class="task-check">✓</span>
+                <span>Find a suspicious process named "notmalware"</span>
+            </div>
+        </div>
+
+        <div class="submit-section">
+            <button class="submit-btn" id="submitBtn" onclick="submitLab()">Complete Lab</button>
+            <p style="margin-top: 15px; color: #64748b; font-size: 0.9rem;">Complete all challenges to finish the lab.</p>
+        </div>
+
+        <div class="completion-banner" id="completionBanner">
+            <h2>🎉 Lab Complete!</h2>
+            <p>You've mastered the basics of process enumeration. These skills are essential for hunting threats and responding to incidents.</p>
+            <p style="margin-top: 15px;"><a href="../week1/index.html" style="color: #06b6d4;">← Return to Week 1</a></p>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'cyberops_lab_3_0_3';
+        let currentOS = 'linux';
+        let commandHistory = [];
+        let historyIndex = -1;
+        let completedTasks = new Set();
+
+        // Simulated process data
+        const linuxProcesses = `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.1 169356 13256 ?        Ss   00:00   0:03 /sbin/init
+root         2  0.0  0.0      0     0 ?        S    00:00   0:00 [kthreadd]
+root       456  0.0  0.2 213452 18764 ?        Ss   00:00   0:01 /usr/sbin/sshd -D
+www-data   892  2.3  1.5 456789 123456 ?       S    00:05   0:45 /usr/sbin/apache2 -k start
+mysql      934  1.2  3.2 987654 262144 ?       Sl   00:00   1:23 /usr/sbin/mysqld
+analyst   1205  0.5  0.3 234567 24576 pts/0    Ss   00:10   0:02 -bash
+root      1337 15.2  0.1  12345  8192 ?        S    00:15   0:30 /tmp/.hidden/notmalware
+analyst   1456  0.0  0.1 156789 10240 pts/0    R+   00:20   0:00 ps aux`;
+
+        const linuxTop = `top - 14:23:45 up 2 days,  3:42,  2 users,  load average: 0.52, 0.48, 0.45
+Tasks: 156 total,   2 running, 154 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  5.2 us,  2.1 sy,  0.0 ni, 92.1 id,  0.3 wa,  0.0 hi,  0.3 si
+MiB Mem :   7982.4 total,   2156.8 free,   3254.2 used,   2571.4 buff/cache
+MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   4421.6 avail Mem
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 1337 root      20   0   12345   8192   1024 S  15.2   0.1   0:30.45 notmalware
+  892 www-data  20   0  456789 123456  12345 S   2.3   1.5   0:45.12 apache2
+  934 mysql     20   0  987654 262144  32768 S   1.2   3.2   1:23.45 mysqld
+ 1205 analyst   20   0  234567  24576   4096 S   0.5   0.3   0:02.34 bash`;
+
+        const linuxPstree = `init─┬─sshd───sshd───bash───pstree
+     ├─apache2───4*[apache2]
+     ├─mysqld───12*[mysqld]
+     ├─cron
+     ├─notmalware
+     └─systemd-journal`;
+
+        const linuxNetstat = `Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      456/sshd
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      892/apache2
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN      892/apache2
+tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN      934/mysqld
+tcp        0      0 0.0.0.0:4444            0.0.0.0:*               LISTEN      1337/notmalware`;
+
+        const windowsProcesses = `
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
+-------  ------    -----      -----     ------     --  -- -----------
+    423      25    45632      52480       2.34   1234   1 chrome
+    156      12    23456      34560       0.45   2345   1 explorer
+    234      18    34567      45678       1.23   3456   0 svchost
+    567      34    67890      78901      15.67   4567   0 notmalware
+    123       8    12345      23456       0.12   5678   1 notepad`;
+
+        const commandResponses = {
+            linux: {
+                'ps aux': linuxProcesses,
+                'ps -aux': linuxProcesses,
+                'top': linuxTop + '\n\n[Simulated - press q to exit in real terminal]',
+                'htop': linuxTop + '\n\n[htop provides enhanced view - install with: apt install htop]',
+                'pstree': linuxPstree,
+                'ps aux | grep ssh': 'root       456  0.0  0.2 213452 18764 ?        Ss   00:00   0:01 /usr/sbin/sshd -D',
+                'ps aux | grep notmalware': 'root      1337 15.2  0.1  12345  8192 ?        S    00:15   0:30 /tmp/.hidden/notmalware',
+                'ps aux | grep apache': 'www-data   892  2.3  1.5 456789 123456 ?       S    00:05   0:45 /usr/sbin/apache2 -k start',
+                'netstat -tulnp': linuxNetstat,
+                'ss -tulnp': linuxNetstat.replace('netstat', 'ss'),
+                'lsof -p 1': 'COMMAND PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\ninit      1 root  cwd    DIR    8,1     4096    2 /\ninit      1 root  txt    REG    8,1   169356  123 /sbin/init',
+                'lsof -p 1337': 'COMMAND     PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnotmalware 1337 root  cwd    DIR    8,1     4096  456 /tmp/.hidden\nnotmalware 1337 root    3u  IPv4  12345      0t0  TCP *:4444 (LISTEN)',
+                'ls': 'Desktop  Documents  Downloads  notmalware_analysis',
+                'pwd': '/home/analyst',
+                'whoami': 'analyst',
+                'id': 'uid=1000(analyst) gid=1000(analyst) groups=1000(analyst),27(sudo)',
+                'clear': 'CLEAR',
+                'help': 'Available commands for this lab:\n  ps aux, top, pstree, netstat -tulnp, lsof -p [PID]\n  ps aux | grep [name]\n  clear, help, exit'
+            },
+            windows: {
+                'get-process': windowsProcesses,
+                'Get-Process': windowsProcesses,
+                'get-process | select-object name, id, cpu, workingset': `Name        Id     CPU WorkingSet\n----        --     --- ----------\nchrome    1234    2.34   52480000\nexplorer  2345    0.45   34560000\nsvchost   3456    1.23   45678000\nnotmalware 4567  15.67   78901000\nnotepad   5678    0.12   23456000`,
+                'get-process -name *chrome*': 'Handles  NPM(K)    PM(K)     WS(K)   CPU(s)    Id  ProcessName\n    423      25    45632     52480     2.34  1234  chrome',
+                'get-process -name *notmalware*': 'Handles  NPM(K)    PM(K)     WS(K)   CPU(s)    Id  ProcessName\n    567      34    67890     78901    15.67  4567  notmalware',
+                'get-nettcpconnection | select-object localport, remoteaddress, state, owningprocess': `LocalPort RemoteAddress  State       OwningProcess\n--------- -------------  -----       -------------\n       80 0.0.0.0        Listen               892\n      443 0.0.0.0        Listen               892\n     4444 0.0.0.0        Listen              4567\n    49152 192.168.1.100  Established          1234`,
+                'tasklist /svc': 'Image Name                     PID Services\n========================= ======== ============\nSystem                           4 N/A\nsvchost.exe                   3456 DcomLaunch\nnotmalware.exe                4567 N/A\napache2.exe                    892 Apache2.4',
+                'get-process | select-object name, path | where-object { $_.path }': `Name        Path\n----        ----\nchrome      C:\\Program Files\\Google\\Chrome\\chrome.exe\nexplorer    C:\\Windows\\explorer.exe\nnotmalware  C:\\Users\\Public\\Downloads\\notmalware.exe\nnotepad     C:\\Windows\\System32\\notepad.exe`,
+                'clear': 'CLEAR',
+                'cls': 'CLEAR',
+                'help': 'Available commands for this lab:\n  Get-Process, Get-NetTCPConnection, tasklist /svc\n  Get-Process -Name [pattern]\n  clear, help, exit'
+            }
+        };
+
+        function toggleTraining() {
+            const panel = document.getElementById('guidancePanel');
+            const terminal = document.getElementById('terminalPanel');
+            const isOn = document.getElementById('trainingToggle').checked;
+
+            if (isOn) {
+                panel.classList.remove('hidden');
+                terminal.classList.remove('full-width');
+            } else {
+                panel.classList.add('hidden');
+                terminal.classList.add('full-width');
+            }
+            saveProgress();
+        }
+
+        function switchOS(os) {
+            currentOS = os;
+            document.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-os="${os}"]`).classList.add('active');
+
+            document.getElementById('linuxSteps').style.display = os === 'linux' ? 'block' : 'none';
+            document.getElementById('windowsSteps').style.display = os === 'windows' ? 'block' : 'none';
+
+            document.getElementById('terminalTitle').textContent = os === 'linux'
+                ? 'analyst@soc-workstation: ~'
+                : 'PS C:\\Users\\analyst>';
+            document.getElementById('promptText').textContent = os === 'linux'
+                ? 'analyst@soc:~$'
+                : 'PS>';
+
+            clearTerminal();
+            saveProgress();
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminalOutput').innerHTML = `<span class="output">Terminal cleared. Type 'help' for available commands.\n\n</span>`;
+        }
+
+        function copyCommand(el) {
+            const cmd = el.textContent;
+            document.getElementById('terminalInput').value = cmd;
+            document.getElementById('terminalInput').focus();
+        }
+
+        function handleCommand(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('terminalInput');
+                const cmd = input.value.trim();
+                if (!cmd) return;
+
+                commandHistory.push(cmd);
+                historyIndex = commandHistory.length;
+
+                executeCommand(cmd);
+                input.value = '';
+            } else if (event.key === 'ArrowUp') {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    document.getElementById('terminalInput').value = commandHistory[historyIndex];
+                }
+                event.preventDefault();
+            } else if (event.key === 'ArrowDown') {
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    document.getElementById('terminalInput').value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    document.getElementById('terminalInput').value = '';
+                }
+                event.preventDefault();
+            }
+        }
+
+        function executeCommand(cmd) {
+            const output = document.getElementById('terminalOutput');
+            const prompt = currentOS === 'linux' ? 'analyst@soc:~$ ' : 'PS> ';
+
+            output.innerHTML += `<span class="prompt">${prompt}</span><span class="command">${cmd}</span>\n`;
+
+            const lowerCmd = cmd.toLowerCase();
+            const responses = commandResponses[currentOS];
+
+            let response = null;
+
+            // Check for exact match first
+            if (responses[cmd]) {
+                response = responses[cmd];
+            } else if (responses[lowerCmd]) {
+                response = responses[lowerCmd];
+            } else {
+                // Partial matching for grep/filter commands
+                for (const key of Object.keys(responses)) {
+                    if (lowerCmd.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerCmd)) {
+                        response = responses[key];
+                        break;
+                    }
+                }
+            }
+
+            if (response === 'CLEAR') {
+                clearTerminal();
+                return;
+            }
+
+            if (response) {
+                // Check for task completion
+                if (lowerCmd.includes('top') || lowerCmd.includes('cpu')) {
+                    completeTask('task1');
+                }
+                if (lowerCmd.includes('netstat') || lowerCmd.includes('nettcp') || lowerCmd.includes('ss -')) {
+                    completeTask('task2');
+                }
+                if (lowerCmd.includes('pstree')) {
+                    completeTask('task3');
+                }
+                if (lowerCmd.includes('notmalware')) {
+                    completeTask('task4');
+                    // Highlight suspicious process
+                    response = response.replace(/notmalware/g, '<span class="highlight">notmalware</span>');
+                    response = response.replace(/4444/g, '<span class="error">4444</span>');
+                }
+
+                output.innerHTML += `<span class="output">${response}</span>\n\n`;
+            } else {
+                output.innerHTML += `<span class="error">Command not recognized in simulation. Type 'help' for available commands.</span>\n\n`;
+            }
+
+            // Scroll to bottom
+            const body = document.getElementById('terminalBody');
+            body.scrollTop = body.scrollHeight;
+
+            saveProgress();
+        }
+
+        function completeTask(taskId) {
+            if (completedTasks.has(taskId)) return;
+            completedTasks.add(taskId);
+            document.getElementById(taskId).classList.add('completed');
+            saveProgress();
+            checkAllTasks();
+        }
+
+        function checkAllTasks() {
+            if (completedTasks.size >= 4) {
+                document.getElementById('submitBtn').style.background = 'linear-gradient(135deg, #22c55e, #06b6d4)';
+            }
+        }
+
+        function submitLab() {
+            if (completedTasks.size < 4) {
+                alert('Complete all 4 challenges before submitting the lab.');
+                return;
+            }
+
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            data.completed = true;
+            data.completedAt = new Date().toISOString();
+            data.tasks = Array.from(completedTasks);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+            document.getElementById('completionBanner').classList.add('show');
+            document.getElementById('submitBtn').textContent = 'Lab Completed ✓';
+            document.getElementById('submitBtn').disabled = true;
+        }
+
+        function saveProgress() {
+            const data = {
+                os: currentOS,
+                trainingWheels: document.getElementById('trainingToggle').checked,
+                tasks: Array.from(completedTasks),
+                commandHistory: commandHistory.slice(-50),
+                lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.os) switchOS(data.os);
+                if (data.trainingWheels !== undefined) {
+                    document.getElementById('trainingToggle').checked = data.trainingWheels;
+                    toggleTraining();
+                }
+                if (data.tasks) {
+                    data.tasks.forEach(t => completeTask(t));
+                }
+                if (data.commandHistory) {
+                    commandHistory = data.commandHistory;
+                    historyIndex = commandHistory.length;
+                }
+                if (data.completed) {
+                    document.getElementById('completionBanner').classList.add('show');
+                    document.getElementById('submitBtn').textContent = 'Lab Completed ✓';
+                    document.getElementById('submitBtn').disabled = true;
+                }
+            }
+        }
+
+        // Initialize
+        loadProgress();
+        document.getElementById('terminalInput').focus();
+    </script>
+</body>
+</html>

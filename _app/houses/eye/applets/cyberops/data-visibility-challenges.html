@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visibility Challenges | CyberOps Week 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .top-nav {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb a:hover { color: #22d3ee; }
+        .breadcrumb .separator { color: #64748b; }
+        .breadcrumb .current { color: #8b5cf6; }
+
+        .nav-progress { display: flex; align-items: center; gap: 1rem; }
+        .progress-bar { width: 200px; height: 8px; background: rgba(100, 116, 139, 0.3); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); border-radius: 4px; transition: width 0.5s ease; }
+        .progress-text { font-size: 0.85rem; color: #94a3b8; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .section-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .section-btn {
+            padding: 0.75rem 1.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        .section-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .section-btn.active {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border-color: #8b5cf6;
+            color: #fff;
+        }
+        .section-btn.completed { border-color: #10b981; color: #10b981; }
+        .section-btn.completed::after { content: ' ✓'; }
+
+        .section { display: none; animation: fadeIn 0.5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .section-header { text-align: center; margin-bottom: 2rem; }
+        .section-header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        .section-header p { color: #94a3b8; font-size: 1.1rem; }
+
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h3 { color: #06b6d4; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        /* Blind Spot Grid */
+        .blind-spot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .blind-spot-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .blind-spot-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #ef4444, #f97316);
+        }
+
+        .blind-spot-card:hover {
+            border-color: #ef4444;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.2);
+        }
+
+        .blind-spot-card.explored {
+            border-color: #10b981;
+        }
+        .blind-spot-card.explored::before {
+            background: linear-gradient(180deg, #10b981, #06b6d4);
+        }
+
+        .blind-spot-card .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .blind-spot-card h4 { color: #f1f5f9; margin-bottom: 0.5rem; }
+        .blind-spot-card p { color: #94a3b8; font-size: 0.9rem; }
+
+        .blind-spot-card .impact {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .impact-label { font-size: 0.8rem; color: #64748b; }
+        .impact-meter {
+            flex: 1;
+            height: 6px;
+            background: rgba(100, 116, 139, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .impact-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f97316, #ef4444);
+            border-radius: 3px;
+        }
+
+        /* Detail Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: rgba(30, 41, 59, 0.98);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-content h2 { color: #06b6d4; margin-bottom: 1rem; }
+        .modal-content h4 { color: #8b5cf6; margin: 1.5rem 0 0.5rem; }
+
+        .mitigation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .mitigation-list li {
+            padding: 0.75rem 0 0.75rem 2rem;
+            position: relative;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.1);
+        }
+
+        .mitigation-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #10b981;
+        }
+
+        /* Network Diagram */
+        .network-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .network-layer {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+        }
+
+        .layer-internet { background: rgba(239, 68, 68, 0.1); border: 1px dashed #ef4444; }
+        .layer-perimeter { background: rgba(6, 182, 212, 0.1); border: 1px solid #06b6d4; }
+        .layer-internal { background: rgba(139, 92, 246, 0.1); border: 1px solid #8b5cf6; }
+        .layer-endpoints { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; }
+
+        .network-node {
+            text-align: center;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .network-node:hover { transform: scale(1.1); }
+        .network-node .icon { font-size: 2rem; }
+        .network-node .label { font-size: 0.75rem; color: #94a3b8; }
+
+        .blind-spot-indicator {
+            position: absolute;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Visibility Score */
+        .visibility-score {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #10b981 0deg calc(var(--score) * 3.6deg),
+                rgba(100, 116, 139, 0.3) calc(var(--score) * 3.6deg) 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            position: relative;
+        }
+
+        .score-circle::after {
+            content: '';
+            width: 120px;
+            height: 120px;
+            background: #1e293b;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .score-value {
+            position: relative;
+            z-index: 1;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        /* Quiz */
+        .quiz-container { background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 2rem; }
+        .quiz-question { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .quiz-question:last-child { border-bottom: none; }
+        .quiz-question h4 { color: #f1f5f9; margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .quiz-option {
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quiz-option:hover { border-color: #06b6d4; }
+        .quiz-option.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+
+        .submit-btn {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 1rem;
+        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(6, 182, 212, 0.3); }
+
+        .quiz-results { text-align: center; padding: 2rem; display: none; }
+        .quiz-results.show { display: block; }
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(100, 116, 139, 0.2);
+        }
+        .nav-btn {
+            padding: 0.75rem 1.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            border-radius: 8px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .nav-btn.primary { background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; }
+        .nav-btn.primary:hover { transform: translateY(-2px); color: #fff; }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .section-nav { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span class="separator">›</span>
+            <a href="../../modules/cyberops/index.html">CyberOps</a>
+            <span class="separator">›</span>
+            <a href="week2/index.html">Week 2</a>
+            <span class="separator">›</span>
+            <span class="current">Data Visibility Challenges</span>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-nav">
+            <button class="section-btn active" data-section="overview">1. Blind Spots</button>
+            <button class="section-btn" data-section="deep-dive">2. Deep Dive</button>
+            <button class="section-btn" data-section="mitigation">3. Mitigations</button>
+            <button class="section-btn" data-section="quiz">4. Assessment</button>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div class="section active" id="overview">
+            <div class="section-header">
+                <h1>Data Visibility Challenges</h1>
+                <p>Where security monitoring goes blind</p>
+            </div>
+
+            <div class="card">
+                <h3>👁️ The Visibility Problem</h3>
+                <p>Modern networks have numerous blind spots where traditional monitoring tools cannot see. Attackers exploit these gaps to evade detection. Understanding where you <strong>can't</strong> see is just as important as knowing where you <strong>can</strong>.</p>
+            </div>
+
+            <div class="blind-spot-grid" id="blindSpotGrid">
+                <!-- Cards populated by JS -->
+            </div>
+
+            <div class="card">
+                <p style="text-align: center; color: #94a3b8;">
+                    <em>Click each blind spot above to learn more. Explore all <span id="exploredCount">0</span>/6 to continue.</em>
+                </p>
+            </div>
+
+            <div class="nav-buttons">
+                <div></div>
+                <button class="nav-btn primary" id="continueBtn" onclick="goToSection('deep-dive')" disabled>Continue to Deep Dive →</button>
+            </div>
+        </div>
+
+        <!-- Section 2: Deep Dive -->
+        <div class="section" id="deep-dive">
+            <div class="section-header">
+                <h1>Network Visibility Map</h1>
+                <p>Understanding where visibility gaps occur in your infrastructure</p>
+            </div>
+
+            <div class="network-diagram">
+                <div class="network-layer layer-internet">
+                    <div class="network-node" title="Cloud Services">
+                        <div class="icon">☁️</div>
+                        <div class="label">Cloud/SaaS</div>
+                    </div>
+                    <div class="network-node" title="Internet">
+                        <div class="icon">🌐</div>
+                        <div class="label">Internet</div>
+                    </div>
+                    <div class="network-node" title="Remote Workers">
+                        <div class="icon">🏠</div>
+                        <div class="label">Remote</div>
+                    </div>
+                </div>
+
+                <div class="network-layer layer-perimeter">
+                    <div class="network-node" title="Firewall">
+                        <div class="icon">🔥</div>
+                        <div class="label">Firewall</div>
+                    </div>
+                    <div class="network-node" title="IDS/IPS">
+                        <div class="icon">🛡️</div>
+                        <div class="label">IDS/IPS</div>
+                    </div>
+                    <div class="network-node" title="Proxy">
+                        <div class="icon">🔄</div>
+                        <div class="label">Proxy</div>
+                    </div>
+                </div>
+
+                <div class="network-layer layer-internal">
+                    <div class="network-node" title="Servers">
+                        <div class="icon">🖥️</div>
+                        <div class="label">Servers</div>
+                    </div>
+                    <div class="network-node" title="Network TAP">
+                        <div class="icon">📡</div>
+                        <div class="label">TAP/SPAN</div>
+                    </div>
+                    <div class="network-node" title="Internal Network">
+                        <div class="icon">🔌</div>
+                        <div class="label">Switches</div>
+                    </div>
+                </div>
+
+                <div class="network-layer layer-endpoints">
+                    <div class="network-node" title="Workstations">
+                        <div class="icon">💻</div>
+                        <div class="label">Workstations</div>
+                    </div>
+                    <div class="network-node" title="IoT Devices">
+                        <div class="icon">📱</div>
+                        <div class="label">IoT</div>
+                    </div>
+                    <div class="network-node" title="BYOD">
+                        <div class="icon">📲</div>
+                        <div class="label">BYOD</div>
+                    </div>
+                </div>
+
+                <div class="blind-spot-indicator" style="top: 20%; left: 20%;">TLS Blind Spot</div>
+                <div class="blind-spot-indicator" style="top: 15%; right: 25%;">Cloud Gap</div>
+                <div class="blind-spot-indicator" style="bottom: 20%; left: 30%;">IoT Gap</div>
+                <div class="blind-spot-indicator" style="bottom: 15%; right: 20%;">BYOD Gap</div>
+            </div>
+
+            <div class="card">
+                <h3>📊 Visibility Score Assessment</h3>
+                <p>Based on common enterprise configurations, most organizations have significant visibility gaps:</p>
+
+                <div class="visibility-score">
+                    <div class="score-circle" style="--score: 45;">
+                        <span class="score-value">45%</span>
+                    </div>
+                    <p style="color: #94a3b8;">Average Enterprise Network Visibility</p>
+                    <p style="font-size: 0.9rem; color: #64748b; margin-top: 0.5rem;">
+                        This means ~55% of traffic may evade traditional monitoring
+                    </p>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('overview')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('mitigation')">Continue to Mitigations →</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Mitigations -->
+        <div class="section" id="mitigation">
+            <div class="section-header">
+                <h1>Addressing Visibility Gaps</h1>
+                <p>Strategies and technologies to improve network visibility</p>
+            </div>
+
+            <div class="card">
+                <h3>🔓 TLS Inspection</h3>
+                <p>Decrypt and inspect encrypted traffic at network boundaries.</p>
+                <ul class="mitigation-list">
+                    <li>Deploy SSL/TLS inspection on firewalls and proxies</li>
+                    <li>Use certificate pinning exceptions for sensitive apps</li>
+                    <li>Implement enterprise CA for corporate devices</li>
+                    <li>Consider privacy implications and legal requirements</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>☁️ Cloud Visibility</h3>
+                <p>Extend monitoring to cloud and SaaS environments.</p>
+                <ul class="mitigation-list">
+                    <li>Cloud Access Security Brokers (CASB)</li>
+                    <li>Cloud-native logging (AWS CloudTrail, Azure Monitor)</li>
+                    <li>API integrations with SaaS providers</li>
+                    <li>Virtual TAPs for cloud workloads</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>📱 Endpoint Visibility</h3>
+                <p>Monitor at the endpoint where encryption terminates.</p>
+                <ul class="mitigation-list">
+                    <li>Endpoint Detection and Response (EDR)</li>
+                    <li>Host-based logging and SIEM integration</li>
+                    <li>DNS query logging at endpoints</li>
+                    <li>Application behavior monitoring</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔒 Encrypted DNS Solutions</h3>
+                <p>Maintain DNS visibility despite DoH/DoT adoption.</p>
+                <ul class="mitigation-list">
+                    <li>Enterprise DoH/DoT resolvers</li>
+                    <li>Block external DoH providers</li>
+                    <li>DNS-over-HTTPS inspection</li>
+                    <li>Protective DNS services</li>
+                </ul>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('deep-dive')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('quiz')">Continue to Assessment →</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Quiz -->
+        <div class="section" id="quiz">
+            <div class="section-header">
+                <h1>Knowledge Assessment</h1>
+                <p>Test your understanding of visibility challenges</p>
+            </div>
+
+            <div class="quiz-container" id="quizContainer">
+                <!-- Quiz populated by JS -->
+            </div>
+
+            <div class="quiz-results" id="quizResults">
+                <h2>Assessment Complete!</h2>
+                <div class="score-display" id="scoreDisplay">0%</div>
+                <p id="scoreMessage"></p>
+                <button class="submit-btn" onclick="retakeQuiz()" style="margin-top: 1rem;">Retake Quiz</button>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('mitigation')">← Back</button>
+                <button class="nav-btn primary" id="finishBtn" style="display: none;" onclick="completeModule()">Complete Module →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <h2 id="modalTitle"></h2>
+            <p id="modalDescription"></p>
+            <h4>Impact on Security Monitoring</h4>
+            <p id="modalImpact"></p>
+            <h4>Common Scenarios</h4>
+            <ul id="modalScenarios" class="mitigation-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentSection: 'overview',
+            sectionsCompleted: { overview: false, 'deep-dive': false, mitigation: false, quiz: false },
+            exploredBlindSpots: new Set(),
+            quizAnswers: {}
+        };
+
+        const blindSpots = [
+            {
+                id: 'encryption',
+                icon: '🔐',
+                title: 'Encryption (TLS/SSL)',
+                description: 'Over 90% of web traffic is now encrypted, hiding content from network inspection.',
+                impact: 95,
+                fullDescription: 'Transport Layer Security encrypts data in transit, preventing traditional network monitoring from inspecting packet payloads. While encryption protects privacy and security, it also blinds security tools to malicious content.',
+                impactDetail: 'IDS/IPS signature detection fails against encrypted payloads. Malware can communicate with C2 servers undetected. Data exfiltration over HTTPS appears as normal traffic.',
+                scenarios: ['Malware using HTTPS for C2 communication', 'Encrypted data exfiltration to cloud storage', 'Phishing sites with valid TLS certificates']
+            },
+            {
+                id: 'cloud',
+                icon: '☁️',
+                title: 'Cloud & SaaS Traffic',
+                description: 'Traffic to cloud services bypasses traditional perimeter monitoring.',
+                impact: 80,
+                fullDescription: 'As organizations adopt cloud services, traffic flows directly from endpoints to SaaS providers, often bypassing on-premise security controls entirely.',
+                impactDetail: 'Shadow IT goes undetected. Data leakage through sanctioned apps. Lateral movement in cloud environments invisible to network TAPs.',
+                scenarios: ['Sensitive data uploaded to personal cloud storage', 'Compromised SaaS account used for phishing', 'Cloud-to-cloud attacks between services']
+            },
+            {
+                id: 'doh',
+                icon: '🌐',
+                title: 'Encrypted DNS (DoH/DoT)',
+                description: 'DNS over HTTPS hides DNS queries from traditional monitoring.',
+                impact: 70,
+                fullDescription: 'DNS over HTTPS (DoH) and DNS over TLS (DoT) encrypt DNS queries, preventing DNS-based threat detection and content filtering.',
+                impactDetail: 'DNS-based blocking ineffective. C2 domains undetectable via DNS monitoring. Threat intelligence DNS feeds become useless.',
+                scenarios: ['Malware using DoH to resolve C2 domains', 'Users bypassing content filters with DoH', 'DNS tunneling over encrypted channels']
+            },
+            {
+                id: 'iot',
+                icon: '📱',
+                title: 'IoT Devices',
+                description: 'IoT devices often cannot run endpoint agents and use proprietary protocols.',
+                impact: 65,
+                fullDescription: 'Internet of Things devices proliferate on networks but rarely support traditional security agents. Many use proprietary protocols that standard tools cannot parse.',
+                impactDetail: 'No endpoint visibility on IoT devices. Proprietary protocols appear as unknown traffic. Compromised IoT devices hard to identify.',
+                scenarios: ['Compromised smart camera used for reconnaissance', 'IoT botnet participating in DDoS', 'Medical device communicating with unauthorized server']
+            },
+            {
+                id: 'byod',
+                icon: '📲',
+                title: 'BYOD & Shadow IT',
+                description: 'Personal devices and unauthorized apps evade corporate controls.',
+                impact: 60,
+                fullDescription: 'Bring Your Own Device policies and shadow IT introduce unmanaged devices and applications that corporate security tools cannot monitor.',
+                impactDetail: 'No MDM/EDR on personal devices. Unknown apps handling corporate data. VPN split tunneling bypasses monitoring.',
+                scenarios: ['Personal phone syncing corporate email', 'Unauthorized file sharing app with sensitive data', 'Home network compromise affecting work laptop']
+            },
+            {
+                id: 'lateral',
+                icon: '↔️',
+                title: 'East-West Traffic',
+                description: 'Internal server-to-server traffic often bypasses perimeter sensors.',
+                impact: 75,
+                fullDescription: 'Traditional security focuses on north-south (perimeter) traffic. East-west traffic between internal systems is often unmonitored, allowing lateral movement.',
+                impactDetail: 'Attackers move freely between internal systems. Post-compromise activity invisible. Data staging before exfiltration undetected.',
+                scenarios: ['Attacker pivoting through internal servers', 'Ransomware spreading across network shares', 'Database queries from compromised web server']
+            }
+        ];
+
+        const quizQuestions = [
+            {
+                id: 1,
+                question: "What percentage of web traffic is now encrypted with TLS?",
+                options: ["About 50%", "About 70%", "Over 90%", "Under 30%"],
+                correct: 2
+            },
+            {
+                id: 2,
+                question: "Which technology helps maintain visibility into cloud/SaaS traffic?",
+                options: ["Traditional firewall", "Network TAP", "Cloud Access Security Broker (CASB)", "Antivirus software"],
+                correct: 2
+            },
+            {
+                id: 3,
+                question: "What does DoH stand for and what challenge does it create?",
+                options: ["Department of Health - compliance issues", "DNS over HTTPS - hides DNS queries from monitoring", "Data over HTTP - bandwidth consumption", "Domain over Host - routing problems"],
+                correct: 1
+            },
+            {
+                id: 4,
+                question: "Why is east-west traffic a visibility challenge?",
+                options: ["It's always encrypted", "Perimeter sensors don't see internal traffic", "It uses proprietary protocols", "It's too fast to capture"],
+                correct: 1
+            },
+            {
+                id: 5,
+                question: "What is the BEST approach to gain visibility into encrypted traffic at endpoints?",
+                options: ["Block all HTTPS traffic", "Deploy EDR solutions", "Disable TLS", "Use only HTTP"],
+                correct: 1
+            }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            setupBlindSpots();
+            setupQuiz();
+            updateProgress();
+        });
+
+        function setupBlindSpots() {
+            const grid = document.getElementById('blindSpotGrid');
+            grid.innerHTML = blindSpots.map(spot => `
+                <div class="blind-spot-card ${state.exploredBlindSpots.has(spot.id) ? 'explored' : ''}" data-id="${spot.id}">
+                    <div class="icon">${spot.icon}</div>
+                    <h4>${spot.title}</h4>
+                    <p>${spot.description}</p>
+                    <div class="impact">
+                        <span class="impact-label">Impact:</span>
+                        <div class="impact-meter">
+                            <div class="impact-fill" style="width: ${spot.impact}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            grid.querySelectorAll('.blind-spot-card').forEach(card => {
+                card.addEventListener('click', () => showBlindSpotDetail(card.dataset.id));
+            });
+
+            updateExploredCount();
+        }
+
+        function showBlindSpotDetail(id) {
+            const spot = blindSpots.find(s => s.id === id);
+            if (!spot) return;
+
+            document.getElementById('modalTitle').textContent = spot.title;
+            document.getElementById('modalDescription').textContent = spot.fullDescription;
+            document.getElementById('modalImpact').textContent = spot.impactDetail;
+            document.getElementById('modalScenarios').innerHTML = spot.scenarios.map(s => `<li>${s}</li>`).join('');
+
+            document.getElementById('modalOverlay').classList.add('active');
+
+            state.exploredBlindSpots.add(id);
+            document.querySelector(`[data-id="${id}"]`).classList.add('explored');
+            updateExploredCount();
+            saveProgress();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        function updateExploredCount() {
+            const count = state.exploredBlindSpots.size;
+            document.getElementById('exploredCount').textContent = count;
+
+            if (count >= 6) {
+                document.getElementById('continueBtn').disabled = false;
+                state.sectionsCompleted.overview = true;
+                document.querySelector('[data-section="overview"]').classList.add('completed');
+            }
+        }
+
+        document.querySelectorAll('.section-btn').forEach(btn => {
+            btn.addEventListener('click', () => goToSection(btn.dataset.section));
+        });
+
+        function goToSection(sectionId) {
+            if (state.currentSection === 'deep-dive') {
+                state.sectionsCompleted['deep-dive'] = true;
+                document.querySelector('[data-section="deep-dive"]').classList.add('completed');
+            }
+            if (state.currentSection === 'mitigation') {
+                state.sectionsCompleted.mitigation = true;
+                document.querySelector('[data-section="mitigation"]').classList.add('completed');
+            }
+
+            state.currentSection = sectionId;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+
+            updateProgress();
+            saveProgress();
+        }
+
+        function setupQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, idx) => `
+                <div class="quiz-question">
+                    <h4>${idx + 1}. ${q.question}</h4>
+                    <div class="quiz-options">
+                        ${q.options.map((opt, optIdx) => `
+                            <div class="quiz-option" data-question="${q.id}" data-option="${optIdx}">${opt}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('') + '<button class="submit-btn" onclick="submitQuiz()">Submit Answers</button>';
+
+            container.querySelectorAll('.quiz-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const qId = opt.dataset.question;
+                    document.querySelectorAll(`[data-question="${qId}"]`).forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    state.quizAnswers[qId] = parseInt(opt.dataset.option);
+                });
+            });
+        }
+
+        function submitQuiz() {
+            if (Object.keys(state.quizAnswers).length < quizQuestions.length) {
+                alert('Please answer all questions.');
+                return;
+            }
+
+            let correct = 0;
+            quizQuestions.forEach(q => {
+                if (state.quizAnswers[q.id] === q.correct) correct++;
+            });
+
+            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            const passed = percentage >= 80;
+
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizResults').classList.add('show');
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            document.getElementById('scoreMessage').textContent = passed
+                ? `Excellent! You passed with ${correct}/${quizQuestions.length} correct!`
+                : `You scored ${correct}/${quizQuestions.length}. 80% required to pass.`;
+
+            if (passed) {
+                state.sectionsCompleted.quiz = true;
+                document.querySelector('[data-section="quiz"]').classList.add('completed');
+                document.getElementById('finishBtn').style.display = 'block';
+            }
+            updateProgress();
+            saveProgress();
+        }
+
+        function retakeQuiz() {
+            state.quizAnswers = {};
+            document.getElementById('quizContainer').style.display = 'block';
+            document.getElementById('quizResults').classList.remove('show');
+            document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+        }
+
+        function completeModule() {
+            alert('Module Complete! Returning to Week 2 index...');
+            window.location.href = 'week2/index.html';
+        }
+
+        function updateProgress() {
+            const completed = Object.values(state.sectionsCompleted).filter(v => v).length;
+            const percentage = Math.round((completed / 4) * 100);
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}% Complete`;
+        }
+
+        function saveProgress() {
+            const saveData = { ...state, exploredBlindSpots: Array.from(state.exploredBlindSpots) };
+            localStorage.setItem('cyberops_data_visibility', JSON.stringify(saveData));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('cyberops_data_visibility');
+            if (saved) {
+                const loaded = JSON.parse(saved);
+                Object.assign(state, loaded);
+                state.exploredBlindSpots = new Set(loaded.exploredBlindSpots || []);
+                Object.entries(state.sectionsCompleted).forEach(([section, completed]) => {
+                    if (completed) document.querySelector(`[data-section="${section}"]`).classList.add('completed');
+                });
+            }
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('modalOverlay')) closeModal();
+        });
+    </script>
+</body>
+</html>

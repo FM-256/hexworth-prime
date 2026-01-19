@@ -387,6 +387,50 @@
             color: #888;
         }
 
+        /* Completion badge overlay */
+        .module-card {
+            position: relative;
+        }
+
+        .completion-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 10px rgba(34, 197, 94, 0.4);
+            z-index: 10;
+            animation: badgePop 0.3s ease;
+        }
+
+        @keyframes badgePop {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .module-card.completed {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .module-card.completed::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), transparent);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
         /* Learning paths section */
         .paths-section {
             background: rgba(15, 15, 20, 0.4);
@@ -1482,6 +1526,31 @@
         ];
 
         // ============================================
+        // PROGRESS TRACKING
+        // ============================================
+
+        // Get completion status from localStorage
+        function getCompletedModules() {
+            try {
+                const progress = localStorage.getItem('hexworth_progress');
+                if (progress) {
+                    const data = JSON.parse(progress);
+                    return data.script || {};
+                }
+            } catch (e) {
+                console.warn('Error reading progress:', e);
+            }
+            return {};
+        }
+
+        function isModuleCompleted(moduleId) {
+            const completed = getCompletedModules();
+            // Check both formats: 'clh-001' and full module id
+            const baseId = moduleId.replace('script-', '').replace(/-quiz$/, '').replace(/-presentation$/, '');
+            return completed[moduleId]?.completed || completed[baseId]?.completed || false;
+        }
+
+        // ============================================
         // INITIALIZATION
         // ============================================
 
@@ -1522,15 +1591,20 @@
 
             SAMPLE_MODULES.forEach(mod => {
                 const card = document.createElement('div');
-                card.className = 'module-card';
+                const isCompleted = isModuleCompleted(mod.id);
+                card.className = 'module-card' + (isCompleted ? ' completed' : '');
                 card.dataset.href = mod.href || '';  // For TrailHunter matching
                 card.dataset.category = mod.category || '';  // For category filtering
                 card.onclick = () => openModule(mod.id);
 
+                // Add completion badge if completed
+                const completionBadge = isCompleted ? '<div class="completion-badge">✓</div>' : '';
+
                 card.innerHTML = `
+                    ${completionBadge}
                     <div class="module-header">
                         <span class="module-icon">${mod.icon}</span>
-                        <span class="module-status ${mod.status}">${mod.status.replace('-', ' ')}</span>
+                        <span class="module-status ${isCompleted ? 'completed' : mod.status}">${isCompleted ? 'completed' : mod.status.replace('-', ' ')}</span>
                     </div>
                     <div class="module-title">${mod.title}</div>
                     <div class="module-description">${mod.description}</div>
@@ -1548,11 +1622,15 @@
         function updateStats() {
             // Calculate stats from content
             const totalModules = CATEGORIES.reduce((sum, cat) => sum + cat.count, 0);
-            const completedModules = 0; // Would come from localStorage
+
+            // Count completed modules from localStorage
+            const completed = getCompletedModules();
+            const completedCount = Object.values(completed).filter(m => m?.completed).length;
+
             const hoursContent = Math.round(totalModules * 0.75); // Estimate 45min per module
 
             document.getElementById('totalModules').textContent = totalModules;
-            document.getElementById('completedModules').textContent = completedModules;
+            document.getElementById('completedModules').textContent = completedCount;
             document.getElementById('hoursContent').textContent = hoursContent;
         }
 
