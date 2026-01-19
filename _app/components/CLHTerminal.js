@@ -3083,13 +3083,76 @@ class CLHTerminal {
     }
 
     _setupEventListeners() {
+        // Track for double-tab detection
+        this._lastTabTime = 0;
+        this._lastTabWord = '';
+        // Track for reverse search mode
+        this._reverseSearchMode = false;
+        this._reverseSearchQuery = '';
+        this._savedInputValue = '';
+
         this.inputEl.addEventListener('keydown', (e) => {
+            // Handle reverse search mode separately
+            if (this._reverseSearchMode) {
+                this._handleReverseSearchKey(e);
+                return;
+            }
+
+            // Ctrl key combinations (bash shortcuts)
+            if (e.ctrlKey) {
+                switch (e.key.toLowerCase()) {
+                    case 'c': // Ctrl+C - Cancel/SIGINT
+                        e.preventDefault();
+                        this._printCommand(this.inputEl.value + '^C');
+                        this.inputEl.value = '';
+                        return;
+                    case 'l': // Ctrl+L - Clear screen
+                        e.preventDefault();
+                        this.outputEl.innerHTML = '';
+                        return;
+                    case 'a': // Ctrl+A - Beginning of line
+                        e.preventDefault();
+                        this.inputEl.selectionStart = this.inputEl.selectionEnd = 0;
+                        return;
+                    case 'e': // Ctrl+E - End of line
+                        e.preventDefault();
+                        this.inputEl.selectionStart = this.inputEl.selectionEnd = this.inputEl.value.length;
+                        return;
+                    case 'u': // Ctrl+U - Delete to beginning
+                        e.preventDefault();
+                        const posU = this.inputEl.selectionStart;
+                        this.inputEl.value = this.inputEl.value.substring(posU);
+                        this.inputEl.selectionStart = this.inputEl.selectionEnd = 0;
+                        return;
+                    case 'k': // Ctrl+K - Delete to end
+                        e.preventDefault();
+                        const posK = this.inputEl.selectionStart;
+                        this.inputEl.value = this.inputEl.value.substring(0, posK);
+                        return;
+                    case 'w': // Ctrl+W - Delete word before cursor
+                        e.preventDefault();
+                        this._deleteWordBeforeCursor();
+                        return;
+                    case 'd': // Ctrl+D - EOF / logout
+                        e.preventDefault();
+                        if (this.inputEl.value === '') {
+                            this._printOutput('logout');
+                        }
+                        return;
+                    case 'r': // Ctrl+R - Reverse search
+                        e.preventDefault();
+                        this._startReverseSearch();
+                        return;
+                }
+            }
+
+            // Regular key handling
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const cmd = this.inputEl.value.trim();
                 this.inputEl.value = '';
                 if (cmd) {
-                    this._execute(cmd);
+                    this._executeWithChaining(cmd);
                 }
             } else if (e.key === 'Tab') {
                 e.preventDefault();
@@ -3100,134 +3163,535 @@ class CLHTerminal {
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 this._historyDown();
+            } else if (e.key === 'Escape') {
+                // Clear line like bash
+                this.inputEl.value = '';
             }
         });
     }
 
-    _handleTabCompletion() {
-        const input = this.inputEl.value;
-        const cursorPos = this.inputEl.selectionStart;
+    // ═══════════════════════════════════════════════════════════════
+    // BASH KEYBOARD SHORTCUTS
+    // ═══════════════════════════════════════════════════════════════
 
-        // Get the text up to cursor
-        const textToCursor = input.substring(0, cursorPos);
-        const parts = textToCursor.split(/\s+/);
-        const currentWord = parts[parts.length - 1] || '';
-        const isFirstWord = parts.length === 1;
+    _deleteWordBeforeCursor() {
+        const pos = this.inputEl.selectionStart;
+        const before = this.inputEl.value.substring(0, pos);
+        const after = this.inputEl.value.substring(pos);
 
-        let completions = [];
+        // Find word boundary (skip trailing spaces, then find previous space)
+        let i = before.length - 1;
+        while (i >= 0 && before[i] === ' ') i--;
+        while (i >= 0 && before[i] !== ' ') i--;
 
-        if (isFirstWord) {
-            // Complete command names
-            completions = this._getCommandCompletions(currentWord);
-        } else {
-            // Complete file/directory paths
-            completions = this._getPathCompletions(currentWord);
-        }
+        const newBefore = before.substring(0, i + 1);
+        this.inputEl.value = newBefore + after;
+        this.inputEl.selectionStart = this.inputEl.selectionEnd = newBefore.length;
+    }
 
-        if (completions.length === 0) {
+    _startReverseSearch() {
+        this._reverseSearchMode = true;
+        this._reverseSearchQuery = '';
+        this._savedInputValue = this.inputEl.value;
+        this._updateReverseSearchDisplay();
+    }
+
+    _handleReverseSearchKey(e) {
+        if (e.key === 'Escape' || (e.ctrlKey && e.key.toLowerCase() === 'c')) {
+            // Cancel search
+            e.preventDefault();
+            this._reverseSearchMode = false;
+            this.inputEl.value = this._savedInputValue;
+            this.inputEl.placeholder = '';
             return;
         }
 
-        if (completions.length === 1) {
-            // Single match - complete it
-            const completion = completions[0];
-            const beforeWord = textToCursor.substring(0, textToCursor.length - currentWord.length);
-            const afterCursor = input.substring(cursorPos);
+        if (e.key === 'Enter') {
+            // Accept search result
+            e.preventDefault();
+            this._reverseSearchMode = false;
+            this.inputEl.placeholder = '';
+            return;
+        }
 
-            // Add trailing slash for directories, space for commands/files
-            let suffix = '';
-            if (isFirstWord) {
-                suffix = ' ';
-            } else {
-                const resolved = this._resolvePath(completion);
-                const entry = this.fs[resolved];
-                suffix = (entry && entry.type === 'dir') ? '/' : ' ';
+        if (e.ctrlKey && e.key.toLowerCase() === 'r') {
+            // Find next match
+            e.preventDefault();
+            this._findNextReverseMatch();
+            return;
+        }
+
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            this._reverseSearchQuery = this._reverseSearchQuery.slice(0, -1);
+            this._updateReverseSearchDisplay();
+            return;
+        }
+
+        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            this._reverseSearchQuery += e.key;
+            this._updateReverseSearchDisplay();
+        }
+    }
+
+    _updateReverseSearchDisplay() {
+        this.inputEl.placeholder = `(reverse-i-search)\`${this._reverseSearchQuery}': `;
+
+        if (this._reverseSearchQuery) {
+            // Find matching history entry
+            for (let i = this.commandHistory.length - 1; i >= 0; i--) {
+                if (this.commandHistory[i].includes(this._reverseSearchQuery)) {
+                    this.inputEl.value = this.commandHistory[i];
+                    this.historyIndex = i;
+                    return;
+                }
             }
-
-            this.inputEl.value = beforeWord + completion + suffix + afterCursor;
-            this.inputEl.selectionStart = this.inputEl.selectionEnd =
-                beforeWord.length + completion.length + suffix.length;
+            this.inputEl.value = '';
         } else {
-            // Multiple matches - find common prefix and show options
-            const commonPrefix = this._findCommonPrefix(completions);
+            this.inputEl.value = '';
+        }
+    }
 
-            if (commonPrefix.length > currentWord.length) {
-                // Complete to common prefix
-                const beforeWord = textToCursor.substring(0, textToCursor.length - currentWord.length);
-                const afterCursor = input.substring(cursorPos);
-                this.inputEl.value = beforeWord + commonPrefix + afterCursor;
-                this.inputEl.selectionStart = this.inputEl.selectionEnd =
-                    beforeWord.length + commonPrefix.length;
-            } else {
-                // Show available completions
-                this._printOutput(completions.join('  '));
+    _findNextReverseMatch() {
+        const startIdx = this.historyIndex > 0 ? this.historyIndex - 1 : this.commandHistory.length - 1;
+        for (let i = startIdx; i >= 0; i--) {
+            if (this.commandHistory[i].includes(this._reverseSearchQuery)) {
+                this.inputEl.value = this.commandHistory[i];
+                this.historyIndex = i;
+                return;
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // COMMAND CHAINING (&&, ||, ;, |)
+    // ═══════════════════════════════════════════════════════════════
+
+    _executeWithChaining(cmdLine) {
+        // Parse command chains: &&, ||, ;, |
+        const chains = this._parseCommandChain(cmdLine);
+        let lastExitCode = 0;
+        let lastOutput = '';
+
+        for (const chain of chains) {
+            const { cmd, operator } = chain;
+
+            // Check if we should execute based on previous exit code
+            if (operator === '&&' && lastExitCode !== 0) continue;
+            if (operator === '||' && lastExitCode === 0) continue;
+
+            // Handle pipe - pass previous output as input context
+            const pipeInput = operator === '|' ? lastOutput : null;
+
+            const result = this._executeSingleCommand(cmd.trim(), pipeInput);
+            lastExitCode = result.exitCode;
+            lastOutput = result.output;
+        }
+    }
+
+    _parseCommandChain(cmdLine) {
+        const chains = [];
+        let current = '';
+        let i = 0;
+        let inQuote = null;
+
+        while (i < cmdLine.length) {
+            const char = cmdLine[i];
+            const next = cmdLine[i + 1];
+
+            // Handle quotes
+            if ((char === '"' || char === "'") && !inQuote) {
+                inQuote = char;
+                current += char;
+                i++;
+                continue;
+            }
+            if (char === inQuote) {
+                inQuote = null;
+                current += char;
+                i++;
+                continue;
+            }
+
+            // Skip operators inside quotes
+            if (inQuote) {
+                current += char;
+                i++;
+                continue;
+            }
+
+            // Check for operators
+            if (char === '&' && next === '&') {
+                if (current.trim()) chains.push({ cmd: current, operator: chains.length ? chains[chains.length-1].nextOp : null });
+                chains[chains.length - 1] = { ...chains[chains.length - 1], nextOp: '&&' };
+                current = '';
+                i += 2;
+                continue;
+            }
+            if (char === '|' && next === '|') {
+                if (current.trim()) chains.push({ cmd: current, operator: chains.length ? chains[chains.length-1].nextOp : null });
+                chains[chains.length - 1] = { ...chains[chains.length - 1], nextOp: '||' };
+                current = '';
+                i += 2;
+                continue;
+            }
+            if (char === '|' && next !== '|') {
+                if (current.trim()) chains.push({ cmd: current, operator: chains.length ? chains[chains.length-1].nextOp : null });
+                chains[chains.length - 1] = { ...chains[chains.length - 1], nextOp: '|' };
+                current = '';
+                i++;
+                continue;
+            }
+            if (char === ';') {
+                if (current.trim()) chains.push({ cmd: current, operator: chains.length ? chains[chains.length-1].nextOp : null });
+                chains[chains.length - 1] = { ...chains[chains.length - 1], nextOp: ';' };
+                current = '';
+                i++;
+                continue;
+            }
+
+            current += char;
+            i++;
+        }
+
+        if (current.trim()) {
+            chains.push({ cmd: current, operator: chains.length ? chains[chains.length-1].nextOp : null });
+        }
+
+        // Flatten to simpler format
+        return chains.map((c, idx) => ({
+            cmd: c.cmd,
+            operator: idx === 0 ? null : chains[idx - 1].nextOp
+        }));
+    }
+
+    _executeSingleCommand(cmdLine, pipeInput) {
+        // Add to history (only for first command in chain)
+        if (!pipeInput) {
+            this.commandHistory.push(cmdLine);
+            this.historyIndex = this.commandHistory.length;
+        }
+
+        // Print command
+        this._printCommand(cmdLine);
+
+        // Expand variables and tildes
+        cmdLine = this._expandVariables(cmdLine);
+
+        // Parse command
+        const { cmd, args } = this._parseCommand(cmdLine);
+
+        let output = '';
+        let exitCode = 0;
+
+        // Filter pipe input through grep if piping
+        if (pipeInput && cmd === 'grep') {
+            const pattern = args[0];
+            if (pattern) {
+                const lines = pipeInput.split('\n');
+                output = lines.filter(line => line.includes(pattern)).join('\n');
+            }
+            if (output) this._printOutput(output);
+            return { output, exitCode };
+        }
+
+        // Execute command
+        const result = this._runCommand(cmd, args);
+        output = result.output || '';
+        exitCode = result.exitCode || 0;
+
+        if (output) {
+            this._printOutput(output);
+        }
+
+        // Check objectives
+        this._checkObjectives(cmdLine, output);
+
+        // Callback
+        this._onCommand(cmdLine, output);
+
+        return { output, exitCode };
+    }
+
+    _expandVariables(cmdLine) {
+        // Expand environment variables $VAR and ${VAR}
+        cmdLine = cmdLine.replace(/\$\{(\w+)\}/g, (m, v) => this.env[v] || '');
+        cmdLine = cmdLine.replace(/\$(\w+)/g, (m, v) => this.env[v] || '');
+
+        // Expand ~ to home directory (but not ~username for now)
+        cmdLine = cmdLine.replace(/^~(?=\/|$)/g, `/home/${this.user}`);
+        cmdLine = cmdLine.replace(/(\s)~(?=\/|$)/g, `$1/home/${this.user}`);
+
+        return cmdLine;
+    }
+
+    _parseCommand(cmdLine) {
+        // Smart parsing that handles quotes
+        const args = [];
+        let current = '';
+        let inQuote = null;
+
+        for (let i = 0; i < cmdLine.length; i++) {
+            const char = cmdLine[i];
+
+            if ((char === '"' || char === "'") && !inQuote) {
+                inQuote = char;
+                continue;
+            }
+            if (char === inQuote) {
+                inQuote = null;
+                continue;
+            }
+            if (char === ' ' && !inQuote) {
+                if (current) {
+                    args.push(current);
+                    current = '';
+                }
+                continue;
+            }
+            current += char;
+        }
+        if (current) args.push(current);
+
+        return { cmd: args[0] || '', args: args.slice(1) };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TAB COMPLETION (Realistic Bash-style)
+    // ═══════════════════════════════════════════════════════════════
+
+    _handleTabCompletion() {
+        const input = this.inputEl.value;
+        const cursorPos = this.inputEl.selectionStart;
+        const now = Date.now();
+
+        // Get the word being completed
+        const { word, wordStart, isCommand, cmdContext } = this._getCompletionContext(input, cursorPos);
+
+        // Get completions
+        let completions = [];
+        if (isCommand) {
+            completions = this._getCommandCompletions(word);
+        } else {
+            completions = this._getPathCompletions(word, cmdContext);
+        }
+
+        if (completions.length === 0) {
+            // No completions - beep (visual feedback)
+            this.inputEl.style.backgroundColor = '#300';
+            setTimeout(() => this.inputEl.style.backgroundColor = '', 100);
+            return;
+        }
+
+        // Double-tab detection: show all completions
+        const isDoubleTab = (now - this._lastTabTime < 500) && (this._lastTabWord === word);
+        this._lastTabTime = now;
+        this._lastTabWord = word;
+
+        if (completions.length === 1) {
+            // Single match - complete it fully
+            this._applyCompletion(input, cursorPos, wordStart, word, completions[0], isCommand);
+        } else {
+            // Multiple matches
+            const commonPrefix = this._findCommonPrefix(completions);
+
+            if (commonPrefix.length > word.length) {
+                // Complete to common prefix
+                this._applyCompletion(input, cursorPos, wordStart, word, commonPrefix, isCommand, true);
+            } else if (isDoubleTab) {
+                // Double-tab: show all completions formatted nicely
+                this._showCompletions(completions, isCommand);
+            }
+            // Single tab with no common prefix: do nothing (wait for double-tab)
+        }
+    }
+
+    _getCompletionContext(input, cursorPos) {
+        const beforeCursor = input.substring(0, cursorPos);
+
+        // Find the start of the current word (respecting quotes)
+        let wordStart = cursorPos;
+        let inQuote = null;
+
+        for (let i = cursorPos - 1; i >= 0; i--) {
+            const char = beforeCursor[i];
+            if (char === '"' || char === "'") {
+                if (inQuote === char) inQuote = null;
+                else if (!inQuote) inQuote = char;
+            }
+            if (char === ' ' && !inQuote) {
+                wordStart = i + 1;
+                break;
+            }
+            if (i === 0) wordStart = 0;
+        }
+
+        const word = beforeCursor.substring(wordStart);
+
+        // Determine if we're completing a command or an argument
+        const textBeforeWord = beforeCursor.substring(0, wordStart).trim();
+        const isCommand = textBeforeWord === '' ||
+                         textBeforeWord.endsWith('|') ||
+                         textBeforeWord.endsWith('&&') ||
+                         textBeforeWord.endsWith('||') ||
+                         textBeforeWord.endsWith(';') ||
+                         textBeforeWord === 'sudo' ||
+                         textBeforeWord.endsWith(' sudo');
+
+        // Get the command context for smarter completions
+        const parts = textBeforeWord.split(/\s+/);
+        const cmdContext = parts[0] || '';
+
+        return { word, wordStart, isCommand, cmdContext };
     }
 
     _getCommandCompletions(prefix) {
         const commands = [
-            'pwd', 'ls', 'cd', 'cat', 'whoami', 'hostname', 'id', 'echo', 'uname',
-            'date', 'clear', 'help', 'grep', 'find', 'head', 'tail', 'wc', 'ps',
-            'env', 'export', 'history', 'df', 'du', 'ip', 'ifconfig', 'netstat', 'ss',
-            'last', 'w', 'uptime', 'free', 'top', 'systemctl', 'service', 'crontab',
-            'dpkg', 'apt', 'apt-get', 'apt-cache', 'sudo', 'su', 'chmod', 'chown',
-            'chgrp', 'mkdir', 'touch', 'rm', 'cp', 'mv', 'file', 'stat', 'tar',
-            'gzip', 'gunzip', 'zip', 'unzip', 'ssh-keygen', 'ssh', 'scp', 'curl',
-            'wget', 'ping', 'nslookup', 'dig', 'traceroute', 'arp', 'route', 'lsblk',
-            'mount', 'fdisk', 'getfacl', 'useradd', 'userdel', 'usermod', 'passwd',
-            'groupadd', 'vim', 'vi', 'nano', 'less', 'more', 'man', 'which', 'type',
-            'alias', 'vmstat', 'iostat', 'sar'
+            'alias', 'apt', 'apt-cache', 'apt-get', 'arp', 'awk',
+            'base64', 'basename', 'bash', 'bg',
+            'cat', 'cd', 'chgrp', 'chmod', 'chown', 'clear', 'cp', 'crontab', 'curl', 'cut',
+            'date', 'df', 'diff', 'dig', 'dirname', 'dmesg', 'dpkg', 'du',
+            'echo', 'env', 'exit', 'export',
+            'fdisk', 'fg', 'file', 'find', 'free',
+            'getfacl', 'grep', 'groupadd', 'groups', 'gunzip', 'gzip',
+            'head', 'help', 'history', 'hostname', 'htop',
+            'id', 'ifconfig', 'iostat', 'ip',
+            'jobs', 'journalctl',
+            'kill', 'killall',
+            'last', 'less', 'ln', 'locate', 'ls', 'lsblk', 'lsof',
+            'man', 'mkdir', 'more', 'mount', 'mv',
+            'nano', 'netstat', 'nslookup',
+            'passwd', 'ping', 'pkill', 'ps', 'pwd',
+            'reboot', 'rm', 'rmdir', 'route',
+            'sar', 'scp', 'sed', 'service', 'shutdown', 'sort', 'source', 'ss', 'ssh', 'ssh-keygen', 'stat', 'su', 'sudo', 'systemctl',
+            'tail', 'tar', 'tee', 'time', 'top', 'touch', 'tr', 'traceroute', 'tree', 'type',
+            'ulimit', 'umask', 'uname', 'uniq', 'unzip', 'uptime', 'useradd', 'userdel', 'usermod',
+            'vi', 'vim', 'vmstat',
+            'w', 'watch', 'wc', 'wget', 'whereis', 'which', 'who', 'whoami',
+            'xargs',
+            'yes',
+            'zip'
         ];
 
-        if (!prefix) return commands.slice(0, 10); // Show first 10 if empty
-        return commands.filter(cmd => cmd.startsWith(prefix)).sort();
+        if (!prefix) return commands;
+        return commands.filter(cmd => cmd.startsWith(prefix));
     }
 
-    _getPathCompletions(partial) {
-        // Handle ~ expansion
-        let searchPath = partial;
-        let prefix = '';
-
-        if (partial.startsWith('~/')) {
-            searchPath = `/home/${this.user}${partial.substring(1)}`;
-            prefix = '~';
-        } else if (partial === '~') {
-            return ['~/'];
-        } else if (!partial.startsWith('/')) {
-            // Relative path
-            searchPath = this.currentDir + '/' + partial;
+    _getPathCompletions(partial, cmdContext) {
+        // Handle empty input - complete from current directory
+        if (!partial) {
+            const entry = this.fs[this.currentDir];
+            if (entry && entry.type === 'dir' && entry.children) {
+                return entry.children.sort();
+            }
+            return [];
         }
 
-        // Get directory and partial filename
-        const lastSlash = searchPath.lastIndexOf('/');
-        const dirPath = lastSlash >= 0 ? searchPath.substring(0, lastSlash) || '/' : this.currentDir;
-        const filePrefix = lastSlash >= 0 ? searchPath.substring(lastSlash + 1) : partial;
+        // Handle ~ expansion
+        let searchDir, filePrefix, returnPrefix;
 
-        const normalizedDir = this._normalizePath(dirPath);
-        const dirEntry = this.fs[normalizedDir];
+        if (partial === '~') {
+            return ['~/'];
+        } else if (partial.startsWith('~/')) {
+            const relativePath = partial.substring(2);
+            const lastSlash = relativePath.lastIndexOf('/');
+            if (lastSlash >= 0) {
+                searchDir = `/home/${this.user}/${relativePath.substring(0, lastSlash)}`;
+                filePrefix = relativePath.substring(lastSlash + 1);
+                returnPrefix = '~/' + relativePath.substring(0, lastSlash + 1);
+            } else {
+                searchDir = `/home/${this.user}`;
+                filePrefix = relativePath;
+                returnPrefix = '~/';
+            }
+        } else if (partial.startsWith('/')) {
+            // Absolute path
+            const lastSlash = partial.lastIndexOf('/');
+            searchDir = partial.substring(0, lastSlash) || '/';
+            filePrefix = partial.substring(lastSlash + 1);
+            returnPrefix = searchDir + (searchDir === '/' ? '' : '/');
+        } else {
+            // Relative path
+            const lastSlash = partial.lastIndexOf('/');
+            if (lastSlash >= 0) {
+                searchDir = this._normalizePath(this.currentDir + '/' + partial.substring(0, lastSlash));
+                filePrefix = partial.substring(lastSlash + 1);
+                returnPrefix = partial.substring(0, lastSlash + 1);
+            } else {
+                searchDir = this.currentDir;
+                filePrefix = partial;
+                returnPrefix = '';
+            }
+        }
+
+        // Normalize and find directory
+        searchDir = this._normalizePath(searchDir);
+        const dirEntry = this.fs[searchDir];
 
         if (!dirEntry || dirEntry.type !== 'dir') {
             return [];
         }
 
         const children = dirEntry.children || [];
-        const matches = children.filter(name => name.startsWith(filePrefix));
+        const matches = children.filter(name =>
+            name.startsWith(filePrefix) || (filePrefix === '' && !name.startsWith('.'))
+        );
 
-        // Return paths relative to what user typed
-        return matches.map(name => {
-            if (partial.startsWith('~/')) {
-                return '~/' + (dirPath === `/home/${this.user}` ? '' :
-                    dirPath.replace(`/home/${this.user}/`, '')) +
-                    (dirPath === `/home/${this.user}` ? '' : '/') + name;
-            } else if (partial.startsWith('/')) {
-                return normalizedDir + (normalizedDir === '/' ? '' : '/') + name;
-            } else if (partial.includes('/')) {
-                const userDir = partial.substring(0, partial.lastIndexOf('/') + 1);
-                return userDir + name;
+        // Return with appropriate prefix
+        return matches.map(name => returnPrefix + name).sort();
+    }
+
+    _applyCompletion(input, cursorPos, wordStart, oldWord, newWord, isCommand, isPartial = false) {
+        const before = input.substring(0, wordStart);
+        const after = input.substring(cursorPos);
+
+        // Determine suffix
+        let suffix = '';
+        if (!isPartial) {
+            if (isCommand) {
+                suffix = ' ';
+            } else {
+                // Check if it's a directory
+                const resolved = this._resolvePath(newWord);
+                const entry = this.fs[resolved];
+                if (entry && entry.type === 'dir') {
+                    suffix = newWord.endsWith('/') ? '' : '/';
+                } else if (entry) {
+                    suffix = ' ';
+                }
             }
-            return name;
-        }).sort();
+        }
+
+        this.inputEl.value = before + newWord + suffix + after;
+        const newPos = before.length + newWord.length + suffix.length;
+        this.inputEl.selectionStart = this.inputEl.selectionEnd = newPos;
+    }
+
+    _showCompletions(completions, isCommand) {
+        // Format completions in columns like bash
+        const maxLen = Math.max(...completions.map(c => c.length)) + 2;
+        const cols = Math.max(1, Math.floor(80 / maxLen));
+
+        let output = '\n';
+        for (let i = 0; i < completions.length; i++) {
+            let item = completions[i];
+
+            // Add visual indicator for directories
+            if (!isCommand) {
+                const resolved = this._resolvePath(item);
+                const entry = this.fs[resolved];
+                if (entry && entry.type === 'dir' && !item.endsWith('/')) {
+                    item += '/';
+                }
+            }
+
+            output += item.padEnd(maxLen);
+            if ((i + 1) % cols === 0) output += '\n';
+        }
+
+        this._printOutput(output.trimEnd());
+        this._printCommand(this.inputEl.value);
     }
 
     _findCommonPrefix(strings) {
@@ -3244,14 +3708,27 @@ class CLHTerminal {
         return prefix;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // HISTORY NAVIGATION
+    // ═══════════════════════════════════════════════════════════════
+
     _historyUp() {
+        if (this.commandHistory.length === 0) return;
+
+        if (this.historyIndex === this.commandHistory.length) {
+            // Save current input
+            this._savedInput = this.inputEl.value;
+        }
+
         if (this.historyIndex > 0) {
             this.historyIndex--;
-            this.inputEl.value = this.commandHistory[this.historyIndex];
-        } else if (this.historyIndex === -1 && this.commandHistory.length > 0) {
+        } else if (this.historyIndex === -1) {
             this.historyIndex = this.commandHistory.length - 1;
-            this.inputEl.value = this.commandHistory[this.historyIndex];
         }
+
+        this.inputEl.value = this.commandHistory[this.historyIndex];
+        // Move cursor to end
+        this.inputEl.selectionStart = this.inputEl.selectionEnd = this.inputEl.value.length;
     }
 
     _historyDown() {
@@ -3260,10 +3737,105 @@ class CLHTerminal {
             this.inputEl.value = this.commandHistory[this.historyIndex];
         } else {
             this.historyIndex = this.commandHistory.length;
-            this.inputEl.value = '';
+            this.inputEl.value = this._savedInput || '';
         }
+        // Move cursor to end
+        this.inputEl.selectionStart = this.inputEl.selectionEnd = this.inputEl.value.length;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // COMMAND EXECUTION ENGINE
+    // ═══════════════════════════════════════════════════════════════
+
+    _runCommand(cmd, args) {
+        let output = '';
+        let exitCode = 0;
+
+        switch(cmd) {
+            case 'pwd': output = this._cmdPwd(); break;
+            case 'ls': output = this._cmdLs(args); break;
+            case 'cd': output = this._cmdCd(args); break;
+            case 'cat': output = this._cmdCat(args); break;
+            case 'whoami': output = this.user; break;
+            case 'hostname': output = this.hostname; break;
+            case 'id': output = `uid=1000(${this.user}) gid=1000(${this.user}) groups=1000(${this.user}),27(sudo)`; break;
+            case 'echo': output = args.join(' '); break;
+            case 'uname': output = this._cmdUname(args); break;
+            case 'date': output = new Date().toString(); break;
+            case 'clear': this.outputEl.innerHTML = ''; break;
+            case 'help': output = this._cmdHelp(); break;
+            case 'grep': output = this._cmdGrep(args); break;
+            case 'find': output = this._cmdFind(args); break;
+            case 'head': output = this._cmdHead(args); break;
+            case 'tail': output = this._cmdTail(args); break;
+            case 'wc': output = this._cmdWc(args); break;
+            case 'ps': output = this._cmdPs(args); break;
+            case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
+            case 'export': output = this._cmdExport(args); break;
+            case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
+            case 'df': output = this._cmdDf(args); break;
+            case 'du': output = this._cmdDu(args); break;
+            case 'ip': output = this._cmdIp(args); break;
+            case 'ifconfig': output = this._cmdIfconfig(); break;
+            case 'netstat': case 'ss': output = this._cmdNetstat(args); break;
+            case 'last': output = this._cmdLast(); break;
+            case 'w': output = this._cmdW(); break;
+            case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
+            case 'free': output = this._cmdFree(args); break;
+            case 'top': output = this._cmdTop(); break;
+            case 'systemctl': output = this._cmdSystemctl(args); break;
+            case 'service': output = this._cmdService(args); break;
+            case 'crontab': output = this._cmdCrontab(args); break;
+            case 'dpkg': output = this._cmdDpkg(args); break;
+            case 'apt': case 'apt-get': case 'apt-cache': output = this._cmdApt(args); break;
+            case 'sudo': output = this._cmdSudo(args); break;
+            case 'su': output = 'su: Authentication required (simulated)'; break;
+            case 'chmod': case 'chown': case 'chgrp': output = ''; break;
+            case 'mkdir': output = this._cmdMkdir(args); break;
+            case 'touch': output = this._cmdTouch(args); break;
+            case 'rm': output = this._cmdRm(args); break;
+            case 'cp': case 'mv': output = ''; break;
+            case 'file': output = this._cmdFile(args); break;
+            case 'stat': output = this._cmdStat(args); break;
+            case 'tar': output = this._cmdTar(args); break;
+            case 'gzip': case 'gunzip': case 'zip': case 'unzip': output = 'Archive operation simulated'; break;
+            case 'ssh-keygen': output = this._cmdSshKeygen(args); break;
+            case 'ssh': output = this._cmdSsh(args); break;
+            case 'scp': output = 'scp: simulated file transfer complete'; break;
+            case 'curl': case 'wget': output = 'Network request simulated'; break;
+            case 'ping': output = this._cmdPing(args); break;
+            case 'nslookup': case 'dig': output = this._cmdNslookup(args); break;
+            case 'traceroute': output = 'traceroute: simulated'; break;
+            case 'arp': output = this._cmdArp(); break;
+            case 'route': output = this._cmdRoute(); break;
+            case 'lsblk': output = this._cmdLsblk(); break;
+            case 'mount': output = this._cmdMount(); break;
+            case 'fdisk': output = 'fdisk: requires root privileges'; break;
+            case 'getfacl': output = this._cmdGetfacl(args); break;
+            case 'useradd': case 'userdel': case 'usermod': case 'passwd': case 'groupadd':
+                output = `${cmd}: requires root privileges (use sudo)`; break;
+            case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
+            case 'less': case 'more': output = this._cmdCat(args); break;
+            case 'man': output = `No manual entry for ${args[0] || 'command'}`; break;
+            case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
+            case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
+            case 'alias': output = 'alias ll=\'ls -la\''; break;
+            case 'vmstat': output = this._cmdVmstat(); break;
+            case 'iostat': output = this._cmdIostat(); break;
+            case 'sar': output = this._cmdSar(); break;
+            case 'exit': output = 'logout'; break;
+            case 'true': exitCode = 0; break;
+            case 'false': exitCode = 1; break;
+            case '': break;
+            default:
+                output = `${cmd}: command not found`;
+                exitCode = 127;
+        }
+
+        return { output, exitCode };
+    }
+
+    // Legacy _execute method (for backwards compatibility)
     _execute(cmdLine) {
         // Add to history
         this.commandHistory.push(cmdLine);
