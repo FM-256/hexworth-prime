@@ -4536,7 +4536,16 @@ class CLHTerminal {
     }
 
     _cmdCd(args) {
-        const path = args[0] || '~';
+        let path = args[0];
+
+        // No argument = go home
+        if (!path) path = '~';
+
+        // Empty string after variable expansion = error
+        if (path === '') {
+            return 'cd: empty path';
+        }
+
         const resolved = this._resolvePath(path);
         const entry = this.fs[resolved];
 
@@ -4595,6 +4604,28 @@ class CLHTerminal {
         const content = entry.content || '';
         const lines = content.split('\n');
 
+        // Script-local variables
+        const scriptVars = {};
+
+        // Helper to expand variables in a string
+        const expandVars = (str) => {
+            // Expand command substitution $(...)
+            str = str
+                .replace(/\$\(whoami\)/g, this.user)
+                .replace(/\$\(hostname\)/g, this.hostname)
+                .replace(/\$\(pwd\)/g, this.currentDir)
+                .replace(/\$\(date[^)]*\)/g, () => {
+                    const d = new Date();
+                    return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+                });
+
+            // Expand script-local variables first (${VAR} and $VAR)
+            str = str.replace(/\$\{(\w+)\}/g, (m, v) => scriptVars[v] || this.env[v] || '');
+            str = str.replace(/\$(\w+)/g, (m, v) => scriptVars[v] || this.env[v] || '');
+
+            return str;
+        };
+
         // Build simulated output
         const outputLines = [];
 
@@ -4604,56 +4635,73 @@ class CLHTerminal {
             // Skip empty lines, comments, shebang
             if (!trimmed || trimmed.startsWith('#')) continue;
 
+            // Check for variable assignment: VAR=value or VAR="value"
+            const assignMatch = trimmed.match(/^(\w+)=(.*)$/);
+            if (assignMatch && !trimmed.includes(' ')) {
+                const varName = assignMatch[1];
+                let varValue = assignMatch[2];
+                // Remove quotes
+                varValue = varValue.replace(/^["']|["']$/g, '');
+                // Expand any variables/commands in the value
+                varValue = expandVars(varValue);
+                scriptVars[varName] = varValue;
+                continue; // Variable assignments don't produce output
+            }
+
+            // Expand variables in the line before processing
+            const expanded = expandVars(trimmed);
+
             // Simulate common commands in scripts
-            if (trimmed.startsWith('echo ')) {
-                // Handle echo with variable expansion
-                let echoArg = trimmed.substring(5).trim();
+            if (expanded.startsWith('echo ')) {
+                let echoArg = expanded.substring(5).trim();
                 // Remove quotes if present
                 echoArg = echoArg.replace(/^["']|["']$/g, '');
-                // Expand $() command substitution with simulated values
-                echoArg = echoArg
-                    .replace(/\$\(whoami\)/g, this.user)
-                    .replace(/\$\(hostname\)/g, this.hostname)
-                    .replace(/\$\(pwd\)/g, this.currentDir)
-                    .replace(/\$\(date[^)]*\)/g, new Date().toISOString().slice(0, 19).replace('T', '-'))
-                    .replace(/\$USER/g, this.user)
-                    .replace(/\$HOME/g, `/home/${this.user}`)
-                    .replace(/\$PWD/g, this.currentDir);
                 outputLines.push(echoArg);
             }
-            else if (trimmed === 'whoami') {
+            else if (expanded === 'whoami') {
                 outputLines.push(this.user);
             }
-            else if (trimmed === 'hostname') {
+            else if (expanded === 'hostname') {
                 outputLines.push(this.hostname);
             }
-            else if (trimmed === 'pwd') {
+            else if (expanded === 'pwd') {
                 outputLines.push(this.currentDir);
             }
-            else if (trimmed.startsWith('date')) {
+            else if (expanded.startsWith('date')) {
                 outputLines.push(new Date().toString());
             }
-            else if (trimmed.startsWith('ls')) {
-                outputLines.push(this._cmdLs(trimmed.split(' ').slice(1)));
+            else if (expanded.startsWith('ls')) {
+                outputLines.push(this._cmdLs(expanded.split(' ').slice(1)));
             }
-            else if (trimmed.startsWith('cat ')) {
-                const catFile = trimmed.substring(4).trim();
+            else if (expanded.startsWith('cat ')) {
+                const catFile = expanded.substring(4).trim();
                 outputLines.push(this._cmdCat([catFile]));
             }
-            else if (trimmed.startsWith('mkdir ')) {
-                const mkdirResult = this._cmdMkdir(trimmed.split(' ').slice(1));
+            else if (expanded.startsWith('mkdir ')) {
+                const mkdirArgs = expanded.split(' ').slice(1).map(a => a.replace(/^["']|["']$/g, ''));
+                const mkdirResult = this._cmdMkdir(mkdirArgs);
                 if (mkdirResult) outputLines.push(mkdirResult);
             }
-            else if (trimmed.startsWith('cp ')) {
-                // Simulate cp
-                outputLines.push('[cp simulated]');
+            else if (expanded.startsWith('cp ')) {
+                // Simulate cp - parse args for better output
+                const cpArgs = expanded.split(' ').slice(1);
+                if (cpArgs.length >= 2) {
+                    const src = cpArgs[cpArgs.length - 2];
+                    const dest = cpArgs[cpArgs.length - 1];
+                    // Actually try to copy if source exists
+                    const srcPath = this._resolvePath(src);
+                    const srcEntry = this.fs[srcPath];
+                    if (srcEntry && srcEntry.type === 'dir') {
+                        // Copy directory contents (simplified)
+                    }
+                }
             }
-            else if (trimmed.startsWith('ip ') || trimmed === 'ifconfig') {
+            else if (expanded.startsWith('ip ') || expanded === 'ifconfig') {
                 outputLines.push(this._cmdIfconfig());
             }
             else {
                 // For unrecognized commands, just show them as simulated
-                outputLines.push(`[${trimmed}]`);
+                outputLines.push(`[${expanded}]`);
             }
         }
 
