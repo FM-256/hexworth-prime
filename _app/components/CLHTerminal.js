@@ -2970,9 +2970,850 @@ ${footer}
         clear: _clear,
         getState: () => ({ ...state }),
         getConfig: () => ({ ...config }),
+        getCwd: () => state.currentDir,
     };
 
 })();
+
+/**
+ * CLHTerminal Class Wrapper
+ * Provides class-based API for HTML files that use: new CLHTerminal({options})
+ */
+class CLHTerminal {
+    constructor(options = {}) {
+        this.options = options;
+        this.moduleId = options.moduleId;
+        this.initialized = false;
+
+        // Store callbacks
+        this._onObjectiveComplete = options.onObjectiveComplete || (() => {});
+        this._onModuleComplete = options.onModuleComplete || (() => {});
+        this._onCommand = options.onCommand || (() => {});
+
+        // Initialize
+        this._init();
+    }
+
+    _init() {
+        const moduleConfig = typeof CLHConfig !== 'undefined' ? CLHConfig.getModule(this.moduleId) : null;
+
+        if (!moduleConfig) {
+            console.error(`[CLHTerminal] Module not found: ${this.moduleId}`);
+            return;
+        }
+
+        this.config = moduleConfig;
+        this.user = moduleConfig.user || 'operator';
+        this.hostname = moduleConfig.hostname || 'hexworth';
+        this.startDir = moduleConfig.startDir || `/home/${this.user}`;
+        this.currentDir = this.startDir;
+
+        // Build filesystem
+        this.fs = this._buildFilesystem(moduleConfig.filesystem || {});
+
+        // Track objectives
+        this.objectives = moduleConfig.objectives || [];
+        this.objectivesCompleted = {};
+        this.completedCount = 0;
+
+        // Command history
+        this.commandHistory = [];
+        this.historyIndex = -1;
+
+        // Environment variables
+        this.env = {
+            USER: this.user,
+            HOME: `/home/${this.user}`,
+            PWD: this.currentDir,
+            SHELL: '/bin/bash',
+            PATH: '/usr/local/bin:/usr/bin:/bin',
+            HOSTNAME: this.hostname,
+        };
+
+        // Get DOM elements
+        const containerSelector = this.options.container || '#terminal';
+        const inputSelector = this.options.inputElement || '#commandInput';
+
+        this.outputEl = document.querySelector(containerSelector);
+        this.inputEl = document.querySelector(inputSelector);
+
+        if (!this.outputEl || !this.inputEl) {
+            console.error('[CLHTerminal] Container or input element not found');
+            return;
+        }
+
+        // Setup event listeners
+        this._setupEventListeners();
+        this.initialized = true;
+    }
+
+    _buildFilesystem(moduleFs) {
+        // Base filesystem structure
+        const baseFs = {
+            '/': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'root'] },
+            '/home': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [this.user] },
+            [`/home/${this.user}`]: { type: 'dir', perms: 'drwxr-xr-x', owner: this.user, group: this.user, children: [] },
+            '/etc': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['passwd', 'group', 'hosts', 'resolv.conf', 'shadow', 'sudoers', 'crontab', 'ssh'] },
+            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: `root:x:0:0:root:/root:/bin/bash\n${this.user}:x:1000:1000:${this.user}:/home/${this.user}:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin` },
+            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: `root:x:0:\n${this.user}:x:1000:\nsudo:x:27:${this.user}` },
+            '/etc/hosts': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: '127.0.0.1\tlocalhost\n127.0.1.1\t' + this.hostname },
+            '/etc/resolv.conf': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: 'nameserver 8.8.8.8\nnameserver 8.8.4.4' },
+            '/etc/shadow': { type: 'file', perms: '-rw-------', owner: 'root', group: 'shadow', content: `root:*:19000:0:99999:7:::\n${this.user}:$6$rounds=4096$salt$hash:19000:0:99999:7:::` },
+            '/etc/sudoers': { type: 'file', perms: '-r--r-----', owner: 'root', group: 'root', content: `root ALL=(ALL:ALL) ALL\n%sudo ALL=(ALL:ALL) ALL\n${this.user} ALL=(ALL) NOPASSWD: ALL` },
+            '/etc/crontab': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: 'SHELL=/bin/bash\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n# m h dom mon dow user command\n17 * * * * root cd / && run-parts --report /etc/cron.hourly' },
+            '/etc/ssh': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['sshd_config'] },
+            '/etc/ssh/sshd_config': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', content: 'Port 22\nPermitRootLogin no\nPasswordAuthentication yes' },
+            '/var': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['log', 'tmp'] },
+            '/var/log': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['syslog', 'auth.log', 'messages'] },
+            '/var/log/syslog': { type: 'file', perms: '-rw-r-----', owner: 'syslog', group: 'adm', content: 'Jan 18 10:00:00 ' + this.hostname + ' systemd[1]: Started Session 1 of user ' + this.user },
+            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'syslog', group: 'adm', content: 'Jan 18 09:55:00 ' + this.hostname + ' sshd[1234]: Accepted password for ' + this.user + ' from 192.168.1.100 port 52413 ssh2' },
+            '/var/log/messages': { type: 'file', perms: '-rw-r-----', owner: 'syslog', group: 'adm', content: 'System boot completed' },
+            '/var/tmp': { type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root', children: [] },
+            '/tmp': { type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root', children: [] },
+            '/usr': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['bin', 'local'] },
+            '/usr/bin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [] },
+            '/usr/local': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['bin'] },
+            '/usr/local/bin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [] },
+            '/bin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['bash', 'ls', 'cat', 'grep'] },
+            '/root': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: [] },
+        };
+
+        // Merge module-specific filesystem
+        return { ...baseFs, ...moduleFs };
+    }
+
+    _setupEventListeners() {
+        this.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const cmd = this.inputEl.value.trim();
+                this.inputEl.value = '';
+                if (cmd) {
+                    this._execute(cmd);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this._historyUp();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this._historyDown();
+            }
+        });
+    }
+
+    _historyUp() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.inputEl.value = this.commandHistory[this.historyIndex];
+        } else if (this.historyIndex === -1 && this.commandHistory.length > 0) {
+            this.historyIndex = this.commandHistory.length - 1;
+            this.inputEl.value = this.commandHistory[this.historyIndex];
+        }
+    }
+
+    _historyDown() {
+        if (this.historyIndex < this.commandHistory.length - 1) {
+            this.historyIndex++;
+            this.inputEl.value = this.commandHistory[this.historyIndex];
+        } else {
+            this.historyIndex = this.commandHistory.length;
+            this.inputEl.value = '';
+        }
+    }
+
+    _execute(cmdLine) {
+        // Add to history
+        this.commandHistory.push(cmdLine);
+        this.historyIndex = this.commandHistory.length;
+
+        // Print command
+        this._printCommand(cmdLine);
+
+        // Parse and execute
+        const parts = cmdLine.split(/\s+/);
+        const cmd = parts[0];
+        const args = parts.slice(1);
+
+        let output = '';
+
+        switch(cmd) {
+            case 'pwd': output = this._cmdPwd(); break;
+            case 'ls': output = this._cmdLs(args); break;
+            case 'cd': output = this._cmdCd(args); break;
+            case 'cat': output = this._cmdCat(args); break;
+            case 'whoami': output = this.user; break;
+            case 'hostname': output = this.hostname; break;
+            case 'id': output = `uid=1000(${this.user}) gid=1000(${this.user}) groups=1000(${this.user}),27(sudo)`; break;
+            case 'echo': output = args.join(' ').replace(/^\$(\w+)/, (m, v) => this.env[v] || ''); break;
+            case 'uname': output = this._cmdUname(args); break;
+            case 'date': output = new Date().toString(); break;
+            case 'clear': this.outputEl.innerHTML = ''; return;
+            case 'help': output = this._cmdHelp(); break;
+            case 'grep': output = this._cmdGrep(args); break;
+            case 'find': output = this._cmdFind(args); break;
+            case 'head': output = this._cmdHead(args); break;
+            case 'tail': output = this._cmdTail(args); break;
+            case 'wc': output = this._cmdWc(args); break;
+            case 'ps': output = this._cmdPs(args); break;
+            case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
+            case 'export': this._cmdExport(args); return;
+            case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
+            case 'df': output = this._cmdDf(args); break;
+            case 'du': output = this._cmdDu(args); break;
+            case 'ip': output = this._cmdIp(args); break;
+            case 'ifconfig': output = this._cmdIfconfig(); break;
+            case 'netstat': case 'ss': output = this._cmdNetstat(args); break;
+            case 'last': output = this._cmdLast(); break;
+            case 'w': output = this._cmdW(); break;
+            case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
+            case 'free': output = this._cmdFree(args); break;
+            case 'top': output = this._cmdTop(); break;
+            case 'systemctl': output = this._cmdSystemctl(args); break;
+            case 'service': output = this._cmdService(args); break;
+            case 'crontab': output = this._cmdCrontab(args); break;
+            case 'dpkg': output = this._cmdDpkg(args); break;
+            case 'apt': case 'apt-get': case 'apt-cache': output = this._cmdApt(args); break;
+            case 'sudo': output = this._cmdSudo(args); break;
+            case 'su': output = 'su: Authentication required (simulated)'; break;
+            case 'chmod': case 'chown': case 'chgrp': output = ''; break;
+            case 'mkdir': output = this._cmdMkdir(args); break;
+            case 'touch': output = this._cmdTouch(args); break;
+            case 'rm': output = this._cmdRm(args); break;
+            case 'cp': case 'mv': output = ''; break;
+            case 'file': output = this._cmdFile(args); break;
+            case 'stat': output = this._cmdStat(args); break;
+            case 'tar': output = this._cmdTar(args); break;
+            case 'gzip': case 'gunzip': case 'zip': case 'unzip': output = 'Archive operation simulated'; break;
+            case 'ssh-keygen': output = this._cmdSshKeygen(args); break;
+            case 'ssh': output = this._cmdSsh(args); break;
+            case 'scp': output = 'scp: simulated file transfer complete'; break;
+            case 'curl': case 'wget': output = 'Network request simulated'; break;
+            case 'ping': output = this._cmdPing(args); break;
+            case 'nslookup': case 'dig': output = this._cmdNslookup(args); break;
+            case 'traceroute': output = 'traceroute: simulated'; break;
+            case 'arp': output = this._cmdArp(); break;
+            case 'route': output = this._cmdRoute(); break;
+            case 'lsblk': output = this._cmdLsblk(); break;
+            case 'mount': output = this._cmdMount(); break;
+            case 'fdisk': output = 'fdisk: requires root privileges'; break;
+            case 'getfacl': output = this._cmdGetfacl(args); break;
+            case 'useradd': case 'userdel': case 'usermod': case 'passwd': case 'groupadd':
+                output = `${cmd}: requires root privileges (use sudo)`; break;
+            case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
+            case 'less': case 'more': output = this._cmdCat(args); break;
+            case 'man': output = `No manual entry for ${args[0] || 'command'}`; break;
+            case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
+            case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
+            case 'alias': output = 'alias ll=\'ls -la\''; break;
+            case 'vmstat': output = this._cmdVmstat(); break;
+            case 'iostat': output = this._cmdIostat(); break;
+            case 'sar': output = this._cmdSar(); break;
+            default: output = `${cmd}: command not found`;
+        }
+
+        if (output) {
+            this._printOutput(output);
+        }
+
+        // Check objectives
+        this._checkObjectives(cmdLine);
+
+        // Callback
+        this._onCommand(cmdLine, output);
+    }
+
+    _printCommand(cmd) {
+        const line = document.createElement('div');
+        line.className = 'terminal-line';
+        line.innerHTML = `<span class="prompt">${this.user}@${this.hostname}:${this._getDisplayPath()}$</span> <span class="command">${this._escapeHtml(cmd)}</span>`;
+        this.outputEl.appendChild(line);
+        this.outputEl.scrollTop = this.outputEl.scrollHeight;
+    }
+
+    _printOutput(text) {
+        const line = document.createElement('div');
+        line.className = 'terminal-line output';
+        line.innerHTML = this._escapeHtml(text).replace(/\n/g, '<br>');
+        this.outputEl.appendChild(line);
+        this.outputEl.scrollTop = this.outputEl.scrollHeight;
+    }
+
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    _getDisplayPath() {
+        if (this.currentDir === `/home/${this.user}`) return '~';
+        return this.currentDir.replace(`/home/${this.user}`, '~');
+    }
+
+    _resolvePath(path) {
+        if (!path) return this.currentDir;
+        if (path === '~') return `/home/${this.user}`;
+        if (path.startsWith('~/')) return `/home/${this.user}${path.slice(1)}`;
+        if (path.startsWith('/')) return this._normalizePath(path);
+        return this._normalizePath(`${this.currentDir}/${path}`);
+    }
+
+    _normalizePath(path) {
+        const parts = path.split('/').filter(p => p && p !== '.');
+        const result = [];
+        for (const part of parts) {
+            if (part === '..') result.pop();
+            else result.push(part);
+        }
+        return '/' + result.join('/');
+    }
+
+    _checkObjectives(cmdLine) {
+        for (const obj of this.objectives) {
+            if (!this.objectivesCompleted[obj.id] && obj.check(cmdLine)) {
+                this.objectivesCompleted[obj.id] = true;
+                this.completedCount++;
+                this._onObjectiveComplete(obj.id, this.completedCount, this.objectives.length);
+
+                if (this.completedCount === this.objectives.length) {
+                    this._onModuleComplete();
+                }
+                break;
+            }
+        }
+    }
+
+    // Command implementations
+    _cmdPwd() { return this.currentDir; }
+
+    _cmdLs(args) {
+        let showHidden = args.includes('-a') || args.includes('-la') || args.includes('-al');
+        let longFormat = args.includes('-l') || args.includes('-la') || args.includes('-al');
+        let path = args.filter(a => !a.startsWith('-'))[0] || '.';
+
+        const resolved = this._resolvePath(path);
+        const entry = this.fs[resolved];
+
+        if (!entry) return `ls: cannot access '${path}': No such file or directory`;
+        if (entry.type !== 'dir') {
+            return longFormat ? `${entry.perms} 1 ${entry.owner} ${entry.group} ${(entry.content || '').length} Jan 18 10:00 ${path}` : path;
+        }
+
+        let children = entry.children || [];
+        if (!showHidden) children = children.filter(c => !c.startsWith('.'));
+
+        if (longFormat) {
+            const lines = ['total ' + children.length];
+            for (const child of children) {
+                const childPath = resolved === '/' ? `/${child}` : `${resolved}/${child}`;
+                const childEntry = this.fs[childPath];
+                if (childEntry) {
+                    const size = childEntry.type === 'file' ? (childEntry.content || '').length : 4096;
+                    lines.push(`${childEntry.perms} 1 ${childEntry.owner} ${childEntry.group} ${String(size).padStart(5)} Jan 18 10:00 ${child}`);
+                }
+            }
+            return lines.join('\n');
+        }
+        return children.join('  ');
+    }
+
+    _cmdCd(args) {
+        const path = args[0] || '~';
+        const resolved = this._resolvePath(path);
+        const entry = this.fs[resolved];
+
+        if (!entry) return `cd: ${path}: No such file or directory`;
+        if (entry.type !== 'dir') return `cd: ${path}: Not a directory`;
+
+        this.currentDir = resolved;
+        this.env.PWD = resolved;
+        return '';
+    }
+
+    _cmdCat(args) {
+        if (!args.length) return 'cat: missing operand';
+        const results = [];
+        for (const arg of args) {
+            if (arg.startsWith('-')) continue;
+            const resolved = this._resolvePath(arg);
+            const entry = this.fs[resolved];
+            if (!entry) results.push(`cat: ${arg}: No such file or directory`);
+            else if (entry.type === 'dir') results.push(`cat: ${arg}: Is a directory`);
+            else results.push(entry.content || '');
+        }
+        return results.join('\n');
+    }
+
+    _cmdUname(args) {
+        if (args.includes('-a')) return `Linux ${this.hostname} 5.15.0-generic #1 SMP x86_64 GNU/Linux`;
+        if (args.includes('-r')) return '5.15.0-generic';
+        if (args.includes('-n')) return this.hostname;
+        return 'Linux';
+    }
+
+    _cmdHelp() {
+        return `Available commands:
+  Navigation: pwd, cd, ls
+  Files: cat, head, tail, less, file, stat, find
+  Search: grep, wc
+  System: uname, hostname, whoami, id, date, uptime
+  Process: ps, top
+  Network: ip, ifconfig, netstat, ss, ping, nslookup
+  Disk: df, du, lsblk, mount
+  Users: w, last, who
+  Services: systemctl, service
+  Other: echo, env, history, clear, help`;
+    }
+
+    _cmdGrep(args) {
+        const pattern = args.find(a => !a.startsWith('-'));
+        const file = args.filter(a => !a.startsWith('-'))[1];
+        if (!pattern) return 'grep: missing pattern';
+        if (!file) return 'grep: missing file operand';
+        const content = this._cmdCat([file]);
+        if (content.startsWith('cat:')) return content.replace('cat:', 'grep:');
+        const regex = new RegExp(pattern, 'gi');
+        return content.split('\n').filter(line => regex.test(line)).join('\n') || '';
+    }
+
+    _cmdFind(args) {
+        const startPath = args.find(a => !a.startsWith('-')) || '.';
+        const nameArg = args.indexOf('-name');
+        const pattern = nameArg >= 0 ? args[nameArg + 1] : null;
+
+        const resolved = this._resolvePath(startPath);
+        const results = [];
+
+        for (const path of Object.keys(this.fs)) {
+            if (path.startsWith(resolved)) {
+                const name = path.split('/').pop();
+                if (!pattern || name.includes(pattern.replace(/\*/g, ''))) {
+                    results.push(path);
+                }
+            }
+        }
+        return results.join('\n');
+    }
+
+    _cmdHead(args) {
+        const n = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) || 10 : 10;
+        const file = args.filter(a => !a.startsWith('-') && isNaN(a))[0];
+        if (!file) return 'head: missing file operand';
+        const content = this._cmdCat([file]);
+        if (content.startsWith('cat:')) return content.replace('cat:', 'head:');
+        return content.split('\n').slice(0, n).join('\n');
+    }
+
+    _cmdTail(args) {
+        const n = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) || 10 : 10;
+        const file = args.filter(a => !a.startsWith('-') && isNaN(a))[0];
+        if (!file) return 'tail: missing file operand';
+        const content = this._cmdCat([file]);
+        if (content.startsWith('cat:')) return content.replace('cat:', 'tail:');
+        return content.split('\n').slice(-n).join('\n');
+    }
+
+    _cmdWc(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        if (!file) return 'wc: missing file operand';
+        const content = this._cmdCat([file]);
+        if (content.startsWith('cat:')) return content.replace('cat:', 'wc:');
+        const lines = content.split('\n').length;
+        const words = content.split(/\s+/).filter(w => w).length;
+        const chars = content.length;
+        return `  ${lines}   ${words}  ${chars} ${file}`;
+    }
+
+    _cmdPs(args) {
+        if (args.includes('aux') || args.includes('-aux') || args.includes('-ef')) {
+            return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
+root         2  0.0  0.0      0     0 ?        S    Jan17   0:00 [kthreadd]
+${this.user}    1234  0.0  0.2  21432  4532 pts/0    Ss   10:00   0:00 -bash
+${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
+        }
+        return `  PID TTY          TIME CMD
+ 1234 pts/0    00:00:00 bash
+ 5678 pts/0    00:00:00 ps`;
+    }
+
+    _cmdDf(args) {
+        const h = args.includes('-h');
+        if (h) {
+            return `Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   15G   33G  31% /
+tmpfs           2.0G     0  2.0G   0% /dev/shm
+/dev/sda2       100G   45G   50G  48% /home`;
+        }
+        return `Filesystem     1K-blocks     Used Available Use% Mounted on
+/dev/sda1       52428800 15728640  34603008  31% /
+tmpfs            2097152        0   2097152   0% /dev/shm
+/dev/sda2      104857600 47185920  52428800  48% /home`;
+    }
+
+    _cmdDu(args) {
+        const h = args.includes('-h');
+        const s = args.includes('-s');
+        const path = args.filter(a => !a.startsWith('-'))[0] || '.';
+        if (s && h) return `4.5M\t${path}`;
+        if (s) return `4608\t${path}`;
+        return `4.0K\t${path}/file1\n8.0K\t${path}/dir1\n4.5M\t${path}`;
+    }
+
+    _cmdIp(args) {
+        if (args[0] === 'addr' || args[0] === 'a') {
+            return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536
+    inet 127.0.0.1/8 scope host lo
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500
+    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0`;
+        }
+        if (args[0] === 'route' || args[0] === 'r') {
+            return `default via 192.168.1.1 dev eth0
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100`;
+        }
+        return 'Usage: ip [addr|route]';
+    }
+
+    _cmdIfconfig() {
+        return `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255
+        ether 00:0c:29:ab:cd:ef  txqueuelen 1000  (Ethernet)
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        loop  txqueuelen 1000  (Local Loopback)`;
+    }
+
+    _cmdNetstat(args) {
+        if (args.includes('-tuln') || args.includes('-tulnp')) {
+            return `Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN
+tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN
+udp        0      0 0.0.0.0:68              0.0.0.0:*`;
+        }
+        return `Active Internet connections
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 192.168.1.100:22        192.168.1.50:52413      ESTABLISHED`;
+    }
+
+    _cmdLast() {
+        return `${this.user}   pts/0        192.168.1.50     Sun Jan 18 09:55   still logged in
+${this.user}   pts/0        192.168.1.50     Sat Jan 17 14:22 - 18:30  (04:08)
+reboot   system boot  5.15.0-generic   Sat Jan 17 14:20
+${this.user}   pts/0        192.168.1.50     Fri Jan 16 09:00 - 17:30  (08:30)
+
+wtmp begins Fri Jan 16 09:00:00 2026`;
+    }
+
+    _cmdW() {
+        return ` 10:30:00 up 5 days,  3:42,  1 user,  load average: 0.08, 0.12, 0.09
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+${this.user}   pts/0    192.168.1.50     09:55    0.00s  0.02s  0.00s w`;
+    }
+
+    _cmdFree(args) {
+        if (args.includes('-h')) {
+            return `              total        used        free      shared  buff/cache   available
+Mem:          7.8Gi       2.1Gi       3.2Gi       256Mi       2.5Gi       5.2Gi
+Swap:         2.0Gi          0B       2.0Gi`;
+        }
+        return `              total        used        free      shared  buff/cache   available
+Mem:        8167736     2202624     3355648      262144     2609464     5461248
+Swap:       2097148           0     2097148`;
+    }
+
+    _cmdTop() {
+        return `top - 10:30:00 up 5 days,  3:42,  1 user,  load average: 0.08, 0.12, 0.09
+Tasks: 128 total,   1 running, 127 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  2.3 us,  1.0 sy,  0.0 ni, 96.5 id,  0.2 wa,  0.0 hi,  0.0 si
+MiB Mem :   7976.3 total,   3276.8 free,   2150.2 used,   2549.3 buff/cache
+MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   5333.2 avail Mem
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+    1 root      20   0  168936  11420   8256 S   0.0   0.1   0:03.45 systemd
+ 1234 ${this.user}    20   0   21432   4532   3648 S   0.0   0.1   0:00.12 bash`;
+    }
+
+    _cmdSystemctl(args) {
+        if (args[0] === 'list-units' || args.includes('--type=service')) {
+            return `UNIT                     LOAD   ACTIVE SUB     DESCRIPTION
+sshd.service             loaded active running OpenSSH server daemon
+nginx.service            loaded active running A high performance web server
+mysql.service            loaded active running MySQL Community Server
+cron.service             loaded active running Regular background program processing`;
+        }
+        if (args[0] === 'status') {
+            const svc = args[1] || 'sshd';
+            return `● ${svc}.service - ${svc} daemon
+   Loaded: loaded (/lib/systemd/system/${svc}.service; enabled)
+   Active: active (running) since Sun 2026-01-18 09:55:00 UTC; 35min ago
+ Main PID: 1234 (${svc})
+    Tasks: 1 (limit: 4915)
+   Memory: 2.3M
+   CGroup: /system.slice/${svc}.service
+           └─1234 /usr/sbin/${svc}`;
+        }
+        if (args[0] === '--failed' || args.includes('--failed')) {
+            return `UNIT                    LOAD   ACTIVE SUB    DESCRIPTION
+● suspicious.service    loaded failed failed Unknown service
+
+1 loaded units listed.`;
+        }
+        if (args[0] === 'list-timers' || args.includes('--all')) {
+            return `NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
+Sun 2026-01-18 11:00:00 UTC 29min left    Sun 2026-01-18 10:00:00 UTC 30min ago    apt-daily.timer              apt-daily.service
+Sun 2026-01-18 11:17:00 UTC 46min left    Sun 2026-01-18 10:17:00 UTC 13min ago    anacron.timer                anacron.service`;
+        }
+        return 'Usage: systemctl [list-units|status|--failed|list-timers]';
+    }
+
+    _cmdService(args) {
+        if (args.length < 2) return 'Usage: service <name> <command>';
+        return `${args[0]} ${args[1]} - OK`;
+    }
+
+    _cmdCrontab(args) {
+        if (args.includes('-l')) {
+            return `# Crontab for ${this.user}
+# m h  dom mon dow   command
+0 * * * * /usr/bin/backup.sh
+*/5 * * * * /tmp/.hidden/update.sh`;
+        }
+        return 'crontab: usage error';
+    }
+
+    _cmdDpkg(args) {
+        if (args.includes('-l')) {
+            return `Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+||/ Name           Version      Architecture Description
++++-==============-============-============-=================================
+ii  bash           5.1-6        amd64        GNU Bourne Again SHell
+ii  coreutils      8.32-4       amd64        GNU core utilities
+ii  openssh-server 8.4p1-5      amd64        secure shell (SSH) server`;
+        }
+        if (args.includes('-L')) {
+            return `/usr/bin/${args[args.indexOf('-L') + 1] || 'package'}\n/usr/share/doc/${args[args.indexOf('-L') + 1] || 'package'}`;
+        }
+        return 'dpkg: usage';
+    }
+
+    _cmdApt(args) {
+        if (args.includes('list') && args.includes('--installed')) {
+            return `bash/stable,now 5.1-6 amd64 [installed]
+coreutils/stable,now 8.32-4 amd64 [installed]
+openssh-server/stable,now 8.4p1-5 amd64 [installed]`;
+        }
+        if (args[0] === 'policy') {
+            return `${args[1] || 'package'}:
+  Installed: 1.0.0
+  Candidate: 1.0.0
+  Version table:
+ *** 1.0.0 500
+        500 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages`;
+        }
+        return 'apt: see apt --help';
+    }
+
+    _cmdSudo(args) {
+        if (args[0] === '-l') {
+            return `User ${this.user} may run the following commands on ${this.hostname}:
+    (ALL : ALL) ALL
+    (ALL) NOPASSWD: ALL`;
+        }
+        // Execute the command after sudo
+        const subCmd = args.join(' ');
+        return this._execute(subCmd) || '';
+    }
+
+    _cmdMkdir(args) {
+        const dir = args.filter(a => !a.startsWith('-'))[0];
+        if (!dir) return 'mkdir: missing operand';
+        const resolved = this._resolvePath(dir);
+        if (this.fs[resolved]) return `mkdir: cannot create directory '${dir}': File exists`;
+        const parent = resolved.substring(0, resolved.lastIndexOf('/')) || '/';
+        if (!this.fs[parent]) return `mkdir: cannot create directory '${dir}': No such file or directory`;
+        this.fs[resolved] = { type: 'dir', perms: 'drwxr-xr-x', owner: this.user, group: this.user, children: [] };
+        this.fs[parent].children.push(dir.split('/').pop());
+        return '';
+    }
+
+    _cmdTouch(args) {
+        const file = args[0];
+        if (!file) return 'touch: missing file operand';
+        const resolved = this._resolvePath(file);
+        if (!this.fs[resolved]) {
+            const parent = resolved.substring(0, resolved.lastIndexOf('/')) || '/';
+            if (!this.fs[parent]) return `touch: cannot touch '${file}': No such file or directory`;
+            this.fs[resolved] = { type: 'file', perms: '-rw-r--r--', owner: this.user, group: this.user, content: '' };
+            this.fs[parent].children.push(file.split('/').pop());
+        }
+        return '';
+    }
+
+    _cmdRm(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        if (!file) return 'rm: missing operand';
+        const resolved = this._resolvePath(file);
+        if (!this.fs[resolved]) return `rm: cannot remove '${file}': No such file or directory`;
+        delete this.fs[resolved];
+        return '';
+    }
+
+    _cmdFile(args) {
+        const file = args[0];
+        if (!file) return 'file: missing file operand';
+        const resolved = this._resolvePath(file);
+        const entry = this.fs[resolved];
+        if (!entry) return `${file}: cannot open (No such file or directory)`;
+        if (entry.type === 'dir') return `${file}: directory`;
+        return `${file}: ASCII text`;
+    }
+
+    _cmdStat(args) {
+        const file = args[0];
+        if (!file) return 'stat: missing operand';
+        const resolved = this._resolvePath(file);
+        const entry = this.fs[resolved];
+        if (!entry) return `stat: cannot stat '${file}': No such file or directory`;
+        return `  File: ${file}
+  Size: ${entry.type === 'file' ? (entry.content || '').length : 4096}        Blocks: 8          IO Block: 4096   ${entry.type}
+Access: (${entry.perms.substring(1)})  Uid: ( 1000/   ${entry.owner})   Gid: ( 1000/   ${entry.group})
+Access: 2026-01-18 10:00:00.000000000 +0000
+Modify: 2026-01-18 10:00:00.000000000 +0000
+Change: 2026-01-18 10:00:00.000000000 +0000`;
+    }
+
+    _cmdTar(args) {
+        if (args.includes('-tf') || args.includes('-tvf')) {
+            return 'file1.txt\nfile2.txt\ndir1/';
+        }
+        if (args.includes('-xf') || args.includes('-xvf') || args.includes('-xzf')) {
+            return 'Archive extracted';
+        }
+        if (args.includes('-cf') || args.includes('-cvf') || args.includes('-czf')) {
+            return 'Archive created';
+        }
+        return 'tar: usage';
+    }
+
+    _cmdSshKeygen(args) {
+        if (args.includes('-t')) {
+            return `Generating public/private ${args[args.indexOf('-t') + 1] || 'rsa'} key pair.
+Your identification has been saved in /home/${this.user}/.ssh/id_${args[args.indexOf('-t') + 1] || 'rsa'}
+Your public key has been saved in /home/${this.user}/.ssh/id_${args[args.indexOf('-t') + 1] || 'rsa'}.pub
+The key fingerprint is:
+SHA256:abcdefghijklmnopqrstuvwxyz123456789 ${this.user}@${this.hostname}`;
+        }
+        return 'ssh-keygen: generate authentication keys';
+    }
+
+    _cmdSsh(args) {
+        if (!args.length) return 'usage: ssh user@host';
+        return `ssh: connect to host ${args[0]} port 22: Connection simulated`;
+    }
+
+    _cmdPing(args) {
+        const host = args.filter(a => !a.startsWith('-'))[0];
+        if (!host) return 'ping: missing host operand';
+        return `PING ${host} (93.184.216.34) 56(84) bytes of data.
+64 bytes from ${host}: icmp_seq=1 ttl=56 time=11.4 ms
+64 bytes from ${host}: icmp_seq=2 ttl=56 time=10.8 ms
+--- ${host} ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+rtt min/avg/max/mdev = 10.800/11.100/11.400/0.300 ms`;
+    }
+
+    _cmdNslookup(args) {
+        const host = args[0];
+        if (!host) return 'nslookup: missing host';
+        return `Server:  8.8.8.8
+Address: 8.8.8.8#53
+
+Non-authoritative answer:
+Name:    ${host}
+Address: 93.184.216.34`;
+    }
+
+    _cmdArp() {
+        return `Address                  HWtype  HWaddress           Flags Mask            Iface
+192.168.1.1              ether   00:11:22:33:44:55   C                     eth0
+192.168.1.50             ether   aa:bb:cc:dd:ee:ff   C                     eth0`;
+    }
+
+    _cmdRoute() {
+        return `Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 eth0
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 eth0`;
+    }
+
+    _cmdLsblk() {
+        return `NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda      8:0    0   100G  0 disk
+├─sda1   8:1    0    50G  0 part /
+└─sda2   8:2    0    50G  0 part /home
+sdb      8:16   0   500G  0 disk
+└─sdb1   8:17   0   500G  0 part /data`;
+    }
+
+    _cmdMount() {
+        return `/dev/sda1 on / type ext4 (rw,relatime)
+/dev/sda2 on /home type ext4 (rw,relatime)
+tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
+/dev/sdb1 on /data type ext4 (rw,relatime)`;
+    }
+
+    _cmdGetfacl(args) {
+        const file = args[0];
+        if (!file) return 'getfacl: missing file operand';
+        return `# file: ${file}
+# owner: ${this.user}
+# group: ${this.user}
+user::rw-
+group::r--
+other::r--`;
+    }
+
+    _cmdVim(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        return `[Vim simulation - file: ${file || '(new)'}]
+Vim commands: i (insert), Esc (normal), :w (save), :q (quit), :wq (save+quit)`;
+    }
+
+    _cmdVmstat() {
+        return `procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0 3355648 262144 2347320    0    0    12    25   50  100  2  1 97  0  0`;
+    }
+
+    _cmdIostat() {
+        return `Linux 5.15.0-generic (${this.hostname})
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           2.34    0.00    0.98    0.15    0.00   96.53
+
+Device             tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn
+sda               5.23        45.67        89.12    1234567    2345678`;
+    }
+
+    _cmdSar() {
+        return `Linux 5.15.0-generic (${this.hostname})    01/18/2026
+
+10:00:00 AM     CPU     %user     %nice   %system   %iowait    %steal     %idle
+10:10:00 AM     all      2.34      0.00      0.98      0.15      0.00     96.53
+10:20:00 AM     all      3.12      0.00      1.05      0.22      0.00     95.61
+10:30:00 AM     all      2.89      0.00      0.87      0.18      0.00     96.06
+Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`;
+    }
+
+    // Public methods
+    getCwd() { return this.currentDir; }
+    getUser() { return this.user; }
+    getHostname() { return this.hostname; }
+}
 
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
