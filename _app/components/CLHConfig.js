@@ -1237,6 +1237,22 @@ BURN AFTER READING
                 },
             ],
 
+            // Insight Phase - analysis question after objectives complete
+            insightPhase: {
+                enabled: true,
+                question: "Before you leave, what is the dead drop passphrase?",
+                acceptedAnswers: [
+                    "the owl flies at midnight",
+                    "owl flies at midnight",
+                    "the owl flies at midnight.",
+                    "\"the owl flies at midnight\""
+                ],
+                hint: "Check for hidden files in your home directory using ls -la",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Passphrase not recognized. Did you check all files, including hidden ones?",
+                correctAnswerMessage: "Passphrase confirmed. Dead drop protocol acknowledged."
+            },
+
             remoteHosts: null,
         },
 
@@ -1402,6 +1418,22 @@ Next rotation: 0600 UTC
                     check: (cmd, state) => cmd.includes('stat') && cmd.includes('audit')
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "Before leaving the facility, which Shadow Network node is compromised?",
+                acceptedAnswers: [
+                    "gamma",
+                    "node gamma",
+                    "gamma node",
+                    "10.13.37.3"
+                ],
+                hint: "Check for hidden files in your home directory - network intel may be stored there.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Node not recognized. Review the shadow network access points.",
+                correctAnswerMessage: "Confirmed. Node Gamma flagged as compromised - avoid at all costs."
+            },
 
             remoteHosts: null,
         },
@@ -1618,6 +1650,23 @@ PHOENIX     - EXTRACTED
                 },
             ],
 
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "If extraction is required, what are the dead drop coordinates?",
+                acceptedAnswers: [
+                    "40.7484",
+                    "73.9857",
+                    "40.7484° n, 73.9857° w",
+                    "40.7484 n 73.9857 w",
+                    "under bench"
+                ],
+                hint: "Check for hidden protocol files that detail emergency procedures.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Coordinates not recognized. Review the exfiltration protocol.",
+                correctAnswerMessage: "Dead drop coordinates confirmed. Package under bench - handler notified."
+            },
+
             remoteHosts: null,
         },
 
@@ -1746,6 +1795,20 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                                (cmd.includes('REDACTED') || cmd.includes('access'))
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "Based on your analysis, which IP is making unauthorized upload attempts?",
+                acceptedAnswers: [
+                    "10.0.0.88",
+                    "10.0.0.88."
+                ],
+                hint: "Look for repeated 403 (forbidden) responses in the access log.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "IP not confirmed. Analyze the access.log for repeated 403 errors.",
+                correctAnswerMessage: "Threat actor identified: 10.0.0.88 - Flagged for monitoring."
+            },
 
             remoteHosts: null,
         },
@@ -1881,6 +1944,20 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                     check: (cmd, state) => cmd.includes('tee') && cmd.includes('reports')
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "According to the analyst notes, which IP should be monitored for persistence?",
+                acceptedAnswers: [
+                    "192.168.1.105",
+                    "192.168.1.105."
+                ],
+                hint: "Check the intel directory for analyst notes about monitoring targets.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Target IP not confirmed. Review the analyst notes in intel/.",
+                correctAnswerMessage: "Target confirmed: 192.168.1.105 - Added to persistence watchlist."
+            },
 
             remoteHosts: null,
         },
@@ -2020,6 +2097,22 @@ Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23`
                                cmd.includes('egrep') || (cmd.includes('[0-9]') && cmd.includes('\\.'))
                 },
             ],
+
+            // Insight Phase
+            insightPhase: {
+                enabled: true,
+                question: "How many failed login attempts were recorded in auth.log?",
+                acceptedAnswers: [
+                    "6",
+                    "six",
+                    "6 failed",
+                    "6 attempts"
+                ],
+                hint: "Use grep -c to count lines matching 'FAILED' in the auth log.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Count not confirmed. Use grep -c 'FAILED' logs/auth.log",
+                correctAnswerMessage: "Brute force confirmed: 6 failed attempts from hostile IP. Countermeasures deployed."
+            },
 
             remoteHosts: null,
         },
