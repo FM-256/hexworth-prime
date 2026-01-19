@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLH-016: System Intel - House of Script</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); height: 100vh; overflow: hidden; color: #00ff41; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 400px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #00ff41; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 10px 20px; border-bottom: 2px solid #00ff41; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .lab-badge { background: rgba(251, 191, 36, 0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #fbbf24; border: 1px solid #fbbf24; font-family: 'Cascadia Code', monospace; }
+        .header h1 { color: #00ff41; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #00ff41; text-decoration: none; padding: 6px 12px; background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 6px; font-size: 0.85em; }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .terminal-header { background: #0d1117; padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+        .terminal-title { color: #00ff41; font-size: 0.9em; margin-left: 10px; font-family: 'Cascadia Code', monospace; }
+        .terminal { flex: 1; padding: 20px; overflow-y: auto; min-height: 0; font-family: 'Cascadia Code', monospace; font-size: 14px; line-height: 1.6; }
+        .terminal-line { margin-bottom: 5px; white-space: pre-wrap; }
+        .output { color: #8b949e; }
+        .success { color: #3fb950; }
+        .highlight { color: #ffa657; }
+        .classified { color: #ef4444; }
+        .input-line { display: flex; align-items: center; padding: 12px 20px; background: #0d1117; border-top: 1px solid #30363d; flex-shrink: 0; }
+        .input-prompt { color: #00ff41; font-weight: bold; font-family: 'Cascadia Code', monospace; margin-right: 8px; }
+        #commandInput { flex: 1; background: transparent; border: none; color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 14px; outline: none; }
+        .mission-panel { background: rgba(13, 17, 23, 0.95); border-top: 2px solid #00ff41; padding: 20px; flex-shrink: 0; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .mission-header h3 { color: #00ff41; font-size: 1.1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .step-indicators { display: flex; gap: 8px; align-items: center; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; border: 2px solid #30363d; color: #484f58; }
+        .step-dot.active { border-color: #ffa657; background: rgba(255, 166, 87, 0.2); color: #ffa657; transform: scale(1.1); }
+        .step-dot.completed { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .step-connector { width: 20px; height: 2px; background: #30363d; }
+        .step-connector.completed { background: #3fb950; }
+        .current-mission { padding: 15px; background: rgba(255, 166, 87, 0.1); border-radius: 8px; border-left: 3px solid #ffa657; }
+        .current-mission h4 { color: #ffa657; font-size: 1em; margin-bottom: 8px; font-family: 'Cascadia Code', monospace; }
+        .current-mission p { color: #8b949e; font-size: 0.9em; }
+        .current-mission .hint { margin-top: 10px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; font-family: 'Cascadia Code', monospace; color: #00ff41; font-size: 0.85em; border: 1px solid #30363d; }
+        .all-complete { text-align: center; padding: 20px; color: #3fb950; }
+        .all-complete .checkmark { font-size: 2.5em; margin-bottom: 10px; }
+        .intel-panel { background: rgba(13, 17, 23, 0.95); padding: 25px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #00ff41; font-size: 1.3em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #00ff41; }
+        .intel-section { margin-bottom: 25px; }
+        .intel-section h3 { color: #fbbf24; font-size: 1.05em; margin-bottom: 12px; }
+        .intel-section p { color: #8b949e; font-size: 0.9em; line-height: 1.7; margin-bottom: 10px; }
+        .code-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px 15px; margin: 10px 0; font-family: 'Cascadia Code', monospace; font-size: 0.85em; }
+        .code-box .cmd { color: #00ff41; }
+        .code-box .output { color: #8b949e; margin-top: 5px; }
+        .tip-box { background: rgba(0, 255, 65, 0.1); border-left: 3px solid #00ff41; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #00ff41; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .warning-box strong { color: #ef4444; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #fbbf24; border-radius: 16px; padding: 40px; text-align: center; max-width: 450px; }
+        .modal h2 { color: #fbbf24; font-size: 1.8em; margin-bottom: 15px; }
+        .modal p { color: #8b949e; margin-bottom: 25px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; text-decoration: none; }
+        .modal-btn.primary { background: #fbbf24; color: #0d1117; }
+        .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 50vh; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="lab-badge">CLH-016</span>
+                        <h1>System Intel</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">&lt; Script House</a>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-yellow"></span>
+                    <span class="terminal-dot dot-green"></span>
+                    <span class="terminal-title" id="terminalTitle">operator@EMBASSY-WS-07:~</span>
+                </div>
+                <div class="terminal" id="terminal">
+                    <div class="terminal-line classified">[CLASSIFIED] OPERATION IRON HARVEST - Embassy Workstation Access</div>
+                    <div class="terminal-line output">[SYSTEM] Remote shell established via compromised SSH key</div>
+                    <div class="terminal-line output">[INTEL] Target: Foreign embassy IT administrator workstation</div>
+                    <div class="terminal-line" style="color: #fbbf24;">> Mission: Profile system specs before deploying collection tools</div>
+                    <div class="terminal-line output">Type <span class="highlight">help</span> for available commands.</div>
+                    <div class="terminal-line"></div>
+                </div>
+                <div class="input-line">
+                    <span class="input-prompt" id="promptDisplay">operator@EMBASSY-WS-07:~$</span>
+                    <input type="text" id="commandInput" autocomplete="off" autofocus placeholder="Enter command...">
+                </div>
+            </div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>CURRENT OBJECTIVE</h3>
+                    <div class="step-indicators">
+                        <div class="step-dot active" id="step-1">1</div>
+                        <div class="step-connector" id="conn-1"></div>
+                        <div class="step-dot" id="step-2">2</div>
+                        <div class="step-connector" id="conn-2"></div>
+                        <div class="step-dot" id="step-3">3</div>
+                        <div class="step-connector" id="conn-3"></div>
+                        <div class="step-dot" id="step-4">4</div>
+                        <div class="step-connector" id="conn-4"></div>
+                        <div class="step-dot" id="step-5">5</div>
+                    </div>
+                </div>
+                <div id="currentMissionDisplay">
+                    <div class="current-mission">
+                        <h4>IDENTIFY: System Architecture</h4>
+                        <p>Determine the kernel version and CPU architecture to know which tools will execute.</p>
+                        <div class="hint">$ uname -a</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>SYSTEM INTEL BRIEFING</h2>
+            <div class="warning-box">
+                <strong>CLASSIFIED: OPERATION IRON HARVEST</strong>
+                <p style="margin-top:8px;color:#ccc;">Embassy workstation access obtained. Profile before deploying collection tools.</p>
+            </div>
+            <div class="intel-section">
+                <h3>Why System Profiling?</h3>
+                <p>Before deploying tools on a compromised system, you must know:</p>
+                <ul style="margin-left: 20px; color: #8b949e; line-height: 1.8;">
+                    <li>CPU architecture (x86_64, ARM, etc.)</li>
+                    <li>Available memory for implants</li>
+                    <li>Disk space for staging data</li>
+                    <li>Kernel version for exploit compatibility</li>
+                </ul>
+            </div>
+            <div class="intel-section">
+                <h3>Key Commands</h3>
+                <div class="code-box">
+                    <div class="cmd">$ uname -a</div>
+                    <div class="output">System identity (kernel, arch)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ lscpu</div>
+                    <div class="output">CPU details and capabilities</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ free -h</div>
+                    <div class="output">Memory usage (human-readable)</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ df -h</div>
+                    <div class="output">Disk free space</div>
+                </div>
+                <div class="code-box">
+                    <div class="cmd">$ du -sh /path</div>
+                    <div class="output">Directory size summary</div>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>OPERATIONAL TIP:</strong>
+                <p>Long uptime = likely unpatched. Check kernel version against CVE databases.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <h2>MISSION COMPLETE</h2>
+            <p>System profile acquired. Target workstation specs documented for deployment team.</p>
+            <p style="color: #3fb950; margin-bottom: 20px;">Intel Package Ready for Transmission</p>
+            <div class="modal-buttons">
+                <a href="clh-017-find-locate.html" class="modal-btn primary">Next Module &rarr;</a>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/CLHConfig.js"></script>
+    <script src="../../../../components/CLHTerminal.js"></script>
+    <script>
+        const MODULE_ID = 'CLH-016';
+        const config = CLHConfig.getModule(MODULE_ID);
+
+        const terminal = new CLHTerminal({
+            moduleId: MODULE_ID,
+            container: '#terminal',
+            inputElement: '#commandInput',
+            onObjectiveComplete: (objectiveId, totalCompleted, total) => {
+                updateMissionUI(objectiveId, totalCompleted, total);
+            },
+            onModuleComplete: () => {
+                showCompletionModal();
+            },
+            onCommand: (cmdLine, output) => {
+                updatePromptDisplay();
+            }
+        });
+
+        function updatePromptDisplay() {
+            const cwd = terminal.getCwd();
+            const user = config.user;
+            const hostname = config.hostname;
+            const displayPath = cwd === `/home/${user}` ? '~' : cwd.replace(`/home/${user}`, '~');
+            document.getElementById('promptDisplay').textContent = `${user}@${hostname}:${displayPath}$`;
+            document.getElementById('terminalTitle').textContent = `${user}@${hostname}:${displayPath}`;
+        }
+
+        function updateMissionUI(completedId, totalCompleted, total) {
+            const stepDot = document.getElementById(`step-${completedId}`);
+            if (stepDot) {
+                stepDot.classList.remove('active');
+                stepDot.classList.add('completed');
+                stepDot.innerHTML = '\u2713';
+            }
+            if (completedId < total) {
+                const connector = document.getElementById(`conn-${completedId}`);
+                if (connector) connector.classList.add('completed');
+            }
+            if (totalCompleted < total) {
+                const nextObjective = config.objectives[totalCompleted];
+                const nextStep = document.getElementById(`step-${nextObjective.id}`);
+                if (nextStep) nextStep.classList.add('active');
+                showNextMission(nextObjective);
+            } else {
+                showAllComplete();
+            }
+        }
+
+        function showNextMission(objective) {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="current-mission">
+                    <h4>${objective.task}</h4>
+                    <p>${objective.hint}</p>
+                    <div class="hint">${objective.hint}</div>
+                </div>
+            `;
+        }
+
+        function showAllComplete() {
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="all-complete">
+                    <div class="checkmark">\u2713</div>
+                    <h4>MISSION COMPLETE</h4>
+                    <p>All objectives achieved. Well done, operator.</p>
+                </div>
+            `;
+        }
+
+        function showCompletionModal() {
+            setTimeout(() => {
+                document.getElementById('completionModal').classList.add('show');
+                saveProgress();
+            }, 800);
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['clh-016'] = { completed: true, completedAt: new Date().toISOString(), xpEarned: 75 };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        function closeModal() {
+            document.getElementById('completionModal').classList.remove('show');
+        }
+
+        updatePromptDisplay();
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

