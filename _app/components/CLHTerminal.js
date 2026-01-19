@@ -3156,7 +3156,7 @@ class CLHTerminal {
             case 'wc': output = this._cmdWc(args); break;
             case 'ps': output = this._cmdPs(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
-            case 'export': this._cmdExport(args); return;
+            case 'export': output = this._cmdExport(args); break;
             case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
             case 'df': output = this._cmdDf(args); break;
             case 'du': output = this._cmdDu(args); break;
@@ -3216,7 +3216,7 @@ class CLHTerminal {
         }
 
         // Check objectives
-        this._checkObjectives(cmdLine);
+        this._checkObjectives(cmdLine, output);
 
         // Callback
         this._onCommand(cmdLine, output);
@@ -3267,9 +3267,27 @@ class CLHTerminal {
         return '/' + result.join('/');
     }
 
-    _checkObjectives(cmdLine) {
+    _checkObjectives(cmdLine, output) {
+        // Create state object for check functions
+        const state = {
+            currentDir: this.currentDir,
+            env: this.env,
+            user: this.user,
+            hostname: this.hostname,
+            fs: this.fs
+        };
+
         for (const obj of this.objectives) {
-            if (!this.objectivesCompleted[obj.id] && obj.check(cmdLine)) {
+            if (this.objectivesCompleted[obj.id]) continue;
+
+            let completed = false;
+            if (typeof obj.check === 'function') {
+                completed = obj.check(cmdLine, state, output);
+            } else if (typeof obj.check === 'string') {
+                completed = cmdLine.includes(obj.check);
+            }
+
+            if (completed) {
                 this.objectivesCompleted[obj.id] = true;
                 this.completedCount++;
                 this._onObjectiveComplete(obj.id, this.completedCount, this.objectives.length);
@@ -3615,6 +3633,20 @@ openssh-server/stable,now 8.4p1-5 amd64 [installed]`;
         500 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages`;
         }
         return 'apt: see apt --help';
+    }
+
+    _cmdExport(args) {
+        if (!args.length) {
+            // Display all exported variables
+            return Object.entries(this.env).map(([k, v]) => `declare -x ${k}="${v}"`).join('\n');
+        }
+        // Set variable
+        const assignment = args.join(' ');
+        const match = assignment.match(/^(\w+)=(.*)$/);
+        if (match) {
+            this.env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+        }
+        return '';
     }
 
     _cmdSudo(args) {
