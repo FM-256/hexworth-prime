@@ -18,7 +18,7 @@
  * Created: January 17, 2026
  */
 
-const CLHTerminal = (function() {
+const _CLHTerminalModule = (function() {
     'use strict';
 
     // ═══════════════════════════════════════════════════════════════
