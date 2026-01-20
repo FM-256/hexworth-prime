@@ -6723,6 +6723,103 @@ OPERATOR NOTES
 SEE ALSO
        pkill(1), killall(1), ps(1), signal(7)`,
 
+            'nohup': `NOHUP(1)                        User Commands                       NOHUP(1)
+
+NAME
+       nohup - run a command immune to hangups
+
+SYNOPSIS
+       nohup COMMAND [ARG]...
+
+DESCRIPTION
+       Run COMMAND, ignoring hangup signals (SIGHUP). When you close your
+       terminal or SSH session, processes normally receive SIGHUP and
+       terminate. nohup prevents this.
+
+       If standard output is a terminal, output is appended to 'nohup.out'
+       in the current directory, or $HOME/nohup.out if that fails.
+
+       Use & at the end to run in background:
+              nohup ./script.sh &
+
+OPTIONS
+       --help  Display help and exit.
+       --version
+              Output version information and exit.
+
+EXAMPLES
+       nohup ./monitor.sh &
+              Run monitor.sh in background, immune to hangups.
+
+       nohup python server.py > server.log 2>&1 &
+              Run server, redirect all output to log file.
+
+       nohup make -j4 &
+              Run long build process that survives logout.
+
+OPERATOR NOTES
+       Use nohup when you need to:
+       • Run persistent monitoring or collection scripts
+       • Keep processes alive after closing SSH session
+       • Run long-running tasks (builds, scans, transfers)
+       • Maintain persistence (legitimately or for operations)
+
+       Alternative methods for process persistence:
+       • screen / tmux - Terminal multiplexers
+       • disown        - Remove job from shell's job table
+       • systemd       - Create service unit (permanent)
+       • cron @reboot  - Run at system boot
+
+       Check nohup processes later:
+       jobs            # If still in same shell
+       ps aux | grep nohup
+       pgrep -f "your_command"
+
+SEE ALSO
+       signal(7), disown(1), screen(1), tmux(1)`,
+
+            'pgrep': `PGREP(1)                        User Commands                       PGREP(1)
+
+NAME
+       pgrep - look up processes based on name and other attributes
+
+SYNOPSIS
+       pgrep [options] pattern
+
+DESCRIPTION
+       pgrep looks through the currently running processes and lists the
+       process IDs which match the selection criteria.
+
+OPTIONS
+       -f     Match against full command line (not just process name).
+       -l     List process name as well as process ID.
+       -u user
+              Match processes owned by user.
+       -x     Only match processes whose name exactly matches pattern.
+
+EXAMPLES
+       pgrep nginx
+              Find PIDs of nginx processes.
+
+       pgrep -f "python server"
+              Find processes with "python server" in command line.
+
+       pgrep -l sshd
+              List sshd PIDs with process names.
+
+OPERATOR NOTES
+       Use pgrep to quickly find PIDs for:
+       • Hunting malicious processes (miners, backdoors)
+       • Verifying services are running
+       • Scripting process management
+
+       Combine with kill:
+       kill $(pgrep crypto)     # Kill all crypto miners
+       pkill -9 -f backdoor     # Force kill backdoors
+
+SEE ALSO
+       ps(1), pkill(1), kill(1), grep(1)`,
+
             'jobs': `JOBS(1)                       Bash Builtins                        JOBS(1)
 
 NAME
