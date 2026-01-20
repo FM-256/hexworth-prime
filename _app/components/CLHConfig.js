@@ -4525,9 +4525,9 @@ SECTOR-6: South America
   - Active: STORM
   - Inactive: BLACKOUT (COMPROMISED)
 
-SECTOR-7: North America (RESTRICTED)
+SECTOR-7: North America (RESTRICTED) - Op NIGHTFALL [COMPROMISED]
   - Active: NONE
-  - Inactive: NIGHTFALL (COMPROMISED) *** CRITICAL ***
+  - Inactive: NIGHTFALL *** CRITICAL - INVESTIGATE ***
 
 SECTOR-8: Oceania
   - Active: NONE
