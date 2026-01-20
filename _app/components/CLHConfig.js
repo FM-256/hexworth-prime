@@ -4540,7 +4540,53 @@ NOTE: SECTOR-7 operations require ZONE-ALPHA clearance.`
                     perms: 'drwxr-xr-x',
                     owner: 'root',
                     group: 'intel',
-                    children: ['constraints.txt', 'source_report.txt', 'timeline.txt']
+                    children: ['constraints.txt', 'source_report.txt', 'timeline.txt', '.I_QUIT']
+                },
+                '/evidence/intel/.I_QUIT': {
+                    type: 'dir',
+                    perms: 'drwx------',
+                    owner: 'analyst',
+                    group: 'intel',
+                    children: ['notes.txt']
+                },
+                '/evidence/intel/.I_QUIT/notes.txt': {
+                    type: 'file',
+                    perms: '-rw-------',
+                    owner: 'analyst',
+                    group: 'intel',
+                    size: 1024,
+                    content: `I QUIT. I'M DONE. THREE WEEKS ON THIS CASE.
+=============================================
+
+To whoever picks this up after me:
+
+I've done the work. I've narrowed it down. Here's where I got:
+
+STEP 1: SECTOR-7 operation = NIGHTFALL (compromised)
+STEP 2: NIGHTFALL team = 8 operators
+STEP 3: Filter by ZONE-ALPHA clearance = 5 remain
+STEP 4: Filter by STANDBY (not on active ops) = 3 remain
+
+THE THREE SUSPECTS:
+  → CIPHER
+  → NOMAD
+  → VIPER
+
+One of these three is the traitor. I'M CERTAIN OF IT.
+
+The intercept signature is just "N" but I can't get confirmation
+on which one. Cross-reference with the signature and you'll have
+your answer. It's RIGHT THERE.
+
+I can't do this anymore. The paranoia is getting to me.
+Everyone looks like a suspect now.
+
+Format your report as: SUSPECTS:TRAITOR (alphabetical order)
+
+Good luck. You'll need it.
+
+- Former Analyst Martinez
+  (P.S. - Check /tmp if you haven't already. Hidden dead drops.)`
                 },
                 '/evidence/intel/constraints.txt': {
                     type: 'file',
