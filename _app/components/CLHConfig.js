@@ -2437,14 +2437,14 @@ TEE (Split stream):
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['logs', 'reports', '.bash_history']
+                    children: ['logs', 'reports', 'data', '.bash_history', '.grep_cheatsheet']
                 },
                 '/home/operator/logs': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['system.log', 'auth.log', 'network.log']
+                    children: ['system.log', 'auth.log', 'network.log', 'access.log', 'error.log']
                 },
                 '/home/operator/logs/system.log': {
                     type: 'file',
@@ -2498,20 +2498,125 @@ Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23`
 10:19:33 TCP 10.0.0.88:55555 -> 192.168.1.1:445 SYN_SENT
 10:20:15 TCP 172.16.0.23:61235 -> 10.0.0.5:443 ESTABLISHED`
                 },
+                '/home/operator/logs/access.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 892,
+                    content: `192.168.1.105 - - [15/Jan/2024:10:15:32] "GET /admin/login.php" 200 1234
+10.0.0.88 - - [15/Jan/2024:10:15:45] "POST /admin/login.php" 401 567
+192.168.1.42 - - [15/Jan/2024:10:16:01] "GET /index.html" 200 8901
+10.0.0.88 - - [15/Jan/2024:10:16:22] "POST /admin/login.php" 401 567
+192.168.1.105 - - [15/Jan/2024:10:17:03] "GET /api/users" 200 2345
+10.0.0.88 - - [15/Jan/2024:10:17:45] "POST /admin/login.php" 401 567
+172.16.0.23 - - [15/Jan/2024:10:18:12] "GET /dashboard" 200 4567
+10.0.0.88 - - [15/Jan/2024:10:18:55] "GET /robots.txt" 200 123
+192.168.1.105 - - [15/Jan/2024:10:19:33] "GET /admin/config.php" 403 234
+10.0.0.88 - - [15/Jan/2024:10:20:15] "GET /../../../etc/passwd" 400 0`
+                },
+                '/home/operator/logs/error.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 567,
+                    content: `[ERROR] 10:15:45 - SQL injection attempt detected from 10.0.0.88
+[WARNING] 10:16:22 - Multiple failed auth attempts from 10.0.0.88
+[ERROR] 10:17:45 - Brute force pattern detected from 10.0.0.88
+[INFO] 10:18:12 - Rate limiting enabled for 10.0.0.88
+[ERROR] 10:19:33 - Path traversal attempt blocked from 10.0.0.88
+[CRITICAL] 10:20:15 - Attack signature matched: directory traversal`
+                },
                 '/home/operator/reports': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: []
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 89,
+                    content: `Grep Output Directory
+Save your search results here using redirection:
+grep -i "error" logs/system.log > reports/errors.txt`
+                },
+                '/home/operator/data': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['suspicious_ips.txt', 'known_attackers.txt']
+                },
+                '/home/operator/data/suspicious_ips.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 156,
+                    content: `10.0.0.88 - Flagged for investigation
+10.0.0.99 - Known scanner
+172.16.100.5 - Suspicious activity
+192.168.50.123 - Under review`
+                },
+                '/home/operator/data/known_attackers.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 234,
+                    content: `# Known malicious IPs - DO NOT WHITELIST
+10.0.0.88 - Active attacker (brute force, SQL injection, path traversal)
+185.220.101.1 - Tor exit node
+45.33.32.156 - Botnet C2
+198.51.100.23 - DDoS source`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 245,
+                    content: `ls -la logs/
+cat logs/auth.log | head
+grep "FAILED" logs/auth.log
+grep -i error logs/system.log
+grep -v success logs/auth.log
+grep -c FAILED logs/auth.log
+grep -n 192.168 logs/network.log`
+                },
+                '/home/operator/.grep_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 456,
+                    content: `GREP QUICK REFERENCE
+====================
+-i  Case insensitive
+-v  Invert match (exclude)
+-c  Count matches only
+-n  Show line numbers
+-r  Recursive search
+-E  Extended regex (egrep)
+-o  Only show matched part
+-l  List files with matches
+-A3 Show 3 lines after match
+-B3 Show 3 lines before match
+-C3 Show 3 lines context
+
+REGEX BASICS:
+.     Any single character
+*     Zero or more of previous
++     One or more (use -E)
+^     Start of line
+$     End of line
+[abc] Character class
+[0-9] Digit range`
                 },
             },
 
@@ -2520,36 +2625,38 @@ Jan 15 10:20:15 shadow sshd[1238]: success login for monitor from 172.16.0.23`
                     id: 1,
                     task: 'HUNT: Case-Insensitive Search',
                     hint: 'Find "error" (any case): grep -i "error" logs/system.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-i') &&
-                               (cmd.toLowerCase().includes('error') || cmd.includes('system.log'))
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-i') &&
+                               cmd.toLowerCase().includes('error') &&
+                               output && !output.startsWith('grep:') && output.length > 0
                 },
                 {
                     id: 2,
                     task: 'EXCLUDE: Invert the Match',
                     hint: 'Show non-success lines: grep -v "success" logs/auth.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-v') &&
-                               (cmd.includes('success') || cmd.includes('auth.log'))
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-v') &&
+                               output && !output.startsWith('grep:') && output.includes('FAILED')
                 },
                 {
                     id: 3,
                     task: 'COUNT: Quantify the Threat',
                     hint: 'Count FAILED logins: grep -c "FAILED" logs/auth.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-c') &&
-                               (cmd.includes('FAILED') || cmd.includes('auth.log'))
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-c') &&
+                               output && /^\d+$/.test(output.trim()) && parseInt(output.trim()) > 0
                 },
                 {
                     id: 4,
                     task: 'LOCATE: Show Line Numbers',
                     hint: 'Show with line numbers: grep -n "192.168" logs/network.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-n') &&
-                               (cmd.includes('192.168') || cmd.includes('network'))
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-n') &&
+                               output && /^\d+:/.test(output.trim())
                 },
                 {
                     id: 5,
                     task: 'REGEX: Match IP Pattern',
                     hint: 'Use regex: grep -E "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" logs/network.log',
-                    check: (cmd, state) => (cmd.includes('grep') && cmd.includes('-E')) ||
-                               cmd.includes('egrep') || (cmd.includes('[0-9]') && cmd.includes('\\.'))
+                    check: (cmd, state, output) => ((cmd.includes('grep') && cmd.includes('-E')) ||
+                               cmd.includes('egrep')) && output && !output.startsWith('grep:') &&
+                               /\d+\.\d+\.\d+\.\d+/.test(output)
                 },
             ],
 

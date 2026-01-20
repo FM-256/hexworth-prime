@@ -7636,6 +7636,8 @@ SEE ALSO
         let ignoreCase = false;      // -i
         let invertMatch = false;     // -v
         let recursiveSearch = false; // -r (just acknowledge, don't implement)
+        let extendedRegex = false;   // -E (egrep mode - JS regex is already extended)
+        let onlyMatching = false;    // -o (only show matched portion)
 
         const nonFlagArgs = [];
         for (const arg of args) {
@@ -7644,14 +7646,18 @@ SEE ALSO
             else if (arg === '-i') ignoreCase = true;
             else if (arg === '-v') invertMatch = true;
             else if (arg === '-r') recursiveSearch = true;
+            else if (arg === '-E') extendedRegex = true;
+            else if (arg === '-o') onlyMatching = true;
             else if (arg.startsWith('-') && arg.length > 1) {
-                // Handle combined flags like -ci, -in, -cin
+                // Handle combined flags like -ci, -in, -cin, -Ei
                 for (const char of arg.slice(1)) {
                     if (char === 'c') countOnly = true;
                     else if (char === 'n') showLineNumbers = true;
                     else if (char === 'i') ignoreCase = true;
                     else if (char === 'v') invertMatch = true;
                     else if (char === 'r') recursiveSearch = true;
+                    else if (char === 'E') extendedRegex = true;
+                    else if (char === 'o') onlyMatching = true;
                 }
             } else {
                 nonFlagArgs.push(arg);
@@ -7680,14 +7686,25 @@ SEE ALSO
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            const isMatch = regex.test(line);
-            regex.lastIndex = 0; // Reset regex state for global flag
 
-            if (invertMatch ? !isMatch : isMatch) {
-                if (showLineNumbers) {
-                    matches.push(`${i + 1}:${line}`);
-                } else {
-                    matches.push(line);
+            if (onlyMatching) {
+                // -o: only show matched portions
+                const matchResult = line.match(regex);
+                if (matchResult && !invertMatch) {
+                    for (const m of matchResult) {
+                        matches.push(showLineNumbers ? `${i + 1}:${m}` : m);
+                    }
+                }
+            } else {
+                const isMatch = regex.test(line);
+                regex.lastIndex = 0; // Reset regex state for global flag
+
+                if (invertMatch ? !isMatch : isMatch) {
+                    if (showLineNumbers) {
+                        matches.push(`${i + 1}:${line}`);
+                    } else {
+                        matches.push(line);
+                    }
                 }
             }
         }
