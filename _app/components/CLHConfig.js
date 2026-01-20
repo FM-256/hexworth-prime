@@ -4765,74 +4765,37 @@ PROBABLE TRAITOR: Codename begins with "N"
                 },
             },
 
+            // OUTCOME-BASED OBJECTIVES - check what they FOUND, not how they found it
             objectives: [
                 {
                     id: 1,
-                    task: 'BRIEFING: Read mission parameters',
-                    hint: 'cat mission_brief.txt',
-                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('mission') && output && output.includes('MOLE HUNT')
+                    task: 'Identify the compromised SECTOR-7 operation',
+                    hint: 'Which operation in SECTOR-7 was compromised?',
+                    check: (cmd, state, output) => output && output.includes('NIGHTFALL')
                 },
                 {
                     id: 2,
-                    task: 'NAVIGATE: Access evidence directory',
-                    hint: 'cd evidence (or cd /evidence)',
-                    check: (cmd, state, output) => {
-                        if (cmd.includes('cd') && cmd.includes('evidence')) {
-                            return state.currentDir.includes('evidence');
-                        }
-                        if (cmd.includes('ls') && cmd.includes('evidence')) {
-                            return output && (output.includes('personnel') || output.includes('operations'));
-                        }
-                        return false;
-                    }
+                    task: 'Obtain the NIGHTFALL team roster',
+                    hint: 'Who was assigned to Operation NIGHTFALL?',
+                    check: (cmd, state, output) => output && output.includes('CIPHER') && output.includes('NOMAD') && output.includes('VIPER')
                 },
                 {
                     id: 3,
-                    task: 'INTEL: Read the traitor constraints',
-                    hint: 'cat intel/constraints.txt (or cat /evidence/intel/constraints.txt)',
-                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('constraint') && output && output.includes('ZONE-ALPHA')
+                    task: 'Narrow to ZONE-ALPHA operators on STANDBY',
+                    hint: 'Cross-reference clearance level with current status',
+                    check: (cmd, state, output) => output && output.includes('ZONE-ALPHA') && output.includes('STANDBY')
                 },
                 {
                     id: 4,
-                    task: 'RECON: Find SECTOR-7 operations',
-                    hint: 'grep "SECTOR-7" operations/zones.txt',
-                    check: (cmd, state, output) => cmd.includes('grep') && (cmd.includes('SECTOR-7') || cmd.includes('SECTOR')) && output && output.includes('NIGHTFALL')
+                    task: 'Locate the hidden dead drop',
+                    hint: 'Field operatives sometimes leave evidence in unexpected places',
+                    check: (cmd, state, output) => output && output.includes('.dead_drop')
                 },
                 {
                     id: 5,
-                    task: 'TRACE: Find NIGHTFALL team members',
-                    hint: 'grep "NIGHTFALL" operations/assignments.txt',
-                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('NIGHTFALL') && output && (output.includes('CIPHER') || output.includes('NOMAD') || output.includes('VIPER'))
-                },
-                {
-                    id: 6,
-                    task: 'FILTER: Identify ZONE-ALPHA operators',
-                    hint: 'grep "ZONE-ALPHA" personnel/operators.txt',
-                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('ZONE-ALPHA') && output && output.includes('ZONE-ALPHA')
-                },
-                {
-                    id: 7,
-                    task: 'CROSS-REF: Find STANDBY operators (not on active ops)',
-                    hint: 'grep "STANDBY" personnel/operators.txt or grep -v "ACTIVE-OP"',
-                    check: (cmd, state, output) => cmd.includes('grep') && (cmd.includes('STANDBY') || cmd.includes('-v')) && output && output.includes('STANDBY')
-                },
-                {
-                    id: 8,
-                    task: 'SEARCH: Find hidden evidence (check /tmp)',
-                    hint: 'ls -la /tmp (look for hidden directories)',
-                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-') && cmd.includes('tmp') && output && output.includes('.dead_drop')
-                },
-                {
-                    id: 9,
-                    task: 'SMOKING GUN: Read the intercepted communication',
-                    hint: 'cat /tmp/.dead_drop/intercept.log',
-                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('intercept') && output && output.includes('- N')
-                },
-                {
-                    id: 10,
-                    task: 'CONCLUDE: Narrow to 3 suspects',
-                    hint: 'grep "ZONE-ALPHA" personnel/operators.txt | grep "STANDBY"',
-                    check: 'STANDBY'
+                    task: 'Recover the smoking gun evidence',
+                    hint: 'The intercepted communication reveals the traitor\'s signature',
+                    check: (cmd, state, output) => output && output.includes('- N')
                 },
             ],
 
