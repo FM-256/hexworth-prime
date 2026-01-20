@@ -5414,6 +5414,70 @@ OPERATOR NOTES
 SEE ALSO
        sort(1), comm(1)`,
 
+            'wc': `WC(1)                           User Commands                          WC(1)
+
+NAME
+       wc - print newline, word, and byte counts
+
+SYNOPSIS
+       wc [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print  newline,  word,  and  byte  counts for each FILE, and a total
+       line if more than one FILE is specified.  A word is  a  non-zero-length
+       sequence of characters delimited by white space.
+
+       With no FILE, or when FILE is -, read standard input.
+
+       -c, --bytes
+              print the byte counts
+
+       -m, --chars
+              print the character counts
+
+       -l, --lines
+              print the newline counts
+
+       -w, --words
+              print the word counts
+
+       With no flags, wc prints lines, words, and bytes (in that order).
+
+EXAMPLES
+       wc file.txt
+              Show lines, words, and bytes for file.txt.
+
+       wc -l file.txt
+              Count only the lines in file.txt.
+
+       cat access.log | wc -l
+              Count lines from piped input.
+
+       grep "403" access.log | wc -l
+              Count how many 403 errors in the log.
+
+       ls | wc -l
+              Count files in current directory.
+
+OPERATOR NOTES
+       Use wc when you need to:
+       • Count occurrences after filtering with grep
+       • Determine file sizes in lines/words/bytes
+       • Verify expected data volume in outputs
+       • Quick sanity check on command outputs
+
+       Pro tip: wc -l is your quick counter. Common patterns:
+       grep "Failed" auth.log | wc -l     # Count failed logins
+       cat /etc/passwd | wc -l            # Count user accounts
+       find . -type f | wc -l             # Count files recursively
+
+       Combine with grep for instant statistics:
+       grep -c pattern file               # grep's built-in counter
+       grep pattern file | wc -l          # Same result, more flexible
+
+SEE ALSO
+       grep(1), cat(1)`,
+
             'cut': `CUT(1)                          User Commands                         CUT(1)
 
 NAME
@@ -7686,6 +7750,10 @@ SEE ALSO
     }
 
     _cmdWc(args, pipeInput = null) {
+        const showLines = args.includes('-l');
+        const showWords = args.includes('-w');
+        const showChars = args.includes('-c') || args.includes('-m');
+        const showAll = !showLines && !showWords && !showChars;
         const file = args.filter(a => !a.startsWith('-'))[0];
 
         // Get content from pipe or file
@@ -7696,11 +7764,19 @@ SEE ALSO
         } else if (!content) {
             return 'wc: missing file operand';
         }
-        const lines = content.split('\n').length;
+
+        const lines = content.split('\n').filter(l => l).length;
         const words = content.split(/\s+/).filter(w => w).length;
         const chars = content.length;
-        // Show filename only if we have one
-        return file ? `  ${lines}   ${words}  ${chars} ${file}` : `  ${lines}   ${words}  ${chars}`;
+
+        // Build output based on flags (order: lines, words, chars)
+        const parts = [];
+        if (showAll || showLines) parts.push(String(lines).padStart(7));
+        if (showAll || showWords) parts.push(String(words).padStart(7));
+        if (showAll || showChars) parts.push(String(chars).padStart(7));
+
+        const counts = parts.join(' ');
+        return file ? `${counts} ${file}` : counts;
     }
 
     _cmdPs(args) {
