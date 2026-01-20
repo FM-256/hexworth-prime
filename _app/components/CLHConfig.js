@@ -3408,15 +3408,82 @@ tmux                Modern terminal multiplexer`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['.bash_history']
+                    children: ['mission_brief.txt', '.bash_history', '.investigation_cheatsheet']
+                },
+                '/home/operator/mission_brief.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 512,
+                    content: `OPERATION SHADOWSTRIKE - MISSION BRIEFING
+==========================================
+Classification: CONFIDENTIAL
+Operator: ${new Date().toISOString().split('T')[0]}
+
+SITUATION:
+Server "shadow" has been compromised. Security team has
+collected evidence in /evidence directory.
+
+MISSION:
+Analyze the evidence and identify the threat actor.
+
+OBJECTIVES:
+1. Navigate to evidence directory
+2. Analyze web access logs for POST requests
+3. Extract unique IPs from authentication failures
+4. Review exfiltration activity
+5. Document findings
+
+ATTACKER IS BELIEVED TO BE ACTIVE - PROCEED WITH CAUTION`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 178,
+                    content: `cd /evidence
+ls -la
+grep "POST" access.log
+grep "FAILED" auth.log
+cat timeline.txt`
+                },
+                '/home/operator/.investigation_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 678,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          INCIDENT RESPONSE CHEATSHEET                         ║
+╚═══════════════════════════════════════════════════════════════╝
+
+LOG ANALYSIS
+────────────
+grep "POST" access.log         Find form submissions
+grep "401\\|403" access.log     Find auth failures (HTTP)
+grep "FAILED" auth.log         Find SSH/login failures
+grep -c "pattern" file         Count occurrences
+
+EXTRACT UNIQUE VALUES
+────────────────────
+cut -d " " -f 1 file           Extract first field (space delimited)
+cut -d "," -f 2 file           Extract second field (comma delimited)
+sort | uniq                    Sort and deduplicate
+sort | uniq -c                 Count unique occurrences
+
+TIMELINE CONSTRUCTION
+────────────────────
+grep "timestamp" *.log         Find events at specific time
+head -n 10 file                View first 10 lines
+tail -n 10 file                View last 10 lines
+wc -l file                     Count total lines
+
+REPORTING
+─────────
+echo "Finding" >> report.txt   Append to report
+cat log | grep X > findings    Save filtered results`
                 },
                 '/evidence': {
                     type: 'dir',
@@ -3495,32 +3562,37 @@ STATUS: ACTIVE THREAT`
                     id: 1,
                     task: 'PHASE 1: Initial Reconnaissance',
                     hint: 'Navigate to evidence: cd /evidence && ls -la',
-                    check: (cmd, state) => (cmd.includes('cd') && cmd.includes('evidence')) ||
-                               (cmd.includes('ls') && cmd.includes('evidence'))
+                    check: (cmd, state, output) => ((cmd.includes('cd') && cmd.includes('evidence')) ||
+                               (cmd.includes('ls') && cmd.includes('evidence'))) &&
+                               (output && (output.includes('access.log') || output.includes('/evidence')))
                 },
                 {
                     id: 2,
                     task: 'PHASE 2: Log Analysis',
                     hint: 'Find POST requests: grep "POST" /evidence/access.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('POST') && cmd.includes('access')
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('POST') && cmd.includes('access') &&
+                               output && output.includes('POST')
                 },
                 {
                     id: 3,
                     task: 'PHASE 3: Extract Attacker IPs',
                     hint: 'Extract unique IPs: grep FAILED /evidence/auth.log | cut -d " " -f 6 | sort | uniq',
-                    check: (cmd, state) => cmd.includes('uniq') && (cmd.includes('auth') || cmd.includes('FAILED'))
+                    check: (cmd, state, output) => cmd.includes('uniq') && (cmd.includes('auth') || cmd.includes('FAILED')) &&
+                               output && output.includes('10.0.0.88')
                 },
                 {
                     id: 4,
                     task: 'PHASE 4: Identify Exfiltration',
                     hint: 'Find large transfers: grep -E "[0-9]{7,}" /evidence/exfil.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('exfil')
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('exfil') &&
+                               output && (output.includes('TRANSFER') || output.includes('bytes'))
                 },
                 {
                     id: 5,
                     task: 'PHASE 5: Generate Report',
                     hint: 'Save report: echo "Investigation Complete" > /evidence/report.txt',
-                    check: (cmd, state) => cmd.includes('>') && cmd.includes('report')
+                    check: (cmd, state, output) => cmd.includes('>') && cmd.includes('report') &&
+                               output && output.includes('Redirected')
                 },
             ],
 
@@ -3555,7 +3627,7 @@ STATUS: ACTIVE THREAT`
             filesystem: {
                 '/home/operator': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['.ssh', 'intel', 'tools', '.bashrc']
+                    children: ['.ssh', 'intel', 'tools', '.bashrc', '.bash_history', '.sysinfo_cheatsheet']
                 },
                 '/home/operator/.ssh': {
                     type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
@@ -3565,6 +3637,46 @@ STATUS: ACTIVE THREAT`
                     type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 1675,
                     content: '-----BEGIN OPENSSH PRIVATE KEY-----\n[REDACTED - OPERATIONAL KEY]\n-----END OPENSSH PRIVATE KEY-----'
                 },
+                '/home/operator/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 78,
+                    content: `uname -a
+lscpu
+free -h
+df -h
+du -sh /home`
+                },
+                '/home/operator/.sysinfo_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          SYSTEM PROFILING CHEATSHEET                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+ARCHITECTURE INFO
+────────────────
+uname -a             Full system info
+uname -r             Kernel version
+arch                 CPU architecture
+hostnamectl          System/OS details
+
+CPU PROFILING
+────────────
+lscpu                CPU architecture info
+nproc                Number of processors
+cat /proc/cpuinfo    Detailed CPU info
+
+MEMORY ASSESSMENT
+────────────────
+free -h              Human-readable memory
+cat /proc/meminfo    Detailed memory info
+vmstat               Virtual memory stats
+
+DISK ANALYSIS
+────────────
+df -h                Filesystem space
+du -sh /path         Directory size
+lsblk                Block devices
+fdisk -l             Disk partitions`
+                },
                 '/home/operator/intel': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
                     children: ['notes.txt', 'targets.list']
@@ -3573,9 +3685,35 @@ STATUS: ACTIVE THREAT`
                     type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
                     content: 'OPERATION IRON HARVEST\n======================\nTarget: Embassy IT Admin Workstation\nAccess: SSH key compromise\nObjective: Profile system for implant deployment\n'
                 },
+                '/home/operator/intel/targets.list': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 189,
+                    content: `HIGH VALUE TARGETS
+==================
+/home/ambassador/.classified/
+/data/diplomatic-cables/
+/data/backups/
+
+SECONDARY TARGETS
+=================
+/home/attache/reports/
+/home/attache/schedules/`
+                },
                 '/home/operator/tools': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
                     children: ['recon.sh', 'exfil.py']
+                },
+                '/home/operator/tools/recon.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'operator', group: 'operator', size: 256,
+                    content: `#!/bin/bash
+# System profiling script
+echo "=== SYSTEM PROFILE ==="
+uname -a
+echo "=== CPU ==="
+lscpu | head -5
+echo "=== MEMORY ==="
+free -h
+echo "=== DISK ==="
+df -h`
                 },
                 '/home/ambassador': {
                     type: 'dir', perms: 'drwxr-x---', owner: 'ambassador', group: 'ambassador',
@@ -3600,11 +3738,16 @@ STATUS: ACTIVE THREAT`
             },
 
             objectives: [
-                { id: 1, task: 'IDENTIFY: System Architecture', hint: '$ uname -a', check: (cmd) => cmd.includes('uname') },
-                { id: 2, task: 'PROFILE: CPU Capabilities', hint: '$ lscpu', check: (cmd) => cmd.includes('lscpu') },
-                { id: 3, task: 'ASSESS: Memory Resources', hint: '$ free -h', check: (cmd) => cmd.includes('free') },
-                { id: 4, task: 'ANALYZE: Disk Space', hint: '$ df -h', check: (cmd) => cmd.includes('df') },
-                { id: 5, task: 'ESTIMATE: Target Directory Size', hint: '$ du -sh /home', check: (cmd) => cmd.includes('du') && cmd.includes('/home') },
+                { id: 1, task: 'IDENTIFY: System Architecture', hint: '$ uname -a',
+                  check: (cmd, state, output) => cmd.includes('uname') && output && output.includes('Linux') },
+                { id: 2, task: 'PROFILE: CPU Capabilities', hint: '$ lscpu',
+                  check: (cmd, state, output) => cmd.includes('lscpu') && output && output.includes('CPU') },
+                { id: 3, task: 'ASSESS: Memory Resources', hint: '$ free -h',
+                  check: (cmd, state, output) => cmd.includes('free') && output && output.includes('Mem') },
+                { id: 4, task: 'ANALYZE: Disk Space', hint: '$ df -h',
+                  check: (cmd, state, output) => cmd.includes('df') && output && output.includes('Filesystem') },
+                { id: 5, task: 'ESTIMATE: Target Directory Size', hint: '$ du -sh /home',
+                  check: (cmd, state, output) => cmd.includes('du') && cmd.includes('/home') && output && /\d/.test(output) },
             ],
 
             // Insight Phase
@@ -3638,11 +3781,76 @@ STATUS: ACTIVE THREAT`
             filesystem: {
                 '/home/hunter': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
-                    children: ['toolkit', 'reports', '.bashrc']
+                    children: ['toolkit', 'reports', '.bashrc', '.bash_history', '.find_cheatsheet']
+                },
+                '/home/hunter/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'hunter', group: 'hunter', size: 156,
+                    content: `find /home -name ".*" -type f
+find / -perm -4000 2>/dev/null
+find /tmp -type f
+find / -mtime -1 -type f 2>/dev/null
+which sudo`
+                },
+                '/home/hunter/.find_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter', size: 678,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          FILE HUNTING CHEATSHEET                              ║
+╚═══════════════════════════════════════════════════════════════╝
+
+FIND BY NAME
+────────────
+find /path -name "filename"       Exact match
+find /path -name "*.log"          Wildcard match
+find /path -name ".*"             Hidden files (dot files)
+find /path -iname "file"          Case-insensitive
+
+FIND BY TYPE
+───────────
+find /path -type f                Regular files only
+find /path -type d                Directories only
+find /path -type l                Symbolic links
+
+FIND BY PERMISSIONS
+──────────────────
+find / -perm -4000                SUID files (priv esc)
+find / -perm -2000                SGID files
+find / -perm -o+w                 World-writable files
+
+FIND BY TIME
+───────────
+find / -mtime -1                  Modified in last 24h
+find / -mtime +30                 Modified 30+ days ago
+find / -atime -7                  Accessed in last week
+find / -newer /etc/passwd         Newer than reference file
+
+LOCATE (Fast Index Search)
+─────────────────────────
+locate filename                   Search index
+whereis command                   Find binary/man pages
+which command                     Find executable path`
                 },
                 '/home/hunter/toolkit': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
                     children: ['scanner.sh', 'hasher.py']
+                },
+                '/home/hunter/toolkit/scanner.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'hunter', group: 'hunter', size: 256,
+                    content: `#!/bin/bash
+# Threat hunting scanner
+echo "=== SUID FILES ==="
+find / -perm -4000 2>/dev/null
+echo "=== HIDDEN FILES ==="
+find /home -name ".*" -type f
+echo "=== RECENT CHANGES ==="
+find / -mtime -1 -type f 2>/dev/null`
+                },
+                '/home/hunter/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'hunter', group: 'hunter',
+                    children: ['README.txt']
+                },
+                '/home/hunter/reports/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'hunter', group: 'hunter', size: 89,
+                    content: 'Save your threat findings here.\nExample: find /tmp -type f > reports/tmp_files.txt'
                 },
                 '/home/analyst': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
@@ -3703,11 +3911,20 @@ STATUS: ACTIVE THREAT`
             },
 
             objectives: [
-                { id: 1, task: 'HUNT: Hidden Dot-Files', hint: '$ find /home -name ".*" -type f', check: (cmd) => cmd.includes('find') && cmd.includes('-name') && cmd.includes('.*') },
-                { id: 2, task: 'LOCATE: SUID Backdoors', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') },
-                { id: 3, task: 'SEARCH: Temp Directory Drops', hint: '$ find /tmp -type f', check: (cmd) => cmd.includes('find') && cmd.includes('/tmp') },
-                { id: 4, task: 'TRACK: Recent Modifications', hint: '$ find / -mtime -1 -type f 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-mtime') },
-                { id: 5, task: 'VERIFY: Binary Locations', hint: '$ which sudo && whereis bash', check: (cmd) => cmd.includes('which') || cmd.includes('whereis') },
+                { id: 1, task: 'HUNT: Hidden Dot-Files', hint: '$ find /home -name ".*" -type f',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-name') && cmd.includes('.*') &&
+                         output && (output.includes('.') || output.includes('No matches'))  },
+                { id: 2, task: 'LOCATE: SUID Backdoors', hint: '$ find / -perm -4000 2>/dev/null',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') &&
+                         output && (output.includes('rws') || output.includes('/')) },
+                { id: 3, task: 'SEARCH: Temp Directory Drops', hint: '$ find /tmp -type f',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('/tmp') &&
+                         output && (output.includes('/tmp') || output.includes('beacon') || output.includes('No matches')) },
+                { id: 4, task: 'TRACK: Recent Modifications', hint: '$ find / -mtime -1 -type f 2>/dev/null',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-mtime') },
+                { id: 5, task: 'VERIFY: Binary Locations', hint: '$ which sudo && whereis bash',
+                  check: (cmd, state, output) => (cmd.includes('which') || cmd.includes('whereis')) &&
+                         output && output.includes('/') },
             ],
 
             // Insight Phase
