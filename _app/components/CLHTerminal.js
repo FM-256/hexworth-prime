@@ -611,8 +611,8 @@ const _CLHTerminalModule = (function() {
             _print(output);
         }
 
-        // Check objectives
-        _checkObjectives(cmdLine);
+        // Check objectives (pass output for 3-param checks)
+        _checkObjectives(cmdLine, output);
 
         // Scroll to bottom
         if (elements.output) {
@@ -2771,7 +2771,7 @@ ${footer}
     // OBJECTIVE TRACKING
     // ═══════════════════════════════════════════════════════════════
 
-    function _checkObjectives(cmdLine) {
+    function _checkObjectives(cmdLine, output) {
         let anyCompleted = false;
 
         for (const obj of state.objectives) {
@@ -2779,7 +2779,8 @@ ${footer}
 
             let completed = false;
             if (typeof obj.check === 'function') {
-                completed = obj.check(cmdLine, state);
+                // Pass all 3 params: cmd, state, output (for output validation)
+                completed = obj.check(cmdLine, state, output);
             } else if (typeof obj.check === 'string') {
                 completed = cmdLine.includes(obj.check);
             }

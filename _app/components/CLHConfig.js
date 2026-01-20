@@ -4348,39 +4348,50 @@ STATUS: ACTIVE THREAT`
             objectives: [
                 {
                     id: 1,
-                    task: 'PHASE 1: Initial Reconnaissance',
-                    hint: 'Navigate to evidence: cd /evidence && ls -la',
-                    check: (cmd, state, output) => ((cmd.includes('cd') && cmd.includes('evidence')) ||
-                               (cmd.includes('ls') && cmd.includes('evidence'))) &&
-                               (output && (output.includes('access.log') || output.includes('/evidence')))
+                    task: 'PHASE 1: Navigate to Evidence',
+                    hint: 'Navigate to evidence: cd /evidence (or cd evidence from home)',
+                    check: (cmd, state, output) => {
+                        // Accept cd to evidence OR ls of evidence directory
+                        if (cmd.includes('cd') && cmd.includes('evidence')) {
+                            return state.currentDir === '/evidence' || state.currentDir.includes('evidence');
+                        }
+                        if (cmd.includes('ls') && (cmd.includes('evidence') || cmd.includes('/evidence'))) {
+                            return output && output.includes('access.log');
+                        }
+                        return false;
+                    }
                 },
                 {
                     id: 2,
                     task: 'PHASE 2: Log Analysis',
-                    hint: 'Find POST requests: grep "POST" /evidence/access.log',
-                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('POST') && cmd.includes('access') &&
+                    hint: 'Find POST requests: grep "POST" access.log',
+                    check: (cmd, state, output) => cmd.includes('grep') &&
+                               (cmd.includes('POST') || cmd.includes('post')) &&
+                               cmd.includes('access') &&
                                output && output.includes('POST')
                 },
                 {
                     id: 3,
                     task: 'PHASE 3: Extract Attacker IPs',
-                    hint: 'Extract unique IPs: grep FAILED /evidence/auth.log | cut -d " " -f 6 | sort | uniq',
-                    check: (cmd, state, output) => cmd.includes('uniq') && (cmd.includes('auth') || cmd.includes('FAILED')) &&
+                    hint: 'Find failed logins: grep FAILED auth.log',
+                    check: (cmd, state, output) => cmd.includes('grep') &&
+                               (cmd.includes('FAILED') || cmd.includes('auth')) &&
                                output && output.includes('10.0.0.88')
                 },
                 {
                     id: 4,
                     task: 'PHASE 4: Identify Exfiltration',
-                    hint: 'Find large transfers: grep -E "[0-9]{7,}" /evidence/exfil.log',
-                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('exfil') &&
+                    hint: 'Review transfers: cat exfil.log (or grep TRANSFER)',
+                    check: (cmd, state, output) => (cmd.includes('cat') || cmd.includes('grep')) &&
+                               cmd.includes('exfil') &&
                                output && (output.includes('TRANSFER') || output.includes('bytes'))
                 },
                 {
                     id: 5,
-                    task: 'PHASE 5: Generate Report',
-                    hint: 'Save report: echo "Investigation Complete" > /evidence/report.txt',
-                    check: (cmd, state, output) => cmd.includes('>') && cmd.includes('report') &&
-                               output && output.includes('Redirected')
+                    task: 'PHASE 5: Confirm Attacker IP',
+                    hint: 'Review timeline: cat timeline.txt',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('timeline') &&
+                               output && output.includes('10.0.0.88')
                 },
             ],
 
