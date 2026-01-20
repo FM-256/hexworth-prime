@@ -4613,10 +4613,12 @@ class CLHTerminal {
 
         const resolved = this._resolvePath(path);
         const entry = this.fs[resolved];
+        const lsDate = 'Jan 17 09:00';
 
         if (!entry) return `ls: cannot access '${path}': No such file or directory`;
         if (entry.type !== 'dir') {
-            return longFormat ? `${entry.perms} 1 ${entry.owner} ${entry.group} ${(entry.content || '').length} Jan 18 10:00 ${path}` : path;
+            const displayName = entry.type === 'symlink' ? `${path} -> ${entry.target}` : path;
+            return longFormat ? `${entry.perms} 1 ${entry.owner} ${entry.group} ${(entry.content || '').length} ${lsDate} ${displayName}` : path;
         }
 
         let children = entry.children || [];
@@ -4629,7 +4631,11 @@ class CLHTerminal {
                 const childEntry = this.fs[childPath];
                 if (childEntry) {
                     const size = childEntry.type === 'file' ? (childEntry.content || '').length : 4096;
-                    lines.push(`${childEntry.perms} 1 ${childEntry.owner} ${childEntry.group} ${String(size).padStart(5)} Jan 18 10:00 ${child}`);
+                    let displayName = child;
+                    if (childEntry.type === 'symlink') {
+                        displayName = `${child} -> ${childEntry.target}`;
+                    }
+                    lines.push(`${childEntry.perms} 1 ${childEntry.owner} ${childEntry.group} ${String(size).padStart(5)} ${lsDate} ${displayName}`);
                 }
             }
             return lines.join('\n');
@@ -4648,10 +4654,24 @@ class CLHTerminal {
             return 'cd: empty path';
         }
 
-        const resolved = this._resolvePath(path);
-        const entry = this.fs[resolved];
+        let resolved = this._resolvePath(path);
+        let entry = this.fs[resolved];
 
         if (!entry) return `cd: ${path}: No such file or directory`;
+
+        // Follow symlinks (up to 10 levels)
+        let symlinkCount = 0;
+        while (entry && entry.type === 'symlink' && symlinkCount < 10) {
+            resolved = this._resolvePath(entry.target);
+            entry = this.fs[resolved];
+            symlinkCount++;
+            if (!entry) {
+                return `cd: ${path}: Too many levels of symbolic links`;
+            }
+        }
+
+        if (!entry) return `cd: ${path}: No such file or directory`;
+        if (entry.type === 'symlink') return `cd: ${path}: Too many levels of symbolic links`;
         if (entry.type !== 'dir') return `cd: ${path}: Not a directory`;
 
         this.currentDir = resolved;
