@@ -3503,6 +3503,11 @@ class CLHTerminal {
         let lastExitCode = 0;
         let lastOutput = '';
 
+        // Print the FULL command line once and add to history
+        this._printCommand(cmdLine);
+        this.commandHistory.push(cmdLine);
+        this.historyIndex = this.commandHistory.length;
+
         for (const chain of chains) {
             const { cmd, operator } = chain;
 
@@ -3513,7 +3518,8 @@ class CLHTerminal {
             // Handle pipe - pass previous output as input context
             const pipeInput = operator === '|' ? lastOutput : null;
 
-            const result = this._executeSingleCommand(cmd.trim(), pipeInput);
+            // fromChain=true tells _executeSingleCommand not to print or add to history
+            const result = this._executeSingleCommand(cmd.trim(), pipeInput, true);
             lastExitCode = result.exitCode;
             lastOutput = result.output;
         }
@@ -3595,18 +3601,17 @@ class CLHTerminal {
         }));
     }
 
-    _executeSingleCommand(cmdLine, pipeInput) {
+    _executeSingleCommand(cmdLine, pipeInput, fromChain = false) {
         // Store original for history
         const originalCmdLine = cmdLine;
 
-        // Add to history (only for first command in chain)
-        if (!pipeInput) {
+        // If not called from chaining, handle print and history here
+        if (!fromChain) {
             this.commandHistory.push(originalCmdLine);
             this.historyIndex = this.commandHistory.length;
+            this._printCommand(originalCmdLine);
         }
-
-        // Print command
-        this._printCommand(originalCmdLine);
+        // When fromChain=true, _executeWithChaining already handled print and history
 
         // Check for background execution (&)
         const isBackground = cmdLine.trim().endsWith('&');
