@@ -4832,7 +4832,7 @@ PROBABLE TRAITOR: Codename begins with "N"
                     id: 10,
                     task: 'CONCLUDE: Narrow to 3 suspects',
                     hint: 'grep "ZONE-ALPHA" personnel/operators.txt | grep "STANDBY"',
-                    check: (cmd, state, output) => cmd.includes('ZONE-ALPHA') && cmd.includes('STANDBY')
+                    check: 'STANDBY'
                 },
             ],
 
