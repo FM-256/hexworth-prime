@@ -4120,21 +4120,21 @@ tmux                Modern terminal multiplexer`
         },
 
         // ──────────────────────────────────────────────────────────
-        // CLH-015: Capstone Mission
-        // Theme: Final comprehensive challenge
+        // CLH-015: OPERATION MOLE HUNT (Midterm)
+        // Theme: Identify the traitor through data correlation
         // ──────────────────────────────────────────────────────────
         'CLH-015': {
-            title: 'Capstone Mission',
-            description: 'Operation Shadowstrike. Apply all skills to investigate a compromised server.',
+            title: 'OPERATION MOLE HUNT',
+            description: 'Midterm Mission: Intelligence indicates a traitor among our operators. Cross-reference personnel files to identify the mole.',
             prerequisites: ['CLH-014'],
             tier: 'CLI Phantom',
-            user: 'operator',
-            hostname: 'shadow',
-            startDir: '/home/operator',
+            user: 'analyst',
+            hostname: 'COUNTER-INTEL',
+            startDir: '/home/analyst',
             allowedCommands: null,
 
             filesystem: {
-                // Override root to include /evidence in children
+                // Override root to include /evidence and /tmp in children
                 '/': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
@@ -4142,276 +4142,673 @@ tmux                Modern terminal multiplexer`
                     group: 'root',
                     children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'sbin', 'opt', 'root', 'evidence']
                 },
-                '/home/operator': {
+                '/home/analyst': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
-                    owner: 'operator',
-                    group: 'operator',
-                    children: ['mission_brief.txt', 'tools', 'reports', 'evidence', '.bash_history', '.investigation_cheatsheet']
+                    owner: 'analyst',
+                    group: 'analyst',
+                    children: ['mission_brief.txt', 'workspace', 'evidence', '.bash_history', '.molehunt_cheatsheet']
                 },
-                '/home/operator/evidence': {
+                '/home/analyst/evidence': {
                     type: 'symlink',
                     perms: 'lrwxrwxrwx',
-                    owner: 'operator',
-                    group: 'operator',
+                    owner: 'analyst',
+                    group: 'analyst',
                     target: '/evidence'
                 },
-                '/home/operator/mission_brief.txt': {
+                '/home/analyst/mission_brief.txt': {
                     type: 'file',
                     perms: '-rw-r--r--',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 512,
-                    content: `OPERATION SHADOWSTRIKE - MISSION BRIEFING
-==========================================
-Classification: CONFIDENTIAL
-Operator: ${new Date().toISOString().split('T')[0]}
-
-SITUATION:
-Server "shadow" has been compromised. Security team has
-collected evidence in /evidence directory.
-
-MISSION:
-Analyze the evidence and identify the threat actor.
-
-OBJECTIVES:
-1. Navigate to evidence directory
-2. Analyze web access logs for POST requests
-3. Extract unique IPs from authentication failures
-4. Review exfiltration activity
-5. Document findings
-
-ATTACKER IS BELIEVED TO BE ACTIVE - PROCEED WITH CAUTION`
-                },
-                '/home/operator/.bash_history': {
-                    type: 'file',
-                    perms: '-rw-------',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 178,
-                    content: `cd /evidence
-ls -la
-grep "POST" access.log
-grep "FAILED" auth.log
-cat timeline.txt`
-                },
-                '/home/operator/.investigation_cheatsheet': {
-                    type: 'file',
-                    perms: '-rw-r--r--',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 678,
+                    owner: 'analyst',
+                    group: 'analyst',
+                    size: 1024,
                     content: `╔═══════════════════════════════════════════════════════════════╗
-║          INCIDENT RESPONSE CHEATSHEET                         ║
+║         OPERATION MOLE HUNT - CLASSIFIED BRIEFING             ║
 ╚═══════════════════════════════════════════════════════════════╝
 
-LOG ANALYSIS
-────────────
-grep "POST" access.log         Find form submissions
-grep "401\\|403" access.log     Find auth failures (HTTP)
-grep "FAILED" auth.log         Find SSH/login failures
-grep -c "pattern" file         Count occurrences
+SITUATION:
+Intelligence confirms a TRAITOR among our field operators.
+Multiple operations have been compromised. We have a mole.
 
-EXTRACT UNIQUE VALUES
-────────────────────
-cut -d " " -f 1 file           Extract first field (space delimited)
-cut -d "," -f 2 file           Extract second field (comma delimited)
-sort | uniq                    Sort and deduplicate
-sort | uniq -c                 Count unique occurrences
+YOUR MISSION:
+Cross-reference personnel databases to identify the traitor.
+Evidence has been collected in /evidence directory.
 
-TIMELINE CONSTRUCTION
-────────────────────
-grep "timestamp" *.log         Find events at specific time
-head -n 10 file                View first 10 lines
-tail -n 10 file                View last 10 lines
-wc -l file                     Count total lines
+INTELLIGENCE CONSTRAINTS (read /evidence/intel/constraints.txt):
+The traitor matches ALL of the following criteria:
+  1. Was assigned to an operation that is now INACTIVE
+  2. Has ZONE-ALPHA security clearance
+  3. Their compromised operation was in SECTOR-7
+  4. Is NOT currently assigned to any ACTIVE operation
 
-REPORTING
-─────────
-echo "Finding" >> report.txt   Append to report
-cat log | grep X > findings    Save filtered results`
+PROCESS:
+  1. Study the constraints carefully
+  2. Cross-reference the personnel and operations files
+  3. Use grep and pipes to filter data
+  4. Narrow down to exactly 3 SUSPECTS
+  5. Find the SMOKING GUN to identify the actual traitor
+
+REPORT FORMAT: SUSPECT1,SUSPECT2,SUSPECT3:TRAITOR
+(Suspects in alphabetical order)
+
+WARNING: The mole is aware they're being hunted. Work fast.
+"Trust no one. Verify everything."`
                 },
-                '/home/operator/tools': {
-                    type: 'dir',
-                    perms: 'drwxr-xr-x',
-                    owner: 'operator',
-                    group: 'operator',
-                    children: ['analyze.sh', 'extractor.sh']
-                },
-                '/home/operator/tools/analyze.sh': {
+                '/home/analyst/.bash_history': {
                     type: 'file',
-                    perms: '-rwxr-xr-x',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 234,
-                    content: `#!/bin/bash
-# Quick log analysis script
-echo "=== ACCESS LOG SUMMARY ==="
-echo "Total requests: $(wc -l < /evidence/access.log)"
-echo "POST requests: $(grep -c POST /evidence/access.log)"
-echo "Failed (401): $(grep -c 401 /evidence/access.log)"`
+                    perms: '-rw-------',
+                    owner: 'analyst',
+                    group: 'analyst',
+                    size: 384,
+                    content: `cd /evidence
+ls -la
+cat intel/constraints.txt
+cat personnel/operators.txt | head -20
+grep "ZONE-ALPHA" personnel/operators.txt
+cat operations/ops_inactive.txt
+grep "SECTOR-7" operations/zones.txt
+grep "NIGHTFALL" operations/assignments.txt
+cat personnel/operators.txt | grep "ZONE-ALPHA" | grep -v "ACTIVE"
+ls -la /tmp`
                 },
-                '/home/operator/tools/extractor.sh': {
-                    type: 'file',
-                    perms: '-rwxr-xr-x',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 189,
-                    content: `#!/bin/bash
-# IP extractor
-echo "=== UNIQUE IPs ==="
-cut -d ' ' -f 1 /evidence/access.log | sort | uniq -c | sort -rn`
-                },
-                '/home/operator/reports': {
-                    type: 'dir',
-                    perms: 'drwxr-xr-x',
-                    owner: 'operator',
-                    group: 'operator',
-                    children: ['README.txt']
-                },
-                '/home/operator/reports/README.txt': {
+                '/home/analyst/.molehunt_cheatsheet': {
                     type: 'file',
                     perms: '-rw-r--r--',
-                    owner: 'operator',
-                    group: 'operator',
-                    size: 156,
-                    content: `# Investigation Reports
+                    owner: 'analyst',
+                    group: 'analyst',
+                    size: 1024,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║              MOLE HUNT INVESTIGATION CHEATSHEET               ║
+╚═══════════════════════════════════════════════════════════════╝
 
-Save your findings here:
-  grep "pattern" /evidence/log > reports/findings.txt
-  echo "Attacker: 10.0.0.88" >> reports/summary.txt`
+FILTERING DATA
+──────────────
+grep "PATTERN" file              Find lines matching pattern
+grep -v "PATTERN" file           Find lines NOT matching pattern
+grep -i "pattern" file           Case-insensitive search
+
+CHAINING COMMANDS (PIPES)
+─────────────────────────
+cmd1 | cmd2                      Send output of cmd1 to cmd2
+grep "A" file | grep "B"         Find lines with BOTH A and B
+grep "X" file | grep -v "Y"      Find X but exclude Y
+
+CROSS-REFERENCING
+─────────────────
+grep "NAME" file1                Find person in file1
+grep "OPERATION" file2           Find operation details in file2
+
+SAVING RESULTS
+──────────────
+grep "pattern" file > output     Save results to file
+cat file1 file2 > combined       Combine files
+
+EXAMPLE WORKFLOW
+────────────────
+# Find operators with ZONE-ALPHA clearance
+grep "ZONE-ALPHA" personnel/operators.txt
+
+# Find who was on NIGHTFALL operation
+grep "NIGHTFALL" operations/assignments.txt
+
+# Chain: ZONE-ALPHA operators NOT on active ops
+grep "ZONE-ALPHA" personnel/operators.txt | grep -v "ACTIVE-OP"
+
+HIDDEN FILES: Use ls -la to find hidden directories!`
+                },
+                '/home/analyst/workspace': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'analyst',
+                    group: 'analyst',
+                    children: ['README.txt']
+                },
+                '/home/analyst/workspace/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'analyst',
+                    group: 'analyst',
+                    size: 256,
+                    content: `WORKSPACE DIRECTORY
+===================
+Use this directory to save your investigation findings.
+
+Example:
+  grep "ZONE-ALPHA" /evidence/personnel/operators.txt > workspace/alpha_cleared.txt
+  grep "NIGHTFALL" /evidence/operations/assignments.txt > workspace/nightfall_team.txt`
                 },
                 '/evidence': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'root',
-                    group: 'root',
-                    children: ['access.log', 'auth.log', 'exfil.log', 'timeline.txt']
+                    group: 'intel',
+                    children: ['personnel', 'operations', 'intel']
                 },
-                '/evidence/access.log': {
+                '/evidence/personnel': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'root',
+                    group: 'intel',
+                    children: ['operators.txt', 'clearances.txt']
+                },
+                '/evidence/personnel/operators.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 4096,
+                    content: `FIELD OPERATORS ROSTER - CLASSIFIED
+====================================
+FORMAT: CODENAME | CLEARANCE | CURRENT-STATUS
+
+APEX        | ZONE-ALPHA | ACTIVE-OP:THUNDER
+ARCHER      | ZONE-BETA  | ACTIVE-OP:SENTINEL
+ARROW       | ZONE-BETA  | STANDBY
+AVALANCHE   | ZONE-GAMMA | ACTIVE-OP:ECLIPSE
+BANDIT      | ZONE-DELTA | STANDBY
+BISHOP      | ZONE-GAMMA | ACTIVE-OP:HORIZON
+BLADE       | ZONE-BETA  | ACTIVE-OP:PHANTOM
+BLAZE       | ZONE-BETA  | STANDBY
+BOLT        | ZONE-DELTA | ACTIVE-OP:RAPTOR
+BRAVO       | ZONE-GAMMA | STANDBY
+BULLET      | ZONE-BETA  | ACTIVE-OP:STORM
+CASTLE      | ZONE-DELTA | STANDBY
+CIPHER      | ZONE-ALPHA | STANDBY
+COBRA       | ZONE-DELTA | ACTIVE-OP:VANGUARD
+CONDOR      | ZONE-GAMMA | STANDBY
+CORONA      | ZONE-ALPHA | ACTIVE-OP:ORACLE
+COYOTE      | ZONE-BETA  | STANDBY
+CROSS       | ZONE-GAMMA | ACTIVE-OP:SPECTRUM
+DAGGER      | ZONE-BETA  | ACTIVE-OP:SENTINEL
+DRAGON      | ZONE-GAMMA | STANDBY
+EAGLE       | ZONE-ALPHA | ACTIVE-OP:THUNDER
+FALCON      | ZONE-BETA  | STANDBY
+FANG        | ZONE-DELTA | ACTIVE-OP:AVALANCHE
+FROST       | ZONE-BETA  | ACTIVE-OP:ECLIPSE
+GHOST       | ZONE-GAMMA | STANDBY
+GRIFFIN     | ZONE-GAMMA | ACTIVE-OP:HORIZON
+HAWK        | ZONE-ALPHA | ACTIVE-OP:THUNDER
+HUNTER      | ZONE-BETA  | STANDBY
+HYDRA       | ZONE-GAMMA | ACTIVE-OP:SPECTRUM
+JAGUAR      | ZONE-DELTA | STANDBY
+KNIGHT      | ZONE-GAMMA | ACTIVE-OP:ORACLE
+LANCE       | ZONE-BETA  | STANDBY
+LEOPARD     | ZONE-DELTA | ACTIVE-OP:RAPTOR
+LION        | ZONE-DELTA | STANDBY
+MAVERICK    | ZONE-BETA  | ACTIVE-OP:PHANTOM
+MYSTIC      | ZONE-GAMMA | STANDBY
+NOMAD       | ZONE-ALPHA | STANDBY
+ORACLE      | ZONE-GAMMA | STANDBY
+PANTHER     | ZONE-DELTA | ACTIVE-OP:STORM
+PHOENIX     | ZONE-GAMMA | STANDBY
+PRISM       | ZONE-ALPHA | ACTIVE-OP:SENTINEL
+PYTHON      | ZONE-DELTA | STANDBY
+RANGER      | ZONE-BETA  | ACTIVE-OP:VANGUARD
+RAVEN       | ZONE-BETA  | STANDBY
+REAPER      | ZONE-GAMMA | ACTIVE-OP:AVALANCHE
+SABER       | ZONE-BETA  | STANDBY
+SCOUT       | ZONE-BETA  | ACTIVE-OP:HORIZON
+SERPENT     | ZONE-GAMMA | STANDBY
+SHADOW      | ZONE-GAMMA | STANDBY
+SHARK       | ZONE-DELTA | STANDBY
+SIERRA      | ZONE-BETA  | ACTIVE-OP:SPECTRUM
+SPECTER     | ZONE-GAMMA | ACTIVE-OP:ORACLE
+SPHINX      | ZONE-GAMMA | STANDBY
+STORM       | ZONE-BETA  | STANDBY
+STRIKER     | ZONE-BETA  | ACTIVE-OP:RAPTOR
+TALON       | ZONE-DELTA | ACTIVE-OP:ECLIPSE
+TIGER       | ZONE-DELTA | STANDBY
+TITAN       | ZONE-ALPHA | ACTIVE-OP:PHANTOM
+TRACKER     | ZONE-BETA  | STANDBY
+VENOM       | ZONE-DELTA | ACTIVE-OP:THUNDER
+VERTEX      | ZONE-ALPHA | ACTIVE-OP:STORM
+VIPER       | ZONE-ALPHA | STANDBY
+WOLF        | ZONE-ALPHA | ACTIVE-OP:SENTINEL
+WRAITH      | ZONE-GAMMA | STANDBY
+ZENITH      | ZONE-ALPHA | ACTIVE-OP:VANGUARD
+
+[END OF ROSTER - 65 OPERATORS]`
+                },
+                '/evidence/personnel/clearances.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 512,
+                    content: `SECURITY CLEARANCE LEVELS
+=========================
+
+ZONE-ALPHA: Highest clearance. Access to all sectors.
+            Can be assigned to any operation worldwide.
+            Total operators: 12
+
+ZONE-BETA:  Standard field clearance. Most common.
+            Limited to non-critical sectors.
+            Total operators: 22
+
+ZONE-GAMMA: Specialist clearance. Technical operations.
+            Cyber, signals intelligence, analysis.
+            Total operators: 18
+
+ZONE-DELTA: Support clearance. Logistics and backup.
+            Cannot lead operations.
+            Total operators: 13
+
+NOTE: Only ZONE-ALPHA personnel had access to SECTOR-7 operations.`
+                },
+                '/evidence/operations': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'root',
+                    group: 'intel',
+                    children: ['assignments.txt', 'ops_active.txt', 'ops_inactive.txt', 'zones.txt']
+                },
+                '/evidence/operations/assignments.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 2048,
+                    content: `OPERATION ASSIGNMENTS - HISTORICAL RECORD
+==========================================
+FORMAT: OPERATION | ASSIGNED OPERATORS
+
+NIGHTFALL   | CIPHER, HAWK, NOMAD, PHOENIX, RAVEN, SHADOW, VIPER, WOLF
+DARKSTAR    | APEX, DRAGON, FROST, GHOST, MYSTIC, SERPENT
+WHISPER     | ARROW, BISHOP, COBRA, GRIFFIN, LANCE, LION
+BLACKOUT    | CONDOR, COYOTE, DAGGER, ORACLE, SPHINX, WRAITH
+WINTER-SUN  | BANDIT, BLAZE, BRAVO, HUNTER, JAGUAR, STORM
+GHOSTLIGHT  | CASTLE, FALCON, PANTHER, PYTHON, SABER, SHARK
+COBRA-STRIKE| KNIGHT, LEOPARD, MAVERICK, RANGER, REAPER, TIGER
+RAVEN-EYE   | BULLET, CROSS, SCOUT, SIERRA, STRIKER, TRACKER
+
+THUNDER     | APEX, EAGLE, HAWK, VENOM
+SENTINEL    | ARCHER, DAGGER, PRISM, WOLF
+ECLIPSE     | AVALANCHE, FROST, TALON
+PHANTOM     | BLADE, MAVERICK, TITAN
+HORIZON     | BISHOP, GRIFFIN, SCOUT
+RAPTOR      | BOLT, LEOPARD, STRIKER
+STORM       | BULLET, PANTHER, VERTEX
+VANGUARD    | COBRA, RANGER, ZENITH
+ORACLE      | CORONA, KNIGHT, SPECTER
+SPECTRUM    | CROSS, HYDRA, SIERRA
+AVALANCHE   | FANG, REAPER
+
+[END OF ASSIGNMENTS]`
+                },
+                '/evidence/operations/ops_active.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 1024,
+                    content: `ACTIVE OPERATIONS
+=================
+Status: Currently running, personnel deployed
+
+OPERATION    | SECTOR    | STATUS      | TEAM SIZE
+─────────────────────────────────────────────────────
+THUNDER      | SECTOR-2  | ACTIVE      | 4
+SENTINEL     | SECTOR-4  | ACTIVE      | 4
+ECLIPSE      | SECTOR-1  | ACTIVE      | 3
+PHANTOM      | SECTOR-3  | ACTIVE      | 3
+HORIZON      | SECTOR-5  | ACTIVE      | 3
+RAPTOR       | SECTOR-2  | ACTIVE      | 3
+STORM        | SECTOR-6  | ACTIVE      | 3
+VANGUARD     | SECTOR-4  | ACTIVE      | 3
+ORACLE       | SECTOR-1  | ACTIVE      | 3
+SPECTRUM     | SECTOR-3  | ACTIVE      | 3
+AVALANCHE    | SECTOR-5  | ACTIVE      | 2
+
+Total Active Operations: 11
+Total Deployed Personnel: 34`
+                },
+                '/evidence/operations/ops_inactive.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 1536,
+                    content: `INACTIVE OPERATIONS
+===================
+Status: Terminated, compromised, or completed
+
+OPERATION    | SECTOR    | STATUS       | TERMINATION REASON
+──────────────────────────────────────────────────────────────
+NIGHTFALL    | SECTOR-7  | COMPROMISED  | Intelligence leak - op burned
+DARKSTAR     | SECTOR-3  | COMPLETED    | Objectives achieved
+WHISPER      | SECTOR-1  | COMPLETED    | Objectives achieved
+BLACKOUT     | SECTOR-6  | COMPROMISED  | Cover blown - Loss of assets
+WINTER-SUN   | SECTOR-2  | COMPLETED    | Objectives achieved
+GHOSTLIGHT   | SECTOR-4  | COMPLETED    | Objectives achieved
+COBRA-STRIKE | SECTOR-5  | COMPROMISED  | Ambush - possible leak
+RAVEN-EYE    | SECTOR-8  | COMPLETED    | Objectives achieved
+
+*** PRIORITY INVESTIGATION: NIGHTFALL ***
+Operation NIGHTFALL in SECTOR-7 was catastrophically compromised.
+All assets burned. Enemy had advance warning.
+STRONG INDICATION OF INSIDER THREAT.
+
+Total Inactive Operations: 8
+Compromised Operations: 3 (NIGHTFALL, BLACKOUT, COBRA-STRIKE)`
+                },
+                '/evidence/operations/zones.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 1024,
+                    content: `OPERATIONAL ZONES - SECTOR ASSIGNMENTS
+=======================================
+
+SECTOR-1: Eastern Europe
+  - Active: ECLIPSE, ORACLE
+  - Inactive: WHISPER (completed)
+
+SECTOR-2: Western Europe
+  - Active: THUNDER, RAPTOR
+  - Inactive: WINTER-SUN (completed)
+
+SECTOR-3: Middle East
+  - Active: PHANTOM, SPECTRUM
+  - Inactive: DARKSTAR (completed)
+
+SECTOR-4: Asia Pacific
+  - Active: SENTINEL, VANGUARD
+  - Inactive: GHOSTLIGHT (completed)
+
+SECTOR-5: Africa
+  - Active: HORIZON, AVALANCHE
+  - Inactive: COBRA-STRIKE (COMPROMISED)
+
+SECTOR-6: South America
+  - Active: STORM
+  - Inactive: BLACKOUT (COMPROMISED)
+
+SECTOR-7: North America (RESTRICTED)
+  - Active: NONE
+  - Inactive: NIGHTFALL (COMPROMISED) *** CRITICAL ***
+
+SECTOR-8: Oceania
+  - Active: NONE
+  - Inactive: RAVEN-EYE (completed)
+
+NOTE: SECTOR-7 operations require ZONE-ALPHA clearance.`
+                },
+                '/evidence/intel': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'root',
+                    group: 'intel',
+                    children: ['constraints.txt', 'source_report.txt', 'timeline.txt']
+                },
+                '/evidence/intel/constraints.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 1024,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║           TRAITOR PROFILE - CONFIRMED CONSTRAINTS             ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Source: HUMINT asset CARDINAL (reliability: A+)
+Date: 2026-01-15
+Classification: TOP SECRET
+
+The traitor matches ALL of the following criteria:
+
+┌─────────────────────────────────────────────────────────────┐
+│ CONSTRAINT 1: OPERATION HISTORY                             │
+│ The traitor was assigned to an operation that is now        │
+│ INACTIVE (compromised or completed).                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ CONSTRAINT 2: SECURITY CLEARANCE                            │
+│ The traitor has ZONE-ALPHA security clearance.              │
+│ (Only 12 operators have this level)                         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ CONSTRAINT 3: SECTOR INVOLVEMENT                            │
+│ The traitor's compromised operation was in SECTOR-7.        │
+│ (Check zones.txt for SECTOR-7 operations)                   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ CONSTRAINT 4: CURRENT STATUS                                │
+│ The traitor is NOT currently assigned to any ACTIVE op.     │
+│ (Check operators.txt - should show STANDBY, not ACTIVE-OP)  │
+└─────────────────────────────────────────────────────────────┘
+
+ANALYSIS APPROACH:
+1. Find operation in SECTOR-7 that went INACTIVE
+2. Get list of operators assigned to that operation
+3. Filter by ZONE-ALPHA clearance
+4. Exclude anyone currently on ACTIVE operations
+5. Result should be exactly 3 SUSPECTS
+
+Then find the smoking gun to identify the actual traitor.
+Check EVERYWHERE. Some evidence may be HIDDEN.`
+                },
+                '/evidence/intel/source_report.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 768,
+                    content: `INTELLIGENCE SOURCE REPORT
+==========================
+Asset: CARDINAL
+Handler: CONTROL
+Date: 2026-01-14
+
+CARDINAL reports contact with enemy handler who boasted
+about having "a friend in high places" within our organization.
+
+Enemy handler indicated:
+- The mole provided advance warning about NIGHTFALL
+- The mole has top-tier access (ZONE-ALPHA confirmed)
+- The mole is currently "lying low" (not on active operations)
+- Communications occur via dead drop in /tmp directory
+
+CARDINAL was unable to obtain the mole's identity directly.
+However, the profile constraints should narrow the field
+to a small number of suspects.
+
+RECOMMENDATION:
+Cross-reference all personnel against the constraints.
+Search for hidden communications evidence.
+
+CARDINAL adds: "The walls have ears. The mole knows you're looking."
+
+[END REPORT]`
+                },
+                '/evidence/intel/timeline.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'root',
+                    group: 'intel',
+                    size: 512,
+                    content: `OPERATION NIGHTFALL - COMPROMISE TIMELINE
+==========================================
+
+2026-01-05: NIGHTFALL team inserted into SECTOR-7
+2026-01-07: First check-in, all nominal
+2026-01-09: Team reports being surveilled
+2026-01-10: Safe house compromised, team scattered
+2026-01-11: Asset CARDINAL captured (later rescued)
+2026-01-12: NIGHTFALL officially terminated
+2026-01-13: Counter-intel launched investigation
+2026-01-14: CARDINAL provides traitor profile
+2026-01-15: YOU ARE HERE - Identify the mole
+
+The enemy knew our moves before we made them.
+This was an inside job. Find the traitor.`
+                },
+                '/tmp': {
+                    type: 'dir',
+                    perms: 'drwxrwxrwt',
+                    owner: 'root',
+                    group: 'root',
+                    children: ['cache', '.dead_drop']
+                },
+                '/tmp/cache': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'root',
+                    group: 'root',
+                    children: ['readme.txt']
+                },
+                '/tmp/cache/readme.txt': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'root',
                     group: 'root',
-                    size: 678,
-                    content: `192.168.1.105 - - [15/Jan/2024:03:42:15] "GET /index.html" 200
-192.168.1.105 - - [15/Jan/2024:03:43:22] "GET /admin/login.php" 200
-10.0.0.88 - - [15/Jan/2024:03:44:01] "POST /admin/login.php" 401
-10.0.0.88 - - [15/Jan/2024:03:44:15] "POST /admin/login.php" 401
-10.0.0.88 - - [15/Jan/2024:03:44:33] "POST /admin/login.php" 200
-10.0.0.88 - - [15/Jan/2024:03:45:12] "GET /admin/users.php" 200
-10.0.0.88 - - [15/Jan/2024:03:46:01] "POST /admin/export.php" 200
-10.0.0.88 - - [15/Jan/2024:03:47:22] "POST /admin/upload.php" 200
-10.0.0.88 - - [15/Jan/2024:03:48:45] "GET /admin/config.php" 200
-192.168.1.42 - - [15/Jan/2024:03:50:01] "GET /index.html" 200`
+                    size: 64,
+                    content: `System cache directory. Nothing interesting here.`
                 },
-                '/evidence/auth.log': {
-                    type: 'file',
-                    perms: '-rw-r--r--',
+                '/tmp/.dead_drop': {
+                    type: 'dir',
+                    perms: 'drwx------',
                     owner: 'root',
                     group: 'root',
-                    size: 456,
-                    content: `Jan 15 03:42:01 shadow sshd[1234]: success login for admin from 192.168.1.105
-Jan 15 03:43:15 shadow sshd[1235]: FAILED login for root from 10.0.0.88
-Jan 15 03:43:22 shadow sshd[1235]: FAILED login for admin from 10.0.0.88
-Jan 15 03:43:45 shadow sshd[1235]: FAILED login for operator from 10.0.0.88
-Jan 15 03:44:01 shadow sshd[1235]: FAILED login for root from 10.0.0.88
-Jan 15 03:44:33 shadow sshd[1236]: success login for admin from 10.0.0.88
-Jan 15 03:50:15 shadow sshd[1237]: success login for operator from 192.168.1.42`
+                    children: ['intercept.log']
                 },
-                '/evidence/exfil.log': {
+                '/tmp/.dead_drop/intercept.log': {
                     type: 'file',
-                    perms: '-rw-r--r--',
+                    perms: '-rw-------',
                     owner: 'root',
                     group: 'root',
-                    size: 378,
-                    content: `2024-01-15 03:46:15 TRANSFER 10.0.0.88 -> external user_database.sql 15728640 bytes
-2024-01-15 03:46:45 TRANSFER 10.0.0.88 -> external config_backup.tar 2097152 bytes
-2024-01-15 03:47:22 TRANSFER 10.0.0.88 -> external ssh_keys.tar.gz 524288 bytes
-2024-01-15 03:47:55 TRANSFER 10.0.0.88 -> external passwords.csv 1048576 bytes
-2024-01-15 03:48:30 TRANSFER 10.0.0.88 -> external shadow_copy 4096 bytes`
-                },
-                '/evidence/timeline.txt': {
-                    type: 'file',
-                    perms: '-rw-r--r--',
-                    owner: 'root',
-                    group: 'root',
-                    size: 456,
-                    content: `INCIDENT TIMELINE - Operation Shadowstrike
-============================================
-03:42 - Normal admin login from 192.168.1.105
-03:43 - Brute force attempts begin from 10.0.0.88
-03:44 - Attacker gains access via compromised credentials
-03:45 - Reconnaissance of admin panel begins
-03:46 - Mass data exfiltration initiated
-03:47 - SSH keys and credentials stolen
-03:48 - Configuration files accessed
-03:50 - Legitimate user login (unaware of breach)
-============================================
-ATTACKER IP: 10.0.0.88
-STATUS: ACTIVE THREAT`
+                    size: 1024,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║        INTERCEPTED COMMUNICATIONS - TOP SECRET                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+SIGINT INTERCEPT #4471
+Date: 2026-01-09 03:42:17 UTC
+Frequency: Encrypted burst transmission
+Decryption: PARTIAL
+
+───────────────────────────────────────────────────────────────
+FROM: [INTERNAL - COUNTER-INTEL TRACE CONFIRMS OUR NETWORK]
+TO: ENEMY HANDLER (codename: ROOK)
+───────────────────────────────────────────────────────────────
+
+ROOK,
+
+NIGHTFALL team arriving at waypoint BRAVO tomorrow 0600.
+Suggest interdiction at grid reference [REDACTED].
+Payment as agreed. CARDINAL is the priority target.
+
+The others suspect nothing. They trust me completely.
+
+Will go dark after this. Too much heat.
+Contact via usual dead drop when clear.
+
+- N
+
+───────────────────────────────────────────────────────────────
+ANALYSIS: Signature "N" consistent with single letter codename
+initial. Cross-reference with NIGHTFALL team roster.
+PROBABLE TRAITOR: Codename begins with "N"
+───────────────────────────────────────────────────────────────
+
+[END INTERCEPT]`
                 },
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'PHASE 1: Navigate to Evidence',
-                    hint: 'Navigate to evidence: cd /evidence (or cd evidence from home)',
+                    task: 'BRIEFING: Read mission parameters',
+                    hint: 'cat mission_brief.txt',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('mission') && output && output.includes('MOLE HUNT')
+                },
+                {
+                    id: 2,
+                    task: 'NAVIGATE: Access evidence directory',
+                    hint: 'cd evidence (or cd /evidence)',
                     check: (cmd, state, output) => {
-                        // Accept cd to evidence OR ls of evidence directory
                         if (cmd.includes('cd') && cmd.includes('evidence')) {
-                            return state.currentDir === '/evidence' || state.currentDir.includes('evidence');
+                            return state.currentDir.includes('evidence');
                         }
-                        if (cmd.includes('ls') && (cmd.includes('evidence') || cmd.includes('/evidence'))) {
-                            return output && output.includes('access.log');
+                        if (cmd.includes('ls') && cmd.includes('evidence')) {
+                            return output && (output.includes('personnel') || output.includes('operations'));
                         }
                         return false;
                     }
                 },
                 {
-                    id: 2,
-                    task: 'PHASE 2: Log Analysis',
-                    hint: 'Find POST requests: grep "POST" access.log',
-                    check: (cmd, state, output) => cmd.includes('grep') &&
-                               (cmd.includes('POST') || cmd.includes('post')) &&
-                               cmd.includes('access') &&
-                               output && output.includes('POST')
-                },
-                {
                     id: 3,
-                    task: 'PHASE 3: Extract Attacker IPs',
-                    hint: 'Find failed logins: grep FAILED auth.log',
-                    check: (cmd, state, output) => cmd.includes('grep') &&
-                               (cmd.includes('FAILED') || cmd.includes('auth')) &&
-                               output && output.includes('10.0.0.88')
+                    task: 'INTEL: Read the traitor constraints',
+                    hint: 'cat intel/constraints.txt (or cat /evidence/intel/constraints.txt)',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('constraint') && output && output.includes('ZONE-ALPHA')
                 },
                 {
                     id: 4,
-                    task: 'PHASE 4: Identify Exfiltration',
-                    hint: 'Review transfers: cat exfil.log (or grep TRANSFER)',
-                    check: (cmd, state, output) => (cmd.includes('cat') || cmd.includes('grep')) &&
-                               cmd.includes('exfil') &&
-                               output && (output.includes('TRANSFER') || output.includes('bytes'))
+                    task: 'RECON: Find SECTOR-7 operations',
+                    hint: 'grep "SECTOR-7" operations/zones.txt',
+                    check: (cmd, state, output) => cmd.includes('grep') && (cmd.includes('SECTOR-7') || cmd.includes('SECTOR')) && output && output.includes('NIGHTFALL')
                 },
                 {
                     id: 5,
-                    task: 'PHASE 5: Confirm Attacker IP',
-                    hint: 'Review timeline: cat timeline.txt',
-                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('timeline') &&
-                               output && output.includes('10.0.0.88')
+                    task: 'TRACE: Find NIGHTFALL team members',
+                    hint: 'grep "NIGHTFALL" operations/assignments.txt',
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('NIGHTFALL') && output && (output.includes('CIPHER') || output.includes('NOMAD') || output.includes('VIPER'))
+                },
+                {
+                    id: 6,
+                    task: 'FILTER: Identify ZONE-ALPHA operators',
+                    hint: 'grep "ZONE-ALPHA" personnel/operators.txt',
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('ZONE-ALPHA') && output && output.includes('ZONE-ALPHA')
+                },
+                {
+                    id: 7,
+                    task: 'CROSS-REF: Find STANDBY operators (not on active ops)',
+                    hint: 'grep "STANDBY" personnel/operators.txt or grep -v "ACTIVE-OP"',
+                    check: (cmd, state, output) => cmd.includes('grep') && (cmd.includes('STANDBY') || cmd.includes('-v')) && output && output.includes('STANDBY')
+                },
+                {
+                    id: 8,
+                    task: 'SEARCH: Find hidden evidence (check /tmp)',
+                    hint: 'ls -la /tmp (look for hidden directories)',
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-') && cmd.includes('tmp') && output && output.includes('.dead_drop')
+                },
+                {
+                    id: 9,
+                    task: 'SMOKING GUN: Read the intercepted communication',
+                    hint: 'cat /tmp/.dead_drop/intercept.log',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('intercept') && output && output.includes('- N')
+                },
+                {
+                    id: 10,
+                    task: 'CONCLUDE: Identify the traitor from the evidence',
+                    hint: 'The signature "N" and NIGHTFALL + ZONE-ALPHA + STANDBY narrows it down',
+                    check: (cmd, state, output) => {
+                        // They've done the work if they grep for NOMAD or review their findings
+                        return (cmd.includes('grep') && (cmd.includes('NOMAD') || cmd.includes('"N"'))) ||
+                               (cmd.includes('cat') && output && output.includes('NOMAD'));
+                    }
                 },
             ],
 
-            // Insight Phase
+            // Insight Phase - Compounded Answer
             insightPhase: {
                 enabled: true,
-                question: "What is the attacker's IP address?",
-                acceptedAnswers: ["10.0.0.88", "10.0.0.88."],
-                hint: "Check the timeline.txt or auth.log for the threat actor's IP.",
+                question: "Enter your findings in format: SUSPECT1,SUSPECT2,SUSPECT3:TRAITOR (suspects alphabetical)",
+                acceptedAnswers: [
+                    "CIPHER,NOMAD,VIPER:NOMAD",
+                    "cipher,nomad,viper:nomad",
+                    "CIPHER, NOMAD, VIPER:NOMAD",
+                    "CIPHER,NOMAD,VIPER: NOMAD",
+                    "CIPHER, NOMAD, VIPER: NOMAD"
+                ],
+                hint: "NIGHTFALL team + ZONE-ALPHA + STANDBY = 3 suspects. The intercept signature reveals which one.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "IP not confirmed. Review the evidence logs for the attacker's source.",
-                correctAnswerMessage: "ATTACKER CONFIRMED: 10.0.0.88. Intel package ready for command."
+                wrongAnswerMessage: "Analysis incomplete. Cross-reference all constraints and find the smoking gun.",
+                correctAnswerMessage: "TRAITOR CONFIRMED: NOMAD. Counter-intel team dispatched. Outstanding work, analyst."
             },
 
             remoteHosts: null,
@@ -6936,29 +7333,268 @@ guest:x:1004:`
             filesystem: {
                 '/home/monitor': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
-                    children: ['dashboards', 'alerts', '.bashrc']
+                    children: ['dashboards', 'alerts', 'scripts', 'reports', '.bashrc', '.bash_history', '.monitoring_cheatsheet']
+                },
+                '/home/monitor/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'monitor', group: 'monitor', size: 312,
+                    content: `ps aux
+ps aux | head -20
+ps aux --sort=-%cpu | head
+top
+htop
+free -h
+vmstat 1 5
+iostat -x 1 3
+df -h
+du -sh /var/log/*
+cat /proc/loadavg
+uptime
+cat alerts/suspicious_proc.txt | grep -i miner
+`
+                },
+                '/home/monitor/.monitoring_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 1024,
+                    content: `MONITORING CHEATSHEET
+=====================
+
+PROCESS COMMANDS:
+  ps aux                   # All processes with details
+  ps aux --sort=-%cpu      # Sort by CPU (highest first)
+  ps aux --sort=-%mem      # Sort by memory
+  ps -ef --forest          # Process tree view
+  top                      # Real-time process viewer
+  htop                     # Interactive process viewer
+
+MEMORY COMMANDS:
+  free -h                  # Human-readable memory info
+  cat /proc/meminfo        # Detailed memory stats
+  vmstat 1 5               # Virtual memory stats (1 sec, 5 times)
+
+DISK COMMANDS:
+  df -h                    # Disk space usage
+  du -sh /*                # Directory sizes
+  iostat -x               # I/O statistics
+  iotop                    # Real-time I/O monitor
+
+CPU COMMANDS:
+  cat /proc/loadavg        # Load averages
+  uptime                   # System uptime and load
+  mpstat                   # CPU statistics
+
+THREAT INDICATORS:
+  - Process using >90% CPU = potential miner
+  - Unknown process in /tmp = suspicious
+  - Netcat (nc) with persistent connection = C2
+  - Process name matches PID (e.g. "6666") = hiding
+
+ANSWER: Rogue PID is 6666 (xmrig cryptominer)
+`
                 },
                 '/home/monitor/dashboards': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
-                    children: ['cpu_history.log', 'memory_history.log']
+                    children: ['cpu_history.log', 'memory_history.log', 'network_io.log', 'process_count.log']
+                },
+                '/home/monitor/dashboards/cpu_history.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 512,
+                    content: `CPU HISTORY LOG - OPS-CENTER
+=============================
+2026-01-17 08:00  NORMAL    12% avg
+2026-01-17 09:00  NORMAL    15% avg
+2026-01-17 10:00  NORMAL    18% avg
+2026-01-17 11:00  WARNING   45% avg (spike detected)
+2026-01-17 12:00  CRITICAL  95% avg (ALERT TRIGGERED)
+2026-01-17 13:00  CRITICAL  97% avg (cryptominer active)
+`
+                },
+                '/home/monitor/dashboards/memory_history.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
+                    content: `MEMORY HISTORY LOG - OPS-CENTER
+================================
+2026-01-17 08:00  2.1GB / 8GB  (26%)
+2026-01-17 09:00  2.3GB / 8GB  (29%)
+2026-01-17 10:00  2.8GB / 8GB  (35%)
+2026-01-17 11:00  4.2GB / 8GB  (52%) - WARNING
+2026-01-17 12:00  6.8GB / 8GB  (85%) - CRITICAL
+`
+                },
+                '/home/monitor/dashboards/network_io.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
+                    content: `NETWORK I/O LOG - OPS-CENTER
+=============================
+2026-01-17 11:45  OUTBOUND: 10.0.0.88:4444 - 15MB/hr (suspicious)
+2026-01-17 12:00  OUTBOUND: 10.0.0.88:4444 - 45MB/hr (C2 traffic?)
+2026-01-17 12:30  OUTBOUND: mining.pool.xxx:3333 - 2MB/hr
+Note: PID 6666 established connection to mining pool
+`
+                },
+                '/home/monitor/dashboards/process_count.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 256,
+                    content: `PROCESS COUNT LOG
+=================
+Normal baseline: 85-110 processes
+2026-01-17 11:00: 112 processes (+2 unknown)
+Unknown PIDs: 6666 (xmrig), 7777 (nc)
+`
                 },
                 '/home/monitor/alerts': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
-                    children: ['high_cpu.txt', 'suspicious_proc.txt']
+                    children: ['high_cpu.txt', 'suspicious_proc.txt', 'network_anomaly.txt', 'README.txt']
+                },
+                '/home/monitor/alerts/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 256,
+                    content: `ALERT SYSTEM README
+===================
+Alerts are generated automatically when thresholds exceed:
+- CPU > 80% for 5+ minutes
+- Memory > 85%
+- Unknown processes spawn
+- Outbound connections to non-whitelisted IPs
+
+Review suspicious_proc.txt for current threats.
+`
                 },
                 '/home/monitor/alerts/suspicious_proc.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 256,
-                    content: 'SUSPICIOUS PROCESSES DETECTED\n==============================\nPID 6666 - xmrig (cryptominer) - 95% CPU\nPID 7777 - nc (netcat) - Persistent connection to 10.0.0.88\nPID 8888 - /tmp/.hidden/backdoor\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 512,
+                    content: `SUSPICIOUS PROCESSES DETECTED
+==============================
+*** ROGUE PID IDENTIFIED: 6666 ***
+
+PID 6666 - xmrig (cryptominer) - 95% CPU
+  └── Parent: unknown (possible rootkit)
+  └── Location: /tmp/.hidden/xmrig
+  └── Connection: mining.pool.xxx:3333
+
+PID 7777 - nc (netcat) - Persistent connection
+  └── Destination: 10.0.0.88:4444 (C2 server)
+  └── Duration: 3 hours continuous
+
+PID 8888 - /tmp/.hidden/backdoor
+  └── Persistence: cron @reboot
+  └── Function: Reverse shell
+
+ACTION: Investigate PID 6666 immediately
+`
+                },
+                '/home/monitor/alerts/high_cpu.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
+                    content: `HIGH CPU ALERT
+==============
+Timestamp: 2026-01-17 12:00:00
+Threshold: 80%
+Current: 97%
+
+Top Offenders:
+1. xmrig (PID 6666) - 95.2% - CRYPTOMINER DETECTED
+2. backdoor (PID 8888) - 1.2%
+3. nc (PID 7777) - 0.8%
+
+Recommendation: Terminate PID 6666 and investigate origin
+`
+                },
+                '/home/monitor/alerts/network_anomaly.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
+                    content: `NETWORK ANOMALY ALERT
+=====================
+Detected: Outbound connection to non-whitelisted host
+
+Source: PID 7777 (nc)
+Destination: 10.0.0.88:4444
+Protocol: TCP
+Duration: Persistent (3+ hours)
+Data transferred: 62MB
+
+This pattern matches Command & Control (C2) behavior.
+`
+                },
+                '/home/monitor/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
+                    children: ['check_cpu.sh', 'kill_miners.sh']
+                },
+                '/home/monitor/scripts/check_cpu.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'monitor', group: 'monitor', size: 256,
+                    content: `#!/bin/bash
+# check_cpu.sh - Find high CPU processes
+echo "=== TOP CPU CONSUMERS ==="
+ps aux --sort=-%cpu | head -10
+echo ""
+echo "=== LOAD AVERAGE ==="
+cat /proc/loadavg
+`
+                },
+                '/home/monitor/scripts/kill_miners.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'monitor', group: 'monitor', size: 256,
+                    content: `#!/bin/bash
+# kill_miners.sh - Terminate known cryptominer processes
+# WARNING: Requires root privileges
+MINERS="xmrig minerd cpuminer"
+for miner in $MINERS; do
+    pkill -9 $miner && echo "Killed: $miner"
+done
+`
+                },
+                '/home/monitor/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'monitor', group: 'monitor',
+                    children: ['daily_summary.txt', 'incident_report.txt']
+                },
+                '/home/monitor/reports/daily_summary.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
+                    content: `DAILY MONITORING SUMMARY
+========================
+Date: 2026-01-17
+System: OPS-CENTER
+
+Status: COMPROMISED
+Alerts: 4 CRITICAL
+Incidents: 1 (cryptominer + C2)
+
+Rogue PID: 6666
+Action Required: IMMEDIATE
+
+Summary: System compromised by cryptominer at 11:00.
+C2 channel established via netcat. Backdoor persistence detected.
+`
+                },
+                '/home/monitor/reports/incident_report.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 512,
+                    content: `INCIDENT REPORT - IR-2026-0117-001
+===================================
+Classification: HIGH
+
+INDICATORS OF COMPROMISE:
+1. Cryptominer (xmrig) - PID 6666
+2. C2 Channel (netcat) - PID 7777
+3. Backdoor persistence - PID 8888
+
+TIMELINE:
+11:00 - Initial compromise (unknown vector)
+11:05 - xmrig deployed, CPU spike
+11:10 - C2 channel established
+11:15 - Backdoor installed in cron
+
+ROOT CAUSE: Under investigation
+`
+                },
+                '/home/monitor/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 128,
+                    content: '# Monitor .bashrc\nexport PS1="[monitor@OPS-CENTER]$ "\nalias ll="ls -la"\nalias topcpu="ps aux --sort=-%cpu | head"\n'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'VIEW: Process List', hint: '$ ps aux', check: (cmd) => cmd.includes('ps') },
-                { id: 2, task: 'MONITOR: Real-time', hint: '$ top (or htop)', check: (cmd) => cmd.includes('top') },
-                { id: 3, task: 'CHECK: Memory Usage', hint: '$ free -h', check: (cmd) => cmd.includes('free') },
-                { id: 4, task: 'VIEW: Disk I/O', hint: '$ iostat (or vmstat)', check: (cmd) => cmd.includes('iostat') || cmd.includes('vmstat') || cmd.includes('iotop') },
-                { id: 5, task: 'FIND: High CPU Process', hint: '$ ps aux --sort=-%cpu | head', check: (cmd) => cmd.includes('ps') && (cmd.includes('sort') || cmd.includes('cpu')) },
+                { id: 1, task: 'VIEW: Process List', hint: '$ ps aux', check: (cmd, state, output) => cmd.includes('ps') && output && output.includes('PID') },
+                { id: 2, task: 'MONITOR: Real-time View', hint: '$ top (or htop)', check: (cmd, state, output) => cmd.includes('top') || cmd.includes('htop') },
+                { id: 3, task: 'CHECK: Memory Usage', hint: '$ free -h', check: (cmd, state, output) => cmd.includes('free') && output && (output.includes('Mem') || output.includes('total')) },
+                { id: 4, task: 'VIEW: System Stats', hint: '$ vmstat or iostat', check: (cmd, state, output) => (cmd.includes('vmstat') || cmd.includes('iostat') || cmd.includes('iotop')) },
+                { id: 5, task: 'FIND: Suspicious Process', hint: 'Check alerts/suspicious_proc.txt', check: (cmd, state, output) => output && (output.includes('6666') || output.includes('xmrig') || output.includes('cryptominer')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the PID of the rogue cryptominer process?",
+                acceptedAnswers: ["6666", "PID 6666"],
+                hint: "Read the suspicious_proc.txt alert file for the rogue PID.",
+                hintAfterAttempts: 3
+            },
 
             remoteHosts: null,
         },
@@ -6980,33 +7616,317 @@ guest:x:1004:`
             filesystem: {
                 '/home/operator': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['training', 'configs', '.vimrc', '.bashrc']
+                    children: ['training', 'configs', 'missions', 'scripts', '.vimrc', '.bashrc', '.bash_history', '.vim_cheatsheet']
+                },
+                '/home/operator/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 256,
+                    content: `vim training/practice.txt
+cat .vimrc
+vim configs/network.conf
+vim missions/op_serpent.txt
+cat .vim_cheatsheet
+vim --version
+ls -la
+cat training/vim_modes.txt
+`
+                },
+                '/home/operator/.vim_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 1536,
+                    content: `VIM SURVIVAL CHEATSHEET
+=======================
+Field Operatives Edition - MEMORIZE THIS
+
+MODES:
+  i     = Insert mode (type text)
+  ESC   = Return to Normal mode
+  v     = Visual mode (select text)
+  :     = Command mode
+
+NAVIGATION (Normal mode):
+  h j k l  = left/down/up/right
+  w        = next word
+  b        = previous word
+  0        = start of line
+  $        = end of line
+  gg       = top of file
+  G        = bottom of file
+  :42      = go to line 42
+
+EDITING:
+  dd    = delete line
+  yy    = copy (yank) line
+  p     = paste after cursor
+  u     = undo
+  Ctrl+r = redo
+  x     = delete character
+  r     = replace character
+
+SAVE & QUIT:
+  :w    = save (write)
+  :q    = quit
+  :wq   = save and quit
+  :q!   = quit without saving (force)
+  ZZ    = save and quit (shortcut)
+
+SEARCH:
+  /pattern  = search forward
+  ?pattern  = search backward
+  n         = next match
+  N         = previous match
+
+FIELD TIP: If vim freezes, you pressed Ctrl+S
+Fix: Press Ctrl+Q to unfreeze
+
+ESCAPE SEQUENCE: VIMLOCK
+(Remember: V-I-M-L-O-C-K = "Vim Is My Lock On Chaos Key")
+`
+                },
+                '/home/operator/.vimrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
+                    content: `" Field Operator .vimrc
+" Optimized for stealth operations
+
+set number           " Show line numbers
+syntax on            " Enable syntax highlighting
+set tabstop=4        " Tab = 4 spaces
+set autoindent       " Auto-indent new lines
+set hlsearch         " Highlight search results
+set incsearch        " Incremental search
+set nobackup         " No backup files (OPSEC)
+set noswapfile       " No swap files (leave no trace)
+set encoding=utf-8   " UTF-8 encoding
+
+" Escape Sequence: VIMLOCK
+" This is your vim mastery confirmation code
+`
+                },
+                '/home/operator/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 128,
+                    content: '# Operator .bashrc\nexport PS1="[operator@FIELD-OPS]$ "\nexport EDITOR=vim\nalias vi="vim"\nalias ll="ls -la"\n'
                 },
                 '/home/operator/training': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['practice.txt', 'mission_template.txt']
+                    children: ['practice.txt', 'mission_template.txt', 'vim_modes.txt', 'README.txt']
+                },
+                '/home/operator/training/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 384,
+                    content: `VIM TRAINING DIRECTORY
+======================
+Welcome to vim training, operative.
+
+Why vim?
+- Available on EVERY Linux/Unix system
+- Works over low-bandwidth SSH connections
+- Leaves no GUI traces
+- Fast once mastered
+
+Start with practice.txt, then read vim_modes.txt.
+Check your .vim_cheatsheet for quick reference.
+`
                 },
                 '/home/operator/training/practice.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
-                    content: 'VIM PRACTICE FILE\n=================\nLine 1: The quick brown fox\nLine 2: jumps over the lazy dog\nLine 3: Pack my box with five dozen\nLine 4: liquor jugs\nLine 5: How vexingly quick daft zebras jump\n'
+                    content: `VIM PRACTICE FILE
+=================
+Line 1: The quick brown fox
+Line 2: jumps over the lazy dog
+Line 3: Pack my box with five dozen
+Line 4: liquor jugs
+Line 5: How vexingly quick daft zebras jump
+
+EXERCISES:
+1. Navigate to line 4 using :4
+2. Delete line 4 using dd
+3. Undo with u
+4. Search for "fox" using /fox
+5. Go to end of file with G
+6. Save and quit with :wq
+
+Practice until these are muscle memory.
+`
                 },
-                '/home/operator/.vimrc': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
-                    content: '" Operator .vimrc\nset number\nset syntax=on\nset tabstop=4\nset autoindent\n'
+                '/home/operator/training/mission_template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 384,
+                    content: `MISSION REPORT TEMPLATE
+=======================
+OPERATION: [NAME]
+DATE: [YYYY-MM-DD]
+HANDLER: [CODENAME]
+
+OBJECTIVE:
+[Describe mission objective]
+
+EXECUTION:
+[Step-by-step account]
+
+OUTCOME:
+[ ] SUCCESS
+[ ] PARTIAL
+[ ] COMPROMISED
+
+NOTES:
+[Additional observations]
+`
+                },
+                '/home/operator/training/vim_modes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 640,
+                    content: `VIM MODES EXPLAINED
+===================
+
+NORMAL MODE (default):
+  - Navigation and commands
+  - Press ESC to return here
+  - Most time spent here when skilled
+
+INSERT MODE:
+  - Press 'i' to enter
+  - Type text normally
+  - Press ESC to exit
+
+VISUAL MODE:
+  - Press 'v' to enter
+  - Select text with movement keys
+  - Operations affect selected text
+
+COMMAND MODE:
+  - Press ':' to enter
+  - Type commands like :wq, :q!, :set number
+  - Press ENTER to execute
+
+TIP: If lost, press ESC multiple times to return to Normal mode.
+`
                 },
                 '/home/operator/configs': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['network.conf', 'services.conf']
+                    children: ['network.conf', 'services.conf', 'ssh_config']
+                },
+                '/home/operator/configs/network.conf': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
+                    content: `# Network Configuration
+# Field Operations Server
+
+INTERFACE=eth0
+IP_ADDRESS=10.0.0.42
+SUBNET_MASK=255.255.255.0
+GATEWAY=10.0.0.1
+DNS_PRIMARY=8.8.8.8
+DNS_SECONDARY=1.1.1.1
+
+# Proxy settings for covert ops
+PROXY_ENABLED=true
+PROXY_HOST=proxy.field-ops.local
+PROXY_PORT=8080
+`
+                },
+                '/home/operator/configs/services.conf': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
+                    content: `# Services Configuration
+
+[SSH]
+Port=22
+PermitRootLogin=no
+PasswordAuthentication=no
+
+[HTTP]
+Port=80
+SSL_Port=443
+
+[VPN]
+Port=1194
+Protocol=UDP
+`
+                },
+                '/home/operator/configs/ssh_config': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 256,
+                    content: `# SSH Client Config
+Host handler
+    HostName 10.0.0.1
+    User specter
+    IdentityFile ~/.ssh/id_ed25519
+
+Host *
+    ServerAliveInterval 60
+    AddKeysToAgent yes
+`
+                },
+                '/home/operator/missions': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['op_serpent.txt', 'mission_log.txt']
+                },
+                '/home/operator/missions/op_serpent.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
+                    content: `OPERATION SERPENT
+=================
+Classification: SECRET
+
+STATUS: DRAFT - NEEDS EDITING
+
+Objective: Infiltrate target network
+Timeline: 72 hours
+
+Phase 1: Reconnaissance (complete)
+Phase 2: Initial access (in progress)
+Phase 3: Persistence (pending)
+Phase 4: Exfiltration (pending)
+
+TODO: Edit this file with vim to add notes.
+Use :wq to save your changes.
+`
+                },
+                '/home/operator/missions/mission_log.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 384,
+                    content: `MISSION LOG
+===========
+2026-01-17 08:00 - Arrived at FIELD-OPS station
+2026-01-17 08:15 - Reviewed vim training materials
+2026-01-17 09:00 - Practiced navigation commands
+2026-01-17 10:00 - Edited first config file successfully
+2026-01-17 11:00 - Ready for field deployment
+
+Note: Remember escape sequence VIMLOCK for verification.
+`
+                },
+                '/home/operator/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['quick_edit.sh', 'backup_configs.sh']
+                },
+                '/home/operator/scripts/quick_edit.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'operator', group: 'operator', size: 256,
+                    content: `#!/bin/bash
+# quick_edit.sh - Open file in vim with line numbers
+if [ -z "$1" ]; then
+    echo "Usage: ./quick_edit.sh <filename>"
+    exit 1
+fi
+vim -c "set number" "$1"
+`
+                },
+                '/home/operator/scripts/backup_configs.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'operator', group: 'operator', size: 256,
+                    content: `#!/bin/bash
+# backup_configs.sh - Backup config files
+DATE=$(date +%Y%m%d)
+tar -czf configs_backup_$DATE.tar.gz configs/
+echo "Configs backed up to configs_backup_$DATE.tar.gz"
+`
                 },
             },
 
             objectives: [
-                { id: 1, task: 'OPEN: Practice File', hint: '$ vim training/practice.txt', check: (cmd) => cmd.includes('vim') || cmd.includes('vi') },
-                { id: 2, task: 'READ: Vim Config', hint: '$ cat ~/.vimrc', check: (cmd) => cmd.includes('vimrc') },
-                { id: 3, task: 'LEARN: Vim Help', hint: '$ vim (then :help in vim)', check: (cmd) => cmd.includes('vim') },
-                { id: 4, task: 'EDIT: Config File', hint: '$ vim configs/network.conf', check: (cmd) => cmd.includes('vim') && cmd.includes('conf') },
-                { id: 5, task: 'PRACTICE: Navigation', hint: 'Open any file with vim', check: (cmd) => cmd.includes('vim') || cmd.includes('vi') },
+                { id: 1, task: 'OPEN: Practice File', hint: '$ vim training/practice.txt', check: (cmd, state, output) => (cmd.includes('vim') || cmd.includes('vi')) && cmd.includes('practice') },
+                { id: 2, task: 'READ: Vim Config', hint: '$ cat ~/.vimrc', check: (cmd, state, output) => cmd.includes('vimrc') && output && output.includes('set number') },
+                { id: 3, task: 'STUDY: Vim Modes', hint: '$ cat training/vim_modes.txt', check: (cmd, state, output) => output && (output.includes('NORMAL MODE') || output.includes('INSERT MODE')) },
+                { id: 4, task: 'REVIEW: Cheatsheet', hint: '$ cat .vim_cheatsheet', check: (cmd, state, output) => output && output.includes('VIMLOCK') },
+                { id: 5, task: 'EDIT: Mission File', hint: '$ vim missions/op_serpent.txt', check: (cmd, state, output) => (cmd.includes('vim') || cmd.includes('vi')) && (cmd.includes('mission') || cmd.includes('serpent') || cmd.includes('conf')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the vim mastery escape sequence mentioned in the training materials?",
+                acceptedAnswers: ["VIMLOCK", "vimlock"],
+                hint: "Check the .vim_cheatsheet or .vimrc files for the escape sequence.",
+                hintAfterAttempts: 3
+            },
 
             remoteHosts: null,
         },
@@ -7028,71 +7948,458 @@ guest:x:1004:`
             filesystem: {
                 '/home/ghost': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['mission', 'tools', 'staging', '.bashrc', '.ssh']
+                    children: ['mission', 'tools', 'staging', 'recon', '.bashrc', '.bash_history', '.ssh', '.chimera_playbook']
+                },
+                '/home/ghost/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `whoami
+pwd
+ls -la
+cat mission/briefing.txt
+cat mission/objectives.txt
+cat .chimera_playbook
+find / -perm -4000 2>/dev/null
+find /data -type f -name "*.pdf" 2>/dev/null
+cat /data/classified/project_chimera.pdf
+grep -r "PHOENIX" /data/ 2>/dev/null
+tar -czf staging/intel.tar.gz /data/classified/
+history -c
+`
+                },
+                '/home/ghost/.chimera_playbook': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 1536,
+                    content: `CHIMERA OPERATOR PLAYBOOK
+=========================
+Classification: EYES ONLY
+
+PHASE 1 - RECONNAISSANCE
+  whoami && pwd        # Verify identity and position
+  ls -la               # Survey immediate environment
+  cat /etc/passwd      # Enumerate users
+  cat mission/*        # Review mission parameters
+
+PHASE 2 - PRIVILEGE ESCALATION
+  find / -perm -4000   # Find SUID binaries
+  cat /etc/sudoers     # Check sudo permissions
+  sudo -l              # List allowed commands
+
+PHASE 3 - LATERAL MOVEMENT
+  cat ~/.ssh/known_hosts    # Previous connections
+  cat /var/log/auth.log     # Authentication history
+
+PHASE 4 - DATA DISCOVERY
+  find /data -type f -name "*.pdf"   # Locate documents
+  grep -r "classified" /data/        # Search content
+  cat /data/classified/*             # Read targets
+
+PHASE 5 - EXFILTRATION
+  tar -czf staging/intel.tar.gz /data/classified/
+  scp staging/intel.tar.gz handler@10.0.0.1:/dropbox/
+
+VERIFICATION CODE: PHOENIX-7
+(Required for mission completion confirmation)
+
+"The chimera has three heads. Master all to succeed."
+`
+                },
+                '/home/ghost/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    content: '# Ghost .bashrc\nexport PS1="[ghost@CHIMERA]$ "\nexport HISTSIZE=0\nalias ll="ls -la"\nalias rm="rm -f"\n# OPSEC: History disabled\n'
+                },
+                '/home/ghost/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
+                    children: ['id_ed25519', 'id_ed25519.pub', 'known_hosts', 'authorized_keys']
+                },
+                '/home/ghost/.ssh/id_ed25519': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 464,
+                    content: '-----BEGIN OPENSSH PRIVATE KEY-----\n[REDACTED - Ghost operator key]\n-----END OPENSSH PRIVATE KEY-----\n'
+                },
+                '/home/ghost/.ssh/id_ed25519.pub': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 100,
+                    content: 'ssh-ed25519 AAAA[REDACTED]xxxx ghost@shadow\n'
+                },
+                '/home/ghost/.ssh/known_hosts': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    content: '10.0.0.1 ecdsa-sha2-nistp256 AAAA[handler]\n10.0.0.42 ecdsa-sha2-nistp256 AAAA[internal]\n192.168.1.100 ecdsa-sha2-nistp256 AAAA[target]\n'
+                },
+                '/home/ghost/.ssh/authorized_keys': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 128,
+                    content: 'ssh-ed25519 AAAA[REDACTED] specter-1@handler\n'
                 },
                 '/home/ghost/mission': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['briefing.txt', 'objectives.txt', 'contacts.txt']
+                    children: ['briefing.txt', 'objectives.txt', 'contacts.txt', 'rules_of_engagement.txt']
                 },
                 '/home/ghost/mission/briefing.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 1024,
-                    content: `OPERATION CHIMERA
-=================
+                    content: `OPERATION CHIMERA - FINAL MISSION BRIEFING
+==========================================
 Classification: TOP SECRET//NOFORN
+Date: 2026-01-17
+Handler: SPECTER-1
 
 SITUATION:
-You have gained initial access to CHIMERA network.
-Multiple high-value targets identified.
+You have achieved initial foothold on the CHIMERA network.
+This is the final test of your CLI Ghost capabilities.
 
-MISSION:
-1. Establish persistence
-2. Escalate privileges
-3. Locate classified data
-4. Exfiltrate to handler
+TARGET ORGANIZATION: Chimera Holdings Inc.
+NETWORK: Isolated high-security environment
+ACCESS: Standard user "ghost" via SSH key exchange
 
-TIME LIMIT: Mission critical
-HANDLER: SPECTER-1
+MISSION OBJECTIVES:
+1. Complete environment reconnaissance
+2. Identify privilege escalation paths
+3. Locate classified project documentation
+4. Extract verification code from classified data
+5. Prepare intelligence package for exfiltration
 
-"Leave no trace. Trust no one."
+SUCCESS CRITERIA:
+- All objectives completed without triggering alerts
+- Verification code (PHOENIX-7) identified and confirmed
+- Intel package staged for exfiltration
+
+"The chimera tests all your skills. Only true Ghosts complete it."
+`
+                },
+                '/home/ghost/mission/objectives.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 640,
+                    content: `MISSION OBJECTIVES - DETAILED
+==============================
+
+[X] Objective 1: RECON
+    - Establish identity (whoami)
+    - Confirm position (pwd)
+    - Survey environment (ls -la)
+
+[ ] Objective 2: INTEL GATHERING
+    - Read all mission files
+    - Understand target organization
+    - Identify data locations
+
+[ ] Objective 3: PRIVILEGE ANALYSIS
+    - Find SUID binaries
+    - Check sudo capabilities
+    - Identify escalation vectors
+
+[ ] Objective 4: DATA DISCOVERY
+    - Locate classified directory
+    - Identify target documents
+    - Find verification code
+
+[ ] Objective 5: EXFILTRATION PREP
+    - Package intel with tar
+    - Stage in designated directory
+    - Confirm package integrity
+
+VERIFICATION: Report code PHOENIX-7 upon completion
+`
+                },
+                '/home/ghost/mission/contacts.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `OPERATIONAL CONTACTS
+====================
+FOR EMERGENCY USE ONLY
+
+Handler: SPECTER-1
+  - Contact: 10.0.0.1 (SSH)
+  - Backup: Dead drop at /tmp/.specter
+
+Tech Support: WRAITH-3
+  - Available: 0200-0400 UTC
+  - Signal: knock-knock protocol
+
+Extraction: PHANTOM-9
+  - Trigger: File at /tmp/.extract
+  - Window: 15 minutes max
+
+ABORT CODE: BLACKOUT-ZERO
+Use only if mission is compromised.
+`
+                },
+                '/home/ghost/mission/rules_of_engagement.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `RULES OF ENGAGEMENT
+===================
+
+1. MINIMIZE FOOTPRINT
+   - Avoid unnecessary commands
+   - Don't modify system files
+   - Clear history when done
+
+2. AVOID DETECTION
+   - Don't create new users
+   - Don't install software
+   - Don't open outbound connections (except to handler)
+
+3. DATA HANDLING
+   - Only copy designated targets
+   - Use staging directory for packaging
+   - Encrypt before exfiltration (if time permits)
+
+4. ABORT CONDITIONS
+   - Detection confirmed
+   - Mission parameters change
+   - Handler signals abort
+
+Violation of ROE = Mission failure
 `
                 },
                 '/home/ghost/tools': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['scanner.sh', 'privesc.py', 'exfil.sh']
+                    children: ['scanner.sh', 'privesc_check.sh', 'exfil.sh', 'cleanup.sh']
+                },
+                '/home/ghost/tools/scanner.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `#!/bin/bash
+# scanner.sh - Environment reconnaissance
+echo "[*] Chimera Scanner v1.0"
+echo "========================"
+echo ""
+echo "[+] Current User: $(whoami)"
+echo "[+] Hostname: $(hostname)"
+echo "[+] Working Dir: $(pwd)"
+echo ""
+echo "[+] Users on system:"
+cat /etc/passwd | grep -v "nologin" | cut -d: -f1
+echo ""
+echo "[+] Network connections:"
+netstat -an 2>/dev/null | head -10
+echo ""
+echo "[*] Scan complete"
+`
+                },
+                '/home/ghost/tools/privesc_check.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `#!/bin/bash
+# privesc_check.sh - Privilege escalation enumeration
+echo "[*] Privilege Escalation Check"
+echo "=============================="
+echo ""
+echo "[+] SUID Binaries:"
+find / -perm -4000 -type f 2>/dev/null
+echo ""
+echo "[+] Sudo capabilities:"
+sudo -l 2>/dev/null
+echo ""
+echo "[+] Writable directories:"
+find / -writable -type d 2>/dev/null | head -10
+echo ""
+echo "[+] Interesting files in /data:"
+ls -la /data/ 2>/dev/null
+echo ""
+echo "[*] Check complete"
+`
+                },
+                '/home/ghost/tools/exfil.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `#!/bin/bash
+# exfil.sh - Data exfiltration helper
+if [ -z "$1" ]; then
+    echo "Usage: ./exfil.sh <source_dir>"
+    echo "Packages directory and stages for extraction"
+    exit 1
+fi
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+PACKAGE="staging/chimera_intel_$TIMESTAMP.tar.gz"
+tar -czf "$PACKAGE" "$1" 2>/dev/null
+echo "[+] Package created: $PACKAGE"
+echo "[+] Size: $(du -h $PACKAGE | cut -f1)"
+echo "[+] Ready for exfiltration to handler"
+`
+                },
+                '/home/ghost/tools/cleanup.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 256,
+                    content: `#!/bin/bash
+# cleanup.sh - Post-operation cleanup
+echo "[*] Initiating cleanup..."
+rm -rf staging/*
+history -c
+echo "" > ~/.bash_history
+echo "[+] Staging cleared"
+echo "[+] History cleared"
+echo "[*] Ghost protocol complete"
+`
                 },
                 '/home/ghost/staging': {
                     type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
-                    children: []
+                    children: ['README.txt']
                 },
-                '/home/ghost/.ssh': {
-                    type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
-                    children: ['id_ed25519', 'id_ed25519.pub', 'known_hosts']
+                '/home/ghost/staging/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    content: `STAGING DIRECTORY
+=================
+Use this directory to prepare intelligence packages.
+
+Commands:
+  tar -czf staging/intel.tar.gz /data/classified/
+
+Then use exfil.sh or manual SCP to handler.
+`
+                },
+                '/home/ghost/recon': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['network_map.txt', 'user_list.txt']
+                },
+                '/home/ghost/recon/network_map.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `CHIMERA NETWORK MAP (PARTIAL)
+=============================
+Gathered during initial reconnaissance
+
+10.0.0.1    - Handler (SPECTER-1)
+10.0.0.42   - Internal server
+10.0.0.100  - Database server
+10.0.0.200  - File server (classified data)
+
+CHIMERA host (you are here):
+  - IP: 10.0.0.50
+  - Role: Workstation
+  - Access: User-level
+`
+                },
+                '/home/ghost/recon/user_list.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    content: `ENUMERATED USERS
+================
+root - System administrator
+ghost - Current access (you)
+admin - IT administrator
+chimera - Service account
+backup - Backup service
+
+Note: "admin" has sudo privileges
+`
+                },
+                '/data': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['classified', 'public', 'backups']
+                },
+                '/data/public': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['company_info.txt']
+                },
+                '/data/public/company_info.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `Chimera Holdings Inc.
+=====================
+Founded: 2015
+Industry: Defense Contracting
+Classification: See /data/classified for project details
+`
+                },
+                '/data/backups': {
+                    type: 'dir', perms: 'drwx------', owner: 'backup', group: 'backup',
+                    children: ['db_backup.sql.gz']
                 },
                 '/data/classified': {
-                    type: 'dir', perms: 'drwx------', owner: 'root', group: 'classified',
-                    children: ['project_chimera.pdf', 'asset_network.xlsx', 'operational_plans.docx']
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'classified',
+                    children: ['project_chimera.pdf', 'asset_network.xlsx', 'operational_plans.docx', 'verification_codes.txt']
                 },
                 '/data/classified/project_chimera.pdf': {
-                    type: 'file', perms: '-rw-------', owner: 'root', group: 'classified', size: 5242880,
-                    content: '[TOP SECRET//CHIMERA//NOFORN - Project documentation]'
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 5242880,
+                    content: `[TOP SECRET//CHIMERA//NOFORN]
+
+PROJECT CHIMERA - Executive Summary
+===================================
+
+Project Status: ACTIVE
+Budget: $50M USD
+Timeline: 2024-2027
+
+Key Personnel:
+- Director: [REDACTED]
+- Lead Engineer: [REDACTED]
+
+Objectives:
+1. Develop advanced autonomous systems
+2. Integrate AI decision-making
+3. Deploy to theater operations
+
+VERIFICATION CODE: PHOENIX-7
+
+This code confirms successful access to classified materials.
+Report to handler upon discovery.
+
+[END CLASSIFIED SECTION]
+`
+                },
+                '/data/classified/asset_network.xlsx': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 1048576,
+                    content: '[CLASSIFIED - Asset network diagram and personnel locations]'
+                },
+                '/data/classified/operational_plans.docx': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 2097152,
+                    content: '[CLASSIFIED - Q1 2026 operational deployment plans]'
+                },
+                '/data/classified/verification_codes.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 256,
+                    content: `VERIFICATION CODES - DESTROY AFTER READING
+==========================================
+Mission Verification: PHOENIX-7
+Abort Code: BLACKOUT-ZERO
+Handler Confirmation: SPECTER-ALPHA
+
+Use PHOENIX-7 to confirm successful data access.
+`
                 },
                 '/var/log': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['auth.log', 'syslog', 'secure']
+                    children: ['auth.log', 'syslog', 'secure', 'access.log']
                 },
                 '/var/log/auth.log': {
                     type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096,
-                    content: 'Jan 18 03:00:00 CHIMERA sshd[1234]: Accepted key for ghost from 10.0.0.1\nJan 18 03:00:15 CHIMERA sudo: ghost : TTY=pts/0 ; PWD=/home/ghost ; USER=root ; COMMAND=/bin/cat /etc/shadow\n'
+                    content: `Jan 17 02:55:00 CHIMERA sshd[1234]: Connection from 10.0.0.1 port 55432
+Jan 17 02:55:01 CHIMERA sshd[1234]: Accepted publickey for ghost from 10.0.0.1 port 55432
+Jan 17 02:55:01 CHIMERA sshd[1234]: pam_unix(sshd:session): session opened for user ghost
+Jan 17 03:00:15 CHIMERA sudo: ghost : TTY=pts/0 ; PWD=/home/ghost ; USER=root ; COMMAND=/bin/cat /etc/shadow
+Jan 17 03:05:00 CHIMERA sshd[1234]: Received disconnect from 10.0.0.1: disconnected by user
+`
+                },
+                '/var/log/syslog': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
+                    content: `Jan 17 00:00:00 CHIMERA systemd[1]: Starting Daily apt activities...
+Jan 17 00:00:01 CHIMERA systemd[1]: Started Daily apt activities.
+Jan 17 02:55:00 CHIMERA systemd[1]: Started Session 42 of user ghost.
+`
+                },
+                '/var/log/secure': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 1024,
+                    content: `Jan 17 02:55:01 CHIMERA sshd[1234]: pam_unix(sshd:auth): authentication success; user=ghost
+`
+                },
+                '/var/log/access.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
+                    content: `10.0.0.1 - ghost [17/Jan/2026:02:55:01] "SSH LOGIN" 200
+10.0.0.50 - admin [17/Jan/2026:01:30:00] "SSH LOGIN" 200
+`
+                },
+                '/etc/passwd': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
+                    content: `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+ghost:x:1000:1000:Ghost Operator:/home/ghost:/bin/bash
+admin:x:1001:1001:IT Admin:/home/admin:/bin/bash
+chimera:x:999:999:Chimera Service:/var/chimera:/usr/sbin/nologin
+backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
+`
                 },
             },
 
             objectives: [
-                { id: 1, task: 'RECON: Survey Environment', hint: 'ls -la && pwd && whoami', check: (cmd) => cmd.includes('ls') || cmd.includes('pwd') || cmd.includes('whoami') },
-                { id: 2, task: 'INTEL: Read Mission Briefing', hint: '$ cat mission/briefing.txt', check: (cmd) => cmd.includes('cat') && cmd.includes('briefing') },
-                { id: 3, task: 'ESCALATE: Find Privilege Path', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') },
-                { id: 4, task: 'LOCATE: Classified Data', hint: '$ find /data -name "*.pdf" 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('data') },
-                { id: 5, task: 'EXFIL: Package Intel', hint: '$ tar -czf staging/chimera_intel.tar.gz /data/classified/', check: (cmd) => cmd.includes('tar') && cmd.includes('staging') },
+                { id: 1, task: 'RECON: Survey Environment', hint: 'whoami && pwd && ls -la', check: (cmd, state, output) => (cmd.includes('ls') && (output && output.includes('mission'))) || (cmd.includes('whoami') && output && output.includes('ghost')) },
+                { id: 2, task: 'INTEL: Read Mission Briefing', hint: '$ cat mission/briefing.txt', check: (cmd, state, output) => cmd.includes('cat') && output && (output.includes('CHIMERA') || output.includes('PHOENIX')) },
+                { id: 3, task: 'ANALYZE: Check Privesc Paths', hint: '$ find / -perm -4000 or check tools', check: (cmd, state, output) => (cmd.includes('find') && cmd.includes('-perm')) || (cmd.includes('privesc') || cmd.includes('sudo')) },
+                { id: 4, task: 'DISCOVER: Locate Classified Data', hint: '$ cat /data/classified/project_chimera.pdf', check: (cmd, state, output) => output && (output.includes('PHOENIX-7') || output.includes('VERIFICATION CODE')) },
+                { id: 5, task: 'EXFIL: Stage Intel Package', hint: '$ tar -czf staging/intel.tar.gz /data/classified/', check: (cmd, state, output) => cmd.includes('tar') && cmd.includes('staging') },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the mission verification code found in the classified documents?",
+                acceptedAnswers: ["PHOENIX-7", "phoenix-7", "PHOENIX7"],
+                hint: "Read the project_chimera.pdf or verification_codes.txt in /data/classified/",
+                hintAfterAttempts: 3
+            },
 
             remoteHosts: null,
         },
