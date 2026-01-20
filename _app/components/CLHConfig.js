@@ -4139,7 +4139,14 @@ tmux                Modern terminal multiplexer`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['mission_brief.txt', 'tools', 'reports', '.bash_history', '.investigation_cheatsheet']
+                    children: ['mission_brief.txt', 'tools', 'reports', 'evidence', '.bash_history', '.investigation_cheatsheet']
+                },
+                '/home/operator/evidence': {
+                    type: 'symlink',
+                    perms: 'lrwxrwxrwx',
+                    owner: 'operator',
+                    group: 'operator',
+                    target: '/evidence'
                 },
                 '/home/operator/mission_brief.txt': {
                     type: 'file',

@@ -1077,8 +1077,18 @@ const _CLHTerminalModule = (function() {
         if (target === '-') target = state.env.OLDPWD || state.currentDir;
         if (target.startsWith('~/')) target = currentUser.home + target.slice(1);
 
-        const newPath = _resolvePath(target);
-        const node = state.fs[newPath];
+        let newPath = _resolvePath(target);
+        let node = state.fs[newPath];
+
+        if (!node) return _err(`cd: ${target}: No such file or directory`);
+
+        // Follow symlinks (up to 10 levels to prevent infinite loops)
+        let symlinkCount = 0;
+        while (node && node.type === 'symlink' && symlinkCount < 10) {
+            newPath = _resolvePath(node.target);
+            node = state.fs[newPath];
+            symlinkCount++;
+        }
 
         if (!node) return _err(`cd: ${target}: No such file or directory`);
         if (node.type !== 'dir') return _err(`cd: ${target}: Not a directory`);
@@ -1150,6 +1160,7 @@ const _CLHTerminalModule = (function() {
                     const itemNode = state.fs[itemPath];
                     if (item === '.' || item === '..') return `<span class="clh-dir">${item}</span>`;
                     if (!itemNode) return item;
+                    if (itemNode.type === 'symlink') return `<span class="clh-symlink">${item}@</span>`;
                     if (itemNode.type === 'dir') return `<span class="clh-dir">${item}/</span>`;
                     if (itemNode.perms && itemNode.perms[3] === 'x') return `<span class="clh-exec">${item}*</span>`;
                     return item;
@@ -1167,7 +1178,9 @@ const _CLHTerminalModule = (function() {
         const date = 'Jan 17 09:00';
         let coloredName = name;
 
-        if (node.type === 'dir') {
+        if (node.type === 'symlink') {
+            coloredName = `<span class="clh-symlink">${name}</span> -> ${node.target}`;
+        } else if (node.type === 'dir') {
             coloredName = `<span class="clh-dir">${name}</span>`;
         } else if (node.perms && node.perms[3] === 'x') {
             coloredName = `<span class="clh-exec">${name}</span>`;
@@ -3069,6 +3082,7 @@ ${footer}
             /* Color classes */
             .clh-cmd { color: #00ff00; }
             .clh-dir { color: #5c9eff; }
+            .clh-symlink { color: #00ffff; }
             .clh-exec { color: #ff5c5c; }
             .clh-error { color: #ff5c5c; }
             .clh-success { color: #27ca40; }
