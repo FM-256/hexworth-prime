@@ -4784,12 +4784,19 @@ PROBABLE TRAITOR: Codename begins with "N"
                 },
                 {
                     id: 10,
-                    task: 'CONCLUDE: Identify the traitor from the evidence',
-                    hint: 'The signature "N" and NIGHTFALL + ZONE-ALPHA + STANDBY narrows it down',
+                    task: 'CONCLUDE: Narrow to 3 suspects',
+                    hint: 'grep "ZONE-ALPHA" personnel/operators.txt | grep "STANDBY"',
                     check: (cmd, state, output) => {
-                        // They've done the work if they grep for NOMAD or review their findings
-                        return (cmd.includes('grep') && (cmd.includes('NOMAD') || cmd.includes('"N"'))) ||
-                               (cmd.includes('cat') && output && output.includes('NOMAD'));
+                        // They've narrowed down if output shows all 3 suspects (ZONE-ALPHA + STANDBY)
+                        // or they're searching for the key combination
+                        if (output && output.includes('CIPHER') && output.includes('NOMAD') && output.includes('VIPER')) {
+                            return true;
+                        }
+                        // Accept piped grep for ZONE-ALPHA and STANDBY
+                        if (cmd.includes('grep') && cmd.includes('ZONE-ALPHA') && cmd.includes('STANDBY')) {
+                            return true;
+                        }
+                        return false;
                     }
                 },
             ],
