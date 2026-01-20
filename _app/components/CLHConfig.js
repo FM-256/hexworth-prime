@@ -3126,7 +3126,7 @@ export ENCRYPTION_KEY="[CLASSIFIED]"`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['monitor.sh', 'intel', '.bash_history']
+                    children: ['monitor.sh', 'intel', 'scripts', 'logs', '.bash_history', '.process_cheatsheet']
                 },
                 '/home/operator/monitor.sh': {
                     type: 'file',
@@ -3136,8 +3136,10 @@ export ENCRYPTION_KEY="[CLASSIFIED]"`
                     size: 98,
                     content: `#!/bin/bash
 # Continuous monitoring script
+# Run with: nohup ./monitor.sh &
 while true; do
   date >> /tmp/monitor.log
+  ps aux >> /tmp/process_snapshot.log
   sleep 60
 done`
                 },
@@ -3146,26 +3148,191 @@ done`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['processes.txt']
+                    children: ['processes.txt', 'incident_report.txt', 'kill_targets.txt']
                 },
                 '/home/operator/intel/processes.txt': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 134,
+                    size: 256,
                     content: `Known malicious processes:
-- rogue_agent (cryptominer)
+
+CRYPTOMINERS:
+- rogue_agent (cryptominer) - PID typically 6666
+  Uses high CPU, connects to mining pools
+
+BACKDOORS:
 - backdoor_shell (reverse shell)
-- keylogger_x (keylogger)`
+- keylogger_x (keylogger)
+
+Action: Terminate with kill -9 if SIGTERM fails.`
+                },
+                '/home/operator/intel/incident_report.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 312,
+                    content: `INCIDENT REPORT - IR-2026-0147
+=============================
+Date: 2026-01-19
+Severity: HIGH
+
+Anomaly detected on production server.
+CPU usage spiked to 98% at 09:15.
+
+Initial analysis suggests cryptominer activity.
+Process running as 'nobody' user - possible privilege escalation.
+
+REQUIRED ACTIONS:
+1. Identify rogue process (ps aux | grep)
+2. Terminate the process (kill PID)
+3. Establish persistent monitoring (nohup)`
+                },
+                '/home/operator/intel/kill_targets.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 128,
+                    content: `APPROVED FOR TERMINATION
+========================
+PID: 6666 - rogue_agent (cryptominer)
+
+DO NOT KILL:
+- PID 1 (init)
+- PID 345 (sshd)
+- PID 456 (cron)
+- PID 789 (nginx)`
+                },
+                '/home/operator/scripts': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['cleanup.sh', 'watchdog.sh']
+                },
+                '/home/operator/scripts/cleanup.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 145,
+                    content: `#!/bin/bash
+# Cleanup script - terminates known bad processes
+killall rogue_agent 2>/dev/null
+killall backdoor_shell 2>/dev/null
+echo "Cleanup complete"`
+                },
+                '/home/operator/scripts/watchdog.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 178,
+                    content: `#!/bin/bash
+# Watchdog - monitor for suspicious processes
+# Run with: nohup ./scripts/watchdog.sh &
+while true; do
+  pgrep -f "rogue|backdoor|miner" && echo "ALERT: Threat detected!"
+  sleep 30
+done`
+                },
+                '/home/operator/logs': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['process_history.log', 'alerts.log']
+                },
+                '/home/operator/logs/process_history.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 478,
+                    content: `[2026-01-19 08:00:01] System boot complete
+[2026-01-19 08:00:12] sshd started (PID 345)
+[2026-01-19 08:00:15] cron started (PID 456)
+[2026-01-19 08:00:18] nginx started (PID 789)
+[2026-01-19 09:15:33] ALERT: Unknown process spawned
+[2026-01-19 09:15:33] Process: rogue_agent (PID 6666)
+[2026-01-19 09:15:34] User: nobody (unexpected!)
+[2026-01-19 09:15:35] CPU: 98.5% (CRITICAL)
+[2026-01-19 09:15:36] Network: Outbound connection to evil.pool:3333`
+                },
+                '/home/operator/logs/alerts.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `SECURITY ALERT LOG
+==================
+[09:15:35] HIGH: Cryptominer detected - rogue_agent PID 6666
+[09:15:36] HIGH: Unauthorized mining pool connection
+[09:16:01] MEDIUM: Process consuming excessive CPU
+[09:20:00] INFO: Awaiting operator intervention`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 89,
+                    content: `ps aux
+ps aux | grep rogue
+kill 6666
+jobs
+nohup ./monitor.sh &`
+                },
+                '/home/operator/.process_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 856,
+                    content: `╔═══════════════════════════════════════════════════════════════╗
+║           PROCESS CONTROL CHEATSHEET                          ║
+╚═══════════════════════════════════════════════════════════════╝
+
+VIEWING PROCESSES
+─────────────────
+ps aux              All processes, BSD style
+ps -ef              All processes, System V style
+top                 Real-time process monitor
+pgrep <name>        Find PID by name
+
+TERMINATING PROCESSES
+────────────────────
+kill <PID>          Send SIGTERM (graceful shutdown)
+kill -9 <PID>       Send SIGKILL (force kill)
+killall <name>      Kill all processes by name
+pkill <pattern>     Kill by pattern match
+
+SIGNALS
+───────
+SIGTERM (15)        Request termination (default)
+SIGKILL (9)         Force kill (cannot be caught)
+SIGSTOP (19)        Pause process
+SIGCONT (18)        Resume process
+SIGHUP (1)          Hangup - used to reload config
+
+JOB CONTROL
+───────────
+command &           Run in background
+jobs                List background jobs
+fg %<n>             Bring job to foreground
+bg %<n>             Continue job in background
+Ctrl+Z              Suspend current job
+
+PERSISTENT PROCESSES
+───────────────────
+nohup cmd &         Run immune to hangups
+disown              Remove job from shell
+screen              Terminal multiplexer
+tmux                Modern terminal multiplexer`
                 },
             },
 
@@ -3174,31 +3341,36 @@ done`
                     id: 1,
                     task: 'SURVEY: List Running Processes',
                     hint: 'Show all processes: ps aux',
-                    check: (cmd, state) => cmd.includes('ps') && (cmd.includes('aux') || cmd.includes('-ef') || cmd.includes('-e'))
+                    check: (cmd, state, output) => cmd.includes('ps') &&
+                        (cmd.includes('aux') || cmd.includes('-ef') || cmd.includes('-e')) &&
+                        output && (output.includes('PID') || output.includes('COMMAND'))
                 },
                 {
                     id: 2,
                     task: 'HUNT: Find Suspicious Process',
                     hint: 'Filter processes: ps aux | grep rogue',
-                    check: (cmd, state) => cmd.includes('ps') && cmd.includes('grep')
+                    check: (cmd, state, output) => cmd.includes('ps') && cmd.includes('grep') &&
+                        output && (output.includes('rogue') || output.includes('6666'))
                 },
                 {
                     id: 3,
                     task: 'TERMINATE: Kill by PID',
                     hint: 'Kill process: kill 6666',
-                    check: (cmd, state) => cmd.includes('kill') && cmd.includes('6666')
+                    check: (cmd, state, output) => cmd.includes('kill') && cmd.includes('6666') &&
+                        output && output.includes('Terminated')
                 },
                 {
                     id: 4,
                     task: 'MANAGE: View Background Jobs',
                     hint: 'List jobs: jobs',
-                    check: (cmd, state) => cmd.includes('jobs')
+                    check: (cmd, state) => cmd.trim() === 'jobs'
                 },
                 {
                     id: 5,
                     task: 'PERSIST: Run Immune to Hangup',
                     hint: 'Run persistent: nohup ./monitor.sh &',
-                    check: (cmd, state) => cmd.includes('nohup')
+                    check: (cmd, state, output) => cmd.includes('nohup') &&
+                        output && output.includes('nohup.out')
                 },
             ],
 

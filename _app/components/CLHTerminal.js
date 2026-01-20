@@ -4231,6 +4231,10 @@ class CLHTerminal {
             case 'jobs': output = this._cmdJobs(); break;
             case 'fg': output = this._cmdFg(args); break;
             case 'bg': output = this._cmdBg(args); break;
+            case 'kill': output = this._cmdKill(args); break;
+            case 'killall': output = this._cmdKillall(args); break;
+            case 'nohup': output = this._cmdNohup(args); break;
+            case 'pgrep': output = this._cmdPgrep(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
             case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
@@ -4384,6 +4388,10 @@ class CLHTerminal {
             case 'jobs': output = this._cmdJobs(); break;
             case 'fg': output = this._cmdFg(args); break;
             case 'bg': output = this._cmdBg(args); break;
+            case 'kill': output = this._cmdKill(args); break;
+            case 'killall': output = this._cmdKillall(args); break;
+            case 'nohup': output = this._cmdNohup(args); break;
+            case 'pgrep': output = this._cmdPgrep(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
             case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
@@ -7806,7 +7814,11 @@ SEE ALSO
             return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
 root         2  0.0  0.0      0     0 ?        S    Jan17   0:00 [kthreadd]
+root       345  0.0  0.2  45320  8192 ?        Ss   Jan17   0:12 /usr/sbin/sshd -D
+root       456  0.0  0.1  28976  5120 ?        Ss   Jan17   0:05 /usr/sbin/cron -f
+www-data   789  0.0  0.3  82456 12288 ?        S    Jan17   0:45 nginx: worker process
 ${this.user}    1234  0.0  0.2  21432  4532 pts/0    Ss   10:00   0:00 -bash
+nobody    6666 98.5  2.1 512000 86420 ?        RN   09:15  42:17 rogue_agent --mine --pool stratum+tcp://evil.pool:3333
 ${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
         }
         return `  PID TTY          TIME CMD
@@ -7873,6 +7885,99 @@ ${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
 
         job.status = 'running';
         return `[${job.id}]+ ${job.command} &`;
+    }
+
+    _cmdKill(args) {
+        // Parse signal and PID
+        let signal = 'TERM';
+        let pid = null;
+
+        for (const arg of args) {
+            if (arg.startsWith('-')) {
+                signal = arg.replace(/^-+/, '').toUpperCase();
+                if (signal === '9') signal = 'KILL';
+                if (signal === '15') signal = 'TERM';
+            } else {
+                pid = parseInt(arg, 10);
+            }
+        }
+
+        if (!pid) {
+            return 'kill: missing operand';
+        }
+
+        // Simulate kill output based on PID
+        if (pid === 6666) {
+            return `[1]-  Terminated              rogue_agent --mine --pool stratum+tcp://evil.pool:3333`;
+        } else if ([1, 2, 345, 456, 789].includes(pid)) {
+            return `kill: (${pid}) - Operation not permitted`;
+        } else if (pid === 1234 || pid === 5678) {
+            return ''; // Successfully "killed" user processes
+        } else {
+            return `kill: (${pid}) - No such process`;
+        }
+    }
+
+    _cmdKillall(args) {
+        const name = args.find(a => !a.startsWith('-'));
+        if (!name) {
+            return 'killall: missing operand';
+        }
+
+        // Simulate killall
+        if (name === 'rogue_agent' || name === 'rogue') {
+            return `[1]-  Terminated              rogue_agent`;
+        } else if (['init', 'sshd', 'cron', 'nginx'].includes(name)) {
+            return `killall: ${name}: Operation not permitted`;
+        }
+        return `killall: ${name}: no process found`;
+    }
+
+    _cmdNohup(args) {
+        if (args.length === 0) {
+            return 'nohup: missing operand';
+        }
+
+        const command = args.join(' ').replace(/&$/, '').trim();
+        const pid = this._nextPid++;
+
+        // Add as a background job
+        const job = {
+            id: this._nextJobId++,
+            pid: pid,
+            command: `nohup ${command}`,
+            status: 'running'
+        };
+        this._jobs.push(job);
+
+        return `nohup: ignoring input and appending output to 'nohup.out'\n[${job.id}] ${pid}`;
+    }
+
+    _cmdPgrep(args) {
+        const name = args.find(a => !a.startsWith('-'));
+        if (!name) {
+            return 'pgrep: missing pattern';
+        }
+
+        // Simulate pgrep against known processes
+        const processes = {
+            'init': '1',
+            'sshd': '345',
+            'cron': '456',
+            'nginx': '789',
+            'bash': '1234',
+            'rogue': '6666',
+            'rogue_agent': '6666'
+        };
+
+        const matches = Object.entries(processes)
+            .filter(([proc]) => proc.includes(name.toLowerCase()))
+            .map(([, pid]) => pid);
+
+        if (matches.length === 0) {
+            return '';
+        }
+        return matches.join('\n');
     }
 
     _cmdDf(args) {
