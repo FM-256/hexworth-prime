@@ -1690,14 +1690,15 @@ PHOENIX     - EXTRACTED
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', 'reports', '.bash_history']
+                    children: ['intel', 'reports', 'logs', 'data', 'scripts', '.bash_history', '.config', '.notes']
                 },
+                // === INTEL DIRECTORY ===
                 '/home/operator/intel': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['access.log', 'users.db', 'network.log']
+                    children: ['access.log', 'users.db', 'network.log', 'auth.log', 'captured.pcap.txt']
                 },
                 '/home/operator/intel/access.log': {
                     type: 'file',
@@ -1742,22 +1743,327 @@ monitor:x:1006:1006:Monitor Daemon:/var/monitor:/bin/false`
 TCP 192.168.1.42:55123 -> 10.0.0.5:80 ESTABLISHED
 UDP 10.0.0.88:53421 -> 8.8.8.8:53 DNS_QUERY
 TCP 192.168.1.105:44822 -> 10.0.0.5:22 ESTABLISHED
-TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
+TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT
+TCP 10.0.0.88:48372 -> 10.0.0.5:443 SYN_SENT
+TCP 10.0.0.88:48373 -> 10.0.0.5:443 SYN_SENT
+UDP 192.168.1.105:55000 -> 10.0.0.1:53 DNS_QUERY`
                 },
+                '/home/operator/intel/auth.log': {
+                    type: 'file',
+                    perms: '-rw-r-----',
+                    owner: 'root',
+                    group: 'adm',
+                    size: 1024,
+                    content: `Jan 15 09:45:12 shadow sshd[2341]: Accepted publickey for operator from 192.168.1.105 port 52413
+Jan 15 09:52:33 shadow sshd[2456]: Failed password for admin from 10.0.0.88 port 44123
+Jan 15 09:52:35 shadow sshd[2456]: Failed password for admin from 10.0.0.88 port 44123
+Jan 15 09:52:38 shadow sshd[2456]: Failed password for admin from 10.0.0.88 port 44123
+Jan 15 09:52:41 shadow sshd[2456]: Connection closed by 10.0.0.88 port 44123 [preauth]
+Jan 15 10:01:22 shadow sudo: operator : TTY=pts/0 ; PWD=/home/operator ; USER=root ; COMMAND=/bin/cat /etc/shadow
+Jan 15 10:15:00 shadow sshd[2512]: Accepted password for jsmith from 192.168.1.42 port 55612
+Jan 15 10:22:18 shadow sshd[2534]: Invalid user scanner from 10.0.0.88 port 44200
+Jan 15 10:22:19 shadow sshd[2534]: Failed password for invalid user scanner from 10.0.0.88 port 44200`
+                },
+                '/home/operator/intel/captured.pcap.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 645,
+                    content: `# Packet capture summary - extracted from wireshark
+# Source: 10.0.0.88 (Threat Actor)
+Frame 1: 10.0.0.88 -> 10.0.0.5 TCP SYN port 443
+Frame 2: 10.0.0.5 -> 10.0.0.88 TCP SYN-ACK
+Frame 3: 10.0.0.88 -> 10.0.0.5 TCP ACK
+Frame 4: 10.0.0.88 -> 10.0.0.5 HTTP POST /api/upload
+Frame 5: 10.0.0.5 -> 10.0.0.88 HTTP 403 Forbidden
+Frame 6: 10.0.0.88 -> 10.0.0.5 TCP FIN
+# Pattern: Automated upload attempts every 2 minutes
+# Recommendation: Block 10.0.0.88 at firewall`
+                },
+                // === LOGS DIRECTORY ===
+                '/home/operator/logs': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['app.log', 'error.log', 'cron.log', 'firewall.log']
+                },
+                '/home/operator/logs/app.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 512,
+                    content: `2024-01-15 10:00:01 INFO  Application started
+2024-01-15 10:00:02 INFO  Database connection established
+2024-01-15 10:15:32 INFO  User login: admin from 192.168.1.105
+2024-01-15 10:16:45 WARN  Upload rejected: unauthorized IP 10.0.0.88
+2024-01-15 10:18:55 WARN  Upload rejected: unauthorized IP 10.0.0.88
+2024-01-15 10:20:01 INFO  Robots.txt served to 172.16.0.23
+2024-01-15 10:22:15 WARN  Upload rejected: unauthorized IP 10.0.0.88
+2024-01-15 10:30:00 INFO  Scheduled backup started
+2024-01-15 10:30:45 INFO  Backup completed: 2.3GB`
+                },
+                '/home/operator/logs/error.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 384,
+                    content: `[ERROR] 2024-01-15 10:16:45 - AuthModule: IP not in whitelist: 10.0.0.88
+[ERROR] 2024-01-15 10:18:55 - AuthModule: IP not in whitelist: 10.0.0.88
+[ERROR] 2024-01-15 10:22:15 - AuthModule: IP not in whitelist: 10.0.0.88
+[ERROR] 2024-01-15 10:25:33 - DBModule: Query timeout after 30s
+[WARN]  2024-01-15 10:26:00 - DBModule: Reconnecting to database
+[ERROR] 2024-01-15 10:45:12 - FileModule: Disk space below 10%`
+                },
+                '/home/operator/logs/cron.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `Jan 15 00:00:01 CRON[1001]: (root) CMD (/usr/bin/log-rotate)
+Jan 15 00:05:00 CRON[1023]: (backup) CMD (/opt/backup/daily.sh)
+Jan 15 06:00:00 CRON[1156]: (root) CMD (/usr/bin/apt-daily)
+Jan 15 10:30:00 CRON[1289]: (operator) CMD (/home/operator/scripts/monitor.sh)`
+                },
+                '/home/operator/logs/firewall.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 720,
+                    content: `Jan 15 10:16:44 BLOCK IN=eth0 SRC=10.0.0.88 DST=10.0.0.5 PROTO=TCP DPT=22
+Jan 15 10:18:54 BLOCK IN=eth0 SRC=10.0.0.88 DST=10.0.0.5 PROTO=TCP DPT=22
+Jan 15 10:22:14 BLOCK IN=eth0 SRC=10.0.0.88 DST=10.0.0.5 PROTO=TCP DPT=22
+Jan 15 10:25:00 ALLOW IN=eth0 SRC=192.168.1.105 DST=10.0.0.5 PROTO=TCP DPT=443
+Jan 15 10:26:12 ALLOW IN=eth0 SRC=192.168.1.42 DST=10.0.0.5 PROTO=TCP DPT=80
+Jan 15 10:30:00 BLOCK IN=eth0 SRC=10.0.0.88 DST=10.0.0.5 PROTO=TCP DPT=3306
+Jan 15 10:45:00 BLOCK IN=eth0 SRC=10.0.0.88 DST=10.0.0.5 PROTO=TCP DPT=5432`
+                },
+                // === DATA DIRECTORY ===
+                '/home/operator/data': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['employees.csv', 'servers.csv', 'ports.txt', 'ips_whitelist.txt']
+                },
+                '/home/operator/data/employees.csv': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 320,
+                    content: `id,name,department,clearance,email
+1001,John Smith,Engineering,3,jsmith@shadow.local
+1002,Sarah Chen,Security,5,schen@shadow.local
+1003,Mike Johnson,Operations,2,mjohnson@shadow.local
+1004,Emily Brown,Research,4,ebrown@shadow.local
+1005,David Wilson,IT,3,dwilson@shadow.local
+1006,Lisa Anderson,Admin,1,landerson@shadow.local`
+                },
+                '/home/operator/data/servers.csv': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 280,
+                    content: `hostname,ip,role,status,os
+web01,10.0.0.5,webserver,active,ubuntu
+db01,10.0.0.10,database,active,debian
+app01,10.0.0.15,application,active,centos
+backup01,10.0.0.20,backup,active,ubuntu
+monitor01,10.0.0.25,monitoring,maintenance,debian`
+                },
+                '/home/operator/data/ports.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 180,
+                    content: `22 SSH
+80 HTTP
+443 HTTPS
+3306 MySQL
+5432 PostgreSQL
+6379 Redis
+8080 HTTP-Alt
+27017 MongoDB`
+                },
+                '/home/operator/data/ips_whitelist.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 120,
+                    content: `# Authorized IPs
+192.168.1.0/24  # Internal network
+172.16.0.0/16   # VPN range
+10.0.0.1        # Gateway
+# NOTE: 10.0.0.88 is NOT authorized`
+                },
+                // === SCRIPTS DIRECTORY ===
+                '/home/operator/scripts': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['monitor.sh', 'analyze_logs.sh', 'extract_ips.sh']
+                },
+                '/home/operator/scripts/monitor.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `#!/bin/bash
+# System monitoring script
+echo "=== System Status ==="
+uptime
+echo ""
+echo "=== Disk Usage ==="
+df -h
+echo ""
+echo "=== Active Connections ==="
+netstat -tulpn | head -10`
+                },
+                '/home/operator/scripts/analyze_logs.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 384,
+                    content: `#!/bin/bash
+# Log analysis script
+# Usage: ./analyze_logs.sh <logfile>
+
+LOGFILE=\${1:-intel/access.log}
+
+echo "=== Top 5 IPs by Request Count ==="
+cut -d ' ' -f 1 "$LOGFILE" | sort | uniq -c | sort -rn | head -5
+
+echo ""
+echo "=== HTTP Status Codes ==="
+awk '{print $9}' "$LOGFILE" | sort | uniq -c | sort -rn`
+                },
+                '/home/operator/scripts/extract_ips.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 180,
+                    content: `#!/bin/bash
+# Extract unique IPs from a log file
+# Usage: ./extract_ips.sh <logfile>
+
+grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+' "\${1:-/dev/stdin}" | sort -u`
+                },
+                // === REPORTS DIRECTORY ===
                 '/home/operator/reports': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: []
+                    children: ['README.txt', 'threat_brief.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 156,
+                    content: `# Analysis Reports Directory
+Save your processed output here.
+
+Example:
+  cut -d ' ' -f 1 intel/access.log | sort | uniq -c > reports/ip_counts.txt`
+                },
+                '/home/operator/reports/threat_brief.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 420,
+                    content: `THREAT INTELLIGENCE BRIEF
+Date: 2024-01-15
+Classification: INTERNAL
+
+SUMMARY:
+Suspicious activity detected from external IP.
+Multiple unauthorized access attempts to /api/upload endpoint.
+
+ACTION ITEMS:
+[ ] Identify threat actor IP using log analysis
+[ ] Correlate with auth.log for SSH attempts
+[ ] Check firewall logs for blocked connections
+[ ] Generate report of all 403 responses`
+                },
+                // === HIDDEN CONFIG ===
+                '/home/operator/.config': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['aliases.conf', 'tools.conf']
+                },
+                '/home/operator/.config/aliases.conf': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 180,
+                    content: `# Custom aliases
+alias ll='ls -la'
+alias grep='grep --color=auto'
+alias ipcount='cut -d " " -f 1 | sort | uniq -c | sort -rn'
+alias top10='head -10'`
+                },
+                '/home/operator/.config/tools.conf': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 120,
+                    content: `# Tool configurations
+EDITOR=vim
+PAGER=less
+LOG_DIR=/home/operator/logs
+REPORT_DIR=/home/operator/reports`
+                },
+                // === HIDDEN NOTES ===
+                '/home/operator/.notes': {
+                    type: 'file',
+                    perms: '-rw-------',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 280,
+                    content: `Personal investigation notes:
+
+That IP 10.0.0.88 keeps hitting us. Three failed SSH logins,
+then switched to the API. Classic pivot behavior.
+
+Check patterns:
+- grep "10.0.0.88" intel/*.log
+- cut + sort + uniq to see frequency
+
+This might be automated. Check timing intervals.`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 256,
+                    content: `ls -la
+cd intel
+cat access.log
+grep 403 access.log
+cut -d ' ' -f 1 access.log | sort | uniq -c
+cat ../reports/threat_brief.txt
+ls -la /home/operator/.config/`
                 },
             },
 
@@ -1766,33 +2072,38 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                     id: 1,
                     task: 'EXTRACT: Cut IP Addresses',
                     hint: 'Use cut to extract IPs: cut -d \' \' -f 1 intel/access.log',
-                    check: (cmd, state) => cmd.includes('cut') && cmd.includes('-d') && cmd.includes('-f') &&
-                               (cmd.includes('1') || cmd.includes('access'))
+                    check: (cmd, state, output) => cmd.includes('cut') && cmd.includes('-d') && cmd.includes('-f') &&
+                               (cmd.includes('1') || cmd.includes('access')) &&
+                               output && !output.startsWith('cut:')
                 },
                 {
                     id: 2,
                     task: 'ORGANIZE: Sort the Log Entries',
                     hint: 'Sort the log: sort intel/access.log',
-                    check: (cmd, state) => cmd.includes('sort') && cmd.includes('access')
+                    check: (cmd, state, output) => cmd.includes('sort') && cmd.includes('access') &&
+                               output && !output.startsWith('sort:')
                 },
                 {
                     id: 3,
                     task: 'ANALYZE: Count Unique IPs',
                     hint: 'Pipe commands: cut -d \' \' -f 1 intel/access.log | sort | uniq -c',
-                    check: (cmd, state) => cmd.includes('uniq') && (cmd.includes('-c') || cmd.includes('sort'))
+                    check: (cmd, state, output) => cmd.includes('uniq') && (cmd.includes('-c') || cmd.includes('sort')) &&
+                               output && !output.startsWith('uniq:')
                 },
                 {
                     id: 4,
                     task: 'PARSE: Extract Usernames with AWK',
                     hint: 'Use awk: awk -F: \'{print $1}\' intel/users.db',
-                    check: (cmd, state) => cmd.includes('awk') && (cmd.includes('print') || cmd.includes('users'))
+                    check: (cmd, state, output) => cmd.includes('awk') && (cmd.includes('print') || cmd.includes('users')) &&
+                               output && !output.startsWith('awk:')
                 },
                 {
                     id: 5,
                     task: 'SANITIZE: Redact IPs with SED',
-                    hint: 'Use sed to replace IPs with [REDACTED]',
-                    check: (cmd, state) => cmd.includes('sed') && cmd.includes('s/') &&
-                               (cmd.includes('REDACTED') || cmd.includes('access'))
+                    hint: 'sed \'s/10.0.0.88/[REDACTED]/g\' intel/access.log',
+                    check: (cmd, state, output) => cmd.includes('sed') && cmd.includes('s/') &&
+                               (cmd.includes('REDACTED') || cmd.includes('access')) &&
+                               output && !output.startsWith('sed:')
                 },
             ],
 
@@ -1833,14 +2144,15 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', 'reports', '.bash_history']
+                    children: ['intel', 'reports', 'logs', 'data', '.bash_history', '.redirect_cheatsheet']
                 },
+                // === INTEL DIRECTORY ===
                 '/home/operator/intel': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['access.log', 'targets.txt', 'notes.txt']
+                    children: ['access.log', 'targets.txt', 'notes.txt', 'connections.log', 'errors.log']
                 },
                 '/home/operator/intel/access.log': {
                     type: 'file',
@@ -1875,31 +2187,174 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 56,
-                    content: 'Analyst notes: Monitor 192.168.1.105 for persistence\n'
+                    size: 128,
+                    content: `Analyst notes: Monitor 192.168.1.105 for persistence
+Priority: HIGH
+Last updated: 2024-01-15 10:30 UTC`
                 },
+                '/home/operator/intel/connections.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 320,
+                    content: `TCP 192.168.1.105:44821 -> 10.0.0.5:443 ESTABLISHED
+TCP 192.168.1.42:55123 -> 10.0.0.5:80 ESTABLISHED
+UDP 10.0.0.88:53421 -> 8.8.8.8:53 DNS_QUERY
+TCP 192.168.1.105:44822 -> 10.0.0.5:22 SSH
+TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT
+TCP 10.0.0.88:48372 -> 10.0.0.5:443 REJECTED`
+                },
+                '/home/operator/intel/errors.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `[ERROR] 10:16:45 Auth failed: 10.0.0.88
+[ERROR] 10:18:55 Auth failed: 10.0.0.88
+[WARN]  10:20:01 Suspicious scan: 172.16.0.23
+[ERROR] 10:22:15 Auth failed: 10.0.0.88
+[INFO]  10:25:00 Backup completed successfully`
+                },
+                // === LOGS DIRECTORY ===
+                '/home/operator/logs': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['system.log', 'auth.log']
+                },
+                '/home/operator/logs/system.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 384,
+                    content: `Jan 15 10:00:00 shadow systemd[1]: Started Daily apt activities.
+Jan 15 10:15:00 shadow kernel: eth0: link up 1000Mbps
+Jan 15 10:30:00 shadow cron[1234]: (operator) CMD (backup.sh)
+Jan 15 10:45:00 shadow systemd[1]: Starting log rotation...
+Jan 15 11:00:00 shadow systemd[1]: Finished log rotation.`
+                },
+                '/home/operator/logs/auth.log': {
+                    type: 'file',
+                    perms: '-rw-r-----',
+                    owner: 'root',
+                    group: 'adm',
+                    size: 512,
+                    content: `Jan 15 09:45:12 shadow sshd[2341]: Accepted key for operator from 192.168.1.105
+Jan 15 09:52:33 shadow sshd[2456]: Failed password for admin from 10.0.0.88
+Jan 15 09:52:35 shadow sshd[2456]: Failed password for admin from 10.0.0.88
+Jan 15 10:01:22 shadow sudo: operator : TTY=pts/0 ; USER=root ; COMMAND=/bin/cat
+Jan 15 10:15:00 shadow sshd[2512]: Accepted password for jsmith from 192.168.1.42`
+                },
+                // === DATA DIRECTORY ===
+                '/home/operator/data': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['wordlist.txt', 'ips.txt']
+                },
+                '/home/operator/data/wordlist.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 64,
+                    content: `admin
+password
+root
+user
+guest
+test
+backup`
+                },
+                '/home/operator/data/ips.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 80,
+                    content: `192.168.1.105
+192.168.1.42
+10.0.0.88
+172.16.0.23
+10.0.0.5`
+                },
+                // === REPORTS DIRECTORY ===
                 '/home/operator/reports': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['mission.log']
+                    children: ['mission.log', 'README.txt']
                 },
                 '/home/operator/reports/mission.log': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 128,
+                    content: `=== MISSION LOG ===
+Mission: Stream Control Training
+Status: In Progress
+Objective: Master I/O redirection
+`
                 },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 256,
+                    content: `# Reports Directory
+
+Use this directory to save your analysis output.
+
+Redirect examples:
+  command > file.txt    # Write output to file (overwrite)
+  command >> file.txt   # Append output to file
+  command | tee file    # Output to screen AND file`
+                },
+                // === HIDDEN FILES ===
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 180,
+                    content: `ls -la
+cat intel/access.log
+grep 403 intel/access.log
+ls intel > reports/inventory.txt
+date >> reports/mission.log
+cat intel/notes.txt`
+                },
+                '/home/operator/.redirect_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 420,
+                    content: `=== I/O REDIRECTION CHEATSHEET ===
+
+STDOUT (Standard Output):
+  >   Redirect output (overwrite)
+  >>  Redirect output (append)
+  |   Pipe to another command
+
+STDIN (Standard Input):
+  <   Read input from file
+
+STDERR (Standard Error):
+  2>  Redirect errors
+  2>&1  Redirect errors to stdout
+
+TEE (Split stream):
+  cmd | tee file    # Screen AND file
+  cmd | tee -a file # Append mode`
                 },
             },
 
@@ -1907,41 +2362,41 @@ TCP 172.16.0.23:61234 -> 10.0.0.5:80 TIME_WAIT`
                 {
                     id: 1,
                     task: 'CAPTURE: Redirect Output to File',
-                    hint: 'Save ls output: ls intel > reports/filelist.txt',
-                    check: (cmd, state, output, terminal) => {
-                        if (cmd.includes('>') && !cmd.includes('>>') && cmd.includes('reports')) {
-                            return true;
-                        }
-                        return false;
+                    hint: 'ls intel > reports/filelist.txt',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('>') && !cmd.includes('>>') && cmd.includes('reports') &&
+                               output && output.includes('Redirected');
                     }
                 },
                 {
                     id: 2,
                     task: 'APPEND: Add Timestamp to Log',
-                    hint: 'Append date: date >> reports/mission.log',
-                    check: (cmd, state) => cmd.includes('>>') && cmd.includes('mission.log')
+                    hint: 'date >> reports/mission.log',
+                    check: (cmd, state, output) => cmd.includes('>>') && cmd.includes('mission.log') &&
+                               output && output.includes('Redirected')
                 },
                 {
                     id: 3,
                     task: 'PIPELINE: Filter and Count',
-                    hint: 'Count 192.168 entries: grep "192.168" intel/access.log | wc -l',
-                    check: (cmd, state) => cmd.includes('|') && cmd.includes('grep') &&
-                               (cmd.includes('wc') || cmd.includes('access'))
+                    hint: 'grep "192.168" intel/access.log | wc -l',
+                    check: (cmd, state, output) => cmd.includes('|') && cmd.includes('grep') &&
+                               cmd.includes('wc') && output && /^\s*\d+/.test(output)
                 },
                 {
                     id: 4,
                     task: 'CHAIN: Multi-Stage Pipeline',
-                    hint: 'Extract and analyze: cut -d \' \' -f 1 intel/access.log | sort | uniq -c',
-                    check: (cmd, state) => {
+                    hint: 'cut -d \' \' -f 1 intel/access.log | sort | uniq -c',
+                    check: (cmd, state, output) => {
                         const pipeCount = (cmd.match(/\|/g) || []).length;
-                        return pipeCount >= 2 && (cmd.includes('sort') || cmd.includes('uniq'));
+                        return pipeCount >= 2 && cmd.includes('uniq') && output && output.includes('192');
                     }
                 },
                 {
                     id: 5,
                     task: 'TEE: Split the Stream',
-                    hint: 'Output to screen AND file: ls -la intel | tee reports/inventory.txt',
-                    check: (cmd, state) => cmd.includes('tee') && cmd.includes('reports')
+                    hint: 'ls -la intel | tee reports/inventory.txt',
+                    check: (cmd, state, output) => cmd.includes('tee') && cmd.includes('reports') &&
+                               output && !output.startsWith('tee:')
                 },
             ],
 

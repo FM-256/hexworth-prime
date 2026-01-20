@@ -3596,14 +3596,17 @@ class CLHTerminal {
     }
 
     _executeSingleCommand(cmdLine, pipeInput) {
+        // Store original for history
+        const originalCmdLine = cmdLine;
+
         // Add to history (only for first command in chain)
         if (!pipeInput) {
-            this.commandHistory.push(cmdLine);
+            this.commandHistory.push(originalCmdLine);
             this.historyIndex = this.commandHistory.length;
         }
 
         // Print command
-        this._printCommand(cmdLine);
+        this._printCommand(originalCmdLine);
 
         // Check for background execution (&)
         const isBackground = cmdLine.trim().endsWith('&');
@@ -3623,27 +3626,69 @@ class CLHTerminal {
         // Expand variables and tildes
         cmdLine = this._expandVariables(cmdLine);
 
+        // Handle output redirection (>> or >)
+        let redirectFile = null;
+        let appendMode = false;
+        if (cmdLine.includes('>>')) {
+            appendMode = true;
+            const parts = cmdLine.split('>>');
+            cmdLine = parts[0].trim();
+            redirectFile = parts[1]?.trim();
+        } else if (cmdLine.includes('>')) {
+            const parts = cmdLine.split('>');
+            cmdLine = parts[0].trim();
+            redirectFile = parts[1]?.trim();
+        }
+
         // Parse command
         const { cmd, args } = this._parseCommand(cmdLine);
 
         let output = '';
         let exitCode = 0;
 
-        // Filter pipe input through grep if piping
-        if (pipeInput && cmd === 'grep') {
-            const pattern = args[0];
-            if (pattern) {
-                const lines = pipeInput.split('\n');
-                output = lines.filter(line => line.includes(pattern)).join('\n');
-            }
-            if (output) this._printOutput(output);
-            return { output, exitCode };
-        }
-
-        // Execute command
-        const result = this._runCommand(cmd, args);
+        // Execute command (pass pipeInput for commands that can use it)
+        const result = this._runCommand(cmd, args, pipeInput);
         output = result.output || '';
         exitCode = result.exitCode || 0;
+
+        // Handle redirect - write to file instead of printing
+        if (redirectFile) {
+            const textOutput = output.replace(/<[^>]*>/g, ''); // Strip HTML tags
+            const path = this._resolvePath(redirectFile);
+
+            if (this.fs[path]) {
+                // File exists - append or overwrite
+                this.fs[path].content = appendMode
+                    ? (this.fs[path].content || '') + textOutput + '\n'
+                    : textOutput;
+            } else {
+                // Create new file
+                const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+                const fileName = path.split('/').pop();
+
+                // Add to parent's children if parent exists
+                if (this.fs[parentPath] && this.fs[parentPath].children) {
+                    if (!this.fs[parentPath].children.includes(fileName)) {
+                        this.fs[parentPath].children.push(fileName);
+                    }
+                }
+
+                // Create the file
+                this.fs[path] = {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: this.user,
+                    group: this.user,
+                    size: textOutput.length,
+                    content: textOutput
+                };
+            }
+
+            this._printOutput(`[Output redirected to ${redirectFile}]`);
+            // Check objectives with the redirect info
+            this._checkObjectives(originalCmdLine, `Redirected to ${redirectFile}`);
+            return { output: `Redirected to ${redirectFile}`, exitCode: 0 };
+        }
 
         if (output) {
             this._printOutput(output);
@@ -4155,7 +4200,7 @@ class CLHTerminal {
     // COMMAND EXECUTION ENGINE
     // ═══════════════════════════════════════════════════════════════
 
-    _runCommand(cmd, args) {
+    _runCommand(cmd, args, pipeInput = null) {
         let output = '';
         let exitCode = 0;
 
@@ -4172,11 +4217,11 @@ class CLHTerminal {
             case 'date': output = new Date().toString(); break;
             case 'clear': this.outputEl.innerHTML = ''; break;
             case 'help': output = this._cmdHelp(); break;
-            case 'grep': output = this._cmdGrep(args); break;
+            case 'grep': output = this._cmdGrep(args, pipeInput); break;
             case 'find': output = this._cmdFind(args); break;
-            case 'head': output = this._cmdHead(args); break;
-            case 'tail': output = this._cmdTail(args); break;
-            case 'wc': output = this._cmdWc(args); break;
+            case 'head': output = this._cmdHead(args, pipeInput); break;
+            case 'tail': output = this._cmdTail(args, pipeInput); break;
+            case 'wc': output = this._cmdWc(args, pipeInput); break;
             case 'ps': output = this._cmdPs(args); break;
             case 'jobs': output = this._cmdJobs(); break;
             case 'fg': output = this._cmdFg(args); break;
@@ -4241,13 +4286,13 @@ class CLHTerminal {
             case 'bash': case 'sh': output = this._cmdBash(args); break;
             case 'source': output = this._cmdBash(args); break;
             // Text processing commands
-            case 'sort': output = this._cmdSort(args); break;
-            case 'uniq': output = this._cmdUniq(args); break;
-            case 'cut': output = this._cmdCut(args); break;
-            case 'tr': output = this._cmdTr(args); break;
-            case 'sed': output = this._cmdSed(args); break;
-            case 'awk': output = this._cmdAwk(args); break;
-            case 'tee': output = this._cmdTee(args); break;
+            case 'sort': output = this._cmdSort(args, pipeInput); break;
+            case 'uniq': output = this._cmdUniq(args, pipeInput); break;
+            case 'cut': output = this._cmdCut(args, pipeInput); break;
+            case 'tr': output = this._cmdTr(args, pipeInput); break;
+            case 'sed': output = this._cmdSed(args, pipeInput); break;
+            case 'awk': output = this._cmdAwk(args, pipeInput); break;
+            case 'tee': output = this._cmdTee(args, pipeInput); break;
             case 'xargs': output = this._cmdXargs(args); break;
             // Crypto/encoding commands
             case 'base64': output = this._cmdBase64(args); break;
@@ -5394,17 +5439,40 @@ DESCRIPTION
 
        Use one, and only one of -b, -c or -f.
 
-       LIST is comma-separated integers or ranges (e.g., 1,3,5-7).
+UNDERSTANDING FIELDS
+       When you split a line by a delimiter, each piece becomes a "field"
+       numbered starting at 1 (the leftmost piece).
+
+       Example line: "192.168.1.1 admin GET /login.html"
+       With delimiter=' ' (space), the fields are:
+
+         Field 1: 192.168.1.1    (IP address)
+         Field 2: admin          (username)
+         Field 3: GET            (HTTP method)
+         Field 4: /login.html    (path)
+
+       So: cut -d ' ' -f 1  →  extracts "192.168.1.1"
+           cut -d ' ' -f 4  →  extracts "/login.html"
+
+FIELD SELECTION
+       -f 1           First field only
+       -f 3           Third field only
+       -f 1,3         Fields 1 and 3
+       -f 2-4         Fields 2, 3, and 4
+       -f 1,3-5       Field 1 and fields 3 through 5
 
 EXAMPLES
        cut -d: -f1 /etc/passwd
-              Extract usernames from passwd file.
+              Extract usernames (field 1) from passwd file.
 
        cut -c1-10 file.txt
               Extract first 10 characters of each line.
 
        cut -d, -f2,4 data.csv
               Extract 2nd and 4th fields from CSV.
+
+       cut -d ' ' -f 1 access.log | sort | uniq
+              Extract IPs from log, sort, and show unique values.
 
 OPERATOR NOTES
        Use cut when you need to:
@@ -5485,64 +5553,76 @@ NAME
        sed - stream editor for filtering and transforming text
 
 SYNOPSIS
-       sed [OPTION]... {script-only-if-no-other-script} [input-file]...
+       sed 's/pattern/replacement/flags' filename
 
-DESCRIPTION
-       Sed is a stream editor.  A stream editor is used to perform basic text
-       transformations on an input stream.
+UNDERSTANDING THE SUBSTITUTION COMMAND
+       The most common sed operation is substitution: s/old/new/
 
-       -n, --quiet, --silent
-              suppress automatic printing of pattern space
+       Let's break down this command:
+       sed 's/10.0.0.88/[REDACTED]/g' intel/access.log
+       │    │ │         │          │  └── input file
+       │    │ │         │          └── g = global (all occurrences)
+       │    │ │         └── replacement text
+       │    │ └── pattern to find
+       │    └── s = substitute command
+       └── the sed command
 
-       -e script, --expression=script
-              add the script to the commands to be executed
+       Without 'g': replaces only FIRST match per line
+       With 'g':    replaces ALL matches per line
 
-       -i[SUFFIX], --in-place[=SUFFIX]
-              edit files in place (makes backup if SUFFIX supplied)
+THE SUBSTITUTION PATTERN
+       s/old/new/flags
 
-COMMANDS
-       s/regexp/replacement/
-              Attempt to match regexp against the pattern space.  If
-              successful, replace that portion matched with replacement.
+       s         The substitute command
+       /         Delimiter (separates the parts)
+       old       What to find (can be text or regex)
+       new       What to replace it with
+       flags     Optional: g=global, i=ignore case
 
-       d      Delete pattern space.  Start next cycle.
+       The delimiter doesn't have to be /. These are equivalent:
+       sed 's/old/new/g'
+       sed 's|old|new|g'
+       sed 's#old#new#g'
 
-       p      Print the current pattern space.
+COMMON FLAGS
+       g      Global - replace ALL occurrences, not just first
+       i      Case-insensitive matching
+       p      Print the line (use with -n)
 
-       q      Quit (exit sed).
+PRACTICAL EXAMPLES
+       Redact an IP address in a log file:
+       sed 's/10.0.0.88/[REDACTED]/g' intel/access.log
 
-EXAMPLES
-       sed 's/old/new/' file.txt
-              Replace first occurrence of 'old' with 'new' on each line.
+       Replace text (first occurrence only):
+       sed 's/error/ERROR/' logfile.txt
 
-       sed 's/old/new/g' file.txt
-              Replace all occurrences globally.
+       Replace ALL occurrences (global):
+       sed 's/error/ERROR/g' logfile.txt
 
-       sed -n '/pattern/p' file.txt
-              Print only lines matching pattern.
-
+       Delete lines containing a pattern:
        sed '/pattern/d' file.txt
-              Delete lines matching pattern.
 
-       sed -i 's/foo/bar/g' file.txt
-              Edit file in place.
+       Print only lines matching pattern:
+       sed -n '/403/p' access.log
+
+OPTIONS
+       -n     Suppress automatic printing (use with /p)
+       -i     Edit file in place (careful - modifies original!)
+       -e     Chain multiple expressions
 
 OPERATOR NOTES
        Use sed when you need to:
-       • Search and replace text across files
-       • Delete lines matching a pattern (sanitize logs)
-       • Extract specific line ranges from files
+       • Redact sensitive data (IPs, names, credentials)
+       • Search and replace across files
+       • Delete lines matching a pattern
        • Transform data in pipelines
 
-       Pro tip: sed is the surgeon's scalpel for text manipulation.
-       sed -n '10,20p' file             # Print lines 10-20 only
-       sed '/^#/d' config               # Remove comment lines
-       sed 's/\\.old/.new/g' file       # Batch rename in content
-       sed -n '/START/,/END/p' file     # Extract between markers
-       Master regex with sed for powerful data extraction.
+       Pro tip: Always test without -i first!
+       sed 's/secret/REDACTED/g' file    # Preview changes
+       sed -i 's/secret/REDACTED/g' file # Actually modify file
 
 SEE ALSO
-       awk(1), ed(1), grep(1), tr(1), regex(7)`,
+       awk(1), grep(1), tr(1)`,
 
             'awk': `AWK(1)                          User Commands                         AWK(1)
 
@@ -5550,57 +5630,84 @@ NAME
        awk - pattern scanning and processing language
 
 SYNOPSIS
-       awk [ -F fs ] [ -v var=value ] [ 'prog' | -f progfile ] [ file ...  ]
+       awk -F'delimiter' '{print $fieldnum}' filename
 
-DESCRIPTION
-       Awk scans each input file for lines that match any of a set of
-       patterns. For each pattern matched, the associated action is performed.
+UNDERSTANDING THE AWK COMMAND
+       Let's break down this command:
+       awk -F: '{print $1}' intel/users.db
+       │   │ │  │     │ │   └── input file
+       │   │ │  │     │ └── $1 = first field
+       │   │ │  │     └── print command
+       │   │ │  └── action block (in curly braces)
+       │   │ └── colon as field separator
+       │   └── -F = Field separator flag
+       └── the awk command
 
-       -F fs  Define the input field separator to be the regular expression fs.
+FIELD NUMBERS ($1, $2, etc.)
+       When awk reads a line, it splits it by the delimiter.
+       Each piece becomes a numbered field:
 
-       -v var=value
-              Assign value to variable var before execution of the program.
+       Example line from users.db:
+       admin:x:1000:1000:System Admin:/home/admin:/bin/bash
+
+       With -F: (colon delimiter):
+         $1 = admin           (username)
+         $2 = x               (password placeholder)
+         $3 = 1000            (UID)
+         $4 = 1000            (GID)
+         $5 = System Admin    (full name)
+         $6 = /home/admin     (home directory)
+         $7 = /bin/bash       (shell)
+         $0 = entire line
+
+       So: awk -F: '{print $1}' users.db  →  prints "admin"
+           awk -F: '{print $7}' users.db  →  prints "/bin/bash"
+
+THE -F FLAG (FIELD SEPARATOR)
+       -F:      Use colon as delimiter
+       -F,      Use comma as delimiter (CSV files)
+       -F'\\t'  Use tab as delimiter
+       -F' '    Use space as delimiter (default)
+
+PRINT MULTIPLE FIELDS
+       awk -F: '{print $1, $3}' file     Print fields 1 and 3
+       awk -F: '{print $1 ":" $3}' file  Print with colon between
+       awk -F, '{print $2, $4}' data.csv Print fields 2 and 4 from CSV
+
+PRACTICAL EXAMPLES
+       Extract usernames from passwd-style file:
+       awk -F: '{print $1}' intel/users.db
+
+       Extract usernames and shells:
+       awk -F: '{print $1, $7}' intel/users.db
+
+       Extract names from CSV (comma-separated):
+       awk -F, '{print $2}' data/employees.csv
+
+       Print specific columns from space-delimited log:
+       awk '{print $1, $9}' intel/access.log
 
 BUILT-IN VARIABLES
-       NR     The total number of input records seen so far.
-       NF     The number of fields in the current input record.
-       FS     The input field separator (default: whitespace).
-       RS     The input record separator (default: newline).
-       $0     The entire input record.
-       $1-$n  The nth field of the current record.
-
-EXAMPLES
-       awk '{print $1}' file.txt
-              Print first field of each line.
-
-       awk -F: '{print $1, $3}' /etc/passwd
-              Print username and UID from passwd.
-
-       awk '/pattern/ {print}' file.txt
-              Print lines matching pattern.
-
-       awk '{sum += $1} END {print sum}' numbers.txt
-              Sum first column.
-
-       awk 'NR > 1 {print}' file.txt
-              Skip first line (header).
+       $0     The entire line
+       $1-$n  The nth field
+       NR     Current line number
+       NF     Number of fields in current line
+       $NF    The LAST field (useful!)
 
 OPERATOR NOTES
        Use awk when you need to:
-       • Process structured data with complex field logic
-       • Perform calculations on columnar data
-       • Generate reports from logs or CSV files
-       • Transform data beyond simple search/replace
+       • Extract specific columns from structured data
+       • Process passwd files, CSVs, logs
+       • Print multiple fields with formatting
+       • More power than cut (supports logic and math)
 
-       Pro tip: awk is a full programming language for text.
-       awk -F: '$3 >= 1000 {print $1}' /etc/passwd  # Users with UID >= 1000
-       awk '{print $NF}' file            # Print last field of each line
-       awk 'length > 80' file            # Lines longer than 80 chars
-       awk is more powerful than cut when you need logic or math.
-       When grep+cut isn't enough, awk is your answer.
+       awk vs cut:
+       • cut is simpler, faster for basic extraction
+       • awk can do math, conditionals, multiple actions
+       • Use cut for simple jobs, awk for complex ones
 
 SEE ALSO
-       sed(1), grep(1), cut(1)`,
+       cut(1), sed(1), grep(1)`,
 
             'tee': `TEE(1)                          User Commands                         TEE(1)
 
@@ -7458,7 +7565,7 @@ SEE ALSO
         return `No manual entry for ${cmd}`;
     }
 
-    _cmdGrep(args) {
+    _cmdGrep(args, pipeInput = null) {
         // Parse flags
         let countOnly = false;      // -c
         let showLineNumbers = false; // -n
@@ -7491,10 +7598,15 @@ SEE ALSO
         const file = nonFlagArgs[1];
 
         if (!pattern) return 'grep: missing pattern';
-        if (!file) return 'grep: missing file operand';
 
-        const content = this._cmdCat([file]);
-        if (content.startsWith('cat:')) return content.replace('cat:', 'grep:');
+        // Get content from pipe or file
+        let content = pipeInput || '';
+        if (file) {
+            content = this._cmdCat([file]);
+            if (content.startsWith('cat:')) return content.replace('cat:', 'grep:');
+        } else if (!content) {
+            return 'grep: missing file operand';
+        }
 
         const regexFlags = ignoreCase ? 'gi' : 'g';
         const regex = new RegExp(pattern, regexFlags);
@@ -7543,33 +7655,52 @@ SEE ALSO
         return results.join('\n');
     }
 
-    _cmdHead(args) {
+    _cmdHead(args, pipeInput = null) {
         const n = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) || 10 : 10;
         const file = args.filter(a => !a.startsWith('-') && isNaN(a))[0];
-        if (!file) return 'head: missing file operand';
-        const content = this._cmdCat([file]);
-        if (content.startsWith('cat:')) return content.replace('cat:', 'head:');
+
+        // Get content from pipe or file
+        let content = pipeInput || '';
+        if (file) {
+            content = this._cmdCat([file]);
+            if (content.startsWith('cat:')) return content.replace('cat:', 'head:');
+        } else if (!content) {
+            return 'head: missing file operand';
+        }
         return content.split('\n').slice(0, n).join('\n');
     }
 
-    _cmdTail(args) {
+    _cmdTail(args, pipeInput = null) {
         const n = args.includes('-n') ? parseInt(args[args.indexOf('-n') + 1]) || 10 : 10;
         const file = args.filter(a => !a.startsWith('-') && isNaN(a))[0];
-        if (!file) return 'tail: missing file operand';
-        const content = this._cmdCat([file]);
-        if (content.startsWith('cat:')) return content.replace('cat:', 'tail:');
+
+        // Get content from pipe or file
+        let content = pipeInput || '';
+        if (file) {
+            content = this._cmdCat([file]);
+            if (content.startsWith('cat:')) return content.replace('cat:', 'tail:');
+        } else if (!content) {
+            return 'tail: missing file operand';
+        }
         return content.split('\n').slice(-n).join('\n');
     }
 
-    _cmdWc(args) {
+    _cmdWc(args, pipeInput = null) {
         const file = args.filter(a => !a.startsWith('-'))[0];
-        if (!file) return 'wc: missing file operand';
-        const content = this._cmdCat([file]);
-        if (content.startsWith('cat:')) return content.replace('cat:', 'wc:');
+
+        // Get content from pipe or file
+        let content = pipeInput || '';
+        if (file) {
+            content = this._cmdCat([file]);
+            if (content.startsWith('cat:')) return content.replace('cat:', 'wc:');
+        } else if (!content) {
+            return 'wc: missing file operand';
+        }
         const lines = content.split('\n').length;
         const words = content.split(/\s+/).filter(w => w).length;
         const chars = content.length;
-        return `  ${lines}   ${words}  ${chars} ${file}`;
+        // Show filename only if we have one
+        return file ? `  ${lines}   ${words}  ${chars} ${file}` : `  ${lines}   ${words}  ${chars}`;
     }
 
     _cmdPs(args) {
@@ -8538,13 +8669,13 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
     // TEXT PROCESSING COMMANDS
     // ═══════════════════════════════════════════════════════════════
 
-    _cmdSort(args) {
+    _cmdSort(args, pipeInput = null) {
         const reverse = args.includes('-r');
         const numeric = args.includes('-n');
         const unique = args.includes('-u');
         const file = args.filter(a => !a.startsWith('-'))[0];
 
-        let content = this.pipeInput || '';
+        let content = pipeInput || '';
         if (file) {
             const resolved = this._resolvePath(file);
             const entry = this.fs[resolved];
@@ -8573,13 +8704,13 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return lines.join('\n');
     }
 
-    _cmdUniq(args) {
+    _cmdUniq(args, pipeInput = null) {
         const count = args.includes('-c');
         const duplicatesOnly = args.includes('-d');
         const uniqueOnly = args.includes('-u');
         const file = args.filter(a => !a.startsWith('-'))[0];
 
-        let content = this.pipeInput || '';
+        let content = pipeInput || '';
         if (file) {
             const resolved = this._resolvePath(file);
             const entry = this.fs[resolved];
@@ -8625,7 +8756,7 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return result.join('\n');
     }
 
-    _cmdCut(args) {
+    _cmdCut(args, pipeInput = null) {
         const delimiterIdx = args.indexOf('-d');
         const fieldIdx = args.indexOf('-f');
         const charIdx = args.indexOf('-c');
@@ -8646,7 +8777,8 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
 
         const file = args.filter(a => !a.startsWith('-') && !a.includes(delimiter) && !/^\d/.test(a))[0];
 
-        let content = this.pipeInput || '';
+        // Get content from pipe or file
+        let content = pipeInput || '';
         if (file) {
             const resolved = this._resolvePath(file);
             const entry = this.fs[resolved];
@@ -8701,7 +8833,7 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return result.sort((a, b) => a - b);
     }
 
-    _cmdTr(args) {
+    _cmdTr(args, pipeInput = null) {
         if (args.length < 2) return 'tr: missing operand';
 
         const deleteMode = args[0] === '-d';
@@ -8716,8 +8848,8 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
             set2 = (args[1] || '').replace(/['"]/g, '');
         }
 
-        let content = this.pipeInput || '';
-        if (!content) return '';
+        let content = pipeInput || '';
+        if (!content) return 'tr: no input (requires pipe)';
 
         // Expand character classes
         set1 = this._expandCharClass(set1);
@@ -8763,19 +8895,22 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    _cmdSed(args) {
+    _cmdSed(args, pipeInput = null) {
         if (args.length < 1) return 'sed: no input files';
 
         const expression = args[0].replace(/['"]/g, '');
         const file = args.filter(a => !a.startsWith('-') && a !== expression)[0];
 
-        let content = this.pipeInput || '';
+        // Get content from pipe or file
+        let content = pipeInput || '';
         if (file) {
             const resolved = this._resolvePath(file);
             const entry = this.fs[resolved];
             if (!entry) return `sed: can't read ${file}: No such file or directory`;
             if (entry.type !== 'file') return `sed: ${file}: Is a directory`;
             content = entry.content || '';
+        } else if (!content) {
+            return 'sed: no input file or pipe';
         }
 
         if (!content) return '';
@@ -8813,25 +8948,38 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return content;
     }
 
-    _cmdAwk(args) {
+    _cmdAwk(args, pipeInput = null) {
         if (args.length < 1) return 'awk: no program given';
 
+        // Parse -F field separator
         const fieldSepIdx = args.indexOf('-F');
         let fieldSep = ' ';
-        if (fieldSepIdx !== -1 && args[fieldSepIdx + 1]) {
+        if (fieldSepIdx !== -1) {
+            if (!args[fieldSepIdx + 1] || args[fieldSepIdx + 1].startsWith('-')) {
+                return 'awk: missing field separator';
+            }
             fieldSep = args[fieldSepIdx + 1].replace(/['"]/g, '');
         }
 
-        const program = args.find(a => a.includes('{') || a.includes('$'))?.replace(/['"]/g, '') || args[0];
+        // Find the awk program (must contain { or $ for patterns)
+        const program = args.find(a => a.includes('{') || a.includes('$'))?.replace(/['"]/g, '');
+        if (!program) {
+            return 'awk: no program given\nUsage: awk [-F sep] \'pattern\' [file]\nExample: awk -F: \'{print $1}\' /etc/passwd';
+        }
+
+        // Find input file (not a flag, not the separator, not the program)
         const file = args.filter(a => !a.startsWith('-') && !a.includes('{') && !a.includes('$') && a !== fieldSep)[0];
 
-        let content = this.pipeInput || '';
+        // Get content from pipe or file
+        let content = pipeInput || '';
         if (file) {
             const resolved = this._resolvePath(file);
             const entry = this.fs[resolved];
             if (!entry) return `awk: can't open file ${file}`;
             if (entry.type !== 'file') return `awk: ${file}: Is a directory`;
             content = entry.content || '';
+        } else if (!content) {
+            return 'awk: no input file or pipe';
         }
 
         if (!content) return '';
@@ -8869,11 +9017,12 @@ Average:        all      2.78      0.00      0.97      0.18      0.00     96.07`
         return result.join('\n');
     }
 
-    _cmdTee(args) {
+    _cmdTee(args, pipeInput = null) {
         const append = args.includes('-a');
         const files = args.filter(a => !a.startsWith('-'));
 
-        const content = this.pipeInput || '';
+        const content = pipeInput || '';
+        if (!content) return 'tee: no input (requires pipe)';
 
         // Write to files
         for (const file of files) {
