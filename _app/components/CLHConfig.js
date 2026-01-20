@@ -2699,45 +2699,165 @@ $     End of line
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['intel', '.bash_history']
+                    children: ['intel', 'logs', 'reports', '.bash_history', '.network_cheatsheet']
                 },
                 '/home/operator/intel': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['targets.txt', 'scan_results.txt']
+                    children: ['targets.txt', 'scan_results.txt', 'network_map.txt', 'services.txt']
                 },
                 '/home/operator/intel/targets.txt': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 98,
-                    content: `10.0.0.5 - Primary server
-10.0.0.10 - Database
+                    size: 245,
+                    content: `# Target Network - Shadow Operations
+10.0.0.5 - Primary server (CRITICAL)
+10.0.0.10 - Database server
 10.0.0.15 - Web server
-192.168.1.1 - Gateway`
+10.0.0.20 - File server
+192.168.1.1 - Gateway/Router
+192.168.1.105 - Analyst workstation
+172.16.0.1 - DMZ gateway`
                 },
                 '/home/operator/intel/scan_results.txt': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 89,
-                    content: `Port scan results:
-22/tcp open ssh
-80/tcp open http
-443/tcp open https
-3306/tcp open mysql`
+                    size: 234,
+                    content: `Port scan results for 10.0.0.5:
+22/tcp open ssh OpenSSH 8.2
+80/tcp open http Apache 2.4.41
+443/tcp open https Apache 2.4.41
+3306/tcp open mysql MySQL 8.0.23
+8080/tcp filtered http-proxy`
+                },
+                '/home/operator/intel/network_map.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 345,
+                    content: `NETWORK TOPOLOGY
+================
+                    [Internet]
+                        |
+                  [192.168.1.1]  <-- Gateway
+                        |
+        +---------------+---------------+
+        |               |               |
+   [10.0.0.5]      [10.0.0.10]    [10.0.0.15]
+   Primary         Database        Web
+   Server          Server          Server`
+                },
+                '/home/operator/intel/services.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 189,
+                    content: `Running Services Detected:
+- SSH (22): Remote administration
+- HTTP (80): Web application
+- HTTPS (443): Secure web
+- MySQL (3306): Database backend
+- Monitoring agent on 10.0.0.5:9100`
+                },
+                '/home/operator/logs': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['connections.log', 'ping.log']
+                },
+                '/home/operator/logs/connections.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 312,
+                    content: `2024-01-15 10:15:32 ESTABLISHED 192.168.1.105:44821 -> 10.0.0.5:443
+2024-01-15 10:15:45 ESTABLISHED 192.168.1.42:55123 -> 10.0.0.5:80
+2024-01-15 10:16:01 TIME_WAIT 10.0.0.88:53421 -> 10.0.0.5:3306
+2024-01-15 10:16:22 ESTABLISHED 172.16.0.23:61234 -> 10.0.0.5:22
+2024-01-15 10:17:03 SYN_SENT 10.0.0.88:55555 -> 10.0.0.5:445`
+                },
+                '/home/operator/logs/ping.log': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 234,
+                    content: `Connectivity check - 2024-01-15
+10.0.0.5: 64 bytes, time=0.5ms - UP
+10.0.0.10: 64 bytes, time=0.8ms - UP
+10.0.0.15: 64 bytes, time=1.2ms - UP
+192.168.1.1: 64 bytes, time=0.3ms - UP
+172.16.0.1: Request timeout - DOWN`
+                },
+                '/home/operator/reports': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['README.txt']
+                },
+                '/home/operator/reports/README.txt': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 78,
+                    content: `Network Recon Reports
+Save your findings here:
+netstat -tuln > reports/ports.txt`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 178,
+                    content: `cat intel/targets.txt
+ping 10.0.0.5
+netstat -tuln
+ss -tp
+ip addr
+ip route
+cat intel/scan_results.txt`
+                },
+                '/home/operator/.network_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 456,
+                    content: `NETWORK RECON CHEATSHEET
+========================
+CONNECTIVITY:
+  ping <ip>           Test if host is up
+  ping -c 4 <ip>      Send only 4 packets
+
+LISTENING PORTS:
+  netstat -tuln       TCP/UDP listening ports
+  ss -tuln            Modern alternative to netstat
+
+CONNECTIONS:
+  netstat -tp         TCP connections with PIDs
+  ss -tp              Socket stats with processes
+
+IP CONFIGURATION:
+  ip addr             Show all IP addresses
+  ip a                Short form
+  ifconfig            Legacy command
+
+ROUTING:
+  ip route            Show routing table
+  route -n            Legacy routing table`
                 },
             },
 
@@ -2746,31 +2866,36 @@ $     End of line
                     id: 1,
                     task: 'RECON: Check Host Connectivity',
                     hint: 'Test connectivity: ping 10.0.0.5',
-                    check: (cmd, state) => cmd.includes('ping') && (cmd.includes('10.0.0.5') || cmd.includes('target'))
+                    check: (cmd, state, output) => cmd.includes('ping') &&
+                               output && (output.includes('bytes from') || output.includes('PING'))
                 },
                 {
                     id: 2,
                     task: 'SCAN: List Listening Ports',
                     hint: 'Show listening ports: netstat -tuln',
-                    check: (cmd, state) => cmd.includes('netstat') && (cmd.includes('-t') || cmd.includes('-u') || cmd.includes('-l'))
+                    check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) &&
+                               output && (output.includes('LISTEN') || output.includes('Local Address'))
                 },
                 {
                     id: 3,
                     task: 'ANALYZE: Socket Statistics',
                     hint: 'Show connections: ss -tp',
-                    check: (cmd, state) => cmd.includes('ss') && (cmd.includes('-t') || cmd.includes('-p'))
+                    check: (cmd, state, output) => cmd.includes('ss') &&
+                               output && (output.includes('ESTAB') || output.includes('State'))
                 },
                 {
                     id: 4,
                     task: 'IDENTIFY: Show IP Configuration',
                     hint: 'Display IPs: ip addr',
-                    check: (cmd, state) => cmd.includes('ip') && (cmd.includes('addr') || cmd.includes('a'))
+                    check: (cmd, state, output) => (cmd.includes('ip') && (cmd.includes('addr') || cmd.includes(' a '))) &&
+                               output && (output.includes('inet') || output.includes('192.168'))
                 },
                 {
                     id: 5,
                     task: 'MAP: View Routing Table',
                     hint: 'Show routes: ip route',
-                    check: (cmd, state) => cmd.includes('ip') && cmd.includes('route')
+                    check: (cmd, state, output) => cmd.includes('ip') && cmd.includes('route') &&
+                               output && (output.includes('default') || output.includes('via'))
                 },
             ],
 
@@ -2808,31 +2933,126 @@ $     End of line
                     perms: 'drwxr-xr-x',
                     owner: 'operator',
                     group: 'operator',
-                    children: ['.bashrc', '.profile', '.bash_history']
+                    children: ['.bashrc', '.profile', '.bash_history', '.env_cheatsheet', 'scripts', 'config']
                 },
                 '/home/operator/.bashrc': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 67,
-                    content: '# Operator shell config\nexport PS1="\\u@\\h:\\w$ "\nalias ll="ls -la"\n'
+                    size: 234,
+                    content: `# Operator shell config
+export PS1="\\u@\\h:\\w$ "
+alias ll="ls -la"
+alias grep="grep --color=auto"
+export EDITOR=vim
+export HISTSIZE=10000
+# Custom tools path
+export TOOLS=/opt/shadow-tools`
                 },
                 '/home/operator/.profile': {
                     type: 'file',
                     perms: '-rw-r--r--',
                     owner: 'operator',
                     group: 'operator',
-                    size: 45,
-                    content: '# Profile settings\nexport PATH=$PATH:$HOME/bin\n'
+                    size: 178,
+                    content: `# Profile settings - loaded at login
+export PATH=$PATH:$HOME/bin
+export LANG=en_US.UTF-8
+
+# Mission-specific settings
+export LOG_LEVEL=debug
+export OPERATION_MODE=stealth`
                 },
                 '/home/operator/.bash_history': {
                     type: 'file',
                     perms: '-rw-------',
                     owner: 'operator',
                     group: 'operator',
-                    size: 0,
-                    content: ''
+                    size: 145,
+                    content: `env
+echo $PATH
+echo $HOME
+export MISSION=active
+export PATH=$PATH:/opt/shadow-tools
+cat .bashrc
+printenv | grep PATH`
+                },
+                '/home/operator/.env_cheatsheet': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 456,
+                    content: `ENVIRONMENT VARIABLES CHEATSHEET
+=================================
+VIEWING:
+  env                  Show all variables
+  printenv             Same as env
+  echo $VAR            Show specific variable
+  printenv VAR         Show specific (no $)
+
+SETTING:
+  VAR=value            Set for current command only
+  export VAR=value     Set for current session
+  unset VAR            Remove variable
+
+IMPORTANT VARIABLES:
+  PATH     Search path for commands
+  HOME     User's home directory
+  USER     Current username
+  SHELL    Current shell
+  PWD      Current directory
+  EDITOR   Default text editor
+  LANG     Language/locale
+
+PERSISTENCE:
+  ~/.bashrc   Loaded on each new shell
+  ~/.profile  Loaded at login only`
+                },
+                '/home/operator/scripts': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['setup_env.sh']
+                },
+                '/home/operator/scripts/setup_env.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 234,
+                    content: `#!/bin/bash
+# Setup mission environment
+export MISSION=active
+export TARGET_IP=10.0.0.5
+export LOG_DIR=/var/log/ops
+export PATH=$PATH:/opt/shadow-tools
+
+echo "Environment configured for operation"
+env | grep -E "(MISSION|TARGET|LOG_DIR)"`
+                },
+                '/home/operator/config': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'operator',
+                    group: 'operator',
+                    children: ['mission.env']
+                },
+                '/home/operator/config/mission.env': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'operator',
+                    group: 'operator',
+                    size: 189,
+                    content: `# Mission configuration - source this file
+# Usage: source config/mission.env
+
+export OPERATION_NAME="Shadow Strike"
+export TARGET_NETWORK="10.0.0.0/24"
+export EXFIL_SERVER="192.168.100.1"
+export ENCRYPTION_KEY="[CLASSIFIED]"`
                 },
             },
 
@@ -2841,31 +3061,34 @@ $     End of line
                     id: 1,
                     task: 'SURVEY: List All Variables',
                     hint: 'Display all: env',
-                    check: (cmd, state) => cmd.includes('env') || cmd.includes('printenv')
+                    check: (cmd, state, output) => (cmd.includes('env') || cmd.includes('printenv')) &&
+                               output && (output.includes('PATH') || output.includes('HOME'))
                 },
                 {
                     id: 2,
                     task: 'INSPECT: Check Your PATH',
                     hint: 'Show PATH: echo $PATH',
-                    check: (cmd, state) => cmd.includes('echo') && cmd.includes('PATH')
+                    check: (cmd, state, output) => cmd.includes('echo') && cmd.includes('PATH') &&
+                               output && (output.includes('/usr') || output.includes('/bin'))
                 },
                 {
                     id: 3,
                     task: 'IDENTIFY: Find Your Home',
                     hint: 'Show HOME: echo $HOME',
-                    check: (cmd, state) => cmd.includes('echo') && cmd.includes('HOME')
+                    check: (cmd, state, output) => cmd.includes('echo') && cmd.includes('HOME') &&
+                               output && output.includes('/home')
                 },
                 {
                     id: 4,
                     task: 'CREATE: Set Mission Variable',
                     hint: 'Create variable: export MISSION=active',
-                    check: (cmd, state) => cmd.includes('export') && cmd.includes('MISSION')
+                    check: (cmd, state, output) => cmd.includes('export') && cmd.includes('MISSION')
                 },
                 {
                     id: 5,
                     task: 'EXTEND: Add Tools to PATH',
                     hint: 'Extend PATH: export PATH=$PATH:/opt/shadow-tools',
-                    check: (cmd, state) => cmd.includes('export') && cmd.includes('PATH') && cmd.includes('/opt')
+                    check: (cmd, state, output) => cmd.includes('export') && cmd.includes('PATH') && cmd.includes('/opt')
                 },
             ],
 
