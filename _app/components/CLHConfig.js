@@ -4134,6 +4134,14 @@ tmux                Modern terminal multiplexer`
             allowedCommands: null,
 
             filesystem: {
+                // Override root to include /evidence in children
+                '/': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'root',
+                    group: 'root',
+                    children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'sbin', 'opt', 'root', 'evidence']
+                },
                 '/home/operator': {
                     type: 'dir',
                     perms: 'drwxr-xr-x',

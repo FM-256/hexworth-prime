@@ -1085,12 +1085,18 @@ const _CLHTerminalModule = (function() {
         // Follow symlinks (up to 10 levels to prevent infinite loops)
         let symlinkCount = 0;
         while (node && node.type === 'symlink' && symlinkCount < 10) {
-            newPath = _resolvePath(node.target);
+            const symlinkTarget = node.target;
+            newPath = _resolvePath(symlinkTarget);
             node = state.fs[newPath];
             symlinkCount++;
+            // If symlink target doesn't exist, give clear error
+            if (!node) {
+                return _err(`cd: ${target}: Too many levels of symbolic links (target ${symlinkTarget} not found)`);
+            }
         }
 
         if (!node) return _err(`cd: ${target}: No such file or directory`);
+        if (node.type === 'symlink') return _err(`cd: ${target}: Too many levels of symbolic links`);
         if (node.type !== 'dir') return _err(`cd: ${target}: Not a directory`);
 
         // Check execute permission (required to traverse directories)
