@@ -3523,6 +3523,26 @@ class CLHTerminal {
             lastExitCode = result.exitCode;
             lastOutput = result.output;
         }
+
+        // Print the FINAL output only (not intermediate pipe results)
+        if (lastOutput) {
+            this._printOutput(lastOutput);
+        }
+
+        // Check objectives with the full command line and final output
+        this._checkObjectives(cmdLine, lastOutput);
+
+        // Track achievements
+        this._trackAchievements(cmdLine);
+
+        // Show smart hints
+        const hint = this._getSmartHint(cmdLine, lastOutput);
+        if (hint) {
+            this._showSmartHint(hint);
+        }
+
+        // Callback
+        this._onCommand(cmdLine, lastOutput);
     }
 
     _parseCommandChain(cmdLine) {
@@ -3695,24 +3715,27 @@ class CLHTerminal {
             return { output: `Redirected to ${redirectFile}`, exitCode: 0 };
         }
 
-        if (output) {
-            this._printOutput(output);
+        // When fromChain=true, _executeWithChaining handles output/objectives/hints
+        if (!fromChain) {
+            if (output) {
+                this._printOutput(output);
+            }
+
+            // Check objectives
+            this._checkObjectives(cmdLine, output);
+
+            // Track achievements
+            this._trackAchievements(cmdLine);
+
+            // Show smart hints (educational feedback)
+            const hint = this._getSmartHint(cmdLine, output);
+            if (hint) {
+                this._showSmartHint(hint);
+            }
+
+            // Callback
+            this._onCommand(cmdLine, output);
         }
-
-        // Check objectives
-        this._checkObjectives(cmdLine, output);
-
-        // Track achievements
-        this._trackAchievements(cmdLine);
-
-        // Show smart hints (educational feedback)
-        const hint = this._getSmartHint(cmdLine, output);
-        if (hint) {
-            this._showSmartHint(hint);
-        }
-
-        // Callback
-        this._onCommand(cmdLine, output);
 
         return { output, exitCode };
     }
