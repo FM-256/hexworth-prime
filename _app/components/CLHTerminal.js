@@ -944,6 +944,9 @@ const _CLHTerminalModule = (function() {
             case 'df': return _cmd_df(args);
             case 'du': return _cmd_du(args);
             case 'free': return _cmd_free(args);
+            case 'lscpu': return _cmd_lscpu();
+            case 'nproc': return '4';
+            case 'arch': return 'x86_64';
 
             // Processes
             case 'ps': return _cmd_ps(args);
@@ -1621,6 +1624,25 @@ Swap:         2.0Gi          0B       2.0Gi`;
         return `              total        used        free      shared  buff/cache   available
 Mem:        8192000     2048000     4096000      131072     1884000     5632000
 Swap:       2097152           0     2097152`;
+    }
+
+    function _cmd_lscpu() {
+        return `Architecture:            x86_64
+CPU op-mode(s):          32-bit, 64-bit
+Byte Order:              Little Endian
+CPU(s):                  4
+On-line CPU(s) list:     0-3
+Thread(s) per core:      2
+Core(s) per socket:      2
+Socket(s):               1
+Vendor ID:               GenuineIntel
+CPU family:              6
+Model name:              Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
+CPU MHz:                 1800.000
+L1d cache:               64 KiB
+L1i cache:               64 KiB
+L2 cache:                512 KiB
+L3 cache:                6 MiB`;
     }
 
     function _cmd_ps(args) {
@@ -4291,6 +4313,9 @@ class CLHTerminal {
             case 'w': output = this._cmdW(); break;
             case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
             case 'free': output = this._cmdFree(args); break;
+            case 'lscpu': output = this._cmdLscpu(); break;
+            case 'nproc': output = '4'; break;
+            case 'arch': output = 'x86_64'; break;
             case 'top': output = this._cmdTop(); break;
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
@@ -4448,6 +4473,9 @@ class CLHTerminal {
             case 'w': output = this._cmdW(); break;
             case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
             case 'free': output = this._cmdFree(args); break;
+            case 'lscpu': output = this._cmdLscpu(); break;
+            case 'nproc': output = '4'; break;
+            case 'arch': output = 'x86_64'; break;
             case 'top': output = this._cmdTop(); break;
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
@@ -8226,6 +8254,25 @@ Swap:         2.0Gi          0B       2.0Gi`;
         return `              total        used        free      shared  buff/cache   available
 Mem:        8167736     2202624     3355648      262144     2609464     5461248
 Swap:       2097148           0     2097148`;
+    }
+
+    _cmdLscpu() {
+        return `Architecture:            x86_64
+CPU op-mode(s):          32-bit, 64-bit
+Byte Order:              Little Endian
+CPU(s):                  4
+On-line CPU(s) list:     0-3
+Thread(s) per core:      2
+Core(s) per socket:      2
+Socket(s):               1
+Vendor ID:               GenuineIntel
+CPU family:              6
+Model name:              Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
+CPU MHz:                 1800.000
+L1d cache:               64 KiB
+L1i cache:               64 KiB
+L2 cache:                512 KiB
+L3 cache:                6 MiB`;
     }
 
     _cmdTop() {
