@@ -676,6 +676,11 @@ const BlacksiteTerminal = (function() {
 
         systems.cctv = BlacksiteCCTV;
 
+        // Start radio ambient sound (background hum + static)
+        if (systems.audio && state.audioEnabled) {
+            systems.audio.startRadioAmbient();
+        }
+
         // Start with idle radio chatter
         BlacksiteCCTV.startRadioChatter('idle');
 
@@ -688,6 +693,18 @@ const BlacksiteTerminal = (function() {
 
     function addRadioMessage(message, type = 'normal') {
         if (!elements.radioLog) return;
+
+        // Play radio sounds
+        if (systems.audio && state.audioEnabled) {
+            systems.audio.radioMessage(type);
+
+            // Play roger beep after a delay (simulates end of transmission)
+            setTimeout(() => {
+                if (systems.audio && state.audioEnabled) {
+                    systems.audio.roger();
+                }
+            }, 800 + Math.random() * 400);
+        }
 
         const now = new Date();
         const time = now.toTimeString().slice(0, 8);

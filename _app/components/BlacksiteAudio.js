@@ -9,11 +9,16 @@
  * - Explosion boom
  * - Success chime
  * - Ambient hum
- * - Radio static
+ * - Radio static/crackle
+ * - Radio click (transmission start)
+ * - Roger beep (walkie-talkie end)
+ * - Incoming transmission tone
+ * - Urgent alert tone
+ * - Radio ambient (background hum + static)
  *
  * No external audio files required.
  *
- * Version: 1.0.0
+ * Version: 1.1.0
  */
 
 const BlacksiteAudio = (function() {
@@ -34,7 +39,8 @@ const BlacksiteAudio = (function() {
         fuse: null,
         tick: null,
         heartbeat: null,
-        ambient: null
+        ambient: null,
+        radioAmbient: null
     };
 
 
@@ -381,6 +387,216 @@ const BlacksiteAudio = (function() {
         noise.start(now);
     }
 
+    // Roger beep - classic walkie-talkie end-of-transmission beep
+    function createRogerBeep() {
+        if (!isInitialized || isMuted) return;
+
+        const now = audioContext.currentTime;
+
+        // Two-tone beep (like real radios)
+        const osc1 = createOscillator('sine', 1200);
+        const osc2 = createOscillator('sine', 1500);
+        const gain = createGain(0);
+
+        // Quick attack, short sustain, quick release
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+        gain.gain.setValueAtTime(0.12, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(masterGain);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.15);
+        osc2.stop(now + 0.15);
+    }
+
+    // Radio click - beginning of transmission sound
+    function createRadioClick() {
+        if (!isInitialized || isMuted) return;
+
+        const now = audioContext.currentTime;
+
+        // Short burst of static + click
+        const noise = audioContext.createBufferSource();
+        noise.buffer = createNoiseBuffer(0.05);
+        const filter = createFilter('bandpass', 2000, 3);
+        const gain = createGain(0.2);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        // Add a subtle click tone
+        const click = createOscillator('square', 800);
+        const clickGain = createGain(0.08);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+
+        click.connect(clickGain);
+        clickGain.connect(masterGain);
+
+        noise.start(now);
+        click.start(now);
+        click.stop(now + 0.02);
+    }
+
+    // Incoming transmission tone - alert for urgent messages
+    function createIncomingTransmission() {
+        if (!isInitialized || isMuted) return;
+
+        const now = audioContext.currentTime;
+
+        // Rising two-tone alert
+        const osc = createOscillator('sine', 600);
+        const gain = createGain(0);
+
+        // First beep
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+        gain.gain.setValueAtTime(0.15, now + 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + 0.12);
+
+        // Second beep (higher pitch)
+        gain.gain.setValueAtTime(0, now + 0.15);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.17);
+        osc.frequency.setValueAtTime(800, now + 0.15);
+        gain.gain.setValueAtTime(0.15, now + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }
+
+    // Urgent transmission alert - more aggressive alert tone
+    function createUrgentAlert() {
+        if (!isInitialized || isMuted) return;
+
+        const now = audioContext.currentTime;
+
+        // Rapid three-beep alert
+        const frequencies = [800, 1000, 800];
+
+        frequencies.forEach((freq, i) => {
+            const osc = createOscillator('square', freq);
+            const gain = createGain(0);
+
+            const startTime = now + i * 0.12;
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.02);
+            gain.gain.setValueAtTime(0.1, startTime + 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.1);
+        });
+    }
+
+    // Ambient radio hum with occasional crackle
+    function createRadioAmbient() {
+        if (!isInitialized || isMuted) return null;
+
+        const now = audioContext.currentTime;
+
+        // Base hum (simulates carrier wave)
+        const hum = createOscillator('sine', 50);
+        const hum2 = createOscillator('sine', 100); // Harmonic
+        const humGain = createGain(0.02);
+
+        // Continuous low static
+        const staticNoise = audioContext.createBufferSource();
+        staticNoise.buffer = createNoiseBuffer(4);
+        staticNoise.loop = true;
+        const staticFilter = createFilter('bandpass', 1200, 1);
+        const staticGain = createGain(0.03);
+
+        // LFO for static variation
+        const lfo = createOscillator('sine', 0.3);
+        const lfoGain = createGain(0.015);
+        lfo.connect(lfoGain);
+        lfoGain.connect(staticGain.gain);
+
+        // Connect hum
+        hum.connect(humGain);
+        hum2.connect(humGain);
+        humGain.connect(masterGain);
+
+        // Connect static
+        staticNoise.connect(staticFilter);
+        staticFilter.connect(staticGain);
+        staticGain.connect(masterGain);
+
+        // Start
+        hum.start(now);
+        hum2.start(now);
+        staticNoise.start(now);
+        lfo.start(now);
+
+        // Random crackle generator
+        let crackleInterval = setInterval(() => {
+            if (Math.random() < 0.3 && !isMuted) {
+                createRadioStatic(0.05 + Math.random() * 0.1);
+            }
+        }, 2000);
+
+        return {
+            stop: () => {
+                clearInterval(crackleInterval);
+                humGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+                staticGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+                setTimeout(() => {
+                    try {
+                        hum.stop();
+                        hum2.stop();
+                        staticNoise.stop();
+                        lfo.stop();
+                    } catch (e) {}
+                }, 400);
+            },
+            setVolume: (v) => {
+                humGain.gain.setValueAtTime(v * 0.02, audioContext.currentTime);
+                staticGain.gain.setValueAtTime(v * 0.03, audioContext.currentTime);
+            }
+        };
+    }
+
+    // Full radio message sound sequence (click -> static -> message plays -> roger beep)
+    function playRadioMessageSound(type = 'normal') {
+        if (!isInitialized || isMuted) return;
+
+        // Initial click
+        createRadioClick();
+
+        // For urgent messages, play alert first
+        if (type === 'urgent') {
+            setTimeout(() => createUrgentAlert(), 50);
+            setTimeout(() => createRadioStatic(0.15), 400);
+        } else if (type === 'success') {
+            setTimeout(() => createIncomingTransmission(), 50);
+            setTimeout(() => createRadioStatic(0.1), 350);
+        } else {
+            // Normal message - just a bit of static
+            setTimeout(() => createRadioStatic(0.1), 50);
+        }
+    }
+
+    // Roger beep at end of message (call separately after message displays)
+    function playRogerBeep() {
+        if (!isInitialized || isMuted) return;
+        createRogerBeep();
+    }
+
     // Keypress sound (terminal input)
     function createKeypress() {
         if (!isInitialized || isMuted) return;
@@ -465,12 +681,26 @@ const BlacksiteAudio = (function() {
         }
     }
 
+    // Start radio ambient (hum + static)
+    function startRadioAmbient() {
+        if (activeLoops.radioAmbient) return;
+        activeLoops.radioAmbient = createRadioAmbient();
+    }
+
+    function stopRadioAmbient() {
+        if (activeLoops.radioAmbient) {
+            activeLoops.radioAmbient.stop();
+            activeLoops.radioAmbient = null;
+        }
+    }
+
     // Stop all loops
     function stopAll() {
         stopTickLoop();
         stopHeartbeatLoop();
         stopFuseSizzle();
         stopAmbient();
+        stopRadioAmbient();
     }
 
 
@@ -568,6 +798,14 @@ const BlacksiteAudio = (function() {
         radioStatic: createRadioStatic,
         keypress: createKeypress,
 
+        // Radio sounds
+        radioClick: createRadioClick,
+        rogerBeep: createRogerBeep,
+        incomingTransmission: createIncomingTransmission,
+        urgentAlert: createUrgentAlert,
+        radioMessage: playRadioMessageSound,
+        roger: playRogerBeep,
+
         // Loops
         startTick: startTickLoop,
         stopTick: stopTickLoop,
@@ -577,6 +815,8 @@ const BlacksiteAudio = (function() {
         stopFuse: stopFuseSizzle,
         startAmbient: startAmbient,
         stopAmbient: stopAmbient,
+        startRadioAmbient: startRadioAmbient,
+        stopRadioAmbient: stopRadioAmbient,
         stopAll: stopAll,
 
         // Tension system
