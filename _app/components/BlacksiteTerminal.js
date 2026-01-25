@@ -153,6 +153,16 @@ const BlacksiteTerminal = (function() {
                                 <input type="text" id="blacksite-terminal-input" class="blacksite-terminal-input" autocomplete="off" spellcheck="false">
                             </div>
                         </div>
+
+                        <!-- Radio Feed (below terminal) -->
+                        <div class="blacksite-radio-panel">
+                            <div class="blacksite-radio-header">
+                                <span class="blacksite-radio-icon">📻</span>
+                                <span class="blacksite-radio-title">ENCRYPTED RADIO - CH7</span>
+                                <span class="blacksite-radio-status">● LIVE</span>
+                            </div>
+                            <div id="blacksite-radio-log" class="blacksite-radio-log"></div>
+                        </div>
                     </div>
 
                     <!-- Sidebar -->
@@ -227,6 +237,7 @@ const BlacksiteTerminal = (function() {
         elements.terminalOutput = container.querySelector('#blacksite-terminal-output');
         elements.terminalInput = container.querySelector('#blacksite-terminal-input');
         elements.prompt = container.querySelector('#blacksite-prompt');
+        elements.radioLog = container.querySelector('#blacksite-radio-log');
 
         // Bind events
         bindEvents();
@@ -658,7 +669,9 @@ const BlacksiteTerminal = (function() {
         }
 
         BlacksiteCCTV.init({
-            container: elements.cctvContainer
+            container: elements.cctvContainer,
+            externalRadio: true, // Use external radio panel
+            onRadioMessage: addRadioMessage // Forward messages to our panel
         });
 
         systems.cctv = BlacksiteCCTV;
@@ -667,6 +680,40 @@ const BlacksiteTerminal = (function() {
         BlacksiteCCTV.startRadioChatter('idle');
 
         console.log('[BlacksiteTerminal] CCTV system initialized');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RADIO FEED
+    // ═══════════════════════════════════════════════════════════════
+
+    function addRadioMessage(message, type = 'normal') {
+        if (!elements.radioLog) return;
+
+        const now = new Date();
+        const time = now.toTimeString().slice(0, 8);
+
+        const msgEl = document.createElement('div');
+        msgEl.className = `blacksite-radio-msg ${type}`;
+        msgEl.innerHTML = `<span class="blacksite-radio-time">${time}</span> ${message}`;
+
+        elements.radioLog.appendChild(msgEl);
+        elements.radioLog.scrollTop = elements.radioLog.scrollHeight;
+
+        // Limit messages to prevent overflow
+        while (elements.radioLog.children.length > 15) {
+            elements.radioLog.removeChild(elements.radioLog.firstChild);
+        }
+
+        // Flash effect for urgent messages
+        if (type === 'urgent') {
+            msgEl.classList.add('flash');
+        }
+    }
+
+    function startRadioChatter(phase) {
+        if (systems.cctv) {
+            systems.cctv.startRadioChatter(phase);
+        }
     }
 
     function updateCCTVProgress(completedCount, totalCount) {

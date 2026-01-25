@@ -378,10 +378,14 @@ const BlacksiteCCTV = (function() {
         container: null,
         glitchActive: false,
         autoCycle: false,
-        autoCycleInterval: null
+        autoCycleInterval: null,
+        externalRadio: false // Use external radio panel
     };
 
     let elements = {};
+    let callbacks = {
+        onRadioMessage: null // External radio message handler
+    };
     let intervals = {
         animation: null,
         chatter: null,
@@ -404,6 +408,10 @@ const BlacksiteCCTV = (function() {
             console.error('[BlacksiteCCTV] Container not found');
             return false;
         }
+
+        // External radio support
+        state.externalRadio = options.externalRadio || false;
+        callbacks.onRadioMessage = options.onRadioMessage || null;
 
         buildUI();
         bindEvents();
@@ -542,8 +550,8 @@ const BlacksiteCCTV = (function() {
                     </div>
                 </div>
 
-                <!-- Radio Chatter Display -->
-                <div class="cctv-radio">
+                <!-- Radio Chatter Display (hidden if using external radio) -->
+                <div class="cctv-radio ${state.externalRadio ? 'hidden' : ''}">
                     <div class="cctv-radio-header">
                         <span class="cctv-radio-icon">📻</span>
                         <span>RADIO FEED</span>
@@ -880,6 +888,15 @@ const BlacksiteCCTV = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     function addRadioMessage(message, type = 'normal') {
+        // If using external radio, forward to callback
+        if (state.externalRadio && callbacks.onRadioMessage) {
+            callbacks.onRadioMessage(message, type);
+            return;
+        }
+
+        // Otherwise use internal radio log
+        if (!elements.radioLog) return;
+
         const msgEl = document.createElement('div');
         msgEl.className = `cctv-radio-msg ${type}`;
         msgEl.innerHTML = `<span class="cctv-radio-time">${getShortTime()}</span> ${message}`;
