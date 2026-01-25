@@ -52,7 +52,7 @@ const BlacksiteTerminal = (function() {
 
     let elements = {};
     let callbacks = {};
-    let systems = { fuse: null, explosion: null, audio: null };
+    let systems = { fuse: null, explosion: null, audio: null, cctv: null };
 
     // ═══════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -86,6 +86,9 @@ const BlacksiteTerminal = (function() {
 
         // Initialize particles
         initParticles();
+
+        // Initialize CCTV system
+        initCCTV();
 
         // Start timestamp clock
         startTimestamp();
@@ -163,16 +166,14 @@ const BlacksiteTerminal = (function() {
                                     <div class="blacksite-timer-bar"></div>
                                 </div>
                             </div>
+                            <!-- Fuse visualization -->
+                            <div class="blacksite-fuse-container"></div>
                         </div>
 
-                        <!-- Device Feed (Fuse) -->
-                        <div class="blacksite-panel">
-                            <div class="blacksite-panel-header">DEVICE FEED</div>
-                            <div class="blacksite-device-feed">
-                                <div class="blacksite-bomb-icon">💣</div>
-                                <div class="blacksite-fuse-container"></div>
-                                <div class="blacksite-threat-label">ACTIVE THREAT</div>
-                            </div>
+                        <!-- CCTV Surveillance System -->
+                        <div class="blacksite-panel blacksite-cctv-panel">
+                            <div class="blacksite-panel-header">SURVEILLANCE FEED</div>
+                            <div id="blacksite-cctv-container" class="blacksite-cctv-mount"></div>
                         </div>
 
                         <!-- Objectives -->
@@ -218,6 +219,7 @@ const BlacksiteTerminal = (function() {
         elements.timerDisplay = container.querySelector('.blacksite-timer-display');
         elements.timerBar = container.querySelector('.blacksite-timer-bar');
         elements.fuseContainer = container.querySelector('.blacksite-fuse-container');
+        elements.cctvContainer = container.querySelector('#blacksite-cctv-container');
         elements.objectivesList = container.querySelector('.blacksite-objectives-list');
         elements.progressBar = container.querySelector('.blacksite-progress-bar');
         elements.progressText = container.querySelector('.blacksite-progress-text');
@@ -335,6 +337,18 @@ const BlacksiteTerminal = (function() {
         if (systems.audio && state.audioEnabled) {
             systems.audio.success();
         }
+
+        // Update CCTV story progression
+        updateCCTVProgress(completedCount, totalCount);
+
+        // Trigger CCTV alert on milestone objectives
+        if (completedCount === 1) {
+            triggerCCTVAlert('CONTROL: First objective complete. Good work, BLACKSITE.');
+        } else if (completedCount === Math.floor(totalCount / 2)) {
+            triggerCCTVAlert('PHOENIX: Halfway there! Keep the intel coming!');
+        } else if (completedCount === totalCount - 1) {
+            triggerCCTVAlert('CONTROL: One more objective! Almost there!');
+        }
     }
 
     function handleModuleComplete() {
@@ -369,6 +383,14 @@ const BlacksiteTerminal = (function() {
 
         // Visual feedback
         elements.frame.classList.add('success');
+
+        // CCTV success events
+        if (systems.cctv) {
+            systems.cctv.setPhoenixProgress(4);
+            systems.cctv.switchCamera('CAM-04', true); // Show ballroom - everyone safe
+            systems.cctv.addRadioMessage('PHOENIX: DEVICE NEUTRALIZED! Summit is secure!', 'success');
+            systems.cctv.addRadioMessage('CONTROL: Outstanding work, BLACKSITE. All 47 executives safe.', 'success');
+        }
 
         if (callbacks.onComplete) {
             callbacks.onComplete(state.moduleId, {
@@ -470,6 +492,19 @@ const BlacksiteTerminal = (function() {
         // Start heartbeat when critical
         if (state.timeRemaining <= CONFIG.criticalTime) {
             systems.audio.startHeartbeat();
+
+            // Trigger CCTV critical events
+            if (systems.cctv && state.timeRemaining === CONFIG.criticalTime) {
+                systems.cctv.triggerGlitch();
+                systems.cctv.addRadioMessage('PHOENIX: Time is critical! I need that code NOW!', 'urgent');
+            }
+        }
+
+        // Warning threshold - signal degradation
+        if (state.timeRemaining <= CONFIG.warningTime && state.timeRemaining > CONFIG.criticalTime) {
+            if (systems.cctv && Math.random() < 0.05) {
+                systems.cctv.triggerGlitch();
+            }
         }
     }
 
@@ -481,6 +516,14 @@ const BlacksiteTerminal = (function() {
         console.log('[BlacksiteTerminal] BOOM!');
 
         stopTimer();
+
+        // CCTV signal loss effect
+        if (systems.cctv) {
+            systems.cctv.triggerSignalLoss();
+            systems.cctv.addRadioMessage('CONTROL: We lost the feed! PHOENIX, respond!', 'urgent');
+            systems.cctv.addRadioMessage('...', 'urgent');
+            systems.cctv.addRadioMessage('CONTROL: PHOENIX is down. Mission failed.', 'urgent');
+        }
 
         // Audio
         if (systems.audio) {
@@ -597,6 +640,56 @@ const BlacksiteTerminal = (function() {
 
         // Explosion
         systems.explosion = BlacksiteParticles.createExplosion();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CCTV SYSTEM
+    // ═══════════════════════════════════════════════════════════════
+
+    function initCCTV() {
+        if (typeof BlacksiteCCTV === 'undefined') {
+            console.warn('[BlacksiteTerminal] BlacksiteCCTV not loaded');
+            return;
+        }
+
+        if (!elements.cctvContainer) {
+            console.warn('[BlacksiteTerminal] CCTV container not found');
+            return;
+        }
+
+        BlacksiteCCTV.init({
+            container: elements.cctvContainer
+        });
+
+        systems.cctv = BlacksiteCCTV;
+
+        // Start with idle radio chatter
+        BlacksiteCCTV.startRadioChatter('idle');
+
+        console.log('[BlacksiteTerminal] CCTV system initialized');
+    }
+
+    function updateCCTVProgress(completedCount, totalCount) {
+        if (!systems.cctv) return;
+
+        const progress = completedCount / totalCount;
+
+        // Update PHOENIX progress based on completion
+        if (progress >= 0.25 && progress < 0.5) {
+            systems.cctv.setPhoenixProgress(1); // Approaching
+        } else if (progress >= 0.5 && progress < 0.75) {
+            systems.cctv.setPhoenixProgress(2); // At device
+        } else if (progress >= 0.75 && progress < 1) {
+            systems.cctv.setPhoenixProgress(3); // Critical
+        } else if (progress >= 1) {
+            systems.cctv.setPhoenixProgress(4); // Success
+        }
+    }
+
+    function triggerCCTVAlert(message) {
+        if (!systems.cctv) return;
+        systems.cctv.triggerMotionAlert();
+        systems.cctv.addRadioMessage(message, 'urgent');
     }
 
     // ═══════════════════════════════════════════════════════════════
