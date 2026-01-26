@@ -3230,6 +3230,28 @@ class CLHTerminal {
             HOSTNAME: this.hostname,
         };
 
+        // Radio system state (The Watcher)
+        this.radio = {
+            frequency: 147.3,
+            channels: {
+                147.3: { name: 'STATIC', type: 'noise' },
+                152.8: { name: 'SECURITY', type: 'ambient' },
+                156.1: { name: 'CONSORTIUM', type: 'lore' },
+                161.7: { name: 'GHOST-7', type: 'hints' },
+                173.5: { name: 'NUMBERS', type: 'easter' },
+                88.1:  { name: 'EMERGENCY', type: 'solutions' }
+            },
+            aliases: {
+                'static': 147.3,
+                'security': 152.8,
+                'consortium': 156.1,
+                'ghost': 161.7,
+                'ghost-7': 161.7,
+                'numbers': 173.5,
+                'emergency': 88.1
+            }
+        };
+
         // Vim state
         this._vimMode = null; // null = not in vim, 'normal', 'insert', 'command'
         this._vimFile = null;
@@ -3541,6 +3563,16 @@ class CLHTerminal {
     // ═══════════════════════════════════════════════════════════════
 
     _executeWithChaining(cmdLine) {
+        // Check for watcher trigger keywords (help/stuck/sos)
+        const watcherResponse = this._checkWatcherKeywords(cmdLine);
+        if (watcherResponse) {
+            this._printCommand(cmdLine);
+            this._printOutput(watcherResponse);
+            this.commandHistory.push(cmdLine);
+            this.historyIndex = this.commandHistory.length;
+            return;
+        }
+
         // Parse command chains: &&, ||, ;, |
         const chains = this._parseCommandChain(cmdLine);
         let lastExitCode = 0;
@@ -4383,6 +4415,10 @@ class CLHTerminal {
             case 'nc': case 'netcat': output = this._cmdNetcat(args); break;
             case 'tcpdump': output = this._cmdTcpdump(args); break;
             case 'whois': output = this._cmdWhois(args); break;
+            // Radio system (The Watcher)
+            case 'tune': output = this._cmdTune(args); break;
+            case 'scan': output = this._cmdScan(); break;
+            case 'radio': output = this._cmdRadio(args); break;
             // Easter eggs
             case 'sl': output = this._cmdSl(); break;
             case 'cowsay': output = this._cmdCowsay(args); break;
@@ -7811,7 +7847,126 @@ OPERATOR NOTES
        Also check /home/*/.bash_history for all users
 
 SEE ALSO
-       bash(1)`
+       bash(1)`,
+
+            // Radio system (The Watcher)
+            'scan': `SCAN(1)                      BLACKSITE Commands                      SCAN(1)
+
+NAME
+       scan - scan radio frequencies for active signals
+
+SYNOPSIS
+       scan
+
+DESCRIPTION
+       Scans all available radio frequencies and displays signal strength
+       for each channel. Use this to discover what frequencies are active
+       and broadcasting.
+
+       This is an unofficial BLACKSITE utility. Its existence is neither
+       confirmed nor denied by command.
+
+FREQUENCIES
+       147.3 MHz    STATIC      - Background noise, no useful signal
+       152.8 MHz    SECURITY    - Hotel security communications
+       156.1 MHz    CONSORTIUM  - Encrypted hostile transmissions
+       161.7 MHz    GHOST-7     - Analyst assistance network
+       173.5 MHz    NUMBERS     - Unknown origin, patterns detected
+       88.1 MHz     EMERGENCY   - Emergency broadcast channel
+
+OUTPUT
+       Each frequency shows:
+       • Frequency in MHz
+       • Signal strength indicator [██████░░░░]
+       • Channel name/identifier
+       • Current tuned frequency marked with ◄──
+
+EXAMPLES
+       scan
+           Display all frequencies and their status.
+
+OPERATOR NOTES
+       The GHOST-7 frequency (161.7 MHz) is rumored to provide guidance
+       to analysts who find themselves stuck. This has not been officially
+       verified. Some operators report finding hidden .signal files in
+       their working directories. We cannot comment on these reports.
+
+SEE ALSO
+       tune(1), radio(1)`,
+
+            'tune': `TUNE(1)                      BLACKSITE Commands                      TUNE(1)
+
+NAME
+       tune - tune radio to a specific frequency
+
+SYNOPSIS
+       tune <frequency>
+       tune <channel-name>
+
+DESCRIPTION
+       Tunes the radio receiver to the specified frequency or channel.
+       Once tuned, you will receive broadcasts on that frequency until
+       you tune to a different one.
+
+       This is an unofficial BLACKSITE utility.
+
+OPTIONS
+       frequency
+              A numeric frequency in MHz (e.g., 161.7)
+
+       channel-name
+              A channel alias: static, security, consortium, ghost,
+              numbers, emergency
+
+FREQUENCIES
+       147.3    static       Background noise
+       152.8    security     Security communications
+       156.1    consortium   Encrypted transmissions
+       161.7    ghost        Analyst assistance (GHOST-7)
+       173.5    numbers      Numbers station
+       88.1     emergency    Emergency broadcast
+
+EXAMPLES
+       tune 161.7
+           Tune to GHOST-7 frequency.
+
+       tune ghost
+           Same as above, using channel alias.
+
+       tune security
+           Listen to security chatter.
+
+OPERATOR NOTES
+       If you're stuck on an objective, some analysts report that
+       tuning to 161.7 MHz provides... guidance. The source of these
+       transmissions remains unverified. We were never here.
+
+SEE ALSO
+       scan(1), radio(1)`,
+
+            'radio': `RADIO(1)                     BLACKSITE Commands                     RADIO(1)
+
+NAME
+       radio - interact with the radio system
+
+SYNOPSIS
+       radio
+       radio <frequency>
+
+DESCRIPTION
+       Without arguments, displays current frequency and scans for signals
+       (equivalent to scan). With a frequency argument, tunes to that
+       frequency (equivalent to tune).
+
+EXAMPLES
+       radio
+           Show all frequencies (same as scan).
+
+       radio 161.7
+           Tune to 161.7 MHz (same as tune 161.7).
+
+SEE ALSO
+       scan(1), tune(1)`
         };
 
         // Check for man page
@@ -7822,7 +7977,10 @@ SEE ALSO
         // Check for alias commands
         const aliases = {
             'vi': 'vim',
-            'netcat': 'nc'
+            'netcat': 'nc',
+            'freq': 'tune',
+            'frequency': 'tune',
+            'frequencies': 'scan'
         };
         if (aliases[cmd] && manPages[aliases[cmd]]) {
             return manPages[aliases[cmd]];
@@ -9813,6 +9971,280 @@ ${bottom}
             "sudo make me a sandwich"
         ];
         return fortunes[Math.floor(Math.random() * fortunes.length)];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RADIO SYSTEM - THE WATCHER
+    // ═══════════════════════════════════════════════════════════════
+
+    _cmdTune(args) {
+        if (!args || args.length === 0) {
+            return `[RADIO] Current frequency: ${this.radio.frequency} MHz (${this.radio.channels[this.radio.frequency]?.name || 'UNKNOWN'})
+Usage: tune <frequency> or tune <channel-name>
+       tune 161.7   - tune to specific frequency
+       tune ghost   - tune to channel by name
+       scan         - scan for active frequencies`;
+        }
+
+        let freq = args[0];
+
+        // Check if it's an alias (name like "ghost" or "security")
+        if (this.radio.aliases[freq.toLowerCase()]) {
+            freq = this.radio.aliases[freq.toLowerCase()];
+        } else {
+            freq = parseFloat(freq);
+        }
+
+        const channel = this.radio.channels[freq];
+
+        if (!channel) {
+            return `[RADIO] No signal on ${args[0]}
+...static...
+[SIGNAL LOST]`;
+        }
+
+        this.radio.frequency = freq;
+        return this._broadcastChannel(freq);
+    }
+
+    _cmdScan() {
+        let output = `[SCANNING FREQUENCIES...]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+        for (const [freq, channel] of Object.entries(this.radio.channels)) {
+            const signalStrength = this._getSignalStrength(channel.type);
+            const marker = parseFloat(freq) === this.radio.frequency ? ' ◄──' : '';
+            output += `\n${freq.toString().padEnd(7)} MHz  [${signalStrength}]  ${channel.name}${marker}`;
+        }
+
+        output += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Use 'tune <frequency>' to listen]`;
+
+        return output;
+    }
+
+    _cmdRadio(args) {
+        // Alias for tune or show status
+        if (!args || args.length === 0) {
+            return this._cmdScan();
+        }
+        return this._cmdTune(args);
+    }
+
+    _getSignalStrength(type) {
+        const strengths = {
+            'noise': '░░░░░░░░░░',
+            'ambient': '████░░░░░░',
+            'lore': '██████░░░░',
+            'hints': '████████░░',
+            'easter': '██████░░░░',
+            'solutions': '██████████'
+        };
+        return strengths[type] || '░░░░░░░░░░';
+    }
+
+    _broadcastChannel(freq) {
+        const channel = this.radio.channels[freq];
+        if (!channel) return '[NO SIGNAL]';
+
+        const header = `[RADIO - ${freq} MHz - ${channel.name}]`;
+
+        switch(channel.type) {
+            case 'noise':
+                return `${header}
+...kssshhh...
+...static...
+...kssshhh...
+[NO CLEAR SIGNAL]`;
+
+            case 'ambient':
+                return this._getSecurityChatter(header);
+
+            case 'lore':
+                return this._getConsortiumBroadcast(header);
+
+            case 'hints':
+                return this._getGhostBroadcast(header);
+
+            case 'easter':
+                return this._getNumbersStation(header);
+
+            case 'solutions':
+                return this._getEmergencyBroadcast(header);
+
+            default:
+                return `${header}\n[UNKNOWN SIGNAL TYPE]`;
+        }
+    }
+
+    _getSecurityChatter(header) {
+        const chatter = [
+            '"Checkpoint alpha, all clear"',
+            '"Copy that. Patrol rotating to floor 2"',
+            '"Eyes on the ballroom. VIPs arriving."',
+            '"Service elevator locked down."',
+            '"Perimeter secure. No movement."'
+        ];
+        const msg1 = chatter[Math.floor(Math.random() * chatter.length)];
+        const msg2 = chatter[Math.floor(Math.random() * chatter.length)];
+
+        return `${header}
+${msg1}
+...
+${msg2}
+[SECURITY CHANNEL - ACTIVE]`;
+    }
+
+    _getConsortiumBroadcast(header) {
+        const messages = [
+            '██████ ENCRYPTED ██████',
+            '"...the asset is in position..."',
+            '...burst transmission...',
+            '"...RAVEN confirms timeline..."',
+            '██████ SCRAMBLED ██████',
+            '"...summit proceeds as planned..."'
+        ];
+        const msg = messages[Math.floor(Math.random() * messages.length)];
+
+        return `${header}
+...encrypted burst detected...
+${msg}
+...signal scrambled...
+[CONSORTIUM FREQUENCY - ENCRYPTED]`;
+    }
+
+    _getGhostBroadcast(header) {
+        // Context-aware hints based on current objective
+        const currentObj = this._getCurrentObjective();
+        const moduleConfig = this.config;
+
+        // Get hints from module config if available
+        let hints = [];
+        if (moduleConfig && moduleConfig.radio && moduleConfig.radio.ghost) {
+            hints = moduleConfig.radio.ghost;
+        } else {
+            // Fallback generic hints
+            hints = [
+                '"...if you\'re hearing this, you\'re not alone..."',
+                '"...we\'ve been where you are..."',
+                '"...check your hidden files... ls -a..."',
+                '"...the answer is often in plain sight..."',
+                '"...read carefully. every detail matters..."'
+            ];
+        }
+
+        // Add objective-specific hint if available
+        if (currentObj && currentObj.watcher) {
+            hints.unshift(`"...${currentObj.watcher.ghost || currentObj.hint}..."`);
+        }
+
+        const hint = hints[Math.floor(Math.random() * hints.length)];
+
+        return `${header}
+╔════════════════════════════════════════════╗
+║  ...signal locked...                       ║
+║                                            ║
+║  ${hint.padEnd(40)} ║
+║                                            ║
+║  ...we're watching...           -GHOST-7   ║
+╚════════════════════════════════════════════╝`;
+    }
+
+    _getNumbersStation(header) {
+        // Creepy numbers station broadcast
+        const sequences = [
+            '7... 4... 9... 2... 7... 4... 9... 2...',
+            '3... 3... 1... 8... 3... 3... 1... 8...',
+            '9... 0... 2... 1... 5... 9... 0... 2...',
+            '2... 0... 3... 0... 2... 0... 3... 0...'
+        ];
+        const seq = sequences[Math.floor(Math.random() * sequences.length)];
+
+        return `${header}
+...
+...
+${seq}
+...
+${seq}
+...
+[NUMBERS STATION - UNKNOWN ORIGIN]`;
+    }
+
+    _getEmergencyBroadcast(header) {
+        // More direct solutions for truly stuck users
+        const currentObj = this._getCurrentObjective();
+
+        let solution = '"...no active emergency broadcast..."';
+
+        if (currentObj) {
+            if (currentObj.watcher && currentObj.watcher.mayday) {
+                solution = currentObj.watcher.mayday;
+            } else if (currentObj.hint) {
+                solution = currentObj.hint;
+            }
+        }
+
+        return `${header}
+╔════════════════════════════════════════════════════╗
+║  ⚠  EMERGENCY BROADCAST - BURNING THIS CHANNEL  ⚠ ║
+╠════════════════════════════════════════════════════╣
+║                                                    ║
+║  ${solution.substring(0, 46).padEnd(46)} ║
+║                                                    ║
+║  This channel is now compromised.                  ║
+║  A real operative finds another way.               ║
+║                                                    ║
+║                              [SIGNAL TERMINATED]   ║
+╚════════════════════════════════════════════════════╝`;
+    }
+
+    _getCurrentObjective() {
+        // Find first incomplete objective
+        for (const obj of this.objectives) {
+            if (!this.objectivesCompleted[obj.id]) {
+                return obj;
+            }
+        }
+        return null;
+    }
+
+    _checkWatcherKeywords(cmdLine) {
+        const input = cmdLine.toLowerCase().trim();
+
+        // Trigger words that summon the watcher
+        const triggers = ['help', 'stuck', 'sos', 'hint', '?', 'help me', "i'm stuck", 'im stuck'];
+
+        // Check if input IS a trigger (not just contains it)
+        // We want "help" but not "grep help"
+        const isDirectTrigger = triggers.some(t => input === t || input === t + '!');
+
+        if (!isDirectTrigger) return null;
+
+        // The watcher responds
+        const responses = [
+            `[signal intercept]
+> ...we see you...
+> tune your radio to 161.7
+> there are others who can help
+> -W`,
+            `[watching]
+> you're not alone in this
+> scan the frequencies
+> 161.7 MHz... remember it
+> -S`,
+            `[received]
+> someone left you something
+> check hidden files... or
+> tune 161.7 for guidance
+> -G`,
+            `[intercept detected]
+> the ghost frequency: 161.7
+> tune in when you need us
+> we've been where you are
+> -W`
+        ];
+
+        return responses[Math.floor(Math.random() * responses.length)];
     }
 
     _cmdCmatrix() {

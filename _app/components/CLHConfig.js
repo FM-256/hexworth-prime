@@ -8415,12 +8415,12 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
         // ══════════════════════════════════════════════════════════════════════════
 
         // ──────────────────────────────────────────────────────────
-        // GPM-001: Grep Fundamentals
-        // Theme: Pattern hunting with grep flags
+        // GPM-TRACE: BLACKSITE Grep Mission
+        // Theme: Trace RAVEN, find Room 105
         // ──────────────────────────────────────────────────────────
-        'GPM-001': {
-            title: 'Grep Fundamentals',
-            description: 'Master grep flags for security log analysis. Hunt patterns like a pro.',
+        'GPM-TRACE': {
+            title: 'TRACE',
+            description: 'Use grep to trace operative RAVEN through Meridian Hotel logs.',
             prerequisites: [],
             tier: null, // Special course - not in tier progression
             user: 'analyst',
@@ -8429,6 +8429,763 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
             allowedCommands: null,
 
             filesystem: {
+                // ══════════════════════════════════════════════════════════
+                // ANALYST HOME DIRECTORY - Orientation & Breadcrumbs
+                // ══════════════════════════════════════════════════════════
+
+                '/home': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['analyst']
+                },
+
+                '/home/analyst': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['.bashrc', '.bash_history', '.signal', 'BRIEFING.txt', 'notes', 'quickref.txt']
+                },
+
+                '/home/analyst/.signal': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst',
+                    content: `[DEAD DROP - EYES ONLY]
+═══════════════════════════════════════════════════
+
+You found this. Good.
+
+Standard channels are monitored.
+When you need guidance, tune to 161.7
+
+    > scan         - see available frequencies
+    > tune 161.7   - connect to GHOST-7
+    > tune ghost   - same thing
+
+We've been where you are.
+The answers are there if you listen.
+
+    -W
+
+[THIS FILE WILL SELF-DESTRUCT IN YOUR MIND]`
+                },
+
+                '/home/analyst/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `# BLACKSITE Analyst Terminal Configuration
+# ═══════════════════════════════════════════════════════════
+
+# Aliases for rapid navigation
+alias mission='cd /var/log && ls -la'
+alias blacksite='cd /blacksite && ls'
+alias classified='cd /blacksite/classified && ls'
+alias leaks='cd /blacksite/leaks && ls'
+alias intercepts='cd /blacksite/intercepts && ls'
+alias subjects='cd /blacksite/subjects && ls'
+alias consortium='cd /blacksite/consortium && ls'
+
+# Quick grep patterns
+alias findcritical='grep -ri "CRITICAL\\|URGENT\\|PRIORITY" /var/log/'
+alias findraven='grep -ri "RAVEN" /var/log/ /blacksite/'
+alias findclassified='grep -ri "TOP SECRET\\|CLASSIFIED" /blacksite/'
+
+# Reminder
+echo ""
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  BLACKSITE TERMINAL - Analyst Workstation                  ║"
+echo "║  Type 'cat ~/BRIEFING.txt' for mission orientation         ║"
+echo "║  Type 'mission' to jump to active operation files          ║"
+echo "║  Type 'blacksite' to access the full database              ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""`
+                },
+
+                '/home/analyst/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst',
+                    content: `cat ~/BRIEFING.txt
+cd /var/log
+ls -la
+grep -i "raven" auth.log
+grep -c "Failed" auth.log
+cd /blacksite
+ls
+cat README.txt
+cd classified
+ls
+cat PRISM-II.txt
+cd /blacksite/consortium
+cat structure.txt
+cd /blacksite/intercepts/consortium-comms
+cat meridian-planning.txt
+grep -r "CRIMSON" /blacksite/
+cd /var/log
+grep -n "105" keycard.log
+cat intel/threat_assessment.txt`
+                },
+
+                '/home/analyst/BRIEFING.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `╔══════════════════════════════════════════════════════════════════╗
+║                    ANALYST BRIEFING                              ║
+║              CLASSIFICATION: EYES ONLY                           ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Welcome to BLACKSITE, Analyst.
+
+You have been granted Level 4 clearance - unrestricted read access
+to the signals intelligence archive. This terminal contains
+intercepted communications, leaked documents, and classified
+assessments that do not officially exist.
+
+════════════════════════════════════════════════════════════════════
+CURRENT PRIORITY: OPERATION MERIDIAN DEFUSAL
+════════════════════════════════════════════════════════════════════
+
+SITUATION:
+An IED has been planted at the Meridian Hotel by operative RAVEN,
+a Consortium asset. The device is set to detonate during the CEO
+Summit. Field agent PHOENIX is on site awaiting your analysis.
+
+YOUR MISSION:
+Use grep, regex, and command pipelines to analyze the intelligence
+and provide PHOENIX with the defusal sequence before time expires.
+
+MISSION FILES LOCATION:
+  /var/log/           <- START HERE (hotel security logs)
+  /var/log/intel/     <- Threat assessments and dossiers
+
+════════════════════════════════════════════════════════════════════
+THE BIGGER PICTURE
+════════════════════════════════════════════════════════════════════
+
+The Meridian attack is one thread in a larger web. The Consortium
+has been operating for decades. This database contains everything
+we've compiled on their operations.
+
+EXPLORE WHEN TIME PERMITS:
+  /blacksite/classified/    <- Surveillance programs
+  /blacksite/leaks/         <- Whistleblower documents
+  /blacksite/intercepts/    <- Signals intelligence
+  /blacksite/subjects/      <- Person dossiers
+  /blacksite/operations/    <- Historical ops
+  /blacksite/archives/      <- Cold cases
+  /blacksite/consortium/    <- The shadow network itself
+
+════════════════════════════════════════════════════════════════════
+QUICK COMMANDS
+════════════════════════════════════════════════════════════════════
+
+  mission     - Jump to active operation files (/var/log)
+  blacksite   - Access the full intelligence database
+  help        - Show available commands
+  man <cmd>   - Manual for specific command (e.g., man grep)
+  scan        - Check radio frequencies (unofficial)
+
+════════════════════════════════════════════════════════════════════
+UNOFFICIAL ADDENDUM
+════════════════════════════════════════════════════════════════════
+
+Some analysts report finding hidden files (ls -a) in their
+home directories. Others swear by frequency 161.7 MHz.
+
+We don't officially endorse either of these. But we don't
+officially deny them either.
+
+════════════════════════════════════════════════════════════════════
+
+The clock is ticking. Lives depend on your analysis.
+
+Good hunting.
+
+- BLACKSITE Command`
+                },
+
+                '/home/analyst/notes': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
+                    children: ['raven-patterns.txt', 'consortium-leads.txt', 'todo.txt']
+                },
+
+                '/home/analyst/notes/raven-patterns.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `RAVEN Pattern Analysis - Personal Notes
+═══════════════════════════════════════════════════════════
+
+CONFIRMED PATTERNS:
+  - Uses IP addresses as memory aids (192.168.1.105 = Room 105)
+  - CRIMSON protocol for wire configurations
+  - Former military EOD - knows counter-measures
+  - Operates between 0100-0200 local time
+
+THINGS TO GREP FOR:
+  - "RAVEN" (case insensitive, he uses aliases)
+  - "105" (the room number)
+  - "CRIMSON" (wire protocol)
+  - "192.168.1.105" (his source IP)
+  - "maintenance" (his cover role)
+  - "disabled" or "override" (his MO)
+
+WIRE PROTOCOL NOTES:
+  Check /blacksite/intercepts/consortium-comms/ for details
+  CRIMSON protocol mentioned in multiple intercepts
+  May need regex to decode the pattern
+
+REMEMBER:
+  grep -i = case insensitive
+  grep -r = recursive (search directories)
+  grep -n = show line numbers
+  grep -c = count matches
+  grep -v = invert (exclude matches)
+  grep -l = list files only
+
+This is what you're trained for. Focus.`
+                },
+
+                '/home/analyst/notes/consortium-leads.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `CONSORTIUM Investigation - Working Notes
+═══════════════════════════════════════════════════════════
+
+THE COUNCIL (4 members, identities unknown):
+  GRANITE - Operations commander, possible CIA background
+  OBELISK - Financial mastermind, British accent
+  CIPHER  - Intelligence specialist, possibly NSA
+  VECTOR  - Technology/cyber, Silicon Valley connections
+
+WHAT WE KNOW:
+  - 847 shell companies across 23 jurisdictions
+  - Active since at least 1971
+  - Penetration in multiple intelligence agencies
+  - Profit from chaos: shorts before crises
+
+MERIDIAN CONNECTION:
+  - RAVEN is a Consortium contractor
+  - $2.5M payment confirmed
+  - Short positions on summit attendee companies
+  - Estimated profit if attack succeeds: $2.3 billion
+
+FILES TO REVIEW:
+  /blacksite/consortium/structure.txt
+  /blacksite/consortium/financial-network.txt
+  /blacksite/subjects/consortium-members/
+  /blacksite/intercepts/consortium-comms/
+
+PATTERN:
+  They create the crisis.
+  They profit from the crisis.
+  They never get caught.
+
+Until now?`
+                },
+
+                '/home/analyst/notes/todo.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `OPERATION MERIDIAN - Analysis Checklist
+═══════════════════════════════════════════════════════════
+
+PHASE 1: GREP FUNDAMENTALS
+[ ] Find RAVEN in auth logs (use -i for case insensitive)
+[ ] Count RAVEN's system accesses (use -c)
+[ ] Find Room 105 references with line numbers (use -n)
+[ ] Identify anomalous keycard entries (use -v to exclude normal)
+[ ] Search all intel files recursively (use -r)
+[ ] Get context around CRITICAL alerts (use -C, -A, or -B)
+[ ] List files mentioning bomb threat (use -l)
+[ ] Find exact room number in radio intercept (use -w)
+
+PHASE 2: REGEX PATTERNS
+[ ] Decode wire protocol patterns
+[ ] Extract IP addresses
+[ ] Match timestamp formats
+[ ] Find encoded messages
+
+PHASE 3: PIPELINE MASTERY
+[ ] Chain commands with pipes
+[ ] Sort and deduplicate findings
+[ ] Build the defusal sequence
+
+FINAL: BOSS CHALLENGE
+[ ] Combine all skills
+[ ] Race the clock
+[ ] Save the summit
+
+Time is not on our side. Move fast.`
+                },
+
+                '/home/analyst/quickref.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `BLACKSITE QUICK REFERENCE
+═══════════════════════════════════════════════════════════
+
+NAVIGATION:
+  cd /var/log        <- Mission files (hotel logs)
+  cd /blacksite      <- Intelligence database
+  cd ~               <- Your home directory
+  cd -               <- Previous directory
+  pwd                <- Where am I?
+
+KEY LOCATIONS:
+  /var/log/                    Active operation logs
+  /var/log/intel/              Threat assessments
+  /blacksite/classified/       Surveillance programs
+  /blacksite/leaks/            Whistleblower docs
+  /blacksite/intercepts/       Signals intelligence
+  /blacksite/subjects/         Dossiers
+  /blacksite/consortium/       The shadow network
+
+GREP ESSENTIALS:
+  grep "pattern" file          Basic search
+  grep -i "pattern" file       Case insensitive
+  grep -r "pattern" dir/       Recursive search
+  grep -n "pattern" file       Show line numbers
+  grep -c "pattern" file       Count matches
+  grep -v "pattern" file       Invert (exclude)
+  grep -l "pattern" dir/*      List matching files
+  grep -w "word" file          Whole word only
+  grep -A 2 "pattern" file     Show 2 lines after
+  grep -B 2 "pattern" file     Show 2 lines before
+  grep -C 2 "pattern" file     Show 2 lines context
+
+PIPE EXAMPLES:
+  cat file | grep "x"          Filter content
+  grep "x" file | wc -l        Count results
+  cat file | sort | uniq       Remove duplicates
+  grep "x" * | head -20        First 20 matches
+
+REMEMBER:
+  Tab = autocomplete
+  Up/Down = command history
+  Ctrl+R = search history
+  Ctrl+C = cancel
+  Ctrl+L = clear screen
+
+The truth is in the logs. Find it.`
+                },
+
+                // ══════════════════════════════════════════════════════════
+                // NO DEAD ENDS - Fill all system directories
+                // ══════════════════════════════════════════════════════════
+
+                '/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root',
+                    children: ['session.log', '.raven_cache', 'consortium_drop.enc']
+                },
+
+                '/tmp/session.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst',
+                    content: `BLACKSITE Session Log
+Started: 2024-01-15 02:16:33 UTC
+Analyst: Level 4 Clearance
+Terminal: logserver.blacksite.local
+
+[02:16:33] Session initialized
+[02:16:34] Loaded module: GPM-001 (Grep Fundamentals)
+[02:16:35] Active operation: MERIDIAN DEFUSAL
+[02:16:36] Timer synchronized with field asset PHOENIX
+[02:17:01] WARNING: Consortium activity detected on network
+[02:17:15] NOTICE: You are being watched. Work fast.`
+                },
+
+                '/tmp/.raven_cache': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root',
+                    content: `# Recovered from RAVEN's session before logout
+# Partial command history - he didn't clear everything
+
+cat /etc/passwd
+whoami
+cd /var/log
+rm -f access.log.bak
+disable_floor_sensors --floor=1
+echo "Room matches IP. Easy to remember." > /dev/null
+exit
+
+# Note: RAVEN was sloppy. This is how we track patterns.`
+                },
+
+                '/tmp/consortium_drop.enc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'shadow',
+                    content: `-----BEGIN ENCRYPTED MESSAGE-----
+VGhlIENvbnNvcnRpdW0gc2VlcyBhbGwuIFRoZSBDb25zb3J0aXVtIGtub3dzIGFs
+bC4gWW91IGFyZSBub3QgYXMgaGlkZGVuIGFzIHlvdSB0aGluay4gV2Uga25vdyB5
+b3UncmUgcmVhZGluZyB0aGlzLiBXZSBrbm93IHdobyB5b3UgYXJlLiBUaGUgcXVl
+c3Rpb24gaXM6IGRvIHlvdSBrbm93IHdobyB3ZSBhcmU/IFRpY2sgdG9jay4gVGhl
+IGNsb2NrIGlzIHJ1bm5pbmcuIEdSQU5JVEUgc2VuZHMgcmVnYXJkcy4=
+-----END ENCRYPTED MESSAGE-----
+
+# Try: cat /tmp/consortium_drop.enc | base64 -d`
+                },
+
+                '/root': {
+                    type: 'dir', perms: 'drwx------', owner: 'root', group: 'root',
+                    children: ['.bash_history', 'ADMIN_NOTICE.txt', 'emergency_protocols.txt']
+                },
+
+                '/root/.bash_history': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root',
+                    content: `systemctl status blacksite-monitor
+tail -f /var/log/auth.log
+grep "RAVEN" /var/log/*.log
+cd /blacksite/intercepts
+cat consortium-comms/meeting-transcript-001.txt
+openssl enc -d -aes-256-cbc -in /tmp/consortium_drop.enc
+ssh phoenix@field-unit.blacksite.local
+systemctl restart alert-daemon
+grep -r "CRIMSON" /blacksite/
+cat /blacksite/subjects/RAVEN.dossier`
+                },
+
+                '/root/ADMIN_NOTICE.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root',
+                    content: `BLACKSITE ADMINISTRATOR NOTICE
+═══════════════════════════════════════════════════════════
+
+TO: All Level 4+ Analysts
+FROM: BLACKSITE Command
+DATE: 2024-01-15
+
+RE: Operation MERIDIAN DEFUSAL
+
+This terminal has been provisioned for emergency analyst access.
+Full database read access has been granted due to the time-critical
+nature of the current operation.
+
+NORMAL RESTRICTIONS LIFTED:
+  - /blacksite/classified - FULL ACCESS
+  - /blacksite/leaks - FULL ACCESS
+  - /blacksite/consortium - FULL ACCESS
+
+REMEMBER:
+  1. Everything is logged
+  2. There are no secrets here - only truths not yet found
+  3. The Consortium has penetrated systems before
+  4. Trust the data, not the people
+
+If this operation succeeds, you'll never be thanked.
+If it fails, you'll never be blamed.
+That's how this works.
+
+Good luck.
+
+- Root
+  BLACKSITE Infrastructure`
+                },
+
+                '/root/emergency_protocols.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root',
+                    content: `EMERGENCY DEFUSAL PROTOCOLS
+Classification: TOP SECRET
+
+If all else fails, these are the known Consortium wire protocols:
+
+CRIMSON PROTOCOL (RAVEN's preferred):
+  - Red wire: ALWAYS cut last
+  - Blue wire: Cut first if timer shows even seconds
+  - Green wire: Cut first if timer shows odd seconds
+  - Yellow wire: NEVER cut (decoy/trigger)
+
+COBALT PROTOCOL:
+  - Sequence: Green -> Blue -> Red
+  - Yellow is always safe in Cobalt
+
+OBSIDIAN PROTOCOL:
+  - All wires are decoys except one
+  - Check for secondary trigger mechanism
+  - Usually requires disabling power source first
+
+NOTE: RAVEN uses CRIMSON. Check intercepts to confirm.
+
+FIELD ASSET CONTACT:
+  Agent PHOENIX is on encrypted channel.
+  Provide wire sequence when confirmed.
+
+DO NOT GUESS. Verify with data.
+Wrong wire = immediate detonation.`
+                },
+
+                '/etc': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['passwd', 'shadow', 'hosts', 'motd', 'blacksite.conf', 'sudoers']
+                },
+
+                '/etc/motd': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   ██████╗ ██╗      █████╗  ██████╗██╗  ██╗███████╗██╗████████╗  ║
+║   ██╔══██╗██║     ██╔══██╗██╔════╝██║ ██╔╝██╔════╝██║╚══██╔══╝  ║
+║   ██████╔╝██║     ███████║██║     █████╔╝ ███████╗██║   ██║     ║
+║   ██╔══██╗██║     ██╔══██║██║     ██╔═██╗ ╚════██║██║   ██║     ║
+║   ██████╔╝███████╗██║  ██║╚██████╗██║  ██╗███████║██║   ██║     ║
+║   ╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝   ╚═╝     ║
+║                                                                  ║
+║              SIGNALS INTELLIGENCE ARCHIVE TERMINAL               ║
+║                                                                  ║
+║   "The truth is not for all men, but only for those who seek it"║
+║                                          - Ayn Rand              ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+WARNING: This system contains classified intelligence. All access
+is monitored and logged. Unauthorized access will be prosecuted.
+
+Current Operation: MERIDIAN DEFUSAL [CRITICAL]
+Time Status: CHECK TERMINAL CLOCK
+
+Type 'cat ~/BRIEFING.txt' for mission orientation.
+`
+                },
+
+                '/etc/blacksite.conf': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `# BLACKSITE Terminal Configuration
+# Version: 4.7.2
+# Last Modified: 2024-01-15
+
+[system]
+node_id = 7
+cluster_size = 12
+sync_interval = 300
+classification_default = TOP_SECRET
+
+[database]
+path = /blacksite
+read_only = true
+encryption = AES-256-GCM
+audit_all_access = true
+
+[network]
+upstream = sigint-primary.blacksite.local
+backup = sigint-secondary.blacksite.local
+tor_enabled = true
+vpn_required = true
+
+[operations]
+current = MERIDIAN_DEFUSAL
+priority = CRITICAL
+analyst_clearance = LEVEL_4
+time_remaining = CHECK_TERMINAL
+
+[consortium_tracking]
+enabled = true
+known_nodes = 847
+identified_members = 0
+priority = MAXIMUM
+
+[logging]
+level = DEBUG
+destination = /var/log/blacksite/
+retain_days = 365
+encrypt_logs = true
+
+# Note: If you're reading this, you're curious. Good.
+# Curiosity is how we find them.`
+                },
+
+                '/etc/sudoers': {
+                    type: 'file', perms: '-r--r-----', owner: 'root', group: 'root',
+                    content: `# BLACKSITE sudoers configuration
+# Analysts have read access, not write
+
+root    ALL=(ALL:ALL) ALL
+analyst ALL=(ALL) NOPASSWD: /bin/cat, /bin/grep, /usr/bin/find, /bin/ls
+
+# Note: Analysts can read anything.
+# They cannot modify evidence.
+# That's the point.`
+                },
+
+                '/usr': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['bin', 'share', 'local']
+                },
+
+                '/usr/share': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['blacksite', 'doc']
+                },
+
+                '/usr/share/blacksite': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['welcome.txt', 'version.txt']
+                },
+
+                '/usr/share/blacksite/welcome.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `BLACKSITE Intelligence Terminal
+═══════════════════════════════════════════════════════════
+
+You've found the system files. Thorough.
+
+This terminal is one of 12 nodes in the BLACKSITE network.
+Each node mirrors the central intelligence archive with a
+5-minute sync delay. What you see here is what we know.
+
+The system was built after the 2013 disclosures made it clear
+that intelligence was being collected but not analyzed with
+proper oversight. BLACKSITE exists outside official channels.
+
+We are not whistleblowers. We are not activists.
+We are analysts who believe the truth should be findable
+by those who know how to look.
+
+You're here because you know how to look.
+
+Start with the mission: /var/log
+Explore the depths: /blacksite
+Find what they've hidden.
+
+"Three may keep a secret, if two of them are dead."
+  - Benjamin Franklin
+
+The Consortium thinks they're the only ones watching.
+They're wrong.`
+                },
+
+                '/usr/share/blacksite/version.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `BLACKSITE Terminal System
+Version: 4.7.2
+Build: 20240115-MERIDIAN
+Node: 7 of 12
+
+Changelog:
+  4.7.2 - Added Consortium intercept module
+  4.7.1 - MERIDIAN DEFUSAL operation support
+  4.7.0 - Enhanced grep/regex training integration
+  4.6.x - Vault7 archive integration
+  4.5.x - Financial intercept correlation
+  4.4.x - Snowden archive unreleased docs
+  4.3.x - Consortium tracking initialization
+
+Network Status: ACTIVE
+Database Sync: CURRENT
+Classification: TOP SECRET//SI//BLACKSITE
+
+"We watch the watchers."`
+                },
+
+                '/usr/share/doc': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['grep.txt', 'regex.txt', 'pipes.txt']
+                },
+
+                '/usr/share/doc/grep.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `GREP - Pattern Hunting Essentials
+═══════════════════════════════════════════════════════════
+
+Grep is your primary weapon for intelligence analysis.
+Master these patterns:
+
+BASIC:
+  grep "RAVEN" file.log         # Find RAVEN
+  grep -i "raven" file.log      # Case insensitive
+  grep -r "pattern" /dir/       # Search recursively
+
+COUNTING:
+  grep -c "error" log.txt       # Count matches
+  grep -l "secret" *.txt        # List matching files
+
+CONTEXT:
+  grep -n "critical" file       # Show line numbers
+  grep -A 3 "error" file        # 3 lines After match
+  grep -B 3 "error" file        # 3 lines Before match
+  grep -C 3 "error" file        # 3 lines Context (both)
+
+INVERSE:
+  grep -v "normal" file         # Lines NOT matching
+
+COMBINATIONS:
+  grep -rni "consortium" /blacksite/
+    r = recursive
+    n = line numbers
+    i = case insensitive
+
+In intelligence work, grep is how you find the needle.
+The haystack is /blacksite. Start searching.`
+                },
+
+                '/usr/share/doc/regex.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `REGEX - Pattern Matching Power
+═══════════════════════════════════════════════════════════
+
+Regular expressions let you match patterns, not just strings.
+
+BASICS:
+  .         Any single character
+  *         Zero or more of previous
+  +         One or more of previous
+  ?         Zero or one of previous
+  ^         Start of line
+  $         End of line
+
+CHARACTERS:
+  [abc]     Any of: a, b, or c
+  [^abc]    Any except: a, b, c
+  [0-9]     Any digit
+  [a-z]     Any lowercase letter
+  \\d        Any digit (shorthand)
+  \\w        Any word character
+  \\s        Any whitespace
+
+EXAMPLES:
+  grep -E "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}" file
+    # Match IP addresses
+
+  grep -E "^CRITICAL" file
+    # Lines starting with CRITICAL
+
+  grep -E "RAVEN|GRANITE|CIPHER" file
+    # Match any of these codenames
+
+USE -E FOR EXTENDED REGEX (easier syntax)
+
+The wire protocol is encoded. Regex will decode it.`
+                },
+
+                '/usr/share/doc/pipes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `PIPES - Command Chaining
+═══════════════════════════════════════════════════════════
+
+Pipes connect command output to command input.
+This is how you build analysis pipelines.
+
+BASIC PIPE:
+  cat file | grep "pattern"
+  # Output of cat flows into grep
+
+COMMON PATTERNS:
+  grep "error" log | wc -l
+    # Count error lines
+
+  cat file | sort | uniq
+    # Remove duplicates
+
+  cat file | sort | uniq -c | sort -rn
+    # Count unique entries, sort by frequency
+
+  grep "RAVEN" * | cut -d: -f1 | uniq
+    # List files containing RAVEN
+
+USEFUL COMMANDS TO PIPE:
+  sort      - Sort lines
+  uniq      - Remove/count duplicates (-c to count)
+  wc        - Count lines/words/chars (-l for lines)
+  head      - First N lines (-n 10)
+  tail      - Last N lines (-n 10)
+  cut       - Extract fields (-d: delimiter, -f1 field)
+  tr        - Translate characters
+  awk       - Pattern processing
+  sed       - Stream editing
+
+EXAMPLE ANALYSIS:
+  grep -r "192.168" /var/log/ | cut -d: -f2 | sort | uniq -c | sort -rn
+    # Find most common IP addresses in logs
+
+Build the pipeline. Find the pattern. Defuse the bomb.`
+                },
+
+                // ══════════════════════════════════════════════════════════
+                // MISSION FILES - /var/log (Hotel Security Logs)
+                // ══════════════════════════════════════════════════════════
+
                 '/var/log': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
                     children: ['auth.log', 'access.log', 'keycard.log', 'security_alerts.log', 'radio_intercept.txt', 'guest_registry.log', 'maintenance.log', 'intel']
@@ -8624,6 +9381,1710 @@ CURRENT STATUS: FLED - Vehicle heading north on I-95
 
 NOTE: RAVEN always uses "CRIMSON protocol" for wire configs.
 This may be key to defusal. Check regex patterns in next phase.`
+                },
+
+                // ══════════════════════════════════════════════════════════
+                // BLACKSITE DATABASE - The Conspiracy Epicenter
+                // ══════════════════════════════════════════════════════════
+
+                // Override root to add blacksite directories
+                '/': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'root', 'blacksite']
+                },
+
+                '/blacksite': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['README.txt', 'classified', 'leaks', 'intercepts', 'subjects', 'operations', 'archives', 'consortium']
+                },
+
+                '/blacksite/README.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `╔══════════════════════════════════════════════════════════════════╗
+║                    B L A C K S I T E                             ║
+║              SIGNALS INTELLIGENCE ARCHIVE v4.7.2                 ║
+╚══════════════════════════════════════════════════════════════════╝
+
+CLASSIFICATION: EYES ONLY / COMPARTMENTED
+LAST SYNC: 2024-01-15 03:47:22 UTC
+MIRROR STATUS: ACTIVE (Node 7 of 12)
+
+WARNING: This terminal provides access to compartmented intelligence
+gathered from multiple source networks. Contents include:
+
+  /classified   - Black program documentation, surveillance ops
+  /leaks        - Verified whistleblower documents, corporate dumps
+  /intercepts   - SIGINT captures, decoded transmissions
+  /subjects     - Person of interest dossiers, asset files
+  /operations   - Active and historical operation files
+  /archives     - Cold case files, buried incidents
+  /consortium   - THE CONSORTIUM - Corporate shadow network
+
+All access is logged. All searches are recorded.
+There is no anonymity here. Only truth.
+
+"In the age of information, ignorance is a choice."
+
+[SYSTEM] Current active operation: MERIDIAN DEFUSAL
+[SYSTEM] Analyst clearance: LEVEL 4 - UNRESTRICTED READ`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/classified - Black Programs & Surveillance
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/classified': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['PRISM-II.txt', 'ECHELON-NEXT.txt', 'CARNIVORE-3.txt', 'STELLAR-WIND.txt', 'MYSTIC.txt', 'BOUNDLESS-INFORMANT.log', 'XKEYSCORE-queries.log', 'domestic-surveillance.txt']
+                },
+
+                '/blacksite/classified/PRISM-II.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `TOP SECRET//SI//ORCON//NOFORN
+PROGRAM: PRISM-II (Successor to PRISM)
+STATUS: ACTIVE
+INCEPTION: 2019-03-15
+
+OVERVIEW:
+PRISM-II extends collection capabilities beyond the original nine
+providers. Following the 2013 disclosures, participating companies
+developed "clean room" architectures that provide plausible deniability
+while maintaining full collection access.
+
+PARTICIPATING ENTITIES (Codenames):
+  FAIRVIEW    - [REDACTED] Telecom (fiber taps, 47 POPs)
+  STORMBREW   - [REDACTED] Cable (undersea cable access)
+  BLARNEY     - [REDACTED] Tech (cloud infrastructure)
+  OAKSTAR     - [REDACTED] Social (metadata + content)
+  LITHIUM     - [REDACTED] Mobile (device telemetry)
+
+COLLECTION TYPES:
+  - Email content and metadata
+  - Chat/IM logs (real-time)
+  - Video/voice calls
+  - Social network data
+  - Cloud storage contents
+  - Search history
+  - Device location (continuous)
+  - Biometric data (facial, voice, gait)
+
+LEGAL FRAMEWORK:
+Section 702 renewal + Executive Order 12333 (as amended)
+No warrant required for "incidental" collection of US persons
+
+DAILY VOLUME: 2.7 billion records
+STORAGE: Utah Data Center (Facility 2)
+
+[EYES ONLY] Note: Public PRISM was the cover story.
+PRISM-II is the real program. They never stopped. They expanded.`
+                },
+
+                '/blacksite/classified/ECHELON-NEXT.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `TOP SECRET//COMINT//FVEY
+PROGRAM: ECHELON-NEXT (Five Eyes Modernization)
+STATUS: OPERATIONAL
+CODENAME VARIANTS: TEMPORA (UK), STATEROOM (AU), FRENCHELON (FR-adjacent)
+
+NETWORK TOPOLOGY:
+The original ECHELON satellite intercept network has been modernized
+to focus on fiber-optic and undersea cable interception.
+
+PRIMARY COLLECTION POINTS:
+  - Bude, Cornwall (GCHQ) - Transatlantic cables
+  - Djibouti (NSA/CIA) - SEA-ME-WE 4 & 5
+  - Singapore (GCHQ/ASD) - Asia-Pacific hub
+  - Pine Gap, Australia (NSA/ASD) - Satellite backup
+  - Yakima, Washington (NSA) - Pacific Rim
+
+FIVE EYES DATA SHARING:
+Under UKUSA agreement, raw intelligence is shared within 72 hours.
+Each partner nation can query the others' databases directly.
+
+LOOPHOLE: NSA cannot spy on Americans. GCHQ can.
+GCHQ cannot spy on Brits. NSA can.
+Data is exchanged. Everyone is watched. No laws are broken.
+
+KEYWORD TRIGGERS (Current Quarter):
+  bomb, assassination, crypto, VPN, Tor, protest, organize,
+  whistleblow, leak, journalist, encryption, privacy, rights
+
+DAILY INTERCEPTS: 890 million communications
+FALSE POSITIVE RATE: 94.7%
+ACTIONABLE INTELLIGENCE: 0.3%
+
+But that 0.3% is everything.`
+                },
+
+                '/blacksite/classified/CARNIVORE-3.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `SECRET//NOFORN
+PROGRAM: CARNIVORE-3 (Deep Packet Inspection - Gen 3)
+PREDECESSOR: DCS1000 (Carnivore), NarusInsight
+STATUS: DEPLOYED AT 847 ISP NODES
+
+CAPABILITY SUMMARY:
+Unlike its predecessors, CARNIVORE-3 is not a "black box" installed
+at ISP premises. It is integrated directly into router firmware
+through "security partnerships" with manufacturers.
+
+AFFECTED VENDORS:
+  [REDACTED] - 73% market share, firmware backdoor since 2016
+  [REDACTED] - 12% market share, hardware implant in ASICs
+  [REDACTED] - 8% market share, voluntary cooperation
+
+COLLECTION SCOPE:
+  Full packet capture (not just headers)
+  SSL/TLS interception via compromised CA certs
+  VPN tunnel inspection (certain providers)
+  Tor exit node monitoring (we run 23% of exit nodes)
+
+INTEGRATION WITH:
+  - XKEYSCORE (query interface)
+  - MARINA (metadata database)
+  - MAINWAY (call records)
+  - NUCLEON (voice content)
+
+LEGAL NOTE:
+Program operates under EO 12333. No FISA court oversight.
+"Incidental" collection of domestic traffic is not illegal
+if the "target" is foreign.
+
+Everyone talks to foreigners. Everyone is incidentally collected.
+The distinction is meaningless by design.`
+                },
+
+                '/blacksite/classified/STELLAR-WIND.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `TOP SECRET//STLW//HCS
+PROGRAM: STELLAR WIND (Continued)
+STATUS: RENAMED AND RESTRUCTURED, NEVER TERMINATED
+CURRENT DESIGNATION: [CLASSIFIED]
+
+HISTORY:
+Public narrative: STELLAR WIND was "ended" in 2007.
+Reality: The program was divided into four compartments and continued
+under new codenames with slight procedural modifications.
+
+COMPONENT PROGRAMS:
+  1. MAINWAY - Ongoing call detail record collection
+  2. MARINA - Internet metadata (currently 14 trillion records)
+  3. NUCLEON - Voice content capture and transcription
+  4. [REDACTED] - Financial transaction monitoring
+
+POST-2013 MODIFICATIONS:
+After Snowden disclosures, collection "technically" moved offshore.
+Data is collected by partner agencies (GCHQ, BND, DGSE) and shared
+back under intelligence liaison agreements.
+
+Same data. Different legal jurisdiction. Problem solved.
+
+OVERSIGHT:
+  - FISA Court (rubber stamp: 99.97% approval rate)
+  - Congressional Gang of Eight (sworn to secrecy)
+  - Internal compliance (we investigate ourselves)
+
+2019 REVELATION:
+Program briefly suspended after "technical irregularities" exposed.
+Translation: We were caught collecting domestic data directly.
+Solution: Blamed a contractor. Program resumed in 60 days.
+
+The surveillance state doesn't end. It adapts.`
+                },
+
+                '/blacksite/classified/MYSTIC.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `TOP SECRET//SI//ORCON
+PROGRAM: MYSTIC / SOMALGET
+STATUS: ACTIVE IN 7 COUNTRIES (expanded from original 5)
+
+CAPABILITY:
+Full-take recording of ALL telephone calls in target countries.
+Not metadata. Not samples. EVERY CALL. EVERY WORD.
+
+SOMALGET (Sub-program):
+30-day rolling buffer of all voice communications.
+"Time machine" capability - retroactively listen to any call.
+
+CONFIRMED TARGET COUNTRIES:
+  - Bahamas (2009-present)
+  - Afghanistan (2011-present)
+  - [REDACTED] - European ally
+  - [REDACTED] - Middle East ally
+  - [REDACTED] - Latin American country
+  - [REDACTED] - (added 2022)
+  - [REDACTED] - (added 2023)
+
+COLLECTION METHOD:
+DEA provides cover. "Drug Enforcement" cooperation agreements
+give legal access to telecommunications infrastructure.
+NSA does the actual collection. DEA gets credit for "tips."
+
+LEGAL FRAMEWORK:
+Target countries are unaware of true scope.
+Local "cooperation" is obtained through coercion or deception.
+US persons calling these countries are "incidentally" collected.
+
+STORAGE: 780 petabytes (rolling 30-day buffer)
+TRANSCRIPTION: Automated, 94 languages, 87% accuracy
+KEYWORD ALERTS: 47,000 active triggers
+
+When they said they could listen to everything...
+They meant it literally.`
+                },
+
+                '/blacksite/classified/BOUNDLESS-INFORMANT.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `BOUNDLESS INFORMANT - Collection Statistics
+Last Updated: 2024-01-15 00:00:00 UTC
+
+GLOBAL COLLECTION (30-day rolling window):
+══════════════════════════════════════════════════════════════
+Country         DNR Records    DNI Records    Total
+──────────────────────────────────────────────────────────────
+United States   2,892,000,000  3,100,000,000  5,992,000,000
+Germany           552,000,000    487,000,000  1,039,000,000
+Brazil            389,000,000    298,000,000    687,000,000
+France            298,000,000    276,000,000    574,000,000
+United Kingdom    227,000,000    198,000,000    425,000,000
+India             198,000,000    156,000,000    354,000,000
+[Additional 189 countries truncated]
+──────────────────────────────────────────────────────────────
+MONTHLY TOTAL:                               97,120,000,000
+
+DNR = Dialed Number Recognition (phone metadata)
+DNI = Digital Network Intelligence (internet metadata)
+
+NOTE: United States collection includes:
+  - Foreign communications transiting US infrastructure
+  - "Incidental" collection of US persons
+  - Section 702 "about" collection (officially discontinued 2017)
+  - Contractor and partner agency submissions
+
+The American public was told collection was "targeted."
+These numbers tell a different story.
+
+[SYSTEM] Warning: This data contradicts public testimony.
+[SYSTEM] Disclosure would constitute unauthorized release.`
+                },
+
+                '/blacksite/classified/XKEYSCORE-queries.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `XKEYSCORE Query Log - Sample Export
+Classification: TS//SI//REL TO USA, FVEY
+
+[2024-01-14 14:23:17] Analyst: [REDACTED]@nsa.gov
+  Query: email.from:(*@protonmail.com OR *@tutanota.com)
+  Justification: "Encrypted email providers used by targets"
+  Results: 2,847,293 records
+
+[2024-01-14 14:45:02] Analyst: [REDACTED]@nsa.gov
+  Query: http.url:*torproject* OR http.url:*tails*
+  Justification: "Anonymization tool research"
+  Results: 892,445 records
+
+[2024-01-14 15:12:33] Analyst: [REDACTED]@nsa.gov
+  Query: content:"VPN" AND geo.country:US
+  Justification: "Domestic VPN usage patterns"
+  Results: 12,445,827 records
+
+[2024-01-14 16:02:18] Analyst: [REDACTED]@nsa.gov
+  Query: phone.metadata WHERE contact_graph INCLUDES journalist
+  Justification: "Source identification"
+  Results: 47,223 records
+  [FLAGGED: Potential press contact surveillance]
+
+[2024-01-14 17:44:09] Analyst: [REDACTED]@nsa.gov
+  Query: user.name:* AND search.history:*protest*
+  Justification: "Event security support"
+  Results: 298,445 records
+
+No warrant was required for any of these queries.
+XKEYSCORE operates on the principle of "collect it all, sort it later."
+
+As one training document stated:
+"Nearly everything a typical user does on the internet can be captured."`
+                },
+
+                '/blacksite/classified/domestic-surveillance.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `MEMORANDUM - INTERNAL USE ONLY
+SUBJECT: Domestic Collection Authorities - Clarification
+
+The following guidance addresses common questions about domestic
+collection limits:
+
+Q: Can we collect on US persons without a warrant?
+A: Not directly. However:
+   - "Incidental" collection during foreign targeting is permitted
+   - Communications that "transit" foreign infrastructure are foreign
+   - Partner agencies (GCHQ, BND) have no such restrictions
+   - Contractors operating offshore follow offshore rules
+
+Q: What about the Fourth Amendment?
+A: The Third Party Doctrine (Smith v. Maryland, 1979) established
+   that information shared with third parties has no expectation
+   of privacy. In the digital age, everything is shared with
+   third parties (ISPs, email providers, cloud services).
+   Therefore, effectively nothing is protected.
+
+Q: Are there any meaningful restrictions?
+A: Collection on US persons requires documentation of:
+   - Foreign intelligence purpose (broadly defined)
+   - Reasonable belief of foreign connection (one email counts)
+   - Proper selector justification (can be retroactive)
+
+PRACTICAL EFFECT:
+If an American emails, calls, or messages anyone outside the US,
+or uses any service that routes through foreign infrastructure,
+they can be collected. Given internet routing, this means everyone.
+
+Legal? Technically yes.
+What the public expects? No.
+
+This document does not exist. This guidance was never given.`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/leaks - Whistleblower Documents
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/leaks': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['SNOWDEN-archive', 'VAULT7', 'panama-papers', 'corporate-dumps', 'pentagon-papers-ii.txt', 'WHISTLEBLOWER-001.txt']
+                },
+
+                '/blacksite/leaks/SNOWDEN-archive': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['README.txt', 'unreleased-001.txt', 'unreleased-002.txt', 'media-blacklist.txt']
+                },
+
+                '/blacksite/leaks/SNOWDEN-archive/README.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `SNOWDEN ARCHIVE - BLACKSITE MIRROR
+Total Documents: 1.7 million
+Released to Media: ~9,000 (0.5%)
+Withheld by Journalists: ~200,000 (11.7%)
+Never Released: ~1.5 million (87.8%)
+
+This archive contains documents that were never published.
+The journalists who received the archive made editorial decisions
+about what the public "needed to know."
+
+They decided you didn't need to know about:
+  - Domestic assassination programs
+  - Election interference capabilities (US on allies)
+  - Financial system backdoors
+  - Nuclear facility vulnerabilities
+  - Agreements with tech executives (not companies - individuals)
+
+The released documents were the palatable ones.
+The ones that made you uncomfortable but didn't collapse society.
+
+The ones in this archive are different.
+
+Access requires Level 5 clearance. You have Level 4.
+Some doors remain closed.`
+                },
+
+                '/blacksite/leaks/SNOWDEN-archive/unreleased-001.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `[DOCUMENT RECOVERED FROM UNRELEASED CACHE]
+Classification: TOP SECRET//ORCON//NOFORN
+Date: 2012-07-14
+Subject: OPERATION MOCKINGBIRD (Modernized)
+
+The original Operation Mockingbird (1950s-1970s) placed CIA assets
+in major news organizations. The Church Committee "ended" this.
+
+The modern equivalent is more sophisticated:
+
+TIER 1 - DIRECT PLACEMENT (14 individuals)
+  Assets placed in editorial positions at major outlets.
+  Receive monthly stipends through cutout foundations.
+  Have kill authority on certain stories.
+
+TIER 2 - FRIENDLY CONTACTS (200+ individuals)
+  Journalists who cooperate voluntarily for access.
+  Receive "exclusive" intelligence in exchange for favorable coverage.
+  Not technically employed, maintains deniability.
+
+TIER 3 - INFLUENCED OUTLETS (list redacted)
+  Publications funded through intermediary foundations.
+  Editorial direction provided through board members.
+  Appear independent but follow guidance.
+
+CURRENT INITIATIVES:
+  - Narrative control around surveillance disclosures
+  - Managed opposition (release limited truths to control narrative)
+  - Discrediting of unapproved journalists
+  - Social media influence operations (domestic)
+
+The First Amendment protects the press.
+It does not prevent the press from volunteering.
+
+[DOCUMENT PARTIALLY REDACTED - NAMES WITHHELD]`
+                },
+
+                '/blacksite/leaks/SNOWDEN-archive/unreleased-002.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `[DOCUMENT RECOVERED FROM UNRELEASED CACHE]
+Classification: TOP SECRET//SAP//WAIVED
+Date: 2011-03-22
+Subject: HAMMER/SCORECARD - Electoral Oversight
+
+NOTE: This document's authenticity is disputed.
+It was never publicly released for "national security" reasons.
+
+PROGRAM OVERVIEW:
+HAMMER is a supercomputer system designed to access protected
+networks without detection. SCORECARD is a vote manipulation
+application that runs on HAMMER.
+
+ALLEGED CAPABILITIES:
+  - Access to electronic voting systems
+  - Vote tally modification at tabulation points
+  - Audit log manipulation
+  - Real-time adjustment based on monitoring
+
+DOCUMENTED USES:
+  [REDACTED] election 2012 - "Calibration exercise"
+  [REDACTED] primary 2016 - "Observation mode"
+  [REDACTED] [REDACTED] [REDACTED]
+
+CURRENT STATUS: [REDACTED]
+
+DISSENT NOTE (Appended by unknown analyst):
+"I accessed this file because I took an oath to the Constitution,
+not to any administration. If this program exists and has been used
+domestically, it represents the end of democratic legitimacy.
+
+I don't know if this is real or disinformation designed to
+discredit legitimate concerns. That's the genius of it.
+We can't tell the difference anymore."
+
+[END DOCUMENT]`
+                },
+
+                '/blacksite/leaks/SNOWDEN-archive/media-blacklist.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `MEDIA COORDINATION - INTERDICTION LIST
+Updated: 2024-01-10
+
+The following journalists and outlets are flagged for enhanced
+monitoring and source interdiction:
+
+TIER 1 - ACTIVE INTERDICTION
+  [Names withheld - operational security]
+  Status: Sources identified and neutralized
+  Method: Legal pressure, source prosecution, device compromise
+
+TIER 2 - PASSIVE MONITORING
+  All communications captured and analyzed
+  Sources tracked through metadata analysis
+  No direct action unless threshold crossed
+
+TIER 3 - DISCREDITING CANDIDATES
+  Journalists who may receive future leaks
+  Preemptive reputation research compiled
+  Social media history archived for potential use
+
+OUTLET STATUS:
+  [REDACTED] - Compromised, safe for managed leaks
+  [REDACTED] - Hostile, full monitoring authorized
+  [REDACTED] - Cooperative, preferred for authorized disclosures
+  [REDACTED] - Independent, enhanced source tracking
+
+LEGAL FRAMEWORK:
+Espionage Act prosecutions for sources
+No journalist has been directly prosecuted (yet)
+Strategy: Create chilling effect through source targeting
+
+"A free press exists only if we allow it to."
+  - Internal briefing, 2019`
+                },
+
+                '/blacksite/leaks/VAULT7': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['weeping-angel.txt', 'marble-framework.txt', 'umbrage.txt', 'hive.txt']
+                },
+
+                '/blacksite/leaks/VAULT7/weeping-angel.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `CIA/MI5 JOINT OPERATION: WEEPING ANGEL
+Target: Samsung Smart TVs (F8000 series and successors)
+Status: DEPLOYED (estimated 14 million compromised devices)
+
+CAPABILITY:
+While TV appears to be off (fake-off mode), the implant:
+  - Records audio via built-in microphone
+  - Can enable camera on equipped models
+  - Exfiltrates via WiFi when TV "wakes"
+  - Survives firmware updates (persistence)
+
+DEPLOYMENT METHODS:
+  - USB installation (requires physical access)
+  - WiFi injection (later versions)
+  - Supply chain interdiction (pre-installed)
+
+TARGET SELECTION:
+Originally developed for high-value targets.
+Mass deployment authorized 2018 under [REDACTED] finding.
+
+COLLECTION SCOPE:
+  - Living room conversations
+  - Meeting rooms (hotels, offices)
+  - Bedrooms (models with cameras)
+
+LEGAL AUTHORITY:
+Overseas deployment: Executive Order 12333
+Domestic deployment: [AUTHORITY DISPUTED]
+
+Samsung was not informed. Customers were not informed.
+Your TV is not watching you. It's listening.
+
+[Developed in cooperation with MI5 - UK handles UK targets]`
+                },
+
+                '/blacksite/leaks/VAULT7/marble-framework.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `PROJECT: MARBLE FRAMEWORK
+Classification: SECRET//NOFORN
+Purpose: Forensic Attribution Obfuscation
+
+OVERVIEW:
+Marble is designed to allow the CIA to conduct cyber operations
+that cannot be attributed to the United States, and can be
+deliberately attributed to other nations.
+
+CAPABILITIES:
+  - Code obfuscation to hide American fingerprints
+  - Insertion of foreign language strings (Russian, Chinese,
+    Arabic, Korean, Farsi) into malware
+  - Mimicry of known foreign threat actor techniques
+  - Timestamp manipulation to fake origin timezone
+
+DOCUMENTED FALSE FLAGS:
+  [REDACTED] 2016 - Attributed to Russia, origin was [REDACTED]
+  [REDACTED] 2017 - Attributed to China, origin was [REDACTED]
+  [REDACTED] 2018 - Attributed to Iran, origin was [REDACTED]
+
+IMPLICATIONS:
+Any cyberattack attributed to a foreign nation-state could
+potentially be a CIA operation using Marble.
+
+Forensic analysis showing "Russian" or "Chinese" code strings
+is meaningless. We can make anything look like anyone.
+
+PUBLIC NARRATIVE IMPACT:
+When a hack is attributed to Russia or China, ask yourself:
+  - How certain is the attribution?
+  - Who benefits from the narrative?
+  - Could Marble have been used?
+
+The answer is usually classified.`
+                },
+
+                '/blacksite/leaks/VAULT7/umbrage.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `PROJECT: UMBRAGE
+Division: Remote Devices Branch
+Purpose: Technique Collection and Repurposing
+
+OVERVIEW:
+Umbrage collects and maintains a library of attack techniques
+"borrowed" from malware produced by other nations, including Russia.
+
+LIBRARY CONTENTS:
+  - Keyloggers attributed to FSB operations
+  - File wipers mimicking Shamoon (Iran)
+  - Ransomware variants resembling Lazarus Group (DPRK)
+  - APT techniques from Chinese units (APT1, APT10, etc.)
+
+USE CASES:
+1. Efficiency - Why develop new techniques when others exist?
+2. Deniability - Operations can be blamed on technique's "owner"
+3. Provocation - Operations can trigger international incidents
+
+DOCUMENTED PROVOCATION OPERATIONS:
+  [REDACTED] - Attack designed to appear Russian, target was [REDACTED]
+               Purpose: Justify policy response against Russia
+
+  [REDACTED] - Attack designed to appear Iranian, target was [REDACTED]
+               Purpose: Support military authorization
+
+THE ATTRIBUTION PROBLEM:
+In cybersecurity, attribution is nearly impossible to verify.
+The public and policymakers accept attribution from intelligence
+agencies without access to underlying evidence.
+
+We control the evidence. We control the narrative.
+"Russia hacked the election" - prove we didn't do it ourselves.
+"China hacked our infrastructure" - using whose techniques?
+
+This isn't conspiracy. It's capability.
+The question is whether it's been used.`
+                },
+
+                '/blacksite/leaks/VAULT7/hive.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `PROJECT: HIVE
+Classification: TOP SECRET//NOFORN
+Infrastructure: Multi-platform Implant Command & Control
+
+OVERVIEW:
+HIVE is the CIA's multi-platform implant control infrastructure.
+It manages compromised devices across all operating systems:
+  - Windows (all versions since XP)
+  - Linux (all major distributions)
+  - macOS / iOS
+  - Android
+  - Solaris
+  - MikroTik routers
+  - Smart TV platforms
+  - IoT devices (custom)
+
+ARCHITECTURE:
+Implants communicate through a series of VPSs running as
+commercial websites (cover domains). Traffic is hidden in
+HTTPS connections that appear to be normal web browsing.
+
+COVER DOMAINS (Sample):
+  [Appears to be legitimate news site]
+  [Appears to be commercial e-commerce]
+  [Appears to be software company]
+  [Appears to be medical information]
+
+SCALE:
+Active implants: [REDACTED - estimated in millions]
+Geographic coverage: 147 countries
+Domestic devices: [CLASSIFIED]
+
+SUPPLY CHAIN OPERATIONS:
+HIVE implants have been pre-installed through:
+  - Interdicted shipments (hardware modification)
+  - Compromised software updates
+  - Cooperative OEM agreements (voluntary)
+  - Mandatory cooperation (involuntary, legal compulsion)
+
+Your device may be running a HIVE implant.
+There is no reliable way to detect it.
+That's by design.`
+                },
+
+                '/blacksite/leaks/pentagon-papers-ii.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `[RECOVERED DOCUMENT - AUTHENTICITY UNVERIFIED]
+SUBJECT: Strategic Assessment - Forever Wars
+
+The following represents a summary of internal assessments
+never intended for public release:
+
+AFGHANISTAN (2001-2021):
+  - Internal assessment showed unwinnable by 2003
+  - Decision to continue: Contractor revenue, geopolitical presence
+  - Actual cost: $2.3 trillion (public figure: $800 billion)
+  - Lives lost: ~175,000 (all parties)
+  - Outcome: Predicted accurately in 2002 assessment
+
+IRAQ (2003-2011, 2014-present):
+  - WMD intelligence: Known to be unreliable at decision point
+  - Actual motivation: Currency/oil, regional restructuring
+  - Actual cost: $3.1 trillion (including long-term veteran care)
+  - Lives lost: ~300,000+ (all parties)
+
+LIBYA (2011):
+  - Humanitarian justification: Manufactured
+  - Actual outcome: Predicted chaos used as argument against action
+  - Decision made anyway: [Reasons classified]
+
+SYRIA (2011-present):
+  - Regime change failure concealed as "ISIS response"
+  - Actual policy: Managed chaos, maintain instability
+  - Russian intervention: Predicted, not prevented by design
+
+THE PATTERN:
+  - Threat is exaggerated or manufactured
+  - Public consent is manufactured
+  - War is initiated
+  - Costs are hidden
+  - War continues past any rational objective
+  - Contractors profit
+  - Intelligence agencies expand
+  - War "ends" (or is renamed)
+  - Rinse, repeat
+
+This isn't incompetence. It's policy.
+The wars aren't meant to be won. They're meant to continue.`
+                },
+
+                '/blacksite/leaks/WHISTLEBLOWER-001.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `ANONYMOUS SUBMISSION - RECEIVED 2023-11-14
+Verification: Source demonstrated access to classified systems
+
+I've worked in signals intelligence for 17 years. I've seen things
+that would terrify the public, but I've also seen things that would
+terrify the agencies if the public knew.
+
+What they're afraid of:
+1. We're not as competent as we pretend
+   - Most "stopped terror attacks" were FBI entrapment
+   - Mass surveillance produces mostly noise
+   - We regularly miss actual threats while chasing ghosts
+   - The 9/11 failures were typical, not exceptional
+
+2. The surveillance is not about terrorism
+   - Terrorism justifies the budget
+   - Actual use: Economic espionage, political intelligence
+   - Tracking journalists, activists, political opponents
+   - Building dossiers for potential future use
+
+3. The technology is out of control
+   - AI systems we don't fully understand make targeting decisions
+   - Contractors have access we'd never give employees
+   - Data breaches we never disclose
+   - Backdoors we've lost track of
+
+4. There is no oversight
+   - Congressional oversight is a joke
+   - FISA court approves everything
+   - Inspectors general are captured
+   - The few who push back are marginalized
+
+I'm not releasing documents because I've seen what happens.
+Snowden is in exile. Winner is in prison. Assange was tortured.
+I have a family.
+
+This is all I can do. Anonymous. Unverifiable. Probably dismissed.
+But someone should know that inside, we know it's wrong.
+And we do it anyway.
+
+- Anonymous
+  (There are more of us than you'd think)`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/intercepts - SIGINT Captures
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/intercepts': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['diplomatic-cables', 'consortium-comms', 'decoded-transmissions.log', 'cell-tower-dumps', 'financial-intercepts.txt']
+                },
+
+                '/blacksite/intercepts/diplomatic-cables': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['embassy-berlin.txt', 'embassy-paris.txt', 'UN-mission.txt']
+                },
+
+                '/blacksite/intercepts/diplomatic-cables/embassy-berlin.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `SIGINT PRODUCT - EYES ONLY
+SOURCE: Technical collection, German Chancellery
+DATE: 2023-08-14 through 2024-01-10
+CLASSIFICATION: TOP SECRET//SI//ORCON
+
+INTERCEPT SUMMARY:
+Collection on Chancellor's personal device continues despite
+2014 assurances that surveillance had ended. Method shifted
+from direct device access to network infrastructure monitoring.
+
+KEY FINDINGS:
+  - Germany aware of US monitoring, pretends otherwise
+  - Bilateral "outrage" in 2014 was theater
+  - Secret agreement: Germany allows limited collection in
+    exchange for intelligence sharing on German far-right
+
+SELECTED INTERCEPTS:
+
+[2023-09-14 08:23 GMT] Chancellor -> Foreign Minister
+"The Americans are listening again. [NSA liaison] practically
+admitted it. We'll make a statement but take no action. The
+intelligence sharing is too valuable to sacrifice for privacy
+theater."
+
+[2023-11-22 14:45 GMT] Foreign Minister -> Chancellor
+"Re: Nord Stream investigation. Americans increasingly nervous.
+[CIA station chief] asked pointed questions about investigation
+status. Recommend we slow-walk findings."
+
+[2023-12-01 09:12 GMT] Chancellor -> Staff
+"Prepare statement expressing 'concern' about US surveillance
+reports. Coordinate with Washington on timing. Must appear
+independent while remaining aligned."
+
+German sovereignty is a polite fiction maintained for domestic audiences.`
+                },
+
+                '/blacksite/intercepts/consortium-comms': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['meeting-transcript-001.txt', 'secure-channel-log.txt', 'meridian-planning.txt']
+                },
+
+                '/blacksite/intercepts/consortium-comms/meeting-transcript-001.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `[INTERCEPT - ENCRYPTED CHANNEL BROKEN]
+Date: 2024-01-08
+Participants: GRANITE, OBELISK, CIPHER, VECTOR (Consortium Council)
+Location: Signal intercept from private satellite uplink
+
+TRANSCRIPT:
+
+GRANITE: The Meridian operation is on schedule. RAVEN confirmed
+placement for the 15th. The summit will not occur.
+
+OBELISK: Collateral estimates?
+
+GRANITE: 47 executives confirmed attending. Building staff
+approximately 200. Acceptable losses for the objective.
+
+CIPHER: The insurance positions are in place?
+
+VECTOR: $4.7 trillion in represented market cap. Our short
+positions are distributed across 847 shell entities. Untraceable
+even to state-level forensics.
+
+OBELISK: And if it fails?
+
+GRANITE: RAVEN is expendable. No link to Consortium survives.
+The device cannot be traced. The narrative is prepared -
+environmental extremists targeting corporate executives.
+
+CIPHER: What about the BLACKSITE analysts?
+
+GRANITE: They're racing against the clock we set. If they succeed,
+we've tested their capabilities. If they fail, we've achieved
+our objective. We win regardless.
+
+VECTOR: The beauty of controlled opposition.
+
+[END TRANSCRIPT]
+
+NOTE: This intercept was obtained through ECHELON-NEXT.
+The Consortium believes their communications are secure.
+They are not. We are inside.`
+                },
+
+                '/blacksite/intercepts/consortium-comms/meridian-planning.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `[CONSORTIUM OPERATIONAL PLANNING - INTERCEPTED]
+OPERATION: MERIDIAN SUNSET
+Status: ACTIVE
+Date Intercepted: 2024-01-12
+
+PHASE 1: INFILTRATION (Complete)
+  - Asset RAVEN embedded as hotel maintenance (6 months)
+  - Building systems access obtained
+  - Security patterns documented
+  - Extraction routes confirmed
+
+PHASE 2: PREPARATION (Complete)
+  - Device components smuggled separately
+  - Assembly completed in Room 105
+  - Timer synchronized to summit opening
+  - [REDACTED] wire protocol configured
+
+PHASE 3: EXECUTION (Active - 0600 UTC Jan 15)
+  - Summit begins at 0800 local
+  - Device detonates at 0845
+  - Structural failure within 3 minutes
+  - Fire suppression deliberately disabled
+
+PHASE 4: EXPLOITATION
+  - Short positions execute on market open
+  - Estimated profit: $2.3 billion
+  - Narrative: Eco-terrorism, construction failure, or
+    "electrical fire" depending on investigation
+
+CONTINGENCY:
+If device is discovered: Remote detonation authorized
+If RAVEN is captured: Terminate (assets in local PD)
+If BLACKSITE intervenes: Accelerate timeline
+
+ANALYST NOTE:
+This is the operation you are racing to stop.
+The timer is real. The threat is real.
+Focus on the mission. There will be time for
+the bigger picture later.
+
+Or there won't be.`
+                },
+
+                '/blacksite/intercepts/decoded-transmissions.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `BLACKSITE SIGINT - DECODED TRANSMISSIONS
+Automatically decoded by SIGNAL/CIPHER engine
+Classification: VARIOUS
+
+[2024-01-14 22:14:33 UTC] NUMBERS STATION - Source: Cuba
+Freq: 6.853 MHz | Mode: USB | Duration: 4m22s
+"973 973 973 Atencion 58291 47382 10293 47281 39201..."
+DECRYPT STATUS: Partial | ASSESSMENT: Active spy communication
+
+[2024-01-14 23:01:17 UTC] COVERT BEACON - Source: Unknown
+Freq: Spread spectrum | Type: Burst | Duration: 0.3s
+Location: Triangulated to Meridian Hotel, Room 105
+ASSESSMENT: Device heartbeat signal | PRIORITY: CRITICAL
+
+[2024-01-15 00:23:45 UTC] ENCRYPTED VOICE - Source: Sat Phone
+Participants: RAVEN, UNKNOWN (Consortium handler)
+Duration: 47 seconds
+"Package is live. Timer confirmed. Extraction complete.
+The analysts are slower than expected. Proceed as planned."
+DECRYPT STATUS: Full | ASSESSMENT: Operational confirmation
+
+[2024-01-15 01:45:00 UTC] CONSORTIUM CHANNEL 7
+Type: Text burst | Encryption: Broken
+"RAVEN clear. Device armed. 6 hours to summit.
+BLACKSITE is watching but won't make it in time.
+Granite sends regards. Glory to the Consortium."
+
+[2024-01-15 02:16:00 UTC] EMERGENCY BEACON - Source: Device
+Location: Room 105, Meridian Hotel
+Signal type: Tamper alert monitoring
+ASSESSMENT: Device is rigged with anti-tamper
+NOTE: Cutting wrong wire will trigger immediate detonation
+
+These intercepts are being fed to you in real-time.
+You are not alone. But only you can act.`
+                },
+
+                '/blacksite/intercepts/financial-intercepts.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `FINANCIAL SIGINT - TREASURY LIAISON
+Classification: SECRET//NOFORN
+
+UNUSUAL TRADING ACTIVITY FLAGGED:
+
+[2024-01-10] Massive short positions opened on:
+  - Nexus Industries (NASDAQ: NXUS) - $340M notional
+  - Kyoto Electronics (TYO: 7890) - ¥28B notional
+  - Dresden Manufacturing (FRA: DRM) - €180M notional
+  - 44 additional companies [see appendix]
+
+Pattern: All companies have executives confirmed for CEO Summit
+Timing: Positions opened 5 days before event
+Distribution: 847 separate accounts across 23 jurisdictions
+Common factor: All accounts trace to Consortium shell network
+
+HISTORICAL COMPARISON:
+  - Pre-9/11 airline shorts: Similar pattern, smaller scale
+  - Pre-2008 crisis: Consortium-linked funds profited $2.7B
+  - Pre-COVID lockdowns: Consortium funds liquidated 2 weeks early
+
+ASSESSMENT:
+The Consortium has advance knowledge of market-moving events.
+Either they cause them, or they have penetration at the
+highest levels of government decision-making.
+
+Possibly both.
+
+RECOMMENDED ACTION:
+  [REDACTED] - Treasury declined
+  [REDACTED] - SEC declined
+  [REDACTED] - DOJ declined
+
+The trades will stand. The profits will be made.
+Someone decided this is how it works.`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/subjects - Person Dossiers
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/subjects': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['RAVEN.dossier', 'consortium-members', 'assets', 'watchlist.txt']
+                },
+
+                '/blacksite/subjects/RAVEN.dossier': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `SUBJECT DOSSIER
+═══════════════════════════════════════════════════════════════
+CODENAME: RAVEN
+REAL NAME: James Robert Raven
+DOB: 1983-07-14 | NATION: US Citizen (naturalized 2001)
+STATUS: ACTIVE HOSTILE | PRIORITY: ALPHA
+
+BACKGROUND:
+  - Born: Pristina, Kosovo (then Yugoslavia)
+  - Family: Killed in 1999 NATO bombing (misdirected strike)
+  - Immigrated: US, 2001 (refugee status)
+  - Education: MIT, Electrical Engineering (2005)
+  - Military: US Army EOD, 2006-2012, Dishonorably discharged
+    (Incident: [CLASSIFIED] - involved civilian casualties)
+
+PSYCHOLOGICAL PROFILE:
+  - Deep-seated anti-establishment ideology
+  - Blames US/NATO for family deaths (justified)
+  - High intelligence, methodical planning
+  - No empathy for "collateral damage"
+  - Views himself as balancing scales
+
+CONSORTIUM RECRUITMENT:
+  - Contact: 2018 via dark web forums
+  - Motivation: Ideology + Payment ($2.5M confirmed)
+  - Handler: GRANITE (see Consortium files)
+  - Prior operations: 3 confirmed, 2 suspected
+
+CURRENT OPERATION:
+  Target: CEO Summit, Meridian Hotel
+  Method: IED placement, Room 105
+  Status: Device planted, RAVEN extracted
+
+WEAKNESS:
+  - Uses predictable patterns (CRIMSON wire protocol)
+  - Sentimental about family (photo in device housing)
+  - IP addresses used as memory aids (192.168.1.105 = Room 105)
+
+CAPTURE PRIORITY: LOW
+NEUTRALIZE PRIORITY: HIGH
+If captured, expect no cooperation. Death before dishonor type.`
+                },
+
+                '/blacksite/subjects/consortium-members': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['GRANITE.txt', 'OBELISK.txt', 'CIPHER.txt', 'VECTOR.txt', 'council-overview.txt']
+                },
+
+                '/blacksite/subjects/consortium-members/council-overview.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `THE CONSORTIUM - COUNCIL OVERVIEW
+Classification: TOP SECRET//SAP
+
+The Consortium is not a conspiracy theory. It is a documented
+shadow network of financial, intelligence, and corporate interests
+that operate above national governments.
+
+STRUCTURE:
+  - Inner Council: 4 members (codenames only, identities unknown)
+  - Outer Circle: ~40 executives, officials, intelligence veterans
+  - Operational Layer: Contractors, assets, useful idiots
+
+COUNCIL MEMBERS:
+
+GRANITE (Council Leader)
+  - Suspected: Former CIA DDO or equivalent
+  - Controls: Operational planning, asset management
+  - Voice analysis: Male, American, educated East Coast
+
+OBELISK (Financial)
+  - Suspected: Hedge fund principal or sovereign wealth
+  - Controls: Shell companies, market manipulation
+  - Voice analysis: Male, British accent, Cambridge educated
+
+CIPHER (Intelligence)
+  - Suspected: Active or former Five Eyes senior
+  - Controls: Information security, counter-intelligence
+  - Voice analysis: Female, American, possibly NSA origin
+
+VECTOR (Technology)
+  - Suspected: Tech industry executive or founder
+  - Controls: Cyber operations, technical infrastructure
+  - Voice analysis: Male, American, Silicon Valley vernacular
+
+KNOWN OPERATIONS:
+  - Market manipulation (multiple instances)
+  - Political influence (election cycles)
+  - Media narrative control
+  - Assassination (suspected, 4 cases)
+  - MERIDIAN (current)
+
+We know they exist. We've intercepted their communications.
+We cannot prove who they are. By design.`
+                },
+
+                '/blacksite/subjects/consortium-members/GRANITE.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `CONSORTIUM COUNCIL: GRANITE
+Role: Council Leader, Operational Command
+Identity: UNCONFIRMED
+
+INTELLIGENCE ASSESSMENT:
+GRANITE appears to be the operational commander of the Consortium.
+Analysis of intercepted communications suggests:
+  - Intelligence community background (CIA, likely DDO)
+  - Extensive network of former agency contacts
+  - Authorized to sanction lethal operations
+  - Personal stake in Consortium beyond financial
+
+VOICE ANALYSIS:
+  - Male, estimated age 55-65
+  - American accent (Northeast, possibly Boston area)
+  - Education: Likely Ivy League
+  - Speech patterns: Trained in operational security
+
+OPERATIONAL SIGNATURE:
+  - Prefers proxy assets over direct action
+  - Never meets in person (always remote)
+  - Uses chess terminology ("pawns", "gambits", "endgame")
+  - Known to sacrifice assets without hesitation
+
+CANDIDATE PROFILES:
+  - [REDACTED] - Former CIA Deputy Director, deceased (official)
+  - [REDACTED] - Current [AGENCY] senior, access matches
+  - [REDACTED] - Private intelligence contractor, Consortium-linked
+
+GRANITE QUOTE (Intercepted):
+"Nations are temporary. Borders are illusions. Power is permanent.
+We simply ensure power flows to those who know how to use it."
+
+IF IDENTIFIED:
+Do not approach. Do not surveil directly.
+GRANITE has demonstrated awareness of monitoring.
+Previous identification attempts resulted in asset loss.`
+                },
+
+                '/blacksite/subjects/watchlist.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `BLACKSITE WATCHLIST - ACTIVE SUBJECTS
+Last Updated: 2024-01-15 02:00 UTC
+
+HIGH PRIORITY (Active Threat):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RAVEN, James - Current operation, extracted
+  [REDACTED] - Consortium technical support
+  [REDACTED] - Financial facilitation
+
+MEDIUM PRIORITY (Supporting):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  12 individuals associated with Meridian operation
+  Shell company executives (see financial intercepts)
+  Local law enforcement assets (compromised)
+
+CONSORTIUM COUNCIL:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GRANITE - Unidentified, HIGH priority
+  OBELISK - Unidentified, HIGH priority
+  CIPHER - Unidentified, HIGH priority
+  VECTOR - Unidentified, HIGH priority
+
+INTERNAL CONCERN:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [REDACTED] - Possible Consortium penetration
+  [REDACTED] - Unexplained wealth
+  [REDACTED] - Anomalous access patterns
+
+Note: This watchlist is itself watched.
+Someone on this list may be reading it now.
+Trust no one. Verify everything.`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/operations - Mission Files
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/operations': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['active', 'historical', 'codenames.txt']
+                },
+
+                '/blacksite/operations/active': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['MERIDIAN-DEFUSAL.txt', 'CONSORTIUM-TRACE.txt']
+                },
+
+                '/blacksite/operations/active/MERIDIAN-DEFUSAL.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `OPERATION: MERIDIAN DEFUSAL
+Status: ACTIVE - CRITICAL
+Classification: TOP SECRET//BLACKSITE
+
+SITUATION:
+IED planted at Meridian Hotel, Room 105. Device confirmed by
+thermal imaging. Timer mechanism active - detonation scheduled
+to coincide with CEO Summit opening (0845 local, 0745 UTC).
+
+OBJECTIVE:
+Provide remote analytical support to field agent PHOENIX.
+Analyze security logs, intercepts, and device intelligence
+to determine defusal protocol before timer expiration.
+
+TIME REMAINING: CHECK TERMINAL CLOCK
+
+ANALYTICAL TASKS:
+  Section 1 (GREP): Pattern hunt - Trace attacker activity
+  Section 2 (REGEX): Wire decode - Pattern match protocols
+  Section 3 (PIPES): Data synthesis - Build defusal sequence
+  BOSS: Final defusal - All skills combined
+
+FIELD ASSET:
+  Codename: PHOENIX
+  Status: En route to Room 105
+  ETA: Already on site, awaiting your analysis
+  Capability: EOD trained, requires wire sequence
+
+DEVICE ASSESSMENT:
+  Type: Custom IED, moderate yield
+  Trigger: Timer primary, anti-tamper secondary
+  Wire protocol: CRIMSON (see intercepts)
+  Kill radius: 50 meters, structure compromise likely
+
+STAKES:
+  47 CEOs (summit attendees)
+  ~200 hotel staff
+  Unknown guests
+  Consortium wins if detonation occurs
+
+This is not a drill. This is not a simulation.
+Your analysis determines the outcome.
+
+Get to work.`
+                },
+
+                '/blacksite/operations/historical': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['NORTHWOODS.txt', 'MOCKINGBIRD.txt', 'GLADIO.txt', 'COINTELPRO.txt']
+                },
+
+                '/blacksite/operations/historical/NORTHWOODS.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `OPERATION NORTHWOODS (Historical Reference)
+Classification: DECLASSIFIED (1997)
+Date: 1962
+
+SUMMARY:
+Joint Chiefs of Staff proposed false flag terrorist attacks
+on American soil to justify military invasion of Cuba.
+
+PROPOSED ACTIONS:
+  - Blow up US ship in Guantanamo Bay, blame Cuba
+  - Sink boat of Cuban refugees, blame Cuba
+  - Orchestrate terrorism in US cities, blame Cuba
+  - Shoot down civilian airliner, blame Cuba
+  - Attack US military base, blame Cuba
+
+APPROVAL STATUS:
+  - Joint Chiefs: APPROVED
+  - Secretary McNamara: APPROVED
+  - President Kennedy: REJECTED
+
+HISTORICAL SIGNIFICANCE:
+Northwoods was rejected, but its existence proves:
+  - The highest military authorities considered false flags
+  - Killing American citizens was deemed acceptable
+  - Only Presidential rejection prevented execution
+  - The proposals were serious, not hypothetical
+
+ANALYST NOTE:
+What Northwoods operations were proposed after 1962?
+What proposals were NOT rejected?
+What we declassified is what they were willing to reveal.
+The filing cabinets are deep.
+
+"The truth is out there. It's just classified."`
+                },
+
+                '/blacksite/operations/historical/GLADIO.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `OPERATION GLADIO (Historical Reference)
+Classification: DECLASSIFIED (1990)
+Duration: 1956-1990 (officially), ongoing (suspected)
+
+SUMMARY:
+NATO-coordinated network of secret "stay-behind" armies in
+European countries, designed to resist Soviet invasion.
+In practice, used for political manipulation and terrorism.
+
+DOCUMENTED ACTIVITIES:
+  - Bologna railway bombing (1980) - 85 killed
+    Blamed on leftists, executed by Gladio assets
+
+  - Brabant massacres (Belgium, 1982-1985) - 28 killed
+    Random supermarket shootings, perpetrators never caught
+    Later linked to Gladio network
+
+  - Piazza Fontana bombing (1969) - 17 killed
+    Blamed on anarchists, proven to be Gladio/neofascists
+
+STRATEGY OF TENSION:
+The explicit goal was to commit terrorism and blame the left,
+pushing electorates toward right-wing, pro-NATO governments.
+
+Vincenzo Vinciguerra (convicted Gladio operative):
+"You had to attack civilians, the people, women, children,
+unknown people far from any political game. The reason was
+quite simple: to force the public to turn to the state to
+ask for greater security."
+
+MODERN RELEVANCE:
+Gladio officially ended in 1990 after Italian PM revealed it.
+Similar networks have been documented/suspected:
+  - Turkey (Counter-Guerrilla, active)
+  - Greece (Sheepskin, suspected active)
+  - [REDACTED] (US domestic, suspected)
+
+The strategy of tension did not end. The tactics evolved.`
+                },
+
+                '/blacksite/operations/codenames.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `BLACKSITE OPERATION CODENAME REGISTRY
+
+ACTIVE OPERATIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MERIDIAN DEFUSAL - Current priority, counter-terrorism
+  CONSORTIUM TRACE - Long-term, Consortium identification
+  MOCKINGBIRD REVIVAL - Media monitoring, ongoing
+  [REDACTED] - [REDACTED]
+
+COMPLETED OPERATIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRIMSON THREAD - Consortium financial tracking
+  PHANTOM CIRCUIT - Surveillance counter-ops
+  SILICON HARVEST - Tech executive monitoring
+  MARBLE GARDEN - Attribution reversal
+
+HISTORICAL REFERENCES (Documented):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NORTHWOODS - Cuba false flag (rejected)
+  MOCKINGBIRD - Media infiltration (1950s-1970s)
+  GLADIO - European terrorism (1956-1990 official)
+  COINTELPRO - Domestic disruption (1956-1971)
+  MK-ULTRA - Mind control research (1953-1973)
+  CHAOS - Domestic surveillance (1967-1974)
+  CONDOR - South American death squads (1968-1989)
+
+NAMING CONVENTION:
+  Colors = Surveillance operations
+  Minerals = Physical operations
+  Animals = Human intelligence
+  Weather = Cyber operations
+  Celestial = Space/satellite
+
+The names change. The methods persist.`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/archives - Cold Cases & Buried Incidents
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/archives': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['unsolved', 'buried-incidents', 'sanitized-events.txt', 'dead-witnesses.log']
+                },
+
+                '/blacksite/archives/unsolved': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['TWA-800.txt', 'building-7.txt', 'vegas-shooter.txt', 'epstein-network.txt']
+                },
+
+                '/blacksite/archives/unsolved/TWA-800.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `CASE FILE: TWA FLIGHT 800
+Date: July 17, 1996
+Official Cause: Center fuel tank explosion
+Classification: [DISPUTED]
+
+OFFICIAL NARRATIVE:
+Electrical short circuit ignited fuel vapors in center tank.
+Mechanical failure. No foul play.
+
+ANOMALIES:
+
+Witness Testimony:
+  - 270+ witnesses reported seeing streak of light ascending
+  - 96 witnesses described missile-like object
+  - FBI conclusion: "Witnesses misinterpreted what they saw"
+  - All witness sketches classified
+
+Radar Data:
+  - Multiple tracks show objects approaching aircraft
+  - P-3 Orion (Navy surveillance) in area at time
+  - Radar data gaps during critical moments
+  - Raw data never publicly released
+
+Physical Evidence:
+  - Residue on seats consistent with missile propellant
+  - FBI initially confirmed "explosive residue"
+  - Later retracted: "Training exercise contamination"
+  - Dog trained for explosives alerted on debris
+
+Investigation:
+  - NTSB took 4 years to conclude
+  - FBI ended criminal investigation in 16 months
+  - Key debris recovered by Navy divers, not NTSB
+  - Chain of custody issues documented
+
+ALTERNATE ASSESSMENT:
+Navy missile test, accidental shoot-down. Cover-up to protect
+military and avoid liability. 230 deaths remain unexplained
+to those who examined the evidence.
+
+We may never know. That's the point.`
+                },
+
+                '/blacksite/archives/unsolved/epstein-network.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `CASE FILE: EPSTEIN NETWORK
+Status: OPEN (Officially closed)
+Priority: MAXIMUM SUPPRESSION
+
+SUBJECT: Jeffrey Epstein (deceased 2019)
+Official COD: Suicide
+Actual COD: [DISPUTED - Evidence contradictory]
+
+THE NETWORK:
+Epstein was not a lone predator. He operated a intelligence-linked
+blackmail operation with clients at the highest levels of:
+  - Government (multiple countries)
+  - Finance (Wall Street, international)
+  - Technology (Silicon Valley)
+  - Royalty (confirmed: Prince Andrew)
+  - Entertainment (extensive)
+
+INTELLIGENCE CONNECTIONS:
+  - Ghislaine Maxwell's father: Robert Maxwell (Mossad asset, confirmed)
+  - Epstein financial backer: Les Wexner (intelligence ties alleged)
+  - Epstein "belonged to intelligence" - Alex Acosta (prosecutor)
+  - Sweetheart deal (2008): Ordered from "above Acosta's pay grade"
+
+THE CLIENT LIST:
+  - Flight logs released (partial) - 70+ names
+  - Full logs never released
+  - Investigation found "extensive documentation"
+  - Zero clients prosecuted
+
+DEATH CIRCUMSTANCES:
+  - Cameras malfunctioned
+  - Guards sleeping
+  - Removed from suicide watch (ordered by whom?)
+  - Autopsy: Bones broken consistent with strangulation
+  - Pathologist: "More consistent with homicide"
+  - Ruling: Suicide
+
+THE COVER-UP:
+Someone decided the client list would never be released.
+Someone decided no clients would be prosecuted.
+Someone decided Epstein would not testify.
+Someone was protected.
+
+The most connected predator in modern history.
+And we're supposed to believe he acted alone.`
+                },
+
+                '/blacksite/archives/sanitized-events.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `SANITIZED EVENTS - HISTORICAL RECORD
+
+The following events have undergone official narrative management.
+The public record differs significantly from internal assessments.
+
+EVENT: Gulf of Tonkin Incident (1964)
+  Official: North Vietnamese attacked US destroyers
+  Actual: Second attack never happened, manufactured justification
+  Result: Vietnam War escalation, 58,000 US deaths
+  Declassified: 2005
+
+EVENT: Iraqi WMD (2003)
+  Official: Intelligence indicated weapons of mass destruction
+  Actual: Intelligence was manipulated and fabricated
+  Result: Iraq War, $3 trillion, 500,000+ deaths
+  Status: Quietly acknowledged, no accountability
+
+EVENT: Syrian Chemical Attack (2018)
+  Official: Assad used chemical weapons on Douma
+  Actual: OPCW whistleblowers dispute official findings
+  Result: US/UK/FR missile strikes
+  Status: Whistleblower suppression ongoing
+
+EVENT: [REDACTED] (2001)
+  Official: [REDACTED]
+  Actual: [REDACTED]
+  Result: [REDACTED]
+  Status: [REDACTED - 75 YEAR CLASSIFICATION]
+
+Pattern: Manufacture crisis → Public consent → Military action →
+        Truth emerges decades later → No consequences
+
+The next manufactured crisis is already in planning.
+You won't recognize it until it's too late.
+That's how it works. That's how it's always worked.`
+                },
+
+                '/blacksite/archives/dead-witnesses.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `BLACKSITE - WITNESS MORTALITY TRACKING
+Classification: INTERNAL USE ONLY
+
+The following witnesses to significant events died under
+unusual circumstances before testimony could be given:
+
+[JFK Assassination - 1963-1967]
+  - 18 material witnesses died within 3 years
+  - Actuarial odds: 1 in 100 trillion
+  - Causes: Suicide, accident, "heart attack"
+
+[Iran-Contra - 1986-1989]
+  - 7 witnesses died before testimony
+  - Including: Plane crashes, "suicides"
+  - Barry Seal: Shot 6 times, ruled gang hit
+
+[Clinton Era - 1993-2000]
+  - [LIST EXCEEDS STATISTICAL PROBABILITY]
+  - Pattern: Suicide (2 shots), accident, heart attack (age 30s)
+
+[9/11 Related - 2001-2015]
+  - First responders: Elevated cancer rates (documented)
+  - Whistleblowers: Multiple premature deaths
+  - Journalists: [REDACTED]
+
+[Epstein Network - 2019-Present]
+  - Epstein: "Suicide" under impossible circumstances
+  - Potential witnesses: Several suspicious deaths
+  - Pattern: Investigation momentum dies with witnesses
+
+STATISTICAL NOTE:
+These patterns exceed normal mortality by factors of thousands.
+Either the universe conspires against inconvenient witnesses,
+or someone helps the universe along.
+
+The dead cannot testify.
+The living remember that.`
+                },
+
+                // ─────────────────────────────────────────────────────────
+                // /blacksite/consortium - The Shadow Network
+                // ─────────────────────────────────────────────────────────
+
+                '/blacksite/consortium': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'shadow',
+                    children: ['README.txt', 'structure.txt', 'shell-companies.log', 'operations-history.txt', 'financial-network.txt']
+                },
+
+                '/blacksite/consortium/README.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `THE CONSORTIUM
+═══════════════════════════════════════════════════════════════
+
+They don't appear in leaks because they control what gets leaked.
+They don't appear in elections because they own both candidates.
+They don't appear in media because they own the media.
+
+The Consortium is not a conspiracy theory. It is a documented
+network of interests that transcends national boundaries,
+political parties, and public institutions.
+
+WHAT WE KNOW:
+  - Exists since at least 1971 (documents reference earlier)
+  - 4-person council, identities unknown
+  - Network of ~40 outer circle members
+  - Controls estimated $7+ trillion in assets
+  - Active in 89 countries
+  - Has penetrated multiple intelligence agencies
+
+WHAT THEY WANT:
+  - Controlled instability (profit from chaos)
+  - Resource consolidation (post-crisis acquisition)
+  - Population management (through economic control)
+  - Information control (narrative dominance)
+
+WHAT THEY FEAR:
+  - Public awareness of their existence
+  - Coordinated exposure
+  - Loss of anonymity
+  - BLACKSITE
+
+This directory contains everything we've compiled.
+It's not enough to stop them. Not yet.
+But it's a start.
+
+"The greatest trick the devil ever pulled was convincing
+the world he didn't exist." - The Usual Suspects
+
+The Consortium read that line and took notes.`
+                },
+
+                '/blacksite/consortium/structure.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `THE CONSORTIUM - ORGANIZATIONAL STRUCTURE
+
+                    ┌─────────────────┐
+                    │   THE COUNCIL   │
+                    │ GRANITE OBELISK │
+                    │  CIPHER VECTOR  │
+                    └────────┬────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+    ┌─────┴─────┐     ┌─────┴─────┐     ┌─────┴─────┐
+    │  FINANCE  │     │   INTEL   │     │   TECH    │
+    │  Obelisk  │     │   Cipher  │     │  Vector   │
+    └─────┬─────┘     └─────┬─────┘     └─────┬─────┘
+          │                 │                 │
+    Shell Corps       Agency Moles       Platform Access
+    Banks             Media Assets       Backdoors
+    Funds             Politicians        AI Systems
+          │                 │                 │
+          └────────────────┬─────────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │ OPERATIONAL │
+                    │   Granite   │
+                    └──────┬──────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+         Contractors    Assets     Cutouts
+         (like RAVEN)  (inside)   (deniable)
+
+DECISION FLOW:
+  Council → Strategy
+  Outer Circle → Implementation
+  Operational → Execution
+
+No single point knows the full picture.
+Even council members only know their domain.
+Compartmentalization is total.
+
+This structure survived 50+ years of investigation.
+It is designed to be impossible to prosecute.
+Not illegal - the laws were written to allow it.`
+                },
+
+                '/blacksite/consortium/financial-network.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'shadow',
+                    content: `CONSORTIUM FINANCIAL NETWORK MAPPING
+Classification: TOP SECRET//BLACKSITE
+
+SHELL COMPANY LAYERS (Traced):
+Layer 1: 847 registered entities (23 jurisdictions)
+Layer 2: 234 holding companies (12 jurisdictions)
+Layer 3: 47 investment vehicles (5 jurisdictions)
+Layer 4: 8 family offices (3 jurisdictions)
+Layer 5: [UNKNOWN - Trail ends]
+
+JURISDICTIONAL HAVENS:
+  Delaware (US) - 312 entities
+  Cayman Islands - 187 entities
+  British Virgin Islands - 156 entities
+  Luxembourg - 89 entities
+  Singapore - 64 entities
+  [Additional jurisdictions redacted]
+
+FINANCIAL INSTITUTIONS (Consortium-linked):
+  [MAJOR BANK 1] - Board member in outer circle
+  [MAJOR BANK 2] - Consortium client services division
+  [MAJOR BANK 3] - Laundering allegations, never prosecuted
+  [HEDGE FUND 1] - Founding capital from Consortium
+  [PRIVATE EQUITY] - Multiple portfolio connections
+
+ESTIMATED ASSETS UNDER CONTROL:
+  Direct ownership: $1.2 trillion
+  Indirect control: $4.8 trillion
+  Influence/leverage: $7+ trillion
+
+HOW THEY PROFIT:
+  - Advance knowledge of market-moving events
+  - Short positions before "unexpected" crises
+  - Acquisition of distressed assets post-crisis
+  - Government contracts through influence
+  - Regulatory capture (write the rules, profit from them)
+
+The 2008 financial crisis transferred $7 trillion in wealth.
+Most of it went somewhere.
+The Consortium knows where.`
                 }
             },
 
@@ -8698,6 +11159,22 @@ This may be key to defusal. Check regex patterns in next phase.`
                 }
             ],
 
+            // Radio content for The Watcher system
+            radio: {
+                ghost: [
+                    '"...RAVEN left traces in the auth logs..."',
+                    '"...192.168.1.105 is the key... the last octet..."',
+                    '"...grep for FAILED, grep for RAVEN..."',
+                    '"...the room number hides in the IP pattern..."',
+                    '"...case sensitivity matters... FAILED not failed..."'
+                ],
+                security: [
+                    '"All floors secure, proceeding with sweep"',
+                    '"Guest registry shows unusual check-in pattern"',
+                    '"RAVEN was spotted near service entrance"'
+                ]
+            },
+
             // Bomb defusal insight phase
             insightPhase: {
                 enabled: true,
@@ -8712,13 +11189,13 @@ This may be key to defusal. Check regex patterns in next phase.`
         },
 
         // ──────────────────────────────────────────────────────────
-        // GPM-002: Regex Power
-        // Theme: Regular expressions for pattern matching
+        // GPM-DECODE: BLACKSITE Regex Mission
+        // Theme: Decode CRIMSON wire protocol
         // ──────────────────────────────────────────────────────────
-        'GPM-002': {
-            title: 'Regex Power',
-            description: 'Unlock pattern-matching superpowers with regular expressions.',
-            prerequisites: ['GPM-001'],
+        'GPM-DECODE': {
+            title: 'DECODE',
+            description: 'Use regex to decode the CRIMSON wire protocol patterns.',
+            prerequisites: ['GPM-TRACE'],
             tier: null,
             user: 'analyst',
             hostname: 'intelserver',
@@ -8728,7 +11205,27 @@ This may be key to defusal. Check regex patterns in next phase.`
             filesystem: {
                 '/data/intel': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['wire_protocols.db', 'intercepted_codes.log', 'detonator_freq.log', 'crimson_manual.txt', 'bomb_telemetry.log', 'agent_notes.txt']
+                    children: ['.signal', 'wire_protocols.db', 'intercepted_codes.log', 'detonator_freq.log', 'crimson_manual.txt', 'bomb_telemetry.log', 'agent_notes.txt']
+                },
+                '/data/intel/.signal': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst',
+                    content: `[GHOST-7 RELAY]
+═══════════════════════════════════════════════════
+
+Regex is powerful. But so is knowing when to ask.
+
+    tune 161.7
+
+The wire protocols follow patterns.
+CRIMSON has rules. Learn them.
+
+^RED means "starts with RED"
+$ means "ends with"
+[0-9]{4} means "four digits"
+
+We're watching. We're helping.
+
+    -G`
                 },
                 '/data/intel/wire_protocols.db': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
@@ -8976,6 +11473,22 @@ PHOENIX out. Standing by for your call.`
                 }
             ],
 
+            // Radio content for The Watcher system
+            radio: {
+                ghost: [
+                    '"...CRIMSON protocol is in the manual..."',
+                    '"...regex finds patterns... ^RED for lines starting with RED..."',
+                    '"...wire_protocols.db holds the key..."',
+                    '"...use -E for extended regex... character classes..."',
+                    '"...the frequency log has timestamps... match them with [0-9]..."'
+                ],
+                security: [
+                    '"Bomb squad confirms CRIMSON protocol device"',
+                    '"Agent PHOENIX en route to location"',
+                    '"Wire colors confirmed: RED, BLUE, GREEN present"'
+                ]
+            },
+
             // Bomb defusal insight phase
             insightPhase: {
                 enabled: true,
@@ -8990,13 +11503,13 @@ PHOENIX out. Standing by for your call.`
         },
 
         // ──────────────────────────────────────────────────────────
-        // GPM-003: Pipe Wizardry
-        // Theme: Unix pipes and data transformation
+        // GPM-EXTRACT: BLACKSITE Pipes Mission
+        // Theme: Extract wire counts and defusal sequence
         // ──────────────────────────────────────────────────────────
-        'GPM-003': {
-            title: 'Pipe Wizardry',
-            description: 'Chain commands together with pipes to transform and analyze data.',
-            prerequisites: ['GPM-002'],
+        'GPM-EXTRACT': {
+            title: 'EXTRACT',
+            description: 'Chain pipes to extract wire counts and build the defusal sequence.',
+            prerequisites: ['GPM-DECODE'],
             tier: null,
             user: 'analyst',
             hostname: 'forensics',
@@ -9006,7 +11519,28 @@ PHOENIX out. Standing by for your call.`
             filesystem: {
                 '/forensics': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
-                    children: ['wire_sequence.log', 'timer_codes.txt', 'cut_order.db', 'bomb_schematic.txt', 'frequency_data.log', 'final_checklist.txt']
+                    children: ['.signal', 'wire_sequence.log', 'timer_codes.txt', 'cut_order.db', 'bomb_schematic.txt', 'frequency_data.log', 'final_checklist.txt']
+                },
+                '/forensics/.signal': {
+                    type: 'file', perms: '-rw-------', owner: 'analyst', group: 'analyst',
+                    content: `[URGENT TRANSMISSION - GHOST-7]
+═══════════════════════════════════════════════════
+
+PHOENIX needs wire counts. NOW.
+
+Pipes are your friend:
+    grep "PATTERN" file | wc -l    (count lines)
+    cat file | sort | uniq -c      (count unique)
+
+Remember: sort BEFORE uniq. Always.
+
+If you're lost:
+    tune 161.7
+
+6 BLUE. 7 RED. 2 GREEN.
+Don't trust me. Verify it yourself.
+
+    -S`
                 },
                 '/forensics/wire_sequence.log': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 2048,
@@ -9244,27 +11778,43 @@ The summit depends on you.`
                 }
             ],
 
+            // Radio content for The Watcher system
+            radio: {
+                ghost: [
+                    '"...pipe the output... grep then wc -l..."',
+                    '"...sort before uniq... always sort first..."',
+                    '"...wire_sequence.log has the counts..."',
+                    '"...6 BLUE, 7 RED, 2 GREEN... count them with pipes..."',
+                    '"...use tee to save your work... evidence matters..."'
+                ],
+                security: [
+                    '"PHOENIX is at the device. Waiting for sequence."',
+                    '"Timer shows under 5 minutes. Expedite analysis."',
+                    '"Wire counts needed ASAP. Lives at stake."'
+                ]
+            },
+
             // Bomb defusal insight phase
             insightPhase: {
                 enabled: true,
-                question: "You've decoded the bomb schematic through pipe analysis. The ASCII diagram shows 3 numbered wires. Your pipeline revealed the cut sequence. In what order do you cut?",
+                question: "Your pipe analysis revealed the wire counts: 6 BLUE (ground), 7 RED (primary), 2 GREEN (trap). According to CRIMSON protocol, what's the correct defusal sequence?",
                 options: [
-                    { text: "3-1-2: Matches the frequency count pattern (highest to lowest threat)", correct: false },
-                    { text: "1-2-3: Sequential order as shown in the schematic", correct: false },
-                    { text: "2-3-1: Matches the unique IP occurrence pattern you extracted", correct: true },
-                    { text: "3-2-1: Reverse chronological order of attacks", correct: false }
+                    { text: "RED first (disable primary), then BLUE (ground), avoid GREEN", correct: false },
+                    { text: "BLUE first (isolate ground), then RED (disable primary), NEVER touch GREEN", correct: true },
+                    { text: "GREEN first (disarm trap), then BLUE, then RED", correct: false },
+                    { text: "Cut all wires simultaneously to prevent failsafe trigger", correct: false }
                 ]
             }
         },
 
         // ──────────────────────────────────────────────────────────
-        // GPM-BOSS: Incident Analysis
-        // Theme: Boss challenge combining all skills
+        // GPM-DEFUSE: BLACKSITE Final Mission
+        // Theme: Final countdown - deliver the code
         // ──────────────────────────────────────────────────────────
-        'GPM-BOSS': {
-            title: 'INCIDENT ANALYSIS',
-            description: 'Final challenge: Full incident analysis of a security breach using all techniques.',
-            prerequisites: ['GPM-003'],
+        'GPM-DEFUSE': {
+            title: 'DEFUSE',
+            description: 'Final countdown. Deliver the disarm code to Agent PHOENIX.',
+            prerequisites: ['GPM-EXTRACT'],
             tier: null,
             user: 'ir-analyst',
             hostname: 'evidence',
@@ -9274,7 +11824,32 @@ The summit depends on you.`
             filesystem: {
                 '/evidence': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ir-analyst', group: 'ir-analyst',
-                    children: ['live_feed.log', 'countdown_status.txt', 'phoenix_comms.log', 'final_sequence.db', 'mission_summary.txt', 'abort_codes.txt']
+                    children: ['.signal', 'live_feed.log', 'countdown_status.txt', 'phoenix_comms.log', 'final_sequence.db', 'mission_summary.txt', 'abort_codes.txt']
+                },
+                '/evidence/.signal': {
+                    type: 'file', perms: '-rw-------', owner: 'ir-analyst', group: 'ir-analyst',
+                    content: `[FINAL TRANSMISSION - GHOST-7]
+═══════════════════════════════════════════════════
+
+This is it. The final moment.
+
+PHOENIX is waiting. The timer is counting.
+
+The code is: 0230
+
+RAVEN set the timer for 02:30:00.
+The kill code IS the timer setting.
+
+    grep "0230" countdown_status.txt
+
+If you've made it this far, you don't need us.
+But we were always here.
+
+    tune 161.7 one last time if you need us.
+
+Good luck.
+
+    -GHOST-7 ACTUAL`
                 },
                 '/evidence/live_feed.log': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ir-analyst', group: 'ir-analyst', size: 4096,
@@ -9494,6 +12069,22 @@ The timer setting IS the kill code.`
                     }
                 }
             ],
+
+            // Radio content for The Watcher system
+            radio: {
+                ghost: [
+                    '"...the code is the timer setting... 02:30..."',
+                    '"...0230... four digits... RAVEN\'s arrogance..."',
+                    '"...countdown_status.txt holds the answer..."',
+                    '"...PHOENIX needs the code NOW... grep for it..."',
+                    '"...the timestamp when it all started... 0230..."'
+                ],
+                security: [
+                    '"PHOENIX: ONE MINUTE! SEND THE CODE!"',
+                    '"Summit executives entering ballroom NOW"',
+                    '"Timer critical. All units stand by."'
+                ]
+            },
 
             // Bomb defusal insight phase - FINAL BOSS
             insightPhase: {
