@@ -866,6 +866,501 @@ class LearningPaths {
             ]
         },
 
+        // Linux Mastery - Skills-First Learning Path
+        'linux-mastery': {
+            name: 'Linux Mastery',
+            description: 'Master Linux from the ground up - pure skills, no pressure',
+            icon: '🐧',
+            color: '#22c55e',
+            modules: [
+                // Section 1: Getting Started
+                {
+                    id: 'lm-01-welcome',
+                    title: 'Welcome to Linux',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'modules/linux-mastery/lm-01-welcome.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'lm-02-first-commands',
+                    title: 'Your First Commands',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-02-first-commands.html',
+                    prerequisites: ['lm-01-welcome']
+                },
+                {
+                    id: 'lm-03-getting-help',
+                    title: 'Getting Help',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'modules/linux-mastery/lm-03-getting-help.html',
+                    prerequisites: ['lm-02-first-commands']
+                },
+                {
+                    id: 'lm-04-terminal-environment',
+                    title: 'The Terminal Environment',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'modules/linux-mastery/lm-04-terminal-environment.html',
+                    prerequisites: ['lm-03-getting-help']
+                },
+                {
+                    id: 'lm-05-section1-practice',
+                    title: 'Section 1 Practice',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-05-section1-practice.html',
+                    prerequisites: ['lm-04-terminal-environment']
+                },
+                // Section 2: Navigation & Files
+                {
+                    id: 'lm-06-navigation',
+                    title: 'Directory Navigation',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-06-navigation.html',
+                    prerequisites: ['lm-05-section1-practice']
+                },
+                {
+                    id: 'lm-07-listing-files',
+                    title: 'Listing Files',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-07-listing-files.html',
+                    prerequisites: ['lm-06-navigation']
+                },
+                {
+                    id: 'lm-08-file-operations',
+                    title: 'File Operations',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-08-file-operations.html',
+                    prerequisites: ['lm-07-listing-files']
+                },
+                {
+                    id: 'lm-09-copy-move',
+                    title: 'Copy and Move',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-09-copy-move.html',
+                    prerequisites: ['lm-08-file-operations']
+                },
+                {
+                    id: 'lm-10-viewing-files',
+                    title: 'Viewing Files',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-10-viewing-files.html',
+                    prerequisites: ['lm-09-copy-move']
+                },
+                {
+                    id: 'lm-11-finding-files',
+                    title: 'Finding Files',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-11-finding-files.html',
+                    prerequisites: ['lm-10-viewing-files']
+                },
+                {
+                    id: 'lm-12-section2-practice',
+                    title: 'Section 2 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-12-section2-practice.html',
+                    prerequisites: ['lm-11-finding-files']
+                },
+                // Section 3: Text Processing
+                {
+                    id: 'lm-13-grep-basics',
+                    title: 'grep Basics',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-13-grep-basics.html',
+                    prerequisites: ['lm-12-section2-practice']
+                },
+                {
+                    id: 'lm-14-regular-expressions',
+                    title: 'Regular Expressions',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-14-regular-expressions.html',
+                    prerequisites: ['lm-13-grep-basics']
+                },
+                {
+                    id: 'lm-15-sed-editor',
+                    title: 'sed Stream Editor',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-15-sed-editor.html',
+                    prerequisites: ['lm-14-regular-expressions']
+                },
+                {
+                    id: 'lm-16-awk-processing',
+                    title: 'awk Processing',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-16-awk-processing.html',
+                    prerequisites: ['lm-15-sed-editor']
+                },
+                {
+                    id: 'lm-17-sort-uniq',
+                    title: 'sort and uniq',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-17-sort-uniq.html',
+                    prerequisites: ['lm-16-awk-processing']
+                },
+                {
+                    id: 'lm-18-cut-paste',
+                    title: 'cut and paste',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-18-cut-paste.html',
+                    prerequisites: ['lm-17-sort-uniq']
+                },
+                {
+                    id: 'lm-19-text-pipelines',
+                    title: 'Text Pipelines',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-19-text-pipelines.html',
+                    prerequisites: ['lm-18-cut-paste']
+                },
+                {
+                    id: 'lm-20-section3-practice',
+                    title: 'Section 3 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'modules/linux-mastery/lm-20-section3-practice.html',
+                    prerequisites: ['lm-19-text-pipelines']
+                },
+                // Section 4: Permissions & Users
+                {
+                    id: 'lm-21-users-groups',
+                    title: 'Users and Groups',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-21-users-groups.html',
+                    prerequisites: ['lm-20-section3-practice']
+                },
+                {
+                    id: 'lm-22-file-permissions',
+                    title: 'File Permissions',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-22-file-permissions.html',
+                    prerequisites: ['lm-21-users-groups']
+                },
+                {
+                    id: 'lm-23-chmod',
+                    title: 'chmod',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-23-chmod.html',
+                    prerequisites: ['lm-22-file-permissions']
+                },
+                {
+                    id: 'lm-24-chown',
+                    title: 'chown',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-24-chown.html',
+                    prerequisites: ['lm-23-chmod']
+                },
+                {
+                    id: 'lm-25-sudo',
+                    title: 'sudo',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-25-sudo.html',
+                    prerequisites: ['lm-24-chown']
+                },
+                {
+                    id: 'lm-26-special-permissions',
+                    title: 'Special Permissions',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-26-special-permissions.html',
+                    prerequisites: ['lm-25-sudo']
+                },
+                {
+                    id: 'lm-27-section4-practice',
+                    title: 'Section 4 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'modules/linux-mastery/lm-27-section4-practice.html',
+                    prerequisites: ['lm-26-special-permissions']
+                },
+                // Section 5: Processes
+                {
+                    id: 'lm-28-process-basics',
+                    title: 'Process Basics',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-28-process-basics.html',
+                    prerequisites: ['lm-27-section4-practice']
+                },
+                {
+                    id: 'lm-29-ps-top',
+                    title: 'ps and top',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-29-ps-top.html',
+                    prerequisites: ['lm-28-process-basics']
+                },
+                {
+                    id: 'lm-30-background-jobs',
+                    title: 'Background Jobs',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-30-background-jobs.html',
+                    prerequisites: ['lm-29-ps-top']
+                },
+                {
+                    id: 'lm-31-signals-kill',
+                    title: 'Signals and kill',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-31-signals-kill.html',
+                    prerequisites: ['lm-30-background-jobs']
+                },
+                {
+                    id: 'lm-32-cron',
+                    title: 'cron',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-32-cron.html',
+                    prerequisites: ['lm-31-signals-kill']
+                },
+                {
+                    id: 'lm-33-systemd',
+                    title: 'systemd',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-33-systemd.html',
+                    prerequisites: ['lm-32-cron']
+                },
+                {
+                    id: 'lm-34-section5-practice',
+                    title: 'Section 5 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'modules/linux-mastery/lm-34-section5-practice.html',
+                    prerequisites: ['lm-33-systemd']
+                },
+                // Section 6: Networking Basics
+                {
+                    id: 'lm-35-network-info',
+                    title: 'Network Info',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-35-network-info.html',
+                    prerequisites: ['lm-34-section5-practice']
+                },
+                {
+                    id: 'lm-36-connectivity',
+                    title: 'Connectivity',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-36-connectivity.html',
+                    prerequisites: ['lm-35-network-info']
+                },
+                {
+                    id: 'lm-37-dns-tools',
+                    title: 'DNS Tools',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-37-dns-tools.html',
+                    prerequisites: ['lm-36-connectivity']
+                },
+                {
+                    id: 'lm-38-downloading',
+                    title: 'Downloading',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-38-downloading.html',
+                    prerequisites: ['lm-37-dns-tools']
+                },
+                {
+                    id: 'lm-39-ssh-basics',
+                    title: 'SSH Basics',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-39-ssh-basics.html',
+                    prerequisites: ['lm-38-downloading']
+                },
+                {
+                    id: 'lm-40-section6-practice',
+                    title: 'Section 6 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-40-section6-practice.html',
+                    prerequisites: ['lm-39-ssh-basics']
+                },
+                // Section 7: Shell Scripting
+                {
+                    id: 'lm-41-first-script',
+                    title: 'First Script',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-41-first-script.html',
+                    prerequisites: ['lm-40-section6-practice']
+                },
+                {
+                    id: 'lm-42-variables',
+                    title: 'Variables',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-42-variables.html',
+                    prerequisites: ['lm-41-first-script']
+                },
+                {
+                    id: 'lm-43-user-input',
+                    title: 'User Input',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-43-user-input.html',
+                    prerequisites: ['lm-42-variables']
+                },
+                {
+                    id: 'lm-44-conditionals',
+                    title: 'Conditionals',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-44-conditionals.html',
+                    prerequisites: ['lm-43-user-input']
+                },
+                {
+                    id: 'lm-45-loops',
+                    title: 'Loops',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-45-loops.html',
+                    prerequisites: ['lm-44-conditionals']
+                },
+                {
+                    id: 'lm-46-functions',
+                    title: 'Functions',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-46-functions.html',
+                    prerequisites: ['lm-45-loops']
+                },
+                {
+                    id: 'lm-47-practical-scripts',
+                    title: 'Practical Scripts',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'modules/linux-mastery/lm-47-practical-scripts.html',
+                    prerequisites: ['lm-46-functions']
+                },
+                {
+                    id: 'lm-48-section7-practice',
+                    title: 'Section 7 Practice',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'modules/linux-mastery/lm-48-section7-practice.html',
+                    prerequisites: ['lm-47-practical-scripts']
+                },
+                // Section 8: Beyond Basics
+                {
+                    id: 'lm-49-links',
+                    title: 'Links',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-49-links.html',
+                    prerequisites: ['lm-48-section7-practice']
+                },
+                {
+                    id: 'lm-50-text-editors',
+                    title: 'Text Editors',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-50-text-editors.html',
+                    prerequisites: ['lm-49-links']
+                },
+                {
+                    id: 'lm-51-package-management',
+                    title: 'Package Management',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'modules/linux-mastery/lm-51-package-management.html',
+                    prerequisites: ['lm-50-text-editors']
+                },
+                {
+                    id: 'lm-52-environment-path',
+                    title: 'Environment & PATH',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'modules/linux-mastery/lm-52-environment-path.html',
+                    prerequisites: ['lm-51-package-management']
+                },
+                {
+                    id: 'lm-53-next-steps',
+                    title: 'Next Steps',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'modules/linux-mastery/lm-53-next-steps.html',
+                    prerequisites: ['lm-52-environment-path']
+                }
+            ]
+        },
+
         // CompTIA Linux+ XK0-005 Certification Path
         'comptia-linux': {
             name: 'CompTIA Linux+ (XK0-005)',

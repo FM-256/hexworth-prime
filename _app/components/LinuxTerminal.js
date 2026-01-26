@@ -20,8 +20,9 @@
 
 class LinuxTerminal {
     constructor(arg1, arg2, arg3) {
-        // Support both calling conventions:
+        // Support multiple calling conventions:
         // new LinuxTerminal({ container: '#terminal', ... })  - options object
+        // new LinuxTerminal('terminal', { height: '350px' })  - container ID + options
         // new LinuxTerminal('terminal', 'commandInput', { hostname: '...' })  - legacy positional args
         let options = {};
 
@@ -29,10 +30,24 @@ class LinuxTerminal {
             // New format: options object
             options = arg1;
         } else if (typeof arg1 === 'string') {
-            // Legacy format: positional arguments
-            options = arg3 || {};
-            options.container = arg1.startsWith('#') ? arg1 : '#' + arg1;
-            options.inputElement = arg2 ? (arg2.startsWith('#') ? arg2 : '#' + arg2) : '#commandInput';
+            // Container ID provided as string
+            const containerId = arg1.startsWith('#') ? arg1 : '#' + arg1;
+
+            if (typeof arg2 === 'object' && arg2 !== null) {
+                // Format: LinuxTerminal('containerId', { options })
+                options = arg2;
+                options.container = containerId;
+                options.createUI = true; // Flag to create terminal UI
+            } else if (typeof arg2 === 'string') {
+                // Legacy format: LinuxTerminal('containerId', 'inputId', { options })
+                options = arg3 || {};
+                options.container = containerId;
+                options.inputElement = arg2.startsWith('#') ? arg2 : '#' + arg2;
+            } else {
+                // Just container ID: LinuxTerminal('containerId')
+                options.container = containerId;
+                options.createUI = true;
+            }
             // Map legacy property names
             if (options.username) options.user = options.username;
         }
@@ -47,6 +62,8 @@ class LinuxTerminal {
             startDir: options.startDir || `/home/${options.user || options.username || 'student'}`,
             onCommand: options.onCommand || null,
             onOutput: options.onOutput || null,
+            height: options.height || '350px',
+            createUI: options.createUI || false,
         };
 
         // State
@@ -82,15 +99,57 @@ class LinuxTerminal {
 
     _init() {
         this.containerEl = document.querySelector(this.config.container);
+
+        if (!this.containerEl) {
+            console.error('LinuxTerminal: Container element not found');
+            return;
+        }
+
+        // Check if we need to create the terminal UI
         this.inputEl = document.querySelector(this.config.inputElement);
 
-        if (!this.containerEl || !this.inputEl) {
-            console.error('LinuxTerminal: Container or input element not found');
-            return;
+        if (!this.inputEl || this.config.createUI) {
+            this._createTerminalUI();
         }
 
         this._setupEventListeners();
         this._updatePrompt();
+    }
+
+    _createTerminalUI() {
+        // Create the terminal structure inside the container
+        const height = this.config.height || '350px';
+
+        this.containerEl.innerHTML = `
+            <div class="terminal-header" style="background: #1a1a2e; padding: 10px 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <span style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></span>
+                <span style="width: 12px; height: 12px; border-radius: 50%; background: #eab308;"></span>
+                <span style="width: 12px; height: 12px; border-radius: 50%; background: #22c55e;"></span>
+                <span class="terminal-title" style="margin-left: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #8b949e;">${this.config.user}@${this.config.hostname}:~</span>
+            </div>
+            <div class="terminal-output" style="padding: 15px; min-height: 200px; max-height: ${height}; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.5; background: #0d1117;"></div>
+            <div class="terminal-input-line" style="display: flex; align-items: center; padding: 10px 15px; background: #1a1a2e; border-top: 1px solid rgba(255,255,255,0.1);">
+                <span class="terminal-prompt" style="color: #22c55e; font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-right: 8px;">${this.config.user}@${this.config.hostname}:~$</span>
+                <input type="text" class="terminal-cmd-input" placeholder="Type a command..." autocomplete="off" style="flex: 1; background: transparent; border: none; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;">
+            </div>
+        `;
+
+        // Apply container styles
+        this.containerEl.style.cssText = `
+            background: #0d1117;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        `;
+
+        // Update references to the new elements
+        this.outputEl = this.containerEl.querySelector('.terminal-output');
+        this.inputEl = this.containerEl.querySelector('.terminal-cmd-input');
+        this.promptEl = this.containerEl.querySelector('.terminal-prompt');
+        this.titleEl = this.containerEl.querySelector('.terminal-title');
+
+        // Focus the input
+        setTimeout(() => this.inputEl.focus(), 100);
     }
 
     _setupEventListeners() {
@@ -142,33 +201,34 @@ class LinuxTerminal {
     }
 
     _initFilesystem() {
-        // Virtual filesystem structure
+        // Virtual filesystem structure - uses configured username
+        const user = this.config.user;
         return {
             '/': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'sbin', 'opt', 'root', 'dev', 'proc'] },
-            '/home': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['student'] },
-            '/home/student': { type: 'dir', perms: 'drwxr-xr-x', owner: 'student', group: 'student', children: ['Documents', 'Downloads', 'scripts', '.bashrc', '.profile', 'notes.txt', 'readme.md'] },
-            '/home/student/Documents': { type: 'dir', perms: 'drwxr-xr-x', owner: 'student', group: 'student', children: ['report.txt', 'data.csv', 'project'] },
-            '/home/student/Documents/project': { type: 'dir', perms: 'drwxr-xr-x', owner: 'student', group: 'student', children: ['main.py', 'config.json', 'README.md'] },
-            '/home/student/Documents/report.txt': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 2048, content: 'Quarterly Report Q4 2025\n========================\n\nExecutive Summary:\nThis report covers system administration activities.\n\nKey Metrics:\n- Uptime: 99.9%\n- Security incidents: 0\n- Patches applied: 47\n\nRecommendations:\n1. Upgrade kernel to 6.x series\n2. Implement automated backups\n3. Review firewall rules\n' },
-            '/home/student/Documents/data.csv': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 512, content: 'id,name,value,status\n1,alpha,100,active\n2,beta,200,inactive\n3,gamma,150,active\n4,delta,300,active\n5,epsilon,50,inactive\n' },
-            '/home/student/Documents/project/main.py': { type: 'file', perms: '-rwxr-xr-x', owner: 'student', group: 'student', size: 1024, content: '#!/usr/bin/env python3\n"""Main application entry point."""\n\nimport sys\nimport config\n\ndef main():\n    print("Hello from Hexworth!")\n    return 0\n\nif __name__ == "__main__":\n    sys.exit(main())\n' },
-            '/home/student/Documents/project/config.json': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 256, content: '{\n  "app_name": "hexworth-demo",\n  "version": "1.0.0",\n  "debug": false,\n  "port": 8080\n}\n' },
-            '/home/student/Documents/project/README.md': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 384, content: '# Project README\n\nA sample project for learning Linux commands.\n\n## Usage\n\n```bash\npython3 main.py\n```\n\n## License\n\nMIT\n' },
-            '/home/student/Downloads': { type: 'dir', perms: 'drwxr-xr-x', owner: 'student', group: 'student', children: ['archive.tar.gz', 'image.png', 'installer.sh'] },
-            '/home/student/Downloads/archive.tar.gz': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 15360, content: '[binary data]' },
-            '/home/student/Downloads/image.png': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 24576, content: '[binary data]' },
-            '/home/student/Downloads/installer.sh': { type: 'file', perms: '-rwxr-xr-x', owner: 'student', group: 'student', size: 4096, content: '#!/bin/bash\necho "Installing..."\nsleep 2\necho "Done!"\n' },
-            '/home/student/scripts': { type: 'dir', perms: 'drwxr-xr-x', owner: 'student', group: 'student', children: ['backup.sh', 'monitor.sh', 'deploy.sh'] },
-            '/home/student/scripts/backup.sh': { type: 'file', perms: '-rwxr-xr-x', owner: 'student', group: 'student', size: 512, content: '#!/bin/bash\n# Backup script\ntar -czf backup_$(date +%Y%m%d).tar.gz ~/Documents\necho "Backup complete"\n' },
-            '/home/student/scripts/monitor.sh': { type: 'file', perms: '-rwxr-xr-x', owner: 'student', group: 'student', size: 384, content: '#!/bin/bash\n# System monitor\necho "CPU: $(uptime)"\necho "Memory: $(free -h | grep Mem)"\necho "Disk: $(df -h / | tail -1)"\n' },
-            '/home/student/scripts/deploy.sh': { type: 'file', perms: '-rwxr-xr-x', owner: 'student', group: 'student', size: 256, content: '#!/bin/bash\necho "Deploying application..."\ncd ~/Documents/project\npython3 main.py\n' },
-            '/home/student/.bashrc': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 3024, content: '# ~/.bashrc\nexport PATH=$PATH:~/bin\nalias ll="ls -la"\nalias la="ls -A"\nalias l="ls -CF"\n' },
-            '/home/student/.profile': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 807, content: '# ~/.profile\nif [ -f ~/.bashrc ]; then\n    . ~/.bashrc\nfi\n' },
-            '/home/student/notes.txt': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 256, content: 'Linux Learning Notes\n====================\n\n1. Use man pages for help\n2. Tab completion saves time\n3. History with arrow keys\n4. Ctrl+C to interrupt\n5. Ctrl+L to clear screen\n' },
-            '/home/student/readme.md': { type: 'file', perms: '-rw-r--r--', owner: 'student', group: 'student', size: 128, content: '# Welcome to Hexworth Linux Labs\n\nThis is your home directory. Explore and learn!\n' },
+            '/home': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [user] },
+            [`/home/${user}`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['Documents', 'Downloads', 'scripts', '.bashrc', '.profile', 'notes.txt', 'readme.md'] },
+            [`/home/${user}/Documents`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['report.txt', 'data.csv', 'project'] },
+            [`/home/${user}/Documents/project`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['main.py', 'config.json', 'README.md'] },
+            [`/home/${user}/Documents/report.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 2048, content: 'Quarterly Report Q4 2025\n========================\n\nExecutive Summary:\nThis report covers system administration activities.\n\nKey Metrics:\n- Uptime: 99.9%\n- Security incidents: 0\n- Patches applied: 47\n\nRecommendations:\n1. Upgrade kernel to 6.x series\n2. Implement automated backups\n3. Review firewall rules\n' },
+            [`/home/${user}/Documents/data.csv`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 512, content: 'id,name,value,status\n1,alpha,100,active\n2,beta,200,inactive\n3,gamma,150,active\n4,delta,300,active\n5,epsilon,50,inactive\n' },
+            [`/home/${user}/Documents/project/main.py`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 1024, content: '#!/usr/bin/env python3\n"""Main application entry point."""\n\nimport sys\nimport config\n\ndef main():\n    print("Hello from Hexworth!")\n    return 0\n\nif __name__ == "__main__":\n    sys.exit(main())\n' },
+            [`/home/${user}/Documents/project/config.json`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: '{\n  "app_name": "hexworth-demo",\n  "version": "1.0.0",\n  "debug": false,\n  "port": 8080\n}\n' },
+            [`/home/${user}/Documents/project/README.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 384, content: '# Project README\n\nA sample project for learning Linux commands.\n\n## Usage\n\n```bash\npython3 main.py\n```\n\n## License\n\nMIT\n' },
+            [`/home/${user}/Downloads`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['archive.tar.gz', 'image.png', 'installer.sh'] },
+            [`/home/${user}/Downloads/archive.tar.gz`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 15360, content: '[binary data]' },
+            [`/home/${user}/Downloads/image.png`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 24576, content: '[binary data]' },
+            [`/home/${user}/Downloads/installer.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 4096, content: '#!/bin/bash\necho "Installing..."\nsleep 2\necho "Done!"\n' },
+            [`/home/${user}/scripts`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['backup.sh', 'monitor.sh', 'deploy.sh'] },
+            [`/home/${user}/scripts/backup.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 512, content: '#!/bin/bash\n# Backup script\ntar -czf backup_$(date +%Y%m%d).tar.gz ~/Documents\necho "Backup complete"\n' },
+            [`/home/${user}/scripts/monitor.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 384, content: '#!/bin/bash\n# System monitor\necho "CPU: $(uptime)"\necho "Memory: $(free -h | grep Mem)"\necho "Disk: $(df -h / | tail -1)"\n' },
+            [`/home/${user}/scripts/deploy.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 256, content: '#!/bin/bash\necho "Deploying application..."\ncd ~/Documents/project\npython3 main.py\n' },
+            [`/home/${user}/.bashrc`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 3024, content: '# ~/.bashrc\nexport PATH=$PATH:~/bin\nalias ll="ls -la"\nalias la="ls -A"\nalias l="ls -CF"\n' },
+            [`/home/${user}/.profile`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 807, content: '# ~/.profile\nif [ -f ~/.bashrc ]; then\n    . ~/.bashrc\nfi\n' },
+            [`/home/${user}/notes.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: 'Linux Learning Notes\n====================\n\n1. Use man pages for help\n2. Tab completion saves time\n3. History with arrow keys\n4. Ctrl+C to interrupt\n5. Ctrl+L to clear screen\n' },
+            [`/home/${user}/readme.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 128, content: '# Welcome to Hexworth Linux Labs\n\nThis is your home directory. Explore and learn!\n' },
             '/etc': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['passwd', 'group', 'shadow', 'hostname', 'hosts', 'resolv.conf', 'fstab'] },
-            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\nstudent:x:1000:1000:Student User:/home/student:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n' },
-            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: 'root:x:0:\nstudent:x:1000:student\nsudo:x:27:student\nusers:x:100:student\ndocker:x:999:student\nwww-data:x:998:student\n' },
+            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: `root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n${user}:x:1000:1000:${user.charAt(0).toUpperCase() + user.slice(1)} User:/home/${user}:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n` },
+            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: `root:x:0:\n${user}:x:1000:${user}\nsudo:x:27:${user}\nusers:x:100:${user}\ndocker:x:999:${user}\nwww-data:x:998:${user}\n` },
             '/etc/shadow': { type: 'file', perms: '-rw-------', owner: 'root', group: 'shadow', size: 256, content: '[Permission denied - requires root]' },
             '/etc/hostname': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 16, content: 'hexworth\n' },
             '/etc/hosts': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256, content: '127.0.0.1\tlocalhost\n127.0.1.1\thexworth\n::1\t\tlocalhost ip6-localhost ip6-loopback\n' },
@@ -177,14 +237,14 @@ class LinuxTerminal {
             '/var': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['log', 'www', 'tmp'] },
             '/var/log': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['syslog', 'auth.log', 'dmesg'] },
             '/var/log/syslog': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 8192, content: 'Dec 27 09:00:01 hexworth CRON[1234]: (root) CMD (test -x /usr/sbin/anacron)\nDec 27 09:15:22 hexworth systemd[1]: Started Daily apt download activities.\nDec 27 09:30:45 hexworth kernel: [UFW BLOCK] IN=eth0 OUT= SRC=192.168.1.100\n' },
-            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096, content: 'Dec 27 08:30:00 hexworth sshd[5678]: Accepted publickey for student\nDec 27 08:30:00 hexworth systemd-logind[890]: New session 1 of user student.\nDec 27 08:45:12 hexworth sudo: student : TTY=pts/0 ; PWD=/home/student ; USER=root ; COMMAND=/bin/apt update\n' },
+            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096, content: `Dec 27 08:30:00 hexworth sshd[5678]: Accepted publickey for ${user}\nDec 27 08:30:00 hexworth systemd-logind[890]: New session 1 of user ${user}.\nDec 27 08:45:12 hexworth sudo: ${user} : TTY=pts/0 ; PWD=/home/${user} ; USER=root ; COMMAND=/bin/apt update\n` },
             '/var/log/dmesg': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048, content: '[    0.000000] Linux version 6.1.0-hexworth\n[    0.000001] Command line: BOOT_IMAGE=/vmlinuz\n[    0.523456] CPU: 4 cores detected\n[    1.234567] Memory: 8192MB available\n' },
             '/var/www': { type: 'dir', perms: 'drwxr-xr-x', owner: 'www-data', group: 'www-data', children: ['html'] },
             '/var/www/html': { type: 'dir', perms: 'drwxr-xr-x', owner: 'www-data', group: 'www-data', children: ['index.html'] },
             '/var/www/html/index.html': { type: 'file', perms: '-rw-r--r--', owner: 'www-data', group: 'www-data', size: 256, content: '<!DOCTYPE html>\n<html>\n<head><title>Welcome</title></head>\n<body><h1>It works!</h1></body>\n</html>\n' },
             '/var/tmp': { type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root', children: [] },
             '/tmp': { type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root', children: ['session.tmp'] },
-            '/tmp/session.tmp': { type: 'file', perms: '-rw-------', owner: 'student', group: 'student', size: 64, content: 'session_id=abc123\n' },
+            '/tmp/session.tmp': { type: 'file', perms: '-rw-------', owner: user, group: user, size: 64, content: 'session_id=abc123\n' },
             '/usr': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['bin', 'sbin', 'lib', 'share', 'local'] },
             '/usr/bin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['python3', 'vim', 'git', 'curl', 'wget'] },
             '/usr/sbin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [] },
@@ -243,8 +303,9 @@ class LinuxTerminal {
             this._appendOutput(output);
         }
 
-        // Scroll to bottom
-        this.containerEl.scrollTop = this.containerEl.scrollHeight;
+        // Scroll to bottom (uses outputEl for dynamic UI, containerEl for legacy)
+        const scrollTarget = this.outputEl || this.containerEl;
+        scrollTarget.scrollTop = scrollTarget.scrollHeight;
 
         // Callback
         if (this.config.onCommand) {
@@ -1708,10 +1769,27 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
     }
 
     _updatePrompt() {
+        const prompt = this._getPrompt();
+
+        // Update prompt in dynamically created UI
+        if (this.promptEl) {
+            this.promptEl.textContent = prompt + ' ';
+        }
+
+        // Update title in dynamically created UI
+        if (this.titleEl) {
+            const cwd = this.currentDir;
+            const displayPath = cwd.startsWith(this.currentUser.home)
+                ? '~' + cwd.slice(this.currentUser.home.length)
+                : cwd;
+            this.titleEl.textContent = `${this.config.user}@${this.config.hostname}:${displayPath}`;
+        }
+
+        // Legacy: update external prompt element if configured
         if (this.config.promptElement) {
             const promptEl = document.querySelector(this.config.promptElement);
             if (promptEl) {
-                promptEl.textContent = this._getPrompt() + ' ';
+                promptEl.textContent = prompt + ' ';
             }
         }
     }
@@ -1778,14 +1856,19 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
     }
 
     clear() {
-        this.containerEl.innerHTML = '';
+        // Clear output area (dynamic UI) or container (legacy)
+        const target = this.outputEl || this.containerEl;
+        target.innerHTML = '';
     }
 
     _appendLine(html) {
         const line = document.createElement('div');
         line.className = 'terminal-line';
         line.innerHTML = html;
-        this.containerEl.appendChild(line);
+        // Append to output area (dynamic UI) or container (legacy)
+        const target = this.outputEl || this.containerEl;
+        target.appendChild(line);
+        target.scrollTop = target.scrollHeight;
     }
 
     _appendOutput(output) {
@@ -1793,7 +1876,10 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         const line = document.createElement('div');
         line.className = 'terminal-line output';
         line.innerHTML = output;
-        this.containerEl.appendChild(line);
+        // Append to output area (dynamic UI) or container (legacy)
+        const target = this.outputEl || this.containerEl;
+        target.appendChild(line);
+        target.scrollTop = target.scrollHeight;
     }
 
     _escape(text) {
