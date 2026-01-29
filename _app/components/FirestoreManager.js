@@ -738,9 +738,5 @@ const FirestoreManager = (function() {
 
 })();
 
-// Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => FirestoreManager.init());
-} else {
-    FirestoreManager.init();
-}
+// NOTE: Don't auto-initialize - FirestoreManager.init() is called on-demand
+// when needed (e.g., from FirebaseAuth after successful sign-in)
