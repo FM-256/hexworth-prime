@@ -664,7 +664,7 @@ class DigitalLife {
         star.onCatch = (predator, prey) => {
             if (this.ecosystem) {
                 // Kill the caught firefly
-                this.ecosystem.killFirefly(prey, 'predator');
+                this.ecosystem.handleFireflyDeath(prey);
                 console.log(`🌟 ${predator.type.name} caught firefly ${prey.id}`);
             }
         };
