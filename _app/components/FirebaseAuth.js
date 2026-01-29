@@ -106,7 +106,7 @@ const FirebaseAuth = (function() {
     /**
      * Handle auth state changes
      */
-    function handleAuthStateChange(user) {
+    async function handleAuthStateChange(user) {
         if (user) {
             currentUser = {
                 uid: user.uid,
@@ -121,6 +121,28 @@ const FirebaseAuth = (function() {
             localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
 
             console.log(`[FirebaseAuth] Signed in: ${user.email} (Admin: ${isAdmin})`);
+
+            // Initialize Firestore profile and migrate localStorage data
+            let firestoreResult = null;
+            if (typeof FirestoreManager !== 'undefined') {
+                try {
+                    firestoreResult = await FirestoreManager.initializeNewUser(user);
+                    console.log('[FirebaseAuth] Firestore profile ready:', firestoreResult);
+                } catch (error) {
+                    console.warn('[FirebaseAuth] Firestore initialization failed:', error);
+                }
+            }
+
+            // Dispatch event with Firestore data
+            window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
+                detail: {
+                    user: currentUser,
+                    isAdmin,
+                    firestoreProfile: firestoreResult?.profile || null,
+                    needsCallsign: firestoreResult?.needsCallsign || false,
+                    migration: firestoreResult?.migration || null
+                }
+            }));
         } else {
             currentUser = null;
             isAdmin = false;
@@ -128,12 +150,12 @@ const FirebaseAuth = (function() {
             localStorage.removeItem(config.storageKeys.isAdmin);
 
             console.log('[FirebaseAuth] Signed out');
-        }
 
-        // Dispatch custom event for UI updates
-        window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
-            detail: { user: currentUser, isAdmin }
-        }));
+            // Dispatch event for sign out
+            window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
+                detail: { user: null, isAdmin: false }
+            }));
+        }
     }
 
     /**
