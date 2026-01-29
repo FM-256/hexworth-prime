@@ -3790,45 +3790,59 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // LEADERBOARD SYSTEM
+        // LEADERBOARD SYSTEM (Firestore-powered)
         // ═══════════════════════════════════════════════════════════════
 
+        let firestoreLeaderboard = null;
+
         async function initLeaderboard() {
-            // Create leaderboard manager
-            leaderboardManager = new LeaderboardManager({
-                house: userHouse,
-                maxDisplay: 15,
-                nemesisEnabled: true
-            });
-
-            // Set dependencies
-            leaderboardManager.setDependencies({
-                githubAuth: githubAuth,
-                gistSync: gistSync,
-                houseMembers: new HouseMembers(userHouse, { memberCount: 15 })
-            });
-
-            // Initialize
-            await leaderboardManager.init();
-
-            // Inject styles
-            const leaderboardStyles = document.createElement('style');
-            leaderboardStyles.textContent = LeaderboardManager.getStyles();
-            document.head.appendChild(leaderboardStyles);
-
-            // Render leaderboard
             const container = document.getElementById('leaderboardContainer');
-            if (container) {
-                leaderboardManager.renderLeaderboard(container);
-            }
+            if (!container) return;
 
-            // Make globally available for console access
-            window.leaderboardManager = leaderboardManager;
+            // Check if user is signed in - use Firestore leaderboard
+            if (FirebaseAuth.isSignedIn() && typeof FirestoreLeaderboard !== 'undefined') {
+                firestoreLeaderboard = FirestoreLeaderboard.init(container, {
+                    mode: userHouse || 'global',
+                    autoRefresh: true
+                });
+                window.firestoreLeaderboard = firestoreLeaderboard;
+                console.log('[Dashboard] Firestore leaderboard initialized');
+            } else {
+                // Fallback to phantom leaderboard for non-signed-in users
+                leaderboardManager = new LeaderboardManager({
+                    house: userHouse,
+                    maxDisplay: 15,
+                    nemesisEnabled: true
+                });
+
+                leaderboardManager.setDependencies({
+                    githubAuth: githubAuth,
+                    gistSync: gistSync,
+                    houseMembers: new HouseMembers(userHouse, { memberCount: 15 })
+                });
+
+                await leaderboardManager.init();
+
+                const leaderboardStyles = document.createElement('style');
+                leaderboardStyles.textContent = LeaderboardManager.getStyles();
+                document.head.appendChild(leaderboardStyles);
+
+                leaderboardManager.renderLeaderboard(container);
+                window.leaderboardManager = leaderboardManager;
+                console.log('[Dashboard] Phantom leaderboard initialized (user not signed in)');
+            }
         }
 
-        // Call after GitHub auth is initialized
+        // Re-init leaderboard when auth state changes
+        window.addEventListener('firebaseAuthStateChanged', (e) => {
+            if (e.detail.user) {
+                // User signed in - switch to Firestore leaderboard
+                setTimeout(initLeaderboard, 1000);
+            }
+        });
+
+        // Call after components are ready
         document.addEventListener('DOMContentLoaded', function() {
-            // Delay leaderboard init to ensure other components are ready
             setTimeout(initLeaderboard, 500);
         });
     </script>
