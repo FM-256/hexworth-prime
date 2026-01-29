@@ -52,6 +52,21 @@
         .modal-buttons { display: flex; gap: 15px; justify-content: center; }
         .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; }
         .modal-btn.primary { background: #fbbf24; color: #0d1117; } .modal-btn.secondary { background: transparent; color: #fbbf24; border: 2px solid #fbbf24; }
+        .insight-phase { padding: 20px; background: rgba(255, 121, 198, 0.1); border-radius: 8px; border: 2px solid #ff79c6; animation: insightFadeIn 0.5s ease; }
+        @keyframes insightFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .insight-phase .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; color: #ff79c6; font-family: 'Cascadia Code', monospace; font-size: 0.9em; }
+        .insight-phase .phase-header::before { content: '▶'; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .insight-phase .question { color: #c9d1d9; font-size: 1.05em; margin-bottom: 15px; line-height: 1.5; }
+        .insight-input-row { display: flex; gap: 10px; }
+        .insight-input { flex: 1; background: #0d1117; border: 2px solid #30363d; border-radius: 6px; padding: 12px 15px; color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 1em; outline: none; transition: border-color 0.3s; }
+        .insight-input:focus { border-color: #ff79c6; }
+        .insight-input::placeholder { color: #484f58; }
+        .insight-submit { background: #ff79c6; color: #0d1117; border: none; border-radius: 6px; padding: 12px 20px; font-family: 'Cascadia Code', monospace; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .insight-submit:hover { box-shadow: 0 0 15px rgba(255, 121, 198, 0.5); transform: translateY(-1px); }
+        .insight-feedback { margin-top: 12px; padding: 10px 15px; border-radius: 6px; font-size: 0.9em; display: none; }
+        .insight-feedback.wrong { display: block; background: rgba(248, 81, 73, 0.1); border: 1px solid #f85149; color: #f85149; }
+        .insight-feedback.hint { display: block; background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff; color: #58a6ff; }
     </style>
 </head>
 <body>
@@ -90,10 +105,11 @@
     <script src="../../../../components/CLHCompletionModal.js"></script>
     <script>
         const MODULE_ID = 'CLH-021', config = CLHConfig.getModule(MODULE_ID);
+        let insightAttempts = 0;
         const terminal = new CLHTerminal({ moduleId: MODULE_ID, container: '#terminal', inputElement: '#commandInput',
-            onObjectiveComplete: (id, done, total) => updateMissionUI(id, done, total), onModuleComplete: () => showCompletionModal(), onCommand: () => updatePromptDisplay() });
+            onObjectiveComplete: (id, done, total) => updateMissionUI(id, done, total), onModuleComplete: () => showInsightPhase(), onCommand: () => updatePromptDisplay() });
         function updatePromptDisplay() { const cwd = terminal.getCwd(), u = config.user, h = config.hostname, p = cwd === `/home/${u}` ? '~' : cwd.replace(`/home/${u}`, '~'); document.getElementById('promptDisplay').textContent = `${u}@${h}:${p}$`; document.getElementById('terminalTitle').textContent = `${u}@${h}:${p}`; }
-        function updateMissionUI(id, done, total) { const dot = document.getElementById(`step-${id}`); if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.innerHTML = '\u2713'; } if (id < total) document.getElementById(`conn-${id}`)?.classList.add('completed'); if (done < total) { const next = config.objectives[done]; document.getElementById(`step-${next.id}`)?.classList.add('active'); document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${next.task}</h4><div class="hint">${next.hint}</div></div>`; } else { document.getElementById('currentMissionDisplay').innerHTML = `<div class="all-complete"><div style="font-size:2.5em">\u2713</div><h4>MISSION COMPLETE</h4></div>`; } }
+        function updateMissionUI(id, done, total) { const dot = document.getElementById(`step-${id}`); if (dot) { dot.classList.remove('active'); dot.classList.add('completed'); dot.innerHTML = '\u2713'; } if (id < total) document.getElementById(`conn-${id}`)?.classList.add('completed'); if (done < total) { const next = config.objectives[done]; document.getElementById(`step-${next.id}`)?.classList.add('active'); document.getElementById('currentMissionDisplay').innerHTML = `<div class="current-mission"><h4>${next.task}</h4><div class="hint">${next.hint}</div></div>`; } }
 
         // Initialize the new completion modal
         const nextInfo = CLHConfig.getNextIntroUrl(MODULE_ID);
@@ -105,6 +121,85 @@
             successMessage: 'Secure SSH connection ready for exfiltration.',
             isLastModule: nextInfo.isLast
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // INSIGHT PHASE - Analysis conclusion
+        // ═══════════════════════════════════════════════════════════════
+        function showInsightPhase() {
+            const insightConfig = config.insightPhase;
+            if (!insightConfig || !insightConfig.enabled) {
+                showCompletionModal();
+                return;
+            }
+
+            document.querySelector('.mission-header h3').textContent = 'ANALYSIS REQUIRED';
+            document.getElementById('currentMissionDisplay').innerHTML = `
+                <div class="insight-phase">
+                    <div class="phase-header">PHASE 2: ANALYSIS</div>
+                    <div class="question">${insightConfig.question}</div>
+                    <div class="insight-input-row">
+                        <input type="text" id="insightAnswer" class="insight-input" placeholder="Enter your analysis..." autocomplete="off">
+                        <button class="insight-submit" onclick="submitInsightAnswer()">SUBMIT</button>
+                    </div>
+                    <div id="insightFeedback" class="insight-feedback"></div>
+                </div>
+            `;
+
+            const input = document.getElementById('insightAnswer');
+            input.focus();
+            input.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitInsightAnswer(); });
+
+            terminal.print(`[SYSTEM] All objectives complete. Analysis required.`, 'highlight');
+            terminal.print(`[PROMPT] ${insightConfig.question}`, 'output');
+        }
+
+        function submitInsightAnswer() {
+            const insightConfig = config.insightPhase;
+            const input = document.getElementById('insightAnswer');
+            const feedback = document.getElementById('insightFeedback');
+            const userAnswer = input.value.trim().toLowerCase();
+
+            if (!userAnswer) {
+                feedback.className = 'insight-feedback wrong';
+                feedback.textContent = 'Please enter your analysis.';
+                return;
+            }
+
+            insightAttempts++;
+
+            const isCorrect = insightConfig.acceptedAnswers.some(accepted =>
+                userAnswer.includes(accepted.toLowerCase())
+            );
+
+            if (isCorrect) {
+                feedback.className = 'insight-feedback';
+                feedback.style.display = 'block';
+                feedback.style.background = 'rgba(63, 185, 80, 0.1)';
+                feedback.style.border = '1px solid #3fb950';
+                feedback.style.color = '#3fb950';
+                feedback.textContent = insightConfig.correctAnswerMessage;
+
+                terminal.print(`[CONFIRMED] ${insightConfig.correctAnswerMessage}`, 'success');
+
+                input.disabled = true;
+                document.querySelector('.insight-submit').disabled = true;
+                document.querySelector('.insight-submit').style.opacity = '0.5';
+
+                setTimeout(() => { showCompletionModal(); }, 1500);
+            } else {
+                terminal.print(`[REJECTED] Intelligence not confirmed.`, 'error');
+
+                if (insightAttempts >= insightConfig.hintAfterAttempts && insightConfig.hint) {
+                    feedback.className = 'insight-feedback hint';
+                    feedback.textContent = `Hint: ${insightConfig.hint}`;
+                } else {
+                    feedback.className = 'insight-feedback wrong';
+                    feedback.textContent = insightConfig.wrongAnswerMessage;
+                }
+                input.value = '';
+                input.focus();
+            }
+        }
 
         function showCompletionModal() {
             setTimeout(() => {

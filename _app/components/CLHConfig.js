@@ -6283,9 +6283,9 @@ Any service NOT on this list requires investigation.`
                     content: `crontab -l
 cat /etc/crontab
 ls -la /etc/cron.d/
-find /etc/cron* -type f
+find /etc/cron.d -type f
 cat /etc/cron.d/backdoor
-grep -r "curl\\|wget\\|bash" /etc/cron*`
+grep -r "curl\\|wget\\|bash" /etc/cron.d/`
                 },
                 '/home/operator/.cron_cheatsheet': {
                     type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 923,
@@ -6424,7 +6424,7 @@ USER CRONTABS:
                 { id: 3, task: 'SEARCH: Cron Directories', hint: '$ ls -la /etc/cron.d/',
                   check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('cron') &&
                          output && (output.includes('backdoor') || output.includes('cron') || output.includes('-rw')) },
-                { id: 4, task: 'FIND: All Cron Jobs', hint: '$ find /etc/cron* -type f',
+                { id: 4, task: 'FIND: All Cron Jobs', hint: '$ find /etc/cron.d -type f',
                   check: (cmd, state, output) => cmd.includes('find') && cmd.includes('cron') &&
                          output && (output.includes('/etc/cron') || output.includes('crontab') || output.includes('backdoor')) },
                 { id: 5, task: 'ANALYZE: Suspicious Entry', hint: '$ cat /etc/cron.d/backdoor',
@@ -8406,6 +8406,48 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
                 hintAfterAttempts: 3
             },
 
+            remoteHosts: null,
+        },
+
+        // ──────────────────────────────────────────────────────────────
+        // CLH-031: OPERATION BLACKOUT (Final Exam)
+        // Theme: Adversarial head-to-head vs SPECTER
+        // ──────────────────────────────────────────────────────────────
+        'CLH-031': {
+            title: 'OPERATION BLACKOUT',
+            description: 'Final exam. Race against hostile operator SPECTER to extract intel while countering active sabotage.',
+            prerequisites: ['CLH-030'],
+            tier: 'CLI Ghost',
+            user: 'operator',
+            hostname: 'RELAY',
+            startDir: '/home/operator',
+            allowedCommands: null,
+            xpReward: 150,
+            isCustomModule: true, // Uses custom game logic, not standard CLHTerminal
+
+            // Note: This module has its own embedded game engine with:
+            // - Real-time SPECTER AI opponent
+            // - Network map visualization
+            // - Patch panel puzzle (physical layer)
+            // - Firewall configuration puzzle
+            // - Dynamic objectives based on SPECTER actions
+            // - Victory/defeat conditions based on progress race
+
+            objectives: [
+                { id: 1, task: 'Establish SSH to PROMETHEUS', hint: 'ssh operator@prometheus' },
+                { id: 2, task: 'Locate classified intel files', hint: 'find /data -name "*.classified"' },
+                { id: 3, task: 'Reroute via backup link (SPECTER destroys tower)', hint: 'Patch panel: A4 → B3' },
+                { id: 4, task: 'Re-establish SSH connection', hint: 'ssh operator@prometheus' },
+                { id: 5, task: 'Configure firewall (SPECTER blocks you)', hint: 'DENY 10.13.37.66, ALLOW 10.13.37.100' },
+                { id: 6, task: 'Extract classified intel', hint: 'cat /data/ops/mission_intel.classified' },
+                { id: 7, task: 'Exfiltrate and neutralize SPECTER', hint: 'scp + pkill -u specter' },
+            ],
+
+            insightPhase: {
+                enabled: false, // Victory modal handles completion
+            },
+
+            filesystem: null, // Custom module with embedded virtual FS
             remoteHosts: null,
         },
 

@@ -81,8 +81,10 @@ const ModuleProgress = (function() {
         if (returnToDashboard) {
             setTimeout(() => {
                 // Navigate relative to current location
+                // Count slashes to determine depth, then go up (depth - 1) levels to reach root
+                // e.g., /houses/forge/presentations/file.html has 4 slashes = 3 dirs deep = need ../../../
                 const depth = (window.location.pathname.match(/\//g) || []).length;
-                const prefix = '../'.repeat(Math.max(0, depth - 2));
+                const prefix = '../'.repeat(Math.max(0, depth - 1));
                 window.location.href = prefix + 'dashboard.html';
             }, silent ? 0 : 1500);
         }
@@ -145,22 +147,11 @@ const ModuleProgress = (function() {
         // Return to dashboard if passed
         if (returnToDashboard && passed) {
             setTimeout(() => {
-                // Calculate path based on known structure
-                const path = window.location.pathname;
-
-                // Find where _app is in the path
-                const appIndex = path.indexOf('/_app/');
-                if (appIndex !== -1) {
-                    // We know where _app is, navigate relative to it
-                    const pathAfterApp = path.substring(appIndex + 6); // after "/_app/"
-                    const depth = (pathAfterApp.match(/\//g) || []).length;
-                    const prefix = '../'.repeat(depth);
-                    window.location.href = prefix + 'dashboard.html';
-                } else {
-                    // Fallback: assume houses/[house]/quizzes/ structure
-                    // Go up 3 levels: quizzes → house → houses → _app
-                    window.location.href = '../../../dashboard.html';
-                }
+                // Navigate relative to current location
+                // Count slashes to determine depth, then go up (depth - 1) levels to reach root
+                const depth = (window.location.pathname.match(/\//g) || []).length;
+                const prefix = '../'.repeat(Math.max(0, depth - 1));
+                window.location.href = prefix + 'dashboard.html';
             }, silent ? 0 : 2000);
         }
 

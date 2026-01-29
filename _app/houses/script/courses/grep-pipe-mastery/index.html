@@ -1452,8 +1452,16 @@ Jan 15 02:16:01 sshd: pam_unix(sshd:auth): authentication failure; user=root rho
             },
             2: {
                 path: '/data/intel',
-                files: ['network.log', 'users.txt', 'connections.log', 'alerts.log'],
+                files: ['network.log', 'users.txt', 'connections.log', 'alerts.log', 'access.log'],
                 contents: {
+                    'access.log': `192.168.1.105 - - [15/Jan:02:14:30] "GET /admin HTTP/1.1" 401
+192.168.1.105 - - [15/Jan:02:14:35] "POST /login HTTP/1.1" 401
+10.0.0.5 - - [15/Jan:02:15:01] "GET /dashboard HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:16:00] "GET /admin HTTP/1.1" 403
+172.16.0.50 - - [15/Jan:02:20:00] "GET /index.html HTTP/1.1" 200
+192.168.1.105 - - [15/Jan:02:25:00] "GET /wp-admin HTTP/1.1" 404
+10.0.0.88 - - [15/Jan:02:30:00] "GET /api/v1/users HTTP/1.1" 200
+8.8.8.8 - - [15/Jan:02:35:00] "GET /health HTTP/1.1" 200`,
                     'network.log': `2024-01-15 02:14:33 TCP 192.168.1.105:44521 -> 10.0.0.5:22 SYN
 2024-01-15 02:14:35 TCP 192.168.1.105:44522 -> 10.0.0.5:22 SYN
 2024-01-15 02:15:01 TCP 10.0.0.88:55123 -> 10.0.0.5:22 ESTABLISHED
@@ -1626,15 +1634,71 @@ Jan 15 04:00:00 server sshd[1700]: Connection closed by 192.168.1.105 port 44600
                 return fs.path;
             }
 
+            if (cmd === 'man grep' || cmd === 'grep --help') {
+                return `GREP(1)                        User Commands                        GREP(1)
+
+NAME
+       grep - print lines that match patterns
+
+SYNOPSIS
+       grep [OPTION]... PATTERN [FILE]...
+
+DESCRIPTION
+       grep searches for PATTERN in each FILE.
+
+OPTIONS
+   Matching Control:
+       -i, --ignore-case      ignore case distinctions
+       -v, --invert-match     select non-matching lines
+       -w, --word-regexp      match whole words only
+       -E, --extended-regexp  use extended regular expressions
+
+   Output Control:
+       -c, --count            print only a count of matching lines
+       -n, --line-number      print line number with output
+       -l, --files-with-matches  print only names of files with matches
+       -o, --only-matching    show only nonempty parts that match
+       -r, --recursive        search directories recursively
+
+   Context Control:
+       -A NUM, --after-context=NUM   print NUM lines after match
+       -B NUM, --before-context=NUM  print NUM lines before match
+       -C NUM, --context=NUM         print NUM lines of context
+
+EXAMPLES
+       grep -i "error" syslog          Case-insensitive search
+       grep -c "failed" auth.log       Count matches
+       grep -n "root" auth.log         Show line numbers
+       grep -A 3 "CRITICAL" error.log  Show 3 lines after match
+       grep -E "[0-9]+" file           Extended regex`;
+            }
+
             if (cmd === 'help') {
                 return `Available commands:
   ls              - List files
   cat <file>      - View file contents
-  grep [opts] "pattern" file  - Search for pattern
+  grep [opts] pattern file  - Search for pattern
   wc, sort, uniq, cut, head, tail, tee - Pipe partners
 
-Grep flags: -i -v -c -n -l -r -w -o -E -A -B -C
-Pipe with: command1 | command2 | command3`;
+Grep flags:
+  -i    Ignore case (match "Error", "ERROR", "error")
+  -v    Invert match (show lines that DON'T match)
+  -c    Count matching lines
+  -n    Show line numbers
+  -l    Show only filenames with matches
+  -r    Recursive search (all files)
+  -w    Whole word match only
+  -o    Print only the matched part
+  -E    Extended regex (for +, ?, |, etc.)
+  -A n  Show n lines AFTER each match
+  -B n  Show n lines BEFORE each match
+  -C n  Show n lines of context (before AND after)
+
+Examples:
+  grep -i error syslog
+  grep -c failed auth.log
+  grep -A 2 CRITICAL error.log
+  cat file | grep pattern | wc -l`;
             }
 
             if (cmd.startsWith('cat ')) {
@@ -1698,30 +1762,49 @@ Pipe with: command1 | command2 | command3`;
         }
 
         function executeGrep(cmd, fs) {
-            // Parse grep command
-            const hasI = cmd.includes(' -i') || cmd.includes('-i ');
-            const hasV = cmd.includes(' -v') || cmd.includes('-v ');
-            const hasC = cmd.includes(' -c') || cmd.includes('-c ');
-            const hasN = cmd.includes(' -n') || cmd.includes('-n ');
-            const hasL = cmd.includes(' -l') || cmd.includes('-l ');
-            const hasO = cmd.includes(' -o') || cmd.includes('-o ');
-            const hasR = cmd.includes(' -r') || cmd.includes('-r ');
-            const hasW = cmd.includes(' -w') || cmd.includes('-w ');
-            const hasE = cmd.includes(' -E') || cmd.includes('-E ');
+            // Parse grep command - detect flags including combined flags like -rni, -Eo
+            const flagsMatch = cmd.match(/-[a-zA-Z]+/g) || [];
+            const allFlags = flagsMatch.join('');
+
+            const hasI = allFlags.includes('i');
+            const hasV = allFlags.includes('v');
+            const hasC = allFlags.includes('c') && !cmd.match(/-C\s*\d/); // -c but not -C context
+            const hasN = allFlags.includes('n');
+            const hasL = allFlags.includes('l');
+            const hasO = allFlags.includes('o');
+            const hasR = allFlags.includes('r');
+            const hasW = allFlags.includes('w');
+            const hasE = allFlags.includes('E');
             const hasA = cmd.match(/-A\s*(\d+)/);
             const hasB = cmd.match(/-B\s*(\d+)/);
             const hasC2 = cmd.match(/-C\s*(\d+)/);
 
-            // Extract pattern
-            let patternMatch = cmd.match(/"([^"]+)"|'([^']+)'/);
-            let pattern = patternMatch ? (patternMatch[1] || patternMatch[2]) : '';
-
-            // Extract file
+            // Extract file first (need it to identify pattern)
             let file = '';
             const words = cmd.split(/\s+/);
             for (let i = words.length - 1; i >= 0; i--) {
                 if (fs.files.includes(words[i]) || words[i] === '*') {
                     file = words[i];
+                    break;
+                }
+            }
+
+            // Extract pattern - try quoted first, then unquoted
+            let patternMatch = cmd.match(/"([^"]+)"|'([^']+)'/);
+            let pattern = patternMatch ? (patternMatch[1] || patternMatch[2]) : '';
+
+            // Fallback: find unquoted pattern (first non-flag, non-file, non-grep word)
+            if (!pattern) {
+                for (let i = 1; i < words.length; i++) {
+                    const word = words[i];
+                    // Skip flags (words starting with -)
+                    if (word.startsWith('-')) continue;
+                    // Skip the file
+                    if (word === file || word === '*') continue;
+                    // Skip if it's a known file
+                    if (fs.files.includes(word)) continue;
+                    // This must be the pattern
+                    pattern = word;
                     break;
                 }
             }
@@ -1847,16 +1930,27 @@ Pipe with: command1 | command2 | command3`;
                     return input + `\n(also saved to ${teeFile})`;
 
                 case 'grep':
-                    // Grep in pipeline
+                    // Grep in pipeline - handle combined flags like -vi, -iv
+                    const grepFlags = (stage.match(/-[a-zA-Z]+/g) || []).join('');
+                    const pipeHasV = grepFlags.includes('v');
+                    const pipeHasI = grepFlags.includes('i');
+
                     const patternMatch = stage.match(/"([^"]+)"|'([^']+)'/);
-                    const pattern = patternMatch ? (patternMatch[1] || patternMatch[2]) : parts[1];
+                    let pattern = patternMatch ? (patternMatch[1] || patternMatch[2]) : '';
+                    // Fallback: find first non-flag argument
+                    if (!pattern) {
+                        for (let i = 1; i < parts.length; i++) {
+                            if (!parts[i].startsWith('-')) {
+                                pattern = parts[i];
+                                break;
+                            }
+                        }
+                    }
                     if (!pattern) return input;
 
-                    const hasV = stage.includes('-v');
-                    const hasI = stage.includes('-i');
-                    const regex = new RegExp(pattern, hasI ? 'i' : '');
+                    const regex = new RegExp(pattern, pipeHasI ? 'i' : '');
 
-                    return lines.filter(l => hasV ? !regex.test(l) : regex.test(l)).join('\n');
+                    return lines.filter(l => pipeHasV ? !regex.test(l) : regex.test(l)).join('\n');
 
                 default:
                     return input;
@@ -1903,9 +1997,9 @@ Pipe with: command1 | command2 | command3`;
             if (section === 2) {
                 // Section 2: Regex Power
                 if (lowerCmd.includes('grep') && lowerCmd.includes('^')) markObjective('2-1', section);
-                // Extract IPs: accept -oE, -Eo, -o -E, etc.
-                if (lowerCmd.includes('grep') && lowerCmd.includes('-o') && lowerCmd.includes('-e') && lowerCmd.includes('[0-9]')) markObjective('2-2', section);
-                if (lowerCmd.includes('grep') && lowerCmd.includes('|') && lowerCmd.includes('-e')) markObjective('2-3', section);
+                // Extract IPs: accept -oE, -Eo, -o -E, etc. (regex checks for 'o' and 'e' in flags)
+                if (lowerCmd.includes('grep') && /\-\w*o/.test(lowerCmd) && /\-\w*e/.test(lowerCmd) && lowerCmd.includes('[0-9]')) markObjective('2-2', section);
+                if (lowerCmd.includes('grep') && lowerCmd.includes('|') && /\-\w*e/.test(lowerCmd)) markObjective('2-3', section);
                 if (lowerCmd.includes('grep') && lowerCmd.includes(':[0-9]')) markObjective('2-4', section);
                 if (lowerCmd.includes('grep') && lowerCmd.includes('$')) markObjective('2-5', section);
                 if (lowerCmd.includes('grep') && lowerCmd.includes('@')) markObjective('2-6', section);

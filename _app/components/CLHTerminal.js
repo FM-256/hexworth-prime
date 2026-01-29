@@ -4101,7 +4101,7 @@ class CLHTerminal {
 
     _getCommandCompletions(prefix) {
         const commands = [
-            'alias', 'apt', 'apt-cache', 'apt-get', 'arp', 'awk',
+            'alias', 'apt', 'apt-cache', 'apt-get', 'arp', 'at', 'atq', 'atrm', 'awk',
             'base64', 'basename', 'bash', 'bg',
             'cat', 'cd', 'chgrp', 'chmod', 'chown', 'clear', 'cmatrix', 'cowsay', 'cp', 'crontab', 'curl', 'cut',
             'date', 'df', 'diff', 'dig', 'dirname', 'dmesg', 'dpkg', 'du',
@@ -4352,6 +4352,9 @@ class CLHTerminal {
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
             case 'crontab': output = this._cmdCrontab(args); break;
+            case 'at': output = this._cmdAt(args); break;
+            case 'atq': output = this._cmdAtq(); break;
+            case 'atrm': output = this._cmdAtrm(args); break;
             case 'dpkg': output = this._cmdDpkg(args); break;
             case 'apt': case 'apt-get': case 'apt-cache': output = this._cmdApt(args); break;
             case 'sudo': output = this._cmdSudo(args); break;
@@ -4364,10 +4367,12 @@ class CLHTerminal {
             case 'file': output = this._cmdFile(args); break;
             case 'stat': output = this._cmdStat(args); break;
             case 'tar': output = this._cmdTar(args); break;
-            case 'gzip': case 'gunzip': case 'zip': case 'unzip': output = 'Archive operation simulated'; break;
+            case 'gzip': output = this._cmdGzip(args); break;
+            case 'gunzip': output = this._cmdGunzip(args); break;
+            case 'zip': case 'unzip': output = this._cmdZip(args, cmd); break;
             case 'ssh-keygen': output = this._cmdSshKeygen(args); break;
             case 'ssh': output = this._cmdSsh(args); break;
-            case 'scp': output = 'scp: simulated file transfer complete'; break;
+            case 'scp': output = this._cmdScp(args); break;
             case 'curl': case 'wget': output = 'Network request simulated'; break;
             case 'ping': output = this._cmdPing(args); break;
             case 'nslookup': case 'dig': output = this._cmdNslookup(args); break;
@@ -4516,6 +4521,9 @@ class CLHTerminal {
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
             case 'crontab': output = this._cmdCrontab(args); break;
+            case 'at': output = this._cmdAt(args); break;
+            case 'atq': output = this._cmdAtq(); break;
+            case 'atrm': output = this._cmdAtrm(args); break;
             case 'dpkg': output = this._cmdDpkg(args); break;
             case 'apt': case 'apt-get': case 'apt-cache': output = this._cmdApt(args); break;
             case 'sudo': output = this._cmdSudo(args); break;
@@ -4528,10 +4536,12 @@ class CLHTerminal {
             case 'file': output = this._cmdFile(args); break;
             case 'stat': output = this._cmdStat(args); break;
             case 'tar': output = this._cmdTar(args); break;
-            case 'gzip': case 'gunzip': case 'zip': case 'unzip': output = 'Archive operation simulated'; break;
+            case 'gzip': output = this._cmdGzip(args); break;
+            case 'gunzip': output = this._cmdGunzip(args); break;
+            case 'zip': case 'unzip': output = this._cmdZip(args, cmd); break;
             case 'ssh-keygen': output = this._cmdSshKeygen(args); break;
             case 'ssh': output = this._cmdSsh(args); break;
-            case 'scp': output = 'scp: simulated file transfer complete'; break;
+            case 'scp': output = this._cmdScp(args); break;
             case 'curl': case 'wget': output = 'Network request simulated'; break;
             case 'ping': output = this._cmdPing(args); break;
             case 'nslookup': case 'dig': output = this._cmdNslookup(args); break;
@@ -7329,54 +7339,255 @@ SYNOPSIS
 
 DESCRIPTION
        systemctl may be used to introspect and control the state of the
-       "systemd" system and service manager.
+       "systemd" system and service manager. Includes managing services
+       and timers.
 
 COMMANDS
-       Unit Commands:
-           start PATTERN...          Start (activate) units
-           stop PATTERN...           Stop (deactivate) units
-           restart PATTERN...        Restart units
-           reload PATTERN...         Reload units
-           status [PATTERN...]       Show runtime status of units
+       Service Commands:
+           start UNIT...             Start (activate) units
+           stop UNIT...              Stop (deactivate) units
+           restart UNIT...           Restart units
+           status [UNIT...]          Show runtime status of units
            enable UNIT...            Enable unit to start at boot
            disable UNIT...           Disable unit from starting at boot
-           is-active PATTERN...      Check if units are active
-           is-enabled UNIT...        Check if units are enabled
+           list-units                List all loaded units
+
+       Timer Commands:
+           list-timers               List all timers and their schedules
+           create-timer <name>       Create a new timer (opens editor)
+           edit <name>.timer         Edit existing timer
+           daemon-reload             Reload unit files after changes
+
+TIMER UNIT FILES
+       Timers require two files in /etc/systemd/system/:
+
+       <name>.timer      Defines WHEN to run
+       <name>.service    Defines WHAT to run
+
+       Timer file [Timer] section options:
+           OnCalendar=       Calendar-based schedule
+           OnBootSec=        Time after boot
+           OnUnitActiveSec=  Time after unit was last active
+           Persistent=true   Run if missed while system was off
+
+ONCALENDAR SYNTAX
+       minutely           Every minute
+       hourly             Every hour at :00
+       daily              Every day at 00:00
+       weekly             Every Monday at 00:00
+       monthly            First day of month at 00:00
+       *:0/15             Every 15 minutes
+       *-*-* 03:00:00     Every day at 3 AM
+       Mon *-*-* 09:00    Every Monday at 9 AM
+       *-*-01 00:00:00    First of every month
 
 EXAMPLES
-       systemctl status nginx
-              Check nginx service status.
+       systemctl list-timers
+              Show all scheduled timers.
 
-       systemctl start nginx
-              Start nginx service.
+       systemctl create-timer backup
+              Create backup.timer and backup.service.
 
-       systemctl enable nginx
-              Enable nginx to start at boot.
+       systemctl status backup.timer
+              Check timer status.
 
-       systemctl restart nginx
-              Restart nginx service.
+       systemctl enable --now backup.timer
+              Enable and start a timer.
 
-       systemctl list-units --type=service
-              List all services.
+TIMER WORKFLOW
+       1. systemctl create-timer <name>
+       2. Edit OnCalendar schedule and ExecStart command
+       3. Save (auto-enables the timer)
+       4. Verify: systemctl list-timers
 
 OPERATOR NOTES
        Use systemctl when you need to:
        • Manage services (start, stop, restart)
-       • Check service status and health
-       • Enable/disable services at boot
-       • Investigate what services are running
+       • Create scheduled tasks with timers
+       • Check service/timer status and health
+       • Investigate what's running on the system
 
-       Pro tip: systemctl is essential for service reconnaissance.
-       systemctl list-units --type=service --state=running  # Active services
-       systemctl list-unit-files | grep enabled  # Boot-enabled services
-       systemctl status sshd  # Check if SSH is running
+       Pro tip: Timers are the modern replacement for cron.
+       systemctl list-timers --all  # Show all timers including inactive
+       ls /etc/systemd/system/*.timer  # Find timer unit files
 
-       Look for suspicious services or unfamiliar unit files.
-       Malware often installs as systemd services for persistence.
-       Check /etc/systemd/system/ for rogue unit files.
+       Persistence check: Attackers may create rogue timers.
+       Always review /etc/systemd/system/ for unfamiliar units.
 
 SEE ALSO
-       systemd(1), journalctl(1), service(8)`,
+       systemd(1), journalctl(1), crontab(1), at(1)`,
+
+            'crontab': `CRONTAB(1)                      User Commands                      CRONTAB(1)
+
+NAME
+       crontab - maintain crontab files for individual users
+
+SYNOPSIS
+       crontab [-u user] file
+       crontab [-u user] [-l | -r | -e]
+
+DESCRIPTION
+       crontab is the program used to install, remove, or list the tables
+       used to schedule periodic jobs with the cron daemon.
+
+       Each user can have their own crontab, and the crontab files are
+       stored in /var/spool/cron/crontabs/.
+
+OPTIONS
+       -l     Display the current crontab on standard output.
+
+       -r     Remove the current crontab.
+
+       -e     Edit the current crontab using the default editor.
+              After you exit the editor, the modified crontab is installed.
+
+       -u user
+              Specify the user whose crontab is to be modified (root only).
+
+CRON ENTRY FORMAT
+       A cron entry consists of 5 time fields followed by a command:
+
+       ┌───────────── minute (0 - 59)
+       │ ┌───────────── hour (0 - 23)
+       │ │ ┌───────────── day of month (1 - 31)
+       │ │ │ ┌───────────── month (1 - 12)
+       │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday = 0)
+       │ │ │ │ │
+       * * * * * command to execute
+
+SPECIAL CHARACTERS
+       *      Match any value (wildcard).
+       ,      Specify multiple values (e.g., 1,3,5).
+       -      Specify a range (e.g., 1-5).
+       /      Step values (e.g., */5 means every 5 units).
+
+EXAMPLES
+       # Run backup.sh every day at 2:30 AM
+       30 2 * * * /opt/scripts/backup.sh
+
+       # Run cleanup every Monday at 6:00 AM
+       0 6 * * 1 /opt/scripts/cleanup.sh
+
+       # Run health check every 15 minutes
+       */15 * * * * /opt/scripts/health_check.sh
+
+       # Run report on 1st of every month at midnight
+       0 0 1 * * /opt/scripts/monthly_report.sh
+
+       # Run task every weekday (Mon-Fri) at 9:00 AM
+       0 9 * * 1-5 /opt/scripts/daily_task.sh
+
+COMMON SCHEDULES
+       @reboot     Run once at startup
+       @hourly     Equivalent to: 0 * * * *
+       @daily      Equivalent to: 0 0 * * *
+       @weekly     Equivalent to: 0 0 * * 0
+       @monthly    Equivalent to: 0 0 1 * *
+
+OPERATOR NOTES
+       Use crontab when you need to:
+       • Schedule recurring tasks (backups, log rotation, monitoring)
+       • Set up persistence mechanisms
+       • Automate data collection at specific intervals
+       • Run scripts outside business hours
+
+       Pro tip: Attackers often abuse cron for persistence.
+       Review crontabs regularly:
+           crontab -l              # Your crontab
+           cat /etc/cron.d/*       # System cron jobs
+           ls -la /etc/cron.*      # Periodic directories
+
+       Key persistence locations to monitor:
+       • /var/spool/cron/crontabs/  (user crontabs)
+       • /etc/cron.d/               (system cron jobs)
+       • /etc/cron.hourly/, daily/, weekly/, monthly/
+
+       Remember: cron jobs run with limited environment variables.
+       Always use full paths to commands in your scripts.
+
+SEE ALSO
+       cron(8), anacron(8), at(1)`,
+
+            'at': `AT(1)                           User Commands                          AT(1)
+
+NAME
+       at, atq, atrm - queue, examine, or delete jobs for later execution
+
+SYNOPSIS
+       at [-f file] [-mldbv] TIME
+       atq [-V]
+       atrm job [job...]
+
+DESCRIPTION
+       at schedules commands to be executed once at a specified time.
+       Unlike cron, at jobs run only once and are then removed.
+
+       atq lists the user's pending at jobs.
+       atrm deletes at jobs by job number.
+
+TIME SPECIFICATION
+       at accepts various time formats:
+
+       now + COUNT UNIT
+              Relative time (minutes, hours, days, weeks)
+              Example: now + 30 minutes
+              Example: now + 2 hours
+
+       HH:MM [AM|PM]
+              Specific time (runs today or tomorrow)
+              Example: 3:00 PM
+              Example: 14:30
+
+       midnight, noon, teatime
+              Named times (00:00, 12:00, 16:00)
+
+       tomorrow
+              Same time tomorrow
+
+       MMDDYY or MM/DD/YY
+              Specific date
+
+EXAMPLES
+       at now + 10 minutes
+              Schedule a job to run in 10 minutes.
+
+       at 3:00 AM
+              Schedule a job for 3:00 AM.
+
+       at midnight
+              Schedule a job for midnight.
+
+       at noon tomorrow
+              Schedule a job for noon tomorrow.
+
+       atq
+              List pending at jobs.
+
+       atrm 5
+              Remove job number 5.
+
+WORKFLOW
+       1. Run: at <time>
+       2. Enter commands in the editor
+       3. Submit the job
+       4. View queue: atq
+       5. Remove if needed: atrm <job_id>
+
+OPERATOR NOTES
+       Use at when you need to:
+       • Schedule one-time tasks (data exfiltration timing)
+       • Set up delayed execution
+       • Run cleanup tasks after a specific interval
+       • Schedule reconnaissance during off-hours
+
+       Pro tip: at jobs are stored in /var/spool/at/ (or /var/spool/cron/atjobs).
+       Unlike cron, at is for one-shot tasks.
+
+       Persistence check: atq shows all pending one-time jobs.
+       Attackers may use at for time-delayed payloads.
+
+SEE ALSO
+       atq(1), atrm(1), crontab(1), cron(8)`,
 
             // Editors
             'vim': `VIM(1)                          User Commands                         VIM(1)
@@ -8446,6 +8657,11 @@ MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   5333.2 avail Mem
     }
 
     _cmdSystemctl(args) {
+        // Initialize custom timers storage
+        if (!this.systemdTimers) {
+            this.systemdTimers = [];
+        }
+
         if (args[0] === 'list-units' || args.includes('--type=service')) {
             return `UNIT                     LOAD   ACTIVE SUB     DESCRIPTION
 sshd.service             loaded active running OpenSSH server daemon
@@ -8453,29 +8669,251 @@ nginx.service            loaded active running A high performance web server
 mysql.service            loaded active running MySQL Community Server
 cron.service             loaded active running Regular background program processing`;
         }
+
         if (args[0] === 'status') {
-            const svc = args[1] || 'sshd';
-            return `● ${svc}.service - ${svc} daemon
-   Loaded: loaded (/lib/systemd/system/${svc}.service; enabled)
+            const unit = args[1] || 'sshd';
+
+            // Check if it's a timer
+            if (unit.endsWith('.timer')) {
+                const timerName = unit.replace('.timer', '');
+                const customTimer = this.systemdTimers.find(t => t.name === timerName);
+                if (customTimer) {
+                    return `● ${unit} - ${customTimer.description || 'Custom timer'}
+   Loaded: loaded (/etc/systemd/system/${unit}; enabled)
+   Active: active (waiting) since ${new Date().toUTCString()}
+  Trigger: ${customTimer.schedule}
+
+Triggers: ${timerName}.service`;
+                }
+            }
+
+            return `● ${unit}.service - ${unit} daemon
+   Loaded: loaded (/lib/systemd/system/${unit}.service; enabled)
    Active: active (running) since Sun 2026-01-18 09:55:00 UTC; 35min ago
- Main PID: 1234 (${svc})
+ Main PID: 1234 (${unit})
     Tasks: 1 (limit: 4915)
    Memory: 2.3M
-   CGroup: /system.slice/${svc}.service
-           └─1234 /usr/sbin/${svc}`;
+   CGroup: /system.slice/${unit}.service
+           └─1234 /usr/sbin/${unit}`;
         }
+
         if (args[0] === '--failed' || args.includes('--failed')) {
             return `UNIT                    LOAD   ACTIVE SUB    DESCRIPTION
 ● suspicious.service    loaded failed failed Unknown service
 
 1 loaded units listed.`;
         }
-        if (args[0] === 'list-timers' || args.includes('--all')) {
-            return `NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
-Sun 2026-01-18 11:00:00 UTC 29min left    Sun 2026-01-18 10:00:00 UTC 30min ago    apt-daily.timer              apt-daily.service
-Sun 2026-01-18 11:17:00 UTC 46min left    Sun 2026-01-18 10:17:00 UTC 13min ago    anacron.timer                anacron.service`;
+
+        if (args[0] === 'list-timers') {
+            let output = `NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
+Sun 2026-01-28 11:00:00 UTC 29min left    Sun 2026-01-28 10:00:00 UTC 30min ago    apt-daily.timer              apt-daily.service
+Sun 2026-01-28 11:17:00 UTC 46min left    Sun 2026-01-28 10:17:00 UTC 13min ago    anacron.timer                anacron.service`;
+
+            // Add custom timers
+            this.systemdTimers.forEach(timer => {
+                output += `\n${timer.next || 'n/a'}  ${timer.name}.timer              ${timer.name}.service`;
+            });
+
+            return output;
         }
-        return 'Usage: systemctl [list-units|status|--failed|list-timers]';
+
+        // Enable/disable/start/stop timers
+        if (['enable', 'disable', 'start', 'stop', 'restart'].includes(args[0])) {
+            const unit = args[1];
+            if (!unit) return `systemctl ${args[0]}: missing unit`;
+
+            if (unit.endsWith('.timer')) {
+                return `${args[0] === 'enable' ? 'Created symlink' : 'Removed symlink'} /etc/systemd/system/timers.target.wants/${unit}`;
+            }
+            return `${unit}: ${args[0]} successful`;
+        }
+
+        // daemon-reload
+        if (args[0] === 'daemon-reload') {
+            return '';  // Silent success like real systemctl
+        }
+
+        // Edit timer - custom command for this simulation
+        if (args[0] === 'edit-timer' || (args[0] === 'edit' && args[1]?.endsWith('.timer'))) {
+            const timerName = (args[1] || 'custom').replace('.timer', '');
+            this._openSystemdTimerEditor(timerName);
+            return '<span class="clh-dim">[Opening systemd timer editor...]</span>';
+        }
+
+        // Create new timer
+        if (args[0] === 'create-timer') {
+            const timerName = args[1] || 'custom';
+            this._openSystemdTimerEditor(timerName);
+            return '<span class="clh-dim">[Opening systemd timer editor...]</span>';
+        }
+
+        return `Usage: systemctl <command> [unit]
+
+Service commands:
+  list-units              List all units
+  status <unit>           Show unit status
+  start/stop/restart      Control units
+  enable/disable          Control auto-start
+
+Timer commands:
+  list-timers             List all timers
+  create-timer <name>     Create new timer (opens editor)
+  edit <name>.timer       Edit existing timer
+  daemon-reload           Reload systemd configuration`;
+    }
+
+    _openSystemdTimerEditor(timerName) {
+        // Check for existing timer
+        const existingTimer = this.systemdTimers?.find(t => t.name === timerName);
+
+        const defaultTimer = `[Unit]
+Description=Custom scheduled task
+
+[Timer]
+# OnCalendar examples:
+#   *:0/15         - Every 15 minutes
+#   hourly         - Every hour
+#   daily          - Every day at midnight
+#   weekly         - Every Monday at midnight
+#   *-*-* 03:00:00 - Every day at 3 AM
+#   Mon *-*-* 09:00:00 - Every Monday at 9 AM
+
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target`;
+
+        const defaultService = `[Unit]
+Description=Custom scheduled task service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/scripts/${timerName}.sh
+
+[Install]
+WantedBy=multi-user.target`;
+
+        const timerContent = existingTimer?.timerContent || defaultTimer;
+        const serviceContent = existingTimer?.serviceContent || defaultService;
+
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'systemd-timer-modal';
+        modal.innerHTML = `
+            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+                <div style="background:#0d1117;border:2px solid #8b5cf6;border-radius:12px;width:95%;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;">
+                    <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#8b5cf6;font-weight:bold;">SYSTEMD TIMER EDITOR - ${timerName}</span>
+                        <div style="display:flex;gap:10px;">
+                            <button id="timer-save" style="background:#22c55e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Save & Enable</button>
+                            <button id="timer-cancel" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Cancel</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex:1;overflow:hidden;">
+                        <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #30363d;">
+                            <div style="padding:10px 15px;background:#161b22;color:#8b5cf6;font-weight:bold;font-size:0.85em;">
+                                ${timerName}.timer
+                            </div>
+                            <textarea id="timer-content" style="flex:1;background:#0a0a0a;color:#00ff41;border:none;padding:15px;font-family:'Cascadia Code',monospace;font-size:13px;line-height:1.5;resize:none;outline:none;" spellcheck="false">${this._escapeHtml(timerContent)}</textarea>
+                        </div>
+                        <div style="flex:1;display:flex;flex-direction:column;">
+                            <div style="padding:10px 15px;background:#161b22;color:#8b5cf6;font-weight:bold;font-size:0.85em;">
+                                ${timerName}.service
+                            </div>
+                            <textarea id="service-content" style="flex:1;background:#0a0a0a;color:#00ff41;border:none;padding:15px;font-family:'Cascadia Code',monospace;font-size:13px;line-height:1.5;resize:none;outline:none;" spellcheck="false">${this._escapeHtml(serviceContent)}</textarea>
+                        </div>
+                    </div>
+                    <div id="timer-feedback" style="padding:10px 20px;border-top:1px solid #30363d;font-size:0.85em;color:#8b949e;">
+                        Files will be saved to /etc/systemd/system/
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const timerTextarea = document.getElementById('timer-content');
+        const serviceTextarea = document.getElementById('service-content');
+        const feedback = document.getElementById('timer-feedback');
+        const terminal = this;
+
+        timerTextarea.focus();
+
+        // Save button
+        document.getElementById('timer-save').onclick = () => {
+            const timerContent = timerTextarea.value;
+            const serviceContent = serviceTextarea.value;
+
+            // Extract OnCalendar for display
+            const calendarMatch = timerContent.match(/OnCalendar\s*=\s*(.+)/);
+            const schedule = calendarMatch ? calendarMatch[1].trim() : 'unknown';
+
+            // Extract description
+            const descMatch = timerContent.match(/Description\s*=\s*(.+)/);
+            const description = descMatch ? descMatch[1].trim() : 'Custom timer';
+
+            // Save to systemd timers array
+            if (!terminal.systemdTimers) terminal.systemdTimers = [];
+
+            const existingIndex = terminal.systemdTimers.findIndex(t => t.name === timerName);
+            const timerData = {
+                name: timerName,
+                schedule: schedule,
+                description: description,
+                timerContent: timerContent,
+                serviceContent: serviceContent,
+                next: new Date(Date.now() + 3600000).toUTCString().slice(0, -4),
+                enabled: true
+            };
+
+            if (existingIndex >= 0) {
+                terminal.systemdTimers[existingIndex] = timerData;
+            } else {
+                terminal.systemdTimers.push(timerData);
+            }
+
+            // Also create virtual files
+            const timerPath = `/etc/systemd/system/${timerName}.timer`;
+            const servicePath = `/etc/systemd/system/${timerName}.service`;
+
+            terminal.fs[timerPath] = {
+                type: 'file',
+                perms: '-rw-r--r--',
+                owner: 'root',
+                group: 'root',
+                size: timerContent.length,
+                content: timerContent
+            };
+
+            terminal.fs[servicePath] = {
+                type: 'file',
+                perms: '-rw-r--r--',
+                owner: 'root',
+                group: 'root',
+                size: serviceContent.length,
+                content: serviceContent
+            };
+
+            terminal.print(`Created /etc/systemd/system/${timerName}.timer`, 'success');
+            terminal.print(`Created /etc/systemd/system/${timerName}.service`, 'success');
+            terminal.print(`Timer ${timerName} enabled and started (schedule: ${schedule})`, 'success');
+            modal.remove();
+        };
+
+        // Cancel button
+        document.getElementById('timer-cancel').onclick = () => {
+            terminal.print('systemctl: timer creation cancelled', 'dim');
+            modal.remove();
+        };
+
+        // ESC to close
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                terminal.print('systemctl: timer creation cancelled', 'dim');
+                modal.remove();
+            }
+        });
     }
 
     _cmdService(args) {
@@ -8484,14 +8922,506 @@ Sun 2026-01-18 11:17:00 UTC 46min left    Sun 2026-01-18 10:17:00 UTC 13min ago 
     }
 
     _cmdCrontab(args) {
-        if (args.includes('-l')) {
-            return `# Crontab for ${this.user}
-# m h  dom mon dow   command
-0 * * * * /usr/bin/backup.sh
-*/5 * * * * /tmp/.hidden/update.sh`;
+        // Determine target user
+        let targetUser = this.user;
+        const uIndex = args.indexOf('-u');
+        if (uIndex >= 0 && args[uIndex + 1]) {
+            if (this.user !== 'root' && !this.sudoMode) {
+                return 'crontab: must be privileged to use -u';
+            }
+            targetUser = args[uIndex + 1];
         }
-        return 'crontab: usage error';
+
+        const crontabPath = `/var/spool/cron/crontabs/${targetUser}`;
+
+        // crontab -l : List crontab
+        if (args.includes('-l')) {
+            // Check if path exists in filesystem
+            if (this.fs[crontabPath]) {
+                const content = this.fs[crontabPath].content || '';
+                if (!content.trim()) {
+                    return `no crontab for ${targetUser}`;
+                }
+                return content;
+            }
+            return `no crontab for ${targetUser}`;
+        }
+
+        // crontab -r : Remove crontab
+        if (args.includes('-r')) {
+            if (this.fs[crontabPath]) {
+                delete this.fs[crontabPath];
+                // Update parent directory children
+                const parentPath = '/var/spool/cron/crontabs';
+                if (this.fs[parentPath] && this.fs[parentPath].children) {
+                    this.fs[parentPath].children = this.fs[parentPath].children.filter(c => c !== targetUser);
+                }
+                return `crontab: removing crontab for ${targetUser}`;
+            }
+            return `no crontab for ${targetUser}`;
+        }
+
+        // crontab -e : Edit crontab
+        if (args.includes('-e')) {
+            this._openCrontabEditor(targetUser, crontabPath);
+            return '<span class="clh-dim">[Opening crontab editor...]</span>';
+        }
+
+        // crontab <file> : Install from file
+        const fileArg = args.find(a => !a.startsWith('-') && a !== targetUser);
+        if (fileArg) {
+            const filePath = fileArg.startsWith('/') ? fileArg : `${this.cwd}/${fileArg}`.replace(/\/+/g, '/');
+            const fileNode = this.fs[filePath];
+            if (!fileNode) {
+                return `crontab: '${fileArg}': No such file or directory`;
+            }
+            if (fileNode.type === 'dir') {
+                return `crontab: '${fileArg}': Is a directory`;
+            }
+
+            // Validate cron syntax
+            const validation = this._validateCronSyntax(fileNode.content || '');
+            if (!validation.valid) {
+                return `crontab: errors in crontab file, can't install.\n${validation.errors.join('\n')}`;
+            }
+
+            // Install the crontab
+            this._installCrontab(targetUser, crontabPath, fileNode.content);
+            return `crontab: installing new crontab for ${targetUser}`;
+        }
+
+        return `crontab: usage error
+Usage:  crontab -l         (list crontab)
+        crontab -e         (edit crontab)
+        crontab -r         (remove crontab)
+        crontab <file>     (install crontab from file)
+        crontab -u <user>  (specify user)`;
     }
+
+    _validateCronSyntax(content) {
+        const errors = [];
+        const lines = content.split('\n');
+
+        lines.forEach((line, i) => {
+            const trimmed = line.trim();
+            // Skip empty lines and comments
+            if (!trimmed || trimmed.startsWith('#')) return;
+
+            // Skip variable assignments (NAME=value)
+            if (/^[A-Z_][A-Z0-9_]*=/.test(trimmed)) return;
+
+            // Validate cron entry: should have at least 6 fields (5 time + command)
+            const parts = trimmed.split(/\s+/);
+            if (parts.length < 6) {
+                errors.push(`Line ${i + 1}: "${trimmed.substring(0, 30)}..." - bad minute/hour/day`);
+                return;
+            }
+
+            // Validate each time field
+            const timeFields = ['minute', 'hour', 'day', 'month', 'weekday'];
+            const ranges = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+
+            for (let f = 0; f < 5; f++) {
+                const field = parts[f];
+                if (!this._isValidCronField(field, ranges[f][0], ranges[f][1])) {
+                    errors.push(`Line ${i + 1}: bad ${timeFields[f]} (${field})`);
+                }
+            }
+        });
+
+        return { valid: errors.length === 0, errors };
+    }
+
+    _isValidCronField(field, min, max) {
+        // Handle wildcards
+        if (field === '*') return true;
+
+        // Handle */n (step values)
+        if (field.startsWith('*/')) {
+            const step = parseInt(field.slice(2));
+            return !isNaN(step) && step > 0 && step <= max;
+        }
+
+        // Handle ranges (n-m)
+        if (field.includes('-')) {
+            const [start, end] = field.split('-').map(Number);
+            return !isNaN(start) && !isNaN(end) && start >= min && end <= max && start <= end;
+        }
+
+        // Handle lists (n,m,o)
+        if (field.includes(',')) {
+            return field.split(',').every(v => {
+                const num = parseInt(v);
+                return !isNaN(num) && num >= min && num <= max;
+            });
+        }
+
+        // Simple number
+        const num = parseInt(field);
+        return !isNaN(num) && num >= min && num <= max;
+    }
+
+    _installCrontab(user, path, content) {
+        // Ensure parent directory exists
+        const parentPath = '/var/spool/cron/crontabs';
+        if (!this.fs[parentPath]) {
+            this.fs[parentPath] = {
+                type: 'dir',
+                perms: 'drwx-wx--T',
+                owner: 'root',
+                group: 'crontab',
+                children: []
+            };
+        }
+
+        // Add to parent's children if not already there
+        if (!this.fs[parentPath].children.includes(user)) {
+            this.fs[parentPath].children.push(user);
+        }
+
+        // Create/update the crontab file
+        this.fs[path] = {
+            type: 'file',
+            perms: '-rw-------',
+            owner: user,
+            group: 'crontab',
+            size: content.length,
+            content: content
+        };
+    }
+
+    _openCrontabEditor(user, crontabPath) {
+        // Get existing content or default template
+        let content = '';
+        if (this.fs[crontabPath]) {
+            content = this.fs[crontabPath].content || '';
+        }
+        if (!content.trim()) {
+            content = `# Edit this file to introduce tasks to be run by cron.
+#
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+#
+# m h  dom mon dow   command
+# * *  *   *   *     command to execute
+#
+# Examples:
+# 0 5 * * * /scripts/backup.sh       # Run backup at 5:00 AM daily
+# */15 * * * * /scripts/monitor.sh   # Run every 15 minutes
+# 0 0 * * 0 /scripts/weekly.sh       # Run at midnight on Sundays
+`;
+        }
+
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'crontab-editor-modal';
+        modal.innerHTML = `
+            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+                <div style="background:#0d1117;border:2px solid #00ff41;border-radius:12px;width:90%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;">
+                    <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#00ff41;font-weight:bold;">CRONTAB EDITOR - ${user}</span>
+                        <div style="display:flex;gap:10px;">
+                            <button id="crontab-validate" style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Validate</button>
+                            <button id="crontab-save" style="background:#22c55e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Save & Exit</button>
+                            <button id="crontab-cancel" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Cancel</button>
+                        </div>
+                    </div>
+                    <div style="padding:10px 20px;background:#161b22;border-bottom:1px solid #30363d;font-size:0.8em;color:#8b949e;">
+                        <code>minute(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-7) command</code>
+                        <span style="margin-left:20px;">Use <code>*</code> for any, <code>*/n</code> for every n, <code>n-m</code> for range</span>
+                    </div>
+                    <textarea id="crontab-content" style="flex:1;min-height:300px;background:#0a0a0a;color:#00ff41;border:none;padding:20px;font-family:'Cascadia Code',monospace;font-size:14px;line-height:1.6;resize:none;outline:none;" spellcheck="false">${this._escapeHtml(content)}</textarea>
+                    <div id="crontab-feedback" style="padding:10px 20px;border-top:1px solid #30363d;font-size:0.85em;color:#8b949e;max-height:100px;overflow-y:auto;"></div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const textarea = document.getElementById('crontab-content');
+        const feedback = document.getElementById('crontab-feedback');
+        const terminal = this;
+
+        // Focus textarea
+        textarea.focus();
+
+        // Validate button
+        document.getElementById('crontab-validate').onclick = () => {
+            const validation = terminal._validateCronSyntax(textarea.value);
+            if (validation.valid) {
+                feedback.innerHTML = '<span style="color:#22c55e;">✓ Crontab syntax is valid</span>';
+            } else {
+                feedback.innerHTML = '<span style="color:#ef4444;">✗ Errors found:</span><br>' +
+                    validation.errors.map(e => `<span style="color:#fbbf24;">${terminal._escapeHtml(e)}</span>`).join('<br>');
+            }
+        };
+
+        // Save button
+        document.getElementById('crontab-save').onclick = () => {
+            const validation = terminal._validateCronSyntax(textarea.value);
+            if (!validation.valid) {
+                feedback.innerHTML = '<span style="color:#ef4444;">✗ Fix errors before saving:</span><br>' +
+                    validation.errors.map(e => `<span style="color:#fbbf24;">${terminal._escapeHtml(e)}</span>`).join('<br>');
+                return;
+            }
+
+            terminal._installCrontab(user, crontabPath, textarea.value);
+            terminal.print(`crontab: installing new crontab for ${user}`, 'success');
+            modal.remove();
+        };
+
+        // Cancel button
+        document.getElementById('crontab-cancel').onclick = () => {
+            terminal.print('crontab: no changes made', 'dim');
+            modal.remove();
+        };
+
+        // ESC to close
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                terminal.print('crontab: no changes made', 'dim');
+                modal.remove();
+            }
+        });
+    }
+
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // =====================================================
+    // AT COMMAND - One-time scheduled tasks
+    // =====================================================
+
+    _cmdAt(args) {
+        // Initialize at queue if not exists
+        if (!this.atQueue) {
+            this.atQueue = [];
+            this.atJobCounter = 1;
+        }
+
+        // at -l is same as atq
+        if (args.includes('-l')) {
+            return this._cmdAtq();
+        }
+
+        // at -r is same as atrm
+        if (args.includes('-r') || args.includes('-d')) {
+            const jobId = args.find(a => /^\d+$/.test(a));
+            return this._cmdAtrm([jobId]);
+        }
+
+        // Parse time specification
+        const timeSpec = args.join(' ');
+        if (!timeSpec) {
+            return `usage: at [-f file] [-mMlv] timespec...
+       at [-f file] [-mMkv] [-t time] ...
+       at -c job [job...]
+       atq [-V]
+       atrm [-V] job...
+       batch`;
+        }
+
+        // Open at editor modal
+        this._openAtEditor(timeSpec);
+        return '<span class="clh-dim">[Opening at job editor...]</span>';
+    }
+
+    _cmdAtq() {
+        if (!this.atQueue || this.atQueue.length === 0) {
+            return '';  // atq returns nothing when queue is empty
+        }
+
+        const lines = this.atQueue.map(job => {
+            return `${job.id}\t${job.when}\ta\t${this.user}`;
+        });
+        return lines.join('\n');
+    }
+
+    _cmdAtrm(args) {
+        if (!this.atQueue) this.atQueue = [];
+
+        const jobId = parseInt(args[0]);
+        if (isNaN(jobId)) {
+            return 'atrm: missing job id';
+        }
+
+        const index = this.atQueue.findIndex(j => j.id === jobId);
+        if (index === -1) {
+            return `Cannot find jobid ${jobId}`;
+        }
+
+        this.atQueue.splice(index, 1);
+        return `Job ${jobId} removed`;
+    }
+
+    _parseAtTime(timeSpec) {
+        // Parse common at time formats
+        const now = new Date();
+        let scheduled = new Date(now);
+
+        const lower = timeSpec.toLowerCase();
+
+        // "now + N minutes/hours/days"
+        const relativeMatch = lower.match(/now\s*\+\s*(\d+)\s*(minute|minutes|min|hour|hours|hr|day|days)/);
+        if (relativeMatch) {
+            const amount = parseInt(relativeMatch[1]);
+            const unit = relativeMatch[2];
+            if (unit.startsWith('min')) {
+                scheduled.setMinutes(scheduled.getMinutes() + amount);
+            } else if (unit.startsWith('hour') || unit === 'hr') {
+                scheduled.setHours(scheduled.getHours() + amount);
+            } else if (unit.startsWith('day')) {
+                scheduled.setDate(scheduled.getDate() + amount);
+            }
+            return scheduled;
+        }
+
+        // "midnight", "noon", "teatime"
+        if (lower === 'midnight') {
+            scheduled.setDate(scheduled.getDate() + 1);
+            scheduled.setHours(0, 0, 0, 0);
+            return scheduled;
+        }
+        if (lower === 'noon') {
+            if (now.getHours() >= 12) scheduled.setDate(scheduled.getDate() + 1);
+            scheduled.setHours(12, 0, 0, 0);
+            return scheduled;
+        }
+        if (lower === 'teatime') {
+            if (now.getHours() >= 16) scheduled.setDate(scheduled.getDate() + 1);
+            scheduled.setHours(16, 0, 0, 0);
+            return scheduled;
+        }
+
+        // "HH:MM" or "H:MM PM/AM"
+        const timeMatch = lower.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const ampm = timeMatch[3];
+
+            if (ampm === 'pm' && hours < 12) hours += 12;
+            if (ampm === 'am' && hours === 12) hours = 0;
+
+            scheduled.setHours(hours, minutes, 0, 0);
+            if (scheduled <= now) {
+                scheduled.setDate(scheduled.getDate() + 1);
+            }
+            return scheduled;
+        }
+
+        // "tomorrow"
+        if (lower.includes('tomorrow')) {
+            scheduled.setDate(scheduled.getDate() + 1);
+            const timeInTomorrow = lower.replace('tomorrow', '').trim();
+            if (timeInTomorrow) {
+                const parsed = this._parseAtTime(timeInTomorrow);
+                if (parsed) {
+                    scheduled.setHours(parsed.getHours(), parsed.getMinutes(), 0, 0);
+                }
+            }
+            return scheduled;
+        }
+
+        // Default: 1 hour from now
+        scheduled.setHours(scheduled.getHours() + 1);
+        return scheduled;
+    }
+
+    _openAtEditor(timeSpec) {
+        const scheduled = this._parseAtTime(timeSpec);
+        const formattedTime = scheduled.toLocaleString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            year: 'numeric'
+        });
+
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'at-editor-modal';
+        modal.innerHTML = `
+            <div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:'Cascadia Code',monospace;">
+                <div style="background:#0d1117;border:2px solid #f59e0b;border-radius:12px;width:90%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;">
+                    <div style="padding:15px 20px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:#f59e0b;font-weight:bold;">AT JOB EDITOR</span>
+                        <div style="display:flex;gap:10px;">
+                            <button id="at-submit" style="background:#22c55e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Submit Job</button>
+                            <button id="at-cancel" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Cancel</button>
+                        </div>
+                    </div>
+                    <div style="padding:10px 20px;background:#161b22;border-bottom:1px solid #30363d;font-size:0.85em;color:#f59e0b;">
+                        Scheduled: <strong>${formattedTime}</strong>
+                    </div>
+                    <div style="padding:10px 20px;color:#8b949e;font-size:0.8em;">
+                        Enter commands to execute (one per line). Press Ctrl+D or click Submit when done.
+                    </div>
+                    <textarea id="at-content" style="flex:1;min-height:200px;background:#0a0a0a;color:#00ff41;border:none;padding:20px;font-family:'Cascadia Code',monospace;font-size:14px;line-height:1.6;resize:none;outline:none;" spellcheck="false" placeholder="#!/bin/bash
+# Enter your commands here
+/opt/scripts/my_task.sh
+echo 'Task completed' >> /var/log/at_jobs.log"></textarea>
+                    <div id="at-feedback" style="padding:10px 20px;border-top:1px solid #30363d;font-size:0.85em;color:#8b949e;"></div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const textarea = document.getElementById('at-content');
+        const feedback = document.getElementById('at-feedback');
+        const terminal = this;
+
+        // Focus textarea
+        textarea.focus();
+
+        // Submit button
+        document.getElementById('at-submit').onclick = () => {
+            const commands = textarea.value.trim();
+            if (!commands) {
+                feedback.innerHTML = '<span style="color:#ef4444;">No commands entered</span>';
+                return;
+            }
+
+            // Add job to queue
+            if (!terminal.atQueue) terminal.atQueue = [];
+            if (!terminal.atJobCounter) terminal.atJobCounter = 1;
+
+            const jobId = terminal.atJobCounter++;
+            terminal.atQueue.push({
+                id: jobId,
+                when: formattedTime,
+                commands: commands,
+                created: new Date()
+            });
+
+            terminal.print(`job ${jobId} at ${formattedTime}`, 'success');
+            modal.remove();
+        };
+
+        // Cancel button
+        document.getElementById('at-cancel').onclick = () => {
+            terminal.print('at: job cancelled', 'dim');
+            modal.remove();
+        };
+
+        // ESC to close
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                terminal.print('at: job cancelled', 'dim');
+                modal.remove();
+            }
+        });
+    }
+
+    // =====================================================
+    // SYSTEMD TIMER SUPPORT
+    // =====================================================
 
     _cmdDpkg(args) {
         if (args.includes('-l')) {
@@ -8611,16 +9541,223 @@ Change: 2026-01-18 10:00:00.000000000 +0000`;
     }
 
     _cmdTar(args) {
-        if (args.includes('-tf') || args.includes('-tvf')) {
+        // Parse flags - only check arguments that start with '-'
+        const flagArgs = args.filter(a => a.startsWith('-'));
+        const flagStr = flagArgs.join(' ');
+        const hasT = flagArgs.some(a => a.includes('t')) || flagStr.includes('--list');
+        const hasX = flagArgs.some(a => a.includes('x')) || flagStr.includes('--extract');
+        const hasC = flagArgs.some(a => a.includes('c')) || flagStr.includes('--create');
+        const hasV = flagArgs.some(a => a.includes('v')) || flagStr.includes('--verbose');
+
+        // Find the archive file and other arguments
+        const fileArgs = args.filter(a => !a.startsWith('-') && a !== '-C');
+        // Handle -C flag specially - it's not a file arg
+        const cIndex = args.indexOf('-C');
+        const targetDir = cIndex >= 0 ? args[cIndex + 1] : null;
+        // Remove targetDir from fileArgs if present
+        const cleanFileArgs = targetDir ? fileArgs.filter(f => f !== targetDir) : fileArgs;
+        const archiveFile = cleanFileArgs[0];
+        const sourceFiles = cleanFileArgs.slice(1);
+
+        if (!archiveFile) {
+            return 'tar: You must specify one of the options\ntar: Error is not recoverable: exiting now';
+        }
+
+        // List contents (-t)
+        if (hasT) {
+            const archivePath = this._resolvePath(archiveFile);
+            const archiveNode = this.fs[archivePath];
+
+            if (!archiveNode) {
+                return `tar: ${archiveFile}: Cannot open: No such file or directory`;
+            }
+
+            // Return the file's content which describes what's in the archive
+            if (archiveNode.content) {
+                return archiveNode.content;
+            }
             return 'file1.txt\nfile2.txt\ndir1/';
         }
-        if (args.includes('-xf') || args.includes('-xvf') || args.includes('-xzf')) {
-            return 'Archive extracted';
+
+        // Extract (-x)
+        if (hasX) {
+            const archivePath = this._resolvePath(archiveFile);
+            const archiveNode = this.fs[archivePath];
+
+            if (!archiveNode) {
+                return `tar: ${archiveFile}: Cannot open: No such file or directory`;
+            }
+
+            const destDir = targetDir || '.';
+            const destPath = this._resolvePath(destDir);
+
+            if (!this.fs[destPath]) {
+                return `tar: ${destDir}: Cannot open: No such file or directory`;
+            }
+
+            // Simulate extraction
+            const output = [];
+            if (hasV) {
+                output.push('x intel_report.pdf');
+                output.push('x asset_photos/');
+                output.push('x communications.log');
+            }
+            output.push(`Extracted to ${destDir}`);
+            return output.join('\n');
         }
-        if (args.includes('-cf') || args.includes('-cvf') || args.includes('-czf')) {
-            return 'Archive created';
+
+        // Create (-c)
+        if (hasC) {
+            if (sourceFiles.length === 0) {
+                return 'tar: Cowardly refusing to create an empty archive';
+            }
+
+            // Verify source files exist
+            for (const src of sourceFiles) {
+                const srcPath = this._resolvePath(src);
+                if (!this.fs[srcPath]) {
+                    return `tar: ${src}: Cannot stat: No such file or directory`;
+                }
+            }
+
+            // Get destination directory
+            const archivePath = this._resolvePath(archiveFile);
+            const parentPath = archivePath.substring(0, archivePath.lastIndexOf('/')) || '/';
+            const archiveName = archivePath.split('/').pop();
+
+            if (!this.fs[parentPath]) {
+                return `tar: ${archiveFile}: Cannot open: No such file or directory`;
+            }
+
+            // Create the archive in the virtual filesystem
+            this.fs[archivePath] = {
+                type: 'file',
+                perms: '-rw-r--r--',
+                owner: this.user,
+                group: this.user,
+                size: 1024,
+                content: `[ARCHIVE: ${sourceFiles.join(', ')}]`
+            };
+
+            // Add to parent's children
+            if (this.fs[parentPath].children && !this.fs[parentPath].children.includes(archiveName)) {
+                this.fs[parentPath].children.push(archiveName);
+            }
+
+            const output = [];
+            if (hasV) {
+                sourceFiles.forEach(f => output.push(`a ${f}`));
+            }
+            output.push(`Created ${archiveFile}`);
+            return output.join('\n');
         }
-        return 'tar: usage';
+
+        return 'tar: You must specify one of -c, -t, -x options';
+    }
+
+    _cmdGzip(args) {
+        // gzip -t : Test integrity
+        if (args.includes('-t') || args.includes('--test')) {
+            const file = args.find(a => !a.startsWith('-'));
+            if (!file) {
+                return 'gzip: compressed data not read from terminal';
+            }
+            const filePath = this._resolvePath(file);
+            if (!this.fs[filePath]) {
+                return `gzip: ${file}: No such file or directory`;
+            }
+            return `${file}:    OK`;
+        }
+
+        // gzip -l : List compression info
+        if (args.includes('-l') || args.includes('--list')) {
+            const file = args.find(a => !a.startsWith('-'));
+            if (!file) {
+                return 'gzip: compressed data not read from terminal';
+            }
+            const filePath = this._resolvePath(file);
+            const node = this.fs[filePath];
+            if (!node) {
+                return `gzip: ${file}: No such file or directory`;
+            }
+            const compressed = node.size || 1024;
+            const uncompressed = Math.floor(compressed * 2.5);
+            const ratio = ((1 - compressed/uncompressed) * 100).toFixed(1);
+            return `         compressed        uncompressed  ratio uncompressed_name\n         ${compressed}                ${uncompressed}  ${ratio}% ${file.replace('.gz', '')}`;
+        }
+
+        // gzip -d : Decompress (same as gunzip)
+        if (args.includes('-d') || args.includes('--decompress')) {
+            return this._cmdGunzip(args.filter(a => a !== '-d' && a !== '--decompress'));
+        }
+
+        // gzip <file> : Compress
+        const file = args.find(a => !a.startsWith('-'));
+        if (!file) {
+            return 'gzip: compressed data not written to terminal';
+        }
+        const filePath = this._resolvePath(file);
+        if (!this.fs[filePath]) {
+            return `gzip: ${file}: No such file or directory`;
+        }
+        return `${file} compressed to ${file}.gz`;
+    }
+
+    _cmdGunzip(args) {
+        const file = args.find(a => !a.startsWith('-'));
+        if (!file) {
+            return 'gunzip: compressed data not read from terminal';
+        }
+        const filePath = this._resolvePath(file);
+        if (!this.fs[filePath]) {
+            return `gunzip: ${file}: No such file or directory`;
+        }
+        const outputName = file.endsWith('.gz') ? file.slice(0, -3) : file + '.out';
+        return `${file} decompressed to ${outputName}`;
+    }
+
+    _cmdZip(args, cmd) {
+        const isUnzip = cmd === 'unzip';
+
+        // unzip -l : List contents
+        if (isUnzip && args.includes('-l')) {
+            const file = args.find(a => !a.startsWith('-'));
+            if (!file) {
+                return 'unzip: missing archive';
+            }
+            const filePath = this._resolvePath(file);
+            const node = this.fs[filePath];
+            if (!node) {
+                return `unzip: cannot find ${file}`;
+            }
+            if (node.content) {
+                return `Archive:  ${file}\n${node.content}`;
+            }
+            return `Archive:  ${file}\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n     1024  01-15-2024 03:00   file1.txt\n     2048  01-15-2024 03:00   file2.txt\n---------                     -------\n     3072                     2 files`;
+        }
+
+        // unzip <file> : Extract
+        if (isUnzip) {
+            const file = args.find(a => !a.startsWith('-'));
+            if (!file) {
+                return 'unzip: missing archive';
+            }
+            const filePath = this._resolvePath(file);
+            if (!this.fs[filePath]) {
+                return `unzip: cannot find or open ${file}`;
+            }
+            return `Archive:  ${file}\n  inflating: file1.txt\n  inflating: file2.txt\nExtracted to current directory`;
+        }
+
+        // zip -r <archive> <files> : Create
+        const dashR = args.includes('-r');
+        const fileArgs = args.filter(a => !a.startsWith('-'));
+        if (fileArgs.length < 2) {
+            return 'zip: missing archive or files';
+        }
+        const archive = fileArgs[0];
+        const sources = fileArgs.slice(1);
+        return `  adding: ${sources.join('\n  adding: ')}\nCreated ${archive}`;
     }
 
     _cmdSshKeygen(args) {
@@ -8636,7 +9773,38 @@ SHA256:abcdefghijklmnopqrstuvwxyz123456789 ${this.user}@${this.hostname}`;
 
     _cmdSsh(args) {
         if (!args.length) return 'usage: ssh user@host';
-        return `ssh: connect to host ${args[0]} port 22: Connection simulated`;
+
+        // Find the host (not a flag)
+        const host = args.find(a => !a.startsWith('-'));
+        if (!host) return 'usage: ssh user@host';
+
+        // Handle -T flag (test connection, no TTY)
+        const testMode = args.includes('-T');
+
+        if (testMode) {
+            return `Hi ${this.user}! You've successfully authenticated to ${host}.\nConnection to ${host} verified. relay channel ready.`;
+        }
+
+        return `ssh: connected to ${host} port 22\nWelcome to ${host}\nLast login: Jan 18 09:00:00 2026\nauthenticated as ${this.user}`;
+    }
+
+    _cmdScp(args) {
+        if (args.length < 2) return 'usage: scp source dest';
+
+        // Find source and destination
+        const fileArgs = args.filter(a => !a.startsWith('-'));
+        const source = fileArgs[0];
+        const dest = fileArgs[1] || 'remote:';
+
+        // Check if source file exists
+        const sourcePath = this._resolvePath(source);
+        if (this.fs[sourcePath]) {
+            const size = this.fs[sourcePath].size || 1024;
+            return `${source}                                    100% ${size}     1.2MB/s   00:00\nFile transfer complete to ${dest}`;
+        }
+
+        // Generic response for any file
+        return `${source}                                    100% 2516KB   2.5MB/s   00:01\nUMBRA package transfer complete to ${dest}`;
     }
 
     _cmdPing(args) {

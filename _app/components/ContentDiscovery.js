@@ -2,22 +2,31 @@
  * ContentDiscovery.js - Universal Content Search & Filter System
  *
  * Provides search, filtering, and organization for house content.
- * Automatically injects into house index pages that define SAMPLE_MODULES.
+ * Now with GLOBAL SEARCH - finds content across ALL houses!
  *
  * Features:
- * - Real-time search by title/description
+ * - Real-time search by title/description/tags
+ * - GLOBAL SEARCH across all houses (via ContentCatalog.js)
  * - Filter by content type (presentation, lab, quiz, applet)
  * - Filter by category
  * - "Start Here" recommended section
  * - Compact/Grid view toggle
- * - Result count display
+ * - Cross-house navigation
  *
- * Usage: Just include this script after defining SAMPLE_MODULES and CATEGORIES
+ * Usage: Include after ContentCatalog.js and house SAMPLE_MODULES
+ * <script src="../../components/ContentCatalog.js"></script>
  * <script src="../../components/ContentDiscovery.js"></script>
  */
 
 (function() {
     'use strict';
+
+    // Detect current house from URL
+    function getCurrentHouse() {
+        const path = window.location.pathname;
+        const match = path.match(/houses\/([^/]+)/);
+        return match ? match[1] : null;
+    }
 
     // Wait for DOM and data to be ready
     document.addEventListener('DOMContentLoaded', function() {
@@ -35,6 +44,7 @@
         // Get house primary color from CSS variables
         const styles = getComputedStyle(document.documentElement);
         const primaryColor = styles.getPropertyValue('--house-primary').trim() || '#6366f1';
+        const currentHouse = getCurrentHouse();
 
         // Inject styles
         injectStyles(primaryColor);
@@ -53,7 +63,9 @@
             searchQuery: '',
             typeFilter: 'all',
             categoryFilter: 'all',
-            viewMode: 'grid'
+            viewMode: 'grid',
+            currentHouse: currentHouse,
+            showGlobalResults: true
         };
 
         // Bind event listeners
@@ -62,7 +74,9 @@
         // Add "Start Here" section if not exists
         addStartHereSection();
 
-        console.log('%c🔍 ContentDiscovery initialized', 'color: ' + primaryColor);
+        // Check if ContentCatalog is available
+        const hasGlobal = typeof ContentCatalog !== 'undefined';
+        console.log(`%c🔍 ContentDiscovery initialized ${hasGlobal ? '(Global Search Enabled)' : '(Local Only)'}`, 'color: ' + primaryColor);
     }
 
     function injectStyles(primaryColor) {
@@ -119,6 +133,20 @@
                 color: #666;
                 font-size: 1rem;
                 pointer-events: none;
+            }
+
+            .discovery-global-badge {
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: ${primaryColor}33;
+                color: ${primaryColor};
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-size: 0.65rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
             }
 
             .discovery-filters {
@@ -241,6 +269,136 @@
             .module-type-badge.type-applet {
                 background: rgba(168, 85, 247, 0.2);
                 color: #c084fc;
+            }
+
+            /* Global Search Results Section */
+            .global-results-section {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 2px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .global-results-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .global-results-title {
+                font-size: 0.9rem;
+                color: #888;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+
+            .global-results-count {
+                background: rgba(255, 255, 255, 0.1);
+                padding: 2px 10px;
+                border-radius: 10px;
+                font-size: 0.75rem;
+                color: #666;
+            }
+
+            .global-house-group {
+                margin-bottom: 20px;
+            }
+
+            .global-house-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 10px;
+                padding: 8px 12px;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            }
+
+            .global-house-header:hover {
+                background: rgba(0, 0, 0, 0.3);
+            }
+
+            .global-house-icon {
+                font-size: 1.2rem;
+            }
+
+            .global-house-name {
+                font-size: 0.85rem;
+                color: #ccc;
+                flex: 1;
+            }
+
+            .global-house-count {
+                font-size: 0.7rem;
+                color: #666;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 2px 8px;
+                border-radius: 10px;
+            }
+
+            .global-module-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 10px;
+                padding-left: 20px;
+            }
+
+            .global-module-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 15px;
+                background: rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .global-module-item:hover {
+                background: rgba(0, 0, 0, 0.25);
+                border-color: rgba(255, 255, 255, 0.1);
+                transform: translateX(4px);
+            }
+
+            .global-module-icon {
+                font-size: 1.3rem;
+                flex-shrink: 0;
+            }
+
+            .global-module-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .global-module-title {
+                font-size: 0.85rem;
+                color: #ddd;
+                margin-bottom: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .global-module-desc {
+                font-size: 0.7rem;
+                color: #666;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .global-module-arrow {
+                color: #444;
+                flex-shrink: 0;
+                transition: transform 0.2s ease;
+            }
+
+            .global-module-item:hover .global-module-arrow {
+                transform: translateX(4px);
+                color: ${primaryColor};
             }
 
             /* Start Here Section */
@@ -427,6 +585,7 @@
 
         // Get unique content types from modules
         const types = [...new Set(SAMPLE_MODULES.flatMap(m => m.components || []))];
+        const hasGlobal = typeof ContentCatalog !== 'undefined';
 
         panel.innerHTML = `
             <div class="discovery-search-row">
@@ -435,7 +594,8 @@
                     <input type="text"
                            class="discovery-search-input"
                            id="discoverySearch"
-                           placeholder="Search modules by name or description...">
+                           placeholder="${hasGlobal ? 'Search all houses...' : 'Search modules...'}">
+                    ${hasGlobal ? '<span class="discovery-global-badge">Global</span>' : ''}
                 </div>
             </div>
             <div class="discovery-filters">
@@ -457,7 +617,7 @@
             </div>
             <div class="discovery-results-bar">
                 <div class="discovery-results-count" id="discoveryResultsCount">
-                    Showing <strong>${SAMPLE_MODULES.length}</strong> of ${SAMPLE_MODULES.length} modules
+                    Showing <strong>${SAMPLE_MODULES.length}</strong> modules in this house
                 </div>
                 <div class="discovery-view-toggle">
                     <button class="discovery-view-btn active" data-view="grid" title="Grid view">⊞</button>
@@ -477,6 +637,14 @@
                 window.discoveryState.searchQuery = e.target.value.toLowerCase();
                 applyFilters();
             }, 200));
+
+            // Keyboard shortcut: / to focus search
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
         }
 
         // Type filter buttons
@@ -511,19 +679,20 @@
     }
 
     function applyFilters() {
-        const { searchQuery, typeFilter, categoryFilter } = window.discoveryState;
+        const { searchQuery, typeFilter, categoryFilter, currentHouse } = window.discoveryState;
         const moduleCards = document.querySelectorAll('.module-card');
-        let visibleCount = 0;
+        let localVisibleCount = 0;
 
+        // First, filter local house modules
         moduleCards.forEach((card, index) => {
             const module = SAMPLE_MODULES[index];
             if (!module) return;
 
             let visible = true;
 
-            // Search filter
+            // Search filter (local)
             if (searchQuery) {
-                const searchText = `${module.title} ${module.description}`.toLowerCase();
+                const searchText = `${module.title} ${module.description} ${(module.tags || []).join(' ')}`.toLowerCase();
                 visible = searchText.includes(searchQuery);
             }
 
@@ -532,9 +701,8 @@
                 visible = module.components && module.components.includes(typeFilter);
             }
 
-            // Category filter (if modules have category property)
+            // Category filter
             if (visible && categoryFilter !== 'all') {
-                // Try to match by href path or explicit category
                 const href = module.href || module.path || '';
                 visible = href.includes(categoryFilter) || module.category === categoryFilter;
             }
@@ -542,21 +710,115 @@
             // Apply visibility
             if (visible) {
                 card.classList.remove('discovery-hidden');
-                visibleCount++;
+                localVisibleCount++;
             } else {
                 card.classList.add('discovery-hidden');
             }
         });
 
+        // Global search - find results from OTHER houses
+        let globalResults = [];
+        if (searchQuery && searchQuery.length >= 2 && typeof ContentCatalog !== 'undefined') {
+            const allResults = ContentCatalog.search(searchQuery, {
+                type: typeFilter !== 'all' ? typeFilter : null,
+                limit: 30
+            });
+
+            // Filter out current house results (we're showing those locally)
+            globalResults = allResults.filter(m => m.house !== currentHouse);
+        }
+
         // Update results count
         const countEl = document.getElementById('discoveryResultsCount');
         if (countEl) {
-            countEl.innerHTML = `Showing <strong>${visibleCount}</strong> of ${SAMPLE_MODULES.length} modules`;
+            if (searchQuery && globalResults.length > 0) {
+                countEl.innerHTML = `<strong>${localVisibleCount}</strong> in this house, <strong>${globalResults.length}</strong> in other houses`;
+            } else {
+                countEl.innerHTML = `Showing <strong>${localVisibleCount}</strong> of ${SAMPLE_MODULES.length} modules`;
+            }
         }
 
-        // Show/hide no results message
-        handleNoResults(visibleCount);
+        // Show global results section
+        renderGlobalResults(globalResults);
+
+        // Show/hide no results message (only if both local and global are empty)
+        handleNoResults(localVisibleCount, globalResults.length);
     }
+
+    function renderGlobalResults(results) {
+        // Remove existing global results section
+        const existing = document.getElementById('globalResultsSection');
+        if (existing) existing.remove();
+
+        if (results.length === 0) return;
+
+        // Group results by house
+        const byHouse = {};
+        results.forEach(module => {
+            if (!byHouse[module.house]) {
+                byHouse[module.house] = {
+                    house: module.house,
+                    houseName: module.houseName,
+                    houseIcon: module.houseIcon,
+                    houseColor: module.houseColor,
+                    modules: []
+                };
+            }
+            byHouse[module.house].modules.push(module);
+        });
+
+        // Create global results section
+        const section = document.createElement('div');
+        section.id = 'globalResultsSection';
+        section.className = 'global-results-section';
+
+        let html = `
+            <div class="global-results-header">
+                <span class="global-results-title">🌐 Found in Other Houses</span>
+                <span class="global-results-count">${results.length} results</span>
+            </div>
+        `;
+
+        // Render each house group
+        Object.values(byHouse).forEach(group => {
+            html += `
+                <div class="global-house-group">
+                    <div class="global-house-header" style="border-left: 3px solid ${group.houseColor}">
+                        <span class="global-house-icon">${group.houseIcon}</span>
+                        <span class="global-house-name">${group.houseName}</span>
+                        <span class="global-house-count">${group.modules.length}</span>
+                    </div>
+                    <div class="global-module-list">
+                        ${group.modules.map(m => `
+                            <div class="global-module-item" onclick="navigateToModule('${m.fullHref}')">
+                                <span class="global-module-icon">${m.icon}</span>
+                                <div class="global-module-info">
+                                    <div class="global-module-title">${m.title}</div>
+                                    <div class="global-module-desc">${m.description}</div>
+                                </div>
+                                <span class="global-module-arrow">→</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        section.innerHTML = html;
+
+        // Insert after module grid
+        const moduleGrid = document.getElementById('moduleGrid');
+        if (moduleGrid && moduleGrid.parentNode) {
+            moduleGrid.parentNode.appendChild(section);
+        }
+    }
+
+    // Global function to navigate to a module in another house
+    window.navigateToModule = function(href) {
+        // Calculate relative path from current location
+        // We're in houses/[house]/index.html, target is houses/[other]/path
+        window.location.href = '../../' + href;
+    };
 
     function applyViewMode() {
         const moduleGrid = document.getElementById('moduleGrid');
@@ -569,7 +831,7 @@
         }
     }
 
-    function handleNoResults(count) {
+    function handleNoResults(localCount, globalCount) {
         const moduleGrid = document.getElementById('moduleGrid');
         if (!moduleGrid) return;
 
@@ -577,14 +839,15 @@
         const existing = moduleGrid.querySelector('.discovery-no-results');
         if (existing) existing.remove();
 
-        if (count === 0) {
+        // Only show "no results" if BOTH local and global have no results
+        if (localCount === 0 && globalCount === 0 && window.discoveryState.searchQuery) {
             const noResults = document.createElement('div');
             noResults.className = 'discovery-no-results';
             noResults.innerHTML = `
                 <div class="discovery-no-results-icon">🔍</div>
-                <div class="discovery-no-results-text">No modules found</div>
-                <div class="discovery-no-results-hint">Try adjusting your search or filters</div>
-                <button class="discovery-clear-btn" onclick="clearDiscoveryFilters()">Clear Filters</button>
+                <div class="discovery-no-results-text">No modules found for "${window.discoveryState.searchQuery}"</div>
+                <div class="discovery-no-results-hint">Try different keywords or check spelling</div>
+                <button class="discovery-clear-btn" onclick="clearDiscoveryFilters()">Clear Search</button>
             `;
             moduleGrid.appendChild(noResults);
         }
@@ -596,7 +859,9 @@
             searchQuery: '',
             typeFilter: 'all',
             categoryFilter: 'all',
-            viewMode: window.discoveryState.viewMode
+            viewMode: window.discoveryState.viewMode,
+            currentHouse: window.discoveryState.currentHouse,
+            showGlobalResults: true
         };
 
         // Reset UI
@@ -605,11 +870,15 @@
             btn.classList.toggle('active', btn.dataset.type === 'all' || btn.dataset.category === 'all');
         });
 
+        // Remove global results
+        const globalSection = document.getElementById('globalResultsSection');
+        if (globalSection) globalSection.remove();
+
         applyFilters();
     };
 
     function addStartHereSection() {
-        // Find recommended starting modules (first presentation or intro modules)
+        // Find recommended starting modules
         const starters = SAMPLE_MODULES.filter(m =>
             m.status === 'available' &&
             (m.title.toLowerCase().includes('fundamental') ||
@@ -617,6 +886,7 @@
              m.title.toLowerCase().includes('intro') ||
              m.title.toLowerCase().includes('101') ||
              m.title.toLowerCase().includes('overview') ||
+             m.featured ||
              (m.components && m.components.includes('presentation')))
         ).slice(0, 4);
 
