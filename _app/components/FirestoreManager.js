@@ -51,6 +51,7 @@ const FirestoreManager = (function() {
         quizScores: 'hexworth_quiz_scores',
         labProgress: 'hexworth_lab_progress',
         xp: 'hexworth_xp',
+        discoveryPoints: 'hexworth_discovery_points',
         streak: 'hexworth_streak',
         lastLogin: 'hexworth_last_login'
     };
@@ -357,11 +358,31 @@ const FirestoreManager = (function() {
             const labs = localStorage.getItem(LOCALSTORAGE_KEYS.labProgress);
             data.labsCompleted = labs ? JSON.parse(labs) : [];
 
-            // XP
-            data.xp = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
-
             // Streak
             data.streak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0');
+
+            // XP calculation - combine multiple sources
+            let totalXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
+
+            // Add discovery points from achievements
+            const discoveryPoints = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.discoveryPoints) || '0');
+            totalXP += discoveryPoints;
+
+            // If XP is still 0, calculate from progress data
+            if (totalXP === 0) {
+                // 75 XP per completed module
+                if (Array.isArray(data.modulesCompleted)) {
+                    totalXP += data.modulesCompleted.length * 75;
+                }
+                // 15 XP per achievement
+                if (Array.isArray(data.achievements)) {
+                    totalXP += data.achievements.length * 15;
+                }
+                // Streak bonus
+                totalXP += data.streak * 10;
+            }
+
+            data.xp = totalXP;
 
             // Check if there's any actual data
             const hasData = data.house ||
@@ -684,14 +705,76 @@ const FirestoreManager = (function() {
         // Try to migrate localStorage data
         const migration = await migrateFromLocalStorage(uid, email);
 
+        // Recalculate XP if it's 0 (fix for users who migrated before XP calculation was fixed)
+        const currentProfile = await getUserProfile(uid);
+        if (currentProfile && (currentProfile.xp === 0 || !currentProfile.xp)) {
+            const xpResult = await recalculateXP(uid);
+            console.log('[FirestoreManager] XP recalculated:', xpResult);
+        }
+
         // Check if user needs to set callsign
-        const needsCallsign = !profile.callsign;
+        const needsCallsign = !currentProfile?.callsign;
 
         return {
             profile: await getUserProfile(uid),  // Refresh after potential migration
             needsCallsign,
             migration
         };
+    }
+
+    /**
+     * Recalculate XP from localStorage and update Firestore
+     * Call this to fix users with 0 XP after initial migration
+     */
+    async function recalculateXP(uid) {
+        const localData = getLocalStorageProgress();
+        if (!localData) {
+            console.log('[FirestoreManager] No localStorage data to calculate XP from');
+            return { success: false, xp: 0 };
+        }
+
+        let totalXP = 0;
+
+        // 75 XP per completed module
+        if (Array.isArray(localData.modulesCompleted)) {
+            totalXP += localData.modulesCompleted.length * 75;
+        }
+
+        // 15 XP per achievement
+        if (Array.isArray(localData.achievements)) {
+            totalXP += localData.achievements.length * 15;
+        }
+
+        // Discovery points
+        const discoveryPoints = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.discoveryPoints) || '0');
+        totalXP += discoveryPoints;
+
+        // Streak bonus
+        totalXP += (localData.streak || 0) * 10;
+
+        // Quiz completions (25 XP each)
+        if (localData.quizzes) {
+            totalXP += Object.keys(localData.quizzes).length * 25;
+        }
+
+        // Lab completions (50 XP each)
+        if (Array.isArray(localData.labsCompleted)) {
+            totalXP += localData.labsCompleted.length * 50;
+        }
+
+        console.log('[FirestoreManager] Recalculated XP:', totalXP, {
+            modules: localData.modulesCompleted?.length || 0,
+            achievements: localData.achievements?.length || 0,
+            discoveryPoints,
+            streak: localData.streak || 0,
+            quizzes: Object.keys(localData.quizzes || {}).length,
+            labs: localData.labsCompleted?.length || 0
+        });
+
+        // Update Firestore
+        await setUserProfile(uid, { xp: totalXP });
+
+        return { success: true, xp: totalXP };
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -716,6 +799,7 @@ const FirestoreManager = (function() {
         completeModule,
         passQuiz,
         completeLab,
+        recalculateXP,
 
         // Migration
         getLocalStorageProgress,
