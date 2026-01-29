@@ -771,9 +771,9 @@ class DigitalLife {
             console.log('📊 Statistics display initialized');
         }
 
-        // Achievement System
-        if (this.config.achievements.enabled && typeof AchievementSystem !== 'undefined') {
-            this.achievementSystem = new AchievementSystem(this.config.achievements);
+        // Achievement System (Digital Life ecosystem achievements)
+        if (this.config.achievements.enabled && typeof EcosystemAchievements !== 'undefined') {
+            this.achievementSystem = new EcosystemAchievements(this.config.achievements);
             this.achievementSystem.init(document.body);
             console.log('🏆 Achievement system initialized');
         }

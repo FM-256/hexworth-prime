@@ -12,7 +12,7 @@
  * Displays toast notifications and tracks unlock progress.
  */
 
-class AchievementSystem {
+class EcosystemAchievements {
     static ACHIEVEMENTS = {
         // Population Milestones
         FIRST_LIFE: {
@@ -461,7 +461,7 @@ class AchievementSystem {
      * Check all achievements for unlock
      */
     checkAchievements() {
-        for (const [key, achievement] of Object.entries(AchievementSystem.ACHIEVEMENTS)) {
+        for (const [key, achievement] of Object.entries(EcosystemAchievements.ACHIEVEMENTS)) {
             if (this.unlocked.has(achievement.id)) continue;
 
             try {
@@ -552,7 +552,7 @@ class AchievementSystem {
      */
     getUnlocked() {
         return Array.from(this.unlocked).map(id => {
-            return Object.values(AchievementSystem.ACHIEVEMENTS).find(a => a.id === id);
+            return Object.values(EcosystemAchievements.ACHIEVEMENTS).find(a => a.id === id);
         }).filter(Boolean);
     }
 
@@ -560,16 +560,16 @@ class AchievementSystem {
      * Get locked achievements
      */
     getLocked() {
-        return Object.values(AchievementSystem.ACHIEVEMENTS).filter(a => !this.unlocked.has(a.id));
+        return Object.values(EcosystemAchievements.ACHIEVEMENTS).filter(a => !this.unlocked.has(a.id));
     }
 
     /**
      * Get progress summary
      */
     getProgress() {
-        const total = Object.keys(AchievementSystem.ACHIEVEMENTS).length;
+        const total = Object.keys(EcosystemAchievements.ACHIEVEMENTS).length;
         const unlocked = this.unlocked.size;
-        const maxPoints = Object.values(AchievementSystem.ACHIEVEMENTS).reduce((sum, a) => sum + a.points, 0);
+        const maxPoints = Object.values(EcosystemAchievements.ACHIEVEMENTS).reduce((sum, a) => sum + a.points, 0);
 
         return {
             unlocked,
@@ -584,7 +584,7 @@ class AchievementSystem {
      * Get achievements by category
      */
     getByCategory(category) {
-        return Object.values(AchievementSystem.ACHIEVEMENTS).filter(a => a.category === category);
+        return Object.values(EcosystemAchievements.ACHIEVEMENTS).filter(a => a.category === category);
     }
 
     /**
@@ -755,5 +755,5 @@ class AchievementSystem {
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AchievementSystem;
+    module.exports = EcosystemAchievements;
 }
