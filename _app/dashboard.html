@@ -3794,19 +3794,38 @@
         // ═══════════════════════════════════════════════════════════════
 
         let firestoreLeaderboard = null;
+        let leaderboardInitialized = false;
 
-        async function initLeaderboard() {
+        async function initLeaderboard(forceFirestore = false) {
             const container = document.getElementById('leaderboardContainer');
             if (!container) return;
 
-            // Check if user is signed in - use Firestore leaderboard
-            if (FirebaseAuth.isSignedIn() && typeof FirestoreLeaderboard !== 'undefined') {
-                firestoreLeaderboard = FirestoreLeaderboard.init(container, {
-                    mode: userHouse || 'global',
-                    autoRefresh: true
-                });
-                window.firestoreLeaderboard = firestoreLeaderboard;
-                console.log('[Dashboard] Firestore leaderboard initialized');
+            // Clear existing content
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">Loading leaderboard...</div>';
+
+            // Destroy existing leaderboard instances
+            if (firestoreLeaderboard) {
+                firestoreLeaderboard.destroy();
+                firestoreLeaderboard = null;
+            }
+
+            const isSignedIn = FirebaseAuth.isSignedIn();
+            console.log('[Dashboard] initLeaderboard - signed in:', isSignedIn, 'force:', forceFirestore);
+
+            // Use Firestore leaderboard if signed in
+            if ((isSignedIn || forceFirestore) && typeof FirestoreLeaderboard !== 'undefined') {
+                try {
+                    firestoreLeaderboard = FirestoreLeaderboard.init(container, {
+                        mode: userHouse || 'global',
+                        autoRefresh: true
+                    });
+                    window.firestoreLeaderboard = firestoreLeaderboard;
+                    leaderboardInitialized = true;
+                    console.log('[Dashboard] Firestore leaderboard initialized');
+                } catch (err) {
+                    console.error('[Dashboard] Firestore leaderboard error:', err);
+                    container.innerHTML = '<div style="text-align:center;padding:20px;color:#f66;">Leaderboard unavailable</div>';
+                }
             } else {
                 // Fallback to phantom leaderboard for non-signed-in users
                 leaderboardManager = new LeaderboardManager({
@@ -3823,12 +3842,16 @@
 
                 await leaderboardManager.init();
 
-                const leaderboardStyles = document.createElement('style');
-                leaderboardStyles.textContent = LeaderboardManager.getStyles();
-                document.head.appendChild(leaderboardStyles);
+                if (!document.getElementById('phantom-leaderboard-styles')) {
+                    const leaderboardStyles = document.createElement('style');
+                    leaderboardStyles.id = 'phantom-leaderboard-styles';
+                    leaderboardStyles.textContent = LeaderboardManager.getStyles();
+                    document.head.appendChild(leaderboardStyles);
+                }
 
                 leaderboardManager.renderLeaderboard(container);
                 window.leaderboardManager = leaderboardManager;
+                leaderboardInitialized = true;
                 console.log('[Dashboard] Phantom leaderboard initialized (user not signed in)');
             }
         }
@@ -3837,13 +3860,14 @@
         window.addEventListener('firebaseAuthStateChanged', (e) => {
             if (e.detail.user) {
                 // User signed in - switch to Firestore leaderboard
-                setTimeout(initLeaderboard, 1000);
+                console.log('[Dashboard] Auth changed - reinitializing leaderboard for signed-in user');
+                setTimeout(() => initLeaderboard(true), 500);
             }
         });
 
         // Call after components are ready
         document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initLeaderboard, 500);
+            setTimeout(initLeaderboard, 1000);
         });
     </script>
 </body>
