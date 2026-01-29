@@ -80,19 +80,11 @@ class SoundToggle {
 
     /**
      * Apply position styles
-     * Detects if FluxCapacitor is present and stacks above it
+     * Bottom-right always stacks above FluxCapacitor position (92px from bottom)
      */
     applyPosition() {
-        // Check if FluxCapacitor exists on this page
-        const hasFluxCapacitor = document.querySelector('.flux-btn') !== null;
-
-        // If FluxCapacitor present, stack above it (56px button + 24px margin + 12px gap = 92px)
-        const bottomRight = hasFluxCapacitor
-            ? { bottom: '92px', right: '24px' }
-            : { bottom: this.options.margin + 'px', right: this.options.margin + 'px' };
-
         const positions = {
-            'bottom-right': bottomRight,
+            'bottom-right': { bottom: '92px', right: '24px' },
             'bottom-left': { bottom: this.options.margin + 'px', left: this.options.margin + 'px' },
             'top-right': { top: this.options.margin + 'px', right: this.options.margin + 'px' },
             'top-left': { top: this.options.margin + 'px', left: this.options.margin + 'px' }
