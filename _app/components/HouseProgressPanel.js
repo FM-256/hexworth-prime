@@ -74,7 +74,7 @@ class HouseProgressPanel {
     injectStyles() {
         if (document.getElementById('house-progress-panel-styles')) return;
 
-        const colors = this.HOUSE_COLORS[this.houseId] || this.HOUSE_COLORS.web;
+        const colors = HouseProgressPanel.HOUSE_COLORS[this.houseId] || HouseProgressPanel.HOUSE_COLORS.web;
 
         const styles = document.createElement('style');
         styles.id = 'house-progress-panel-styles';
@@ -376,7 +376,7 @@ class HouseProgressPanel {
         } = houseProgress;
 
         const completedCount = modulesCompleted.length;
-        const houseColors = this.HOUSE_COLORS[this.houseId] || this.HOUSE_COLORS.web;
+        const houseColors = HouseProgressPanel.HOUSE_COLORS[this.houseId] || HouseProgressPanel.HOUSE_COLORS.web;
 
         // Calculate house-specific XP (rough estimate based on completions)
         const houseXP = completedCount * 100; // Simplified
