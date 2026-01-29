@@ -80,10 +80,11 @@ class SoundToggle {
 
     /**
      * Apply position styles
+     * Note: bottom-right is positioned above the FluxCapacitor (56px button + 24px margin + 12px gap = 92px)
      */
     applyPosition() {
         const positions = {
-            'bottom-right': { bottom: this.options.margin + 'px', right: this.options.margin + 'px' },
+            'bottom-right': { bottom: '92px', right: this.options.margin + 'px' }, // Stacked above FluxCapacitor
             'bottom-left': { bottom: this.options.margin + 'px', left: this.options.margin + 'px' },
             'top-right': { top: this.options.margin + 'px', right: this.options.margin + 'px' },
             'top-left': { top: this.options.margin + 'px', left: this.options.margin + 'px' }
@@ -334,6 +335,20 @@ class SoundToggle {
 
             [data-theme="matrix"] .sound-toggle-pulse {
                 border-color: rgba(0, 255, 65, 0.5);
+            }
+
+            /* Mobile: Stack above FluxCapacitor (50px button + 16px margin + 10px gap = 76px) */
+            @media (max-width: 500px) {
+                .sound-toggle {
+                    bottom: 76px !important;
+                    right: 16px !important;
+                    width: 40px;
+                    height: 40px;
+                }
+
+                .sound-toggle-icon {
+                    font-size: 18px;
+                }
             }
         `;
         document.head.appendChild(style);
