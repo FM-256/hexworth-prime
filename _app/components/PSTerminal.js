@@ -435,9 +435,201 @@ Remember: The password to the vault share is NOT "admin123"
             type: 'dir',
             children: ['Q4_2025_Summary.docx', 'Incident_Response_Template.docx', 'Network_Audit_2026.xlsx']
         },
+        'C:\\Users\\Administrator\\Documents\\Reports\\Q4_2025_Summary.docx': {
+            type: 'file',
+            size: 45056,
+            content: `QUARTERLY SUMMARY REPORT - Q4 2025
+===================================
+Department: IT Infrastructure
+Prepared by: Administrator
+Classification: INTERNAL USE ONLY
+
+EXECUTIVE SUMMARY
+-----------------
+Q4 2025 saw significant improvements in system uptime and security posture.
+Key achievements include:
+- 99.97% uptime across all production servers
+- Zero security breaches reported
+- Successful migration to Windows Server 2025 completed
+- AD forest consolidation from 3 domains to 1
+
+BUDGET UTILIZATION
+------------------
+Allocated: $2,450,000
+Spent:     $2,312,847
+Variance:  $137,153 under budget (5.6%)
+
+INCIDENTS
+---------
+Total tickets: 1,247
+P1 Critical:   3 (all resolved within SLA)
+P2 High:       27
+P3 Medium:     412
+P4 Low:        805
+
+NOTE: See Appendix C for details on the "unusual network traffic"
+incident on 2025-11-15. Investigation ongoing. Reference: INC-2025-1847
+`,
+        },
+        'C:\\Users\\Administrator\\Documents\\Reports\\Incident_Response_Template.docx': {
+            type: 'file',
+            size: 38912,
+            content: `INCIDENT RESPONSE TEMPLATE
+==========================
+Version: 3.2
+Last Updated: 2025-12-01
+Classification: OFFICIAL - SENSITIVE
+
+SECTION 1: INCIDENT IDENTIFICATION
+-----------------------------------
+Incident ID:     [AUTO-GENERATED]
+Date/Time:       [YYYY-MM-DD HH:MM UTC]
+Reporter:        [NAME / SYSTEM]
+Severity:        [ ] P1-Critical  [ ] P2-High  [ ] P3-Medium  [ ] P4-Low
+
+SECTION 2: INITIAL ASSESSMENT
+------------------------------
+Affected Systems:
+Impact Scope:     [ ] Single User  [ ] Department  [ ] Organization-wide
+Data Involved:    [ ] PII  [ ] Financial  [ ] Classified  [ ] None
+
+SECTION 3: CONTAINMENT
+-----------------------
+[ ] Network isolation applied
+[ ] Accounts disabled
+[ ] Systems powered down
+[ ] Backup verification initiated
+
+SECTION 4: CHAIN OF CUSTODY
+----------------------------
+Evidence Item    | Collected By | Date/Time | Storage Location
+-----------------|--------------|-----------|------------------
+                 |              |           |
+
+EMERGENCY CONTACTS:
+- CISO: ext. 7700
+- Legal: ext. 7701
+- FBI Cyber: [REDACTED] - Use only for APT/Nation-state
+- Insurance: Policy #CYB-2025-8847-A
+
+*** DO NOT DISCUSS INCIDENTS ON UNSECURED CHANNELS ***
+`,
+        },
+        'C:\\Users\\Administrator\\Documents\\Reports\\Network_Audit_2026.xlsx': {
+            type: 'file',
+            size: 124928,
+            content: `NETWORK INFRASTRUCTURE AUDIT - 2026
+====================================
+Audit Period: 2026-01-01 to 2026-01-30
+Auditor: External - CyberSecure Partners LLC
+
+FINDINGS SUMMARY
+----------------
+Critical:  2
+High:      7
+Medium:    23
+Low:       45
+Info:      112
+
+CRITICAL FINDINGS:
+------------------
+[C-01] Legacy SMBv1 enabled on 3 file servers
+       Risk: Remote code execution, ransomware propagation
+       Remediation: Disable SMBv1, upgrade to SMBv3
+
+[C-02] Domain Admin account used for service authentication
+       Risk: Credential theft, lateral movement
+       Remediation: Create dedicated service accounts with minimal privileges
+
+HIGH FINDINGS:
+--------------
+[H-01] 147 systems missing critical patches (>30 days)
+[H-02] Firewall rules allow any-to-any on VLAN 45
+[H-03] No network segmentation between IT and OT networks
+[H-04] Default credentials on 12 network devices
+[H-05] Unencrypted backup traffic crossing WAN links
+[H-06] No MFA on VPN gateway
+[H-07] SNMP v1/v2c in use (cleartext community strings)
+
+RECOMMENDED PRIORITY:
+1. Address C-01 and C-02 within 7 days
+2. Implement MFA on VPN (H-06) within 14 days
+3. Patch critical systems (H-01) within 30 days
+`,
+        },
         'C:\\Users\\Administrator\\Documents\\Personal': {
             type: 'dir',
             children: ['vacation_photos', 'recipes.txt', '.not_personal']
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal\\vacation_photos': {
+            type: 'dir',
+            children: ['hawaii_2024.jpg', 'iceland_aurora.jpg', 'notes.txt']
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal\\vacation_photos\\notes.txt': {
+            type: 'file',
+            size: 847,
+            content: `TRAVEL NOTES
+=============
+
+HAWAII 2024 (April 15-22):
+- Stayed at Four Seasons Maui
+- Snorkeling at Molokini Crater - incredible!
+- Luau was overrated, food was mediocre
+- Total cost: $12,400 (worth it)
+
+ICELAND (September 2024):
+- Northern Lights tour - AMAZING
+- Blue Lagoon was too crowded
+- Rental car handled the snow well
+- Interesting conversation with "Erik" from the embassy
+- He mentioned the fishing industry is "changing" - weird
+
+TO DO:
+- Book Switzerland trip for Q2 2026
+- Renew passport (expires 2027-03)
+- Remember to bring the "diplomatic pouch" to Geneva
+`,
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal\\recipes.txt': {
+            type: 'file',
+            size: 2048,
+            content: `FAVORITE RECIPES
+================
+
+GRANDMA'S SECRET CHILI
+----------------------
+- 2 lbs ground beef
+- 1 can kidney beans
+- 1 can black beans
+- 2 cans diced tomatoes
+- 1 onion, diced
+- 3 cloves garlic
+- 2 tbsp chili powder
+- 1 tsp cumin
+- THE SECRET: 1 square dark chocolate
+- Simmer 4 hours minimum
+
+MOM'S CHOCOLATE CHIP COOKIES
+-----------------------------
+- Standard Toll House recipe
+- BUT use brown butter
+- AND refrigerate dough 24 hours
+- 375F for exactly 11 minutes
+
+UNCLE MIKE'S "SPECIAL" BBQ RUB
+------------------------------
+Note: He was always weird about this recipe.
+Found this in his things after he passed.
+- 2 parts paprika
+- 1 part brown sugar
+- 1 part garlic powder
+- 1/2 part cayenne
+- "Add the package from the shed"
+
+I still don't know what "the package from the shed" means.
+That shed burned down in the 90s. Weird coincidence timing
+with his "business trip" to Nicaragua.
+`,
         },
         'C:\\Users\\Administrator\\Documents\\Personal\\.not_personal': {
             type: 'dir',
