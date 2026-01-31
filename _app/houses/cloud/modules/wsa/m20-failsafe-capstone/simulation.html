@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAILSAFE Simulation - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sim-header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ef4444;
+        }
+
+        .sim-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sim-title h1 {
+            color: #ef4444;
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+        }
+
+        .phase-indicator {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            padding: 6px 15px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.critical { background: #ef4444; }
+        .status-dot.warning { background: #f59e0b; }
+        .status-dot.healthy { background: #22c55e; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+        }
+
+        .progress-tracker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-text { color: #9ca3af; font-size: 0.9rem; }
+
+        .progress-bar-mini {
+            width: 150px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill-mini {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #22c55e);
+            transition: width 0.5s;
+        }
+
+        .sim-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .objectives-sidebar {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.5);
+            border-right: 1px solid rgba(239, 68, 68, 0.2);
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .phase-section {
+            margin-bottom: 20px;
+        }
+
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .phase-header h4 { color: #f87171; font-size: 0.95rem; }
+        .phase-header .status { font-size: 0.8rem; color: #9ca3af; }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .objective-item:hover { background: rgba(239, 68, 68, 0.1); }
+
+        .objective-item.completed {
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #4b5563;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.7rem;
+        }
+
+        .objective-item.completed .obj-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workspace-tabs {
+            display: flex;
+            background: #1e1e1e;
+            border-bottom: 1px solid #333;
+        }
+
+        .workspace-tab {
+            padding: 12px 25px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .workspace-tab:hover { color: #ccc; }
+        .workspace-tab.active {
+            color: #ef4444;
+            border-bottom-color: #ef4444;
+        }
+
+        .workspace-content {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+
+        .workspace-content.active { display: flex; }
+
+        /* Server Status Panel */
+        .status-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .server-card {
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .server-card.offline {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .server-card.warning {
+            border-color: #f59e0b;
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .server-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .server-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .server-status.online { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .server-status.offline { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .server-status.degraded { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+        .server-details {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .server-details div {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .server-details .label { color: #666; }
+        .server-details .value { color: #ccc; }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+
+        .action-btn.success {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+
+        .action-btn.success:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+        }
+
+        /* Terminal */
+        .terminal-sim {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0c0c0c;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        .terminal-output {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; }
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #ccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+        .terminal-line.warning { color: #ce9178; }
+
+        .terminal-input-area {
+            padding: 10px 15px;
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            color: #ffff00;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        /* Documentation */
+        .docs-sim {
+            flex: 1;
+            display: flex;
+        }
+
+        .docs-editor {
+            flex: 1;
+            padding: 20px;
+            background: #1e1e1e;
+        }
+
+        .docs-editor h3 {
+            color: #ef4444;
+            margin-bottom: 20px;
+        }
+
+        .docs-editor textarea {
+            width: 100%;
+            height: calc(100% - 100px);
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #e0e0e0;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            resize: none;
+        }
+
+        .docs-editor textarea:focus { outline: none; border-color: #ef4444; }
+
+        .save-btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            background: #ef4444;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Backup/Recovery Panel */
+        .recovery-panel {
+            flex: 1;
+            padding: 20px;
+            background: #1e1e1e;
+            overflow-y: auto;
+        }
+
+        .recovery-card {
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .recovery-card h4 {
+            color: #ef4444;
+            margin-bottom: 15px;
+        }
+
+        .backup-list {
+            list-style: none;
+        }
+
+        .backup-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #1e1e1e;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .backup-item:hover { border-color: #ef4444; }
+        .backup-item.selected { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+
+        .backup-info h5 { color: #ccc; margin-bottom: 3px; }
+        .backup-info p { font-size: 0.8rem; color: #888; }
+
+        .backup-type {
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+
+        .backup-type.systemstate { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .backup-type.full { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+
+        .recovery-progress {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .recovery-progress.show { display: block; }
+
+        .progress-bar {
+            height: 10px;
+            background: #3c3c3c;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #22c55e);
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+
+        .progress-status {
+            text-align: center;
+            margin-top: 10px;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Completion modal */
+        .completion-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .completion-overlay.show { display: flex; }
+
+        .completion-card {
+            background: linear-gradient(135deg, #1a1a2e, #0a0a0f);
+            border: 2px solid #22c55e;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            max-width: 550px;
+        }
+
+        .completion-card h2 {
+            color: #22c55e;
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .completion-card .subtitle {
+            color: #9ca3af;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+
+        .completion-card .score {
+            font-size: 4rem;
+            color: #22c55e;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .completion-card .message {
+            color: #9ca3af;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .completion-card a {
+            display: inline-block;
+            padding: 15px 35px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 5px;
+        }
+
+        .completion-card a.secondary {
+            background: transparent;
+            border: 1px solid #22c55e;
+            color: #22c55e;
+        }
+    </style>
+</head>
+<body>
+    <div class="sim-header">
+        <div class="sim-title">
+            <h1>FAILSAFE</h1>
+            <span class="phase-indicator" id="phaseIndicator">Phase 1: Assessment</span>
+            <div class="status-indicator">
+                <span class="status-dot critical" id="systemStatus"></span>
+                <span id="systemStatusText">System Critical</span>
+            </div>
+        </div>
+        <div class="progress-tracker">
+            <span class="progress-text"><span id="completedCount">0</span>/24 Objectives</span>
+            <div class="progress-bar-mini">
+                <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sim-container">
+        <div class="objectives-sidebar" id="objectivesSidebar"></div>
+
+        <div class="workspace">
+            <div class="workspace-tabs">
+                <button class="workspace-tab active" onclick="switchTab('status')">Server Status</button>
+                <button class="workspace-tab" onclick="switchTab('terminal')">PowerShell</button>
+                <button class="workspace-tab" onclick="switchTab('recovery')">Backup & Recovery</button>
+                <button class="workspace-tab" onclick="switchTab('docs')">Incident Report</button>
+            </div>
+
+            <div class="workspace-content active" id="status-content">
+                <div class="status-panel">
+                    <h3 style="color: #ef4444; margin-bottom: 20px;">Domain Controller Status</h3>
+                    <div class="server-grid">
+                        <div class="server-card" id="dc01Card">
+                            <div class="server-header">
+                                <span class="server-name">DC01.hexworth.local</span>
+                                <span class="server-status online">Online</span>
+                            </div>
+                            <div class="server-details">
+                                <div><span class="label">Role:</span><span class="value">Domain Controller</span></div>
+                                <div><span class="label">IP Address:</span><span class="value">192.168.1.10</span></div>
+                                <div><span class="label">FSMO Roles:</span><span class="value" id="dc01Fsmo">Schema, Domain Naming</span></div>
+                                <div><span class="label">Replication:</span><span class="value" style="color: #f59e0b;" id="dc01Repl">Warning - Partner Offline</span></div>
+                                <div><span class="label">Last Backup:</span><span class="value">1/30/2026 2:00 AM</span></div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn" onclick="runDcdiag('DC01')">Run DCDiag</button>
+                                <button class="action-btn" onclick="checkReplication('DC01')">Check Replication</button>
+                                <button class="action-btn" onclick="checkFsmo()">View FSMO Roles</button>
+                            </div>
+                        </div>
+
+                        <div class="server-card offline" id="dc02Card">
+                            <div class="server-header">
+                                <span class="server-name">DC02.hexworth.local</span>
+                                <span class="server-status offline" id="dc02Status">Offline</span>
+                            </div>
+                            <div class="server-details">
+                                <div><span class="label">Role:</span><span class="value">Domain Controller</span></div>
+                                <div><span class="label">IP Address:</span><span class="value">192.168.1.11</span></div>
+                                <div><span class="label">FSMO Roles:</span><span class="value" id="dc02Fsmo">RID, PDC, Infrastructure</span></div>
+                                <div><span class="label">Status:</span><span class="value" style="color: #ef4444;" id="dc02StatusText">Storage Failure - Unrecoverable</span></div>
+                                <div><span class="label">Last Known Good:</span><span class="value">1/30/2026 2:47 AM</span></div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn" onclick="metadataCleanup()" id="cleanupBtn">Metadata Cleanup</button>
+                                <button class="action-btn" onclick="seizeFsmo()" id="seizeBtn">Seize FSMO Roles</button>
+                                <button class="action-btn" onclick="removeFromSites()" id="removeBtn">Remove from Sites</button>
+                            </div>
+                        </div>
+
+                        <div class="server-card" id="dc02NewCard" style="display: none;">
+                            <div class="server-header">
+                                <span class="server-name">DC02-NEW.hexworth.local</span>
+                                <span class="server-status" id="dc02NewStatus">Pending</span>
+                            </div>
+                            <div class="server-details">
+                                <div><span class="label">Role:</span><span class="value" id="dc02NewRole">Member Server</span></div>
+                                <div><span class="label">IP Address:</span><span class="value">192.168.1.12</span></div>
+                                <div><span class="label">Status:</span><span class="value" id="dc02NewStatusText">Ready for promotion</span></div>
+                                <div><span class="label">OS:</span><span class="value">Windows Server 2022</span></div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn success" onclick="promoteNewDC()" id="promoteBtn">Promote to DC</button>
+                                <button class="action-btn" onclick="verifyNewDC()" id="verifyBtn" style="display: none;">Verify Replication</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #f59e0b; margin-bottom: 15px;">Affected Services</h3>
+                    <div class="server-grid">
+                        <div class="server-card warning">
+                            <div class="server-header">
+                                <span class="server-name">DNS</span>
+                                <span class="server-status degraded" id="dnsStatus">Degraded</span>
+                            </div>
+                            <div class="server-details">
+                                <div><span class="label">Primary:</span><span class="value" style="color: #22c55e;">DC01 - Online</span></div>
+                                <div><span class="label">Secondary:</span><span class="value" style="color: #ef4444;" id="dnsSecondary">DC02 - Offline</span></div>
+                            </div>
+                        </div>
+
+                        <div class="server-card warning">
+                            <div class="server-header">
+                                <span class="server-name">DHCP</span>
+                                <span class="server-status degraded" id="dhcpStatus">Degraded</span>
+                            </div>
+                            <div class="server-details">
+                                <div><span class="label">Failover:</span><span class="value" style="color: #f59e0b;" id="dhcpFailover">Partner Unreachable</span></div>
+                                <div><span class="label">Leases:</span><span class="value">Active (DC01 serving)</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="action-btn success" onclick="deployNewServer()" id="deployBtn">Deploy Replacement Server</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-content" id="terminal-content">
+                <div class="terminal-sim">
+                    <div class="terminal-output" id="terminalOutput">
+                        <div class="terminal-line info">Windows PowerShell</div>
+                        <div class="terminal-line info">FAILSAFE Disaster Recovery Environment</div>
+                        <div class="terminal-line info">Server: DC01 | Domain: hexworth.local</div>
+                        <div class="terminal-line warning">WARNING: DC02 is offline. Replication is degraded.</div>
+                        <div class="terminal-line info"></div>
+                    </div>
+                    <div class="terminal-input-area">
+                        <span>PS C:\Users\Administrator&gt; </span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-content" id="recovery-content">
+                <div class="recovery-panel">
+                    <div class="recovery-card">
+                        <h4>Available Backups</h4>
+                        <ul class="backup-list" id="backupList">
+                            <li class="backup-item" onclick="selectBackup(this, 'full')">
+                                <div class="backup-info">
+                                    <h5>DC02 Full Server Backup</h5>
+                                    <p>1/30/2026 2:00 AM - 45.2 GB</p>
+                                </div>
+                                <span class="backup-type full">Full</span>
+                            </li>
+                            <li class="backup-item" onclick="selectBackup(this, 'systemstate')">
+                                <div class="backup-info">
+                                    <h5>DC02 System State</h5>
+                                    <p>1/30/2026 2:00 AM - 8.3 GB</p>
+                                </div>
+                                <span class="backup-type systemstate">System State</span>
+                            </li>
+                            <li class="backup-item" onclick="selectBackup(this, 'systemstate')">
+                                <div class="backup-info">
+                                    <h5>DC02 System State</h5>
+                                    <p>1/29/2026 2:00 AM - 8.1 GB</p>
+                                </div>
+                                <span class="backup-type systemstate">System State</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="recovery-card">
+                        <h4>Recovery Options</h4>
+                        <div style="color: #888; font-size: 0.9rem; margin-bottom: 15px;">
+                            Since DC02 hardware is unrecoverable, we will deploy a new server and promote it to domain controller. The AD database will replicate from DC01.
+                        </div>
+                        <button class="action-btn success" onclick="startRecovery()" id="startRecoveryBtn" disabled>Start Recovery Process</button>
+
+                        <div class="recovery-progress" id="recoveryProgress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="recoveryFill" style="width: 0%"></div>
+                            </div>
+                            <p class="progress-status" id="recoveryStatus">Initializing...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-content" id="docs-content">
+                <div class="docs-sim">
+                    <div class="docs-editor">
+                        <h3>Incident Report - INC-2026-0131-001</h3>
+                        <textarea id="docsEditor" placeholder="Document the incident and recovery process...
+
+INCIDENT REPORT
+================
+
+Incident ID: INC-2026-0131-001
+Date/Time Detected: 1/31/2026 02:47 AM
+Severity: P1 - Critical
+Status: [In Progress / Resolved]
+
+AFFECTED SYSTEMS:
+- DC02.hexworth.local (Primary failure)
+- DNS (Degraded - secondary offline)
+- DHCP (Degraded - failover partner offline)
+
+TIMELINE OF EVENTS:
+-------------------
+02:47 AM - DC02 became unresponsive
+02:48 AM - Monitoring alerts triggered
+03:15 AM - Hardware team confirmed RAID controller failure
+03:30 AM - Recovery operations initiated
+
+RECOVERY ACTIONS TAKEN:
+-----------------------
+1. [Document each action taken]
+2.
+3.
+
+VERIFICATION RESULTS:
+--------------------
+- AD Replication: [Tested/Passed]
+- DNS Resolution: [Tested/Passed]
+- User Authentication: [Tested/Passed]
+
+ROOT CAUSE:
+-----------
+[Document root cause]
+
+PREVENTIVE MEASURES:
+-------------------
+1. [Recommendations]
+2.
+3.
+
+LESSONS LEARNED:
+---------------
+[Document lessons learned]"></textarea>
+                        <button class="save-btn" onclick="saveDocs()">Save Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-overlay" id="completionOverlay">
+        <div class="completion-card">
+            <h2>MISSION COMPLETE</h2>
+            <div class="subtitle">FAILSAFE Recovery Successful</div>
+            <div class="score" id="finalScore">100%</div>
+            <p class="message">Outstanding work, engineer! You have successfully executed a full disaster recovery operation, restored AD functionality, and documented the incident properly. The Hexworth infrastructure is now operational.</p>
+            <div>
+                <a href="../index.html">Return to Course</a>
+                <a href="index.html" class="secondary">Review Briefing</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const phases = [
+            {
+                name: 'Assessment',
+                objectives: [
+                    { id: 'a1', text: 'Verify DC01 is operational', completed: false },
+                    { id: 'a2', text: 'Check AD replication status', completed: false },
+                    { id: 'a3', text: 'Identify FSMO role holders', completed: false },
+                    { id: 'a4', text: 'Verify backup availability', completed: false }
+                ]
+            },
+            {
+                name: 'Recovery',
+                objectives: [
+                    { id: 'r1', text: 'Deploy replacement server', completed: false },
+                    { id: 'r2', text: 'Seize FSMO roles from DC02', completed: false },
+                    { id: 'r3', text: 'Perform metadata cleanup', completed: false },
+                    { id: 'r4', text: 'Promote new DC to domain', completed: false }
+                ]
+            },
+            {
+                name: 'Verification',
+                objectives: [
+                    { id: 'v1', text: 'Test AD replication', completed: false },
+                    { id: 'v2', text: 'Verify DNS resolution', completed: false },
+                    { id: 'v3', text: 'Confirm user authentication', completed: false },
+                    { id: 'v4', text: 'Test DHCP functionality', completed: false }
+                ]
+            },
+            {
+                name: 'Documentation',
+                objectives: [
+                    { id: 'd1', text: 'Document incident timeline', completed: false },
+                    { id: 'd2', text: 'Record recovery actions', completed: false },
+                    { id: 'd3', text: 'Identify root cause', completed: false },
+                    { id: 'd4', text: 'Submit incident report', completed: false }
+                ]
+            },
+            {
+                name: 'Cleanup',
+                objectives: [
+                    { id: 'c1', text: 'Remove DC02 from AD Sites', completed: false },
+                    { id: 'c2', text: 'Clean up stale DNS records', completed: false },
+                    { id: 'c3', text: 'Update DHCP failover', completed: false },
+                    { id: 'c4', text: 'Update monitoring systems', completed: false }
+                ]
+            },
+            {
+                name: 'Prevention',
+                objectives: [
+                    { id: 'p1', text: 'Review backup schedule', completed: false },
+                    { id: 'p2', text: 'Configure storage alerts', completed: false },
+                    { id: 'p3', text: 'Create DR runbook', completed: false },
+                    { id: 'p4', text: 'Schedule DR drill', completed: false }
+                ]
+            }
+        ];
+
+        let currentPhase = 0;
+        let recoveryState = {
+            serverDeployed: false,
+            fsmoSeized: false,
+            metadataCleanedUp: false,
+            newDCPromoted: false,
+            backupSelected: null
+        };
+
+        function buildObjectivesSidebar() {
+            const sidebar = document.getElementById('objectivesSidebar');
+            let html = '';
+
+            phases.forEach((phase, idx) => {
+                const completed = phase.objectives.filter(o => o.completed).length;
+                const total = phase.objectives.length;
+                const statusText = completed === total ? '&#10003; Complete' : `${completed}/${total}`;
+
+                html += `
+                    <div class="phase-section">
+                        <div class="phase-header">
+                            <h4>Phase ${idx + 1}: ${phase.name}</h4>
+                            <span class="status">${statusText}</span>
+                        </div>
+                `;
+
+                phase.objectives.forEach(obj => {
+                    html += `
+                        <div class="objective-item ${obj.completed ? 'completed' : ''}" onclick="toggleObjective('${obj.id}')">
+                            <div class="obj-check">${obj.completed ? '&#10003;' : ''}</div>
+                            <span>${obj.text}</span>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            });
+
+            sidebar.innerHTML = html;
+        }
+
+        function toggleObjective(objId) {
+            phases.forEach(phase => {
+                phase.objectives.forEach(obj => {
+                    if (obj.id === objId) {
+                        obj.completed = !obj.completed;
+                    }
+                });
+            });
+            buildObjectivesSidebar();
+            updateProgress();
+        }
+
+        function completeObjective(objId) {
+            phases.forEach(phase => {
+                phase.objectives.forEach(obj => {
+                    if (obj.id === objId && !obj.completed) {
+                        obj.completed = true;
+                    }
+                });
+            });
+            buildObjectivesSidebar();
+            updateProgress();
+        }
+
+        function updateProgress() {
+            let completed = 0;
+            let total = 0;
+
+            phases.forEach(phase => {
+                phase.objectives.forEach(obj => {
+                    total++;
+                    if (obj.completed) completed++;
+                });
+            });
+
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('progressFill').style.width = ((completed / total) * 100) + '%';
+
+            // Update phase indicator
+            for (let i = phases.length - 1; i >= 0; i--) {
+                if (phases[i].objectives.some(o => o.completed)) {
+                    currentPhase = i;
+                    break;
+                }
+            }
+            document.getElementById('phaseIndicator').textContent = `Phase ${currentPhase + 1}: ${phases[currentPhase].name}`;
+
+            // Update system status
+            if (completed >= 16) {
+                document.getElementById('systemStatus').className = 'status-dot healthy';
+                document.getElementById('systemStatusText').textContent = 'System Healthy';
+            } else if (completed >= 8) {
+                document.getElementById('systemStatus').className = 'status-dot warning';
+                document.getElementById('systemStatusText').textContent = 'Recovery in Progress';
+            }
+
+            // Check completion
+            if (completed === total) {
+                setTimeout(() => {
+                    document.getElementById('completionOverlay').classList.add('show');
+                    saveProgress();
+                }, 500);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.workspace-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.workspace-content').forEach(c => c.classList.remove('active'));
+
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`${tab}-content`).classList.add('active');
+
+            if (tab === 'terminal') {
+                document.getElementById('terminalInput').focus();
+            }
+        }
+
+        // Server Actions
+        function runDcdiag(server) {
+            addTerminalLine(`Running dcdiag on ${server}...`, 'info');
+            setTimeout(() => {
+                addTerminalLine('Directory Server Diagnosis', 'output');
+                addTerminalLine(`Performing initial setup:`, 'output');
+                addTerminalLine(`   * Connecting to directory service on server ${server}.`, 'output');
+                addTerminalLine(`   * Identified AD forest hexworth.local.`, 'output');
+                addTerminalLine('', 'output');
+                addTerminalLine('Running tests on: hexworth.local', 'output');
+                addTerminalLine('   Starting test: Connectivity... passed', 'success');
+                addTerminalLine('   Starting test: Advertising... passed', 'success');
+                addTerminalLine('   Starting test: FrsEvent... passed', 'success');
+                addTerminalLine('   Starting test: KccEvent... passed', 'success');
+                addTerminalLine('   Starting test: Replications... WARNING: DC02 unreachable', 'warning');
+                addTerminalLine('   Starting test: Services... passed', 'success');
+                addTerminalLine('', 'output');
+                addTerminalLine('DC01 passed most tests. Replication warning due to DC02 offline.', 'info');
+                completeObjective('a1');
+            }, 1000);
+        }
+
+        function checkReplication(server) {
+            addTerminalLine('Checking AD replication status...', 'info');
+            setTimeout(() => {
+                addTerminalLine('repadmin /replsummary', 'prompt');
+                addTerminalLine('', 'output');
+                addTerminalLine('Replication Summary Start Time: 1/31/2026 04:15:00', 'output');
+                addTerminalLine('', 'output');
+                addTerminalLine('Source DSA    largest delta    fails/total  %% error', 'output');
+                addTerminalLine('DC01          0m:00s           0 / 5        0', 'success');
+                addTerminalLine('DC02          [UNAVAILABLE]    5 / 5      100 (RPC server unavailable)', 'error');
+                addTerminalLine('', 'output');
+                addTerminalLine('WARNING: Replication with DC02 has failed. Partner is offline.', 'warning');
+                completeObjective('a2');
+            }, 800);
+        }
+
+        function checkFsmo() {
+            addTerminalLine('Querying FSMO role holders...', 'info');
+            setTimeout(() => {
+                addTerminalLine('netdom query fsmo', 'prompt');
+                addTerminalLine('', 'output');
+                addTerminalLine('Schema master               DC01.hexworth.local', 'output');
+                addTerminalLine('Domain naming master        DC01.hexworth.local', 'output');
+                addTerminalLine('PDC                         DC02.hexworth.local [OFFLINE]', 'error');
+                addTerminalLine('RID pool manager            DC02.hexworth.local [OFFLINE]', 'error');
+                addTerminalLine('Infrastructure master       DC02.hexworth.local [OFFLINE]', 'error');
+                addTerminalLine('', 'output');
+                addTerminalLine('WARNING: 3 FSMO roles held by offline DC02. Seize required.', 'warning');
+                completeObjective('a3');
+            }, 600);
+        }
+
+        function deployNewServer() {
+            if (recoveryState.serverDeployed) return;
+            addTerminalLine('Deploying replacement server DC02-NEW...', 'info');
+            setTimeout(() => {
+                document.getElementById('dc02NewCard').style.display = 'block';
+                document.getElementById('dc02NewStatus').textContent = 'Pending';
+                document.getElementById('dc02NewStatus').className = 'server-status degraded';
+                recoveryState.serverDeployed = true;
+                document.getElementById('deployBtn').disabled = true;
+                document.getElementById('deployBtn').textContent = 'Server Deployed';
+                addTerminalLine('Replacement server DC02-NEW deployed successfully.', 'success');
+                addTerminalLine('Server joined to domain as member server.', 'info');
+                addTerminalLine('Ready for DC promotion.', 'info');
+                completeObjective('r1');
+            }, 1500);
+        }
+
+        function seizeFsmo() {
+            if (!recoveryState.serverDeployed) {
+                addTerminalLine('ERROR: Deploy replacement server first.', 'error');
+                return;
+            }
+            addTerminalLine('Seizing FSMO roles from offline DC02...', 'warning');
+            setTimeout(() => {
+                addTerminalLine('ntdsutil: seize RID master', 'prompt');
+                addTerminalLine('Role seizure completed successfully.', 'success');
+                addTerminalLine('ntdsutil: seize PDC', 'prompt');
+                addTerminalLine('Role seizure completed successfully.', 'success');
+                addTerminalLine('ntdsutil: seize infrastructure master', 'prompt');
+                addTerminalLine('Role seizure completed successfully.', 'success');
+                addTerminalLine('', 'output');
+                addTerminalLine('All FSMO roles now held by DC01.', 'success');
+                document.getElementById('dc01Fsmo').textContent = 'All 5 Roles';
+                document.getElementById('dc02Fsmo').textContent = 'None (Seized)';
+                recoveryState.fsmoSeized = true;
+                document.getElementById('seizeBtn').disabled = true;
+                document.getElementById('seizeBtn').textContent = 'Roles Seized';
+                completeObjective('r2');
+            }, 2000);
+        }
+
+        function metadataCleanup() {
+            addTerminalLine('Performing AD metadata cleanup for DC02...', 'warning');
+            setTimeout(() => {
+                addTerminalLine('ntdsutil: metadata cleanup', 'prompt');
+                addTerminalLine('Removing server DC02 from site Default-First-Site-Name...', 'output');
+                addTerminalLine('Server DC02 removed from directory.', 'success');
+                addTerminalLine('Cleaning up DNS records...', 'output');
+                addTerminalLine('DNS records for DC02 marked for removal.', 'success');
+                recoveryState.metadataCleanedUp = true;
+                document.getElementById('cleanupBtn').disabled = true;
+                document.getElementById('cleanupBtn').textContent = 'Cleanup Done';
+                completeObjective('r3');
+                completeObjective('c1');
+                completeObjective('c2');
+            }, 1500);
+        }
+
+        function removeFromSites() {
+            addTerminalLine('Removing DC02 from AD Sites and Services...', 'info');
+            setTimeout(() => {
+                addTerminalLine('Server object removed from site.', 'success');
+                document.getElementById('removeBtn').disabled = true;
+                completeObjective('c1');
+            }, 800);
+        }
+
+        function promoteNewDC() {
+            if (!recoveryState.fsmoSeized) {
+                addTerminalLine('ERROR: Seize FSMO roles before promoting new DC.', 'error');
+                return;
+            }
+            addTerminalLine('Promoting DC02-NEW to domain controller...', 'info');
+            document.getElementById('dc02NewStatus').textContent = 'Promoting...';
+
+            setTimeout(() => {
+                addTerminalLine('Install-ADDSDomainController -DomainName hexworth.local', 'prompt');
+                addTerminalLine('Installing Active Directory Domain Services...', 'output');
+            }, 500);
+
+            setTimeout(() => {
+                addTerminalLine('Configuring AD DS...', 'output');
+            }, 1500);
+
+            setTimeout(() => {
+                addTerminalLine('Replicating AD database from DC01...', 'output');
+            }, 2500);
+
+            setTimeout(() => {
+                addTerminalLine('DC promotion completed successfully!', 'success');
+                document.getElementById('dc02NewStatus').textContent = 'Online';
+                document.getElementById('dc02NewStatus').className = 'server-status online';
+                document.getElementById('dc02NewRole').textContent = 'Domain Controller';
+                document.getElementById('dc02NewStatusText').textContent = 'Fully operational';
+                document.getElementById('promoteBtn').style.display = 'none';
+                document.getElementById('verifyBtn').style.display = 'inline-block';
+                recoveryState.newDCPromoted = true;
+
+                // Update service statuses
+                document.getElementById('dc01Repl').textContent = 'Healthy';
+                document.getElementById('dc01Repl').style.color = '#22c55e';
+                document.getElementById('dnsStatus').textContent = 'Online';
+                document.getElementById('dnsStatus').className = 'server-status online';
+                document.getElementById('dnsSecondary').textContent = 'DC02-NEW - Online';
+                document.getElementById('dnsSecondary').style.color = '#22c55e';
+                document.getElementById('dhcpStatus').textContent = 'Online';
+                document.getElementById('dhcpStatus').className = 'server-status online';
+                document.getElementById('dhcpFailover').textContent = 'Partner Online';
+                document.getElementById('dhcpFailover').style.color = '#22c55e';
+
+                completeObjective('r4');
+                completeObjective('v2');
+                completeObjective('v4');
+                completeObjective('c3');
+            }, 4000);
+        }
+
+        function verifyNewDC() {
+            addTerminalLine('Verifying AD replication with new DC...', 'info');
+            setTimeout(() => {
+                addTerminalLine('repadmin /replsummary', 'prompt');
+                addTerminalLine('', 'output');
+                addTerminalLine('Source DSA    largest delta    fails/total  %% error', 'output');
+                addTerminalLine('DC01          0m:00s           0 / 5        0', 'success');
+                addTerminalLine('DC02-NEW      0m:15s           0 / 5        0', 'success');
+                addTerminalLine('', 'output');
+                addTerminalLine('All replication partners healthy.', 'success');
+                completeObjective('v1');
+                completeObjective('v3');
+            }, 1000);
+        }
+
+        function selectBackup(element, type) {
+            document.querySelectorAll('.backup-item').forEach(i => i.classList.remove('selected'));
+            element.classList.add('selected');
+            recoveryState.backupSelected = type;
+            document.getElementById('startRecoveryBtn').disabled = false;
+            completeObjective('a4');
+        }
+
+        function startRecovery() {
+            const progress = document.getElementById('recoveryProgress');
+            const fill = document.getElementById('recoveryFill');
+            const status = document.getElementById('recoveryStatus');
+
+            progress.classList.add('show');
+            document.getElementById('startRecoveryBtn').disabled = true;
+
+            const steps = [
+                { pct: 10, msg: 'Mounting backup volume...' },
+                { pct: 25, msg: 'Verifying backup integrity...' },
+                { pct: 40, msg: 'Preparing restore environment...' },
+                { pct: 60, msg: 'Restoring system state...' },
+                { pct: 80, msg: 'Configuring boot options...' },
+                { pct: 95, msg: 'Finalizing restore...' },
+                { pct: 100, msg: 'Backup verification complete. Deploy new server to proceed.' }
+            ];
+
+            let step = 0;
+            const interval = setInterval(() => {
+                if (step < steps.length) {
+                    fill.style.width = steps[step].pct + '%';
+                    status.textContent = steps[step].msg;
+                    step++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        }
+
+        // Terminal
+        const terminalOutput = document.getElementById('terminalOutput');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addTerminalLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.innerHTML = text;
+            terminalOutput.appendChild(line);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = terminalInput.value.trim();
+                if (cmd) {
+                    addTerminalLine(`PS C:\\Users\\Administrator> ${cmd}`, 'prompt');
+                    commandHistory.push(cmd);
+                    historyIndex = commandHistory.length;
+                    processCommand(cmd);
+                }
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        function processCommand(cmd) {
+            const cmdLower = cmd.toLowerCase();
+
+            if (cmdLower === 'help') {
+                addTerminalLine('', 'output');
+                addTerminalLine('FAILSAFE Recovery Commands:', 'info');
+                addTerminalLine('  dcdiag           - Run DC diagnostics', 'output');
+                addTerminalLine('  repadmin         - Check replication', 'output');
+                addTerminalLine('  netdom query fsmo - Show FSMO roles', 'output');
+                addTerminalLine('  Test-NetConnection - Test connectivity', 'output');
+                addTerminalLine('  Get-ADDomainController - List DCs', 'output');
+                addTerminalLine('  clear            - Clear terminal', 'output');
+                addTerminalLine('', 'output');
+            } else if (cmdLower.includes('dcdiag')) {
+                runDcdiag('DC01');
+            } else if (cmdLower.includes('repadmin')) {
+                checkReplication('DC01');
+            } else if (cmdLower.includes('fsmo') || cmdLower.includes('netdom')) {
+                checkFsmo();
+            } else if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalOutput.innerHTML = '';
+            } else if (cmdLower.includes('test-netconnection')) {
+                addTerminalLine('Testing connectivity...', 'info');
+                setTimeout(() => {
+                    addTerminalLine('ComputerName     : DC01', 'output');
+                    addTerminalLine('RemoteAddress    : 192.168.1.10', 'output');
+                    addTerminalLine('PingSucceeded    : True', 'success');
+                }, 500);
+            } else if (cmdLower.includes('get-addomaincontroller')) {
+                addTerminalLine('Name     Site                 IPv4Address    IsGlobalCatalog', 'output');
+                addTerminalLine('----     ----                 -----------    ---------------', 'output');
+                addTerminalLine('DC01     Default-First-Site   192.168.1.10   True', 'success');
+                if (recoveryState.newDCPromoted) {
+                    addTerminalLine('DC02-NEW Default-First-Site   192.168.1.12   True', 'success');
+                }
+            } else {
+                addTerminalLine(`Command simulated: ${cmd}`, 'info');
+            }
+        }
+
+        // Documentation
+        function saveDocs() {
+            const docs = document.getElementById('docsEditor').value;
+            localStorage.setItem('failsafe-docs', docs);
+
+            if (docs.length > 500) {
+                completeObjective('d1');
+                completeObjective('d2');
+            }
+            if (docs.toLowerCase().includes('root cause') || docs.toLowerCase().includes('raid')) {
+                completeObjective('d3');
+            }
+            if (docs.toLowerCase().includes('preventive') || docs.toLowerCase().includes('recommendation')) {
+                completeObjective('p1');
+                completeObjective('p2');
+                completeObjective('p3');
+                completeObjective('p4');
+            }
+            completeObjective('d4');
+            completeObjective('c4');
+
+            addTerminalLine('Incident report saved.', 'success');
+        }
+
+        function saveProgress() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
+                progress['wsa-m20-failsafe'] = { completed: true, date: new Date().toISOString() };
+                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
+            } catch (e) {}
+        }
+
+        // Load saved docs
+        const savedDocs = localStorage.getItem('failsafe-docs');
+        if (savedDocs) {
+            document.getElementById('docsEditor').value = savedDocs;
+        }
+
+        // Initialize
+        buildObjectivesSidebar();
+        updateProgress();
+    </script>
+</body>
+</html>
