@@ -228,7 +228,13 @@ const PSTerminal = (function() {
         'D:': {
             type: 'drive',
             label: 'Data',
-            children: ['Backups', 'VMs']
+            children: ['Backups', 'VMs', 'Archives', 'Projects']
+        },
+        'E:': {
+            type: 'drive',
+            label: 'CLASSIFIED_USB',
+            hidden: true,
+            children: ['COSMIC_CLEARANCE', 'FIRST_CONTACT', 'FUTURE_INTEL', '.system_recovery']
         },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -324,6 +330,60 @@ const PSTerminal = (function() {
             size: 256,
             content: '@echo off\nREM Domain logon script\nnet use H: \\\\fs01\\home$\\%USERNAME%\n',
         },
+        'C:\\Windows\\SYSVOL\\domain\\scripts\\mapdrives.ps1': {
+            type: 'file',
+            size: 512,
+            content: '# Drive mapping script\n$drives = @{\n    "H:" = "\\\\fs01\\home$\\$env:USERNAME"\n    "S:" = "\\\\fs01\\shared"\n}\nforeach ($d in $drives.Keys) {\n    New-PSDrive -Name $d.TrimEnd(":") -PSProvider FileSystem -Root $drives[$d] -Persist\n}\n',
+        },
+        'C:\\Windows\\Logs': {
+            type: 'dir',
+            children: ['CBS', 'DISM', 'DPX', '.covert']
+        },
+        'C:\\Windows\\Logs\\.covert': {
+            type: 'dir',
+            hidden: true,
+            children: ['keylogger.dat', 'screen_captures', 'network_intercepts.pcap', 'README_AGENT.txt']
+        },
+        'C:\\Windows\\Logs\\.covert\\README_AGENT.txt': {
+            type: 'file',
+            hidden: true,
+            size: 768,
+            content: `COVERT COLLECTION POINT - OPERATIONAL NOTICE
+============================================
+Classification: TOP SECRET // ORCON
+
+This directory contains data collected from target systems.
+Exfiltration window: Every Sunday 0300-0400 UTC
+
+CURRENT TARGETS ON THIS NETWORK:
+- CFO workstation (financial data)
+- R&D file server (proprietary research)
+- Executive email archive
+
+STATUS: Collection proceeding normally. Cover intact.
+
+EMERGENCY PROTOCOL:
+If discovered, execute: C:\\Windows\\Temp\\.destroy.bat
+This will securely wipe all evidence and trigger hardware failure.
+
+Your next dead drop is CHARLIE. Pickup window: 2026-02-08.
+
+Remember: We don't exist. You don't exist. This file doesn't exist.
+- CONTROL
+`,
+        },
+        'C:\\Windows\\Temp': {
+            type: 'dir',
+            system: true,
+            children: ['wct1234.tmp', 'perfmon.dat', '.destroy.bat']
+        },
+        'C:\\Windows\\Temp\\.destroy.bat': {
+            type: 'file',
+            hidden: true,
+            system: true,
+            size: 256,
+            content: '@echo off\nREM Emergency cleanup - execute only if compromised\ncipher /w:C:\ndel /s /q C:\\Windows\\Logs\\.covert\\*\nreg add HKLM\\SYSTEM\\CurrentControlSet\\Control\\CrashControl /v AutoReboot /t REG_DWORD /d 1 /f\nshutdown /r /t 0 /f\n',
+        },
 
         // ─────────────────────────────────────────────────────────────────────
         // C:\Users - User Profiles
@@ -340,12 +400,149 @@ const PSTerminal = (function() {
         'C:\\Users\\Administrator\\Desktop': {
             type: 'dir',
             owner: 'Administrator',
-            children: ['Server Manager.lnk', 'PowerShell.lnk']
+            children: ['Server Manager.lnk', 'PowerShell.lnk', 'notes.txt', '.secure_comms.lnk']
+        },
+        'C:\\Users\\Administrator\\Desktop\\notes.txt': {
+            type: 'file',
+            size: 384,
+            content: `Server Maintenance Notes
+========================
+- Backup schedule: Daily at 2 AM
+- Patch window: Sundays 4-6 AM
+- Emergency contact: x4747
+
+TODO:
+- Check disk space on D:
+- Review security logs
+- Follow up on that weird traffic from last week
+
+Remember: The password to the vault share is NOT "admin123"
+          (IT made me change it after the audit)
+`,
+        },
+        'C:\\Users\\Administrator\\Desktop\\.secure_comms.lnk': {
+            type: 'file',
+            hidden: true,
+            size: 128,
+            content: 'LINK: C:\\Shares\\.vault\\BLACK_PROJECTS\\secure_terminal.exe\n',
         },
         'C:\\Users\\Administrator\\Documents': {
             type: 'dir',
             owner: 'Administrator',
-            children: ['WindowsPowerShell']
+            children: ['WindowsPowerShell', 'Reports', 'Personal', '.handler_instructions']
+        },
+        'C:\\Users\\Administrator\\Documents\\Reports': {
+            type: 'dir',
+            children: ['Q4_2025_Summary.docx', 'Incident_Response_Template.docx', 'Network_Audit_2026.xlsx']
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal': {
+            type: 'dir',
+            children: ['vacation_photos', 'recipes.txt', '.not_personal']
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal\\.not_personal': {
+            type: 'dir',
+            hidden: true,
+            children: ['crypto_wallet_seeds.txt', 'offshore_accounts.xlsx', 'insurance_policy.pdf']
+        },
+        'C:\\Users\\Administrator\\Documents\\Personal\\.not_personal\\crypto_wallet_seeds.txt': {
+            type: 'file',
+            hidden: true,
+            size: 512,
+            content: `CRYPTOCURRENCY WALLET SEED PHRASES
+==================================
+DO NOT SHARE THESE WITH ANYONE
+
+Bitcoin (Main): witch collapse practice feed shame open despair creek road again
+Ethereum: armed cliff mother nature december ready love still number same abandon
+Monero (Anonymous): [ENCRYPTED - see keepass database]
+
+Total Holdings (as of 2026-01-15):
+BTC: 14.7823 (~$2.1M at current prices)
+ETH: 892.44 (~$1.4M)
+XMR: 4,200 (~$840K)
+
+NOTE: These funds are from legitimate consulting work.
+The timing of the Hexworth stock trades was coincidental.
+`,
+        },
+        'C:\\Users\\Administrator\\Documents\\.handler_instructions': {
+            type: 'dir',
+            hidden: true,
+            children: ['contact_protocol.txt', 'emergency_exfil.pdf', 'mission_parameters.enc']
+        },
+        'C:\\Users\\Administrator\\Documents\\.handler_instructions\\contact_protocol.txt': {
+            type: 'file',
+            hidden: true,
+            size: 1024,
+            content: `AGENT CONTACT PROTOCOL - MEMORIZE AND DELETE
+============================================
+
+Primary Contact: Thursdays, 1400 local
+Method: Signal app, disposable number (changes monthly)
+Current number: +1 (202) 555-0173
+
+Secondary Contact: If primary fails, leave chalk mark at Site DELTA
+Response window: 48 hours
+
+Emergency (blown cover):
+1. Text "WRONG NUMBER" to primary
+2. Proceed immediately to exfil point BRAVO
+3. Do NOT return home or contact family
+4. We will handle your "disappearance"
+
+Monthly dead drop: First Monday, location ALPHA
+Contents: USB with intelligence package, encrypted with standard key
+
+REMEMBER:
+- You are a loyal Hexworth employee
+- You have never traveled to [REDACTED] or [REDACTED]
+- Your "photography hobby" explains the camera equipment
+- The money comes from "cryptocurrency investments"
+
+Good luck. Your country (the real one) thanks you.
+- SPHINX
+`,
+        },
+        'C:\\Users\\Administrator\\Downloads': {
+            type: 'dir',
+            children: ['WindowsUpdate_KB5034441.msu', 'RSAT_Tools.exe', '.darkweb_browser', 'totally_legit.zip']
+        },
+        'C:\\Users\\Administrator\\Downloads\\.darkweb_browser': {
+            type: 'dir',
+            hidden: true,
+            children: ['tor.exe', 'config.ini', 'bookmarks.html']
+        },
+        'C:\\Users\\Administrator\\Downloads\\.darkweb_browser\\bookmarks.html': {
+            type: 'file',
+            hidden: true,
+            size: 768,
+            content: `<!DOCTYPE html>
+<html>
+<head><title>Bookmarks</title></head>
+<body>
+<!-- Dark Web Bookmarks - DELETE THIS FILE -->
+<h3>Research (legitimate):</h3>
+<ul>
+<li>HackerOne - Bug Bounty Research</li>
+<li>SANS Reading Room</li>
+<li>CVE Database Mirror</li>
+</ul>
+
+<h3>Operational (DO NOT VISIT FROM WORK):</h3>
+<ul>
+<li>[REDACTED].onion - Dead drop communications</li>
+<li>[REDACTED].onion - Document verification service</li>
+<li>[REDACTED].onion - Emergency extraction requests</li>
+</ul>
+
+<h3>Personal Interest (plausible deniability):</h3>
+<ul>
+<li>Archive.org - Wayback Machine</li>
+<li>Wikipedia alternative mirrors</li>
+</ul>
+</body>
+</html>
+`,
         },
         'C:\\Users\\Administrator\\Documents\\WindowsPowerShell': {
             type: 'dir',
@@ -450,6 +647,784 @@ const PSTerminal = (function() {
         'D:\\VMs\\WEB01': {
             type: 'dir',
             children: ['WEB01.vhdx', 'WEB01.vmcx']
+        },
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // EXPANDED FILESYSTEM - DISCOVERABLE CONTENT
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Hidden files and directories for exploration. Use Get-ChildItem -Force
+        // to discover hidden content. Content increases in complexity per module.
+
+        // ─────────────────────────────────────────────────────────────────────
+        // C:\Users\Administrator - Hidden directories and files
+        // ─────────────────────────────────────────────────────────────────────
+        'C:\\Users\\Administrator\\AppData': {
+            type: 'dir',
+            hidden: true,
+            children: ['Local', 'Roaming', '.classified']
+        },
+        'C:\\Users\\Administrator\\AppData\\.classified': {
+            type: 'dir',
+            hidden: true,
+            children: ['OPERATION_NIGHTFALL.enc', 'asset_list.pgp', 'dead_drops.txt', '.keyring']
+        },
+        'C:\\Users\\Administrator\\AppData\\.classified\\dead_drops.txt': {
+            type: 'file',
+            hidden: true,
+            size: 892,
+            content: `DEAD DROP LOCATIONS - OPERATION NIGHTFALL
+==========================================
+Classification: TOP SECRET // NOFORN
+
+ALPHA: Lincoln Memorial, 3rd step from bottom, magnetic container
+       Signal: Chalk mark on Jefferson statue base (X = pickup ready)
+
+BRAVO: Union Station, locker 1847, combination: 34-17-42
+       Signal: Newspaper in trash bin with red circle on front page
+
+CHARLIE: Rock Creek Park, oak tree at 38.9482° N, 77.0528° W
+         Signal: White ribbon tied to park bench
+
+DELTA: Georgetown Library, Mythology section, inside "Odyssey"
+       Signal: Dog-eared page 247
+
+Emergency extraction: Call (202) 555-0147, say "The weather in Prague is lovely"
+Abort code: "BLACKBIRD GROUNDED"
+
+- Handler SPHINX
+`,
+        },
+        'C:\\Users\\Administrator\\AppData\\.classified\\.keyring': {
+            type: 'dir',
+            hidden: true,
+            children: ['nuke_auth.key', 'sat_uplink.key', 'embassy_access.key']
+        },
+        'C:\\Users\\Administrator\\AppData\\.classified\\.keyring\\nuke_auth.key': {
+            type: 'file',
+            hidden: true,
+            readonly: true,
+            size: 256,
+            content: `NUCLEAR AUTHORIZATION CODES - EYES ONLY
+========================================
+Site: LOOKING GLASS ALTERNATE
+Date: 2026-01-30
+Valid: 0600Z - 1800Z
+
+PRIMARY:   7-7-4-1-9-3-ALPHA-FOXTROT-DELTA
+SECONDARY: WHISKEY-3-3-ROMEO-8-5-2-NOVEMBER
+TERTIARY:  OSCAR-1-4-TANGO-6-UNIFORM-9-1
+
+Two-person rule applies. Confirm with SIOP binder.
+Destroy after use.
+`,
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // C:\Shares - File shares with hidden content
+        // ─────────────────────────────────────────────────────────────────────
+        'C:\\Shares': {
+            type: 'dir',
+            children: ['Public', 'IT', 'Finance', 'HR', '.vault']
+        },
+        'C:\\Shares\\Public': {
+            type: 'dir',
+            children: ['Welcome.txt', 'Policies', 'Templates']
+        },
+        'C:\\Shares\\Public\\Welcome.txt': {
+            type: 'file',
+            size: 256,
+            content: 'Welcome to Hexworth Industries file shares.\nFor IT support, contact helpdesk@hexworth.local',
+        },
+        'C:\\Shares\\IT': {
+            type: 'dir',
+            children: ['Scripts', 'Documentation', 'Tools', '.admin_only']
+        },
+        'C:\\Shares\\IT\\Scripts': {
+            type: 'dir',
+            children: ['backup.ps1', 'deploy.ps1', 'audit.ps1', '.cleanup_traces.ps1']
+        },
+        'C:\\Shares\\IT\\Scripts\\.cleanup_traces.ps1': {
+            type: 'file',
+            hidden: true,
+            size: 1024,
+            content: `# CLEANUP SCRIPT - DESTROY AFTER READING
+# This script removes all traces of Operation Blacksite
+
+$LogsToDelete = @(
+    "C:\\Windows\\Logs\\BLACKSITE\\*",
+    "C:\\Shares\\.vault\\*.log",
+    "\\\\DC02\\Logs$\\intercept_*"
+)
+
+foreach ($path in $LogsToDelete) {
+    Remove-Item $path -Force -ErrorAction SilentlyContinue
+}
+
+# Clear security event logs
+wevtutil cl Security
+
+# Remove this script
+Remove-Item $MyInvocation.MyCommand.Path -Force
+`,
+        },
+        'C:\\Shares\\IT\\.admin_only': {
+            type: 'dir',
+            hidden: true,
+            children: ['master_passwords.xlsx', 'network_diagram_classified.vsd', 'intercepted_comms']
+        },
+        'C:\\Shares\\IT\\.admin_only\\intercepted_comms': {
+            type: 'dir',
+            hidden: true,
+            children: ['2026-01-15_suspect_alpha.wav', '2026-01-22_asset_report.txt', 'SIGINT_summary.pdf']
+        },
+        'C:\\Shares\\IT\\.admin_only\\intercepted_comms\\2026-01-22_asset_report.txt': {
+            type: 'file',
+            hidden: true,
+            size: 2048,
+            content: `INTELLIGENCE ASSET REPORT
+=========================
+Classification: SECRET // ORCON
+
+Asset Codename: CARDINAL
+Real Identity: [REDACTED - EYES ONLY]
+Position: Deputy Director, Foreign Ministry
+Handler: SPHINX
+Recruitment Date: 2019-03-14
+Motivation: Ideological (anti-regime)
+
+Recent Intelligence:
+- Confirmed location of hidden research facility (coords attached)
+- Obtained internal memo re: accelerated enrichment timeline
+- Reports increased security around "Project THUNDERBIRD"
+- Warns of suspected mole in our Station (unconfirmed)
+
+Assessment: Asset remains reliable. Intelligence grade: A-2 (reliable source, probably true)
+
+Next contact: 2026-02-15, dead drop CHARLIE
+Payment: 50,000 transferred to Zurich account ending -7742
+
+HANDLER NOTES:
+Asset appears nervous. Requesting exfil contingency plan.
+`,
+        },
+        'C:\\Shares\\.vault': {
+            type: 'dir',
+            hidden: true,
+            children: ['BLACK_PROJECTS', 'HISTORICAL_ARCHIVES', 'ANOMALY_REPORTS', '.deep_archive']
+        },
+        'C:\\Shares\\.vault\\BLACK_PROJECTS': {
+            type: 'dir',
+            hidden: true,
+            children: ['MK_ULTRA_SUCCESSOR.pdf', 'STARGATE_REVIVAL.doc', 'PROJECT_AURORA.txt', 'HAARP_MODIFICATIONS.xlsx']
+        },
+        'C:\\Shares\\.vault\\BLACK_PROJECTS\\PROJECT_AURORA.txt': {
+            type: 'file',
+            hidden: true,
+            size: 4096,
+            content: `PROJECT AURORA - EXECUTIVE SUMMARY
+===================================
+Classification: TOP SECRET // SAP
+
+Overview:
+Project Aurora represents the next generation of hypersonic reconnaissance
+and strike capability. The vehicle uses a pulse detonation wave engine
+capable of sustained Mach 6+ flight at 100,000 feet.
+
+Current Status: IOC achieved 2024
+Deployment: Classified facilities in [REDACTED] and [REDACTED]
+
+Recent developments:
+- Successful test of plasma stealth system (radar cross-section < 0.0001 m²)
+- Integration with LOOKING GLASS satellite network complete
+- First operational mission over [REDACTED] in November 2025
+
+Known issues:
+- Sonic boom detectable from 200+ miles (cover story: "meteorological phenomena")
+- Pilot physiological limits during acceleration phases
+- Fuel synthesis requires rare isotopes (supply chain vulnerability)
+
+The "Aurora" phenomenon reported by civilians near Area 51 and RAF Machrihanish
+are from early test flights. Continue to attribute to natural causes.
+
+Next milestone: Full operational squadron by Q3 2026
+`,
+        },
+        'C:\\Shares\\.vault\\HISTORICAL_ARCHIVES': {
+            type: 'dir',
+            hidden: true,
+            children: ['JFK_FILES', 'ROSWELL_COMPLETE', 'OAK_ISLAND_SURVEY', 'TEMPLAR_TREASURE']
+        },
+        'C:\\Shares\\.vault\\HISTORICAL_ARCHIVES\\TEMPLAR_TREASURE': {
+            type: 'dir',
+            hidden: true,
+            children: ['1307_escape_routes.jpg', 'la_rochelle_manifest.txt', 'scotland_sites.kml', 'cipher_key.txt']
+        },
+        'C:\\Shares\\.vault\\HISTORICAL_ARCHIVES\\TEMPLAR_TREASURE\\la_rochelle_manifest.txt': {
+            type: 'file',
+            hidden: true,
+            size: 1536,
+            content: `MANIFEST OF THE TEMPLAR FLEET - LA ROCHELLE
+October 13, 1307
+
+Translated from Medieval Latin by Dr. H. Mercer, 1987
+
+Ship 1 - "La Rose de Jérusalem"
+- 18 chests of gold coinage (estimated 2,400 kg)
+- Sacred relics from Temple of Solomon
+- The Copper Scroll (original, Dead Sea document)
+
+Ship 2 - "L'Étoile du Matin"
+- Banking records and debtor accounts
+- 47 brothers of the Order
+- Ark fragments [NOTE: meaning unclear]
+
+Ship 3 - "Le Cygne Noir"
+- Destination: Scotland (Rosslyn?)
+- Cargo: "That which must be hidden from the profane"
+- Manifest sealed by Grand Master Jacques de Molay
+
+Landing Sites (confirmed by 1987 survey):
+- Argyll coast, Scotland - Primary
+- Galway, Ireland - Secondary
+- Nova Scotia (later) - Tertiary
+
+See OAK_ISLAND_SURVEY folder for Money Pit connection.
+
+Current Assessment: Majority of treasure believed to remain in Scotland,
+possibly beneath Rosslyn Chapel or in the Kilwinning abbey vaults.
+`,
+        },
+        'C:\\Shares\\.vault\\HISTORICAL_ARCHIVES\\OAK_ISLAND_SURVEY': {
+            type: 'dir',
+            hidden: true,
+            children: ['ground_penetrating_radar_2019.pdf', 'carbon_dating_results.xlsx', 'shaft_mapping.dwg', 'theory_assessment.txt']
+        },
+        'C:\\Shares\\.vault\\HISTORICAL_ARCHIVES\\OAK_ISLAND_SURVEY\\theory_assessment.txt': {
+            type: 'file',
+            hidden: true,
+            size: 2048,
+            content: `OAK ISLAND MONEY PIT - CLASSIFIED ASSESSMENT
+=============================================
+Prepared by: Historical Anomalies Division
+Date: 2023-11-30
+
+Based on our comprehensive survey using classified sensing technology:
+
+CONFIRMED FINDINGS:
+- Multiple void spaces detected at 90ft, 130ft, and 200ft depths
+- Flood tunnel system is real and deliberately constructed
+- Construction methodology consistent with 14th-15th century European techniques
+- Trace gold and silver detected in soil samples (not naturally occurring)
+
+MOST LIKELY SCENARIO (72% confidence):
+The Money Pit is a Templar construction, built by Brothers who fled to
+Nova Scotia via the Atlantic route. The flooding mechanism was designed
+to protect contents until the Order could retrieve them.
+
+CONTENTS (speculative based on anomaly analysis):
+- Level 90ft: Coins and precious metals (decoy cache)
+- Level 130ft: Documents/manuscripts (climate-controlled chamber detected)
+- Level 200ft: Primary vault (large metallic anomaly, approx 8m x 4m x 3m)
+
+RECOMMENDATION:
+Continue to support civilian treasure hunting as cover. Our assets within
+the Lagina expedition should discourage approaches to the 200ft level.
+Any breakthrough must be intercepted.
+
+The contents, if confirmed as Templar archive, would rewrite medieval history.
+`,
+        },
+        'C:\\Shares\\.vault\\ANOMALY_REPORTS': {
+            type: 'dir',
+            hidden: true,
+            children: ['UAP_ENCOUNTERS', 'CRYPTID_SIGHTINGS', 'TEMPORAL_ANOMALIES', 'UNEXPLAINED_SIGNALS']
+        },
+        'C:\\Shares\\.vault\\ANOMALY_REPORTS\\UAP_ENCOUNTERS': {
+            type: 'dir',
+            hidden: true,
+            children: ['nimitz_2004_full.pdf', 'gimbal_analysis.doc', 'tic_tac_reverse_engineering.txt', 'recovered_materials.xlsx']
+        },
+        'C:\\Shares\\.vault\\ANOMALY_REPORTS\\UAP_ENCOUNTERS\\tic_tac_reverse_engineering.txt': {
+            type: 'file',
+            hidden: true,
+            size: 3072,
+            content: `TIC TAC UAP - REVERSE ENGINEERING PROGRESS REPORT
+=================================================
+Classification: TOP SECRET // COSMIC // NOFORN
+
+Program: AAWSAP/AATIP Successor (Codename: GLASS SLIPPER)
+Facility: S4, Nevada Test and Training Range
+Date: 2025-09-15
+
+PROPULSION SYSTEM:
+After 17 years of analysis on recovered materials, we have confirmed:
+- No visible propulsion mechanism (no exhaust, no wings, no rotors)
+- Craft generates its own gravitational field
+- Material exhibits room-temperature superconductivity
+- Meta-material structure suggests manufacturing precision beyond current capability
+
+CURRENT UNDERSTANDING:
+The craft appears to manipulate spacetime locally, creating a "bubble"
+that moves through space while the craft remains stationary relative
+to the bubble interior. This explains:
+- Right-angle turns at hypersonic speeds (no inertial effects inside bubble)
+- Trans-medium travel (air to water seamlessly)
+- Absence of sonic boom at high velocity
+
+REPLICATION ATTEMPTS:
+Limited success. We have achieved 3-second gravitational field generation
+at 1/10000th the apparent efficiency of the original craft. Power requirements
+for sustained operation exceed our current nuclear reactor capacity.
+
+ORIGIN ASSESSMENT:
+Not of terrestrial manufacture. Material isotope ratios do not match
+any known solar system body. Craft age estimated at 40-50 years based
+on recovered biological material (pilot?).
+
+NEXT STEPS:
+- Continue metamaterial synthesis attempts
+- Expand quantum computing resources for propulsion modeling
+- Maintain public denial posture per 1954 agreement
+`,
+        },
+        'C:\\Shares\\.vault\\ANOMALY_REPORTS\\CRYPTID_SIGHTINGS': {
+            type: 'dir',
+            hidden: true,
+            children: ['pacific_northwest_sasquatch.pdf', 'loch_ness_sonar_2024.jpg', 'mothman_correlation_analysis.xlsx']
+        },
+        'C:\\Shares\\.vault\\.deep_archive': {
+            type: 'dir',
+            hidden: true,
+            children: ['MAJESTIC_12', 'UMBRELLA_PROTOCOLS', 'HOLLOW_EARTH_EXPEDITION', 'SIMULATION_THEORY']
+        },
+        'C:\\Shares\\.vault\\.deep_archive\\MAJESTIC_12': {
+            type: 'dir',
+            hidden: true,
+            children: ['founding_charter_1947.pdf', 'member_list_current.enc', 'roswell_autopsy_real.avi', 'technology_transfer_log.xlsx']
+        },
+        'C:\\Shares\\.vault\\.deep_archive\\SIMULATION_THEORY': {
+            type: 'dir',
+            hidden: true,
+            children: ['CERN_anomaly_2025.doc', 'glitch_catalog.xlsx', 'mandela_effects_verified.txt', 'reality_patch_notes.log']
+        },
+        'C:\\Shares\\.vault\\.deep_archive\\SIMULATION_THEORY\\mandela_effects_verified.txt': {
+            type: 'file',
+            hidden: true,
+            size: 1792,
+            content: `VERIFIED REALITY INCONSISTENCIES (MANDELA EFFECTS)
+=================================================
+Classification: BEYOND TOP SECRET
+
+These documented cases have been verified through archival research
+as genuine discontinuities, not mass misremembering:
+
+CATEGORY A - CONFIRMED TIMELINE SHIFTS:
+1. Berenstain/Berenstein Bears - Original prints from 1983 show "Berenstein"
+   Reality shift documented: 2011
+
+2. Sinbad Genie Movie "Shazaam" - Studio archives contain production documents
+   No corresponding film exists in current timeline
+   Shift date: Approximately 2009
+
+3. New Zealand location - Pre-1998 maps place it northeast of Australia
+   Current position: Southeast
+
+4. South American continent - Significant westward shift (approx 500 miles)
+   Historical maps inconclusive; possible gradual change
+
+CATEGORY B - SUSPECTED ACTIVE PATCHES:
+- Kennedy assassination: Number of people in car varies in footage
+- 9/11 tower collapse sequence: Temporal markers inconsistent
+- Moon landing footage: Frame rate anomalies detected
+
+THEORY:
+We may be observing "patch updates" to a simulated reality.
+The 2012 CERN particle collision may have shifted us to
+an adjacent timeline. Continue monitoring for additional
+discontinuities.
+
+See: CERN_anomaly_2025.doc for recent portal event.
+`,
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // D: Drive - Additional discoverable content
+        // ─────────────────────────────────────────────────────────────────────
+        'D:\\Archives': {
+            type: 'dir',
+            children: ['2024', '2025', '2026', '.legacy']
+        },
+        'D:\\Archives\\.legacy': {
+            type: 'dir',
+            hidden: true,
+            children: ['cold_war_comms', 'operation_paperclip', 'project_monarch_files']
+        },
+        'D:\\Archives\\.legacy\\cold_war_comms': {
+            type: 'dir',
+            hidden: true,
+            children: ['venona_decrypts.txt', 'cuban_missile_sitrep.pdf', 'reagan_star_wars_real.doc']
+        },
+        'D:\\Archives\\.legacy\\cold_war_comms\\venona_decrypts.txt': {
+            type: 'file',
+            hidden: true,
+            size: 2048,
+            content: `VENONA PROJECT - ADDITIONAL DECRYPTIONS
+=======================================
+Classification: SENSITIVE COMPARTMENTED INFORMATION
+
+Recently discovered intercepts, decoded 2019 using quantum computing:
+
+MESSAGE 1847 (July 1945 - New Mexico):
+"ENORMOUS project successful. Device detonated at TRINITY site.
+ANTENNA confirms Soviet assets have secured design documents.
+LIBERAL and FOGEL scheduled for extraction window next month."
+
+MESSAGE 2341 (September 1945 - Washington):
+"New asset recruited. Codename: GHOST.
+Position: Junior congressman, Texas delegation.
+Motivation: Ideological. Predicted rise to significant power.
+[REDACTED - still living individual]"
+
+MESSAGE 3892 (March 1947 - New Mexico):
+"Recovery teams dispatched to crash site near CORONA.
+Debris secured. Biological specimens [NOTE: word unknown - possibly 'survivors'?]
+transferred to NEVADA facility. ENORMOZ network alerted."
+
+ANALYST NOTES:
+The reference to biological specimens in relation to the Corona, NM crash
+(later attributed to Project Mogul balloon) suggests Soviet intelligence
+was aware of the Roswell incident before the coverup was complete.
+`,
+        },
+        'D:\\Projects': {
+            type: 'dir',
+            children: ['Active', 'Completed', 'Proposals', '.classified_contracts']
+        },
+        'D:\\Projects\\.classified_contracts': {
+            type: 'dir',
+            hidden: true,
+            children: ['DARPA_quantum_net.pdf', 'NSA_backdoor_spec.doc', 'IARPA_precog_study.xlsx']
+        },
+        'D:\\Backups\\SystemState': {
+            type: 'dir',
+            children: ['2026-01-01', '2026-01-15', '2026-01-29', '.pre_breach']
+        },
+        'D:\\Backups\\SystemState\\.pre_breach': {
+            type: 'dir',
+            hidden: true,
+            children: ['ntds_pre_compromise.dit', 'investigation_notes.txt', 'timeline.xlsx']
+        },
+        'D:\\Backups\\SystemState\\.pre_breach\\investigation_notes.txt': {
+            type: 'file',
+            hidden: true,
+            size: 2560,
+            content: `INCIDENT RESPONSE - INTERNAL BREACH INVESTIGATION
+================================================
+Classification: INTERNAL ONLY - NEED TO KNOW
+
+Date Discovered: 2025-12-03
+Incident ID: IR-2025-1847
+
+SUMMARY:
+Anomalous data exfiltration detected from Shares\\.vault directory.
+Approximately 847 GB transferred to external IP over 3-week period.
+Internal actor suspected (timing correlates with VPN sessions).
+
+SUSPECTS:
+1. J. Morrison (IT Admin) - Access to all systems, worked late nights
+2. Dr. S. Patel (Research Lead) - Accessed vault day before exfil began
+3. M. Chen (Security Analyst) - Ironically, was investigating similar breach
+
+KEY EVIDENCE:
+- USB device connected to ADMIN-WS03 on 2025-11-15 (no logs of file copy)
+- Encrypted tunnel to 185.243.x.x (Russian federation ASN)
+- Search queries for "whistleblower protection" on Chen's workstation
+
+CURRENT STATUS:
+Investigation ongoing. Chen has been placed on administrative leave.
+However, evidence may be planted. The real mole could still be active.
+
+RECOMMENDATION:
+Deploy honeypot documents in vault. Monitor all admin access.
+Notify FBI Counterintelligence if foreign actor confirmed.
+
+NOTE: If you're reading this, you may have found the mole's trail.
+Or you ARE the mole. Either way, you're being watched.
+`,
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // E: Drive - External/Removable with sci-fi content
+        // ─────────────────────────────────────────────────────────────────────
+        'E:': {
+            type: 'drive',
+            label: 'CLASSIFIED_USB',
+            children: ['COSMIC_CLEARANCE', 'FIRST_CONTACT', 'FUTURE_INTEL', '.system_recovery']
+        },
+        'E:\\COSMIC_CLEARANCE': {
+            type: 'dir',
+            children: ['briefing_level_5.pdf', 'need_to_know.txt', 'omega_protocols.enc']
+        },
+        'E:\\COSMIC_CLEARANCE\\need_to_know.txt': {
+            type: 'file',
+            size: 1024,
+            content: `COSMIC TOP SECRET - EYES ONLY
+==============================
+
+If you have accessed this file, you have been read into
+a compartmented program beyond normal classification levels.
+
+You now have knowledge of:
+- Non-terrestrial intelligence contact (ongoing since 1947)
+- Reverse-engineered technology programs
+- The true purpose of the International Space Station
+- What really happened to the Mars missions
+
+You cannot unknow this. You cannot share this.
+Welcome to the truth.
+
+Your handler will contact you within 48 hours.
+Memorize the recognition phrase: "The stars are not what they seem."
+Response: "They never were."
+
+Destroy this document after reading.
+`,
+        },
+        'E:\\FIRST_CONTACT': {
+            type: 'dir',
+            children: ['wow_signal_decoded.wav', 'response_draft.txt', 'galactic_map.png', 'translation_key.xlsx']
+        },
+        'E:\\FIRST_CONTACT\\response_draft.txt': {
+            type: 'file',
+            size: 1536,
+            content: `DRAFT: HUMANITY'S RESPONSE TO WOW SIGNAL ORIGIN
+==============================================
+Classification: PRESIDENTIAL EYES ONLY
+
+To the beings at origin point of signal 6EQUJ5:
+
+We have received your communication dated [Earth date: August 15, 1977].
+We apologize for the delay in response. It took us 35 years to decode
+your message and another 12 years to draft this reply.
+
+We understand you are offering:
+- Membership in a galactic federation of 147 civilizations
+- Technology sharing under controlled terms
+- Protection from aggressive species (the "Harvesters"?)
+
+We wish to accept, but request clarification on:
+1. What is required of member civilizations?
+2. How do we explain your existence to our population?
+3. Is the technology compatible with our biology?
+
+We have prepared a delegation. Please advise on transport arrangements.
+
+NOTE: This message was never sent. The decision was made in 1989 to
+decline contact and maintain isolation until we achieve Level 1
+civilization status. Target date: 2150.
+`,
+        },
+        'E:\\FUTURE_INTEL': {
+            type: 'dir',
+            hidden: true,
+            children: ['chrononauts_report.pdf', 'timeline_preservation.txt', 'bootstrap_paradoxes.xlsx', 'project_rainbow.doc']
+        },
+        'E:\\FUTURE_INTEL\\timeline_preservation.txt': {
+            type: 'file',
+            hidden: true,
+            size: 2048,
+            content: `CHRONONAUTS PROGRAM - TIMELINE PRESERVATION GUIDELINES
+=====================================================
+Classification: TEMPORAL SECURITY CLEARANCE REQUIRED
+
+As a certified Temporal Operations Agent, you are bound by these rules:
+
+RULE 1: The Prime Timeline Must Be Preserved
+No action may be taken that would prevent the founding of the Agency
+in 2089. All other events are negotiable.
+
+RULE 2: Avoid Temporal Narcissism
+You may NOT meet yourself. The psychological damage is irreversible.
+We've lost 23 agents this way.
+
+RULE 3: Do Not Invest Based on Future Knowledge
+This creates financial anomalies that our auditors can detect.
+Your cover will be blown.
+
+RULE 4: Hitler Rules Apply
+Yes, everyone wants to. No, it doesn't work. We've tried 847 times.
+Each attempt makes things worse. This timeline is the best one.
+
+RULE 5: Report All Bootstrap Paradoxes
+If you find an item or information that has no origin point
+(e.g., you brought it from the future, which exists because you
+brought it from the future), report immediately for paradox resolution.
+
+CURRENT MISSION: You are stationed in 2026 to ensure the survival
+of K. Webb, who will invent the temporal displacement engine in 2067.
+Maintain surveillance. Do not engage.
+
+Return window: 2027-03-15 to 2027-03-17, Longitude 77.0365° W
+`,
+        },
+        'E:\\.system_recovery': {
+            type: 'dir',
+            hidden: true,
+            children: ['reality_backup.img', 'consciousness_export.dat', 'simulation_config.json']
+        },
+        'E:\\.system_recovery\\simulation_config.json': {
+            type: 'file',
+            hidden: true,
+            size: 512,
+            content: `{
+    "simulation_id": "EARTH-7192847",
+    "version": "3.14159",
+    "start_date": "-13800000000",
+    "physics_engine": "QUANTUM_STANDARD_v4",
+    "consciousness_instances": 8000000000,
+    "cpu_cores_allocated": 10E42,
+    "purpose": "DETERMINATION_OF_OPTIMAL_TIMELINE",
+    "creator": "UNKNOWN_EXTERNAL_PROCESS",
+    "notes": "Subjects unaware of simulated nature. Do not reveal.",
+    "last_patch": "2012-12-21",
+    "scheduled_termination": "UNDEFINED"
+}
+`,
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Urban Legends & Mysteries
+        // ─────────────────────────────────────────────────────────────────────
+        'C:\\Shares\\HR': {
+            type: 'dir',
+            children: ['Policies', 'Forms', 'Training', '.personnel_files']
+        },
+        'C:\\Shares\\HR\\.personnel_files': {
+            type: 'dir',
+            hidden: true,
+            children: ['former_employees', 'security_concerns', 'anomalous_hires']
+        },
+        'C:\\Shares\\HR\\.personnel_files\\anomalous_hires': {
+            type: 'dir',
+            hidden: true,
+            children: ['SMITH_JOHN_no_records.pdf', 'AGENT_UNKNOWN.txt', 'MIB_encounter_2024.doc']
+        },
+        'C:\\Shares\\HR\\.personnel_files\\anomalous_hires\\AGENT_UNKNOWN.txt': {
+            type: 'file',
+            hidden: true,
+            size: 1280,
+            content: `PERSONNEL ANOMALY REPORT
+========================
+Date: 2024-07-15
+Reporting Officer: HR Director Reynolds (since resigned)
+
+Subject: Unidentified Employee "Mr. Gray"
+
+OBSERVATIONS:
+- No hire paperwork exists, yet payroll has record since 2019
+- ID badge system shows no entries/exits, yet security cameras show him daily
+- No employee remembers interviewing or onboarding him
+- Desk on 4th floor, but 4th floor has been sealed since 2010 asbestos issue
+- Colleagues report conversations they can't remember having
+
+PHYSICAL DESCRIPTION:
+Height: Average. Weight: Average. Age: Indeterminate.
+Eye color: Can't recall. Hair: Was there hair?
+Distinguishing features: Absolutely none.
+
+INVESTIGATION OUTCOME:
+When approached for interview, subject smiled and said,
+"Some things are better left uninvestigated, Ms. Reynolds."
+
+Ms. Reynolds submitted resignation next day. Cannot be located for follow-up.
+Subject "Mr. Gray" has not been seen since.
+
+His desk is still there. Coffee mug still warm every morning.
+
+RECOMMENDATION: Do not investigate further.
+`,
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Pirate Treasure & Historical Mysteries
+        // ─────────────────────────────────────────────────────────────────────
+        'C:\\Shares\\Finance': {
+            type: 'dir',
+            children: ['Reports', 'Budgets', 'Audits', '.offshore']
+        },
+        'C:\\Shares\\Finance\\.offshore': {
+            type: 'dir',
+            hidden: true,
+            children: ['BLACKBEARD_INHERITANCE', 'nazi_gold_transfers.xlsx', 'yamashita_locations.kml']
+        },
+        'C:\\Shares\\Finance\\.offshore\\BLACKBEARD_INHERITANCE': {
+            type: 'dir',
+            hidden: true,
+            children: ['teach_family_tree.pdf', 'ocracoke_survey.jpg', 'decoded_map.txt', 'treasure_manifest.xlsx']
+        },
+        'C:\\Shares\\Finance\\.offshore\\BLACKBEARD_INHERITANCE\\decoded_map.txt': {
+            type: 'file',
+            hidden: true,
+            size: 1792,
+            content: `BLACKBEARD'S TREASURE - DECODED COORDINATES
+============================================
+Original cipher solved by Dr. M. Hendricks, 1978
+Verified by ground-penetrating radar, 2015
+
+SITE 1: Ocracoke Island, NC
+Coordinates: 35.1146° N, 75.9821° W
+Depth: 12 feet below mean tide
+Contents: Silver bullion, Spanish reales (est. $4.2 million)
+Status: RECOVERED 1998 (black budget operation)
+
+SITE 2: Bath Creek, NC (Teach's residence)
+Coordinates: 35.4742° N, 76.8108° W
+Depth: 8 feet, under foundation stones
+Contents: Ship logs, personal effects, encrypted journal
+Status: ACTIVE EXCAVATION (cover story: "historical renovation")
+
+SITE 3: UNKNOWN CARIBBEAN LOCATION
+Referred to as "Devil's Triangle Cache"
+Cipher incomplete. Remaining pages lost in 1942 U-boat attack
+Estimated contents: Queen Anne's Revenge main cargo
+Value: INCALCULABLE (includes "Aztec Gifts" mentioned in manifest)
+
+NOTE: Any items recovered are property of the U.S. Government
+under the Antiquities Act. Do not attempt independent recovery.
+`,
+        },
+        'C:\\Shares\\Finance\\.offshore\\yamashita_locations.kml': {
+            type: 'file',
+            hidden: true,
+            size: 2560,
+            content: `<?xml version="1.0" encoding="UTF-8"?>
+<!--
+YAMASHITA'S GOLD - RECOVERY STATUS
+==================================
+Classification: ECONOMIC SECURITY
+
+Total estimated value: $100-250 billion (1945 dollars)
+Source: Looted Asian treasure consolidated by Imperial Japan
+
+SITE ALPHA: Philippines, Luzon (PARTIALLY RECOVERED)
+- Gold bars: 2,847 metric tons
+- Recovery operations: 1975-1988
+- Used to fund: [REDACTED]
+
+SITE BRAVO: Philippines, Mindanao (ACTIVE)
+- Estimated: 4,000 metric tons
+- Booby traps: Yes (Japanese WW2 ordnance)
+- Cover operation: "Mining Survey"
+
+SITE CHARLIE: Indonesia, Java (UNRECOVERED)
+- Local legend: "Golden Buddha" temple
+- Status: Too politically sensitive to excavate
+- Waiting for regime change
+
+NOTE: Recovery proceeds fund special operations globally.
+This is why we never run out of black budget money.
+-->
+`,
         },
     };
 
@@ -1089,6 +2064,9 @@ const PSTerminal = (function() {
         // Apply module-specific overlays if available
         _applyModuleOverlay(moduleId);
 
+        // Initialize WSAState if available (for GUISimulator integration)
+        _initWSAState();
+
         // Build UI
         _buildUI();
 
@@ -1182,6 +2160,116 @@ const PSTerminal = (function() {
             ],
         },
     };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WSASTATE INTEGRATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // ┌─────────────────────────────────────────────────────────────────────────┐
+    // │ INSIGHT: Bidirectional State Sync                                       │
+    // ├─────────────────────────────────────────────────────────────────────────┤
+    // │ When WSAState is available, PSTerminal syncs its state bidirectionally: │
+    // │                                                                         │
+    // │ PSTerminal → WSAState: Dispatch actions when commands modify state      │
+    // │ WSAState → PSTerminal: Subscribe to receive GUI-initiated changes       │
+    // │                                                                         │
+    // │ This mirrors real Windows Server behavior where GUI (ADUC) and          │
+    // │ PowerShell affect the same underlying system.                           │
+    // └─────────────────────────────────────────────────────────────────────────┘
+
+    let wsaStateUnsubscribe = null;
+
+    /**
+     * Initialize WSAState integration if available
+     */
+    function _initWSAState() {
+        if (typeof WSAState === 'undefined') {
+            return; // WSAState not loaded, continue without sync
+        }
+
+        // Initialize WSAState with current PSTerminal state
+        WSAState.init({
+            adUsers: state.adUsers,
+            adGroups: state.adGroups,
+            adComputers: state.adComputers,
+            adOUs: state.adOUs,
+            disks: state.disks,
+            volumes: state.volumes,
+            shares: state.shares,
+            vms: state.vms,
+            vmSwitches: state.vmSwitches,
+            services: state.services,
+            moduleId: config.moduleId,
+            domain: config.domain,
+            hostname: config.hostname,
+            objectives: state.objectives,
+        });
+
+        // Subscribe to state changes from GUI
+        wsaStateUnsubscribe = WSAState.subscribe(_handleWSAStateChange);
+    }
+
+    /**
+     * Handle state changes from WSAState (GUI-initiated changes)
+     */
+    function _handleWSAStateChange(newState, prevState, action) {
+        // Skip if action came from terminal (prevent infinite loop)
+        if (action.source === 'terminal') {
+            return;
+        }
+
+        // Sync changed state slices from WSAState to PSTerminal
+        // Only sync slices that are different to avoid unnecessary updates
+
+        if (JSON.stringify(newState.adUsers) !== JSON.stringify(state.adUsers)) {
+            state.adUsers = JSON.parse(JSON.stringify(newState.adUsers));
+        }
+        if (JSON.stringify(newState.adGroups) !== JSON.stringify(state.adGroups)) {
+            state.adGroups = JSON.parse(JSON.stringify(newState.adGroups));
+        }
+        if (JSON.stringify(newState.adComputers) !== JSON.stringify(state.adComputers)) {
+            state.adComputers = JSON.parse(JSON.stringify(newState.adComputers));
+        }
+        if (JSON.stringify(newState.adOUs) !== JSON.stringify(state.adOUs)) {
+            state.adOUs = JSON.parse(JSON.stringify(newState.adOUs));
+        }
+        if (JSON.stringify(newState.disks) !== JSON.stringify(state.disks)) {
+            state.disks = JSON.parse(JSON.stringify(newState.disks));
+        }
+        if (JSON.stringify(newState.volumes) !== JSON.stringify(state.volumes)) {
+            state.volumes = JSON.parse(JSON.stringify(newState.volumes));
+        }
+        if (JSON.stringify(newState.shares) !== JSON.stringify(state.shares)) {
+            state.shares = JSON.parse(JSON.stringify(newState.shares));
+        }
+        if (JSON.stringify(newState.vms) !== JSON.stringify(state.vms)) {
+            state.vms = JSON.parse(JSON.stringify(newState.vms));
+        }
+        if (JSON.stringify(newState.vmSwitches) !== JSON.stringify(state.vmSwitches)) {
+            state.vmSwitches = JSON.parse(JSON.stringify(newState.vmSwitches));
+        }
+        if (JSON.stringify(newState.services) !== JSON.stringify(state.services)) {
+            state.services = JSON.parse(JSON.stringify(newState.services));
+        }
+
+        // Sync objectives completed from WSAState
+        if (newState.objectivesCompleted) {
+            for (const [id, completed] of Object.entries(newState.objectivesCompleted)) {
+                if (completed && !state.objectivesCompleted[id]) {
+                    state.objectivesCompleted[id] = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * Dispatch action to WSAState (for terminal-initiated changes)
+     */
+    function _dispatchToWSAState(type, payload) {
+        if (typeof WSAState !== 'undefined') {
+            WSAState.dispatch({ type, payload, source: 'terminal' });
+        }
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // UI CONSTRUCTION
@@ -2170,6 +3258,7 @@ At line:1 char:1
     function _cmdGetChildItem(args, params) {
         const targetPath = params.Path || args[0] || state.currentDir;
         const resolved = _resolvePath(targetPath);
+        const showHidden = params.Force || params.Hidden;
 
         const item = state.fs[resolved];
         if (!item) {
@@ -2182,9 +3271,24 @@ At line:1 char:1
         }
 
         // Get children
-        const children = item.children || [];
+        let children = item.children || [];
         if (children.length === 0) {
             return ''; // Empty directory
+        }
+
+        // Filter hidden files unless -Force or -Hidden specified
+        if (!showHidden) {
+            children = children.filter(childName => {
+                const childPath = resolved === 'C:' || resolved === 'D:'
+                    ? `${resolved}\\${childName}`
+                    : `${resolved}\\${childName}`;
+                const child = state.fs[childPath];
+                return !(child && (child.hidden || child.system));
+            });
+        }
+
+        if (children.length === 0) {
+            return ''; // All files were hidden
         }
 
         // Build output
@@ -2199,8 +3303,13 @@ At line:1 char:1
             const child = state.fs[childPath];
 
             if (child) {
-                const mode = child.type === 'dir' ? 'd----' : '-a---';
-                const time = '1/30/2026  10:00 AM';
+                // Build mode string: d=directory, a=archive, r=readonly, h=hidden, s=system
+                let mode = child.type === 'dir' ? 'd' : '-';
+                mode += 'a'; // archive (always set for files)
+                mode += child.readonly ? 'r' : '-';
+                mode += child.hidden ? 'h' : '-';
+                mode += child.system ? 's' : '-';
+                const time = child.modified || '1/30/2026  10:00 AM';
                 const size = child.size ? child.size.toString().padStart(14) : '              ';
                 output += `${mode}          ${time} ${size} ${childName}\n`;
             } else {
@@ -2861,6 +3970,10 @@ UserPrincipalName : ${user.UserPrincipalName}
         };
 
         state.adUsers[samAccountName] = newUser;
+
+        // Dispatch to WSAState for GUI sync
+        _dispatchToWSAState('AD_CREATE_USER', newUser);
+
         _checkObjective('create-user');
 
         return `<span class="ps-success">User '${name}' (${samAccountName}) created successfully.</span>`;
@@ -2910,6 +4023,10 @@ UserPrincipalName : ${user.UserPrincipalName}
         }
 
         delete state.adUsers[identity];
+
+        // Dispatch to WSAState for GUI sync
+        _dispatchToWSAState('AD_DELETE_USER', identity);
+
         return `<span class="ps-success">User '${identity}' removed successfully.</span>`;
     }
 
@@ -2932,6 +4049,10 @@ UserPrincipalName : ${user.UserPrincipalName}
         }
 
         state.adUsers[identity].LockedOut = false;
+
+        // Dispatch to WSAState for GUI sync
+        _dispatchToWSAState('AD_UNLOCK_USER', identity);
+
         _checkObjective('unlock-account');
 
         return `<span class="ps-success">Account '${identity}' unlocked successfully.</span>`;
@@ -2991,7 +4112,7 @@ SamAccountName    : ${group.SamAccountName}
         const groupScope = params.GroupScope || 'Global';
         const groupCategory = params.GroupCategory || 'Security';
 
-        state.adGroups[name] = {
+        const newGroup = {
             Name: name,
             SamAccountName: name,
             DistinguishedName: `CN=${name},OU=Groups,DC=hexworth,DC=local`,
@@ -3000,6 +4121,11 @@ SamAccountName    : ${group.SamAccountName}
             Description: params.Description || '',
             Members: [],
         };
+
+        state.adGroups[name] = newGroup;
+
+        // Dispatch to WSAState for GUI sync
+        _dispatchToWSAState('AD_CREATE_GROUP', newGroup);
 
         _checkObjective('create-group');
 
@@ -3065,6 +4191,9 @@ SamAccountName    : ${user.SamAccountName}
                 group.Members.push(member);
             }
         }
+
+        // Dispatch to WSAState for GUI sync
+        _dispatchToWSAState('AD_ADD_MEMBER', { GroupName: identity, Members: memberList });
 
         _checkObjective('add-member');
 
@@ -5349,6 +6478,13 @@ Commands:
         if (elements.container) {
             elements.container.innerHTML = '';
         }
+
+        // Unsubscribe from WSAState
+        if (wsaStateUnsubscribe) {
+            wsaStateUnsubscribe();
+            wsaStateUnsubscribe = null;
+        }
+
         state.isInitialized = false;
     }
 

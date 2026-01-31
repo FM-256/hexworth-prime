@@ -389,6 +389,11 @@ const AchievementManager = (function() {
         console.log(`%c🏆 Achievement Unlocked: ${achievement.name} (+${achievement.points} pts)`,
             'color: #ffd700; font-size: 14px; font-weight: bold;');
 
+        // Record in Activity Feed
+        if (typeof ActivityFeed !== 'undefined') {
+            ActivityFeed.achievementUnlock(achievementId, achievement.name);
+        }
+
         return true;
     }
 

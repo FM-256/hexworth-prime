@@ -77,6 +77,11 @@ const ModuleProgress = (function() {
 
         console.log(`📚 Module completed: ${houseId}/${moduleId}`);
 
+        // Record in Activity Feed
+        if (typeof ActivityFeed !== 'undefined') {
+            ActivityFeed.moduleComplete(moduleId, moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+        }
+
         // Return to dashboard
         if (returnToDashboard) {
             setTimeout(() => {

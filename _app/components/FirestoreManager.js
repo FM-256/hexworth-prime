@@ -661,6 +661,80 @@ const FirestoreManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // CLOUD RESTORE (New Device / Fresh Cache)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Restore user data from Firestore to localStorage
+     * Used when returning user signs in on a new device or after cache clear
+     * @param {string} uid - User's Firebase UID
+     * @returns {object} - { restored: boolean, house: string|null, theme: string|null, profile: object|null }
+     */
+    async function restoreFromCloud(uid) {
+        if (!initialized) await init();
+        if (!db) return { restored: false, reason: 'db_unavailable' };
+
+        try {
+            const profile = await getUserProfile(uid);
+
+            if (!profile) {
+                console.log('[FirestoreManager] No cloud profile found for user');
+                return { restored: false, reason: 'no_profile' };
+            }
+
+            console.log('[FirestoreManager] Restoring from cloud:', profile);
+
+            // Restore house
+            if (profile.house) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.house, profile.house);
+            }
+
+            // Restore theme (stored separately in Firestore if available, otherwise infer from house)
+            const theme = profile.theme || (profile.house === 'operator' ? 'matrix' : 'magic');
+            localStorage.setItem('hexworth_theme', theme);
+
+            // Restore progress arrays
+            if (profile.modulesCompleted && profile.modulesCompleted.length > 0) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(profile.modulesCompleted));
+            }
+
+            if (profile.achievements && profile.achievements.length > 0) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.achievements, JSON.stringify(profile.achievements));
+            }
+
+            if (profile.quizzes && Object.keys(profile.quizzes).length > 0) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(profile.quizzes));
+            }
+
+            if (profile.labsCompleted && profile.labsCompleted.length > 0) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.labProgress, JSON.stringify(profile.labsCompleted));
+            }
+
+            // Restore XP and streak
+            if (profile.xp) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.xp, profile.xp.toString());
+            }
+
+            if (profile.streak) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.streak, profile.streak.toString());
+            }
+
+            console.log('[FirestoreManager] Cloud data restored to localStorage');
+
+            return {
+                restored: true,
+                house: profile.house || null,
+                theme: theme,
+                profile: profile,
+                hasHouse: !!profile.house
+            };
+        } catch (error) {
+            console.error('[FirestoreManager] Failed to restore from cloud:', error);
+            return { restored: false, reason: 'error', error: error.message };
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // NEW USER SETUP
     // ═══════════════════════════════════════════════════════════════
 
@@ -801,9 +875,10 @@ const FirestoreManager = (function() {
         completeLab,
         recalculateXP,
 
-        // Migration
+        // Migration & Restore
         getLocalStorageProgress,
         migrateFromLocalStorage,
+        restoreFromCloud,
 
         // Grandfathering
         grandfatherUser,
