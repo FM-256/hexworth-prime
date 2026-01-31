@@ -2634,22 +2634,96 @@ SHADOW COPIES:
             }
         } else if (e.key === 'Tab') {
             e.preventDefault();
-            // Basic tab completion for paths
             const val = terminalInput.value;
             const words = val.split(' ');
             const lastWord = words[words.length - 1];
-            if (lastWord.startsWith('C:\\') || lastWord.startsWith('c:\\')) {
-                const matches = Object.keys(fileSystem).filter(p => p.toLowerCase().startsWith(lastWord.toLowerCase()));
+            const isFirstWord = words.length === 1;
+
+            // Command completion for first word
+            if (isFirstWord && lastWord.length > 0) {
+                const commands = [
+                    'help', 'clear', 'cls', 'exit',
+                    'ls', 'dir', 'cd', 'pwd', 'cat', 'type',
+                    'hostname', 'whoami', 'ipconfig', 'systeminfo',
+                    'Get-ChildItem', 'Get-Content', 'Get-Location', 'Set-Location',
+                    'Get-Service', 'Get-Process', 'Get-Disk', 'Get-NetIPAddress',
+                    'Get-ADUser', 'Get-ADGroup', 'Get-ADOrganizationalUnit',
+                    'Get-DnsServerZone', 'Get-DhcpServerv4Scope', 'Get-SmbShare',
+                    'Get-VM', 'Get-VMSwitch', 'Get-GPO',
+                    'New-ADUser', 'New-ADGroup', 'New-ADOrganizationalUnit',
+                    'Install-WindowsFeature', 'Add-DnsServerPrimaryZone', 'Add-DnsServerResourceRecordA',
+                    'Add-DhcpServerv4Scope', 'Initialize-Disk', 'New-Partition', 'Format-Volume',
+                    'New-SmbShare', 'New-GPO', 'New-GPLink',
+                    'Install-ADDSForest', 'New-VMSwitch', 'New-VM', 'Checkpoint-VM'
+                ];
+                const matches = commands.filter(c => c.toLowerCase().startsWith(lastWord.toLowerCase()));
                 if (matches.length === 1) {
-                    words[words.length - 1] = matches[0];
+                    terminalInput.value = matches[0];
+                } else if (matches.length > 1) {
+                    addLine(`PS ${currentDir}> ${val}`, 'prompt');
+                    matches.slice(0, 8).forEach(m => addLine('  ' + m));
+                    if (matches.length > 8) addLine(`  ... and ${matches.length - 8} more`);
+                    // Find common prefix for partial completion
+                    const common = findCommonPrefix(matches);
+                    if (common.length > lastWord.length) {
+                        terminalInput.value = common;
+                    }
+                }
+            }
+            // Path completion
+            else if (lastWord.length > 0) {
+                let searchPath = lastWord;
+                let isAbsolute = lastWord.match(/^[A-Za-z]:\\/);
+
+                // Convert relative path to absolute for matching
+                if (!isAbsolute) {
+                    searchPath = currentDir.endsWith('\\') ? currentDir + lastWord : currentDir + '\\' + lastWord;
+                }
+
+                const matches = Object.keys(fileSystem).filter(p =>
+                    p.toLowerCase().startsWith(searchPath.toLowerCase())
+                );
+
+                if (matches.length === 1) {
+                    if (isAbsolute) {
+                        words[words.length - 1] = matches[0];
+                    } else {
+                        // Return relative path
+                        const basePath = currentDir.endsWith('\\') ? currentDir : currentDir + '\\';
+                        words[words.length - 1] = matches[0].replace(basePath, '');
+                    }
                     terminalInput.value = words.join(' ');
                 } else if (matches.length > 1) {
                     addLine(`PS ${currentDir}> ${val}`, 'prompt');
-                    matches.slice(0, 5).forEach(m => addLine('  ' + m));
-                    if (matches.length > 5) addLine(`  ... and ${matches.length - 5} more`);
+                    matches.slice(0, 8).forEach(m => {
+                        const display = isAbsolute ? m : m.replace(currentDir.endsWith('\\') ? currentDir : currentDir + '\\', '');
+                        addLine('  ' + display);
+                    });
+                    if (matches.length > 8) addLine(`  ... and ${matches.length - 8} more`);
+                }
+            }
+            // Show directory contents if empty path argument
+            else if (words.length > 1 && lastWord === '') {
+                const currentNode = fileSystem[currentDir];
+                if (currentNode && currentNode.children) {
+                    addLine(`PS ${currentDir}> ${val}`, 'prompt');
+                    currentNode.children.slice(0, 8).forEach(c => addLine('  ' + c));
+                    if (currentNode.children.length > 8) addLine(`  ... and ${currentNode.children.length - 8} more`);
                 }
             }
         }
+    });
+
+    function findCommonPrefix(strings) {
+        if (strings.length === 0) return '';
+        let prefix = strings[0];
+        for (let i = 1; i < strings.length; i++) {
+            while (!strings[i].toLowerCase().startsWith(prefix.toLowerCase())) {
+                prefix = prefix.slice(0, -1);
+            }
+        }
+        return prefix;
+    }
     });
 
     function processCommand(cmd) {
