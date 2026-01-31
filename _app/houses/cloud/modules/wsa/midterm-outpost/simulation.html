@@ -2091,6 +2091,496 @@
     const terminalInput = document.getElementById('terminalInput');
     const commandHistory = [];
     let historyIndex = -1;
+    let currentDir = 'C:\\';
+
+    // Simulated File System with helpful documentation
+    const fileSystem = {
+        'C:\\': {
+            type: 'dir',
+            children: ['Users', 'Windows', 'Docs', 'Scripts', 'Reference']
+        },
+        'C:\\Users': {
+            type: 'dir',
+            children: ['Administrator']
+        },
+        'C:\\Users\\Administrator': {
+            type: 'dir',
+            children: ['Desktop', 'Documents']
+        },
+        'C:\\Users\\Administrator\\Desktop': {
+            type: 'dir',
+            children: ['OUTPOST-README.txt']
+        },
+        'C:\\Users\\Administrator\\Desktop\\OUTPOST-README.txt': {
+            type: 'file',
+            content: `OUTPOST Branch Office Deployment
+================================
+Welcome to the Seattle branch deployment simulation.
+
+Your mission: Deploy a complete Windows Server infrastructure.
+
+QUICK START:
+1. Configure network: New-NetIPAddress -IPAddress 192.168.50.10 -DefaultGateway 192.168.50.1
+2. Set DNS: Set-DnsClientServerAddress -ServerAddresses 192.168.1.10
+3. Join domain: Add-Computer -DomainName hexworth.local
+4. Promote to DC: Install-ADDSDomainController
+
+Type 'status' to see your progress.
+Type 'ls C:\\Docs' for phase-by-phase guides.
+Type 'ls C:\\Scripts' for example commands.`
+        },
+        'C:\\Docs': {
+            type: 'dir',
+            children: ['Phase1-Foundation.txt', 'Phase2-Identity.txt', 'Phase3-Networking.txt', 'Phase4-Storage.txt', 'Phase5-Security.txt', 'Phase6-Virtualization.txt', 'CheatSheet.txt']
+        },
+        'C:\\Docs\\Phase1-Foundation.txt': {
+            type: 'file',
+            content: `PHASE 1: FOUNDATION
+===================
+Objectives:
+[ ] Configure server static IP (192.168.50.10)
+[ ] Set DNS to point to HQ (192.168.1.10)
+[ ] Join hexworth.local domain
+[ ] Promote to Domain Controller
+
+COMMANDS:
+---------
+# Set static IP address
+New-NetIPAddress -IPAddress 192.168.50.10 -DefaultGateway 192.168.50.1 -PrefixLength 24 -InterfaceAlias Ethernet
+
+# Configure DNS
+Set-DnsClientServerAddress -InterfaceAlias Ethernet -ServerAddresses 192.168.1.10
+
+# Join the domain
+Add-Computer -DomainName hexworth.local -Credential (Get-Credential)
+
+# Promote to Domain Controller
+Install-ADDSDomainController -DomainName hexworth.local
+
+TIPS:
+- HQ Domain Controller is at 192.168.1.10
+- Seattle branch uses 192.168.50.0/24 subnet
+- Gateway should be 192.168.50.1`
+        },
+        'C:\\Docs\\Phase2-Identity.txt': {
+            type: 'file',
+            content: `PHASE 2: IDENTITY
+=================
+Objectives:
+[ ] Create Seattle OU
+[ ] Create Users sub-OU
+[ ] Create 10+ user accounts
+[ ] Create 3+ security groups
+
+COMMANDS:
+---------
+# Create main Seattle OU
+New-ADOrganizationalUnit -Name "Seattle" -Path "DC=hexworth,DC=local"
+
+# Create sub-OUs
+New-ADOrganizationalUnit -Name "Users" -Path "OU=Seattle,DC=hexworth,DC=local"
+New-ADOrganizationalUnit -Name "Computers" -Path "OU=Seattle,DC=hexworth,DC=local"
+New-ADOrganizationalUnit -Name "Groups" -Path "OU=Seattle,DC=hexworth,DC=local"
+
+# Create users
+New-ADUser -Name "John Smith" -SamAccountName jsmith -Path "OU=Users,OU=Seattle,DC=hexworth,DC=local"
+New-ADUser -Name "Jane Doe" -SamAccountName jdoe -Path "OU=Users,OU=Seattle,DC=hexworth,DC=local"
+
+# Create security groups
+New-ADGroup -Name "SEA-IT-Team" -GroupScope Global -Path "OU=Groups,OU=Seattle,DC=hexworth,DC=local"
+New-ADGroup -Name "SEA-Finance" -GroupScope Global
+New-ADGroup -Name "SEA-HR" -GroupScope Global
+
+TIPS:
+- Use meaningful naming conventions (SEA- prefix for Seattle)
+- Create groups for each department`
+        },
+        'C:\\Docs\\Phase3-Networking.txt': {
+            type: 'file',
+            content: `PHASE 3: NETWORKING
+===================
+Objectives:
+[ ] Create seattle.hexworth.local DNS zone
+[ ] Create reverse lookup zone
+[ ] Create DHCP scope (192.168.50.x)
+[ ] Configure DHCP options (DNS, Gateway)
+
+DNS COMMANDS:
+-------------
+# Create forward lookup zone
+Add-DnsServerPrimaryZone -Name "seattle.hexworth.local" -ZoneFile "seattle.hexworth.local.dns"
+
+# Create reverse lookup zone
+Add-DnsServerPrimaryZone -NetworkId "192.168.50.0/24" -ReverseLookupZone
+
+DHCP COMMANDS:
+--------------
+# Install DHCP role first
+Install-WindowsFeature -Name DHCP -IncludeManagementTools
+
+# Create DHCP scope
+Add-DhcpServerv4Scope -Name "Seattle-LAN" -StartRange 192.168.50.100 -EndRange 192.168.50.200 -SubnetMask 255.255.255.0
+
+# Set DHCP options
+Set-DhcpServerv4OptionValue -Router 192.168.50.1 -DnsServer 192.168.50.10
+
+TIPS:
+- DHCP range: 192.168.50.100-200 leaves room for static IPs
+- Always set DNS and Gateway options`
+        },
+        'C:\\Docs\\Phase4-Storage.txt': {
+            type: 'file',
+            content: `PHASE 4: STORAGE
+================
+Objectives:
+[ ] Initialize Disk 1
+[ ] Create volume on Disk 1
+[ ] Create department file shares
+[ ] Enable shadow copies
+
+COMMANDS:
+---------
+# View available disks
+Get-Disk
+
+# Initialize the data disk
+Initialize-Disk -Number 1 -PartitionStyle GPT
+
+# Create and format volume
+New-Volume -DiskNumber 1 -DriveLetter D -FileSystem NTFS -FriendlyName "Data"
+
+# Create folder structure
+New-Item -Path "D:\\Shares\\Finance" -ItemType Directory
+New-Item -Path "D:\\Shares\\HR" -ItemType Directory
+New-Item -Path "D:\\Shares\\IT" -ItemType Directory
+
+# Create SMB shares
+New-SmbShare -Name "Finance$" -Path "D:\\Shares\\Finance" -FullAccess "SEA-Finance"
+New-SmbShare -Name "HR$" -Path "D:\\Shares\\HR" -FullAccess "SEA-HR"
+
+# Enable shadow copies
+vssadmin add shadowstorage /for=D: /on=D: /maxsize=10%
+vssadmin create shadow /for=D:
+
+TIPS:
+- Use $ suffix for hidden shares
+- Set appropriate NTFS permissions after creating shares`
+        },
+        'C:\\Docs\\Phase5-Security.txt': {
+            type: 'file',
+            content: `PHASE 5: SECURITY
+=================
+Objectives:
+[ ] Create Seattle baseline GPO
+[ ] Configure password policy in GPO
+[ ] Enable audit policy in GPO
+[ ] Link GPO to Seattle OU
+
+COMMANDS:
+---------
+# Create new GPO
+New-GPO -Name "SEC-Seattle-Baseline"
+
+# Link GPO to Seattle OU
+New-GPLink -Name "SEC-Seattle-Baseline" -Target "OU=Seattle,DC=hexworth,DC=local"
+
+# Configure password policy (via GUI or these registry settings)
+Set-GPRegistryValue -Name "SEC-Seattle-Baseline" -Key "HKLM\\Software\\Policies\\Password" -ValueName "MinLength" -Value 12 -Type DWord
+
+# Configure audit policy
+Set-GPRegistryValue -Name "SEC-Seattle-Baseline" -Key "HKLM\\Software\\Policies\\Audit" -ValueName "AuditLogon" -Value 1 -Type DWord
+
+TIPS:
+- Password policy: min 12 chars, complexity, 90-day max age
+- Audit: logon events, object access, policy changes
+- Use the GUI GPO tool for easier configuration`
+        },
+        'C:\\Docs\\Phase6-Virtualization.txt': {
+            type: 'file',
+            content: `PHASE 6: VIRTUALIZATION
+=======================
+Objectives:
+[ ] Install Hyper-V role
+[ ] Create virtual switch
+[ ] Create application server VM
+[ ] Create VM checkpoint
+
+COMMANDS:
+---------
+# Install Hyper-V
+Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -Restart
+
+# Create virtual switch
+New-VMSwitch -Name "Seattle-LAN" -SwitchType Internal
+
+# Create new VM
+New-VM -Name "SEA-APP01" -MemoryStartupBytes 4GB -NewVHDPath "C:\\VMs\\SEA-APP01.vhdx" -NewVHDSizeBytes 60GB
+
+# Configure VM
+Set-VM -Name "SEA-APP01" -ProcessorCount 2
+Connect-VMNetworkAdapter -VMName "SEA-APP01" -SwitchName "Seattle-LAN"
+
+# Create checkpoint before testing
+Checkpoint-VM -Name "SEA-APP01" -SnapshotName "Initial-Config"
+
+TIPS:
+- Use Internal switch for isolated lab network
+- Create checkpoints before major changes
+- 4GB RAM and 2 vCPUs is good for app server`
+        },
+        'C:\\Docs\\CheatSheet.txt': {
+            type: 'file',
+            content: `POWERSHELL CHEAT SHEET
+======================
+
+NETWORK CONFIGURATION:
+  Get-NetIPAddress                    - View IP config
+  New-NetIPAddress -IPAddress X       - Set IP
+  Set-DnsClientServerAddress          - Set DNS
+  Test-NetConnection HOST -Port PORT  - Test connectivity
+
+ACTIVE DIRECTORY:
+  Get-ADUser -Filter *                - List users
+  Get-ADGroup -Filter *               - List groups
+  Get-ADOrganizationalUnit -Filter *  - List OUs
+  New-ADUser -Name "X" -SamAccountName x
+  New-ADGroup -Name "X" -GroupScope Global
+  New-ADOrganizationalUnit -Name "X"
+
+DNS SERVER:
+  Get-DnsServerZone                   - List zones
+  Add-DnsServerPrimaryZone -Name X    - Create zone
+  Add-DnsServerResourceRecordA        - Add A record
+
+DHCP SERVER:
+  Get-DhcpServerv4Scope               - List scopes
+  Add-DhcpServerv4Scope               - Create scope
+  Set-DhcpServerv4OptionValue         - Set options
+
+STORAGE:
+  Get-Disk                            - List disks
+  Initialize-Disk -Number X           - Init disk
+  New-Volume -DiskNumber X            - Create volume
+  Get-SmbShare                        - List shares
+  New-SmbShare -Name X -Path Y        - Create share
+
+GROUP POLICY:
+  Get-GPO -All                        - List GPOs
+  New-GPO -Name "X"                   - Create GPO
+  New-GPLink -Name X -Target Y        - Link GPO
+
+HYPER-V:
+  Get-VM                              - List VMs
+  New-VM -Name X                      - Create VM
+  New-VMSwitch -Name X                - Create switch
+  Checkpoint-VM -Name X               - Create checkpoint
+
+GENERAL:
+  Get-Service                         - List services
+  Get-Process                         - List processes
+  Get-EventLog -LogName System        - View events
+  hostname                            - Computer name
+  whoami                              - Current user`
+        },
+        'C:\\Scripts': {
+            type: 'dir',
+            children: ['Setup-Network.ps1', 'Create-Users.ps1', 'Create-Shares.ps1']
+        },
+        'C:\\Scripts\\Setup-Network.ps1': {
+            type: 'file',
+            content: `# Seattle Branch Network Setup Script
+# Run each command one at a time
+
+# Step 1: Configure IP Address
+New-NetIPAddress -IPAddress 192.168.50.10 -DefaultGateway 192.168.50.1 -PrefixLength 24 -InterfaceAlias Ethernet
+
+# Step 2: Configure DNS
+Set-DnsClientServerAddress -InterfaceAlias Ethernet -ServerAddresses 192.168.1.10,8.8.8.8
+
+# Step 3: Rename Computer
+Rename-Computer -NewName "SEA-DC01" -Restart
+
+# Step 4: Join Domain (after restart)
+Add-Computer -DomainName hexworth.local
+
+# Step 5: Promote to Domain Controller
+Install-ADDSDomainController -DomainName hexworth.local -InstallDns`
+        },
+        'C:\\Scripts\\Create-Users.ps1': {
+            type: 'file',
+            content: `# Create Seattle Branch Users
+# Run after promoting to DC
+
+# Create OU structure
+New-ADOrganizationalUnit -Name "Seattle"
+New-ADOrganizationalUnit -Name "Users" -Path "OU=Seattle,DC=hexworth,DC=local"
+New-ADOrganizationalUnit -Name "Groups" -Path "OU=Seattle,DC=hexworth,DC=local"
+
+# Create department groups
+New-ADGroup -Name "SEA-IT" -GroupScope Global
+New-ADGroup -Name "SEA-Finance" -GroupScope Global
+New-ADGroup -Name "SEA-HR" -GroupScope Global
+New-ADGroup -Name "SEA-Sales" -GroupScope Global
+
+# Create users
+$users = @(
+    @{First="John"; Last="Smith"; Sam="jsmith"; Dept="IT"},
+    @{First="Jane"; Last="Doe"; Sam="jdoe"; Dept="Finance"},
+    @{First="Bob"; Last="Wilson"; Sam="bwilson"; Dept="HR"},
+    @{First="Alice"; Last="Brown"; Sam="abrown"; Dept="Sales"},
+    @{First="Charlie"; Last="Davis"; Sam="cdavis"; Dept="IT"},
+    @{First="Diana"; Last="Miller"; Sam="dmiller"; Dept="Finance"},
+    @{First="Eve"; Last="Taylor"; Sam="etaylor"; Dept="HR"},
+    @{First="Frank"; Last="Anderson"; Sam="fanderson"; Dept="Sales"},
+    @{First="Grace"; Last="Thomas"; Sam="gthomas"; Dept="IT"},
+    @{First="Henry"; Last="Jackson"; Sam="hjackson"; Dept="Finance"}
+)
+
+foreach ($u in $users) {
+    New-ADUser -Name "$($u.First) $($u.Last)" -SamAccountName $u.Sam -Path "OU=Users,OU=Seattle,DC=hexworth,DC=local"
+}`
+        },
+        'C:\\Scripts\\Create-Shares.ps1': {
+            type: 'file',
+            content: `# Create File Shares for Seattle Branch
+# Run after initializing Disk 1
+
+# Initialize and format data disk
+Initialize-Disk -Number 1 -PartitionStyle GPT
+New-Volume -DiskNumber 1 -DriveLetter D -FileSystem NTFS -FriendlyName "Data"
+
+# Create folder structure
+$folders = @("Finance", "HR", "IT", "Sales", "Public")
+foreach ($f in $folders) {
+    New-Item -Path "D:\\Shares\\$f" -ItemType Directory -Force
+}
+
+# Create SMB shares
+New-SmbShare -Name "Finance$" -Path "D:\\Shares\\Finance" -Description "Finance Department"
+New-SmbShare -Name "HR$" -Path "D:\\Shares\\HR" -Description "HR Department"
+New-SmbShare -Name "IT$" -Path "D:\\Shares\\IT" -Description "IT Department"
+New-SmbShare -Name "Sales$" -Path "D:\\Shares\\Sales" -Description "Sales Department"
+New-SmbShare -Name "Public" -Path "D:\\Shares\\Public" -Description "Public Share"
+
+# Enable shadow copies
+vssadmin add shadowstorage /for=D: /on=D:`
+        },
+        'C:\\Reference': {
+            type: 'dir',
+            children: ['AD-Commands.txt', 'Network-Commands.txt', 'Storage-Commands.txt']
+        },
+        'C:\\Reference\\AD-Commands.txt': {
+            type: 'file',
+            content: `ACTIVE DIRECTORY COMMAND REFERENCE
+==================================
+
+ORGANIZATIONAL UNITS:
+  New-ADOrganizationalUnit -Name "Name"
+  New-ADOrganizationalUnit -Name "Name" -Path "OU=Parent,DC=domain,DC=local"
+  Get-ADOrganizationalUnit -Filter *
+  Remove-ADOrganizationalUnit -Identity "OU=Name,DC=domain,DC=local"
+
+USERS:
+  New-ADUser -Name "Display Name" -SamAccountName username
+  New-ADUser -Name "Name" -SamAccountName user -Path "OU=Users,DC=domain,DC=local"
+  Get-ADUser -Identity username
+  Get-ADUser -Filter * | Select Name, SamAccountName
+  Set-ADUser -Identity user -Description "Description"
+  Remove-ADUser -Identity username
+
+GROUPS:
+  New-ADGroup -Name "GroupName" -GroupScope Global -GroupCategory Security
+  Get-ADGroup -Filter *
+  Add-ADGroupMember -Identity "GroupName" -Members user1,user2
+  Get-ADGroupMember -Identity "GroupName"
+  Remove-ADGroupMember -Identity "GroupName" -Members user1
+
+GROUP SCOPES:
+  - Global: Can contain users from same domain, can be member of other groups
+  - DomainLocal: Used for assigning permissions to resources
+  - Universal: Can contain users from any domain in forest`
+        },
+        'C:\\Reference\\Network-Commands.txt': {
+            type: 'file',
+            content: `NETWORK COMMAND REFERENCE
+=========================
+
+IP CONFIGURATION:
+  Get-NetIPAddress
+  Get-NetIPConfiguration
+  New-NetIPAddress -IPAddress 192.168.1.10 -PrefixLength 24 -DefaultGateway 192.168.1.1 -InterfaceAlias "Ethernet"
+  Remove-NetIPAddress -IPAddress 192.168.1.10
+  Set-NetIPAddress -IPAddress 192.168.1.10 -PrefixLength 24
+
+DNS CLIENT:
+  Get-DnsClientServerAddress
+  Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 192.168.1.10,8.8.8.8
+  Clear-DnsClientCache
+  Resolve-DnsName hostname
+
+DNS SERVER:
+  Get-DnsServerZone
+  Add-DnsServerPrimaryZone -Name "zone.local" -ZoneFile "zone.local.dns"
+  Add-DnsServerPrimaryZone -NetworkId "192.168.1.0/24" -ReverseLookupZone
+  Add-DnsServerResourceRecordA -Name "host" -ZoneName "zone.local" -IPv4Address "192.168.1.100"
+
+DHCP SERVER:
+  Get-DhcpServerv4Scope
+  Add-DhcpServerv4Scope -Name "LAN" -StartRange 192.168.1.100 -EndRange 192.168.1.200 -SubnetMask 255.255.255.0
+  Set-DhcpServerv4OptionValue -ScopeId 192.168.1.0 -Router 192.168.1.1 -DnsServer 192.168.1.10
+  Add-DhcpServerv4Reservation -ScopeId 192.168.1.0 -IPAddress 192.168.1.50 -ClientId "AA-BB-CC-DD-EE-FF"
+
+TESTING:
+  Test-NetConnection -ComputerName hostname
+  Test-NetConnection -ComputerName hostname -Port 443
+  Test-Connection -ComputerName hostname -Count 4`
+        },
+        'C:\\Reference\\Storage-Commands.txt': {
+            type: 'file',
+            content: `STORAGE COMMAND REFERENCE
+=========================
+
+DISK MANAGEMENT:
+  Get-Disk
+  Get-Disk | Where-Object IsOffline -eq $true | Set-Disk -IsOffline $false
+  Initialize-Disk -Number 1 -PartitionStyle GPT
+  Clear-Disk -Number 1 -RemoveData
+
+PARTITIONS & VOLUMES:
+  Get-Partition
+  New-Partition -DiskNumber 1 -UseMaximumSize -AssignDriveLetter
+  Get-Volume
+  New-Volume -DiskNumber 1 -DriveLetter D -FileSystem NTFS -FriendlyName "Data"
+  Format-Volume -DriveLetter D -FileSystem NTFS -NewFileSystemLabel "Data"
+
+FILE SHARES:
+  Get-SmbShare
+  New-SmbShare -Name "ShareName" -Path "D:\\Folder" -FullAccess "Domain\\Group"
+  New-SmbShare -Name "Hidden$" -Path "D:\\Secret" -FullAccess "Administrators"
+  Remove-SmbShare -Name "ShareName"
+  Set-SmbShare -Name "ShareName" -Description "Description"
+
+NTFS PERMISSIONS:
+  Get-Acl -Path "D:\\Folder"
+  $acl = Get-Acl "D:\\Folder"
+  $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain\\Group","FullControl","Allow")
+  $acl.SetAccessRule($rule)
+  Set-Acl -Path "D:\\Folder" -AclObject $acl
+
+SHADOW COPIES:
+  vssadmin list shadows
+  vssadmin add shadowstorage /for=D: /on=D: /maxsize=10%
+  vssadmin create shadow /for=D:`
+        },
+        'C:\\Windows': {
+            type: 'dir',
+            children: ['System32']
+        },
+        'C:\\Windows\\System32': {
+            type: 'dir',
+            children: ['config', 'drivers']
+        }
+    };
 
     function addLine(text, type = 'output') {
         const line = document.createElement('div');
@@ -2104,18 +2594,27 @@
         addLine('Windows PowerShell', 'info');
         addLine('OUTPOST Branch Office Deployment Environment', 'info');
         addLine(`Server: ${state.server.name} | Domain: ${state.server.domain || 'WORKGROUP'}`, 'info');
+        addLine('', 'info');
         addLine('Type "help" for available commands.', 'info');
+        addLine('Type "ls C:\\Docs" to browse guides and documentation.', 'info');
         addLine('');
+    }
+
+    const promptSpan = document.querySelector('.terminal-input-area span');
+
+    function updatePrompt() {
+        promptSpan.textContent = `PS ${currentDir}> `;
     }
 
     terminalInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const cmd = terminalInput.value.trim();
             if (cmd) {
-                addLine(`PS C:\\> ${cmd}`, 'prompt');
+                addLine(`PS ${currentDir}> ${cmd}`, 'prompt');
                 commandHistory.push(cmd);
                 historyIndex = commandHistory.length;
                 processCommand(cmd);
+                updatePrompt();
             }
             terminalInput.value = '';
         } else if (e.key === 'ArrowUp') {
@@ -2133,6 +2632,23 @@
                 historyIndex = commandHistory.length;
                 terminalInput.value = '';
             }
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            // Basic tab completion for paths
+            const val = terminalInput.value;
+            const words = val.split(' ');
+            const lastWord = words[words.length - 1];
+            if (lastWord.startsWith('C:\\') || lastWord.startsWith('c:\\')) {
+                const matches = Object.keys(fileSystem).filter(p => p.toLowerCase().startsWith(lastWord.toLowerCase()));
+                if (matches.length === 1) {
+                    words[words.length - 1] = matches[0];
+                    terminalInput.value = words.join(' ');
+                } else if (matches.length > 1) {
+                    addLine(`PS ${currentDir}> ${val}`, 'prompt');
+                    matches.slice(0, 5).forEach(m => addLine('  ' + m));
+                    if (matches.length > 5) addLine(`  ... and ${matches.length - 5} more`);
+                }
+            }
         }
     });
 
@@ -2142,38 +2658,71 @@
         const cmdName = parts[0].toLowerCase();
 
         // Help
-        if (lower === 'help') {
+        if (lower === 'help' || lower === 'get-help' || lower === 'man') {
             addLine('');
-            addLine('Available Commands:', 'info');
-            addLine('  Network:');
-            addLine('    New-NetIPAddress -IPAddress <ip> -DefaultGateway <gw>');
-            addLine('    Set-DnsClientServerAddress -ServerAddresses <dns>');
-            addLine('  Domain:');
-            addLine('    Add-Computer -DomainName <domain>');
-            addLine('    Install-ADDSDomainController');
-            addLine('  AD Objects:');
-            addLine('    New-ADOrganizationalUnit -Name <name> [-Path <parent>]');
-            addLine('    New-ADUser -Name <name> -SamAccountName <sam>');
-            addLine('    New-ADGroup -Name <name> -GroupScope <scope>');
-            addLine('  DNS/DHCP:');
-            addLine('    Add-DnsServerPrimaryZone -Name <zone>');
-            addLine('    Add-DnsServerPrimaryZone -NetworkId <network> -ReverseLookupZone');
-            addLine('    Add-DhcpServerv4Scope -Name <n> -StartRange <s> -EndRange <e>');
-            addLine('  Storage:');
-            addLine('    Initialize-Disk -Number <n>');
-            addLine('    New-Volume -DiskNumber <n> -DriveLetter <l> -FileSystem NTFS');
-            addLine('    New-SmbShare -Name <n> -Path <p>');
-            addLine('  GPO:');
-            addLine('    New-GPO -Name <name>');
-            addLine('    New-GPLink -Name <gpo> -Target <ou>');
-            addLine('  Hyper-V:');
-            addLine('    Install-WindowsFeature -Name Hyper-V');
-            addLine('    New-VMSwitch -Name <n> -SwitchType <type>');
-            addLine('    New-VM -Name <n> -MemoryStartupBytes <mem>');
-            addLine('    Checkpoint-VM -Name <vm>');
-            addLine('  Utility:');
-            addLine('    status - Show objective progress');
-            addLine('    clear / cls - Clear terminal');
+            addLine('OUTPOST TERMINAL - COMMAND REFERENCE', 'info');
+            addLine('=====================================', 'info');
+            addLine('');
+            addLine('NAVIGATION & FILES:', 'info');
+            addLine('  ls, dir, Get-ChildItem [path]   - List directory contents');
+            addLine('  cd, Set-Location <path>         - Change directory');
+            addLine('  pwd, Get-Location               - Show current directory');
+            addLine('  cat, type, Get-Content <file>   - Display file contents');
+            addLine('');
+            addLine('SYSTEM INFO:', 'info');
+            addLine('  hostname                        - Show computer name');
+            addLine('  whoami                          - Show current user');
+            addLine('  ipconfig, Get-NetIPAddress      - Show network config');
+            addLine('  Get-Service                     - List services');
+            addLine('  Get-Process                     - List processes');
+            addLine('  Get-Disk                        - List disks');
+            addLine('  systeminfo                      - System information');
+            addLine('');
+            addLine('DEPLOYMENT COMMANDS:', 'info');
+            addLine('  status                          - Show objective progress');
+            addLine('  Get-Help <command>              - Help for specific command');
+            addLine('  clear, cls                      - Clear terminal');
+            addLine('');
+            addLine('Type "help admin" for deployment commands.');
+            addLine('Type "ls C:\\Docs" to browse guides.');
+            addLine('');
+            return;
+        }
+
+        // Help admin - show deployment commands
+        if (lower === 'help admin') {
+            addLine('');
+            addLine('DEPLOYMENT COMMANDS:', 'info');
+            addLine('');
+            addLine('Network:', 'info');
+            addLine('  New-NetIPAddress -IPAddress <ip> -DefaultGateway <gw>');
+            addLine('  Set-DnsClientServerAddress -ServerAddresses <dns>');
+            addLine('Domain:', 'info');
+            addLine('  Add-Computer -DomainName <domain>');
+            addLine('  Install-ADDSDomainController');
+            addLine('AD Objects:', 'info');
+            addLine('  New-ADOrganizationalUnit -Name <name> [-Path <parent>]');
+            addLine('  New-ADUser -Name <name> -SamAccountName <sam>');
+            addLine('  New-ADGroup -Name <name> -GroupScope <scope>');
+            addLine('  Get-ADUser -Filter *');
+            addLine('  Get-ADGroup -Filter *');
+            addLine('DNS/DHCP:', 'info');
+            addLine('  Add-DnsServerPrimaryZone -Name <zone>');
+            addLine('  Add-DnsServerPrimaryZone -NetworkId <net> -ReverseLookupZone');
+            addLine('  Add-DhcpServerv4Scope -Name <n> -StartRange <s> -EndRange <e>');
+            addLine('  Set-DhcpServerv4OptionValue -Router <gw> -DnsServer <dns>');
+            addLine('Storage:', 'info');
+            addLine('  Initialize-Disk -Number <n>');
+            addLine('  New-Volume -DiskNumber <n> -DriveLetter <l> -FileSystem NTFS');
+            addLine('  New-SmbShare -Name <n> -Path <p>');
+            addLine('GPO:', 'info');
+            addLine('  New-GPO -Name <name>');
+            addLine('  New-GPLink -Name <gpo> -Target <ou>');
+            addLine('Hyper-V:', 'info');
+            addLine('  Install-WindowsFeature -Name Hyper-V');
+            addLine('  New-VMSwitch -Name <n> -SwitchType <type>');
+            addLine('  New-VM -Name <n> -MemoryStartupBytes <mem>');
+            addLine('  Checkpoint-VM -Name <vm>');
             addLine('');
             return;
         }
@@ -2191,6 +2740,364 @@
             objectives.forEach(obj => {
                 const mark = obj.completed ? '[✓]' : '[ ]';
                 addLine(`${mark} ${obj.text}`, obj.completed ? 'success' : 'output');
+            });
+            const completed = objectives.filter(o => o.completed).length;
+            addLine('');
+            addLine(`Progress: ${completed}/${objectives.length} (${Math.round(completed/objectives.length*100)}%)`, 'info');
+            addLine('');
+            return;
+        }
+
+        // hostname
+        if (lower === 'hostname') {
+            addLine(state.server.name);
+            return;
+        }
+
+        // whoami
+        if (lower === 'whoami') {
+            addLine(`${state.server.domain || 'WORKGROUP'}\\Administrator`);
+            return;
+        }
+
+        // pwd / Get-Location
+        if (lower === 'pwd' || lower === 'get-location') {
+            addLine(currentDir);
+            return;
+        }
+
+        // cd / Set-Location
+        if (cmdName === 'cd' || cmdName === 'set-location') {
+            let target = parts.slice(1).join(' ').replace(/"/g, '').trim();
+            if (!target || target === '~') {
+                currentDir = 'C:\\Users\\Administrator';
+                addLine(currentDir);
+                return;
+            }
+            if (target === '..') {
+                const parentParts = currentDir.split('\\').filter(p => p);
+                if (parentParts.length > 1) {
+                    parentParts.pop();
+                    currentDir = parentParts.join('\\');
+                    if (!currentDir.includes(':')) currentDir = parentParts[0] + '\\';
+                }
+                addLine(currentDir);
+                return;
+            }
+            if (target === '\\' || target === '/') {
+                currentDir = 'C:\\';
+                addLine(currentDir);
+                return;
+            }
+            // Absolute path
+            let newPath = target;
+            if (!target.includes(':')) {
+                // Relative path
+                newPath = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
+            }
+            newPath = newPath.replace(/\//g, '\\');
+            if (!newPath.endsWith('\\')) newPath = newPath;
+
+            if (fileSystem[newPath] && fileSystem[newPath].type === 'dir') {
+                currentDir = newPath;
+                addLine(currentDir);
+            } else if (fileSystem[newPath + '\\'] && fileSystem[newPath + '\\'].type === 'dir') {
+                currentDir = newPath;
+                addLine(currentDir);
+            } else {
+                addLine(`Set-Location : Cannot find path '${target}'`, 'error');
+            }
+            return;
+        }
+
+        // ls / dir / Get-ChildItem
+        if (cmdName === 'ls' || cmdName === 'dir' || cmdName === 'get-childitem' || cmdName === 'gci') {
+            let target = parts.slice(1).join(' ').replace(/"/g, '').trim() || currentDir;
+            if (!target.includes(':')) {
+                target = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
+            }
+            target = target.replace(/\//g, '\\');
+
+            const dir = fileSystem[target] || fileSystem[target.replace(/\\$/, '')];
+            if (dir && dir.type === 'dir') {
+                addLine('');
+                addLine(`    Directory: ${target}`, 'info');
+                addLine('');
+                addLine('Mode                 LastWriteTime         Length Name');
+                addLine('----                 -------------         ------ ----');
+                dir.children.forEach(child => {
+                    const childPath = target.endsWith('\\') ? target + child : target + '\\' + child;
+                    const childObj = fileSystem[childPath];
+                    if (childObj) {
+                        if (childObj.type === 'dir') {
+                            addLine(`d----          1/31/2026   8:00 AM                ${child}`);
+                        } else {
+                            const len = childObj.content?.length || 0;
+                            addLine(`-a---          1/31/2026   8:00 AM          ${String(len).padStart(5)} ${child}`);
+                        }
+                    } else {
+                        addLine(`d----          1/31/2026   8:00 AM                ${child}`);
+                    }
+                });
+                addLine('');
+            } else {
+                addLine(`Get-ChildItem : Cannot find path '${target}'`, 'error');
+            }
+            return;
+        }
+
+        // cat / type / Get-Content
+        if (cmdName === 'cat' || cmdName === 'type' || cmdName === 'get-content' || cmdName === 'gc') {
+            let target = parts.slice(1).join(' ').replace(/"/g, '').trim();
+            if (!target) {
+                addLine('Usage: cat <filename>', 'error');
+                return;
+            }
+            if (!target.includes(':')) {
+                target = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
+            }
+            target = target.replace(/\//g, '\\');
+
+            const file = fileSystem[target];
+            if (file && file.type === 'file') {
+                addLine('');
+                file.content.split('\n').forEach(line => addLine(line));
+                addLine('');
+            } else {
+                addLine(`Get-Content : Cannot find path '${target}'`, 'error');
+            }
+            return;
+        }
+
+        // ipconfig / Get-NetIPAddress
+        if (lower === 'ipconfig' || lower === 'get-netipaddress' || lower === 'ipconfig /all') {
+            addLine('');
+            addLine('Windows IP Configuration', 'info');
+            addLine('');
+            addLine('Ethernet adapter Ethernet:', 'info');
+            addLine(`   Connection-specific DNS Suffix  . : ${state.server.domain || ''}`);
+            addLine(`   IPv4 Address. . . . . . . . . . . : ${state.server.ip || 'Not configured'}`);
+            addLine(`   Subnet Mask . . . . . . . . . . . : ${state.server.subnet || '255.255.255.0'}`);
+            addLine(`   Default Gateway . . . . . . . . . : ${state.server.gateway || 'Not configured'}`);
+            addLine(`   DNS Servers . . . . . . . . . . . : ${state.server.dns.join(', ') || 'Not configured'}`);
+            addLine('');
+            return;
+        }
+
+        // systeminfo
+        if (lower === 'systeminfo') {
+            addLine('');
+            addLine('Host Name:                 ' + state.server.name);
+            addLine('OS Name:                   Microsoft Windows Server 2022 Datacenter');
+            addLine('OS Version:                10.0.20348 Build 20348');
+            addLine('System Type:               x64-based PC');
+            addLine('Domain:                    ' + (state.server.domain || 'WORKGROUP'));
+            addLine('Logon Server:              \\\\' + state.server.name);
+            addLine('Total Physical Memory:     16,384 MB');
+            addLine('Available Physical Memory: 12,048 MB');
+            addLine('');
+            return;
+        }
+
+        // Get-Service
+        if (lower === 'get-service' || lower.startsWith('get-service ')) {
+            addLine('');
+            addLine('Status   Name               DisplayName');
+            addLine('------   ----               -----------');
+            addLine('Running  ADWS               Active Directory Web Services');
+            addLine('Running  DNS                DNS Server');
+            addLine('Running  DHCPServer         DHCP Server');
+            addLine('Running  Netlogon           Netlogon');
+            addLine('Running  W32Time            Windows Time');
+            addLine('Running  WinRM              Windows Remote Management');
+            addLine('Running  vmms               Hyper-V Virtual Machine Management');
+            addLine('Stopped  Spooler            Print Spooler');
+            addLine('');
+            return;
+        }
+
+        // Get-Process
+        if (lower === 'get-process' || lower === 'ps') {
+            addLine('');
+            addLine('Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  ProcessName');
+            addLine('-------  ------    -----      -----     ------     --  -----------');
+            addLine('    534      28    52340      64820       2.45   1234  svchost');
+            addLine('    312      18    28420      38640       0.89   2456  lsass');
+            addLine('    248      15    18940      24320       1.23   3678  dns');
+            addLine('    189      12    14280      18560       0.45   4890  dhcpserver');
+            addLine('    156       9    12480      15840       0.34   5012  vmms');
+            addLine('    423      22    38640      48920       1.67   6234  ServerManager');
+            addLine('');
+            return;
+        }
+
+        // Get-Disk
+        if (lower === 'get-disk') {
+            addLine('');
+            addLine('Number Friendly Name      Serial Number        HealthStatus  OperationalStatus  Total Size Partition Style');
+            addLine('------ -------------      -------------        ------------  -----------------  ---------- ---------------');
+            state.storage.disks.forEach(d => {
+                addLine(`${String(d.id).padEnd(6)} Virtual HD ${d.id}       SN${d.id}12345           Healthy       ${d.status.padEnd(18)} ${String(d.size).padStart(6)} GB ${d.partitionStyle || 'RAW'}`);
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-SmbShare
+        if (lower === 'get-smbshare') {
+            addLine('');
+            addLine('Name       ScopeName Path                              Description');
+            addLine('----       --------- ----                              -----------');
+            addLine('ADMIN$     *         C:\\Windows                        Remote Admin');
+            addLine('C$         *         C:\\                               Default share');
+            state.storage.shares.forEach(s => {
+                addLine(`${s.name.padEnd(10)} *         ${s.path.padEnd(33)} ${s.description || ''}`);
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-ADUser
+        if (lower === 'get-aduser -filter *' || lower === 'get-aduser' || lower.startsWith('get-aduser ')) {
+            if (!state.server.isDC) {
+                addLine('Get-ADUser : Unable to contact the server.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('DistinguishedName                          Name              SamAccountName');
+            addLine('-----------------                          ----              --------------');
+            addLine('CN=Administrator,CN=Users,DC=hexworth...   Administrator     Administrator');
+            state.ad.users.forEach(u => {
+                addLine(`CN=${u.firstName} ${u.lastName},OU=Users...`.padEnd(43) + `${u.firstName} ${u.lastName}`.padEnd(18) + u.username);
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-ADGroup
+        if (lower === 'get-adgroup -filter *' || lower === 'get-adgroup' || lower.startsWith('get-adgroup ')) {
+            if (!state.server.isDC) {
+                addLine('Get-ADGroup : Unable to contact the server.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('DistinguishedName                          Name              GroupScope');
+            addLine('-----------------                          ----              ----------');
+            addLine('CN=Domain Admins,CN=Users,DC=hexworth...   Domain Admins     Global');
+            addLine('CN=Domain Users,CN=Users,DC=hexworth...    Domain Users      Global');
+            state.ad.groups.forEach(g => {
+                addLine(`CN=${g.name},OU=Groups...`.padEnd(43) + g.name.padEnd(18) + (g.scope || 'Global'));
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-ADOrganizationalUnit
+        if (lower.includes('get-adorganizationalunit') || lower === 'get-adou') {
+            if (!state.server.isDC) {
+                addLine('Get-ADOrganizationalUnit : Unable to contact the server.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('DistinguishedName                          Name');
+            addLine('-----------------                          ----');
+            addLine('OU=Domain Controllers,DC=hexworth,DC=local Domain Controllers');
+            state.ad.ous.forEach(ou => {
+                addLine(`OU=${ou.name},DC=hexworth,DC=local`.padEnd(43) + ou.name);
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-DnsServerZone
+        if (lower === 'get-dnsserverzone') {
+            if (!state.server.isDC) {
+                addLine('Get-DnsServerZone : Server not configured as DNS server.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('ZoneName                      ZoneType  IsAutoCreated  IsDsIntegrated  IsReverseLookupZone');
+            addLine('--------                      --------  -------------  --------------  -------------------');
+            addLine('hexworth.local                Primary   False          True            False');
+            state.dns.forwardZones.forEach(z => {
+                addLine(`${z.name.padEnd(29)} ${z.type.padEnd(9)} False          True            False`);
+            });
+            state.dns.reverseZones.forEach(z => {
+                addLine(`${z.name.padEnd(29)} Primary   False          True            True`);
+            });
+            addLine('');
+            return;
+        }
+
+        // Get-DhcpServerv4Scope
+        if (lower === 'get-dhcpserverv4scope') {
+            if (!state.dhcp.installed) {
+                addLine('Get-DhcpServerv4Scope : DHCP Server service not running.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('ScopeId         SubnetMask      Name         State   StartRange       EndRange');
+            addLine('-------         ----------      ----         -----   ----------       --------');
+            state.dhcp.scopes.forEach(s => {
+                addLine(`${s.network.padEnd(15)} 255.255.255.0   ${s.name.padEnd(12)} Active  ${s.start.padEnd(16)} ${s.end}`);
+            });
+            if (state.dhcp.scopes.length === 0) {
+                addLine('No scopes configured.');
+            }
+            addLine('');
+            return;
+        }
+
+        // Get-VM
+        if (lower === 'get-vm') {
+            if (!state.hyperv.installed) {
+                addLine('Get-VM : Hyper-V is not installed.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('Name        State   CPUUsage MemoryAssigned(M) Uptime           Status');
+            addLine('----        -----   -------- ----------------- ------           ------');
+            state.hyperv.vms.forEach(vm => {
+                addLine(`${vm.name.padEnd(11)} ${vm.state.padEnd(7)} 0        ${String(vm.memory * 1024).padEnd(17)} 00:00:00         Operating normally`);
+            });
+            if (state.hyperv.vms.length === 0) {
+                addLine('No virtual machines configured.');
+            }
+            addLine('');
+            return;
+        }
+
+        // Get-VMSwitch
+        if (lower === 'get-vmswitch') {
+            if (!state.hyperv.installed) {
+                addLine('Get-VMSwitch : Hyper-V is not installed.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('Name         SwitchType NetAdapterInterfaceDescription');
+            addLine('----         ---------- ------------------------------');
+            state.hyperv.switches.forEach(s => {
+                addLine(`${s.name.padEnd(12)} ${s.type.padEnd(10)}`);
+            });
+            if (state.hyperv.switches.length === 0) {
+                addLine('No virtual switches configured.');
+            }
+            addLine('');
+            return;
+        }
+
+        // Get-GPO
+        if (lower === 'get-gpo -all' || lower === 'get-gpo') {
+            if (!state.server.isDC) {
+                addLine('Get-GPO : Unable to contact the server.', 'error');
+                return;
+            }
+            addLine('');
+            addLine('DisplayName                  DomainName        Owner                GpoStatus');
+            addLine('-----------                  ----------        -----                ---------');
+            addLine('Default Domain Policy        hexworth.local    Domain Admins        AllSettingsEnabled');
+            state.ad.gpos.forEach(g => {
+                addLine(`${g.name.padEnd(28)} hexworth.local    Domain Admins        AllSettingsEnabled`);
             });
             addLine('');
             return;
