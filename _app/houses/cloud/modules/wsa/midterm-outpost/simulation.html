@@ -484,6 +484,9 @@
         .terminal-line.success { color: #6a9955; }
         .terminal-line.info { color: #569cd6; }
         .terminal-line.warning { color: #ce9178; }
+        .terminal-line.dim { color: #666; }
+        .terminal-line.heading { color: #dcdcaa; font-weight: bold; }
+        .terminal-line.param { color: #9cdcfe; }
 
         .terminal-input-area {
             flex: 0 0 auto;
@@ -2097,20 +2100,41 @@
     const fileSystem = {
         'C:\\': {
             type: 'dir',
-            children: ['Users', 'Windows', 'Docs', 'Scripts', 'Reference']
+            children: ['Users', 'Windows', 'Docs', 'Scripts', 'Reference'],
+            hidden: ['$Recycle.Bin', 'System Volume Information', 'pagefile.sys', 'hiberfil.sys']
         },
+        'C:\\$Recycle.Bin': { type: 'dir', children: [], hidden: [] },
+        'C:\\System Volume Information': { type: 'dir', children: ['tracking.log'], hidden: [] },
+        'C:\\System Volume Information\\tracking.log': { type: 'file', content: '[System Volume Information - Access Denied]', hidden: true },
+        'C:\\pagefile.sys': { type: 'file', content: '[Page File - System Memory]', hidden: true },
+        'C:\\hiberfil.sys': { type: 'file', content: '[Hibernation File - System]', hidden: true },
         'C:\\Users': {
             type: 'dir',
-            children: ['Administrator']
+            children: ['Administrator'],
+            hidden: ['Default', 'Public', 'desktop.ini']
         },
+        'C:\\Users\\Default': { type: 'dir', children: [], hidden: [] },
+        'C:\\Users\\Public': { type: 'dir', children: ['Documents', 'Downloads'], hidden: [] },
+        'C:\\Users\\Public\\Documents': { type: 'dir', children: [], hidden: [] },
+        'C:\\Users\\Public\\Downloads': { type: 'dir', children: [], hidden: [] },
+        'C:\\Users\\desktop.ini': { type: 'file', content: '[.ShellClassInfo]\nLocalizedResourceName=@%SystemRoot%\\system32\\shell32.dll,-21813', hidden: true },
         'C:\\Users\\Administrator': {
             type: 'dir',
-            children: ['Desktop', 'Documents']
+            children: ['Desktop', 'Documents'],
+            hidden: ['NTUSER.DAT', 'ntuser.ini', 'AppData']
         },
+        'C:\\Users\\Administrator\\NTUSER.DAT': { type: 'file', content: '[Registry Hive - Binary]', hidden: true },
+        'C:\\Users\\Administrator\\ntuser.ini': { type: 'file', content: '[User Profile Settings]', hidden: true },
+        'C:\\Users\\Administrator\\AppData': { type: 'dir', children: ['Local', 'Roaming'], hidden: [] },
+        'C:\\Users\\Administrator\\AppData\\Local': { type: 'dir', children: ['Temp'], hidden: [] },
+        'C:\\Users\\Administrator\\AppData\\Local\\Temp': { type: 'dir', children: [], hidden: [] },
+        'C:\\Users\\Administrator\\AppData\\Roaming': { type: 'dir', children: [], hidden: [] },
         'C:\\Users\\Administrator\\Desktop': {
             type: 'dir',
-            children: ['OUTPOST-README.txt']
+            children: ['OUTPOST-README.txt'],
+            hidden: ['desktop.ini']
         },
+        'C:\\Users\\Administrator\\Desktop\\desktop.ini': { type: 'file', content: '[.ShellClassInfo]\nLocalizedResourceName=@%SystemRoot%\\system32\\shell32.dll,-21769', hidden: true },
         'C:\\Users\\Administrator\\Desktop\\OUTPOST-README.txt': {
             type: 'file',
             content: `OUTPOST Branch Office Deployment
@@ -2747,11 +2771,237 @@ SHADOW COPIES:
         const parts = cmd.split(/\s+/);
         const cmdName = parts[0].toLowerCase();
 
-        // Help
-        if (lower === 'help' || lower === 'get-help' || lower === 'man') {
+        // Command help database
+        const cmdHelp = {
+            'get-childitem': {
+                name: 'Get-ChildItem',
+                aliases: ['ls', 'dir', 'gci'],
+                synopsis: 'Gets the items and child items in one or more specified locations.',
+                syntax: 'Get-ChildItem [[-Path] <String>] [-Force] [-Hidden] [-Recurse]',
+                parameters: [
+                    { name: '-Path', desc: 'Specifies the path to list. Default is current directory.' },
+                    { name: '-Force', desc: 'Shows hidden and system files.' },
+                    { name: '-Hidden', desc: 'Shows only hidden items.' },
+                    { name: '-Recurse', desc: 'Gets items in subfolders recursively.' }
+                ],
+                examples: [
+                    'ls                    # List current directory',
+                    'ls C:\\Docs           # List specific directory',
+                    'ls -Force             # Include hidden files',
+                    'dir -la               # Linux-style show all'
+                ]
+            },
+            'set-location': {
+                name: 'Set-Location',
+                aliases: ['cd', 'chdir'],
+                synopsis: 'Sets the current working location to a specified path.',
+                syntax: 'Set-Location [-Path] <String>',
+                parameters: [
+                    { name: '-Path', desc: 'The path to change to.' },
+                    { name: '..', desc: 'Go up one directory level.' }
+                ],
+                examples: [
+                    'cd C:\\Docs           # Change to Docs folder',
+                    'cd ..                 # Go up one level',
+                    'cd ~                  # Go to user home'
+                ]
+            },
+            'get-content': {
+                name: 'Get-Content',
+                aliases: ['cat', 'type', 'gc'],
+                synopsis: 'Gets the content of a file.',
+                syntax: 'Get-Content [-Path] <String>',
+                parameters: [
+                    { name: '-Path', desc: 'Specifies the file to read.' }
+                ],
+                examples: [
+                    'cat README.txt        # Display file contents',
+                    'type C:\\Docs\\Phase1-Foundation.txt'
+                ]
+            },
+            'new-aduser': {
+                name: 'New-ADUser',
+                aliases: [],
+                synopsis: 'Creates a new Active Directory user.',
+                syntax: 'New-ADUser -Name <String> -SamAccountName <String> [-Path <OU>]',
+                parameters: [
+                    { name: '-Name', desc: 'The display name of the user (required).' },
+                    { name: '-SamAccountName', desc: 'The login name of the user (required).' },
+                    { name: '-GivenName', desc: 'First name of the user.' },
+                    { name: '-Surname', desc: 'Last name of the user.' },
+                    { name: '-Path', desc: 'The OU to create the user in.' }
+                ],
+                examples: [
+                    'New-ADUser -Name "John Smith" -SamAccountName jsmith',
+                    'New-ADUser -Name "Admin" -SamAccountName admin -Path "OU=IT,DC=hexworth,DC=local"'
+                ]
+            },
+            'new-adgroup': {
+                name: 'New-ADGroup',
+                aliases: [],
+                synopsis: 'Creates a new Active Directory group.',
+                syntax: 'New-ADGroup -Name <String> -GroupScope <Global|Universal|DomainLocal>',
+                parameters: [
+                    { name: '-Name', desc: 'The name of the group (required).' },
+                    { name: '-GroupScope', desc: 'Global, Universal, or DomainLocal (required).' },
+                    { name: '-GroupCategory', desc: 'Security or Distribution. Default: Security.' }
+                ],
+                examples: [
+                    'New-ADGroup -Name "IT Staff" -GroupScope Global',
+                    'New-ADGroup -Name "All Users" -GroupScope Universal'
+                ]
+            },
+            'new-adorganizationalunit': {
+                name: 'New-ADOrganizationalUnit',
+                aliases: [],
+                synopsis: 'Creates a new Active Directory OU.',
+                syntax: 'New-ADOrganizationalUnit -Name <String> [-Path <ParentOU>]',
+                parameters: [
+                    { name: '-Name', desc: 'The name of the OU (required).' },
+                    { name: '-Path', desc: 'Parent OU path. Default: domain root.' }
+                ],
+                examples: [
+                    'New-ADOrganizationalUnit -Name "Seattle"',
+                    'New-ADOrganizationalUnit -Name "Users" -Path "OU=Seattle,DC=hexworth,DC=local"'
+                ]
+            },
+            'add-dnsserverprimaryzone': {
+                name: 'Add-DnsServerPrimaryZone',
+                aliases: [],
+                synopsis: 'Creates a new DNS zone.',
+                syntax: 'Add-DnsServerPrimaryZone -Name <Zone> | -NetworkId <CIDR> -ReverseLookupZone',
+                parameters: [
+                    { name: '-Name', desc: 'Forward zone name (e.g., hexworth.local).' },
+                    { name: '-NetworkId', desc: 'Network for reverse zone (e.g., 192.168.50.0/24).' },
+                    { name: '-ReverseLookupZone', desc: 'Creates a reverse lookup zone.' }
+                ],
+                examples: [
+                    'Add-DnsServerPrimaryZone -Name "hexworth.local"',
+                    'Add-DnsServerPrimaryZone -NetworkId "192.168.50.0/24" -ReverseLookupZone'
+                ]
+            },
+            'add-dhcpserverv4scope': {
+                name: 'Add-DhcpServerv4Scope',
+                aliases: [],
+                synopsis: 'Creates a new DHCP scope.',
+                syntax: 'Add-DhcpServerv4Scope -Name <N> -StartRange <IP> -EndRange <IP> -SubnetMask <Mask>',
+                parameters: [
+                    { name: '-Name', desc: 'Friendly name for the scope.' },
+                    { name: '-StartRange', desc: 'First IP in the range.' },
+                    { name: '-EndRange', desc: 'Last IP in the range.' },
+                    { name: '-SubnetMask', desc: 'Subnet mask (e.g., 255.255.255.0).' }
+                ],
+                examples: [
+                    'Add-DhcpServerv4Scope -Name "Seattle" -StartRange 192.168.50.100 -EndRange 192.168.50.200 -SubnetMask 255.255.255.0'
+                ]
+            },
+            'new-vm': {
+                name: 'New-VM',
+                aliases: [],
+                synopsis: 'Creates a new virtual machine.',
+                syntax: 'New-VM -Name <String> -MemoryStartupBytes <Bytes> [-Generation <1|2>]',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the virtual machine.' },
+                    { name: '-MemoryStartupBytes', desc: 'RAM size (e.g., 2GB, 4096MB).' },
+                    { name: '-Generation', desc: '1 (BIOS) or 2 (UEFI). Default: 1.' }
+                ],
+                examples: [
+                    'New-VM -Name "TestVM" -MemoryStartupBytes 2GB',
+                    'New-VM -Name "Server" -MemoryStartupBytes 4GB -Generation 2'
+                ]
+            },
+            'new-gpo': {
+                name: 'New-GPO',
+                aliases: [],
+                synopsis: 'Creates a new Group Policy Object.',
+                syntax: 'New-GPO -Name <String>',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the GPO (required).' }
+                ],
+                examples: [
+                    'New-GPO -Name "Password Policy"',
+                    'New-GPO -Name "Desktop Lockdown"'
+                ]
+            }
+        };
+
+        // Function to show command help
+        function showCmdHelp(helpKey) {
+            const h = cmdHelp[helpKey];
+            if (!h) {
+                addLine(`Get-Help : No help found for '${helpKey}'`, 'error');
+                addLine('Type "help" for a list of available commands.');
+                return;
+            }
             addLine('');
-            addLine('OUTPOST TERMINAL - COMMAND REFERENCE', 'info');
-            addLine('=====================================', 'info');
+            addLine(`NAME`, 'heading');
+            addLine(`    ${h.name}`);
+            addLine('');
+            if (h.aliases.length > 0) {
+                addLine('ALIASES', 'heading');
+                addLine(`    ${h.aliases.join(', ')}`);
+                addLine('');
+            }
+            addLine('SYNOPSIS', 'heading');
+            addLine(`    ${h.synopsis}`);
+            addLine('');
+            addLine('SYNTAX', 'heading');
+            addLine(`    ${h.syntax}`);
+            addLine('');
+            addLine('PARAMETERS', 'heading');
+            h.parameters.forEach(p => {
+                addLine(`    ${p.name}`, 'param');
+                addLine(`        ${p.desc}`);
+            });
+            addLine('');
+            addLine('EXAMPLES', 'heading');
+            h.examples.forEach(ex => addLine(`    ${ex}`));
+            addLine('');
+        }
+
+        // Check for -? or /? flag on any command
+        if (parts.some(p => p === '-?' || p === '/?')) {
+            const lookupCmd = cmdName.replace('get-', '').replace('new-', '').replace('add-', '').replace('set-', '');
+            const helpKey = Object.keys(cmdHelp).find(k =>
+                k === cmdName ||
+                cmdHelp[k].aliases.map(a => a.toLowerCase()).includes(cmdName) ||
+                k.includes(lookupCmd)
+            );
+            if (helpKey) {
+                showCmdHelp(helpKey);
+            } else {
+                addLine(`No help available for '${cmdName}'. Type "help" for command list.`, 'warning');
+            }
+            return;
+        }
+
+        // Get-Help <command>
+        if (cmdName === 'get-help' && parts.length > 1) {
+            const targetCmd = parts[1].toLowerCase();
+            const helpKey = Object.keys(cmdHelp).find(k =>
+                k === targetCmd ||
+                cmdHelp[k].aliases.map(a => a.toLowerCase()).includes(targetCmd)
+            );
+            showCmdHelp(helpKey || targetCmd);
+            return;
+        }
+
+        // man <command>
+        if (cmdName === 'man' && parts.length > 1) {
+            const targetCmd = parts[1].toLowerCase();
+            const helpKey = Object.keys(cmdHelp).find(k =>
+                k === targetCmd ||
+                cmdHelp[k].aliases.map(a => a.toLowerCase()).includes(targetCmd)
+            );
+            showCmdHelp(helpKey || targetCmd);
+            return;
+        }
+
+        // General help
+        if (lower === 'help' || lower === 'get-help' || lower === 'man' || lower === '?') {
+            addLine('');
+            addLine('OUTPOST TERMINAL - COMMAND REFERENCE', 'heading');
+            addLine('=====================================');
             addLine('');
             addLine('NAVIGATION & FILES:', 'info');
             addLine('  ls, dir, Get-ChildItem [path]   - List directory contents');
@@ -2768,21 +3018,26 @@ SHADOW COPIES:
             addLine('  Get-Disk                        - List disks');
             addLine('  systeminfo                      - System information');
             addLine('');
-            addLine('DEPLOYMENT COMMANDS:', 'info');
-            addLine('  status                          - Show objective progress');
-            addLine('  Get-Help <command>              - Help for specific command');
-            addLine('  clear, cls                      - Clear terminal');
+            addLine('HELP OPTIONS:', 'info');
+            addLine('  help, ?                         - This help screen');
+            addLine('  help admin                      - Deployment commands');
+            addLine('  Get-Help <command>              - Detailed command help');
+            addLine('  man <command>                   - Same as Get-Help');
+            addLine('  <command> -?                    - Quick help for command');
             addLine('');
-            addLine('Type "help admin" for deployment commands.');
-            addLine('Type "ls C:\\Docs" to browse guides.');
+            addLine('TIPS:', 'info');
+            addLine('  • Use Tab for auto-completion');
+            addLine('  • Use ↑/↓ arrows for command history');
+            addLine('  • Type "ls C:\\Docs" to browse guides');
+            addLine('  • Type "ls -Force" to see hidden files');
             addLine('');
             return;
         }
 
         // Help admin - show deployment commands
-        if (lower === 'help admin') {
+        if (lower === 'help admin' || lower === '? admin') {
             addLine('');
-            addLine('DEPLOYMENT COMMANDS:', 'info');
+            addLine('DEPLOYMENT COMMANDS:', 'heading');
             addLine('');
             addLine('Network:', 'info');
             addLine('  New-NetIPAddress -IPAddress <ip> -DefaultGateway <gw>');
@@ -2813,6 +3068,8 @@ SHADOW COPIES:
             addLine('  New-VMSwitch -Name <n> -SwitchType <type>');
             addLine('  New-VM -Name <n> -MemoryStartupBytes <mem>');
             addLine('  Checkpoint-VM -Name <vm>');
+            addLine('');
+            addLine('Tip: Use Get-Help <command> for detailed syntax.', 'dim');
             addLine('');
             return;
         }
@@ -2902,7 +3159,19 @@ SHADOW COPIES:
 
         // ls / dir / Get-ChildItem
         if (cmdName === 'ls' || cmdName === 'dir' || cmdName === 'get-childitem' || cmdName === 'gci') {
-            let target = parts.slice(1).join(' ').replace(/"/g, '').trim() || currentDir;
+            // Parse flags
+            const flags = parts.filter(p => p.startsWith('-'));
+            const args = parts.slice(1).filter(p => !p.startsWith('-'));
+            const showHidden = flags.some(f =>
+                f.toLowerCase() === '-force' ||
+                f.toLowerCase() === '-hidden' ||
+                f.toLowerCase() === '-a' ||
+                f.toLowerCase() === '-la' ||
+                f.toLowerCase() === '-al' ||
+                f.toLowerCase() === '-all'
+            );
+
+            let target = args.join(' ').replace(/"/g, '').trim() || currentDir;
             if (!target.includes(':')) {
                 target = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
             }
@@ -2915,6 +3184,8 @@ SHADOW COPIES:
                 addLine('');
                 addLine('Mode                 LastWriteTime         Length Name');
                 addLine('----                 -------------         ------ ----');
+
+                // Show regular children
                 dir.children.forEach(child => {
                     const childPath = target.endsWith('\\') ? target + child : target + '\\' + child;
                     const childObj = fileSystem[childPath];
@@ -2929,6 +3200,24 @@ SHADOW COPIES:
                         addLine(`d----          1/31/2026   8:00 AM                ${child}`);
                     }
                 });
+
+                // Show hidden children if -Force flag
+                if (showHidden && dir.hidden && dir.hidden.length > 0) {
+                    dir.hidden.forEach(child => {
+                        const childPath = target.endsWith('\\') ? target + child : target + '\\' + child;
+                        const childObj = fileSystem[childPath];
+                        if (childObj) {
+                            if (childObj.type === 'dir') {
+                                addLine(`d--h-          1/31/2026   8:00 AM                ${child}`, 'dim');
+                            } else {
+                                const len = childObj.content?.length || 0;
+                                addLine(`-a-h-          1/31/2026   8:00 AM          ${String(len).padStart(5)} ${child}`, 'dim');
+                            }
+                        } else {
+                            addLine(`d--h-          1/31/2026   8:00 AM                ${child}`, 'dim');
+                        }
+                    });
+                }
                 addLine('');
             } else {
                 addLine(`Get-ChildItem : Cannot find path '${target}'`, 'error');
