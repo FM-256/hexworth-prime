@@ -3737,7 +3737,70 @@ const GUISimulator = (function() {
             vms: [],
             switches: [],
             checkpoints: {},
+            uptimeTimer: null,
+            vmStartTimes: {}, // Track when each VM was started
         };
+
+        // Parse uptime string to seconds (e.g., "2.14:32:05" -> seconds)
+        function parseUptimeToSeconds(uptimeStr) {
+            if (!uptimeStr || uptimeStr === '0:00:00') return 0;
+
+            const parts = uptimeStr.split('.');
+            let days = 0;
+            let timePart = uptimeStr;
+
+            if (parts.length === 2) {
+                days = parseInt(parts[0], 10);
+                timePart = parts[1];
+            }
+
+            const timeParts = timePart.split(':');
+            const hours = parseInt(timeParts[0], 10) || 0;
+            const minutes = parseInt(timeParts[1], 10) || 0;
+            const seconds = parseInt(timeParts[2], 10) || 0;
+
+            return (days * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+        }
+
+        // Format seconds to uptime string (e.g., seconds -> "2.14:32:05")
+        function formatUptime(totalSeconds) {
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const timeStr = `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            return days > 0 ? `${days}.${timeStr}` : timeStr;
+        }
+
+        // Start the uptime timer
+        function startUptimeTimer() {
+            if (hvState.uptimeTimer) return;
+
+            hvState.uptimeTimer = setInterval(() => {
+                let needsUpdate = false;
+
+                hvState.vms.forEach(vm => {
+                    if (vm.State === 'Running' && hvState.vmStartTimes[vm.Name]) {
+                        const elapsed = Math.floor((Date.now() - hvState.vmStartTimes[vm.Name]) / 1000);
+                        vm.Uptime = formatUptime(elapsed);
+                        needsUpdate = true;
+                    }
+                });
+
+                if (needsUpdate) {
+                    renderVMList();
+                }
+            }, 1000);
+        }
+
+        // Stop the uptime timer
+        function stopUptimeTimer() {
+            if (hvState.uptimeTimer) {
+                clearInterval(hvState.uptimeTimer);
+                hvState.uptimeTimer = null;
+            }
+        }
 
         // Get VMs from WSAState or use defaults
         function getVMs() {
@@ -4187,8 +4250,12 @@ const GUISimulator = (function() {
             vm.State = 'Running';
             vm.CPUUsage = Math.floor(Math.random() * 20) + 5;
             vm.MemoryAssigned = vm.MemoryStartup;
-            vm.Uptime = '0:00:01';
+            vm.Uptime = '0:00:00';
             vm.Status = 'Operating normally';
+
+            // Track start time for uptime calculation
+            hvState.vmStartTimes[vm.Name] = Date.now();
+            startUptimeTimer();
 
             if (typeof WSAState !== 'undefined') {
                 WSAState.dispatch({
@@ -4216,6 +4283,9 @@ const GUISimulator = (function() {
             vm.Uptime = '0:00:00';
             vm.Status = 'Off';
 
+            // Clear start time
+            delete hvState.vmStartTimes[vm.Name];
+
             if (typeof WSAState !== 'undefined') {
                 WSAState.dispatch({
                     type: 'VM_STOP',
@@ -4241,6 +4311,9 @@ const GUISimulator = (function() {
             vm.MemoryAssigned = 0;
             vm.Uptime = '0:00:00';
             vm.Status = 'Saved';
+
+            // Clear start time
+            delete hvState.vmStartTimes[vm.Name];
 
             renderVMList();
             hvState.statusBar.setMessage(`${vm.Name} saved`, 'success');
@@ -4269,6 +4342,10 @@ const GUISimulator = (function() {
                 vm.MemoryAssigned = 0;
                 vm.Uptime = '0:00:00';
                 vm.Status = 'Off';
+
+                // Clear start time
+                delete hvState.vmStartTimes[vm.Name];
+
                 renderVMList();
                 hvState.statusBar.setMessage(`${vm.Name} shut down gracefully`, 'success');
             }, 1500);
@@ -4279,7 +4356,10 @@ const GUISimulator = (function() {
             if (!vm || vm.State !== 'Running') return;
 
             hvState.statusBar.setMessage(`Resetting ${vm.Name}...`);
-            vm.Uptime = '0:00:01';
+
+            // Reset start time
+            hvState.vmStartTimes[vm.Name] = Date.now();
+            vm.Uptime = '0:00:00';
             renderVMList();
 
             setTimeout(() => {
@@ -4555,13 +4635,36 @@ const GUISimulator = (function() {
             hvState.treeView.expand('host');
             hvState.treeView.select('vms');
             renderVMList();
+
+            // Initialize start times for already-running VMs and start timer
+            const now = Date.now();
+            hvState.vms.forEach(vm => {
+                if (vm.State === 'Running') {
+                    // Calculate how long ago VM "started" based on current uptime
+                    const uptimeSeconds = parseUptimeToSeconds(vm.Uptime);
+                    hvState.vmStartTimes[vm.Name] = now - (uptimeSeconds * 1000);
+                }
+            });
+
+            // Start the timer if any VMs are running
+            if (Object.keys(hvState.vmStartTimes).length > 0) {
+                startUptimeTimer();
+            }
         }, 100);
+
+        // Cleanup timer when window closes
+        const originalOnClose = win.onClose;
+        win.onClose = () => {
+            stopUptimeTimer();
+            if (originalOnClose) originalOnClose();
+        };
 
         return {
             window: win,
             refresh: refreshViews,
             getVMs: () => hvState.vms,
             getSwitches: () => hvState.switches,
+            destroy: () => stopUptimeTimer(),
         };
     }
 
