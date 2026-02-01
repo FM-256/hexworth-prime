@@ -2804,21 +2804,37 @@ ACCEPT to proceed. DECLINE to abort.`;
     }
 
     // Known files/paths for auto-complete by context
+    // Format: { name: isDirectory }
     const COMPLETION_PATHS = {
-        '/': ['data', 'home', 'var', 'etc', 'tmp', 'opt', 'usr'],
-        '/data': ['ops', 'logs', 'backups'],
-        '/data/ops': ['mission_intel.classified', 'targets.list', 'creds.enc'],
-        '/home': ['operator', 'specter', 'admin'],
-        '/home/operator': ['.bashrc', '.ssh', 'notes.txt'],
-        '/home/specter': ['.hidden', 'plans.txt'],
-        '/var': ['log', 'run', 'tmp'],
-        '/var/log': ['auth.log', 'syslog', 'messages', 'secure', 'daemon.log'],
-        '/etc': ['passwd', 'shadow', 'hosts', 'hostname', 'network', 'ssh'],
-        '.': ['..', 'data', 'home', 'var', 'etc']
+        '/': { 'data': true, 'home': true, 'var': true, 'etc': true, 'tmp': true, 'opt': true, 'usr': true },
+        '/data': { 'ops': true, 'logs': true, 'backups': true },
+        '/data/ops': { 'mission_intel.classified': false, 'targets.list': false, 'creds.enc': false },
+        '/home': { 'operator': true, 'specter': true, 'admin': true },
+        '/home/operator': { '.bashrc': false, '.ssh': true, 'notes.txt': false, 'Documents': true, 'Downloads': true, 'intel.classified': false, 'mission_notes.txt': false },
+        '/home/specter': { '.hidden': true, 'plans.txt': false },
+        '/var': { 'log': true, 'run': true, 'tmp': true },
+        '/var/log': { 'auth.log': false, 'syslog': false, 'messages': false, 'secure': false, 'daemon.log': false },
+        '/etc': { 'passwd': false, 'shadow': false, 'hosts': false, 'hostname': false, 'network': true, 'ssh': true },
+        // Relative paths (current working directory = ~ = /home/operator)
+        '': { 'Documents': true, 'Downloads': true, 'intel.classified': false, 'mission_notes.txt': false }
     };
 
     // SSH targets for auto-complete
     const SSH_TARGETS = ['operator@prometheus', 'admin@prometheus', 'specter@darknet'];
+
+    // Check if a path represents a directory
+    function isDirectory(path) {
+        // Normalize path
+        const normalized = path.replace(/\/+$/, ''); // Remove trailing slashes
+        return COMPLETION_PATHS.hasOwnProperty(normalized) ||
+               COMPLETION_PATHS.hasOwnProperty('/' + normalized);
+    }
+
+    // Get completions for a directory path
+    function getCompletions(dirPath) {
+        const normalized = dirPath.replace(/\/+$/, ''); // Remove trailing slashes
+        return COMPLETION_PATHS[normalized] || COMPLETION_PATHS['/' + normalized] || COMPLETION_PATHS[''] || {};
+    }
 
     const cmdInput = document.getElementById('cmdInput');
 
@@ -2893,11 +2909,28 @@ ACCEPT to proceed. DECLINE to abort.`;
                 const lastSlash = partial.lastIndexOf('/');
                 console.log('[TAB] Path completion, partial:', partial, 'lastSlash:', lastSlash);
 
+                // Check if partial is already a complete directory - show its contents
+                if (isDirectory(partial) && !partial.endsWith('/')) {
+                    const dirContents = getCompletions(partial);
+                    const items = Object.keys(dirContents);
+                    if (items.length > 0) {
+                        print(`<span style="color:#00ff41;">operator@${G.host || 'RELAY'}:~$</span> ${val}`, 'output');
+                        print('  ' + items.join('  '), 'system');
+                        parts[parts.length - 1] = partial + '/';
+                        this.value = parts.join(' ');
+                        console.log('[TAB] Directory listing, added slash');
+                        return false;
+                    }
+                }
+
                 if (lastSlash === -1) {
-                    // No slash - complete from current directory (simulated as root paths)
+                    // No slash - complete from current directory
                     const prefix = partial.toLowerCase();
-                    matches = ['data', 'home', 'var', 'etc', 'tmp', '.'].filter(p => p.toLowerCase().startsWith(prefix));
+                    const dirContents = getCompletions('');
+                    const items = Object.keys(dirContents);
+                    matches = items.filter(p => p.toLowerCase().startsWith(prefix));
                     completionBase = '';
+                    console.log('[TAB] No slash, items:', items, 'matches:', matches);
                 } else {
                     // Has slash - complete based on directory
                     const dirPath = partial.substring(0, lastSlash) || '/';
@@ -2906,9 +2939,10 @@ ACCEPT to proceed. DECLINE to abort.`;
                     console.log('[TAB] dirPath:', dirPath, 'filePrefix:', filePrefix, 'completionBase:', completionBase);
 
                     // Get available completions for this directory
-                    const dirContents = COMPLETION_PATHS[dirPath] || COMPLETION_PATHS['/'] || [];
-                    matches = dirContents.filter(item => item.toLowerCase().startsWith(filePrefix));
-                    console.log('[TAB] dirContents:', dirContents, 'matches:', matches);
+                    const dirContents = getCompletions(dirPath);
+                    const items = Object.keys(dirContents);
+                    matches = items.filter(item => item.toLowerCase().startsWith(filePrefix));
+                    console.log('[TAB] dirContents:', items, 'matches:', matches);
                 }
             }
 
@@ -2920,7 +2954,10 @@ ACCEPT to proceed. DECLINE to abort.`;
                 if (isFirstWord) {
                     this.value = matches[0] + ' ';
                 } else {
-                    parts[parts.length - 1] = completionBase + matches[0];
+                    const completedPath = completionBase + matches[0];
+                    // Add trailing slash if it's a directory
+                    const suffix = isDirectory(completedPath) ? '/' : '';
+                    parts[parts.length - 1] = completedPath + suffix;
                     this.value = parts.join(' ');
                 }
                 console.log('[TAB] Single match applied, new value:', this.value);
@@ -3112,21 +3149,43 @@ ACCEPT to proceed. DECLINE to abort.`;
 
         // ls command
         if (base === 'ls') {
-            const path = parts[1] || '.';
-            if (path === '.' || path === '/home/operator') {
-                print('Documents  Downloads  intel.classified  mission_notes.txt', 'output');
-            } else if (path === '/data' || path === '/data/ops') {
-                print('mission_intel.classified  logs  archives', 'output');
-            } else if (path === '/var/log') {
-                print('auth.log  syslog  messages  kern.log', 'output');
-            } else if (cmd.includes('-la') || cmd.includes('-l')) {
-                print('total 24', 'output');
-                print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Documents', 'output');
-                print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Downloads', 'output');
-                print('-rw-------  1 operator operator  256 Jan 31 08:14 intel.classified', 'output');
-                print('-rw-r--r--  1 operator operator  128 Jan 31 08:12 mission_notes.txt', 'output');
+            const hasLongFlag = cmd.includes('-la') || cmd.includes('-l') || cmd.includes('-al');
+            // Find path argument (skip flags that start with -)
+            const path = parts.slice(1).find(p => !p.startsWith('-')) || '.';
+
+            // Valid directories and their contents
+            const validDirs = {
+                '.': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                '~': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                '/home/operator': 'Documents  Downloads  intel.classified  mission_notes.txt',
+                'Documents': '',  // empty directory
+                'Downloads': '',  // empty directory
+                '/data': 'ops  logs  backups',
+                '/data/ops': 'mission_intel.classified  targets.list  creds.enc',
+                '/var/log': 'auth.log  syslog  messages  kern.log',
+                '/etc': 'passwd  shadow  hosts  hostname  network  ssh',
+                '/home': 'operator  specter  admin'
+            };
+
+            // Valid files (can't ls into these, just show the name)
+            const validFiles = ['intel.classified', 'mission_notes.txt', '/etc/passwd', '/etc/shadow'];
+
+            if (validFiles.includes(path)) {
+                print(path.split('/').pop(), 'output');
+            } else if (validDirs.hasOwnProperty(path)) {
+                if (hasLongFlag && (path === '.' || path === '~' || path === '/home/operator')) {
+                    print('total 24', 'output');
+                    print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Documents', 'output');
+                    print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Downloads', 'output');
+                    print('-rw-------  1 operator operator  256 Jan 31 08:14 intel.classified', 'output');
+                    print('-rw-r--r--  1 operator operator  128 Jan 31 08:12 mission_notes.txt', 'output');
+                } else if (validDirs[path] === '') {
+                    // Empty directory - no output
+                } else {
+                    print(validDirs[path], 'output');
+                }
             } else {
-                print('Documents  Downloads  intel.classified  mission_notes.txt', 'output');
+                print(`ls: cannot access '${path}': No such file or directory`, 'error');
             }
             return;
         }
