@@ -3119,6 +3119,7 @@ SHADOW COPIES:
             if (!target || target === '~') {
                 currentDir = 'C:\\Users\\Administrator';
                 addLine(currentDir);
+                updatePrompt();
                 return;
             }
             if (target === '..') {
@@ -3126,31 +3127,51 @@ SHADOW COPIES:
                 if (parentParts.length > 1) {
                     parentParts.pop();
                     currentDir = parentParts.join('\\');
-                    if (!currentDir.includes(':')) currentDir = parentParts[0] + '\\';
+                    // If we're at drive root (e.g., "C:"), add backslash
+                    if (currentDir.match(/^[A-Za-z]:$/)) {
+                        currentDir += '\\';
+                    }
+                } else {
+                    // Already at root
+                    currentDir = 'C:\\';
                 }
                 addLine(currentDir);
+                updatePrompt();
                 return;
             }
             if (target === '\\' || target === '/') {
                 currentDir = 'C:\\';
                 addLine(currentDir);
+                updatePrompt();
                 return;
             }
+
+            // Helper to normalize path for lookup
+            function normalizePath(p) {
+                p = p.replace(/\//g, '\\');
+                // Normalize C: to C:\
+                if (p.match(/^[A-Za-z]:$/)) p += '\\';
+                return p;
+            }
+
             // Absolute path
             let newPath = target;
             if (!target.includes(':')) {
                 // Relative path
                 newPath = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
             }
-            newPath = newPath.replace(/\//g, '\\');
-            if (!newPath.endsWith('\\')) newPath = newPath;
+            newPath = normalizePath(newPath);
 
-            if (fileSystem[newPath] && fileSystem[newPath].type === 'dir') {
-                currentDir = newPath;
+            // Try to find the directory (case-insensitive)
+            const pathLower = newPath.toLowerCase();
+            const matchedPath = Object.keys(fileSystem).find(k =>
+                k.toLowerCase() === pathLower && fileSystem[k].type === 'dir'
+            );
+
+            if (matchedPath) {
+                currentDir = matchedPath;
                 addLine(currentDir);
-            } else if (fileSystem[newPath + '\\'] && fileSystem[newPath + '\\'].type === 'dir') {
-                currentDir = newPath;
-                addLine(currentDir);
+                updatePrompt();
             } else {
                 addLine(`Set-Location : Cannot find path '${target}'`, 'error');
             }
@@ -3176,8 +3197,14 @@ SHADOW COPIES:
                 target = currentDir.endsWith('\\') ? currentDir + target : currentDir + '\\' + target;
             }
             target = target.replace(/\//g, '\\');
+            // Normalize C: to C:\
+            if (target.match(/^[A-Za-z]:$/)) target += '\\';
 
-            const dir = fileSystem[target] || fileSystem[target.replace(/\\$/, '')];
+            // Case-insensitive lookup
+            const targetLower = target.toLowerCase();
+            const matchedKey = Object.keys(fileSystem).find(k => k.toLowerCase() === targetLower);
+            const dir = matchedKey ? fileSystem[matchedKey] : null;
+            if (matchedKey) target = matchedKey; // Use correct casing
             if (dir && dir.type === 'dir') {
                 addLine('');
                 addLine(`    Directory: ${target}`, 'info');
@@ -3237,7 +3264,11 @@ SHADOW COPIES:
             }
             target = target.replace(/\//g, '\\');
 
-            const file = fileSystem[target];
+            // Case-insensitive lookup
+            const targetLower = target.toLowerCase();
+            const matchedKey = Object.keys(fileSystem).find(k => k.toLowerCase() === targetLower);
+            const file = matchedKey ? fileSystem[matchedKey] : null;
+
             if (file && file.type === 'file') {
                 addLine('');
                 file.content.split('\n').forEach(line => addLine(line));
