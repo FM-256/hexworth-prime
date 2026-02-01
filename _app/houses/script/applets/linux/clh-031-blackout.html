@@ -2789,7 +2789,41 @@ ACCEPT to proceed. DECLINE to abort.`;
         'clear', 'history', 'man', 'exit', 'logout', 'uname', 'hostname', 'date', 'uptime'
     ];
 
-    document.getElementById('cmdInput').addEventListener('keydown', function(e) {
+    // Tab completion helper - finds common prefix among strings
+    function findCommonPrefix(strings) {
+        if (strings.length === 0) return '';
+        if (strings.length === 1) return strings[0];
+        let prefix = strings[0];
+        for (let i = 1; i < strings.length; i++) {
+            while (strings[i].toLowerCase().indexOf(prefix.toLowerCase()) !== 0) {
+                prefix = prefix.substring(0, prefix.length - 1);
+                if (prefix === '') return '';
+            }
+        }
+        return prefix;
+    }
+
+    // Known files/paths for auto-complete by context
+    const COMPLETION_PATHS = {
+        '/': ['data', 'home', 'var', 'etc', 'tmp', 'opt', 'usr'],
+        '/data': ['ops', 'logs', 'backups'],
+        '/data/ops': ['mission_intel.classified', 'targets.list', 'creds.enc'],
+        '/home': ['operator', 'specter', 'admin'],
+        '/home/operator': ['.bashrc', '.ssh', 'notes.txt'],
+        '/home/specter': ['.hidden', 'plans.txt'],
+        '/var': ['log', 'run', 'tmp'],
+        '/var/log': ['auth.log', 'syslog', 'messages', 'secure', 'daemon.log'],
+        '/etc': ['passwd', 'shadow', 'hosts', 'hostname', 'network', 'ssh'],
+        '.': ['..', 'data', 'home', 'var', 'etc']
+    };
+
+    // SSH targets for auto-complete
+    const SSH_TARGETS = ['operator@prometheus', 'admin@prometheus', 'specter@darknet'];
+
+    const cmdInput = document.getElementById('cmdInput');
+
+    // Use capture phase to intercept Tab before browser default behavior
+    cmdInput.addEventListener('keydown', function(e) {
         // Arrow Up - previous command
         if (e.key === 'ArrowUp') {
             e.preventDefault();
@@ -2823,65 +2857,80 @@ ACCEPT to proceed. DECLINE to abort.`;
         if (e.key === 'Tab') {
             e.preventDefault();
             e.stopPropagation();
-            const input = this;
-            const val = input.value.trim();
 
-            if (val.length === 0) return;
+            const val = this.value;
+            if (!val || val.trim().length === 0) return false;
 
             const parts = val.split(/\s+/);
-            const lastWord = parts[parts.length - 1].toLowerCase();
+            const lastPart = parts[parts.length - 1];
+            const isFirstWord = parts.length === 1;
 
-            // Command completion (first word only)
-            if (parts.length === 1) {
-                const matches = AVAILABLE_CMDS.filter(c => c.startsWith(lastWord));
-                if (matches.length === 1) {
-                    input.value = matches[0] + ' ';
-                } else if (matches.length > 1) {
-                    // Show matches
-                    print(`operator@${G.host || 'RELAY'}:~$ ${val}`, 'output');
-                    print('  ' + matches.join('  '), 'system');
-                    // Fill common prefix
-                    let common = matches[0];
-                    for (const m of matches) {
-                        while (common && !m.startsWith(common)) {
-                            common = common.slice(0, -1);
-                        }
-                    }
-                    if (common.length > lastWord.length) {
-                        input.value = common;
-                    }
-                }
+            let matches = [];
+            let completionBase = '';
+
+            // Command completion (first word)
+            if (isFirstWord) {
+                const partial = lastPart.toLowerCase();
+                matches = AVAILABLE_CMDS.filter(cmd => cmd.startsWith(partial));
+                completionBase = '';
             }
-            // Path/argument completion (second word onwards)
+            // SSH target completion
+            else if (parts[0].toLowerCase() === 'ssh') {
+                const partial = lastPart.toLowerCase();
+                matches = SSH_TARGETS.filter(t => t.toLowerCase().startsWith(partial));
+                completionBase = '';
+            }
+            // Path completion
             else {
-                const PATHS = [
-                    '/data', '/data/ops', '/data/ops/mission_intel.classified',
-                    '/home', '/home/operator', '/home/specter',
-                    '/var', '/var/log', '/var/log/auth.log', '/var/log/syslog',
-                    '/etc', '/etc/passwd', '/etc/shadow',
-                    'prometheus', 'operator@prometheus', 'specter'
-                ];
-                const matches = PATHS.filter(p => p.toLowerCase().startsWith(lastWord));
-                if (matches.length === 1) {
-                    parts[parts.length - 1] = matches[0];
-                    input.value = parts.join(' ');
-                } else if (matches.length > 1) {
-                    print(`operator@${G.host || 'RELAY'}:~$ ${val}`, 'output');
-                    print('  ' + matches.join('  '), 'system');
-                    // Fill common prefix
-                    let common = matches[0];
-                    for (const m of matches) {
-                        while (common && !m.toLowerCase().startsWith(common.toLowerCase().slice(0, common.length))) {
-                            common = common.slice(0, -1);
-                        }
+                const partial = lastPart;
+                const lastSlash = partial.lastIndexOf('/');
+
+                if (lastSlash === -1) {
+                    // No slash - complete from current directory (simulated as root paths)
+                    const prefix = partial.toLowerCase();
+                    matches = ['data', 'home', 'var', 'etc', 'tmp', '.'].filter(p => p.toLowerCase().startsWith(prefix));
+                    completionBase = '';
+                } else {
+                    // Has slash - complete based on directory
+                    const dirPath = partial.substring(0, lastSlash) || '/';
+                    const filePrefix = partial.substring(lastSlash + 1).toLowerCase();
+                    completionBase = dirPath + '/';
+
+                    // Get available completions for this directory
+                    const dirContents = COMPLETION_PATHS[dirPath] || COMPLETION_PATHS['/'] || [];
+                    matches = dirContents.filter(item => item.toLowerCase().startsWith(filePrefix));
+                }
+            }
+
+            // Apply completion
+            if (matches.length === 1) {
+                // Single match - complete fully
+                if (isFirstWord) {
+                    this.value = matches[0] + ' ';
+                } else {
+                    parts[parts.length - 1] = completionBase + matches[0];
+                    this.value = parts.join(' ');
+                }
+            } else if (matches.length > 1) {
+                // Multiple matches - show options and fill common prefix
+                print(`<span style="color:#00ff41;">operator@${G.host || 'RELAY'}:~$</span> ${val}`, 'output');
+                print('  ' + matches.join('  '), 'system');
+
+                // Find and apply common prefix
+                const common = findCommonPrefix(matches);
+                if (isFirstWord) {
+                    if (common.length > lastPart.length) {
+                        this.value = common;
                     }
-                    if (common.length > lastWord.length) {
-                        parts[parts.length - 1] = common;
-                        input.value = parts.join(' ');
+                } else {
+                    const currentPartial = lastPart.substring(completionBase.length);
+                    if (common.length > currentPartial.length) {
+                        parts[parts.length - 1] = completionBase + common;
+                        this.value = parts.join(' ');
                     }
                 }
             }
-            return;
+            return false;
         }
 
         // Enter - execute command
@@ -2899,7 +2948,23 @@ ACCEPT to proceed. DECLINE to abort.`;
         if (e.key.length === 1) {
             Audio.type();
         }
-    });
+    }, true); // Use capture phase
+
+    // Also prevent Tab at document level when cmdInput is focused
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab' && document.activeElement === cmdInput) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Trigger the input's own handler
+            cmdInput.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Tab',
+                code: 'Tab',
+                bubbles: true,
+                cancelable: true
+            }));
+            return false;
+        }
+    }, true);
 
     let finalePhase = 1;
     let finaleExtracted = false;
