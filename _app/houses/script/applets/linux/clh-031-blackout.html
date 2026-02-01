@@ -2783,12 +2783,96 @@ ACCEPT to proceed. DECLINE to abort.`;
     // ───────────────────────────────────────────────────────────────────────
     // COMMAND PROCESSING
     // ───────────────────────────────────────────────────────────────────────
+    const AVAILABLE_CMDS = [
+        'ssh', 'find', 'cat', 'scp', 'pkill', 'ls', 'pwd', 'whoami', 'help',
+        'cd', 'grep', 'head', 'tail', 'chmod', 'ps', 'kill', 'netstat', 'ifconfig',
+        'clear', 'history', 'man', 'exit', 'logout', 'uname', 'hostname', 'date', 'uptime'
+    ];
+
     document.getElementById('cmdInput').addEventListener('keydown', function(e) {
-        Audio.type();
+        // Arrow Up - previous command
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (G.cmdHistory.length > 0) {
+                if (G.historyIdx === -1) {
+                    G.historyIdx = G.cmdHistory.length - 1;
+                } else if (G.historyIdx > 0) {
+                    G.historyIdx--;
+                }
+                this.value = G.cmdHistory[G.historyIdx];
+            }
+            return;
+        }
+
+        // Arrow Down - next command
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (G.historyIdx !== -1) {
+                if (G.historyIdx < G.cmdHistory.length - 1) {
+                    G.historyIdx++;
+                    this.value = G.cmdHistory[G.historyIdx];
+                } else {
+                    G.historyIdx = -1;
+                    this.value = '';
+                }
+            }
+            return;
+        }
+
+        // Tab - auto-complete
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const val = this.value.trim();
+            if (val.length > 0) {
+                const parts = val.split(/\s+/);
+                const lastWord = parts[parts.length - 1];
+
+                // Command completion (first word)
+                if (parts.length === 1) {
+                    const matches = AVAILABLE_CMDS.filter(c => c.startsWith(lastWord.toLowerCase()));
+                    if (matches.length === 1) {
+                        this.value = matches[0] + ' ';
+                    } else if (matches.length > 1) {
+                        print(`<span style="color:#00ff41;">operator@${G.host}:~$</span> ${val}`);
+                        print(matches.join('  '), 'output');
+                        // Find common prefix
+                        let common = matches[0];
+                        for (let m of matches) {
+                            while (!m.startsWith(common)) common = common.slice(0, -1);
+                        }
+                        if (common.length > lastWord.length) this.value = common;
+                    }
+                }
+                // Path completion (after command)
+                else if (lastWord.startsWith('/') || lastWord.startsWith('.')) {
+                    const paths = ['/data', '/data/ops', '/data/ops/mission_intel.classified', '/home', '/home/operator', '/var/log', '/var/log/auth.log', '/etc', '/etc/passwd'];
+                    const matches = paths.filter(p => p.startsWith(lastWord));
+                    if (matches.length === 1) {
+                        parts[parts.length - 1] = matches[0];
+                        this.value = parts.join(' ');
+                    } else if (matches.length > 1) {
+                        print(`<span style="color:#00ff41;">operator@${G.host}:~$</span> ${val}`);
+                        print(matches.join('  '), 'output');
+                    }
+                }
+            }
+            return;
+        }
+
+        // Enter - execute command
         if (e.key === 'Enter') {
-            const cmd = this.value.trim().toLowerCase();
-            if (cmd) processCmd(cmd);
+            const cmd = this.value.trim();
+            if (cmd) {
+                G.historyIdx = -1; // Reset history navigation
+                processCmd(cmd.toLowerCase());
+            }
             this.value = '';
+            return;
+        }
+
+        // Regular typing - play sound
+        if (e.key.length === 1) {
+            Audio.type();
         }
     });
 
@@ -2840,66 +2924,244 @@ ACCEPT to proceed. DECLINE to abort.`;
     let towerAttackScheduled = false;
 
     function simOutput(cmd) {
-        if (cmd.includes('ssh') && cmd.includes('prometheus')) {
-            print('Connecting...', 'output');
-            setTimeout(() => {
-                print('Welcome to PROMETHEUS', 'system');
-                G.host = 'PROMETHEUS';
-                G.connected = true;
+        const parts = cmd.trim().split(/\s+/);
+        const base = parts[0];
 
-                if (!sshConnected) {
-                    sshConnected = true;
-                    handlerSay('Good, you\'re in. Run recon - find the intel. You have 30 seconds before SPECTER detects you.');
-                    addThreat('SSH connection established', 'success');
+        // SSH command
+        if (base === 'ssh') {
+            if (cmd.includes('prometheus')) {
+                print('Connecting to prometheus...', 'output');
+                setTimeout(() => {
+                    print('Welcome to PROMETHEUS', 'system');
+                    print('Last login: ' + new Date().toLocaleString(), 'output');
+                    G.host = 'PROMETHEUS';
+                    G.connected = true;
 
-                    // Update objective
-                    document.getElementById('objText').textContent = 'Explore and locate intel';
-                    document.getElementById('objHint').textContent = '> find, ls, cat - 30 seconds until SPECTER strikes';
-                    document.getElementById('objectiveBox').innerHTML = '<b>Explore PROMETHEUS</b><br><small>30 seconds until SPECTER detects you</small>';
+                    if (!sshConnected) {
+                        sshConnected = true;
+                        handlerSay('Good, you\'re in. Run recon - find the intel. You have 30 seconds before SPECTER detects you.');
+                        addThreat('SSH connection established', 'success');
+                        document.getElementById('objText').textContent = 'Explore and locate intel';
+                        document.getElementById('objHint').textContent = '> find, ls, cat - 30 seconds until SPECTER strikes';
+                        document.getElementById('objectiveBox').innerHTML = '<b>Explore PROMETHEUS</b><br><small>30 seconds until SPECTER detects you</small>';
 
-                    // Schedule tower attack in 30 seconds
-                    if (!towerAttackScheduled) {
-                        towerAttackScheduled = true;
-                        setTimeout(() => {
-                            if (G.towerUp) {
-                                destroyTower();
-                                setTimeout(() => {
-                                    showPhaseAnnouncement(1);
-                                }, 2000);
-                            }
-                        }, 30000);
+                        if (!towerAttackScheduled) {
+                            towerAttackScheduled = true;
+                            setTimeout(() => {
+                                if (G.towerUp) {
+                                    destroyTower();
+                                    setTimeout(() => showPhaseAnnouncement(1), 2000);
+                                }
+                            }, 30000);
+                        }
                     }
-                }
-            }, 300);
-        } else if (cmd.includes('find') && cmd.includes('classified')) {
-            print('/data/ops/mission_intel.classified', 'output');
-            if (G.modifiers.decoys) print('/data/ops/decoy_intel.classified', 'output');
-        } else if (cmd.includes('cat') && cmd.includes('classified')) {
-            if (cmd.includes('decoy') && G.modifiers.decoys) {
-                print('[TRAP] Decoy file! Time penalty: 10 seconds', 'error');
-                G.timeRemaining -= 10;
+                }, 500);
             } else {
-                print('═══════════════════════════════════════', 'highlight');
-                print('TOP SECRET // OPERATION BLACKOUT', 'error');
-                print('TARGET: SPECTER-7 - NEUTRALIZE', 'output');
-                print('═══════════════════════════════════════', 'highlight');
+                print('usage: ssh [user@]hostname', 'output');
+                print('  ssh operator@prometheus  - Connect to PROMETHEUS server', 'output');
             }
-        } else if (cmd.includes('pkill') && cmd.includes('specter')) {
-            print('[KILLED] SPECTER processes terminated', 'success');
-        } else if (cmd.includes('scp')) {
-            print('Exfiltrating...', 'output');
-            setTimeout(() => print('[SUCCESS] Intel secured', 'success'), 300);
-        } else if (cmd.includes('ls')) {
-            print('Documents  Downloads  intel.classified  mission_notes.txt', 'output');
-        } else if (cmd.includes('pwd')) {
-            print('/home/operator', 'output');
-        } else if (cmd.includes('whoami')) {
-            print('operator', 'output');
-        } else if (cmd.includes('help')) {
-            print('Available: ssh, find, cat, scp, pkill, ls, pwd, whoami', 'output');
-        } else {
-            print(`${cmd}: executed`, 'output');
+            return;
         }
+
+        // Find command
+        if (base === 'find') {
+            if (parts.length < 2) {
+                print('usage: find [path] -name [pattern]', 'output');
+            } else if (cmd.includes('classified') || cmd.includes('intel')) {
+                print('/data/ops/mission_intel.classified', 'output');
+                if (G.modifiers.decoys) print('/data/ops/decoy_intel.classified', 'output');
+            } else if (cmd.includes('log')) {
+                print('/var/log/auth.log', 'output');
+                print('/var/log/syslog', 'output');
+            } else {
+                print('find: no matches found', 'output');
+            }
+            return;
+        }
+
+        // Cat command
+        if (base === 'cat') {
+            if (parts.length < 2) {
+                print('usage: cat [file]', 'output');
+            } else if (cmd.includes('classified')) {
+                if (cmd.includes('decoy') && G.modifiers.decoys) {
+                    print('[TRAP] Decoy file! Time penalty: 10 seconds', 'error');
+                    G.timeRemaining -= 10;
+                    Audio.error();
+                } else {
+                    print('═══════════════════════════════════════', 'highlight');
+                    print('TOP SECRET // OPERATION BLACKOUT', 'error');
+                    print('TARGET: SPECTER-7 - NEUTRALIZE', 'output');
+                    print('LOCATION: Node 7-ALPHA', 'output');
+                    print('STATUS: ACTIVE THREAT', 'output');
+                    print('═══════════════════════════════════════', 'highlight');
+                }
+            } else if (cmd.includes('auth.log') || cmd.includes('log')) {
+                print('Jan 31 08:15:22 prometheus sshd: Failed password for root from 10.13.37.66', 'output');
+                print('Jan 31 08:15:24 prometheus sshd: Failed password for root from 10.13.37.66', 'output');
+                print('Jan 31 08:15:27 prometheus sshd: Accepted password for specter from 10.13.37.66', 'output');
+                print('Jan 31 08:16:01 prometheus sshd: Connection from 10.13.37.100 authorized', 'output');
+            } else if (cmd.includes('passwd')) {
+                print('root:x:0:0:root:/root:/bin/bash', 'output');
+                print('operator:x:1000:1000::/home/operator:/bin/bash', 'output');
+                print('specter:x:1001:1001::/home/specter:/bin/bash', 'output');
+            } else {
+                print(`cat: ${parts[1]}: No such file or directory`, 'error');
+            }
+            return;
+        }
+
+        // ls command
+        if (base === 'ls') {
+            const path = parts[1] || '.';
+            if (path === '.' || path === '/home/operator') {
+                print('Documents  Downloads  intel.classified  mission_notes.txt', 'output');
+            } else if (path === '/data' || path === '/data/ops') {
+                print('mission_intel.classified  logs  archives', 'output');
+            } else if (path === '/var/log') {
+                print('auth.log  syslog  messages  kern.log', 'output');
+            } else if (cmd.includes('-la') || cmd.includes('-l')) {
+                print('total 24', 'output');
+                print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Documents', 'output');
+                print('drwxr-xr-x  2 operator operator 4096 Jan 31 08:00 Downloads', 'output');
+                print('-rw-------  1 operator operator  256 Jan 31 08:14 intel.classified', 'output');
+                print('-rw-r--r--  1 operator operator  128 Jan 31 08:12 mission_notes.txt', 'output');
+            } else {
+                print('Documents  Downloads  intel.classified  mission_notes.txt', 'output');
+            }
+            return;
+        }
+
+        // Process management
+        if (base === 'ps') {
+            print('  PID TTY          TIME CMD', 'output');
+            print(' 1024 pts/0    00:00:00 bash', 'output');
+            print(' 1337 pts/0    00:00:12 specter_agent', 'output');
+            print(' 1338 pts/0    00:00:05 specter_exfil', 'output');
+            print(' 2048 pts/0    00:00:00 ps', 'output');
+            return;
+        }
+
+        if (base === 'pkill' || base === 'kill') {
+            if (cmd.includes('specter')) {
+                print('[KILLED] SPECTER processes terminated', 'success');
+            } else if (parts.length < 2) {
+                print(`usage: ${base} [process_name]`, 'output');
+            } else {
+                print(`${base}: process ${parts[1]} not found`, 'error');
+            }
+            return;
+        }
+
+        // Network commands
+        if (base === 'netstat') {
+            print('Active Internet connections', 'output');
+            print('Proto  Local Address          Foreign Address        State', 'output');
+            print('tcp    0.0.0.0:22            0.0.0.0:*              LISTEN', 'output');
+            print('tcp    10.13.37.100:22       10.13.37.66:48521      ESTABLISHED', 'output');
+            return;
+        }
+
+        if (base === 'ifconfig') {
+            print('eth0: flags=4163<UP,BROADCAST,RUNNING>  mtu 1500', 'output');
+            print('        inet 10.13.37.100  netmask 255.255.255.0', 'output');
+            return;
+        }
+
+        // File transfer
+        if (base === 'scp') {
+            if (parts.length < 3) {
+                print('usage: scp [file] [user@host:path]', 'output');
+            } else {
+                print('Exfiltrating...', 'output');
+                setTimeout(() => print('[SUCCESS] File transferred', 'success'), 500);
+            }
+            return;
+        }
+
+        // Basic commands
+        if (base === 'pwd') { print('/home/operator', 'output'); return; }
+        if (base === 'whoami') { print('operator', 'output'); return; }
+        if (base === 'hostname') { print(G.host || 'RELAY', 'output'); return; }
+        if (base === 'uname') { print('Linux prometheus 5.4.0 #1 SMP x86_64 GNU/Linux', 'output'); return; }
+        if (base === 'date') { print(new Date().toString(), 'output'); return; }
+        if (base === 'uptime') { print(' 08:23:45 up 127 days, 4:32, 2 users, load average: 0.42, 0.38, 0.35', 'output'); return; }
+        if (base === 'id') { print('uid=1000(operator) gid=1000(operator) groups=1000(operator),27(sudo)', 'output'); return; }
+
+        // chmod for permissions puzzle
+        if (base === 'chmod') {
+            if (parts.length < 3) {
+                print('usage: chmod [mode] [file]', 'output');
+            } else {
+                print(`chmod: mode of '${parts[2]}' changed to ${parts[1]}`, 'output');
+            }
+            return;
+        }
+
+        // Clear terminal
+        if (base === 'clear' || base === 'cls') {
+            document.getElementById('terminal').innerHTML = '';
+            return;
+        }
+
+        // History
+        if (base === 'history') {
+            G.cmdHistory.forEach((c, i) => print(`  ${i + 1}  ${c}`, 'output'));
+            return;
+        }
+
+        // Help
+        if (base === 'help' || base === 'man') {
+            print('AVAILABLE COMMANDS:', 'system');
+            print('  ssh user@host     - Connect to remote server', 'output');
+            print('  find path -name   - Search for files', 'output');
+            print('  cat file          - Display file contents', 'output');
+            print('  ls [path]         - List directory', 'output');
+            print('  ps                - Show running processes', 'output');
+            print('  pkill name        - Kill processes by name', 'output');
+            print('  scp file host     - Secure copy file', 'output');
+            print('  chmod mode file   - Change permissions', 'output');
+            print('  netstat           - Network connections', 'output');
+            print('  clear             - Clear terminal', 'output');
+            print('  history           - Show command history', 'output');
+            print('', 'output');
+            print('Use Tab for auto-completion, ↑/↓ for history', 'system');
+            return;
+        }
+
+        // Exit/logout
+        if (base === 'exit' || base === 'logout') {
+            print('Connection closed.', 'output');
+            G.connected = false;
+            G.host = 'RELAY';
+            return;
+        }
+
+        // CD (simulate)
+        if (base === 'cd') {
+            if (parts.length < 2 || parts[1] === '~') {
+                print('', 'output'); // Silent success
+            } else {
+                print('', 'output'); // Simulate cd working
+            }
+            return;
+        }
+
+        // Grep
+        if (base === 'grep') {
+            if (parts.length < 2) {
+                print('usage: grep [pattern] [file]', 'output');
+            } else if (cmd.includes('specter') || cmd.includes('10.13.37.66')) {
+                print('Jan 31 08:15:27 prometheus sshd: Accepted password for specter from 10.13.37.66', 'highlight');
+            } else {
+                print('(no matches)', 'output');
+            }
+            return;
+        }
+
+        // Unknown command
+        print(`${base}: command not found`, 'error');
+        print(`Type 'help' for available commands`, 'output');
     }
 
     // ───────────────────────────────────────────────────────────────────────
