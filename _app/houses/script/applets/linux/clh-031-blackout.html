@@ -2857,13 +2857,18 @@ ACCEPT to proceed. DECLINE to abort.`;
         if (e.key === 'Tab') {
             e.preventDefault();
             e.stopPropagation();
+            console.log('[TAB] Tab pressed, value:', this.value);
 
             const val = this.value;
-            if (!val || val.trim().length === 0) return false;
+            if (!val || val.trim().length === 0) {
+                console.log('[TAB] Empty input, skipping');
+                return false;
+            }
 
             const parts = val.split(/\s+/);
             const lastPart = parts[parts.length - 1];
             const isFirstWord = parts.length === 1;
+            console.log('[TAB] parts:', parts, 'lastPart:', lastPart, 'isFirstWord:', isFirstWord);
 
             let matches = [];
             let completionBase = '';
@@ -2873,17 +2878,20 @@ ACCEPT to proceed. DECLINE to abort.`;
                 const partial = lastPart.toLowerCase();
                 matches = AVAILABLE_CMDS.filter(cmd => cmd.startsWith(partial));
                 completionBase = '';
+                console.log('[TAB] Command completion, partial:', partial, 'matches:', matches);
             }
             // SSH target completion
             else if (parts[0].toLowerCase() === 'ssh') {
                 const partial = lastPart.toLowerCase();
                 matches = SSH_TARGETS.filter(t => t.toLowerCase().startsWith(partial));
                 completionBase = '';
+                console.log('[TAB] SSH completion, partial:', partial, 'matches:', matches);
             }
             // Path completion
             else {
                 const partial = lastPart;
                 const lastSlash = partial.lastIndexOf('/');
+                console.log('[TAB] Path completion, partial:', partial, 'lastSlash:', lastSlash);
 
                 if (lastSlash === -1) {
                     // No slash - complete from current directory (simulated as root paths)
@@ -2895,12 +2903,16 @@ ACCEPT to proceed. DECLINE to abort.`;
                     const dirPath = partial.substring(0, lastSlash) || '/';
                     const filePrefix = partial.substring(lastSlash + 1).toLowerCase();
                     completionBase = dirPath + '/';
+                    console.log('[TAB] dirPath:', dirPath, 'filePrefix:', filePrefix, 'completionBase:', completionBase);
 
                     // Get available completions for this directory
                     const dirContents = COMPLETION_PATHS[dirPath] || COMPLETION_PATHS['/'] || [];
                     matches = dirContents.filter(item => item.toLowerCase().startsWith(filePrefix));
+                    console.log('[TAB] dirContents:', dirContents, 'matches:', matches);
                 }
             }
+
+            console.log('[TAB] Final matches:', matches);
 
             // Apply completion
             if (matches.length === 1) {
@@ -2911,6 +2923,7 @@ ACCEPT to proceed. DECLINE to abort.`;
                     parts[parts.length - 1] = completionBase + matches[0];
                     this.value = parts.join(' ');
                 }
+                console.log('[TAB] Single match applied, new value:', this.value);
             } else if (matches.length > 1) {
                 // Multiple matches - show options and fill common prefix
                 print(`<span style="color:#00ff41;">operator@${G.host || 'RELAY'}:~$</span> ${val}`, 'output');
@@ -2918,17 +2931,22 @@ ACCEPT to proceed. DECLINE to abort.`;
 
                 // Find and apply common prefix
                 const common = findCommonPrefix(matches);
+                console.log('[TAB] Multiple matches, common prefix:', common);
                 if (isFirstWord) {
                     if (common.length > lastPart.length) {
                         this.value = common;
+                        console.log('[TAB] Applied common prefix:', this.value);
                     }
                 } else {
                     const currentPartial = lastPart.substring(completionBase.length);
                     if (common.length > currentPartial.length) {
                         parts[parts.length - 1] = completionBase + common;
                         this.value = parts.join(' ');
+                        console.log('[TAB] Applied path common prefix:', this.value);
                     }
                 }
+            } else {
+                console.log('[TAB] No matches found');
             }
             return false;
         }
@@ -2948,21 +2966,12 @@ ACCEPT to proceed. DECLINE to abort.`;
         if (e.key.length === 1) {
             Audio.type();
         }
-    }, true); // Use capture phase
+    });
 
-    // Also prevent Tab at document level when cmdInput is focused
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab' && document.activeElement === cmdInput) {
+    // Prevent Tab from leaving the input at window level
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab' && document.activeElement === cmdInput && !cmdInput.disabled) {
             e.preventDefault();
-            e.stopPropagation();
-            // Trigger the input's own handler
-            cmdInput.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'Tab',
-                code: 'Tab',
-                bubbles: true,
-                cancelable: true
-            }));
-            return false;
         }
     }, true);
 
