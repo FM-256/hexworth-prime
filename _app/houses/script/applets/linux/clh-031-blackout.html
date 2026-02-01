@@ -2822,23 +2822,43 @@ ACCEPT to proceed. DECLINE to abort.`;
     // SSH targets for auto-complete
     const SSH_TARGETS = ['operator@prometheus', 'admin@prometheus', 'specter@darknet'];
 
+    // Current working directory (always home for this terminal)
+    const CWD = '/home/operator';
+
+    // Normalize a path for lookup - handles absolute and relative paths
+    function normalizePath(path) {
+        // Empty or . means current directory (use '' key for visible files only)
+        if (!path || path === '.') return '';
+        if (path === '~') return CWD;
+        if (path === '/') return '/';
+        // Collapse multiple slashes
+        path = path.replace(/\/+/g, '/');
+        // Remove trailing slash (unless root)
+        if (path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        // Handle relative paths by prepending CWD
+        if (!path.startsWith('/')) {
+            path = CWD + '/' + path;
+            path = path.replace(/\/+/g, '/');
+        }
+        return path;
+    }
+
     // Check if a path represents a directory
     function isDirectory(path) {
-        // Normalize path
-        const normalized = path.replace(/\/+$/, ''); // Remove trailing slashes
-        return COMPLETION_PATHS.hasOwnProperty(normalized) ||
-               COMPLETION_PATHS.hasOwnProperty('/' + normalized);
+        const normalized = normalizePath(path);
+        const exists = COMPLETION_PATHS.hasOwnProperty(normalized);
+        console.log('[isDirectory]', path, '->', normalized, exists);
+        return exists;
     }
 
     // Get completions for a directory path
     function getCompletions(dirPath) {
-        // Handle root directory specially
-        if (dirPath === '/' || dirPath === '') {
-            return COMPLETION_PATHS[dirPath] || {};
-        }
-        // Normalize: remove trailing slashes, collapse multiple slashes
-        const normalized = dirPath.replace(/\/+/g, '/').replace(/\/$/, '');
-        return COMPLETION_PATHS[normalized] || COMPLETION_PATHS['/' + normalized] || {};
+        const normalized = normalizePath(dirPath);
+        const result = COMPLETION_PATHS[normalized] || {};
+        console.log('[getCompletions]', dirPath, '->', normalized, Object.keys(result));
+        return result;
     }
 
     const cmdInput = document.getElementById('cmdInput');
@@ -2887,6 +2907,10 @@ ACCEPT to proceed. DECLINE to abort.`;
             }
 
             const parts = val.split(/\s+/);
+            // If input ends with whitespace, user wants to complete a new argument
+            if (/\s$/.test(val)) {
+                parts.push('');
+            }
             const lastPart = parts[parts.length - 1];
             const isFirstWord = parts.length === 1;
             console.log('[TAB] parts:', parts, 'lastPart:', lastPart, 'isFirstWord:', isFirstWord);
