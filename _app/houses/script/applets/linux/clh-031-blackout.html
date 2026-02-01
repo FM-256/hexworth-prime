@@ -1238,7 +1238,7 @@
                     <div class="terminal" id="terminal"></div>
                     <div class="input-line">
                         <span class="input-prompt phosphor-glow" id="prompt">operator@RELAY:~$</span>
-                        <input type="text" id="cmdInput" autocomplete="off" disabled>
+                        <input type="text" id="cmdInput" autocomplete="off" spellcheck="false" tabindex="0" disabled>
                     </div>
                 </div>
 
@@ -2822,37 +2822,62 @@ ACCEPT to proceed. DECLINE to abort.`;
         // Tab - auto-complete
         if (e.key === 'Tab') {
             e.preventDefault();
-            const val = this.value.trim();
-            if (val.length > 0) {
-                const parts = val.split(/\s+/);
-                const lastWord = parts[parts.length - 1];
+            e.stopPropagation();
+            const input = this;
+            const val = input.value.trim();
 
-                // Command completion (first word)
-                if (parts.length === 1) {
-                    const matches = AVAILABLE_CMDS.filter(c => c.startsWith(lastWord.toLowerCase()));
-                    if (matches.length === 1) {
-                        this.value = matches[0] + ' ';
-                    } else if (matches.length > 1) {
-                        print(`<span style="color:#00ff41;">operator@${G.host}:~$</span> ${val}`);
-                        print(matches.join('  '), 'output');
-                        // Find common prefix
-                        let common = matches[0];
-                        for (let m of matches) {
-                            while (!m.startsWith(common)) common = common.slice(0, -1);
+            if (val.length === 0) return;
+
+            const parts = val.split(/\s+/);
+            const lastWord = parts[parts.length - 1].toLowerCase();
+
+            // Command completion (first word only)
+            if (parts.length === 1) {
+                const matches = AVAILABLE_CMDS.filter(c => c.startsWith(lastWord));
+                if (matches.length === 1) {
+                    input.value = matches[0] + ' ';
+                } else if (matches.length > 1) {
+                    // Show matches
+                    print(`operator@${G.host || 'RELAY'}:~$ ${val}`, 'output');
+                    print('  ' + matches.join('  '), 'system');
+                    // Fill common prefix
+                    let common = matches[0];
+                    for (const m of matches) {
+                        while (common && !m.startsWith(common)) {
+                            common = common.slice(0, -1);
                         }
-                        if (common.length > lastWord.length) this.value = common;
+                    }
+                    if (common.length > lastWord.length) {
+                        input.value = common;
                     }
                 }
-                // Path completion (after command)
-                else if (lastWord.startsWith('/') || lastWord.startsWith('.')) {
-                    const paths = ['/data', '/data/ops', '/data/ops/mission_intel.classified', '/home', '/home/operator', '/var/log', '/var/log/auth.log', '/etc', '/etc/passwd'];
-                    const matches = paths.filter(p => p.startsWith(lastWord));
-                    if (matches.length === 1) {
-                        parts[parts.length - 1] = matches[0];
-                        this.value = parts.join(' ');
-                    } else if (matches.length > 1) {
-                        print(`<span style="color:#00ff41;">operator@${G.host}:~$</span> ${val}`);
-                        print(matches.join('  '), 'output');
+            }
+            // Path/argument completion (second word onwards)
+            else {
+                const PATHS = [
+                    '/data', '/data/ops', '/data/ops/mission_intel.classified',
+                    '/home', '/home/operator', '/home/specter',
+                    '/var', '/var/log', '/var/log/auth.log', '/var/log/syslog',
+                    '/etc', '/etc/passwd', '/etc/shadow',
+                    'prometheus', 'operator@prometheus', 'specter'
+                ];
+                const matches = PATHS.filter(p => p.toLowerCase().startsWith(lastWord));
+                if (matches.length === 1) {
+                    parts[parts.length - 1] = matches[0];
+                    input.value = parts.join(' ');
+                } else if (matches.length > 1) {
+                    print(`operator@${G.host || 'RELAY'}:~$ ${val}`, 'output');
+                    print('  ' + matches.join('  '), 'system');
+                    // Fill common prefix
+                    let common = matches[0];
+                    for (const m of matches) {
+                        while (common && !m.toLowerCase().startsWith(common.toLowerCase().slice(0, common.length))) {
+                            common = common.slice(0, -1);
+                        }
+                    }
+                    if (common.length > lastWord.length) {
+                        parts[parts.length - 1] = common;
+                        input.value = parts.join(' ');
                     }
                 }
             }
