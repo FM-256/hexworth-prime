@@ -7155,22 +7155,152 @@ lastlog | head -20`
                 },
                 '/home/admin/user_audit': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
-                    children: ['user_list.txt', 'group_memberships.txt', 'suspicious_accounts.txt', 'README.txt']
+                    children: ['user_list.txt', 'group_memberships.txt', 'suspicious_accounts.txt', 'README.txt', 'COMMAND_REFERENCE.txt']
+                },
+                '/home/admin/user_audit/COMMAND_REFERENCE.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 4096,
+                    content: `COMMAND SYNTAX REFERENCE
+========================
+This file explains the complex commands used in user auditing.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PIPES ( | ) - Connecting Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The pipe symbol | sends the output of one command as input to another.
+
+  command1 | command2
+  └──────┘   └──────┘
+  output  →  input
+
+Example: cat /etc/passwd | cut -d: -f1
+  1. cat /etc/passwd    → outputs the entire passwd file
+  2. |                  → sends that output to cut
+  3. cut -d: -f1        → extracts just the first field
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUT COMMAND - Extracting Fields
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cut -d: -f1
+
+  -d:     "delimiter is colon"
+  │ │
+  │ └── the character that separates fields (here it's :)
+  └──── -d means "delimiter"
+
+  -f1     "field number 1"
+  │ │
+  │ └── which field to extract (1 = first)
+  └──── -f means "field"
+
+The /etc/passwd file uses colons as separators:
+  root:x:0:0:root:/root:/bin/bash
+  └──┘ │ │ │ └──┘ └───┘ └───────┘
+  f1   f2 f3 f4 f5   f6    f7
+
+  -f1 = username (root)
+  -f3 = UID (0)
+  -f6 = home directory (/root)
+  -f7 = shell (/bin/bash)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GETENT COMMAND - Database Queries
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+getent <database> [key]
+
+  getent passwd           → all users
+  getent passwd admin     → just the admin user
+  getent group sudo       → members of sudo group
+
+Databases:
+  passwd  - user accounts (/etc/passwd)
+  group   - groups (/etc/group)
+  shadow  - password hashes (root only)
+  hosts   - hostname lookups
+
+Why getent instead of cat?
+  • getent queries ALL sources (local files + LDAP/AD)
+  • cat only reads local files
+  • In enterprise networks, users may be in Active Directory
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GREP -v - Inverse Matching
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+grep -v pattern file
+
+  -v means "invert match" (show lines that DON'T match)
+
+  grep nologin /etc/passwd      → shows accounts WITH nologin
+  grep -v nologin /etc/passwd   → shows accounts WITHOUT nologin
+                                  (i.e., accounts that CAN log in)
+
+This is useful for finding:
+  • Real user accounts (not system accounts)
+  • Accounts that could be used for login
+  • Potential backdoor accounts with shells
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASSWD -S - Password Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+passwd -S username
+
+  -S means "status" (uppercase S!)
+
+Output format:
+  admin P 01/15/2026 0 99999 7 -1 -1
+  │     │ │          │ │     │ │  │
+  │     │ │          │ │     │ │  └─ expiration date (-1=never)
+  │     │ │          │ │     │ └─ inactive days (-1=never)
+  │     │ │          │ │     └─ warning days before expire
+  │     │ │          │ └─ max days between changes (99999=never)
+  │     │ │          └─ min days between changes
+  │     │ └─ last password change date
+  │     └─ status: P=password set, L=locked, NP=no password
+  └─ username
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GROUPS COMMAND - User's Groups
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+groups [username]
+
+  groups          → shows YOUR groups
+  groups admin    → shows admin's groups
+
+Example output:
+  admin : admin sudo docker adm
+
+This tells you what permissions the user has:
+  • sudo group = can run sudo commands
+  • docker group = can run containers
+  • adm group = can read log files
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cat file | cut -d: -f1    Extract field 1 using : as separator
+getent passwd user        Look up user in passwd database
+grep -v pattern file      Show lines NOT matching pattern
+passwd -S user            Show password status (uppercase S)
+groups user               Show user's group memberships
+chage -l user             Show password aging details`
                 },
                 '/home/admin/user_audit/README.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 384,
+                    type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
                     content: `USER AUDIT WORKSPACE
 ====================
 Incident: IR-2026-0119
 Task: Identify rogue user accounts
 
 Files:
+- COMMAND_REFERENCE.txt: Command syntax explained ← READ THIS FIRST!
 - user_list.txt: Current system users with notes
 - group_memberships.txt: Privileged group memberships
 - suspicious_accounts.txt: Accounts flagged for review
 
 Priority: Find the backdoor account created by attacker
-UID range 1000-65533 = regular users (investigate these)`
+UID range 1000-65533 = regular users (investigate these)
+
+TIP: Commands like "cut -d: -f1" look complex but make sense
+once you understand the syntax. See COMMAND_REFERENCE.txt`
                 },
                 '/home/admin/user_audit/user_list.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
@@ -7354,7 +7484,7 @@ guest:x:1004:`
                   check: (cmd, state, output) => (cmd.includes('groups') || (cmd.includes('cat') && cmd.includes('group'))) &&
                          output && (output.includes('sudo') || output.includes('admin') || output.includes('docker')) },
                 { id: 4, task: 'CHECK: Password Status', hint: '$ passwd -S admin (or chage -l)',
-                  check: (cmd, state, output) => ((cmd.includes('passwd') && cmd.includes('-S')) || cmd.includes('chage')) &&
+                  check: (cmd, state, output) => ((cmd.includes('passwd') && (cmd.includes('-S') || cmd.includes('-s'))) || cmd.includes('chage')) &&
                          output && (output.includes('Password') || output.includes('Last') || output.includes('Expire') || /\b[PL]\s+\d{2}\/\d{2}\/\d{4}\b/.test(output)) },
                 { id: 5, task: 'AUDIT: Login Shells', hint: '$ grep -v nologin /etc/passwd',
                   check: (cmd, state, output) => (cmd.includes('shells') || cmd.includes('nologin') || cmd.includes('/bin/bash')) &&
