@@ -7788,14 +7788,14 @@ ROOT CAUSE: Under investigation
             },
 
             objectives: [
-                { id: 1, task: 'RECON: Assess System Health', hint: 'Check uptime and load average → uptime', check: (cmd, state, output) => cmd.includes('uptime') && output && output.includes('load average') },
-                { id: 2, task: 'TRIAGE: Sort Processes by CPU', hint: 'Find top CPU consumers → ps aux --sort=-%cpu | head', check: (cmd, state, output) => cmd.includes('ps') && cmd.includes('sort') && cmd.includes('cpu') },
-                { id: 3, task: 'IDENTIFY: Locate Rogue PID', hint: 'Which PID is consuming 98%+ CPU?', check: (cmd, state, output) => output && output.includes('6666') },
-                { id: 4, task: 'NETWORK: Check Active Connections', hint: 'Look for suspicious outbound → netstat -tunapl or ss -tunapl', check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) && output && (output.includes('ESTABLISHED') || output.includes('LISTEN')) },
-                { id: 5, task: 'TIMELINE: Find Compromise Start', hint: 'When did CPU spike? → cat dashboards/cpu_history.log', check: (cmd, state, output) => output && output.includes('11:00') && output.includes('spike') },
-                { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Check network anomaly alert for attacker IP', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
-                { id: 7, task: 'CORRELATE: Review Incident Timeline', hint: 'Read the incident report → cat reports/incident_report.txt', check: (cmd, state, output) => output && output.includes('TIMELINE') && output.includes('11:05') },
-                { id: 8, task: 'PERSIST: Check Backdoor Mechanism', hint: 'How does attacker maintain access? Check alerts or sudo crontab -l -u nobody', check: (cmd, state, output) => output && (output.includes('@reboot') || output.includes('cron') || output.includes('persistence')) },
+                { id: 1, task: 'RECON: Assess System Health', hint: 'Run: uptime', check: (cmd, state, output) => cmd.includes('uptime') && output && output.includes('load average') },
+                { id: 2, task: 'TRIAGE: Sort Processes by CPU', hint: 'Run: ps aux --sort=-%cpu', check: (cmd, state, output) => cmd.includes('ps') && cmd.includes('sort') && cmd.includes('cpu') },
+                { id: 3, task: 'IDENTIFY: Locate Rogue PID', hint: 'Which PID is using 98%+ CPU? Look at the sorted list.', check: (cmd, state, output) => output && output.includes('6666') },
+                { id: 4, task: 'NETWORK: Check Active Connections', hint: 'Run: netstat -tunapl (or ss -tunapl)', check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) && output && (output.includes('ESTABLISHED') || output.includes('LISTEN')) },
+                { id: 5, task: 'TIMELINE: Find Compromise Start', hint: 'Run: cat dashboards/cpu_history.log', check: (cmd, state, output) => output && output.includes('11:00') && output.includes('spike') },
+                { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Run: cat alerts/network_anomaly.txt', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
+                { id: 7, task: 'CORRELATE: Review Incident Timeline', hint: 'Run: cat reports/incident_report.txt', check: (cmd, state, output) => output && output.includes('TIMELINE') && output.includes('11:05') },
+                { id: 8, task: 'PERSIST: Check Backdoor Mechanism', hint: 'Run: cat alerts/suspicious_proc.txt (or check crontab)', check: (cmd, state, output) => output && (output.includes('@reboot') || output.includes('cron') || output.includes('persistence')) },
             ],
 
             insightPhase: {
