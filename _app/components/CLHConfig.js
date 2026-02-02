@@ -8597,11 +8597,16 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
             },
 
             objectives: [
-                { id: 1, task: 'RECON: Survey Environment', hint: 'Run: ls -la (see what files exist)', check: (cmd, state, output) => (cmd.includes('ls') && output && output.includes('mission')) || (cmd.includes('whoami') && output && output.includes('ghost')) },
-                { id: 2, task: 'INTEL: Read Mission Briefing', hint: 'Run: cat mission/briefing.txt', check: (cmd, state, output) => cmd.includes('cat') && output && (output.includes('CHIMERA') || output.includes('PHOENIX')) },
-                { id: 3, task: 'ANALYZE: Check Privesc Paths', hint: 'Run: find / -perm -4000 (note the space after find)', check: (cmd, state, output) => output && !output.includes('command not found') && ((cmd.includes('find') && cmd.includes('-perm') && (output.includes('/usr/bin') || output.includes('passwd'))) || (cmd.includes('sudo') && output.includes('may run'))) },
-                { id: 4, task: 'DISCOVER: Locate Classified Data', hint: 'Run: cat /data/classified/project_chimera.pdf', check: (cmd, state, output) => output && (output.includes('PHOENIX-7') || output.includes('VERIFICATION CODE')) },
-                { id: 5, task: 'EXFIL: Stage Intel Package', hint: 'Run: tar -czf staging/intel.tar.gz /data/classified/', check: (cmd, state, output) => cmd.includes('tar') && cmd.includes('staging') && output && !output.includes('error') && !output.includes('cannot') },
+                { id: 1, task: 'PHASE 1: Establish Situational Awareness', hint: 'Who are you? Where are you? What do you have?', check: (cmd, state, output) => cmd.includes('whoami') && output && output.includes('ghost') },
+                { id: 2, task: 'PHASE 1: Locate Mission Parameters', hint: 'Find and read your mission briefing.', check: (cmd, state, output) => output && output.includes('TOP SECRET') && output.includes('CHIMERA') },
+                { id: 3, task: 'PHASE 2: Enumerate System Users', hint: 'Who else has accounts on this system?', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('admin') && output.includes('root') },
+                { id: 4, task: 'PHASE 2: Map the Network', hint: 'Where are you in the network? What hosts are known?', check: (cmd, state, output) => output && output.includes('10.0.0.') && (output.includes('handler') || output.includes('Handler') || output.includes('SPECTER')) },
+                { id: 5, task: 'PHASE 3: Identify Privilege Escalation Vectors', hint: 'What SUID binaries exist? What can you sudo?', check: (cmd, state, output) => output && !output.includes('command not found') && (output.includes('/usr/bin/passwd') || output.includes('/usr/bin/sudo') || output.includes('may run')) },
+                { id: 6, task: 'PHASE 3: Review Authentication Logs', hint: 'Who logged in before you? From where?', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('sshd') && output.includes('10.0.0') },
+                { id: 7, task: 'PHASE 4: Locate Sensitive Data Directories', hint: 'Search the filesystem for classified information.', check: (cmd, state, output) => output && (output.includes('classified') || output.includes('CLASSIFIED')) && (cmd.includes('find') || cmd.includes('ls')) },
+                { id: 8, task: 'PHASE 4: Extract Verification Code', hint: 'Find the mission verification code in the classified data.', check: (cmd, state, output) => output && output.includes('PHOENIX-7') },
+                { id: 9, task: 'PHASE 5: Package Intelligence for Exfiltration', hint: 'Create a compressed archive of the classified directory.', check: (cmd, state, output) => cmd.includes('tar') && (cmd.includes('-c') || cmd.includes('c')) && cmd.includes('classified') },
+                { id: 10, task: 'PHASE 5: Verify Exfil Package', hint: 'Confirm your package was created in staging.', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('staging') && output && (output.includes('.tar') || output.includes('.gz') || output.includes('intel')) },
             ],
 
             insightPhase: {
