@@ -951,7 +951,8 @@ const _CLHTerminalModule = (function() {
             // Processes
             case 'ps': return _cmd_ps(args);
             case 'top': return _cmd_top();
-            case 'htop': return _err('htop: command not found. Try: sudo apt install htop');
+            case 'htop': return _cmd_htop();
+            case 'iotop': return _cmd_iotop();
             case 'kill': return _cmd_kill(args);
             case 'killall': return _cmd_killall(args);
             case 'jobs': return _cmd_jobs();
@@ -1712,6 +1713,33 @@ MiB Swap:  2048.0 total,   2048.0 free,      0.0 used,   5500.0 avail Mem
     1 root      20   0  168940  11340   8200 S   0.0   0.1   0:02.34 systemd
   234 root      20   0   72308   6124   5200 S   0.0   0.1   0:00.50 sshd
   890 ${currentUser.username.padEnd(8)}  20   0   18520   3940   3200 S   0.0   0.0   0:00.10 bash
+
+<span class="clh-dim">[Press q to exit - simulated]</span>`;
+    }
+
+    function _cmd_htop() {
+        return `htop - Uptime: 1 day, 02:30:15
+  1  [||                                        2.3%]   Tasks: ${Object.keys(state.processes).length}, 42 thr; 1 running
+  2  [|                                         1.1%]   Load average: 0.15 0.10 0.05
+  3  [||                                        2.8%]   Mem[||||||||||||||||      2.00G/8.00G]
+  4  [|                                         0.9%]   Swp[                         0K/2.00G]
+
+  PID USER      PRI  NI  VIRT   RES   SHR S CPU%  MEM%   TIME+  Command
+    1 root       20   0  169M 11340  8200 S  0.0   0.1  0:02.34 /sbin/init
+  234 root       20   0 72308  6124  5200 S  0.0   0.1  0:00.50 /usr/sbin/sshd -D
+  890 ${currentUser.username.padEnd(8)} 20   0 18520  3940  3200 S  0.0   0.0  0:00.10 bash
+
+<span class="clh-dim">[Press q to exit - simulated]</span>`;
+    }
+
+    function _cmd_iotop() {
+        return `Total DISK READ:       0.00 B/s | Total DISK WRITE:      12.34 K/s
+Actual DISK READ:       0.00 B/s | Actual DISK WRITE:      12.34 K/s
+
+  TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND
+    1 be/4 root        0.00 B/s    0.00 B/s  0.00 %  0.00 % systemd
+  234 be/4 root        0.00 B/s    0.00 B/s  0.00 %  0.00 % sshd
+  890 be/4 ${currentUser.username.padEnd(8)} 0.00 B/s   12.34 K/s  0.00 %  0.01 % bash
 
 <span class="clh-dim">[Press q to exit - simulated]</span>`;
     }
@@ -4388,6 +4416,8 @@ class CLHTerminal {
             case 'nproc': output = '4'; break;
             case 'arch': output = 'x86_64'; break;
             case 'top': output = this._cmdTop(); break;
+            case 'htop': output = this._cmdHtop(); break;
+            case 'iotop': output = this._cmdIotop(); break;
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
             case 'crontab': output = this._cmdCrontab(args); break;
@@ -4562,6 +4592,8 @@ class CLHTerminal {
             case 'nproc': output = '4'; break;
             case 'arch': output = 'x86_64'; break;
             case 'top': output = this._cmdTop(); break;
+            case 'htop': output = this._cmdHtop(); break;
+            case 'iotop': output = this._cmdIotop(); break;
             case 'systemctl': output = this._cmdSystemctl(args); break;
             case 'service': output = this._cmdService(args); break;
             case 'crontab': output = this._cmdCrontab(args); break;
@@ -7750,6 +7782,111 @@ OPERATOR NOTES
 
 SEE ALSO
        ps(1), htop(1), kill(1)`,
+
+            'htop': `HTOP(1)                         User Commands                        HTOP(1)
+
+NAME
+       htop - interactive process viewer
+
+SYNOPSIS
+       htop [-dChustv]
+
+DESCRIPTION
+       htop is a cross-platform ncurses-based process viewer. It is similar
+       to top, but allows you to scroll vertically and horizontally, and
+       interact using a pointing device (mouse). You can observe all
+       processes running on the system, along with their command line
+       arguments, as well as view them in a tree format.
+
+INTERACTIVE COMMANDS
+       F1, h       Help
+       F2, S       Setup
+       F3, /       Search
+       F4, \\       Filter
+       F5, t       Tree view
+       F6, <, >    Sort by column
+       F7, ]       Nice - (decrease priority)
+       F8, [       Nice + (increase priority)
+       F9, k       Kill process
+       F10, q      Quit
+
+EXAMPLES
+       htop
+              Interactive process viewer with color coding.
+
+       htop -u username
+              Show only processes of specified user.
+
+OPERATOR NOTES
+       htop improves on top with:
+       • Mouse support for killing/renicing
+       • Vertical and horizontal scrolling
+       • Tree view of processes
+       • Color-coded resource bars
+       • No delay for showing processes
+
+       Pro tip: Use F5 to toggle tree view - shows parent/child
+       relationships which can help identify malicious process spawning.
+
+SEE ALSO
+       top(1), ps(1), kill(1)`,
+
+            'iotop': `IOTOP(1)                        User Commands                       IOTOP(1)
+
+NAME
+       iotop - simple top-like I/O monitor
+
+SYNOPSIS
+       iotop [OPTIONS]
+
+DESCRIPTION
+       iotop watches I/O usage information output by the Linux kernel and
+       displays a table of current I/O usage by processes or threads on the
+       system. It requires root privileges or the NET_ADMIN capability.
+
+OPTIONS
+       -o, --only
+              Only show processes or threads actually doing I/O.
+
+       -b, --batch
+              Run in non-interactive mode.
+
+       -n NUM, --iter=NUM
+              Set the number of iterations before quitting.
+
+       -d SEC, --delay=SEC
+              Set the delay between iterations.
+
+       -P, --processes
+              Only show processes, not all threads.
+
+INTERACTIVE COMMANDS
+       Left/Right   Change sort column
+       r            Reverse sort order
+       o            Toggle --only mode
+       p            Toggle --processes mode
+       a            Toggle accumulated I/O mode
+       q            Quit
+
+EXAMPLES
+       sudo iotop
+              Watch disk I/O in real-time.
+
+       sudo iotop -o -P
+              Only show processes doing I/O, not threads.
+
+OPERATOR NOTES
+       Use iotop when:
+       • Disk is slow and you need to find the culprit
+       • Investigating unexpected disk activity
+       • Looking for processes writing suspiciously to disk
+       • Finding cryptominers (they read/write blockchain data)
+
+       Pro tip: Look for unexpected processes with high DISK WRITE.
+       Malware often writes to /tmp or hidden directories.
+
+SEE ALSO
+       top(1), htop(1), iostat(1)`,
 
             'kill': `KILL(1)                         User Commands                        KILL(1)
 
@@ -12781,6 +12918,36 @@ MiB Swap:   2048.0 total,   2048.0 free,      0.0 used.   5333.2 avail Mem
   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
     1 root      20   0  168936  11420   8256 S   0.0   0.1   0:03.45 systemd
  1234 ${this.user}    20   0   21432   4532   3648 S   0.0   0.1   0:00.12 bash`;
+    }
+
+    _cmdHtop() {
+        return `htop - ${this.hostname} - Uptime: 5 days, 03:42:15
+  1  [||                                        2.3%]   Tasks: 128, 312 thr; 1 running
+  2  [|                                         1.1%]   Load average: 0.08 0.12 0.09
+  3  [||                                        2.8%]   Mem[||||||||||||||||      2.10G/7.79G]
+  4  [|                                         0.9%]   Swp[                         0K/2.00G]
+
+  PID USER      PRI  NI  VIRT   RES   SHR S CPU%  MEM%   TIME+  Command
+    1 root       20   0  165M 11420  8256 S  0.0   0.1  0:03.45 /sbin/init
+  345 root       20   0 45320  8192  6144 S  0.0   0.1  0:12.34 /usr/sbin/sshd -D
+  789 www-data   20   0 82456 12288  9216 S  0.0   0.2  0:45.67 nginx: worker
+ 1234 ${this.user}     20   0 21432  4532  3648 S  0.0   0.1  0:00.12 bash
+ 6666 nobody     39  19  500M 86420 12288 R 98.5   2.1 42:17.89 xmrig --mine
+
+[Press 'q' to quit, '?' for help]`;
+    }
+
+    _cmdIotop() {
+        return `Total DISK READ:       0.00 B/s | Total DISK WRITE:      45.23 K/s
+Actual DISK READ:       0.00 B/s | Actual DISK WRITE:      45.23 K/s
+
+  TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND
+  456 be/4 root        0.00 B/s    0.00 B/s  0.00 %  0.00 % systemd-journald
+  789 be/4 www-data    0.00 B/s   12.00 K/s  0.00 %  0.02 % nginx: worker process
+ 1234 be/4 ${this.user}      0.00 B/s    0.00 B/s  0.00 %  0.00 % bash
+ 6666 be/4 nobody      0.00 B/s   33.23 K/s  0.00 %  0.05 % xmrig --mine
+
+[Press 'q' to quit]`;
     }
 
     _cmdSystemctl(args) {
