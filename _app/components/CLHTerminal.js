@@ -14487,6 +14487,7 @@ Number of days of warning before password expires       : 7`;
         this._vimCommandBuffer = '';
         this._vimMessage = '';
         this._vimModified = false;
+        this._vimUndoStack = [];
 
         // Load file content or start with empty buffer
         if (this._vimFile && this.fs[this._vimFile]) {
@@ -14572,25 +14573,30 @@ Number of days of warning before password expires       : 7`;
 
             // Enter insert mode
             case 'i':
+                this._vimSaveUndo();
                 this._vimMode = 'insert';
                 this._vimMessage = '-- INSERT --';
                 break;
             case 'a':
+                this._vimSaveUndo();
                 this._vimMode = 'insert';
                 this._vimCursorCol = Math.min(this._vimCursorCol + 1, (this._vimContent[this._vimCursorLine] || '').length);
                 this._vimMessage = '-- INSERT --';
                 break;
             case 'A':
+                this._vimSaveUndo();
                 this._vimMode = 'insert';
                 this._vimCursorCol = (this._vimContent[this._vimCursorLine] || '').length;
                 this._vimMessage = '-- INSERT --';
                 break;
             case 'I':
+                this._vimSaveUndo();
                 this._vimMode = 'insert';
                 this._vimCursorCol = 0;
                 this._vimMessage = '-- INSERT --';
                 break;
             case 'o':
+                this._vimSaveUndo();
                 this._vimContent.splice(this._vimCursorLine + 1, 0, '');
                 this._vimCursorLine++;
                 this._vimCursorCol = 0;
@@ -14599,6 +14605,7 @@ Number of days of warning before password expires       : 7`;
                 this._vimModified = true;
                 break;
             case 'O':
+                this._vimSaveUndo();
                 this._vimContent.splice(this._vimCursorLine, 0, '');
                 this._vimCursorCol = 0;
                 this._vimMode = 'insert';
@@ -14610,6 +14617,7 @@ Number of days of warning before password expires       : 7`;
             case 'x':
                 // Delete character under cursor
                 if (this._vimContent[this._vimCursorLine]) {
+                    this._vimSaveUndo();
                     const line = this._vimContent[this._vimCursorLine];
                     this._vimContent[this._vimCursorLine] = line.slice(0, this._vimCursorCol) + line.slice(this._vimCursorCol + 1);
                     this._vimModified = true;
@@ -14618,6 +14626,7 @@ Number of days of warning before password expires       : 7`;
             case 'd':
                 if (this._vimCommandBuffer === 'd') {
                     // dd - delete line
+                    this._vimSaveUndo();
                     if (this._vimContent.length > 1) {
                         this._vimContent.splice(this._vimCursorLine, 1);
                         this._vimCursorLine = Math.min(this._vimCursorLine, this._vimContent.length - 1);
@@ -14643,6 +14652,7 @@ Number of days of warning before password expires       : 7`;
             case 'p':
                 // Paste after
                 if (this._vimYankBuffer !== undefined) {
+                    this._vimSaveUndo();
                     this._vimContent.splice(this._vimCursorLine + 1, 0, this._vimYankBuffer);
                     this._vimCursorLine++;
                     this._vimModified = true;
@@ -14651,12 +14661,21 @@ Number of days of warning before password expires       : 7`;
             case 'P':
                 // Paste before
                 if (this._vimYankBuffer !== undefined) {
+                    this._vimSaveUndo();
                     this._vimContent.splice(this._vimCursorLine, 0, this._vimYankBuffer);
                     this._vimModified = true;
                 }
                 break;
             case 'u':
-                this._vimMessage = 'Undo not supported in simulation';
+                if (this._vimUndoStack && this._vimUndoStack.length > 0) {
+                    const state = this._vimUndoStack.pop();
+                    this._vimContent = state.content.slice();
+                    this._vimCursorLine = Math.min(state.line, this._vimContent.length - 1);
+                    this._vimCursorCol = Math.min(state.col, (this._vimContent[this._vimCursorLine] || '').length);
+                    this._vimMessage = 'Undone';
+                } else {
+                    this._vimMessage = 'Already at oldest change';
+                }
                 break;
 
             // Enter command mode
@@ -14882,6 +14901,17 @@ Number of days of warning before password expires       : 7`;
         this.inputEl.value = ''; // Clear any leftover input
         this._renderVimCleanup();
         this.inputEl.focus();
+    }
+
+    _vimSaveUndo() {
+        if (!this._vimUndoStack) this._vimUndoStack = [];
+        this._vimUndoStack.push({
+            content: this._vimContent.slice(),
+            line: this._vimCursorLine,
+            col: this._vimCursorCol
+        });
+        // Limit undo stack size
+        if (this._vimUndoStack.length > 50) this._vimUndoStack.shift();
     }
 
     _vimMoveWord(direction) {
