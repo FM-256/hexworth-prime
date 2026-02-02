@@ -8597,11 +8597,11 @@ backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
             },
 
             objectives: [
-                { id: 1, task: 'RECON: Survey Environment', hint: 'whoami && pwd && ls -la', check: (cmd, state, output) => (cmd.includes('ls') && (output && output.includes('mission'))) || (cmd.includes('whoami') && output && output.includes('ghost')) },
-                { id: 2, task: 'INTEL: Read Mission Briefing', hint: '$ cat mission/briefing.txt', check: (cmd, state, output) => cmd.includes('cat') && output && (output.includes('CHIMERA') || output.includes('PHOENIX')) },
-                { id: 3, task: 'ANALYZE: Check Privesc Paths', hint: '$ find / -perm -4000 or check tools', check: (cmd, state, output) => (cmd.includes('find') && cmd.includes('-perm')) || (cmd.includes('privesc') || cmd.includes('sudo')) },
-                { id: 4, task: 'DISCOVER: Locate Classified Data', hint: '$ cat /data/classified/project_chimera.pdf', check: (cmd, state, output) => output && (output.includes('PHOENIX-7') || output.includes('VERIFICATION CODE')) },
-                { id: 5, task: 'EXFIL: Stage Intel Package', hint: '$ tar -czf staging/intel.tar.gz /data/classified/', check: (cmd, state, output) => cmd.includes('tar') && cmd.includes('staging') },
+                { id: 1, task: 'RECON: Survey Environment', hint: 'Run: ls -la (see what files exist)', check: (cmd, state, output) => (cmd.includes('ls') && output && output.includes('mission')) || (cmd.includes('whoami') && output && output.includes('ghost')) },
+                { id: 2, task: 'INTEL: Read Mission Briefing', hint: 'Run: cat mission/briefing.txt', check: (cmd, state, output) => cmd.includes('cat') && output && (output.includes('CHIMERA') || output.includes('PHOENIX')) },
+                { id: 3, task: 'ANALYZE: Check Privesc Paths', hint: 'Run: find / -perm -4000 (note the space after find)', check: (cmd, state, output) => output && !output.includes('command not found') && ((cmd.includes('find') && cmd.includes('-perm') && (output.includes('/usr/bin') || output.includes('passwd'))) || (cmd.includes('sudo') && output.includes('may run'))) },
+                { id: 4, task: 'DISCOVER: Locate Classified Data', hint: 'Run: cat /data/classified/project_chimera.pdf', check: (cmd, state, output) => output && (output.includes('PHOENIX-7') || output.includes('VERIFICATION CODE')) },
+                { id: 5, task: 'EXFIL: Stage Intel Package', hint: 'Run: tar -czf staging/intel.tar.gz /data/classified/', check: (cmd, state, output) => cmd.includes('tar') && cmd.includes('staging') && output && !output.includes('error') && !output.includes('cannot') },
             ],
 
             insightPhase: {
