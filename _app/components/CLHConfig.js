@@ -7355,7 +7355,7 @@ guest:x:1004:`
                          output && (output.includes('sudo') || output.includes('admin') || output.includes('docker')) },
                 { id: 4, task: 'CHECK: Password Status', hint: '$ passwd -S admin (or chage -l)',
                   check: (cmd, state, output) => ((cmd.includes('passwd') && cmd.includes('-S')) || cmd.includes('chage')) &&
-                         output && (output.includes('Password') || output.includes('Last') || output.includes('Expire')) },
+                         output && (output.includes('Password') || output.includes('Last') || output.includes('Expire') || /\b[PL]\s+\d{2}\/\d{2}\/\d{4}\b/.test(output)) },
                 { id: 5, task: 'AUDIT: Login Shells', hint: '$ grep -v nologin /etc/passwd',
                   check: (cmd, state, output) => (cmd.includes('shells') || cmd.includes('nologin') || cmd.includes('/bin/bash')) &&
                          output && (output.includes('bash') || output.includes('/bin/sh') || output.includes('admin')) },
