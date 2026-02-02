@@ -7790,7 +7790,7 @@ ROOT CAUSE: Under investigation
             objectives: [
                 { id: 1, task: 'RECON: Assess System Health', hint: 'Run: uptime', check: (cmd, state, output) => cmd.includes('uptime') && output && output.includes('load average') },
                 { id: 2, task: 'TRIAGE: Sort Processes by CPU', hint: 'Run: ps aux --sort=-%cpu', check: (cmd, state, output) => cmd.includes('ps') && cmd.includes('sort') && cmd.includes('cpu') },
-                { id: 3, task: 'IDENTIFY: Locate Rogue PID', hint: 'Which PID is using 98%+ CPU? Look at the sorted list.', check: (cmd, state, output) => output && output.includes('6666') },
+                { id: 3, task: 'MEMORY: Check Resource Impact', hint: 'Run: free -h (is memory being consumed?)', check: (cmd, state, output) => cmd.includes('free') && output && (output.includes('Mem') || output.includes('used')) },
                 { id: 4, task: 'NETWORK: Check Active Connections', hint: 'Run: netstat -tunapl (or ss -tunapl)', check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) && output && (output.includes('ESTABLISHED') || output.includes('LISTEN')) },
                 { id: 5, task: 'TIMELINE: Find Compromise Start', hint: 'Run: cat dashboards/cpu_history.log', check: (cmd, state, output) => output && output.includes('11:00') && output.includes('spike') },
                 { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Run: cat alerts/network_anomaly.txt', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
