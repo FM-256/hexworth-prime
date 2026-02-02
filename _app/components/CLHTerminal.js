@@ -4353,6 +4353,7 @@ class CLHTerminal {
             case 'whoami': output = this.user; break;
             case 'hostname': output = this.hostname; break;
             case 'id': output = `uid=1000(${this.user}) gid=1000(${this.user}) groups=1000(${this.user}),27(sudo)`; break;
+            case 'groups': output = this._cmdGroups(args); break;
             case 'echo': output = args.join(' '); break;
             case 'uname': output = this._cmdUname(args); break;
             case 'date': output = new Date().toString(); break;
@@ -4526,6 +4527,7 @@ class CLHTerminal {
             case 'whoami': output = this.user; break;
             case 'hostname': output = this.hostname; break;
             case 'id': output = `uid=1000(${this.user}) gid=1000(${this.user}) groups=1000(${this.user}),27(sudo)`; break;
+            case 'groups': output = this._cmdGroups(args); break;
             case 'echo': output = args.join(' ').replace(/^\$(\w+)/, (m, v) => this.env[v] || ''); break;
             case 'uname': output = this._cmdUname(args); break;
             case 'date': output = new Date().toString(); break;
@@ -14202,6 +14204,41 @@ Number of days of warning before password expires       : 7`;
 
         // Changing password requires root
         return 'passwd: requires root privileges (use sudo)';
+    }
+
+    _cmdGroups(args) {
+        const user = args[0];
+
+        // If no user specified, return current user's groups
+        if (!user) {
+            return `${this.user} : ${this.user} sudo users`;
+        }
+
+        // Look up user in /etc/group file
+        const groupFile = this.fs['/etc/group'];
+        if (groupFile && groupFile.content) {
+            const groups = [];
+            const lines = groupFile.content.trim().split('\n');
+            for (const line of lines) {
+                const parts = line.split(':');
+                const groupName = parts[0];
+                const members = parts[3] ? parts[3].split(',') : [];
+                // User is member if listed in members, or if this is their primary group
+                if (members.includes(user) || groupName === user) {
+                    groups.push(groupName);
+                }
+            }
+            if (groups.length > 0) {
+                return `${user} : ${groups.join(' ')}`;
+            }
+        }
+
+        // Fallback: check if user matches current user
+        if (user === this.user) {
+            return `${user} : ${user} sudo users`;
+        }
+
+        return `groups: '${user}': no such user`;
     }
 
     _cmdVim(args) {
