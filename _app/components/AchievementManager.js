@@ -325,6 +325,103 @@ const AchievementManager = (function() {
             category: 'legendary',
             title: 'Architect of Galaxies',
             style: 'cosmic'
+        },
+
+        // ─────────────────────────────────────────────────────────────
+        // CLI MASTERY ACHIEVEMENTS (House of Script)
+        // ─────────────────────────────────────────────────────────────
+        {
+            id: 'cli_ghost',
+            icon: '👻',
+            name: 'CLI Ghost',
+            desc: 'Complete all 30 Command Line Hacker modules',
+            points: 500,
+            category: 'legendary',
+            title: 'the Ghost',
+            style: 'legendary'
+        },
+        {
+            id: 'cli_recruit',
+            icon: '🎖️',
+            name: 'CLI Recruit',
+            desc: 'Complete CLH modules 001-003',
+            points: 25,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'cli_analyst',
+            icon: '🔍',
+            name: 'CLI Analyst',
+            desc: 'Complete CLH modules 004-006',
+            points: 35,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'cli_operative',
+            icon: '🎯',
+            name: 'CLI Operative',
+            desc: 'Complete CLH modules 007-009',
+            points: 45,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'cli_shadow',
+            icon: '🌑',
+            name: 'CLI Shadow',
+            desc: 'Complete CLH modules 010-012',
+            points: 55,
+            category: 'regular',
+            title: 'the Shadow'
+        },
+        {
+            id: 'cli_phantom',
+            icon: '👤',
+            name: 'CLI Phantom',
+            desc: 'Complete CLH modules 013-015',
+            points: 65,
+            category: 'regular',
+            title: 'the Phantom'
+        },
+        {
+            id: 'cli_specter',
+            icon: '🌫️',
+            name: 'CLI Specter',
+            desc: 'Complete CLH modules 016-022',
+            points: 100,
+            category: 'regular',
+            title: 'the Specter'
+        },
+        {
+            id: 'cli_wraith',
+            icon: '💀',
+            name: 'CLI Wraith',
+            desc: 'Complete CLH modules 023-027',
+            points: 150,
+            category: 'regular',
+            title: 'the Wraith'
+        },
+        {
+            id: 'cli_blackout',
+            icon: '⚫',
+            name: 'BLACKOUT',
+            desc: 'Complete OPERATION BLACKOUT - the ultimate test',
+            points: 750,
+            category: 'legendary',
+            title: 'Shadow Operative',
+            style: 'cosmic'
+        },
+        {
+            id: 'cli_master',
+            icon: '🔱',
+            name: 'CLI Grandmaster',
+            desc: 'Complete all 31 Command Line Hacker challenges',
+            points: 1000,
+            category: 'legendary',
+            title: 'Grandmaster of the CLI',
+            style: 'legendary'
         }
     ];
 
@@ -626,10 +723,10 @@ const AchievementManager = (function() {
 
         // Priority order for short title (pick the most prestigious)
         const priorityOrder = [
-            'completionist', 'first_blood', 'galaxy_architect',
-            'divergent', 'god_mode', 'gate_5',
-            'streak_30', 'house_hopper', 'secret_hunter',
-            'sorted'
+            'cli_master', 'completionist', 'cli_blackout', 'cli_ghost',
+            'first_blood', 'galaxy_architect', 'divergent', 'god_mode',
+            'cli_wraith', 'cli_specter', 'gate_5', 'streak_30',
+            'house_hopper', 'secret_hunter', 'sorted'
         ];
 
         for (const id of priorityOrder) {
@@ -749,6 +846,89 @@ const AchievementManager = (function() {
                 if (!isUnlocked(achId)) unlock(achId);
             }
         }
+
+        // CLI Hacker tier achievements
+        checkCLHProgress();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CLI HACKER PROGRESS CHECK
+    // ═══════════════════════════════════════════════════════════════════
+
+    function checkCLHProgress() {
+        try {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const scriptProgress = progress.script || {};
+
+            // Helper to check if a module is fully complete (slides + quiz + terminal)
+            function isModuleComplete(moduleNum) {
+                const key = `clh-${String(moduleNum).padStart(3, '0')}`;
+                const moduleData = scriptProgress[key];
+                // Module is complete if it has completed: true
+                return moduleData && moduleData.completed === true;
+            }
+
+            // Helper to check if a range of modules are complete
+            function isRangeComplete(start, end) {
+                for (let i = start; i <= end; i++) {
+                    if (!isModuleComplete(i)) return false;
+                }
+                return true;
+            }
+
+            // CLI Recruit: CLH-001 to CLH-003
+            if (isRangeComplete(1, 3) && !isUnlocked('cli_recruit')) {
+                unlock('cli_recruit');
+            }
+
+            // CLI Analyst: CLH-004 to CLH-006
+            if (isRangeComplete(1, 6) && !isUnlocked('cli_analyst')) {
+                unlock('cli_analyst');
+            }
+
+            // CLI Operative: CLH-007 to CLH-009
+            if (isRangeComplete(1, 9) && !isUnlocked('cli_operative')) {
+                unlock('cli_operative');
+            }
+
+            // CLI Shadow: CLH-010 to CLH-012
+            if (isRangeComplete(1, 12) && !isUnlocked('cli_shadow')) {
+                unlock('cli_shadow');
+            }
+
+            // CLI Phantom: CLH-013 to CLH-015
+            if (isRangeComplete(1, 15) && !isUnlocked('cli_phantom')) {
+                unlock('cli_phantom');
+            }
+
+            // CLI Specter: CLH-016 to CLH-022
+            if (isRangeComplete(1, 22) && !isUnlocked('cli_specter')) {
+                unlock('cli_specter');
+            }
+
+            // CLI Wraith: CLH-023 to CLH-027
+            if (isRangeComplete(1, 27) && !isUnlocked('cli_wraith')) {
+                unlock('cli_wraith');
+            }
+
+            // CLI Ghost: ALL 30 modules complete
+            if (isRangeComplete(1, 30) && !isUnlocked('cli_ghost')) {
+                unlock('cli_ghost');
+            }
+
+            // CLI Blackout: Complete CLH-031 (OPERATION BLACKOUT)
+            if (isModuleComplete(31) && !isUnlocked('cli_blackout')) {
+                unlock('cli_blackout');
+            }
+
+            // CLI Grandmaster: ALL 31 modules complete (including BLACKOUT)
+            if (isRangeComplete(1, 31) && !isUnlocked('cli_master')) {
+                unlock('cli_master');
+            }
+
+        } catch (e) {
+            console.warn('Error checking CLH progress:', e);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -766,7 +946,8 @@ const AchievementManager = (function() {
         getStats,
         buildTitle,
         getShortTitle,
-        checkImplicitAchievements
+        checkImplicitAchievements,
+        checkCLHProgress
     };
 })();
 

@@ -397,6 +397,13 @@ class CLHCompletionModal {
         const modal = document.getElementById('clhCompletionModal');
         if (modal) {
             modal.classList.add('show');
+
+            // Check for CLI tier achievements (retroactive badge check)
+            setTimeout(() => {
+                if (typeof AchievementManager !== 'undefined') {
+                    AchievementManager.checkCLHProgress();
+                }
+            }, 1000);
         }
     }
 
