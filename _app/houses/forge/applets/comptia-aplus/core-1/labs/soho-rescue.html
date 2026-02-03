@@ -551,6 +551,52 @@
         .freq-btn.wifi-24.active { background: #9933ff; border-color: #9933ff; color: #fff; }
         .freq-btn.wifi-5.active { background: #00ccff; border-color: #00ccff; color: #000; }
 
+        .security-btn {
+            padding: 8px 10px;
+            font-size: 0.65rem;
+            border: 2px solid #444;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .security-btn:hover {
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .security-btn.active {
+            background: #00ff88;
+            border-color: #00ff88;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .security-btn[data-sec="open"].active { background: #ff4444; border-color: #ff4444; color: #fff; }
+        .security-btn[data-sec="wep"].active { background: #ff8800; border-color: #ff8800; color: #000; }
+        .security-btn[data-sec="wpa2"].active { background: #00ff88; border-color: #00ff88; color: #000; }
+        .security-btn[data-sec="wpa3"].active { background: #00ffff; border-color: #00ffff; color: #000; }
+
+        /* Lap transition animation */
+        @keyframes lapFlash {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(2) hue-rotate(30deg); }
+            100% { filter: brightness(1); }
+        }
+
+        /* Lap indicator */
+        .lap-indicator {
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            font-size: 0.7rem;
+            margin-left: 8px;
+        }
+
         /* Device Config Panel */
         .device-panel {
             display: none;
@@ -865,6 +911,10 @@
                         <div class="hud-value level" id="levelDisplay">1</div>
                     </div>
                     <div class="hud-item">
+                        <div class="hud-label">Lap</div>
+                        <div class="hud-value" id="lapDisplay" style="color: #ff00ff;">1</div>
+                    </div>
+                    <div class="hud-item">
                         <div class="hud-label">Score</div>
                         <div class="hud-value score" id="scoreDisplay">0</div>
                     </div>
@@ -970,6 +1020,16 @@
                                 <button class="channel-btn" onclick="setChannel('5', 36)" data-band="5" data-ch="36">36</button>
                                 <button class="channel-btn" onclick="setChannel('5', 44)" data-band="5" data-ch="44">44</button>
                                 <button class="channel-btn" onclick="setChannel('5', 149)" data-band="5" data-ch="149">149</button>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <span class="config-label">Security</span>
+                            <div class="config-control">
+                                <button class="security-btn" onclick="setSecurity('open')" data-sec="open">OPEN</button>
+                                <button class="security-btn" onclick="setSecurity('wep')" data-sec="wep">WEP</button>
+                                <button class="security-btn" onclick="setSecurity('wpa2')" data-sec="wpa2">WPA2</button>
+                                <button class="security-btn" onclick="setSecurity('wpa3')" data-sec="wpa3">WPA3</button>
                             </div>
                         </div>
                     </div>
@@ -1101,19 +1161,23 @@
             timeRemaining: 120,
             timerInterval: null,
             selectedDevice: null,
+            currentLap: 1,  // Track which lap (cycle) we're on
 
             // Router config
             router: {
                 frequency: 'dual',
                 channel24: 6,
-                channel5: 44
+                channel5: 44,
+                security: 'wpa2',
+                dhcpEnabled: true
             },
 
             // Device states
             devices: {},
 
-            // Level definitions
+            // Level definitions - 10 levels with increasing difficulty
             levels: [
+                // === TIER 1: BASICS (Levels 1-3) ===
                 {
                     id: 1,
                     title: "FIRST DAY",
@@ -1128,7 +1192,8 @@
                         { id: 'obj1', text: 'Connect Desktop PC', check: () => GameState.devices.desktop1?.status === 'connected' }
                     ],
                     interference: [],
-                    neighborChannel: null
+                    neighborChannel: null,
+                    requireSecurity: null
                 },
                 {
                     id: 2,
@@ -1148,7 +1213,8 @@
                         { id: 'obj2', text: 'Connect Smart TV', check: () => GameState.devices.smarttv1?.status === 'connected' }
                     ],
                     interference: [],
-                    neighborChannel: null
+                    neighborChannel: null,
+                    requireSecurity: null
                 },
                 {
                     id: 3,
@@ -1170,8 +1236,11 @@
                         { id: 'obj2', text: 'Fix Smart Fridge', check: () => GameState.devices.smartfridge?.status === 'connected' }
                     ],
                     interference: ['microwave'],
-                    neighborChannel: null
+                    neighborChannel: null,
+                    requireSecurity: null
                 },
+
+                // === TIER 2: INTERMEDIATE (Levels 4-6) ===
                 {
                     id: 4,
                     title: "SMART HOME CHAOS",
@@ -1201,7 +1270,8 @@
                         }}
                     ],
                     interference: [],
-                    neighborChannel: null
+                    neighborChannel: null,
+                    requireSecurity: null
                 },
                 {
                     id: 5,
@@ -1228,15 +1298,255 @@
                         { id: 'obj3', text: 'Fix Printer', check: () => GameState.devices.printer?.status === 'connected' }
                     ],
                     interference: [],
-                    neighborChannel: 6
+                    neighborChannel: 6,
+                    requireSecurity: null
+                },
+                {
+                    id: 6,
+                    title: "BANDWIDTH BATTLE",
+                    objective: "Optimize network for streaming and gaming",
+                    hint: "Smart TVs streaming 4K and gaming consoles need fast, stable connections. Use 5GHz or Ethernet for bandwidth-heavy devices!",
+                    devices: [
+                        { id: 'smarttv1', name: 'Smart TV 4K', icon: '📺', room: 'living',
+                          supports: ['wifi-5', 'wifi-24', 'ethernet'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24', needsBandwidth: true },
+                        { id: 'console', name: 'Game Console', icon: '🎮', room: 'living',
+                          supports: ['wifi-5', 'wifi-24', 'ethernet'], preferred: 'ethernet',
+                          status: 'slow', connection: 'wifi-24', needsBandwidth: true },
+                        { id: 'laptop1', name: 'Work Laptop', icon: '💻', room: 'office',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24', needsBandwidth: true },
+                        { id: 'tablet', name: 'Tablet', icon: '📱', room: 'bedroom',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'disconnected', connection: null },
+                        { id: 'smartspeaker', name: 'Smart Speaker', icon: '🔊', room: 'kitchen',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'disconnected', connection: null }
+                    ],
+                    objectives: [
+                        { id: 'obj1', text: 'Smart TV on fast connection', check: () => {
+                            const tv = GameState.devices.smarttv1;
+                            return tv?.status === 'connected' && (tv.connection === 'wifi-5' || tv.connection === 'ethernet');
+                        }},
+                        { id: 'obj2', text: 'Game Console on fast connection', check: () => {
+                            const c = GameState.devices.console;
+                            return c?.status === 'connected' && (c.connection === 'wifi-5' || c.connection === 'ethernet');
+                        }},
+                        { id: 'obj3', text: 'Connect all devices', check: () => {
+                            const devs = ['smarttv1', 'console', 'laptop1', 'tablet', 'smartspeaker'];
+                            return devs.every(d => GameState.devices[d]?.status === 'connected');
+                        }}
+                    ],
+                    interference: [],
+                    neighborChannel: null,
+                    requireSecurity: null
+                },
+
+                // === TIER 3: ADVANCED (Levels 7-9) ===
+                {
+                    id: 7,
+                    title: "THE DEAD ZONE",
+                    objective: "Fix devices in rooms with poor WiFi coverage",
+                    hint: "The garage and bathroom are far from the router! Use Ethernet for distant devices, or they'll have weak signals. 5GHz has shorter range than 2.4GHz.",
+                    devices: [
+                        { id: 'desktop1', name: 'Desktop', icon: '🖥️', room: 'office',
+                          supports: ['ethernet', 'wifi-5', 'wifi-24'], preferred: 'ethernet',
+                          status: 'connected', connection: 'ethernet' },
+                        { id: 'laptop1', name: 'Laptop', icon: '💻', room: 'garage',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-24',
+                          status: 'disconnected', connection: 'wifi-5', inDeadZone: true },
+                        { id: 'smartscale', name: 'Smart Scale', icon: '⚖️', room: 'bathroom',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'disconnected', connection: 'wifi-24', inDeadZone: true },
+                        { id: 'garagedoor', name: 'Garage Opener', icon: '🚗', room: 'garage',
+                          supports: ['wifi-24', 'ethernet'], preferred: 'ethernet',
+                          status: 'disconnected', connection: 'wifi-5', inDeadZone: true },
+                        { id: 'securitycam', name: 'Security Cam', icon: '📹', room: 'garage',
+                          supports: ['wifi-24', 'ethernet'], preferred: 'ethernet',
+                          status: 'disconnected', connection: null, inDeadZone: true }
+                    ],
+                    objectives: [
+                        { id: 'obj1', text: 'Fix Garage Laptop', check: () => GameState.devices.laptop1?.status === 'connected' },
+                        { id: 'obj2', text: 'Fix Bathroom Scale', check: () => GameState.devices.smartscale?.status === 'connected' },
+                        { id: 'obj3', text: 'Fix Garage Devices', check: () => {
+                            return GameState.devices.garagedoor?.status === 'connected' &&
+                                   GameState.devices.securitycam?.status === 'connected';
+                        }}
+                    ],
+                    interference: [],
+                    neighborChannel: null,
+                    hasDeadZones: true,
+                    requireSecurity: null
+                },
+                {
+                    id: 8,
+                    title: "SECURITY LOCKDOWN",
+                    objective: "Secure the network - it's wide open!",
+                    hint: "The network is using WEP (insecure)! Upgrade to WPA2 or WPA3. Some older devices may need 2.4GHz with WPA2.",
+                    routerStartState: { security: 'wep' },
+                    devices: [
+                        { id: 'laptop1', name: 'Work Laptop', icon: '💻', room: 'office',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'connected', connection: 'wifi-5', requiresSecure: true },
+                        { id: 'phone', name: 'Smartphone', icon: '📱', room: 'bedroom',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'connected', connection: 'wifi-5', requiresSecure: true },
+                        { id: 'smarttv1', name: 'Smart TV', icon: '📺', room: 'living',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'connected', connection: 'wifi-24', requiresSecure: true },
+                        { id: 'oldprinter', name: 'Old Printer', icon: '🖨️', room: 'office',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'connected', connection: 'wifi-24', supportsWPA3: false },
+                        { id: 'babymonitor', name: 'Baby Monitor', icon: '👶', room: 'bedroom',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'connected', connection: 'wifi-24' }
+                    ],
+                    objectives: [
+                        { id: 'obj1', text: 'Enable WPA2 or WPA3', check: () => {
+                            return GameState.router.security === 'wpa2' || GameState.router.security === 'wpa3';
+                        }},
+                        { id: 'obj2', text: 'Keep all devices connected', check: () => {
+                            const devs = ['laptop1', 'phone', 'smarttv1', 'oldprinter', 'babymonitor'];
+                            return devs.every(d => GameState.devices[d]?.status === 'connected');
+                        }}
+                    ],
+                    interference: [],
+                    neighborChannel: null,
+                    requireSecurity: 'wpa2'
+                },
+                {
+                    id: 9,
+                    title: "DOUBLE TROUBLE",
+                    objective: "Fix interference AND security issues",
+                    hint: "The neighbor is on channel 11 AND you have a baby monitor causing 2.4GHz interference. Use channel 1, and put sensitive devices on 5GHz!",
+                    routerStartState: { channel24: 11 },
+                    devices: [
+                        { id: 'laptop1', name: 'Laptop', icon: '💻', room: 'office',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'desktop1', name: 'Desktop', icon: '🖥️', room: 'office',
+                          supports: ['ethernet', 'wifi-5', 'wifi-24'], preferred: 'ethernet',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'smarttv1', name: 'Smart TV', icon: '📺', room: 'living',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'smartfridge', name: 'Smart Fridge', icon: '🧊', room: 'kitchen',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'doorbell', name: 'Doorbell', icon: '🚪', room: 'living',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'babymonitor', name: 'Baby Monitor', icon: '👶', room: 'bedroom',
+                          isInterference: true, interferenceType: '2.4' }
+                    ],
+                    objectives: [
+                        { id: 'obj1', text: 'Fix channel interference', check: () => GameState.router.channel24 === 1 },
+                        { id: 'obj2', text: 'Connect all 5 devices', check: () => {
+                            const devs = ['laptop1', 'desktop1', 'smarttv1', 'smartfridge', 'doorbell'];
+                            return devs.every(d => GameState.devices[d]?.status === 'connected');
+                        }}
+                    ],
+                    interference: ['babymonitor'],
+                    neighborChannel: 11,
+                    requireSecurity: null
+                },
+
+                // === TIER 4: EXPERT (Level 10) ===
+                {
+                    id: 10,
+                    title: "TOTAL BLACKOUT",
+                    objective: "Everything is broken - restore the entire network!",
+                    hint: "Multiple issues: wrong channel (neighbor on 6), insecure network (WEP), microwave interference, and devices on wrong bands. Fix it all!",
+                    routerStartState: { security: 'wep', channel24: 6, frequency: '2.4' },
+                    devices: [
+                        { id: 'desktop1', name: 'Desktop', icon: '🖥️', room: 'office',
+                          supports: ['ethernet', 'wifi-5', 'wifi-24'], preferred: 'ethernet',
+                          status: 'disconnected', connection: 'wifi-24' },
+                        { id: 'laptop1', name: 'Laptop', icon: '💻', room: 'bedroom',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'smarttv1', name: 'Smart TV 4K', icon: '📺', room: 'living',
+                          supports: ['wifi-5', 'wifi-24', 'ethernet'], preferred: 'wifi-5',
+                          status: 'slow', connection: 'wifi-24', needsBandwidth: true },
+                        { id: 'console', name: 'Game Console', icon: '🎮', room: 'living',
+                          supports: ['wifi-5', 'wifi-24', 'ethernet'], preferred: 'ethernet',
+                          status: 'slow', connection: 'wifi-24', needsBandwidth: true },
+                        { id: 'smartfridge', name: 'Smart Fridge', icon: '🧊', room: 'kitchen',
+                          supports: ['wifi-24'], preferred: 'wifi-24',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'phone', name: 'Smartphone', icon: '📱', room: 'bedroom',
+                          supports: ['wifi-5', 'wifi-24'], preferred: 'wifi-5',
+                          status: 'disconnected', connection: null },
+                        { id: 'printer', name: 'Printer', icon: '🖨️', room: 'office',
+                          supports: ['wifi-24', 'ethernet'], preferred: 'ethernet',
+                          status: 'slow', connection: 'wifi-24' },
+                        { id: 'microwave', name: 'Microwave', icon: '📻', room: 'kitchen',
+                          isInterference: true, interferenceType: '2.4' }
+                    ],
+                    objectives: [
+                        { id: 'obj1', text: 'Enable WPA2/WPA3 security', check: () => {
+                            return GameState.router.security === 'wpa2' || GameState.router.security === 'wpa3';
+                        }},
+                        { id: 'obj2', text: 'Fix channel (avoid neighbor)', check: () => {
+                            return GameState.router.channel24 !== 6;
+                        }},
+                        { id: 'obj3', text: 'Enable 5GHz band', check: () => {
+                            return GameState.router.frequency === '5' || GameState.router.frequency === 'dual';
+                        }},
+                        { id: 'obj4', text: 'Connect ALL 7 devices', check: () => {
+                            const devs = ['desktop1', 'laptop1', 'smarttv1', 'console', 'smartfridge', 'phone', 'printer'];
+                            return devs.every(d => GameState.devices[d]?.status === 'connected');
+                        }}
+                    ],
+                    interference: ['microwave'],
+                    neighborChannel: 6,
+                    requireSecurity: 'wpa2'
                 }
+            ],
+
+            // Bonus devices added each lap
+            bonusDevices: [
+                { id: 'bonus_cam', name: 'Security Cam', icon: '📹', room: 'garage', supports: ['wifi-24', 'ethernet'], preferred: 'wifi-24' },
+                { id: 'bonus_vacuum', name: 'Robot Vacuum', icon: '🤖', room: 'living', supports: ['wifi-24'], preferred: 'wifi-24' },
+                { id: 'bonus_light', name: 'Smart Lights', icon: '💡', room: 'bedroom', supports: ['wifi-24'], preferred: 'wifi-24' },
+                { id: 'bonus_lock', name: 'Smart Lock', icon: '🔐', room: 'living', supports: ['wifi-24'], preferred: 'wifi-24' },
+                { id: 'bonus_watch', name: 'Smart Watch', icon: '⌚', room: 'bedroom', supports: ['wifi-24'], preferred: 'wifi-24' }
+            ],
+
+            // Color themes for each lap
+            lapThemes: [
+                { name: 'Default', primary: '#00ff88', secondary: '#ff6b35', bg: '#0a0a1a' },
+                { name: 'Cyber', primary: '#00ffff', secondary: '#ff00ff', bg: '#0a0a2a' },
+                { name: 'Solar', primary: '#ffcc00', secondary: '#ff4400', bg: '#1a0a0a' },
+                { name: 'Matrix', primary: '#00ff00', secondary: '#00aa00', bg: '#000a00' },
+                { name: 'Neon', primary: '#ff00ff', secondary: '#00ffff', bg: '#1a001a' }
             ]
         };
+
+        // ===== LAP THEME SYSTEM =====
+        function applyLapTheme() {
+            const themeIndex = (GameState.currentLap - 1) % GameState.lapThemes.length;
+            const theme = GameState.lapThemes[themeIndex];
+
+            document.documentElement.style.setProperty('--lap-primary', theme.primary);
+            document.documentElement.style.setProperty('--lap-secondary', theme.secondary);
+            document.documentElement.style.setProperty('--lap-bg', theme.bg);
+
+            // Apply to key elements
+            document.body.style.background = `linear-gradient(180deg, ${theme.bg} 0%, #1a0a2e 50%, #0a1a1a 100%)`;
+
+            // Flash effect on new lap
+            if (GameState.currentLap > 1) {
+                document.body.style.animation = 'lapFlash 0.5s ease';
+                setTimeout(() => document.body.style.animation = '', 500);
+            }
+        }
 
         // ===== INITIALIZATION =====
         function init() {
             document.getElementById('highScoreDisplay').textContent = GameState.highScore;
             AudioManager.init();
+            applyLapTheme();
         }
 
         // ===== GAME FLOW =====
@@ -1244,7 +1554,11 @@
             AudioManager.click();
             GameState.speedRunMode = speedRun;
             GameState.currentLevel = 1;
+            GameState.currentLap = 1;
             GameState.score = 0;
+
+            // Reset theme to default
+            applyLapTheme();
 
             document.getElementById('titleScreen').classList.add('hidden');
             document.getElementById('gameScreen').classList.add('active');
@@ -1261,23 +1575,34 @@
         }
 
         function loadLevel(levelNum) {
-            const level = GameState.levels[levelNum - 1];
-            if (!level) {
-                // All levels complete - loop with harder settings
-                levelNum = ((levelNum - 1) % 5) + 1;
+            const totalLevels = GameState.levels.length; // 10 levels
+
+            // Check if we completed all levels - start new lap
+            if (levelNum > totalLevels) {
+                GameState.currentLap++;
+                levelNum = 1;
                 GameState.currentLevel = levelNum;
-                return loadLevel(levelNum);
+                applyLapTheme();
+                AudioManager.levelUp();
             }
 
+            const level = GameState.levels[levelNum - 1];
             GameState.currentLevel = levelNum;
             GameState.devices = {};
             GameState.selectedDevice = null;
 
-            // Reset router to defaults
-            GameState.router = { frequency: 'dual', channel24: 6, channel5: 44 };
+            // Reset router - apply level start state if specified
+            GameState.router = {
+                frequency: level.routerStartState?.frequency || 'dual',
+                channel24: level.routerStartState?.channel24 || 6,
+                channel5: level.routerStartState?.channel5 || 44,
+                security: level.routerStartState?.security || 'wpa2',
+                dhcpEnabled: true
+            };
 
             // Update HUD
             document.getElementById('levelDisplay').textContent = levelNum;
+            document.getElementById('lapDisplay').textContent = GameState.currentLap;
             document.getElementById('scoreDisplay').textContent = GameState.score;
             document.getElementById('levelTitle').textContent = `LEVEL ${levelNum}: ${level.title}`;
             document.getElementById('levelObjective').textContent = level.objective;
@@ -1293,6 +1618,19 @@
                 renderDevice(device);
             });
 
+            // Add bonus devices based on lap (1 extra device per lap after lap 1)
+            if (GameState.currentLap > 1) {
+                const bonusCount = Math.min(GameState.currentLap - 1, GameState.bonusDevices.length);
+                for (let i = 0; i < bonusCount; i++) {
+                    const bonus = { ...GameState.bonusDevices[i] };
+                    bonus.id = `${bonus.id}_${levelNum}`;
+                    bonus.status = 'disconnected';
+                    bonus.connection = null;
+                    GameState.devices[bonus.id] = bonus;
+                    renderDevice(bonus);
+                }
+            }
+
             // Place router in garage
             const garageDevices = document.getElementById('garage-devices');
             garageDevices.innerHTML = `
@@ -1303,8 +1641,21 @@
                 </div>
             `;
 
-            // Render objectives
-            renderObjectives(level.objectives);
+            // Render objectives - add bonus objective if on lap 2+
+            let objectives = [...level.objectives];
+            if (GameState.currentLap > 1) {
+                objectives.push({
+                    id: 'obj_bonus',
+                    text: `Connect ${GameState.currentLap - 1} bonus device(s)`,
+                    check: () => {
+                        const bonusDevices = Object.keys(GameState.devices).filter(id => id.startsWith('bonus_'));
+                        const connected = bonusDevices.filter(id => GameState.devices[id]?.status === 'connected');
+                        return connected.length >= GameState.currentLap - 1;
+                    }
+                });
+            }
+            renderObjectives(objectives);
+            GameState.currentObjectives = objectives; // Store for checking later
 
             // Show default panel
             showPanel('default');
@@ -1314,8 +1665,9 @@
 
             // Start timer if speed run
             if (GameState.speedRunMode) {
-                GameState.timeRemaining = 120 - (levelNum * 10); // Less time each level
-                if (GameState.timeRemaining < 30) GameState.timeRemaining = 30;
+                // Base time decreases with level, and even more with each lap
+                const baseTime = 150 - (levelNum * 8) - ((GameState.currentLap - 1) * 15);
+                GameState.timeRemaining = Math.max(baseTime, 30); // Minimum 30 seconds
                 startTimer();
             }
         }
@@ -1515,6 +1867,16 @@
             checkObjectives();
         }
 
+        function setSecurity(security) {
+            AudioManager.click();
+            GameState.router.security = security;
+            updateRouterPanel();
+
+            // Re-check all device statuses
+            Object.keys(GameState.devices).forEach(id => updateDeviceStatus(id));
+            checkObjectives();
+        }
+
         function updateRouterPanel() {
             // Update frequency buttons
             document.querySelectorAll('.freq-btn').forEach(btn => {
@@ -1534,6 +1896,14 @@
                     btn.classList.add('active');
                 }
             });
+
+            // Update security buttons
+            document.querySelectorAll('.security-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.sec === GameState.router.security) {
+                    btn.classList.add('active');
+                }
+            });
         }
 
         function updateDeviceStatus(deviceId) {
@@ -1546,14 +1916,25 @@
             if (device.connection) {
                 status = 'connected';
 
-                // Check for interference
-                if (device.connection === 'wifi-24') {
+                // Check for dead zones - 5GHz doesn't reach, 2.4GHz is slow
+                if (device.inDeadZone && level.hasDeadZones) {
+                    if (device.connection === 'wifi-5') {
+                        status = 'disconnected'; // 5GHz can't reach dead zones
+                    } else if (device.connection === 'wifi-24') {
+                        status = 'slow'; // 2.4GHz reaches but weak
+                    }
+                    // Ethernet always works in dead zones
+                }
+
+                // Check for interference (only if not already disconnected)
+                if (status !== 'disconnected' && device.connection === 'wifi-24') {
                     // Check router frequency
                     if (GameState.router.frequency === '5') {
                         status = 'disconnected';
                     }
-                    // Check microwave interference (affects channels 6-11, channel 1 is safer)
-                    else if (level.interference.includes('microwave') && GameState.router.channel24 !== 1) {
+                    // Check microwave/baby monitor interference (affects channels 6-11, channel 1 is safer)
+                    else if ((level.interference.includes('microwave') || level.interference.includes('babymonitor'))
+                             && GameState.router.channel24 !== 1) {
                         status = 'slow';
                     }
                     // Check neighbor channel overlap
@@ -1562,9 +1943,29 @@
                     }
                 }
 
+                // Check 5GHz availability
                 if (device.connection === 'wifi-5') {
                     if (GameState.router.frequency === '2.4') {
                         status = 'disconnected';
+                    }
+                }
+
+                // Check security requirements (for levels that require secure network)
+                if (level.requireSecurity && status === 'connected') {
+                    const secureProtocols = ['wpa2', 'wpa3'];
+                    if (!secureProtocols.includes(GameState.router.security)) {
+                        // Devices still "connect" but objective won't complete
+                        // Some devices might refuse insecure connections
+                        if (device.requiresSecure) {
+                            status = 'slow'; // Shows warning that security is an issue
+                        }
+                    }
+                }
+
+                // Bandwidth-hungry devices need 5GHz or Ethernet for full speed
+                if (device.needsBandwidth && status === 'connected') {
+                    if (device.connection === 'wifi-24') {
+                        status = 'slow';
                     }
                 }
             }
@@ -1584,10 +1985,10 @@
 
         // ===== OBJECTIVES & SCORING =====
         function checkObjectives() {
-            const level = GameState.levels[GameState.currentLevel - 1];
+            const objectives = GameState.currentObjectives || GameState.levels[GameState.currentLevel - 1].objectives;
             let allComplete = true;
 
-            level.objectives.forEach(obj => {
+            objectives.forEach(obj => {
                 const complete = obj.check();
                 const el = document.getElementById(`obj-${obj.id}`);
                 if (el) {
@@ -1673,10 +2074,24 @@
                 localStorage.setItem('sohoRescueHighScore', GameState.highScore);
             }
 
-            // Show modal
+            // Check if completing a lap (level 10)
+            const isLapComplete = GameState.currentLevel === 10;
+
+            // Show modal with appropriate message
             document.getElementById('levelScore').textContent = levelScore;
             document.getElementById('devicesFixed').textContent = deviceCount;
             document.getElementById('timeBonus').textContent = `+${timeBonus}`;
+
+            if (isLapComplete) {
+                document.getElementById('levelCompleteMessage').innerHTML =
+                    `<span style="color: #ff00ff;">LAP ${GameState.currentLap} COMPLETE!</span><br>
+                     New color theme unlocked! +1 bonus device per level!`;
+                document.querySelector('#levelCompleteModal .modal-icon').textContent = '🏆';
+            } else {
+                document.getElementById('levelCompleteMessage').textContent = 'All devices connected successfully!';
+                document.querySelector('#levelCompleteModal .modal-icon').textContent = '🎉';
+            }
+
             document.getElementById('levelCompleteModal').classList.add('active');
 
             setTimeout(() => AudioManager.levelUp(), 500);
