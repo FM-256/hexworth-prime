@@ -693,21 +693,14 @@ const FirestoreManager = (function() {
             const theme = profile.theme || (profile.house === 'operator' ? 'matrix' : 'magic');
             localStorage.setItem('hexworth_theme', theme);
 
-            // Restore progress arrays
-            if (profile.modulesCompleted && profile.modulesCompleted.length > 0) {
-                localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(profile.modulesCompleted));
-            }
-
+            // Restore achievements (array of IDs - compatible with AchievementManager)
             if (profile.achievements && profile.achievements.length > 0) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.achievements, JSON.stringify(profile.achievements));
             }
 
+            // Restore quiz scores
             if (profile.quizzes && Object.keys(profile.quizzes).length > 0) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(profile.quizzes));
-            }
-
-            if (profile.labsCompleted && profile.labsCompleted.length > 0) {
-                localStorage.setItem(LOCALSTORAGE_KEYS.labProgress, JSON.stringify(profile.labsCompleted));
             }
 
             // Restore XP and streak
@@ -717,6 +710,57 @@ const FirestoreManager = (function() {
 
             if (profile.streak) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.streak, profile.streak.toString());
+            }
+
+            // Rebuild hexworth_progress in the nested object format that labs/dashboard expect
+            // Convert modulesCompleted array to nested house progress object
+            const existingProgress = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+
+            // Only rebuild if existing progress is empty or is an array (old format)
+            if (!existingProgress || Array.isArray(existingProgress) || Object.keys(existingProgress).length === 0) {
+                const rebuiltProgress = {};
+
+                // Convert modulesCompleted array to nested format
+                if (profile.modulesCompleted && Array.isArray(profile.modulesCompleted)) {
+                    profile.modulesCompleted.forEach(moduleId => {
+                        // Parse module ID to extract house (e.g., 'forge-admin-tools-lab' -> 'forge')
+                        const parts = moduleId.split('-');
+                        const house = parts[0];
+                        const moduleKey = parts.slice(1).join('-') || moduleId;
+
+                        if (!rebuiltProgress[house]) {
+                            rebuiltProgress[house] = {};
+                        }
+                        rebuiltProgress[house][moduleKey] = {
+                            completed: true,
+                            restoredFromCloud: true
+                        };
+                    });
+                }
+
+                // Also add labs to progress
+                if (profile.labsCompleted && Array.isArray(profile.labsCompleted)) {
+                    profile.labsCompleted.forEach(labId => {
+                        const parts = labId.split('-');
+                        const house = parts[0];
+                        const labKey = parts.slice(1).join('-') || labId;
+
+                        if (!rebuiltProgress[house]) {
+                            rebuiltProgress[house] = {};
+                        }
+                        rebuiltProgress[house][labKey] = {
+                            completed: true,
+                            restoredFromCloud: true
+                        };
+                    });
+                }
+
+                if (Object.keys(rebuiltProgress).length > 0) {
+                    localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(rebuiltProgress));
+                    console.log('[FirestoreManager] Rebuilt progress in nested format:', rebuiltProgress);
+                }
+            } else {
+                console.log('[FirestoreManager] Existing progress found, not overwriting:', existingProgress);
             }
 
             console.log('[FirestoreManager] Cloud data restored to localStorage');
