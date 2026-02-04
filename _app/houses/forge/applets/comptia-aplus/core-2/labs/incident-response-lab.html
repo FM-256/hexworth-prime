@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response Lab - A+ Core 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: #0c0c0c; font-family: 'Consolas', monospace; color: #b5d4c4; }
+        .lab-header { padding: 15px 30px; background: rgba(10, 10, 15, 0.95); border-bottom: 1px solid rgba(34, 197, 94, 0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn { padding: 8px 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; color: #4ade80; text-decoration: none; }
+        .lab-title { font-size: 1rem; color: #d5f5e8; }
+        .task-count { color: #4ade80; font-weight: 500; }
+        .lab-container { display: grid; grid-template-columns: 350px 1fr; height: calc(100vh - 60px); }
+        .task-panel { background: rgba(12, 15, 14, 0.95); border-right: 1px solid rgba(34, 197, 94, 0.15); overflow-y: auto; padding: 20px; }
+        .task-section h3 { color: #4ade80; font-size: 0.9rem; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(34, 197, 94, 0.2); }
+        .task-item { background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.1); border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; }
+        .task-item:hover { background: rgba(34, 197, 94, 0.1); }
+        .task-item.active { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); }
+        .task-item.completed { border-color: #4ade80; }
+        .task-item.completed::before { content: '✓ '; color: #4ade80; }
+        .task-title { font-size: 0.9rem; color: #d5f5e8; margin-bottom: 5px; }
+        .task-desc { font-size: 0.75rem; color: #7a9e8b; }
+        .main-panel { display: flex; flex-direction: column; background: #0a0a0a; }
+        .scenario-header { padding: 15px 20px; background: rgba(20, 18, 15, 0.9); border-bottom: 1px solid rgba(34, 197, 94, 0.2); }
+        .scenario-title { color: #4ade80; font-size: 0.85rem; }
+        .scenario-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .scenario-box { background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .scenario-box h4 { color: #4ade80; margin-bottom: 15px; font-size: 1.1rem; }
+        .scenario-box p { margin-bottom: 12px; line-height: 1.7; }
+        .alert-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .alert-box h5 { color: #f87171; margin-bottom: 8px; }
+        .form-section { background: rgba(15, 18, 16, 0.8); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .form-section h4 { color: #4ade80; margin-bottom: 20px; border-bottom: 1px solid rgba(34, 197, 94, 0.2); padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; color: #d5f5e8; margin-bottom: 8px; font-size: 0.9rem; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; color: #d5f5e8; font-family: inherit; font-size: 0.9rem; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #4ade80; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.05); padding: 10px 15px; border-radius: 6px; cursor: pointer; }
+        .checkbox-item input { accent-color: #4ade80; }
+        .submit-btn { padding: 12px 30px; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 1rem; font-weight: 600; }
+        .submit-btn:hover { opacity: 0.9; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chain-custody { background: rgba(15, 18, 16, 0.8); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+        .chain-custody h4 { color: #4ade80; margin-bottom: 15px; }
+        .custody-entry { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 10px; padding: 10px; background: rgba(34, 197, 94, 0.05); border-radius: 6px; margin-bottom: 10px; align-items: center; font-size: 0.85rem; }
+        .custody-entry.header { background: rgba(34, 197, 94, 0.2); font-weight: bold; color: #d5f5e8; }
+        .add-entry-btn { padding: 8px 16px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #4ade80; cursor: pointer; margin-top: 10px; }
+        .evidence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .evidence-item { background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s; }
+        .evidence-item:hover { border-color: #4ade80; }
+        .evidence-item.collected { border-color: #4ade80; background: rgba(34, 197, 94, 0.15); }
+        .evidence-item.collected::after { content: ' ✓'; color: #4ade80; }
+        .evidence-item h5 { color: #d5f5e8; margin-bottom: 5px; }
+        .evidence-item p { font-size: 0.8rem; color: #7a9e8b; }
+        .volatility-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 5px; }
+        .volatility-high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .volatility-medium { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .volatility-low { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .hint-box { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 15px; margin-top: 15px; }
+        .hint-box h4 { color: #fbbf24; font-size: 0.85rem; margin-bottom: 8px; }
+        .hint-box p { font-size: 0.8rem; }
+        .success-message { background: rgba(34, 197, 94, 0.2); border: 1px solid #4ade80; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; display: none; }
+        .success-message.show { display: block; }
+        .success-message h3 { color: #4ade80; margin-bottom: 10px; }
+        .nav-links { padding: 15px 20px; background: rgba(10, 10, 15, 0.9); border-top: 1px solid rgba(34, 197, 94, 0.2); display: flex; gap: 15px; }
+        .nav-link { padding: 8px 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; color: #4ade80; text-decoration: none; font-size: 0.85rem; }
+        .nav-link.primary { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="chapters/ch22-incident-response/index.html" class="back-btn">← Back</a>
+            <span class="lab-title">Incident Response Lab</span>
+        </div>
+        <span class="task-count" id="taskCount">0 / 4 tasks</span>
+    </header>
+    <div class="lab-container">
+        <div class="task-panel">
+            <div class="task-section">
+                <h3>Incident Response Tasks</h3>
+                <div class="task-item active" data-task="1" onclick="selectTask(1)">
+                    <div class="task-title">1. Document the Incident</div>
+                    <div class="task-desc">Complete the incident report form</div>
+                </div>
+                <div class="task-item" data-task="2" onclick="selectTask(2)">
+                    <div class="task-title">2. Collect Evidence</div>
+                    <div class="task-desc">Gather evidence in order of volatility</div>
+                </div>
+                <div class="task-item" data-task="3" onclick="selectTask(3)">
+                    <div class="task-title">3. Chain of Custody</div>
+                    <div class="task-desc">Document evidence handling</div>
+                </div>
+                <div class="task-item" data-task="4" onclick="selectTask(4)">
+                    <div class="task-title">4. Incident Summary</div>
+                    <div class="task-desc">Review and submit final report</div>
+                </div>
+            </div>
+            <div class="hint-box"><h4>Hint</h4><p id="hintText">Fill out all required fields in the incident report form. Include specific details like timestamps and affected systems.</p></div>
+        </div>
+        <div class="main-panel">
+            <div class="scenario-header"><span class="scenario-title">SCENARIO: Suspected Data Breach - Marketing Department Workstation</span></div>
+            <div class="scenario-content">
+                <!-- Scenario Introduction -->
+                <div class="scenario-box">
+                    <h4>Incident Background</h4>
+                    <p>It's Monday morning at 9:15 AM. Sarah from Marketing reports that her computer is behaving strangely. She noticed:</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Files on her desktop have strange extensions (.encrypted)</li>
+                        <li>A ransom note appeared demanding Bitcoin payment</li>
+                        <li>The computer is very slow and the fan is running constantly</li>
+                        <li>She received a suspicious email Friday afternoon but isn't sure if she clicked anything</li>
+                    </ul>
+                    <div class="alert-box">
+                        <h5>ALERT: This appears to be a ransomware infection!</h5>
+                        <p>As the first responder, you must document the incident, preserve evidence, and maintain chain of custody.</p>
+                    </div>
+                </div>
+
+                <!-- Task 1: Incident Documentation -->
+                <div class="form-section" id="task1-form">
+                    <h4>Task 1: Incident Report Form</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date of Discovery *</label>
+                            <input type="date" id="discoveryDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Time of Discovery *</label>
+                            <input type="time" id="discoveryTime" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Reported By *</label>
+                        <input type="text" id="reportedBy" placeholder="Name of person who discovered the incident" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Affected System(s) *</label>
+                        <input type="text" id="affectedSystems" placeholder="Computer name, IP address, location" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Incident Type *</label>
+                        <select id="incidentType" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="malware">Malware Infection</option>
+                            <option value="ransomware">Ransomware</option>
+                            <option value="unauthorized">Unauthorized Access</option>
+                            <option value="databreach">Data Breach</option>
+                            <option value="phishing">Phishing/Social Engineering</option>
+                            <option value="dos">Denial of Service</option>
+                            <option value="physical">Physical Security</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Incident Description *</label>
+                        <textarea id="incidentDescription" placeholder="Describe what happened in detail. Include symptoms, user observations, and any relevant context." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Immediate Actions Taken</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" id="action1"> Isolated from network</label>
+                            <label class="checkbox-item"><input type="checkbox" id="action2"> Secured the scene</label>
+                            <label class="checkbox-item"><input type="checkbox" id="action3"> Photographed screen</label>
+                            <label class="checkbox-item"><input type="checkbox" id="action4"> Notified supervisor</label>
+                            <label class="checkbox-item"><input type="checkbox" id="action5"> Documented observations</label>
+                        </div>
+                    </div>
+                    <button class="submit-btn" onclick="completeTask1()">Complete Documentation</button>
+                </div>
+
+                <!-- Task 2: Evidence Collection -->
+                <div class="form-section hidden" id="task2-form">
+                    <h4>Task 2: Evidence Collection (Order of Volatility)</h4>
+                    <p style="margin-bottom: 15px; color: #7a9e8b;">Click on evidence items in order from MOST volatile to LEAST volatile. Collect the most volatile data first!</p>
+                    <div class="evidence-grid" id="evidenceGrid">
+                        <div class="evidence-item" data-evidence="ram" data-volatility="1" onclick="collectEvidence(this)">
+                            <h5>RAM Memory Dump <span class="volatility-badge volatility-high">Critical</span></h5>
+                            <p>Running processes, encryption keys, network connections</p>
+                        </div>
+                        <div class="evidence-item" data-evidence="disk" data-volatility="4" onclick="collectEvidence(this)">
+                            <h5>Disk Image <span class="volatility-badge volatility-low">Stable</span></h5>
+                            <p>Files, logs, malware samples, user data</p>
+                        </div>
+                        <div class="evidence-item" data-evidence="network" data-volatility="2" onclick="collectEvidence(this)">
+                            <h5>Network State <span class="volatility-badge volatility-high">Critical</span></h5>
+                            <p>Active connections, ARP cache, routing tables</p>
+                        </div>
+                        <div class="evidence-item" data-evidence="process" data-volatility="3" onclick="collectEvidence(this)">
+                            <h5>Running Processes <span class="volatility-badge volatility-medium">Important</span></h5>
+                            <p>Task list, loaded DLLs, open handles</p>
+                        </div>
+                        <div class="evidence-item" data-evidence="logs" data-volatility="5" onclick="collectEvidence(this)">
+                            <h5>System Logs <span class="volatility-badge volatility-low">Stable</span></h5>
+                            <p>Event logs, security logs, application logs</p>
+                        </div>
+                        <div class="evidence-item" data-evidence="email" data-volatility="6" onclick="collectEvidence(this)">
+                            <h5>Suspicious Email <span class="volatility-badge volatility-low">Stable</span></h5>
+                            <p>Original phishing email with headers</p>
+                        </div>
+                    </div>
+                    <p id="evidenceOrder" style="margin-top: 15px; color: #4ade80;"></p>
+                    <p id="evidenceFeedback" style="margin-top: 10px; color: #f87171;"></p>
+                </div>
+
+                <!-- Task 3: Chain of Custody -->
+                <div class="chain-custody hidden" id="task3-form">
+                    <h4>Task 3: Chain of Custody Log</h4>
+                    <p style="margin-bottom: 15px; color: #7a9e8b;">Document the handling of each piece of evidence.</p>
+                    <div class="custody-entry header">
+                        <span>Evidence Item</span>
+                        <span>Collected By</span>
+                        <span>Date/Time</span>
+                        <span>Location/Notes</span>
+                    </div>
+                    <div id="custodyEntries"></div>
+                    <div class="form-row" style="margin-top: 20px;">
+                        <div class="form-group">
+                            <label>Your Name (Collector) *</label>
+                            <input type="text" id="collectorName" placeholder="Your full name">
+                        </div>
+                        <div class="form-group">
+                            <label>Storage Location *</label>
+                            <input type="text" id="storageLocation" placeholder="Where evidence will be secured">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hash Verification Method</label>
+                        <select id="hashMethod">
+                            <option value="sha256">SHA-256 (Recommended)</option>
+                            <option value="sha1">SHA-1</option>
+                            <option value="md5">MD5 (Legacy)</option>
+                        </select>
+                    </div>
+                    <button class="submit-btn" onclick="completeTask3()">Complete Chain of Custody</button>
+                </div>
+
+                <!-- Task 4: Summary -->
+                <div class="form-section hidden" id="task4-form">
+                    <h4>Task 4: Incident Summary Report</h4>
+                    <div id="summaryContent"></div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Recommendations for Prevention</label>
+                        <textarea id="recommendations" placeholder="What should be done to prevent similar incidents?"></textarea>
+                    </div>
+                    <button class="submit-btn" onclick="completeTask4()">Submit Final Report</button>
+                </div>
+
+                <!-- Success Message -->
+                <div class="success-message" id="successMessage">
+                    <h3>Lab Complete!</h3>
+                    <p>You have successfully completed the Incident Response Lab.</p>
+                    <p style="margin-top: 15px;">You demonstrated proper:</p>
+                    <ul style="text-align: left; max-width: 400px; margin: 15px auto;">
+                        <li>Incident documentation</li>
+                        <li>Evidence collection (order of volatility)</li>
+                        <li>Chain of custody procedures</li>
+                        <li>Report generation</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="../../presentations/incident-response.html" class="nav-link">← Review</a>
+                <a href="../../quizzes/ch22-quiz.html" class="nav-link primary">Quiz →</a>
+                <a href="../../index.html" class="nav-link">Course</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        let currentTask = 1, completedTasks = new Set();
+        let evidenceCollected = [];
+        const correctOrder = ['ram', 'network', 'process', 'disk', 'logs', 'email'];
+        const evidenceNames = {
+            ram: 'RAM Memory Dump',
+            network: 'Network State',
+            process: 'Running Processes',
+            disk: 'Disk Image',
+            logs: 'System Logs',
+            email: 'Suspicious Email'
+        };
+
+        const hints = {
+            1: "Fill out all required fields. Be specific with dates, times, and system information. Select 'Ransomware' as the incident type.",
+            2: "Collect evidence from MOST volatile to LEAST volatile. RAM is lost when powered off, while disk data persists.",
+            3: "Enter your name and where evidence will be stored. SHA-256 is the recommended hash method for integrity verification.",
+            4: "Review the incident summary and add recommendations for preventing future incidents."
+        };
+
+        function selectTask(n) {
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-task="${n}"]`).classList.add('active');
+            currentTask = n;
+            document.getElementById('hintText').textContent = hints[n];
+            showTaskForm(n);
+        }
+
+        function showTaskForm(n) {
+            document.querySelectorAll('.form-section, .chain-custody').forEach(f => f.classList.add('hidden'));
+            const formId = `task${n}-form`;
+            const form = document.getElementById(formId);
+            if (form) form.classList.remove('hidden');
+        }
+
+        function completeTask(n) {
+            if (!completedTasks.has(n)) {
+                completedTasks.add(n);
+                document.querySelector(`[data-task="${n}"]`).classList.add('completed');
+                document.getElementById('taskCount').textContent = `${completedTasks.size} / 4 tasks`;
+                if (completedTasks.size === 4) {
+                    document.getElementById('successMessage').classList.add('show');
+                }
+            }
+        }
+
+        function completeTask1() {
+            const required = ['discoveryDate', 'discoveryTime', 'reportedBy', 'affectedSystems', 'incidentType', 'incidentDescription'];
+            let valid = true;
+            required.forEach(id => {
+                if (!document.getElementById(id).value) {
+                    valid = false;
+                    document.getElementById(id).style.borderColor = '#f87171';
+                } else {
+                    document.getElementById(id).style.borderColor = 'rgba(34, 197, 94, 0.3)';
+                }
+            });
+            if (!valid) {
+                alert('Please fill in all required fields.');
+                return;
+            }
+            completeTask(1);
+            selectTask(2);
+        }
+
+        function collectEvidence(element) {
+            if (element.classList.contains('collected')) return;
+            const evidence = element.dataset.evidence;
+            evidenceCollected.push(evidence);
+            element.classList.add('collected');
+            document.getElementById('evidenceOrder').textContent = 'Collection order: ' + evidenceCollected.map(e => evidenceNames[e]).join(' → ');
+
+            if (evidenceCollected.length === 6) {
+                let correct = true;
+                for (let i = 0; i < 6; i++) {
+                    if (evidenceCollected[i] !== correctOrder[i]) {
+                        correct = false;
+                        break;
+                    }
+                }
+                if (correct) {
+                    document.getElementById('evidenceFeedback').textContent = '✓ Correct order! Evidence collected from most to least volatile.';
+                    document.getElementById('evidenceFeedback').style.color = '#4ade80';
+                    completeTask(2);
+                    setTimeout(() => selectTask(3), 1000);
+                    populateCustodyEntries();
+                } else {
+                    document.getElementById('evidenceFeedback').textContent = 'Incorrect order. In a real scenario, volatile data would be lost. Reset and try again.';
+                    document.getElementById('evidenceFeedback').style.color = '#f87171';
+                    setTimeout(() => {
+                        evidenceCollected = [];
+                        document.querySelectorAll('.evidence-item').forEach(e => e.classList.remove('collected'));
+                        document.getElementById('evidenceOrder').textContent = '';
+                        document.getElementById('evidenceFeedback').textContent = '';
+                    }, 3000);
+                }
+            }
+        }
+
+        function populateCustodyEntries() {
+            const container = document.getElementById('custodyEntries');
+            const now = new Date();
+            container.innerHTML = correctOrder.map((e, i) => `
+                <div class="custody-entry">
+                    <span>${evidenceNames[e]}</span>
+                    <span id="collector-${e}">-</span>
+                    <span>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</span>
+                    <span>Workstation MKT-PC-001</span>
+                </div>
+            `).join('');
+        }
+
+        function completeTask3() {
+            const collector = document.getElementById('collectorName').value;
+            const location = document.getElementById('storageLocation').value;
+            if (!collector || !location) {
+                alert('Please enter your name and storage location.');
+                return;
+            }
+            correctOrder.forEach(e => {
+                const el = document.getElementById(`collector-${e}`);
+                if (el) el.textContent = collector;
+            });
+            completeTask(3);
+            selectTask(4);
+            generateSummary();
+        }
+
+        function generateSummary() {
+            const summary = document.getElementById('summaryContent');
+            summary.innerHTML = `
+                <div style="background: rgba(34, 197, 94, 0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h5 style="color: #4ade80; margin-bottom: 15px;">INCIDENT REPORT SUMMARY</h5>
+                    <p><strong>Date:</strong> ${document.getElementById('discoveryDate').value}</p>
+                    <p><strong>Time:</strong> ${document.getElementById('discoveryTime').value}</p>
+                    <p><strong>Reported By:</strong> ${document.getElementById('reportedBy').value}</p>
+                    <p><strong>Affected System:</strong> ${document.getElementById('affectedSystems').value}</p>
+                    <p><strong>Incident Type:</strong> ${document.getElementById('incidentType').value}</p>
+                    <p><strong>Description:</strong> ${document.getElementById('incidentDescription').value}</p>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h5 style="color: #4ade80; margin-bottom: 15px;">EVIDENCE COLLECTED</h5>
+                    <ol style="margin-left: 20px;">
+                        ${correctOrder.map(e => `<li>${evidenceNames[e]}</li>`).join('')}
+                    </ol>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.05); border-radius: 8px; padding: 20px;">
+                    <h5 style="color: #4ade80; margin-bottom: 15px;">CHAIN OF CUSTODY</h5>
+                    <p><strong>Collected By:</strong> ${document.getElementById('collectorName').value}</p>
+                    <p><strong>Storage Location:</strong> ${document.getElementById('storageLocation').value}</p>
+                    <p><strong>Hash Method:</strong> ${document.getElementById('hashMethod').value.toUpperCase()}</p>
+                </div>
+            `;
+        }
+
+        function completeTask4() {
+            completeTask(4);
+        }
+
+        // Initialize
+        showTaskForm(1);
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('discoveryDate').value = today;
+        document.getElementById('discoveryTime').value = '09:15';
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
