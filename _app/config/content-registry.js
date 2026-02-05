@@ -1451,9 +1451,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'reconnaissance', 'whoami', 'pwd', 'hostname', 'cli'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
+                presentation: 'houses/script/courses/clh/modules/clh-001/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-001/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-001/quiz.html'
             },
-            prerequisites: ['script-clh-001'],
+            prerequisites: [],
             objectives: [
                 'Navigate directory structures with cd',
                 'Perform deep scans with ls -la',
@@ -1473,9 +1475,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'navigation', 'reconnaissance', 'cd', 'cat', 'ls'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
+                presentation: 'houses/script/courses/clh/modules/clh-002/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-002/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-002/quiz.html'
             },
-            prerequisites: ['script-clh-002'],
+            prerequisites: [],
             objectives: [
                 'Use grep to search file contents',
                 'Extract hidden codes from text files',
@@ -1495,9 +1499,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching', 'forensics'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
+                presentation: 'houses/script/courses/clh/modules/clh-003/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-003/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-003/quiz.html'
             },
-            prerequisites: ['script-clh-003'],
+            prerequisites: [],
             objectives: [
                 'Analyze process snapshots',
                 'Identify anomalous resource usage',
@@ -1517,9 +1523,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'processes', 'investigation', 'grep', 'malware'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
+                presentation: 'houses/script/courses/clh/modules/clh-004/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-004/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-004/quiz.html'
             },
-            prerequisites: ['script-clh-004'],
+            prerequisites: [],
             objectives: [
                 'Navigate log directories',
                 'Use head/tail for log preview',
@@ -1539,9 +1547,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'logs', 'forensics', 'grep', 'head', 'tail'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
+                presentation: 'houses/script/courses/clh/modules/clh-005/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-005/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-005/quiz.html'
             },
-            prerequisites: ['script-clh-005'],
+            prerequisites: [],
             objectives: [
                 'Create directories with mkdir',
                 'Create files with touch',
@@ -1562,9 +1572,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'files', 'mkdir', 'touch', 'cp', 'mv', 'rm'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-006-file-operations.html'
+                presentation: 'houses/script/courses/clh/modules/clh-006/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-006/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-006/quiz.html'
             },
-            prerequisites: ['script-clh-006'],
+            prerequisites: [],
             objectives: [
                 'Analyze file permissions with ls -la',
                 'Decode permission bits (rwx)',
@@ -1584,9 +1596,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'permissions', 'chmod', 'security', 'access-control'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-007-permissions.html'
+                presentation: 'houses/script/courses/clh/modules/clh-007/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-007/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-007/quiz.html'
             },
-            prerequisites: ['script-clh-007'],
+            prerequisites: [],
             objectives: [
                 'Examine shell script structure',
                 'Run scripts with bash command',
@@ -1606,9 +1620,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'bash', 'scripting', 'automation'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
+                presentation: 'houses/script/courses/clh/modules/clh-008/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-008/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-008/quiz.html'
             },
-            prerequisites: ['script-clh-008'],
+            prerequisites: [],
             objectives: [
                 'Extract columns with cut',
                 'Sort and deduplicate data',
@@ -1628,9 +1644,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'text-processing', 'cut', 'sort', 'uniq', 'awk', 'sed'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-009-text-processing.html'
+                presentation: 'houses/script/courses/clh/modules/clh-009/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-009/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-009/quiz.html'
             },
-            prerequisites: ['script-clh-009'],
+            prerequisites: [],
             objectives: [
                 'Redirect output to files',
                 'Append data with >>',
@@ -1650,9 +1668,11 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'io', 'redirection', 'pipes', 'tee'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
+                presentation: 'houses/script/courses/clh/modules/clh-010/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-010/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-010/quiz.html'
             },
-            prerequisites: ['script-clh-010'],
+            prerequisites: [],
             objectives: [
                 'Use grep flags (-i, -v, -c, -n, -r)',
                 'Write basic regex patterns',
@@ -1672,7 +1692,9 @@ const ContentRegistry = {
             topics: ['linux', 'hacking', 'grep', 'regex', 'pattern-matching'],
             paths: ['comptia-linux', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
+                presentation: 'houses/script/courses/clh/modules/clh-011/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-011/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-011/quiz.html'
             },
             prerequisites: [],
             objectives: [
@@ -1680,6 +1702,384 @@ const ContentRegistry = {
                 'Understand command syntax differences',
                 'Work effectively in multi-platform environments'
             ]
+        },
+
+        'script-clh-012': {
+            id: 'script-clh-012',
+            title: 'CLH-012: Network Basics',
+            description: 'Probe network connectivity with ping, netstat, ss, and ip commands',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'networking', 'ping', 'netstat', 'ss', 'ip'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-012/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-012/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-012/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-013': {
+            id: 'script-clh-013',
+            title: 'CLH-013: Environment Variables',
+            description: 'Master shell environment with env, export, and PATH manipulation',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'environment', 'env', 'export', 'PATH'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-013/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-013/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-013/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-014': {
+            id: 'script-clh-014',
+            title: 'CLH-014: Process Control',
+            description: 'Manage processes with ps, kill, jobs, bg, fg, and nohup',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'processes', 'ps', 'kill', 'jobs', 'nohup'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-014/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-014/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-014/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-015': {
+            id: 'script-clh-015',
+            title: 'CLH-015: Capstone Mission',
+            description: 'Final investigation — apply all skills and earn CLI Engineer certification',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'capstone', 'certification'],
+            paths: ['comptia-linux', 'command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-015/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-015/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-015/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-016': {
+            id: 'script-clh-016',
+            title: 'CLH-016: System Intel',
+            description: 'Intelligence gathering and tactical reconnaissance operations',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'reconnaissance', 'system-info', 'uname', 'uptime'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-016/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-016/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-016/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-017': {
+            id: 'script-clh-017',
+            title: 'CLH-017: Find & Locate',
+            description: 'Search and file location discovery techniques',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'find', 'locate', 'search', 'file-discovery'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-017/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-017/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-017/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-018': {
+            id: 'script-clh-018',
+            title: 'CLH-018: Archive Operations',
+            description: 'Dead Drop Protocol — handling and extracting intel packages',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['linux', 'hacking', 'tar', 'gzip', 'archives', 'compression'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-018/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-018/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-018/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-019': {
+            id: 'script-clh-019',
+            title: 'CLH-019: Disk Forensics',
+            description: 'Evidence Lab — digital forensics and disk image analysis',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'forensics', 'disk', 'df', 'du', 'mount'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-019/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-019/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-019/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-020': {
+            id: 'script-clh-020',
+            title: 'CLH-020: User Reconnaissance',
+            description: 'User account profiling and privilege enumeration',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'users', 'whoami', 'id', 'passwd', 'enumeration'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-020/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-020/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-020/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-021': {
+            id: 'script-clh-021',
+            title: 'CLH-021: SSH Operations',
+            description: 'Operation Silent Relay — secure encrypted tunnel establishment',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'ssh', 'tunnels', 'encryption', 'remote-access'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-021/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-021/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-021/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-022': {
+            id: 'script-clh-022',
+            title: 'CLH-022: Network Reconnaissance',
+            description: 'Infrastructure mapping and lateral movement planning',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'networking', 'recon', 'mapping', 'lateral-movement'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-022/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-022/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-022/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-023': {
+            id: 'script-clh-023',
+            title: 'CLH-023: Service Management',
+            description: 'Compromised server audit — identifying malicious services',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'services', 'systemctl', 'daemons', 'audit'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-023/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-023/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-023/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-024': {
+            id: 'script-clh-024',
+            title: 'CLH-024: Scheduled Tasks',
+            description: 'Persistence Hunt — cron jobs and system timers',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'cron', 'crontab', 'persistence', 'scheduled-tasks'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-024/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-024/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-024/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-025': {
+            id: 'script-clh-025',
+            title: 'CLH-025: Package Management',
+            description: 'Supply chain audit — package verification and integrity',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'apt', 'dpkg', 'packages', 'supply-chain'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-025/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-025/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-025/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-026': {
+            id: 'script-clh-026',
+            title: 'CLH-026: Access Control',
+            description: 'Vault Security Review — hunting privilege escalation vectors',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'access-control', 'sudo', 'privilege-escalation'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-026/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-026/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-026/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-027': {
+            id: 'script-clh-027',
+            title: 'CLH-027: User Management',
+            description: 'Identity Management — user account administration',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['linux', 'hacking', 'useradd', 'usermod', 'groups', 'identity'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-027/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-027/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-027/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-028': {
+            id: 'script-clh-028',
+            title: 'CLH-028: System Monitoring',
+            description: 'Threat Hunt — active incident response with real-time monitoring',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['linux', 'hacking', 'monitoring', 'top', 'htop', 'incident-response'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-028/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-028/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-028/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-029': {
+            id: 'script-clh-029',
+            title: 'CLH-029: Vim Essentials',
+            description: 'Master the modal editor of legends',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['linux', 'hacking', 'vim', 'editor', 'modal-editing'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-029/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-029/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-029/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-030': {
+            id: 'script-clh-030',
+            title: 'CLH-030: OPERATION CHIMERA',
+            description: 'High-stakes mission at maximum classification level',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 60,
+            topics: ['linux', 'hacking', 'capstone', 'operation', 'advanced'],
+            paths: ['command-line-hacker'],
+            components: {
+                presentation: 'houses/script/courses/clh/modules/clh-030/intro.html',
+                lab: 'houses/script/courses/clh/modules/clh-030/lab.html',
+                quiz: 'houses/script/courses/clh/modules/clh-030/quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-clh-031': {
+            id: 'script-clh-031',
+            title: 'CLH-031: Operation BLACKOUT',
+            description: 'Final operation — the ultimate test of everything you have learned',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 60,
+            topics: ['linux', 'hacking', 'final', 'operation', 'advanced'],
+            paths: ['command-line-hacker'],
+            components: {
+                lab: 'houses/script/courses/clh/modules/clh-031/lab.html'
+            },
+            prerequisites: [],
+            objectives: []
         },
 
         // --- Bash Scripting ---
@@ -7123,10 +7523,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
+                lab: 'houses/script/courses/clh/modules/clh-001/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7139,10 +7539,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'security-operations', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
+                lab: 'houses/script/courses/clh/modules/clh-002/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7155,10 +7555,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'comptia-network', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
+                lab: 'houses/script/courses/clh/modules/clh-003/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7171,10 +7571,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
+                lab: 'houses/script/courses/clh/modules/clh-004/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7187,10 +7587,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
+                lab: 'houses/script/courses/clh/modules/clh-005/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7203,10 +7603,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-006-file-operations.html'
+                lab: 'houses/script/courses/clh/modules/clh-006/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7219,10 +7619,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-007-permissions.html'
+                lab: 'houses/script/courses/clh/modules/clh-007/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7235,10 +7635,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
+                lab: 'houses/script/courses/clh/modules/clh-008/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7251,10 +7651,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-009-text-processing.html'
+                lab: 'houses/script/courses/clh/modules/clh-009/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7267,10 +7667,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
+                lab: 'houses/script/courses/clh/modules/clh-010/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7283,10 +7683,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'advanced',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
+                lab: 'houses/script/courses/clh/modules/clh-011/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7299,10 +7699,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting', 'networking'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting', 'networking'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'comptia-network', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-012-network-basics.html'
+                lab: 'houses/script/courses/clh/modules/clh-012/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7315,10 +7715,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-013-environment.html'
+                lab: 'houses/script/courses/clh/modules/clh-013/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7331,10 +7731,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-014-process-control.html'
+                lab: 'houses/script/courses/clh/modules/clh-014/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7347,10 +7747,10 @@ const ContentRegistry = {
             type: 'lab',
             difficulty: 'beginner',
             duration: 45,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
-                lab: 'houses/script/applets/linux/clh-015-capstone.html'
+                lab: 'houses/script/courses/clh/modules/clh-015/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -7363,7 +7763,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-001-quiz.html'
@@ -7379,7 +7779,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-002-quiz.html'
@@ -7395,7 +7795,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-003-quiz.html'
@@ -7411,7 +7811,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-004-quiz.html'
@@ -7427,7 +7827,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-005-quiz.html'
@@ -7443,7 +7843,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-006-quiz.html'
@@ -7459,7 +7859,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-007-quiz.html'
@@ -7475,7 +7875,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-008-quiz.html'
@@ -7491,7 +7891,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-009-quiz.html'
@@ -7507,7 +7907,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-010-quiz.html'
@@ -7523,7 +7923,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-011-quiz.html'
@@ -7539,7 +7939,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-012-quiz.html'
@@ -7555,7 +7955,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-013-quiz.html'
@@ -7571,7 +7971,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-014-quiz.html'
@@ -7587,7 +7987,7 @@ const ContentRegistry = {
             type: 'quiz',
             difficulty: 'beginner',
             duration: 15,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 quiz: 'houses/script/clh/clh-015-quiz.html'
@@ -7603,7 +8003,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-001-intro.html'
@@ -7619,7 +8019,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-002-intro.html'
@@ -7635,7 +8035,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-003-intro.html'
@@ -7651,7 +8051,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-004-intro.html'
@@ -7667,7 +8067,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-005-intro.html'
@@ -7683,7 +8083,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-006-intro.html'
@@ -7699,7 +8099,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-007-intro.html'
@@ -7715,7 +8115,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-008-intro.html'
@@ -7731,7 +8131,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-009-intro.html'
@@ -7747,7 +8147,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-010-intro.html'
@@ -7763,7 +8163,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-011-intro.html'
@@ -7779,7 +8179,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-012-intro.html'
@@ -7795,7 +8195,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-013-intro.html'
@@ -7811,7 +8211,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-014-intro.html'
@@ -7827,7 +8227,7 @@ const ContentRegistry = {
             type: 'presentation',
             difficulty: 'beginner',
             duration: 25,
-            topics: ['clh', 'scripting'],
+            topics: ['clh', 'command line hacker', 'linux', 'terminal', 'cli', 'scripting'],
             paths: ['comptia-linux', 'sysadmin-essentials', 'command-line-hacker'],
             components: {
                 presentation: 'houses/script/clh/clh-015-intro.html'
@@ -9833,28 +10233,48 @@ const ContentRegistry = {
             icon: '💀',
             certification: null,
             difficulty: 'intermediate',
-            estimatedHours: 30,
+            estimatedHours: 75,
             color: '#00ff41',
+            homePage: 'houses/script/courses/clh/index.html',
             modules: [
                 // Foundation (CLH-001 to CLH-005)
-                'script-clh-001',  // CLH-001: Introduction to Hacker CLI
-                'script-clh-002',  // CLH-002: Navigation & Reconnaissance
-                'script-clh-003',  // CLH-003: Pattern Hunting (grep)
-                'script-clh-004',  // CLH-004: Process Investigation
-                'script-clh-005',  // CLH-005: Log Analysis
+                'script-clh-001',  // Introduction to Hacker CLI
+                'script-clh-002',  // Navigation & Reconnaissance
+                'script-clh-003',  // Pattern Hunting (grep)
+                'script-clh-004',  // Process Investigation
+                'script-clh-005',  // Log Analysis
                 // Operations (CLH-006 to CLH-008)
-                'script-clh-006',  // CLH-006: File Operations
-                'script-clh-007',  // CLH-007: Permissions & Access Control
-                'script-clh-008',  // CLH-008: Shell Scripting Basics
+                'script-clh-006',  // File Operations
+                'script-clh-007',  // Permissions & Access Control
+                'script-clh-008',  // Shell Scripting Basics
                 // Analysis (CLH-009 to CLH-011)
-                'script-clh-009',  // CLH-009: Text Processing
-                'script-clh-010',  // CLH-010: I/O Redirection
-                'script-clh-011',  // CLH-011: Advanced Grep & Regex
-                // Future labs:
-                // 'script-clh-012',  // CLH-012: Network Basics
-                // 'script-clh-013',  // CLH-013: Environment Variables
-                // 'script-clh-014',  // CLH-014: Process Control
-                // 'script-clh-015',  // CLH-015: Capstone Mission
+                'script-clh-009',  // Text Processing
+                'script-clh-010',  // I/O Redirection
+                'script-clh-011',  // Advanced Grep & Regex
+                // Advanced (CLH-012 to CLH-015)
+                'script-clh-012',  // Network Basics
+                'script-clh-013',  // Environment Variables
+                'script-clh-014',  // Process Control
+                'script-clh-015',  // Capstone Mission
+                // Tactical (CLH-016 to CLH-022)
+                'script-clh-016',  // System Intel
+                'script-clh-017',  // Find & Locate
+                'script-clh-018',  // Archive Operations
+                'script-clh-019',  // Disk Forensics
+                'script-clh-020',  // User Reconnaissance
+                'script-clh-021',  // SSH Operations
+                'script-clh-022',  // Network Reconnaissance
+                // Black Ops (CLH-023 to CLH-027)
+                'script-clh-023',  // Service Management
+                'script-clh-024',  // Scheduled Tasks
+                'script-clh-025',  // Package Management
+                'script-clh-026',  // Access Control
+                'script-clh-027',  // User Management
+                // Ghost Tier (CLH-028 to CLH-031)
+                'script-clh-028',  // System Monitoring
+                'script-clh-029',  // Vim Essentials
+                'script-clh-030',  // OPERATION CHIMERA
+                'script-clh-031',  // Operation BLACKOUT
             ]
         },
         'dark-arts': {
