@@ -206,23 +206,30 @@ const ClassManager = (function() {
         if (!db) return [];
 
         try {
-            const { collection: colRef, query, where, orderBy, getDocs } = window.firebaseFirestore;
+            const { collection: colRef, query, where, getDocs } = window.firebaseFirestore;
 
+            // Single-field query (no composite index needed)
+            // Filter isActive and sort in JS for resilience
             const q = query(
                 colRef(db, COLLECTION),
-                where('handlerUid', '==', handlerUid),
-                where('isActive', '==', true),
-                orderBy('createdAt', 'desc')
+                where('handlerUid', '==', handlerUid)
             );
 
             const snapshot = await getDocs(q);
             const classes = [];
 
             snapshot.forEach(doc => {
-                classes.push({
-                    id: doc.id,
-                    ...doc.data()
-                });
+                const data = doc.data();
+                if (data.isActive !== false) {
+                    classes.push({ id: doc.id, ...data });
+                }
+            });
+
+            // Sort newest first (createdAt may be a Firestore Timestamp)
+            classes.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                return bTime - aTime;
             });
 
             return classes;
@@ -244,18 +251,21 @@ const ClassManager = (function() {
         try {
             const { collection: colRef, query, where, getDocs } = window.firebaseFirestore;
 
+            // Single-field query — filter isActive in JS
             const q = query(
                 colRef(db, COLLECTION),
-                where('classCode', '==', code.toUpperCase().trim()),
-                where('isActive', '==', true)
+                where('classCode', '==', code.toUpperCase().trim())
             );
 
             const snapshot = await getDocs(q);
 
-            if (snapshot.empty) return null;
-
-            const doc = snapshot.docs[0];
-            return { id: doc.id, ...doc.data() };
+            for (const doc of snapshot.docs) {
+                const data = doc.data();
+                if (data.isActive !== false) {
+                    return { id: doc.id, ...data };
+                }
+            }
+            return null;
         } catch (error) {
             console.error('[ClassManager] Failed to get class by code:', error);
             return null;
