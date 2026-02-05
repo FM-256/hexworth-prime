@@ -1715,6 +1715,8 @@
                 <div class="hd-right-label">Export</div>
                 <button class="hd-settings-btn" onclick="exportRosterCSV()">Export Roster (CSV)</button>
                 <button class="hd-settings-btn" onclick="exportAssignmentsCSV()">Export Assignments (CSV)</button>
+                <button class="hd-settings-btn" onclick="exportGradesCSV()">Export Grades (CSV)</button>
+                <button class="hd-settings-btn" onclick="exportProgressCSV()">Export Progress Summary (CSV)</button>
             </div>
 
             <div class="hd-right-section">
@@ -3117,6 +3119,87 @@
                 showToast('Assignments exported');
             } catch (error) {
                 console.error('Export assignments failed:', error);
+                showToast('Export failed');
+            }
+        }
+
+        async function exportGradesCSV() {
+            if (!selectedClassId) return;
+            const cls = handlerClasses.find(c => c.id === selectedClassId);
+            if (!cls) return;
+
+            try {
+                if (!classAssignments || classAssignments.length === 0) {
+                    showToast('No assignments to export');
+                    return;
+                }
+                if (!rosterMembers || rosterMembers.length === 0) {
+                    showToast('No students to export');
+                    return;
+                }
+
+                const rows = [['Last Name', 'First Name', 'Student ID', 'Assignment', 'Status', 'Score', 'Completed Date']];
+                for (const m of rosterMembers) {
+                    const studentProgress = classProgressData.find(p => p.id === m.uid);
+                    for (const a of classAssignments) {
+                        const comp = studentProgress?.completions?.[a.contentId];
+                        const isDone = comp?.completed === true;
+                        const score = isDone && comp.score != null ? comp.score + '%' : '';
+                        const dateStr = isDone && comp.completedAt
+                            ? new Date(comp.completedAt).toLocaleDateString('en-US')
+                            : '';
+                        rows.push([
+                            csvEscape(m.lastName || ''),
+                            csvEscape(m.firstName || ''),
+                            csvEscape(m.studentId || ''),
+                            csvEscape(a.title || ''),
+                            csvEscape(isDone ? 'Completed' : 'Not Started'),
+                            csvEscape(score),
+                            csvEscape(dateStr)
+                        ]);
+                    }
+                }
+
+                const csv = rows.map(r => r.join(',')).join('\n');
+                const safeName = cls.name.replace(/[^a-zA-Z0-9]/g, '_');
+                downloadCSV(`${safeName}_grades_${new Date().toISOString().slice(0,10)}.csv`, csv);
+                showToast('Grades exported');
+            } catch (error) {
+                console.error('Export grades failed:', error);
+                showToast('Export failed');
+            }
+        }
+
+        async function exportProgressCSV() {
+            if (!selectedClassId) return;
+            const cls = handlerClasses.find(c => c.id === selectedClassId);
+            if (!cls) return;
+
+            try {
+                if (!rosterMembers || rosterMembers.length === 0) {
+                    showToast('No students to export');
+                    return;
+                }
+
+                const rows = [['Last Name', 'First Name', 'Student ID', 'Completed', 'Total', 'Completion %']];
+                for (const m of rosterMembers) {
+                    const { completed, total, pct } = getStudentCompletion(m.uid);
+                    rows.push([
+                        csvEscape(m.lastName || ''),
+                        csvEscape(m.firstName || ''),
+                        csvEscape(m.studentId || ''),
+                        csvEscape(completed),
+                        csvEscape(total),
+                        csvEscape(total > 0 ? pct + '%' : '--')
+                    ]);
+                }
+
+                const csv = rows.map(r => r.join(',')).join('\n');
+                const safeName = cls.name.replace(/[^a-zA-Z0-9]/g, '_');
+                downloadCSV(`${safeName}_progress_${new Date().toISOString().slice(0,10)}.csv`, csv);
+                showToast('Progress summary exported');
+            } catch (error) {
+                console.error('Export progress failed:', error);
                 showToast('Export failed');
             }
         }
