@@ -1476,6 +1476,170 @@ class LearningPaths {
             ]
         },
 
+        // CompTIA A+ Core 1 (220-1101) — Forge House
+        'aplus-core1': {
+            name: 'CompTIA A+ Core 1 (220-1101)',
+            description: 'Hardware, networking, mobile devices, virtualization, and troubleshooting',
+            icon: '🔧',
+            color: '#f97316',
+            modules: [
+                {
+                    id: 'aplus-core1-ch01',
+                    title: 'Motherboards',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch01-motherboards/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch02',
+                    title: 'Expansion Cards & Storage',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch02-expansion-storage/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch03',
+                    title: 'Peripherals & Connectors',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch03-peripherals/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch04',
+                    title: 'Printers & Multifunction Devices',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch04-printers/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch05',
+                    title: 'Networking Fundamentals',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch05-networking/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch06',
+                    title: 'TCP/IP & Network Services',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch07',
+                    title: 'Wireless Networking',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch07-wireless/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch08',
+                    title: 'Cloud & Virtualization',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch09',
+                    title: 'Laptops & Mobile Devices',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch10',
+                    title: 'Mobile Device Configuration',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch11',
+                    title: 'Troubleshooting Methodology',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html'
+                },
+                {
+                    id: 'aplus-core1-ch12',
+                    title: 'Hardware & Network Troubleshooting',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html'
+                }
+            ]
+        },
+
+        // CompTIA A+ Core 2 (220-1102) — Forge House
+        'aplus-core2': {
+            name: 'CompTIA A+ Core 2 (220-1102)',
+            description: 'Operating systems, security, software troubleshooting, and operational procedures',
+            icon: '🖥️',
+            color: '#ea580c',
+            modules: [
+                {
+                    id: 'aplus-core2-ch13',
+                    title: 'Windows Editions & Features',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch13-windows-editions/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch14',
+                    title: 'Windows Settings & Configuration',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch14-windows-settings/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch15',
+                    title: 'Administrative Tools',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch15-admin-tools/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch16',
+                    title: 'System Utilities',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch16-system-tools/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch17',
+                    title: 'macOS & Linux Basics',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch17-macos-linux/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch18',
+                    title: 'Users, Groups & Permissions',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch18-users-groups/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch19',
+                    title: 'Security Fundamentals',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch19-security/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch20',
+                    title: 'Malware Detection & Removal',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch20-malware/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch21',
+                    title: 'Physical Security',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch21-physical-security/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch22',
+                    title: 'Incident Response',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch22-incident-response/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch23',
+                    title: 'Change Management',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch23-change-management/index.html'
+                },
+                {
+                    id: 'aplus-core2-ch24',
+                    title: 'Documentation & Professionalism',
+                    type: 'chapter',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch24-documentation/index.html'
+                }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',
