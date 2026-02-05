@@ -4345,26 +4345,64 @@
                 return null;
             }
 
+            // CLH modules: script-clh-001 through script-clh-031
+            const clhMatch = contentId.match(/^script-(clh-\d{3})$/);
+            if (clhMatch) {
+                const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                const scriptProgress = progress.script || {};
+                const moduleData = scriptProgress[clhMatch[1]];
+                if (moduleData && moduleData.completed) {
+                    return { completed: true, score: moduleData.score || null, completedAt: moduleData.completedAt || null };
+                }
+                return null;
+            }
+
+            // Generic hexworth_progress check for house-based content (e.g., shield-xxx, web-xxx)
+            const houseMatch = contentId.match(/^(script|shield|web|forge|cloud|code|key|eye)-(.+)$/);
+            if (houseMatch) {
+                const [, house, moduleKey] = houseMatch;
+                const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                const houseProgress = progress[house] || {};
+                const moduleData = houseProgress[moduleKey];
+                if (moduleData && moduleData.completed) {
+                    return { completed: true, score: moduleData.score || null, completedAt: moduleData.completedAt || null };
+                }
+                return null;
+            }
+
             return null;
         }
 
         async function syncProgressToFirestore() {
             const user = FirebaseAuth.getUser();
-            if (!user) return;
+            if (!user) {
+                console.log('[ProgressSync] No user, skipping');
+                return;
+            }
+
+            console.log('[ProgressSync] Starting sync for user:', user.uid);
 
             try {
                 const classes = await ClassManager.getStudentClasses(user.uid);
+                console.log('[ProgressSync] Found classes:', classes.length);
+
                 for (const cls of classes) {
                     const assignments = await AssignmentManager.getClassAssignments(cls.id);
+                    console.log(`[ProgressSync] Class ${cls.id} has ${assignments.length} assignments`);
+
                     for (const assignment of assignments) {
                         const localProgress = checkLocalCompletion(assignment.contentId);
+                        console.log(`[ProgressSync] ${assignment.contentId}:`, localProgress);
+
                         if (localProgress && localProgress.completed) {
                             await AssignmentManager.submitProgress(cls.id, assignment.contentId, localProgress);
+                            console.log(`[ProgressSync] Submitted: ${assignment.contentId}`);
                         }
                     }
                 }
+                console.log('[ProgressSync] Sync complete');
             } catch (error) {
-                console.error('[Dashboard] Progress sync failed:', error);
+                console.error('[ProgressSync] Failed:', error);
             }
         }
 
