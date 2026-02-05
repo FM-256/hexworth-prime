@@ -223,7 +223,7 @@ const ContentCatalog = (function() {
         { house: 'cloud', id: 'cloud-concepts', title: 'Cloud Computing Concepts', description: 'IaaS, PaaS, SaaS and cloud fundamentals', icon: '☁️', status: 'available', components: ['presentation'], href: 'presentations/cloud-concepts.html', tags: ['cloud', 'iaas', 'paas', 'saas'] },
         { house: 'cloud', id: 'cloud-aws-security', title: 'AWS IAM & Security', description: 'AWS Identity and Access Management', icon: '🔐', status: 'available', components: ['presentation', 'lab'], href: 'modules/aws/iam-security.html', tags: ['aws', 'iam', 'security', 'cloud'] },
         { house: 'cloud', id: 'cloud-aws-networking', title: 'AWS VPC Networking', description: 'Virtual Private Cloud configuration', icon: '🌐', status: 'available', components: ['presentation', 'lab'], href: 'modules/aws/vpc-networking.html', tags: ['aws', 'vpc', 'networking', 'cloud'] },
-        { house: 'cloud', id: 'wsa-course', title: 'Windows Server Administration', description: 'AZ-800 Windows Server Administration course', icon: '🖥️', status: 'available', components: ['presentation', 'lab', 'quiz'], href: 'courses/windows-server/index.html', tags: ['windows', 'server', 'azure', 'administration'] },
+        { house: 'cloud', id: 'wsa-course', title: 'Windows Server Administration', description: 'AZ-800 Windows Server Administration course', icon: '🖥️', status: 'available', components: ['presentation', 'lab', 'quiz'], href: 'modules/wsa/index.html', tags: ['windows', 'server', 'azure', 'administration'] },
 
         // ═══════════════════════════════════════════════════════════════════
         // HOUSE OF CODE - Development & DevOps
