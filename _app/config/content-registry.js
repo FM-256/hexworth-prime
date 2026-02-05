@@ -581,7 +581,7 @@ const ContentRegistry = {
                 presentation: 'houses/shield/presentations/cia-triad.html',
                 applet: 'houses/shield/applets/fundamentals/five_pillars/FivePillars.html'
             },
-            prerequisites: ['shield-cia-triad'],
+            prerequisites: [],
             objectives: [
                 'Understand the five pillars of information assurance',
                 'Identify types of security controls',
@@ -603,7 +603,7 @@ const ContentRegistry = {
                 presentation: 'houses/shield/presentations/security-presentation.html',
                 applet: 'houses/shield/applets/fundamentals/five_pillars/FivePillars.html'
             },
-            prerequisites: ['shield-security-fundamentals'],
+            prerequisites: ['shield-cia-triad'],
             objectives: [
                 'Identify common malware types',
                 'Recognize social engineering techniques',
