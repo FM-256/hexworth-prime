@@ -97,14 +97,66 @@ const AccountFrame = (function() {
     }
 
     /**
-     * Set account type in localStorage and dispatch event
+     * Set account type in localStorage, sync to Firebase, and dispatch event
      * @param {'operative'|'handler'} type
      */
     function setAccountType(type) {
         localStorage.setItem(STORAGE_KEY, type);
+
+        // Sync to Firebase if signed in (so it persists across devices/localStorage clears)
+        syncAccountTypeToFirebase(type);
+
         document.dispatchEvent(new CustomEvent('accountTypeChanged', {
             detail: { type: type }
         }));
+    }
+
+    /**
+     * Sync account type to Firebase user profile
+     * @param {'operative'|'handler'} type
+     */
+    async function syncAccountTypeToFirebase(type) {
+        try {
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) return;
+            if (typeof FirestoreManager === 'undefined') return;
+
+            const user = FirebaseAuth.getUser();
+            if (!user || !user.uid) return;
+
+            await FirestoreManager.setUserProfile(user.uid, { accountType: type });
+            console.log('[AccountFrame] Synced accountType to Firebase:', type);
+        } catch (error) {
+            console.warn('[AccountFrame] Failed to sync accountType to Firebase:', error);
+        }
+    }
+
+    /**
+     * Restore account type from Firebase (call on page load after auth)
+     * If Firebase has 'handler' but localStorage doesn't, restore it
+     */
+    async function restoreFromFirebase() {
+        try {
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) return;
+            if (typeof FirestoreManager === 'undefined') return;
+
+            const user = FirebaseAuth.getUser();
+            if (!user || !user.uid) return;
+
+            const profile = await FirestoreManager.getUserProfile(user.uid);
+            if (profile && profile.accountType === 'handler') {
+                const localType = localStorage.getItem(STORAGE_KEY);
+                if (localType !== 'handler') {
+                    console.log('[AccountFrame] Restoring handler status from Firebase');
+                    localStorage.setItem(STORAGE_KEY, 'handler');
+                    document.dispatchEvent(new CustomEvent('accountTypeChanged', {
+                        detail: { type: 'handler' }
+                    }));
+                    refreshAll();
+                }
+            }
+        } catch (error) {
+            console.warn('[AccountFrame] Failed to restore accountType from Firebase:', error);
+        }
     }
 
     /**
@@ -660,7 +712,8 @@ const AccountFrame = (function() {
         injectStyles: injectStyles,
         refreshAll: refreshAll,
         setAccountType: setAccountType,
-        getStyles: getStyles
+        getStyles: getStyles,
+        restoreFromFirebase: restoreFromFirebase
     };
 
 })();
