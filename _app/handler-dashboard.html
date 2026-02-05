@@ -392,6 +392,89 @@
             text-transform: uppercase;
         }
 
+        /* Activity Feed */
+        .hd-activity-section {
+            background: var(--hd-card-bg);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .hd-activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .hd-activity-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--hd-text);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .hd-activity-badge {
+            background: var(--hd-accent);
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .hd-activity-feed {
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hd-activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .hd-activity-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .hd-activity-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .hd-activity-text {
+            color: var(--hd-text-secondary);
+            line-height: 1.4;
+        }
+
+        .hd-activity-text strong {
+            color: var(--hd-text);
+        }
+
+        .hd-activity-time {
+            font-size: 0.7rem;
+            color: var(--hd-text-muted);
+            margin-top: 2px;
+        }
+
+        .hd-activity-empty {
+            text-align: center;
+            padding: 20px;
+            color: var(--hd-text-muted);
+            font-size: 0.8rem;
+        }
+
         /* Student Roster */
         .hd-roster-section {
             background: var(--hd-card-bg);
@@ -1840,6 +1923,17 @@
                     </div>
                 </div>
 
+                <!-- Activity Feed -->
+                <div class="hd-activity-section">
+                    <div class="hd-activity-header">
+                        <div class="hd-activity-title">Recent Activity</div>
+                        <span class="hd-activity-badge" id="activityCount">0 events</span>
+                    </div>
+                    <div class="hd-activity-feed" id="activityFeed">
+                        <div class="hd-activity-empty">No activity yet. Student progress will appear here.</div>
+                    </div>
+                </div>
+
                 <!-- Assignments Section -->
                 <div class="hd-assignments-section">
                     <div class="hd-assignments-header">
@@ -2504,10 +2598,100 @@
                 classProgressData = await AssignmentManager.getClassProgress(classId);
                 updateCompletionDisplay();
                 renderAssignments(); // Re-render to show completion badges
+                renderActivityFeed(); // Show recent activity
             } catch (error) {
                 console.error('Failed to load progress:', error);
                 classProgressData = [];
             }
+        }
+
+        function renderActivityFeed() {
+            const feed = document.getElementById('activityFeed');
+            const countBadge = document.getElementById('activityCount');
+
+            // Build activity events from progress data
+            const events = [];
+
+            for (const studentProgress of classProgressData) {
+                const studentName = getStudentName(studentProgress.uid);
+                const completions = studentProgress.completions || {};
+
+                for (const [contentId, data] of Object.entries(completions)) {
+                    if (data.completed && data.completedAt) {
+                        const contentTitle = getContentTitle(contentId);
+                        events.push({
+                            type: 'completed',
+                            studentName,
+                            contentTitle,
+                            contentId,
+                            timestamp: data.completedAt.toDate ? data.completedAt.toDate() : new Date(data.completedAt),
+                            score: data.score
+                        });
+                    }
+                }
+            }
+
+            // Sort by timestamp descending (most recent first)
+            events.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Take only the most recent 20 events
+            const recentEvents = events.slice(0, 20);
+
+            countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}`;
+
+            if (recentEvents.length === 0) {
+                feed.innerHTML = '<div class="hd-activity-empty">No activity yet. Student progress will appear here.</div>';
+                return;
+            }
+
+            feed.innerHTML = recentEvents.map(event => {
+                const icon = event.score !== undefined ? '✅' : '📘';
+                const scoreText = event.score !== undefined ? ` (${event.score}%)` : '';
+                const timeAgo = formatTimeAgo(event.timestamp);
+
+                return `
+                    <div class="hd-activity-item">
+                        <span class="hd-activity-icon">${icon}</span>
+                        <div class="hd-activity-content">
+                            <div class="hd-activity-text">
+                                <strong>${escapeHtml(event.studentName)}</strong> completed <strong>${escapeHtml(event.contentTitle)}</strong>${scoreText}
+                            </div>
+                            <div class="hd-activity-time">${timeAgo}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStudentName(uid) {
+            const member = rosterMembers.find(m => m.uid === uid);
+            if (member) {
+                return member.displayName || member.email?.split('@')[0] || 'Student';
+            }
+            return 'Student';
+        }
+
+        function getContentTitle(contentId) {
+            // Try to get from ContentRegistry
+            if (typeof ContentRegistry !== 'undefined' && ContentRegistry.content[contentId]) {
+                return ContentRegistry.content[contentId].title;
+            }
+            // Fallback: humanize the ID
+            return contentId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+            return date.toLocaleDateString();
         }
 
         function updateCompletionDisplay() {
