@@ -193,17 +193,24 @@
             gap: 8px;
         }
 
-        .default-avatar {
-            width: 28px;
-            height: 28px;
+        .header-avatar {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            background: var(--house-primary, #9f7aea);
-            color: #000;
+            object-fit: cover;
+        }
+
+        .header-avatar-initials {
+            background: rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            font-weight: 700;
+        }
+
+        .header-avatar-initials span {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--house-primary, #9f7aea);
         }
 
         /* GitHub Profile Badge (from GitHubAuth.js) */
@@ -3860,41 +3867,23 @@
             const connectBtn = document.getElementById('githubConnectBtn');
             const cloudSyncRow = document.getElementById('cloudSyncRow');
 
+            // Always render a header avatar (matching rankings style)
+            profileContainer.innerHTML = '';
+            const headerAvatar = createHeaderAvatar();
+            profileContainer.appendChild(headerAvatar);
+
+            // Wrap avatar with AccountFrame
+            const avatarEl = headerAvatar.querySelector('.header-avatar');
+            if (avatarEl) AccountFrame.wrap(avatarEl, { size: 'header', showTitle: true });
+
             if (githubAuth && githubAuth.isAuthenticated && githubAuth.profile) {
-                // Show profile badge in header
-                profileContainer.innerHTML = '';
-                githubAuth.renderProfileBadge(profileContainer, {
-                    showName: true,
-                    showLogout: true,
-                    size: 'medium'
-                });
-
-                // Wrap the GitHub avatar with AccountFrame
-                setTimeout(() => {
-                    const avatar = profileContainer.querySelector('.profile-avatar');
-                    if (avatar) AccountFrame.wrap(avatar, { size: 'header', showTitle: true });
-                }, 50);
-
-                // Update settings
+                // Update settings for connected state
                 githubStatus.textContent = `Connected as @${githubAuth.profile.username}`;
                 connectBtn.textContent = 'Disconnect';
                 connectBtn.classList.add('danger');
                 cloudSyncRow.style.display = 'flex';
             } else {
-                // Show default avatar + sign in button
-                profileContainer.innerHTML = '';
-                const defaultAvatar = createDefaultAvatar();
-                profileContainer.appendChild(defaultAvatar);
-                githubAuth.renderLoginButton(profileContainer, {
-                    text: 'Sign In',
-                    showIcon: true
-                });
-
-                // Wrap the default avatar with AccountFrame
-                const avatarEl = defaultAvatar.querySelector('.default-avatar');
-                if (avatarEl) AccountFrame.wrap(avatarEl, { size: 'header', showTitle: true });
-
-                // Update settings
+                // Update settings for disconnected state
                 githubStatus.textContent = 'Not connected';
                 connectBtn.textContent = 'Connect';
                 connectBtn.classList.remove('danger');
@@ -3902,13 +3891,30 @@
             }
         }
 
-        function createDefaultAvatar() {
-            const username = localStorage.getItem('hexworth_username') || localStorage.getItem('hexworth_display_name') || '';
-            const initial = username ? username.charAt(0).toUpperCase() : '?';
+        function createHeaderAvatar() {
+            // Pull from Firebase auth first, then GitHub, then localStorage
+            const firebaseUser = (typeof FirebaseAuth !== 'undefined') ? FirebaseAuth.getUser() : null;
+            const githubProfile = (githubAuth && githubAuth.isAuthenticated) ? githubAuth.getProfile() : null;
+
+            const photoURL = firebaseUser?.photoURL || githubProfile?.avatar || localStorage.getItem('hexworth_avatar');
+            const displayName = firebaseUser?.displayName || githubProfile?.displayName || localStorage.getItem('hexworth_display_name') || '';
+            const initials = getHeaderInitials(displayName);
+
             const container = document.createElement('div');
-            container.style.cssText = 'display:inline-flex; margin-right:8px;';
-            container.innerHTML = `<div class="default-avatar">${initial}</div>`;
+            container.style.cssText = 'display:inline-flex;';
+
+            if (photoURL) {
+                container.innerHTML = `<img class="header-avatar" src="${photoURL}" alt="${displayName}">`;
+            } else {
+                container.innerHTML = `<div class="header-avatar header-avatar-initials"><span>${initials}</span></div>`;
+            }
+
             return container;
+        }
+
+        function getHeaderInitials(name) {
+            if (!name) return '?';
+            return name.split(/[_\s]/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
         }
 
         function toggleGitHubConnection() {
