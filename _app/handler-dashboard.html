@@ -1172,6 +1172,21 @@
             font-size: 0.8rem;
         }
 
+        .cb-section-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--hd-text-muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .cb-section-label:not(:first-child) {
+            margin-top: 28px;
+        }
+
         .cb-empty {
             text-align: center;
             padding: 60px 20px;
@@ -1963,7 +1978,7 @@
                     <button class="cb-close" onclick="closeContentBrowser()">&times;</button>
                 </div>
                 <div class="cb-tabs">
-                    <button class="cb-tab active" id="cbTabPaths" onclick="switchBrowserTab('paths')">Learning Paths</button>
+                    <button class="cb-tab active" id="cbTabPaths" onclick="switchBrowserTab('paths')">Courses</button>
                     <button class="cb-tab" id="cbTabItems" onclick="switchBrowserTab('items')">Individual Items</button>
                 </div>
                 <div class="cb-filters" id="cbFilters" style="display:none">
@@ -1973,6 +1988,7 @@
                     </select>
                     <select class="cb-filter-select" id="cbFilterType" onchange="applyBrowserFilters()">
                         <option value="">All Types</option>
+                        <option value="course">Course</option>
                         <option value="presentation">Presentation</option>
                         <option value="applet">Applet</option>
                         <option value="quiz">Quiz</option>
@@ -2034,10 +2050,45 @@
             if (!body) return;
 
             const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
-            // Only show the 8 main house paths
             const houseKeys = Object.keys(HOUSE_META);
 
-            let cards = '';
+            // Separate courses (non-house paths) from house paths
+            const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k));
+
+            let html = '';
+
+            // ── COURSES SECTION (prominent, first) ──
+            if (courseKeys.length > 0) {
+                html += '<div class="cb-section-label">Courses</div>';
+                let courseCards = '';
+                courseKeys.forEach(key => {
+                    const pathData = paths[key];
+                    const modCount = pathData.modules ? pathData.modules.length : 0;
+                    const selected = cbSelection.has('path:' + key);
+                    const icon = pathData.icon || '\uD83D\uDCDA';
+                    const color = pathData.color || '#888';
+                    const parentHouse = PATH_HOUSE_MAP[key];
+                    const houseLabel = parentHouse ? capitalize(parentHouse) : key;
+
+                    courseCards += `
+                        <div class="cb-card${selected ? ' selected' : ''}" onclick="toggleBrowserSelection('path:${key}', 'path', this)">
+                            <div class="cb-card-icon">${icon}</div>
+                            <div class="cb-card-title">${escapeHtml(pathData.name)}</div>
+                            <div class="cb-card-desc">${escapeHtml(pathData.description)}</div>
+                            <div class="cb-card-badges">
+                                <span class="cb-badge cb-badge-house" style="background:${color}20; color:${color}">${escapeHtml(houseLabel)}</span>
+                                <span class="cb-badge cb-badge-count">${modCount} modules</span>
+                                <span class="cb-badge cb-badge-type">course</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '<div class="cb-grid">' + courseCards + '</div>';
+            }
+
+            // ── HOUSE PATHS SECTION (secondary) ──
+            html += '<div class="cb-section-label">Full House Paths</div>';
+            let houseCards = '';
             houseKeys.forEach(key => {
                 const pathData = paths[key];
                 if (!pathData) return;
@@ -2046,8 +2097,8 @@
                 const modCount = pathData.modules ? pathData.modules.length : 0;
                 const selected = cbSelection.has('path:' + key);
 
-                cards += `
-                    <div class="cb-card${selected ? ' selected' : ''}" onclick="toggleBrowserSelection('path:${key}', 'path', this)" style="border-color: ${selected ? 'var(--hd-gold)' : 'rgba(255,255,255,0.06)'}">
+                houseCards += `
+                    <div class="cb-card${selected ? ' selected' : ''}" onclick="toggleBrowserSelection('path:${key}', 'path', this)">
                         <div class="cb-card-icon">${meta.icon}</div>
                         <div class="cb-card-title">${escapeHtml(pathData.name)}</div>
                         <div class="cb-card-desc">${escapeHtml(pathData.description)}</div>
@@ -2058,31 +2109,9 @@
                     </div>
                 `;
             });
+            html += houseCards ? '<div class="cb-grid">' + houseCards + '</div>' : '';
 
-            // Also show non-house paths (devops-fundamentals, linux-mastery, comptia-linux)
-            Object.keys(paths).forEach(key => {
-                if (houseKeys.includes(key)) return;
-                const pathData = paths[key];
-                const modCount = pathData.modules ? pathData.modules.length : 0;
-                const selected = cbSelection.has('path:' + key);
-                const icon = pathData.icon || '\uD83D\uDCDA';
-                const color = pathData.color || '#888';
-
-                cards += `
-                    <div class="cb-card${selected ? ' selected' : ''}" onclick="toggleBrowserSelection('path:${key}', 'path', this)">
-                        <div class="cb-card-icon">${icon}</div>
-                        <div class="cb-card-title">${escapeHtml(pathData.name)}</div>
-                        <div class="cb-card-desc">${escapeHtml(pathData.description)}</div>
-                        <div class="cb-card-badges">
-                            <span class="cb-badge cb-badge-house" style="background:${color}20; color:${color}">${escapeHtml(key)}</span>
-                            <span class="cb-badge cb-badge-count">${modCount} modules</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            body.innerHTML = cards ? '<div class="cb-grid">' + cards + '</div>'
-                : '<div class="cb-empty">No learning paths available.</div>';
+            body.innerHTML = html || '<div class="cb-empty">No courses available.</div>';
         }
 
         function renderBrowserItems(filters = {}) {
@@ -2090,12 +2119,61 @@
             if (!body) return;
 
             const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
+            const houseKeys = Object.keys(HOUSE_META);
+
+            // If type filter is "course", show courses as path-level cards
+            if (filters.type === 'course') {
+                const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k));
+                let filtered = courseKeys.map(key => ({
+                    key,
+                    data: paths[key],
+                    house: PATH_HOUSE_MAP[key] || key
+                }));
+
+                if (filters.house) {
+                    filtered = filtered.filter(c => c.house === filters.house);
+                }
+                if (filters.search) {
+                    const q = filters.search.toLowerCase();
+                    filtered = filtered.filter(c =>
+                        c.data.name.toLowerCase().includes(q) ||
+                        c.key.toLowerCase().includes(q) ||
+                        (c.data.description || '').toLowerCase().includes(q)
+                    );
+                }
+
+                let cards = '';
+                filtered.forEach(({ key, data, house }) => {
+                    const selected = cbSelection.has('path:' + key);
+                    const icon = data.icon || '\uD83D\uDCDA';
+                    const color = data.color || '#888';
+                    const modCount = data.modules ? data.modules.length : 0;
+
+                    cards += `
+                        <div class="cb-card${selected ? ' selected' : ''}" onclick="toggleBrowserSelection('path:${key}', 'path', this)">
+                            <div class="cb-card-icon">${icon}</div>
+                            <div class="cb-card-title">${escapeHtml(data.name)}</div>
+                            <div class="cb-card-desc">${escapeHtml(data.description)}</div>
+                            <div class="cb-card-badges">
+                                <span class="cb-badge cb-badge-house" style="background:${color}20; color:${color}">${escapeHtml(capitalize(house))}</span>
+                                <span class="cb-badge cb-badge-count">${modCount} modules</span>
+                                <span class="cb-badge cb-badge-type">course</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                body.innerHTML = cards ? '<div class="cb-grid">' + cards + '</div>'
+                    : '<div class="cb-empty">No courses match your filters.</div>';
+                return;
+            }
+
+            // Standard individual items view
             let allItems = [];
 
             // Gather all individual modules from all paths
             Object.entries(paths).forEach(([pathKey, pathData]) => {
                 if (!pathData.modules) return;
-                // Resolve house: direct house key, or mapped parent house, or pathKey as fallback
                 const house = HOUSE_META[pathKey] ? pathKey : (PATH_HOUSE_MAP[pathKey] || pathKey);
 
                 pathData.modules.forEach(mod => {
