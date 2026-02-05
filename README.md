@@ -26,6 +26,8 @@ Hexworth Prime transforms technical education into an immersive journey through 
 - [The House System](#the-house-system)
 - [Digital Life Ecosystem](#digital-life-ecosystem)
 - [Your Progress & Achievements](#your-progress--achievements)
+- [For Instructors](#for-instructors-handler-dashboard)
+- [For Students](#for-students-joining-a-class)
 - [Settings & Customization](#settings--customization)
 - [Updating to New Versions](#updating-to-new-versions)
 - [Data Backup & Restore](#data-backup--restore)
@@ -35,6 +37,15 @@ Hexworth Prime transforms technical education into an immersive journey through 
 ---
 
 ## Features
+
+### Classroom Management (Handler Dashboard)
+- **Class Creation** - Instructors create classes with auto-generated join codes (HEX-XXXX)
+- **Content Assignments** - Assign learning paths, courses, or individual modules with optional due dates and notes
+- **Student Roster** - Real-time roster with names, house, student ID, and join date
+- **Progress Tracking** - Per-student progress bars (color-coded: green/yellow/red) and per-assignment completion badges
+- **Student Detail View** - Click any student for a full assignment breakdown with scores and dates
+- **Class Reports** - Print-friendly summary with stats, at-risk student alerts, and assignment completion rates
+- **CSV Exports** - Roster, assignments, grades, and progress summary — Blackboard/Canvas compatible
 
 ### Learning Paths
 - **Structured Modules** - Presentations, interactive tools, and hands-on labs
@@ -140,6 +151,48 @@ Unlock achievements by reaching milestones:
 - **Dashboard Stats** - Top of the dashboard shows your key metrics
 - **Achievements Modal** - Click "Achievements" in the footer
 - **House Leaderboard** - See your rank in the community section
+
+---
+
+## For Instructors (Handler Dashboard)
+
+Hexworth Prime includes a full classroom management system for instructors.
+
+### Getting Started
+1. **Sign in** with Google from the dashboard
+2. **Access** the Handler Dashboard from the dashboard footer
+3. **Create a class** — an auto-generated HEX-XXXX code is assigned
+4. **Share the code** with students so they can join
+5. **Assign content** from the content browser (learning paths, courses, or individual modules)
+
+### Monitoring Progress
+- **Roster** shows all enrolled students with color-coded progress bars
+- **Assignment cards** display "X/Y completed" badges
+- **Avg Completion** stat updates automatically from student data
+- **Click any student** to see their full assignment breakdown (status, score, date)
+
+### Reports & Exports
+| Export | Contents |
+|--------|----------|
+| **Roster CSV** | Last Name, First Name, Student ID, Email, House, Joined |
+| **Assignments CSV** | Title, Type, House, Difficulty, Due Date, Notes |
+| **Grades CSV** | Per-student per-assignment: Status, Score, Completed Date |
+| **Progress Summary CSV** | Per-student: Completed, Total, Completion % |
+| **Class Report** | Print-friendly summary with stats, at-risk alerts, completion tables |
+
+All CSV exports are compatible with Blackboard and Canvas gradebook import.
+
+---
+
+## For Students (Joining a Class)
+
+1. **Sign in** with Google from the dashboard
+2. **Complete your profile** in Settings (first name, last name, student ID)
+3. **Click "Join Class"** in the dashboard footer
+4. **Enter the HEX-XXXX code** provided by your instructor
+5. Your class, assignments, and instructor info appear in the **My Classes** section
+
+Progress syncs automatically — complete assigned chapters and your instructor sees it reflected in their dashboard.
 
 ---
 
