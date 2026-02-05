@@ -2018,6 +2018,28 @@
             </div>
 
             <div class="settings-section">
+                <div class="settings-section-title">Account Type</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Current Role
+                        <small>Your designation within Hexworth Prime</small>
+                    </div>
+                    <div class="settings-control">
+                        <span class="af-role-badge" id="accountRoleBadge">OPERATIVE</span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Handler Activation
+                        <small>Instructor access requires an authorization code</small>
+                    </div>
+                    <div class="settings-control">
+                        <button class="settings-btn" id="handlerActivateBtn" onclick="toggleHandlerStatus()">Activate</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <div class="settings-section-title">Cloud Sync</div>
                 <div class="settings-row">
                     <div class="settings-label">
@@ -2156,6 +2178,7 @@
     <script src="components/HouseMembers.js"></script>
     <script src="components/UpdateManager.js"></script>
     <script src="components/GitHubAuth.js"></script>
+    <script src="components/AccountFrame.js"></script>
     <script src="components/GistSync.js"></script>
     <script src="components/LeaderboardManager.js"></script>
     <script src="components/FirestoreLeaderboard.js"></script>
@@ -2232,6 +2255,26 @@
 
             // Initialize GitHub Authentication
             initGitHubAuth();
+
+            // Initialize AccountFrame system
+            AccountFrame.injectStyles();
+            // Wrap header avatar after GitHub auth renders (or create default frame)
+            setTimeout(() => {
+                const avatar = document.querySelector('.profile-avatar');
+                if (avatar) {
+                    AccountFrame.wrap(avatar, { size: 'header', showTitle: true });
+                }
+            }, 300);
+
+            // Listen for account type changes to update settings UI
+            document.addEventListener('accountTypeChanged', () => {
+                updateAccountTypeUI();
+                // Re-wrap header avatar
+                setTimeout(() => {
+                    const avatar = document.querySelector('.profile-avatar');
+                    if (avatar) AccountFrame.wrap(avatar, { size: 'header', showTitle: true });
+                }, 100);
+            });
 
             // Get the effective house data (divergent uses special definition)
             const effectiveHouse = isDivergent ? divergentHouse : house;
@@ -3004,6 +3047,12 @@
             `;
 
             container.innerHTML = html;
+
+            // Wrap user's leaderboard avatar with account frame
+            setTimeout(() => {
+                const userAvatar = container.querySelector('.user-row .lb-avatar');
+                if (userAvatar) AccountFrame.wrap(userAvatar, { size: 'small' });
+            }, 50);
         }
 
         function showRankToast(rankChange) {
@@ -3152,6 +3201,38 @@
             // Load ambient effects state
             const effectsEnabled = localStorage.getItem('hexworth_effects_enabled') !== 'false';
             document.getElementById('toggleEffects').textContent = effectsEnabled ? 'On' : 'Off';
+
+            // Load account type state
+            updateAccountTypeUI();
+        }
+
+        function updateAccountTypeUI() {
+            const type = AccountFrame.getAccountType();
+            const badge = document.getElementById('accountRoleBadge');
+            const btn = document.getElementById('handlerActivateBtn');
+
+            if (badge) {
+                badge.textContent = type === 'handler' ? 'HANDLER' : 'OPERATIVE';
+                badge.className = type === 'handler'
+                    ? 'af-role-badge af-badge-handler'
+                    : 'af-role-badge af-badge-operative';
+            }
+
+            if (btn) {
+                btn.textContent = type === 'handler' ? 'Deactivate' : 'Activate';
+            }
+        }
+
+        function toggleHandlerStatus() {
+            if (AccountFrame.getAccountType() === 'handler') {
+                // Deactivate — revert to operative
+                AccountFrame.setAccountType('operative');
+                AccountFrame.refreshAll();
+                updateAccountTypeUI();
+            } else {
+                // Show activation modal
+                AccountFrame.showActivationModal();
+            }
         }
 
         async function loadVersionInfo() {
