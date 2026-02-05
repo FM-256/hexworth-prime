@@ -5,16 +5,20 @@
  * - Create classes with unique HEX-XXXX codes
  * - List handler's classes
  * - Update/soft-delete classes
- * - Lookup classes by code (Phase 2: student join flow)
+ * - Lookup classes by code
+ * - Student join/leave flow (HD-2)
+ * - Roster management (member profiles subcollection)
  *
- * Firestore Collection: classes/{autoId}
+ * Firestore Collections:
+ *   - classes/{autoId}
+ *   - classes/{autoId}/members/{uid}
  *
  * Dependencies:
  *   - FirebaseAuth (components/FirebaseAuth.js)
  *   - FirestoreManager (components/FirestoreManager.js) — for init/db
  *   - window.firebaseFirestore — set by FirestoreManager.init()
  *
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 const ClassManager = (function() {
@@ -364,6 +368,251 @@ const ClassManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // STUDENT JOIN/LEAVE OPERATIONS (HD-2)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Join a class using a HEX-XXXX code
+     * Creates member profile in subcollection and adds UID to memberUids array
+     * @param {string} classCode - e.g. "HEX-7K9M"
+     * @returns {Promise<{classId: string, className: string, classCode: string}>}
+     */
+    async function joinClass(classCode) {
+        if (!initialized) await init();
+        if (!db) throw new Error('Database not available');
+
+        const user = FirebaseAuth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Find the class by code
+        const cls = await getClassByCode(classCode);
+        if (!cls) throw new Error('Class not found. Check the code and try again.');
+        if (cls.isActive === false) throw new Error('This class is no longer active.');
+
+        // Check capacity
+        if ((cls.memberUids || []).length >= (cls.maxMembers || 50)) {
+            throw new Error('This class is full (max ' + (cls.maxMembers || 50) + ' students).');
+        }
+
+        // Check duplicate
+        if ((cls.memberUids || []).includes(user.uid)) {
+            throw new Error('You are already enrolled in this class.');
+        }
+
+        const {
+            doc, updateDoc, setDoc, arrayUnion, increment, serverTimestamp,
+            collection: colRef
+        } = window.firebaseFirestore;
+
+        // Update class doc: add UID to memberUids, increment memberCount
+        const classRef = doc(db, COLLECTION, cls.id);
+        await updateDoc(classRef, {
+            memberUids: arrayUnion(user.uid),
+            memberCount: increment(1),
+            updatedAt: serverTimestamp()
+        });
+
+        // Create member profile in subcollection (pull from user profile)
+        const memberRef = doc(db, COLLECTION, cls.id, 'members', user.uid);
+        const profile = await _getUserProfile();
+
+        const firstName = profile?.firstName || '';
+        const lastName = profile?.lastName || '';
+        const displayName = (firstName && lastName)
+            ? `${firstName} ${lastName}`
+            : user.displayName || user.email?.split('@')[0] || 'Unknown';
+
+        await setDoc(memberRef, {
+            uid: user.uid,
+            firstName: firstName,
+            lastName: lastName,
+            displayName: displayName,
+            studentId: profile?.studentId || null,
+            email: user.email || '',
+            photoURL: user.photoURL || '',
+            house: localStorage.getItem('hexworth_house') || null,
+            callsign: profile?.callsign || null,
+            joinedAt: serverTimestamp()
+        });
+
+        console.log(`[ClassManager] Joined class: ${cls.id} (${cls.classCode})`);
+
+        return {
+            classId: cls.id,
+            className: cls.name,
+            classCode: cls.classCode
+        };
+    }
+
+    /**
+     * Leave a class — removes UID from memberUids and deletes member profile
+     * @param {string} classId - Firestore document ID
+     * @returns {Promise<boolean>}
+     */
+    async function leaveClass(classId) {
+        if (!initialized) await init();
+        if (!db) throw new Error('Database not available');
+
+        const user = FirebaseAuth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const {
+            doc, getDoc, updateDoc, deleteDoc, arrayRemove, increment, serverTimestamp
+        } = window.firebaseFirestore;
+
+        // Verify user is a member
+        const classRef = doc(db, COLLECTION, classId);
+        const snapshot = await getDoc(classRef);
+        if (!snapshot.exists()) throw new Error('Class not found');
+
+        const cls = snapshot.data();
+        if (!(cls.memberUids || []).includes(user.uid)) {
+            throw new Error('You are not a member of this class.');
+        }
+
+        // Remove from memberUids, decrement memberCount
+        await updateDoc(classRef, {
+            memberUids: arrayRemove(user.uid),
+            memberCount: increment(-1),
+            updatedAt: serverTimestamp()
+        });
+
+        // Delete member profile
+        const memberRef = doc(db, COLLECTION, classId, 'members', user.uid);
+        await deleteDoc(memberRef);
+
+        console.log(`[ClassManager] Left class: ${classId}`);
+        return true;
+    }
+
+    /**
+     * Get all active classes a student is enrolled in
+     * @param {string} studentUid - Firebase UID
+     * @returns {Promise<Array>} Array of class objects sorted by name
+     */
+    async function getStudentClasses(studentUid) {
+        if (!initialized) await init();
+        if (!db) return [];
+
+        try {
+            const { collection: colRef, query, where, getDocs } = window.firebaseFirestore;
+
+            const q = query(
+                colRef(db, COLLECTION),
+                where('memberUids', 'array-contains', studentUid)
+            );
+
+            const snapshot = await getDocs(q);
+            const classes = [];
+
+            snapshot.forEach(d => {
+                const data = d.data();
+                if (data.isActive !== false) {
+                    classes.push({ id: d.id, ...data });
+                }
+            });
+
+            // Sort alphabetically by name
+            classes.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            return classes;
+        } catch (error) {
+            console.error('[ClassManager] Failed to get student classes:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all members of a class from the members subcollection
+     * @param {string} classId - Firestore document ID
+     * @returns {Promise<Array>} Array of member profiles sorted by displayName
+     */
+    async function getClassMembers(classId) {
+        if (!initialized) await init();
+        if (!db) return [];
+
+        try {
+            const { collection: colRef, getDocs } = window.firebaseFirestore;
+
+            const membersRef = colRef(db, COLLECTION, classId, 'members');
+            const snapshot = await getDocs(membersRef);
+            const members = [];
+
+            snapshot.forEach(d => {
+                members.push({ id: d.id, ...d.data() });
+            });
+
+            // Sort by displayName
+            members.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+
+            return members;
+        } catch (error) {
+            console.error('[ClassManager] Failed to get class members:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Remove a student from a class (handler only)
+     * @param {string} classId - Firestore document ID
+     * @param {string} studentUid - Student's Firebase UID
+     * @returns {Promise<boolean>}
+     */
+    async function removeStudentFromClass(classId, studentUid) {
+        if (!initialized) await init();
+        if (!db) throw new Error('Database not available');
+
+        const user = FirebaseAuth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const {
+            doc, getDoc, updateDoc, deleteDoc, arrayRemove, increment, serverTimestamp
+        } = window.firebaseFirestore;
+
+        // Verify handler ownership
+        const classRef = doc(db, COLLECTION, classId);
+        const snapshot = await getDoc(classRef);
+        if (!snapshot.exists()) throw new Error('Class not found');
+
+        const cls = snapshot.data();
+        if (cls.handlerUid !== user.uid) {
+            throw new Error('Only the class handler can remove students.');
+        }
+
+        // Remove from memberUids, decrement memberCount
+        await updateDoc(classRef, {
+            memberUids: arrayRemove(studentUid),
+            memberCount: increment(-1),
+            updatedAt: serverTimestamp()
+        });
+
+        // Delete member profile
+        const memberRef = doc(db, COLLECTION, classId, 'members', studentUid);
+        await deleteDoc(memberRef);
+
+        console.log(`[ClassManager] Removed student ${studentUid} from class ${classId}`);
+        return true;
+    }
+
+    /**
+     * Helper: get user's Firestore profile (callsign, etc.)
+     * @private
+     */
+    async function _getUserProfile() {
+        try {
+            const user = FirebaseAuth.getUser();
+            if (!user) return null;
+
+            const { doc, getDoc } = window.firebaseFirestore;
+            const profileRef = doc(db, 'users', user.uid);
+            const snap = await getDoc(profileRef);
+            return snap.exists() ? snap.data() : null;
+        } catch {
+            return null;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════
 
@@ -373,7 +622,12 @@ const ClassManager = (function() {
         getHandlerClasses,
         getClassByCode,
         updateClass,
-        deleteClass
+        deleteClass,
+        joinClass,
+        leaveClass,
+        getStudentClasses,
+        getClassMembers,
+        removeStudentFromClass
     };
 
 })();

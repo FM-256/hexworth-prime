@@ -255,6 +255,57 @@ const AssignmentManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // PROGRESS TRACKING
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Submit student progress for a specific content item within a class
+     * @param {string} classId - Parent class Firestore ID
+     * @param {string} contentId - Content identifier (e.g. 'aplus-core1-ch05')
+     * @param {Object} progressData - { completed, score, completedAt }
+     */
+    async function submitProgress(classId, contentId, progressData) {
+        if (!initialized) await init();
+        if (!db) throw new Error('Database not available');
+
+        const user = FirebaseAuth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const { doc, setDoc, serverTimestamp } = window.firebaseFirestore;
+
+        const progressRef = doc(db, 'classes', classId, 'progress', user.uid);
+        await setDoc(progressRef, {
+            uid: user.uid,
+            displayName: user.displayName || user.email || 'Unknown',
+            [`completions.${contentId}`]: {
+                completed: progressData.completed || false,
+                score: progressData.score || null,
+                completedAt: progressData.completedAt || new Date().toISOString()
+            },
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+    }
+
+    /**
+     * Get all student progress documents for a class
+     * @param {string} classId - Parent class Firestore ID
+     * @returns {Promise<Array>} Array of student progress objects
+     */
+    async function getClassProgress(classId) {
+        if (!initialized) await init();
+        if (!db) return [];
+
+        const { collection: colRef, getDocs } = window.firebaseFirestore;
+        const snapshot = await getDocs(colRef(db, 'classes', classId, 'progress'));
+
+        const progress = [];
+        snapshot.forEach(doc => {
+            progress.push({ id: doc.id, ...doc.data() });
+        });
+        return progress;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════
 
@@ -263,7 +314,9 @@ const AssignmentManager = (function() {
         createAssignment,
         getClassAssignments,
         deleteAssignment,
-        updateAssignment
+        updateAssignment,
+        submitProgress,
+        getClassProgress
     };
 
 })();
