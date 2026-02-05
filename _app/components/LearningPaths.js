@@ -1474,6 +1474,199 @@ class LearningPaths {
                     prerequisites: ['linux-section5-quiz']
                 }
             ]
+        },
+
+        // Windows Server Administration (AZ-800) — Cloud House
+        'wsa': {
+            name: 'Windows Server Administration',
+            description: 'AZ-800 Windows Server Administration: installation, AD DS, storage, virtualization, networking, and security',
+            icon: '🖥️',
+            color: '#06b6d4',
+            modules: [
+                // Phase 1: Foundation & Core Services
+                {
+                    id: 'wsa-m01-fundamentals',
+                    title: 'Server Installation & Configuration',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'modules/wsa/m01-fundamentals/presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'wsa-m02-active-directory',
+                    title: 'Active Directory Domain Services',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '50 min',
+                    href: 'modules/wsa/m02-active-directory/presentation.html',
+                    prerequisites: ['wsa-m01-fundamentals']
+                },
+                {
+                    id: 'wsa-m03-storage',
+                    title: 'Storage & File Systems',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'modules/wsa/m03-storage/presentation.html',
+                    prerequisites: ['wsa-m02-active-directory']
+                },
+                {
+                    id: 'wsa-m04-hyperv',
+                    title: 'Hyper-V Virtualization',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'modules/wsa/m04-hyperv/presentation.html',
+                    prerequisites: ['wsa-m03-storage']
+                },
+                {
+                    id: 'wsa-m05-containers',
+                    title: 'Docker Containers',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'modules/wsa/m05-containers/presentation.html',
+                    prerequisites: ['wsa-m04-hyperv']
+                },
+                {
+                    id: 'wsa-m06-clustering',
+                    title: 'Failover Clustering',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'modules/wsa/m06-clustering/presentation.html',
+                    prerequisites: ['wsa-m05-containers']
+                },
+                {
+                    id: 'wsa-m07-monitoring',
+                    title: 'Monitoring & Performance',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'modules/wsa/m07-monitoring/presentation.html',
+                    prerequisites: ['wsa-m06-clustering']
+                },
+                {
+                    id: 'wsa-m08-dns',
+                    title: 'DNS & Name Resolution',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'modules/wsa/m08-dns/presentation.html',
+                    prerequisites: ['wsa-m07-monitoring']
+                },
+                {
+                    id: 'wsa-m09-dhcp',
+                    title: 'DHCP Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'modules/wsa/m09-dhcp/presentation.html',
+                    prerequisites: ['wsa-m08-dns']
+                },
+                {
+                    id: 'wsa-m10-group-policy',
+                    title: 'Group Policy',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '50 min',
+                    href: 'modules/wsa/m10-group-policy/presentation.html',
+                    prerequisites: ['wsa-m09-dhcp']
+                },
+                // Phase 2: Advanced Services & Operations
+                {
+                    id: 'wsa-m11-iis',
+                    title: 'IIS & Web Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'modules/wsa/m11-iis/presentation.html',
+                    prerequisites: ['wsa-m10-group-policy']
+                },
+                {
+                    id: 'wsa-m12-remote-desktop',
+                    title: 'Remote Desktop Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'modules/wsa/m12-remote-desktop/presentation.html',
+                    prerequisites: ['wsa-m11-iis']
+                },
+                {
+                    id: 'wsa-m13-certificate-services',
+                    title: 'Certificate Services (PKI)',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'modules/wsa/m13-certificate-services/presentation.html',
+                    prerequisites: ['wsa-m12-remote-desktop']
+                },
+                {
+                    id: 'wsa-m14-advanced-networking',
+                    title: 'Advanced Networking',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'modules/wsa/m14-advanced-networking/presentation.html',
+                    prerequisites: ['wsa-m13-certificate-services']
+                },
+                {
+                    id: 'wsa-m15-ad-sites',
+                    title: 'AD Sites & Replication',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'modules/wsa/m15-ad-sites/presentation.html',
+                    prerequisites: ['wsa-m14-advanced-networking']
+                },
+                {
+                    id: 'wsa-m16-backup-recovery',
+                    title: 'Backup & Disaster Recovery',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'modules/wsa/m16-backup-recovery/presentation.html',
+                    prerequisites: ['wsa-m15-ad-sites']
+                },
+                {
+                    id: 'wsa-m17-firewall-security',
+                    title: 'Windows Firewall & Security',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'modules/wsa/m17-firewall-security/presentation.html',
+                    prerequisites: ['wsa-m16-backup-recovery']
+                },
+                {
+                    id: 'wsa-m18-powershell-automation',
+                    title: 'PowerShell Automation',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '50 min',
+                    href: 'modules/wsa/m18-powershell-automation/presentation.html',
+                    prerequisites: ['wsa-m17-firewall-security']
+                },
+                {
+                    id: 'wsa-m19-troubleshooting',
+                    title: 'Troubleshooting & Migration',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'modules/wsa/m19-troubleshooting-migration/presentation.html',
+                    prerequisites: ['wsa-m18-powershell-automation']
+                },
+                // Capstone
+                {
+                    id: 'wsa-m20-capstone',
+                    title: 'Failsafe Protocol (Capstone)',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '90 min',
+                    href: 'modules/wsa/m20-failsafe-capstone/index.html',
+                    prerequisites: ['wsa-m19-troubleshooting']
+                }
+            ]
         }
     };
 
