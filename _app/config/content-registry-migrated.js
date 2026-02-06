@@ -4591,7 +4591,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-001-intro-to-hacker-cli.html'
+                lab: 'houses/script/courses/clh/modules/clh-001/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4607,7 +4607,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-002-navigation-recon.html'
+                lab: 'houses/script/courses/clh/modules/clh-002/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4623,7 +4623,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-003-pattern-hunting.html'
+                lab: 'houses/script/courses/clh/modules/clh-003/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4639,7 +4639,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-004-process-investigation.html'
+                lab: 'houses/script/courses/clh/modules/clh-004/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4655,7 +4655,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-005-log-analysis.html'
+                lab: 'houses/script/courses/clh/modules/clh-005/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4671,7 +4671,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-006-file-operations.html'
+                lab: 'houses/script/courses/clh/modules/clh-006/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4687,7 +4687,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-007-permissions.html'
+                lab: 'houses/script/courses/clh/modules/clh-007/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4703,7 +4703,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-008-shell-scripting.html'
+                lab: 'houses/script/courses/clh/modules/clh-008/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4719,7 +4719,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-009-text-processing.html'
+                lab: 'houses/script/courses/clh/modules/clh-009/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4735,7 +4735,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-010-io-redirection.html'
+                lab: 'houses/script/courses/clh/modules/clh-010/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4751,7 +4751,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-011-advanced-grep.html'
+                lab: 'houses/script/courses/clh/modules/clh-011/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4767,7 +4767,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting', 'networking'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-012-network-basics.html'
+                lab: 'houses/script/courses/clh/modules/clh-012/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4783,7 +4783,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-013-environment.html'
+                lab: 'houses/script/courses/clh/modules/clh-013/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4799,7 +4799,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-014-process-control.html'
+                lab: 'houses/script/courses/clh/modules/clh-014/lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -4815,7 +4815,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/applets/linux/clh-015-capstone.html'
+                lab: 'houses/script/courses/clh/modules/clh-015/lab.html'
             },
             prerequisites: [],
             objectives: []
