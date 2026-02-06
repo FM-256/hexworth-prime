@@ -3,6 +3,11 @@
  *
  * Detects broken paths in script/link/img imports that would cause
  * 404 errors and missing resources.
+ *
+ * ES-7 Refinements:
+ * - CDN whitelist for external resources
+ * - Severity remapping (scripts=high, images=low)
+ * - Template placeholder detection
  */
 
 const fs = require('fs');
@@ -12,39 +17,65 @@ class PathValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
-        this.checkedPaths = new Map(); // Cache for file existence checks
+        this.checkedPaths = new Map();
+        this.profile = options.profile || 'ci'; // ci, strict, inventory
     }
+
+    // Known CDN patterns - never flag as missing
+    knownCDNs = [
+        /^https?:\/\/cdn\./i,
+        /^https?:\/\/.*\.cloudfront\.net/i,
+        /^https?:\/\/.*\.jsdelivr\.net/i,
+        /^https?:\/\/unpkg\.com/i,
+        /^https?:\/\/cdnjs\.cloudflare\.com/i,
+        /^https?:\/\/fonts\.googleapis\.com/i,
+        /^https?:\/\/fonts\.gstatic\.com/i,
+        /^https?:\/\/ajax\.googleapis\.com/i,
+        /^https?:\/\/code\.jquery\.com/i,
+        /^https?:\/\/stackpath\.bootstrapcdn\.com/i,
+        /^https?:\/\/maxcdn\.bootstrapcdn\.com/i,
+        /^https?:\/\/.*\.firebaseapp\.com/i,
+        /^https?:\/\/.*\.web\.app/i
+    ];
+
+    // Template placeholder patterns - skip validation
+    templatePatterns = [
+        /\{\{.*?\}\}/,      // Mustache/Handlebars
+        /<%.*?%>/,          // EJS/ERB
+        /%%\w+%%/,          // Custom tokens
+        /__\w+__/,          // Dunder placeholders
+        /\$\{.*?\}/         // Template literals in attributes
+    ];
 
     /**
      * Validate paths in HTML file
-     * @param {Object} file - Parsed file object with content
-     * @returns {Array} Issues found
      */
     validate(file) {
         const issues = [];
         const content = file.content;
         const fileDir = path.dirname(file.path);
 
-        // Check script src paths
-        issues.push(...this.checkScriptPaths(file, fileDir));
+        // Resolve fileDir relative to rootPath
+        const absoluteFileDir = path.isAbsolute(fileDir)
+            ? fileDir
+            : path.resolve(this.rootPath, fileDir);
 
-        // Check link href paths (CSS)
-        issues.push(...this.checkLinkPaths(file, fileDir));
+        issues.push(...this.checkScriptPaths(file, absoluteFileDir));
+        issues.push(...this.checkLinkPaths(file, absoluteFileDir));
+        issues.push(...this.checkImgPaths(file, absoluteFileDir));
 
-        // Check img src paths
-        issues.push(...this.checkImgPaths(file, fileDir));
-
-        // Check anchor href paths (internal links)
-        issues.push(...this.checkAnchorPaths(file, fileDir));
-
-        // Check dynamic imports/requires
-        issues.push(...this.checkDynamicImports(file, fileDir));
+        // Only check anchors and dynamic imports in strict mode
+        if (this.profile === 'strict') {
+            issues.push(...this.checkAnchorPaths(file, absoluteFileDir));
+            issues.push(...this.checkDynamicImports(file, absoluteFileDir));
+        }
 
         return issues;
     }
 
     /**
      * Check script src paths
+     * Severity: HIGH (scripts are critical for functionality)
      */
     checkScriptPaths(file, fileDir) {
         const issues = [];
@@ -56,13 +87,8 @@ class PathValidator {
             const src = match[1];
             const line = this.getLineNumber(content, match.index);
 
-            // Skip external URLs
-            if (this.isExternalUrl(src)) {
-                continue;
-            }
-
-            // Skip data: URLs
-            if (src.startsWith('data:')) {
+            // Skip external/CDN/special URLs
+            if (this.shouldSkipUrl(src)) {
                 continue;
             }
 
@@ -72,7 +98,7 @@ class PathValidator {
             if (!exists) {
                 issues.push({
                     code: 'PATH-001',
-                    severity: 'critical',
+                    severity: 'high',  // Scripts are critical
                     category: 'path',
                     message: `Script not found: ${src}`,
                     file: file.path,
@@ -91,6 +117,7 @@ class PathValidator {
 
     /**
      * Check link href paths (CSS/stylesheets)
+     * Severity: MEDIUM (styling issues, not functionality breaking)
      */
     checkLinkPaths(file, fileDir) {
         const issues = [];
@@ -102,8 +129,8 @@ class PathValidator {
             const href = match[1];
             const line = this.getLineNumber(content, match.index);
 
-            // Skip external URLs
-            if (this.isExternalUrl(href)) {
+            // Skip external/CDN/special URLs
+            if (this.shouldSkipUrl(href)) {
                 continue;
             }
 
@@ -124,7 +151,7 @@ class PathValidator {
             if (!exists) {
                 issues.push({
                     code: 'PATH-002',
-                    severity: 'high',
+                    severity: 'medium',  // CSS is important but not critical
                     category: 'path',
                     message: `Stylesheet not found: ${href}`,
                     file: file.path,
@@ -142,6 +169,7 @@ class PathValidator {
 
     /**
      * Check img src paths
+     * Severity: LOW (missing images don't break functionality)
      */
     checkImgPaths(file, fileDir) {
         const issues = [];
@@ -153,18 +181,8 @@ class PathValidator {
             const src = match[1];
             const line = this.getLineNumber(content, match.index);
 
-            // Skip external URLs
-            if (this.isExternalUrl(src)) {
-                continue;
-            }
-
-            // Skip data: URLs
-            if (src.startsWith('data:')) {
-                continue;
-            }
-
-            // Skip placeholder/dynamic paths
-            if (src.includes('{{') || src.includes('${')) {
+            // Skip external/CDN/special URLs
+            if (this.shouldSkipUrl(src)) {
                 continue;
             }
 
@@ -174,7 +192,7 @@ class PathValidator {
             if (!exists) {
                 issues.push({
                     code: 'PATH-003',
-                    severity: 'medium',
+                    severity: 'low',  // Images are cosmetic
                     category: 'path',
                     message: `Image not found: ${src}`,
                     file: file.path,
@@ -192,12 +210,12 @@ class PathValidator {
 
     /**
      * Check anchor href paths (internal navigation)
+     * Severity: LOW (navigation issues, not critical)
+     * Only in strict mode
      */
     checkAnchorPaths(file, fileDir) {
         const issues = [];
         const content = file.content;
-
-        // Only check anchors that look like internal navigation
         const anchorPattern = /<a[^>]*\shref\s*=\s*["']([^"'#]+\.html)["'][^>]*>/gi;
         let match;
 
@@ -205,13 +223,7 @@ class PathValidator {
             const href = match[1];
             const line = this.getLineNumber(content, match.index);
 
-            // Skip external URLs
-            if (this.isExternalUrl(href)) {
-                continue;
-            }
-
-            // Skip dynamic paths
-            if (href.includes('{{') || href.includes('${')) {
+            if (this.shouldSkipUrl(href)) {
                 continue;
             }
 
@@ -221,7 +233,7 @@ class PathValidator {
             if (!exists) {
                 issues.push({
                     code: 'PATH-004',
-                    severity: 'medium',
+                    severity: 'low',
                     category: 'path',
                     message: `Linked page not found: ${href}`,
                     file: file.path,
@@ -239,12 +251,12 @@ class PathValidator {
 
     /**
      * Check dynamic imports in JavaScript
+     * Severity: MEDIUM
+     * Only in strict mode
      */
     checkDynamicImports(file, fileDir) {
         const issues = [];
         const content = file.content;
-
-        // Extract inline scripts
         const scriptPattern = /<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/gi;
         let match;
 
@@ -252,7 +264,6 @@ class PathValidator {
             const scriptContent = match[1];
             const scriptStart = match.index;
 
-            // Check for fetch/import of local resources
             const localFetchPattern = /(?:fetch|import)\s*\(\s*["'](?!https?:\/\/)([^"']+)["']\s*\)/g;
             let fetchMatch;
 
@@ -260,14 +271,10 @@ class PathValidator {
                 const importPath = fetchMatch[1];
                 const line = this.getLineNumber(content, scriptStart + fetchMatch.index);
 
-                // Skip obvious external/API calls
-                if (importPath.startsWith('/api/') ||
-                    importPath.includes('{{') ||
-                    importPath.includes('${')) {
+                if (this.shouldSkipUrl(importPath)) {
                     continue;
                 }
 
-                // Only check file-like paths
                 if (!/\.\w+$/.test(importPath)) {
                     continue;
                 }
@@ -278,7 +285,7 @@ class PathValidator {
                 if (!exists) {
                     issues.push({
                         code: 'PATH-005',
-                        severity: 'high',
+                        severity: 'medium',
                         category: 'path',
                         message: `Dynamic import target not found: ${importPath}`,
                         file: file.path,
@@ -295,26 +302,53 @@ class PathValidator {
     }
 
     /**
-     * Check if URL is external
+     * Check if URL should be skipped (external, CDN, template, special)
      */
-    isExternalUrl(url) {
-        return url.startsWith('http://') ||
-               url.startsWith('https://') ||
-               url.startsWith('//') ||
-               url.startsWith('blob:') ||
-               url.startsWith('javascript:');
+    shouldSkipUrl(url) {
+        if (!url) return true;
+
+        // External protocols
+        if (url.startsWith('http://') ||
+            url.startsWith('https://') ||
+            url.startsWith('//') ||
+            url.startsWith('blob:') ||
+            url.startsWith('data:') ||
+            url.startsWith('javascript:') ||
+            url.startsWith('mailto:') ||
+            url.startsWith('tel:')) {
+            return true;
+        }
+
+        // Known CDNs
+        for (const pattern of this.knownCDNs) {
+            if (pattern.test(url)) {
+                return true;
+            }
+        }
+
+        // Template placeholders
+        for (const pattern of this.templatePatterns) {
+            if (pattern.test(url)) {
+                return true;
+            }
+        }
+
+        // Dynamic path markers
+        if (url.includes('{{') || url.includes('${') ||
+            url.includes('<%') || url.includes('%>')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Resolve a relative path from file directory
      */
     resolvePath(targetPath, fileDir) {
-        // Handle absolute paths (from root)
         if (targetPath.startsWith('/')) {
             return path.join(this.rootPath, targetPath);
         }
-
-        // Handle relative paths
         return path.resolve(fileDir, targetPath);
     }
 
@@ -344,7 +378,7 @@ class PathValidator {
         const suggestions = [];
         const filename = path.basename(missingPath);
         const dirname = path.dirname(missingPath);
-        const resolvedDir = this.resolvePath(dirname, fileDir);
+        const resolvedDir = path.resolve(fileDir, dirname);
 
         try {
             if (!fs.existsSync(resolvedDir)) {
@@ -354,12 +388,10 @@ class PathValidator {
             const files = fs.readdirSync(resolvedDir);
 
             for (const file of files) {
-                // Skip if wrong extension
                 if (expectedExt && !file.endsWith(expectedExt)) {
                     continue;
                 }
 
-                // Calculate similarity
                 const similarity = this.stringSimilarity(filename, file);
 
                 if (similarity > 0.5) {
@@ -371,18 +403,16 @@ class PathValidator {
                 }
             }
 
-            // Sort by similarity
             suggestions.sort((a, b) => b.similarity - a.similarity);
-
         } catch (e) {
-            // Directory read failed, no suggestions
+            // Directory read failed
         }
 
         return suggestions.slice(0, 3);
     }
 
     /**
-     * Simple string similarity (Jaccard-like)
+     * Simple string similarity
      */
     stringSimilarity(str1, str2) {
         const s1 = str1.toLowerCase();
@@ -391,7 +421,6 @@ class PathValidator {
         if (s1 === s2) return 1;
         if (s1.length < 2 || s2.length < 2) return 0;
 
-        // Get bigrams
         const getBigrams = s => {
             const bigrams = new Set();
             for (let i = 0; i < s.length - 1; i++) {
@@ -411,9 +440,6 @@ class PathValidator {
         return (2 * intersection) / (b1.size + b2.size);
     }
 
-    /**
-     * Get line number for a position in content
-     */
     getLineNumber(content, position) {
         const before = content.substring(0, position);
         return (before.match(/\n/g) || []).length + 1;

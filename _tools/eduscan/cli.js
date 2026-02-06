@@ -20,6 +20,7 @@
  *   --orphans-only         Only run orphan detection
  *   --deep                 Enable deep reachability crawl for filesystem orphans
  *   --syntax-only          Only run syntax validation
+ *   --syntax=<profile>     Syntax profile: ci (default), strict, inventory
  *   --no-syntax            Disable syntax validation in full scans
  *   --no-color             Disable colored output
  *   -h, --help             Show help
@@ -47,6 +48,7 @@ function parseArgs(args) {
         deepOrphans: false,
         syntaxOnly: false,
         enableSyntax: true,         // Syntax validation enabled by default
+        syntaxProfile: 'ci',        // 'ci', 'strict', or 'inventory'
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
         warnOnly: false,
@@ -57,6 +59,20 @@ function parseArgs(args) {
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         const nextArg = args[i + 1];
+
+        // Handle --syntax=<profile> format (before switch)
+        if (arg.startsWith('--syntax=')) {
+            const profile = arg.split('=')[1];
+            if (['ci', 'strict', 'inventory'].includes(profile)) {
+                options.syntaxProfile = profile;
+                options.syntaxOnly = true;
+            } else {
+                console.error(`Invalid syntax profile: ${profile}`);
+                console.error('Valid profiles: ci, strict, inventory');
+                process.exit(1);
+            }
+            continue;
+        }
 
         switch (arg) {
             case '-p':
@@ -114,7 +130,6 @@ function parseArgs(args) {
                 break;
 
             case '--syntax-only':
-            case '--syntax':
                 options.syntaxOnly = true;
                 break;
 
@@ -174,6 +189,10 @@ Options:
   --orphans-only         Only run orphan detection (registry + filesystem)
   --deep                 Enable deep reachability crawl for filesystem orphans
   --syntax-only          Only run syntax validation (HTML, JS, engines, paths)
+  --syntax=<profile>     Syntax validation profile (implies --syntax-only):
+                           ci        Critical/high issues only, conservative rules (default)
+                           strict    Full coverage including hygiene issues
+                           inventory Collect all stats, never fail (exit code 0)
   --no-syntax            Disable syntax validation in full scans
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
@@ -192,7 +211,9 @@ Examples:
   eduscan --orphans-only             # Quick orphan check (registry only)
   eduscan --orphans-only --deep      # Full orphan scan with reachability
   eduscan --deep --reachability links+registry  # Include registry as reachable
-  eduscan --syntax-only              # Check for syntax errors only
+  eduscan --syntax-only              # Check for syntax errors only (ci profile)
+  eduscan --syntax=strict            # Full syntax coverage
+  eduscan --syntax=inventory         # Collect stats only, no failures
   eduscan --no-syntax                # Skip syntax validation
   eduscan --fail-on critical         # CI gate: fail only on critical
   eduscan --fail-on critical,high    # CI gate: fail on critical or high
@@ -381,6 +402,11 @@ function main() {
 function determineExitCode(issues, options) {
     // --warn-only always returns success
     if (options.warnOnly) {
+        return 0;
+    }
+
+    // Inventory mode never fails (syntax=inventory)
+    if (options.syntaxProfile === 'inventory') {
         return 0;
     }
 

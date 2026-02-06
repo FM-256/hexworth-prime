@@ -16,17 +16,26 @@ class SyntaxValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
+        this.profile = options.profile || 'ci';  // 'ci', 'strict', or 'inventory'
 
-        // Initialize sub-validators
-        this.htmlValidator = new HTMLValidator({ verbose: this.verbose });
-        this.jsValidator = new JSValidator({ verbose: this.verbose });
+        // Initialize sub-validators with profile
+        this.htmlValidator = new HTMLValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
+        this.jsValidator = new JSValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
         this.engineValidator = new EngineValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            profile: this.profile
         });
         this.pathValidator = new PathValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            profile: this.profile
         });
     }
 
@@ -41,11 +50,19 @@ class SyntaxValidator {
         const results = {
             issues: [],
             summary: {
+                profile: this.profile,
                 filesChecked: 0,
                 htmlErrors: 0,
                 jsErrors: 0,
                 engineErrors: 0,
-                pathErrors: 0
+                pathErrors: 0,
+                // Severity counts (populated at end)
+                bySeverity: {
+                    critical: 0,
+                    high: 0,
+                    medium: 0,
+                    low: 0
+                }
             }
         };
 
@@ -93,7 +110,16 @@ class SyntaxValidator {
         results.summary.totalIssues = results.issues.length;
         results.summary.duration = Date.now() - startTime;
 
+        // Count by severity
+        for (const issue of results.issues) {
+            const sev = issue.severity || 'low';
+            if (results.summary.bySeverity[sev] !== undefined) {
+                results.summary.bySeverity[sev]++;
+            }
+        }
+
         if (this.verbose) {
+            console.log(`[SYNTAX] Profile: ${this.profile}`);
             console.log(`[SYNTAX] Checked ${results.summary.filesChecked} files in ${results.summary.duration}ms`);
             console.log(`[SYNTAX] Found ${results.summary.totalIssues} syntax issues`);
         }

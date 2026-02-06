@@ -32,7 +32,8 @@ class EduScan {
             deepOrphans: options.deepOrphans || false,
             reachabilityMode: options.reachabilityMode || 'links',
             syntaxOnly: options.syntaxOnly || false,
-            enableSyntax: options.enableSyntax !== false  // Syntax validation enabled by default
+            enableSyntax: options.enableSyntax !== false,  // Syntax validation enabled by default
+            syntaxProfile: options.syntaxProfile || 'ci'   // 'ci', 'strict', or 'inventory'
         };
 
         // Initialize components
@@ -59,7 +60,8 @@ class EduScan {
 
         this.syntaxValidator = new SyntaxValidator({
             verbose: this.options.verbose,
-            rootPath: this.options.path
+            rootPath: this.options.path,
+            profile: this.options.syntaxProfile
         });
 
         this.console = new ConsoleReporter({
@@ -288,12 +290,19 @@ class EduScan {
      */
     printSyntaxSummary(syntax) {
         const c = (text, ...colors) => this.console.c(text, ...colors);
+        const profile = syntax.summary.profile || this.options.syntaxProfile;
+        const profileLabel = {
+            ci: 'CI (critical/high only)',
+            strict: 'Strict (full coverage)',
+            inventory: 'Inventory (stats only)'
+        }[profile] || profile;
 
         console.log(c('─'.repeat(60), 'dim'));
         console.log(c(' SYNTAX VALIDATION RESULTS', 'bright', 'yellow'));
         console.log(c('─'.repeat(60), 'dim'));
         console.log('');
 
+        console.log(c('  Profile:', 'dim') + ` ${profileLabel}`);
         console.log(c('  Files Checked:', 'dim') + ` ${syntax.summary.filesChecked}`);
         console.log('');
 
@@ -315,6 +324,17 @@ class EduScan {
             console.log(`    ${c('None!', 'green')} All syntax checks passed.`);
         }
         console.log('');
+
+        // Show severity breakdown (useful for inventory mode)
+        if (syntax.summary.bySeverity && syntax.summary.totalIssues > 0) {
+            console.log(c('  Issues by Severity:', 'bright'));
+            const sev = syntax.summary.bySeverity;
+            if (sev.critical > 0) console.log(`    ${c('CRITICAL:', 'red', 'bright')} ${sev.critical}`);
+            if (sev.high > 0) console.log(`    ${c('HIGH:', 'red')}     ${sev.high}`);
+            if (sev.medium > 0) console.log(`    ${c('MEDIUM:', 'yellow')}   ${sev.medium}`);
+            if (sev.low > 0) console.log(`    ${c('LOW:', 'blue')}      ${sev.low}`);
+            console.log('');
+        }
 
         // Show top issues
         if (syntax.issues.length > 0) {
