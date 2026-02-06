@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-06 1:26:35 AM
+                    Scanned: 2026-02-06 11:38:38 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1101 |
+| Files Scanned | 1110 |
 | Directories | 444 |
-| Content Files | 1101 |
-| Scan Duration | 165ms |
+| Content Files | 1110 |
+| Scan Duration | 164ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 423 |
-| html | 363 |
-| applet | 167 |
+| presentation | 424 |
+| html | 372 |
+| applet | 166 |
 | lab | 134 |
 | quiz | 14 |
 
@@ -30,17 +30,17 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Warning | 666 |
+| Warning | 661 |
 | Info | 366 |
-| **Total** | **1034** |
+| **Total** | **1302** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 528 |
-| Not Ready | 210 |
-| Unknown | 363 |
+| Ready | 527 |
+| Not Ready | 211 |
+| Unknown | 372 |
 
 
 ## FILE HIERARCHY
@@ -599,9 +599,13 @@
 │   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📁 domains [applets]
 │   │   │   │   │   │   ├── 📁 operating-systems [applets]
+│   │   │   │   │   │   │   └── 📍 index.html
 │   │   │   │   │   │   ├── 📁 operational-procedures [applets]
+│   │   │   │   │   │   │   └── 📍 index.html
 │   │   │   │   │   │   ├── 📁 security [applets]
+│   │   │   │   │   │   │   └── 📍 index.html
 │   │   │   │   │   │   └── 📁 software-troubleshooting [applets]
+│   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   ├── 📁 labs [labs]
 │   │   │   │   │   │   ├── 🔬 admin-tools-lab.html
@@ -635,6 +639,11 @@
 │   │   │   │   │   ├── 📁 quizzes [quizzes]
 │   │   │   │   │   │   ├── 📄 aplus-core2-ch19-22.html
 │   │   │   │   │   │   ├── ❓ aplus-core2-quiz.html
+│   │   │   │   │   │   ├── ❓ ch13-quiz.html
+│   │   │   │   │   │   ├── ❓ ch14-quiz.html
+│   │   │   │   │   │   ├── ❓ ch15-quiz.html
+│   │   │   │   │   │   ├── ❓ ch16-quiz.html
+│   │   │   │   │   │   ├── ❓ ch17-quiz.html
 │   │   │   │   │   │   ├── ❓ ch18-quiz.html
 │   │   │   │   │   │   ├── ❓ ch19-quiz.html
 │   │   │   │   │   │   ├── ❓ ch20-quiz.html
@@ -1669,15 +1678,15 @@
 | gui-lab | presentation | ✓ | 1 |
 | presentation | presentation | ✓ | 1 |
 | ps-lab | lab | ✓ | 0 |
-| gui-lab | applet | ✓ | 1 |
+| gui-lab | presentation | ✓ | 1 |
 | presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
+| ps-lab | lab | ✓ | 0 |
+| gui-lab | lab | ✓ | 0 |
 | presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
+| ps-lab | lab | ✓ | 0 |
+| gui-lab | lab | ✓ | 0 |
 | presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
+| ps-lab | lab | ✓ | 0 |
 | gui-lab | lab | ✓ | 1 |
 | presentation | presentation | ✓ | 1 |
 | ps-lab | lab | ✓ | 1 |
@@ -2394,7 +2403,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (666)
+### WARNING (661)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -2888,17 +2897,9 @@
   File: `houses/cloud/modules/wsa/m08-dns/presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m08-dns/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m08-dns/ps-lab.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m09-dhcp/gui-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m09-dhcp/gui-lab.html`
@@ -2908,17 +2909,9 @@
   File: `houses/cloud/modules/wsa/m09-dhcp/presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m09-dhcp/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m09-dhcp/ps-lab.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m10-group-policy/gui-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m10-group-policy/gui-lab.html`
@@ -2927,10 +2920,6 @@
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/modules/wsa/m10-group-policy/presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m10-group-policy/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m10-group-policy/ps-lab.html`
@@ -6627,7 +6616,7 @@
 | houses/cloud/modules/wsa/m06-clustering/ps-lab.html | lab | cloud |
 | houses/cloud/modules/wsa/m07-monitoring/gui-lab.html | presentation | cloud |
 | houses/cloud/modules/wsa/m07-monitoring/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m08-dns/gui-lab.html | applet | cloud |
+| houses/cloud/modules/wsa/m08-dns/gui-lab.html | presentation | cloud |
 | houses/cloud/modules/wsa/m08-dns/ps-lab.html | lab | cloud |
 | houses/cloud/modules/wsa/m09-dhcp/gui-lab.html | lab | cloud |
 | houses/cloud/modules/wsa/m09-dhcp/ps-lab.html | lab | cloud |
