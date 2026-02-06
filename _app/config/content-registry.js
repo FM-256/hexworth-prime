@@ -7318,6 +7318,186 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'forge-core2-ch13-quiz': {
+            id: 'forge-core2-ch13-quiz',
+            title: 'A+ Core 2: Chapter 13 Quiz',
+            description: 'Windows Editions & Requirements assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['windows', 'editions', 'licensing', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch13-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch14-quiz': {
+            id: 'forge-core2-ch14-quiz',
+            title: 'A+ Core 2: Chapter 14 Quiz',
+            description: 'Windows Settings assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['windows', 'settings', 'control-panel', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch14-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch15-quiz': {
+            id: 'forge-core2-ch15-quiz',
+            title: 'A+ Core 2: Chapter 15 Quiz',
+            description: 'Admin Tools assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['windows', 'administration', 'mmc', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch15-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch16-quiz': {
+            id: 'forge-core2-ch16-quiz',
+            title: 'A+ Core 2: Chapter 16 Quiz',
+            description: 'System Tools assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['windows', 'system-tools', 'troubleshooting', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch16-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch17-quiz': {
+            id: 'forge-core2-ch17-quiz',
+            title: 'A+ Core 2: Chapter 17 Quiz',
+            description: 'macOS & Linux assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['macos', 'linux', 'operating-systems', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch17-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch18-quiz': {
+            id: 'forge-core2-ch18-quiz',
+            title: 'A+ Core 2: Chapter 18 Quiz',
+            description: 'Users & Groups assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['users', 'groups', 'permissions', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch18-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch19-quiz': {
+            id: 'forge-core2-ch19-quiz',
+            title: 'A+ Core 2: Chapter 19 Quiz',
+            description: 'Security Fundamentals assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['security', 'authentication', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch19-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch20-quiz': {
+            id: 'forge-core2-ch20-quiz',
+            title: 'A+ Core 2: Chapter 20 Quiz',
+            description: 'Malware assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['malware', 'security', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch20-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch21-quiz': {
+            id: 'forge-core2-ch21-quiz',
+            title: 'A+ Core 2: Chapter 21 Quiz',
+            description: 'Physical Security assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['physical-security', 'security', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch21-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch22-quiz': {
+            id: 'forge-core2-ch22-quiz',
+            title: 'A+ Core 2: Chapter 22 Quiz',
+            description: 'Incident Response assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['incident-response', 'procedures', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch22-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch23-quiz': {
+            id: 'forge-core2-ch23-quiz',
+            title: 'A+ Core 2: Chapter 23 Quiz',
+            description: 'Change Management assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['change-management', 'procedures', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch23-quiz.html'
+            },
+            prerequisites: []
+        },
+        'forge-core2-ch24-quiz': {
+            id: 'forge-core2-ch24-quiz',
+            title: 'A+ Core 2: Chapter 24 Quiz',
+            description: 'Documentation assessment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['documentation', 'professionalism', 'comptia'],
+            paths: ['comptia-aplus'],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/ch24-quiz.html'
+            },
+            prerequisites: []
+        },
         'forge-aplus-jeopardy': {
             id: 'forge-aplus-jeopardy',
             title: 'A+ Jeopardy',
