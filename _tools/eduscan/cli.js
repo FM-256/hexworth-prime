@@ -19,6 +19,8 @@
  *   --archive              Save scan to history for future comparisons
  *   --orphans-only         Only run orphan detection
  *   --deep                 Enable deep reachability crawl for filesystem orphans
+ *   --syntax-only          Only run syntax validation
+ *   --no-syntax            Disable syntax validation in full scans
  *   --no-color             Disable colored output
  *   -h, --help             Show help
  *   --version              Show version
@@ -43,6 +45,8 @@ function parseArgs(args) {
         archive: false,
         orphansOnly: false,
         deepOrphans: false,
+        syntaxOnly: false,
+        enableSyntax: true,         // Syntax validation enabled by default
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
         warnOnly: false,
@@ -109,6 +113,15 @@ function parseArgs(args) {
                 options.deepOrphans = true;
                 break;
 
+            case '--syntax-only':
+            case '--syntax':
+                options.syntaxOnly = true;
+                break;
+
+            case '--no-syntax':
+                options.enableSyntax = false;
+                break;
+
             case '--reachability':
                 options.reachabilityMode = nextArg || 'links';
                 i++;
@@ -144,7 +157,7 @@ function parseArgs(args) {
 // Print help
 function printHelp() {
     console.log(`
-EduScan v1.3.0 - Content Topology Scanner for Educational Platforms
+EduScan v1.4.0 - Content Topology Scanner for Educational Platforms
 
 Usage: eduscan [options]
 
@@ -160,6 +173,8 @@ Options:
   --archive              Save scan to history for future --diff comparisons
   --orphans-only         Only run orphan detection (registry + filesystem)
   --deep                 Enable deep reachability crawl for filesystem orphans
+  --syntax-only          Only run syntax validation (HTML, JS, engines, paths)
+  --no-syntax            Disable syntax validation in full scans
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
   --warn-only            Never exit with error code (for CI adoption)
@@ -177,6 +192,8 @@ Examples:
   eduscan --orphans-only             # Quick orphan check (registry only)
   eduscan --orphans-only --deep      # Full orphan scan with reachability
   eduscan --deep --reachability links+registry  # Include registry as reachable
+  eduscan --syntax-only              # Check for syntax errors only
+  eduscan --no-syntax                # Skip syntax validation
   eduscan --fail-on critical         # CI gate: fail only on critical
   eduscan --fail-on critical,high    # CI gate: fail on critical or high
   eduscan --warn-only                # Never fail (for gradual adoption)
@@ -196,8 +213,13 @@ Issue Codes:
   REG-ORPHAN-*   Registry orphans (declared but file missing)
   FS-ORPHAN-*    Filesystem orphans (exist but unreachable)
   FS-DEADPATH-*  Dead directories (no inbound references)
+  GATE-*         Gate integrity issues (broken progression)
   TRACK-*        Progress tracking issues
   CFG-*          Configuration issues
+  HTML-*         HTML structural errors (unclosed tags, duplicate IDs)
+  JS-*           JavaScript syntax errors (brackets, quotes)
+  ENG-*          Missing engine/library (undefined globals)
+  PATH-*         Broken paths (404 resources)
 
 Orphan Reason Codes (with --deep):
   NOT-IN-REGISTRY    File not declared in content-registry.js
@@ -208,7 +230,8 @@ Orphan Reason Codes (with --deep):
   LIFECYCLE-DRAFT    Marked as draft via directive
 
 Lifecycle Directives:
-  <!-- eduscan-lifecycle: status="draft|live|archive" owner="Name" -->
+  <!-- eduscan-lifecycle: status="draft|live|archive|gated" owner="Name" -->
+  <!-- eduscan-lifecycle: status="gated" gates=5 reason="Puzzle progression" -->
 
 Ignore Directives:
   <!-- eduscan-ignore: ID-001 reason="legacy content" -->
@@ -225,7 +248,7 @@ For more information: _tools/EDUSCAN_DESIGN.md
 
 // Print version
 function printVersion() {
-    console.log('EduScan v1.3.0');
+    console.log('EduScan v1.4.0');
 }
 
 // Main execution
@@ -265,6 +288,19 @@ function main() {
 
             // Determine exit code based on orphan issues
             const exitCode = determineExitCode(results.orphans.issues, options);
+            if (exitCode !== 0) {
+                process.exit(exitCode);
+            }
+        } else if (options.syntaxOnly) {
+            // Syntax-only scan
+            const results = scanner.syntaxScan();
+
+            if (options.jsonOutput) {
+                console.log(JSON.stringify(results.syntax, null, 2));
+            }
+
+            // Determine exit code based on syntax issues
+            const exitCode = determineExitCode(results.syntax.issues, options);
             if (exitCode !== 0) {
                 process.exit(exitCode);
             }

@@ -12,6 +12,7 @@ const Scanner = require('./scanner');
 const ParserOrchestrator = require('./parsers');
 const ValidatorOrchestrator = require('./validators');
 const OrphanDetector = require('./validators/orphans');
+const SyntaxValidator = require('./validators/syntax');
 const JSONReporter = require('./reporters/json');
 const MarkdownReporter = require('./reporters/markdown');
 const ConsoleReporter = require('./reporters/console');
@@ -29,7 +30,9 @@ class EduScan {
             colors: options.colors !== false,
             orphansOnly: options.orphansOnly || false,
             deepOrphans: options.deepOrphans || false,
-            reachabilityMode: options.reachabilityMode || 'links'
+            reachabilityMode: options.reachabilityMode || 'links',
+            syntaxOnly: options.syntaxOnly || false,
+            enableSyntax: options.enableSyntax !== false  // Syntax validation enabled by default
         };
 
         // Initialize components
@@ -52,6 +55,11 @@ class EduScan {
             verbose: this.options.verbose,
             deep: this.options.deepOrphans,
             reachabilityMode: this.options.reachabilityMode || 'links'
+        });
+
+        this.syntaxValidator = new SyntaxValidator({
+            verbose: this.options.verbose,
+            rootPath: this.options.path
         });
 
         this.console = new ConsoleReporter({
@@ -140,6 +148,29 @@ class EduScan {
             console.log(`[ORPHAN] Found ${orphans.summary.registryOrphans} registry orphans, ${orphans.summary.filesystemOrphans} filesystem orphans`);
         }
 
+        // Phase 5: Syntax Validation (if enabled)
+        let syntax = { issues: [], summary: {} };
+        if (this.options.enableSyntax) {
+            if (this.options.verbose) {
+                console.log('[SYNTAX] Checking for syntax errors...');
+            }
+
+            syntax = this.syntaxValidator.validate(content);
+
+            // Merge syntax issues into validation issues
+            validation.issues.push(...syntax.issues);
+
+            // Re-sort issues by severity
+            validation.issues.sort((a, b) => {
+                const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, info: 5 };
+                return (order[a.severity] || 6) - (order[b.severity] || 6);
+            });
+
+            if (this.options.verbose) {
+                console.log(`[SYNTAX] Found ${syntax.summary.totalIssues || 0} syntax issues`);
+            }
+        }
+
         // Compile results
         const results = {
             hierarchy: scanResult.hierarchy,
@@ -147,6 +178,7 @@ class EduScan {
             validation,
             registry,
             orphans,
+            syntax,
             scanStats: {
                 ...scanResult.stats,
                 totalDuration: Date.now() - startTime
@@ -209,7 +241,106 @@ class EduScan {
         const orphans = this.orphanDetector.detect(content, registry);
         validation.issues.push(...orphans.issues);
 
+        // Include syntax validation if enabled
+        if (this.options.enableSyntax) {
+            const syntax = this.syntaxValidator.validate(content);
+            validation.issues.push(...syntax.issues);
+        }
+
         return validation.issues;
+    }
+
+    /**
+     * Syntax-only scan - focuses on syntax validation
+     * @returns {Object} Syntax validation results
+     */
+    syntaxScan() {
+        const startTime = Date.now();
+
+        if (!this.options.quiet) {
+            this.console.printHeader();
+            console.log(this.console.c('[SYNTAX]', 'yellow') + ' Running syntax validation scan...\n');
+        }
+
+        // Scan and parse files
+        const scanResult = this.scanner.scan();
+        const content = this.parser.parseAll(scanResult.files);
+
+        // Run syntax validation
+        const syntax = this.syntaxValidator.validate(content);
+
+        if (!this.options.quiet) {
+            this.printSyntaxSummary(syntax);
+        }
+
+        return {
+            syntax,
+            scanStats: {
+                filesScanned: scanResult.stats.filesScanned,
+                contentParsed: content.length,
+                duration: Date.now() - startTime
+            }
+        };
+    }
+
+    /**
+     * Print syntax summary to console
+     */
+    printSyntaxSummary(syntax) {
+        const c = (text, ...colors) => this.console.c(text, ...colors);
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log(c(' SYNTAX VALIDATION RESULTS', 'bright', 'yellow'));
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
+
+        console.log(c('  Files Checked:', 'dim') + ` ${syntax.summary.filesChecked}`);
+        console.log('');
+
+        console.log(c('  Issues by Category:', 'bright'));
+        if (syntax.summary.htmlErrors > 0) {
+            console.log(`    ${c('HTML:', 'red')}    ${syntax.summary.htmlErrors} structural errors`);
+        }
+        if (syntax.summary.jsErrors > 0) {
+            console.log(`    ${c('JS:', 'yellow')}      ${syntax.summary.jsErrors} JavaScript errors`);
+        }
+        if (syntax.summary.engineErrors > 0) {
+            console.log(`    ${c('Engine:', 'cyan')}  ${syntax.summary.engineErrors} missing engines`);
+        }
+        if (syntax.summary.pathErrors > 0) {
+            console.log(`    ${c('Path:', 'magenta')}    ${syntax.summary.pathErrors} broken paths`);
+        }
+
+        if (syntax.summary.totalIssues === 0) {
+            console.log(`    ${c('None!', 'green')} All syntax checks passed.`);
+        }
+        console.log('');
+
+        // Show top issues
+        if (syntax.issues.length > 0) {
+            console.log(c('  Top Issues:', 'dim'));
+            for (const issue of syntax.issues.slice(0, 8)) {
+                const sevColor = {
+                    critical: 'red',
+                    high: 'red',
+                    medium: 'yellow',
+                    low: 'blue'
+                }[issue.severity] || 'white';
+
+                console.log(`    ${c('[' + issue.code + ']', sevColor)} ${issue.message}`);
+                if (issue.file) {
+                    const loc = issue.line ? `:${issue.line}` : '';
+                    console.log(c(`        ${issue.file}${loc}`, 'dim'));
+                }
+            }
+            if (syntax.issues.length > 8) {
+                console.log(c(`    ... and ${syntax.issues.length - 8} more`, 'dim'));
+            }
+            console.log('');
+        }
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
     }
 
     /**
@@ -351,6 +482,14 @@ class EduScan {
     static orphanScan(options = {}) {
         const scanner = new EduScan(options);
         return scanner.orphanScan();
+    }
+
+    /**
+     * Static syntax scan
+     */
+    static syntaxScan(options = {}) {
+        const scanner = new EduScan(options);
+        return scanner.syntaxScan();
     }
 }
 

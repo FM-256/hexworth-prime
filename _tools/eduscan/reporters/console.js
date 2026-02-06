@@ -49,7 +49,7 @@ class ConsoleReporter {
 
         console.log('');
         console.log(this.c('╔═══════════════════════════════════════════════════════════════╗', 'cyan'));
-        console.log(this.c('║', 'cyan') + this.c('                     EDUSCAN v1.3.0                            ', 'bright', 'white') + this.c('║', 'cyan'));
+        console.log(this.c('║', 'cyan') + this.c('                     EDUSCAN v1.4.0                            ', 'bright', 'white') + this.c('║', 'cyan'));
         console.log(this.c('║', 'cyan') + this.c('           Content Topology Scanner for Hexworth Prime         ', 'dim') + this.c('║', 'cyan'));
         console.log(this.c('╚═══════════════════════════════════════════════════════════════╝', 'cyan'));
         console.log('');
