@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: Server Permissions - House of Script</title>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            color: #00ff41;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #a78bfa;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 12px 20px;
+            border-bottom: 2px solid #a78bfa;
+            flex-shrink: 0;
+        }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mission-badge {
+            background: rgba(167, 139, 250, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            color: #a78bfa;
+            border: 1px solid #a78bfa;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+        }
+        .header h1 { color: #a78bfa; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link {
+            color: #a78bfa;
+            text-decoration: none;
+            padding: 6px 12px;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid #a78bfa;
+            border-radius: 6px;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+        .back-link:hover { background: rgba(167, 139, 250, 0.25); }
+
+        /* Terminal Area */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Mission Panel */
+        .mission-panel {
+            background: rgba(13, 17, 23, 0.95);
+            border-top: 2px solid #a78bfa;
+            padding: 15px 20px;
+            flex-shrink: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mission-header h3 { color: #a78bfa; font-size: 1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #c084fc);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .objective-list { list-style: none; }
+        .objective-item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            background: rgba(255,255,255,0.02);
+            border-radius: 6px;
+            border-left: 3px solid #30363d;
+            font-size: 0.85em;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .objective-item.active { border-left-color: #ffa657; background: rgba(255, 166, 87, 0.1); color: #c9d1d9; }
+        .objective-item.completed { border-left-color: #3fb950; color: #3fb950; }
+        .objective-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7em; }
+        .objective-item.completed .check { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .objective-item.active .check { border-color: #ffa657; }
+
+        /* Intel Panel */
+        .intel-panel {
+            background: rgba(13, 17, 23, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            height: 100vh;
+        }
+        .intel-panel h2 {
+            color: #a78bfa;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #a78bfa;
+        }
+
+        /* Permission Matrix */
+        .perm-matrix {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .perm-matrix h3 { color: #ffa657; font-size: 0.9em; margin-bottom: 12px; }
+        .perm-matrix .file-name { color: #58a6ff; font-family: 'Cascadia Code', monospace; margin-bottom: 8px; }
+        .perm-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(3, 1fr);
+            gap: 2px;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.8em;
+        }
+        .perm-grid .header { background: rgba(167, 139, 250, 0.2); color: #a78bfa; padding: 6px; text-align: center; font-weight: bold; }
+        .perm-grid .label { background: rgba(255,255,255,0.05); color: #8b949e; padding: 6px; }
+        .perm-grid .cell { background: rgba(0,0,0,0.3); padding: 6px; text-align: center; }
+        .perm-grid .cell.on { color: #3fb950; }
+        .perm-grid .cell.off { color: #484f58; }
+
+        .perm-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+        }
+        .perm-symbolic { color: #00ff41; font-family: 'Cascadia Code', monospace; font-size: 1.1em; letter-spacing: 1px; }
+        .perm-numeric { color: #ffa657; font-family: 'Cascadia Code', monospace; font-size: 1.1em; }
+
+        /* Command Reference */
+        .cmd-ref { margin-bottom: 20px; }
+        .cmd-ref h3 { color: #c084fc; font-size: 0.95em; margin-bottom: 12px; }
+        .cmd-box {
+            background: #0a0a0a;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin: 8px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.8em;
+        }
+        .cmd-box .cmd { color: #00ff41; }
+        .cmd-box .desc { color: #8b949e; margin-top: 4px; font-size: 0.9em; }
+
+        .tip-box {
+            background: rgba(167, 139, 250, 0.1);
+            border-left: 3px solid #a78bfa;
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .tip-box strong { color: #a78bfa; }
+        .tip-box p { color: #c9d1d9; margin: 5px 0 0 0; font-size: 0.9em; }
+
+        /* Completion Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 2px solid #a78bfa;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4em; margin-bottom: 15px; }
+        .modal h2 { color: #a78bfa; font-size: 1.6em; margin-bottom: 10px; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { color: #3fb950; font-size: 1.5em; font-weight: bold; }
+        .modal .stat-label { color: #8b949e; font-size: 0.8em; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        .modal-btn.primary { background: #a78bfa; color: #0d1117; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(167, 139, 250, 0.5); }
+        .modal-btn.secondary { background: transparent; color: #a78bfa; border: 2px solid #a78bfa; }
+        .modal-btn.secondary:hover { background: rgba(167, 139, 250, 0.1); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr; }
+            .intel-panel { height: auto; max-height: 40vh; border-top: 2px solid #a78bfa; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="mission-badge">MISSION LAB</span>
+                        <h1>Server Permissions Deployment</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Script House</a>
+                </div>
+            </div>
+
+            <div class="terminal-container" id="terminal"></div>
+
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>MISSION OBJECTIVES</h3>
+                    <span id="progressText" style="color: #8b949e; font-size: 0.85em;">0/9 Complete</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+
+        <div class="intel-panel">
+            <h2>PERMISSION INTEL</h2>
+
+            <div class="perm-matrix" id="permMatrix">
+                <h3>Current File Permissions</h3>
+                <div class="file-name" id="selectedFile">Select a file with ls -la</div>
+                <div class="perm-grid" id="permGrid">
+                    <div class="header"></div>
+                    <div class="header">Read</div>
+                    <div class="header">Write</div>
+                    <div class="header">Execute</div>
+                    <div class="label">Owner</div>
+                    <div class="cell off" id="perm-ur">-</div>
+                    <div class="cell off" id="perm-uw">-</div>
+                    <div class="cell off" id="perm-ux">-</div>
+                    <div class="label">Group</div>
+                    <div class="cell off" id="perm-gr">-</div>
+                    <div class="cell off" id="perm-gw">-</div>
+                    <div class="cell off" id="perm-gx">-</div>
+                    <div class="label">Others</div>
+                    <div class="cell off" id="perm-or">-</div>
+                    <div class="cell off" id="perm-ow">-</div>
+                    <div class="cell off" id="perm-ox">-</div>
+                </div>
+                <div class="perm-display">
+                    <span class="perm-symbolic" id="permSymbolic">---------</span>
+                    <span class="perm-numeric" id="permNumeric">000</span>
+                </div>
+            </div>
+
+            <div class="cmd-ref">
+                <h3>Command Reference</h3>
+                <div class="cmd-box">
+                    <div class="cmd">chmod 755 file</div>
+                    <div class="desc">Set permissions (octal)</div>
+                </div>
+                <div class="cmd-box">
+                    <div class="cmd">chmod u+x file</div>
+                    <div class="desc">Add execute for owner</div>
+                </div>
+                <div class="cmd-box">
+                    <div class="cmd">chown user:group file</div>
+                    <div class="desc">Change owner and group</div>
+                </div>
+                <div class="cmd-box">
+                    <div class="cmd">chgrp group file</div>
+                    <div class="desc">Change group only</div>
+                </div>
+                <div class="cmd-box">
+                    <div class="cmd">umask 027</div>
+                    <div class="desc">Set default permissions</div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>MISSION BRIEFING</strong>
+                <p>You've been tasked with securing a web server's file permissions before deployment. Each file and directory must have precise permissions for security and functionality.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="trophy">&#127942;</div>
+            <h2>Mission Complete!</h2>
+            <p>You've successfully secured the web server's file permissions. The deployment is ready to go live.</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="commandCount">0</div>
+                    <div class="stat-label">Commands Used</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="timeElapsed">0:00</div>
+                    <div class="stat-label">Time Elapsed</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="resetMission()">Retry Mission</button>
+                <button class="modal-btn primary" onclick="window.location.href='../../index.html'">Back to Script House</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // MISSION: SERVER PERMISSIONS LAB
+        // Uses LinuxTerminal.js with real permission tracking
+        // ═══════════════════════════════════════════════════════════════════
+
+        const state = {
+            terminal: null,
+            completed: new Set(),
+            commandCount: 0,
+            startTime: Date.now(),
+            lsExecuted: false,
+            lastInspectedFile: null
+        };
+
+        // Mission objectives with filesystem-based validation
+        const OBJECTIVES = [
+            {
+                id: 'audit',
+                task: 'Check current permissions on /var/www/html',
+                hint: 'ls -la',
+                validate: (cmd) => /^ls\s+(-la|-al|-l)\s*$/.test(cmd.trim())
+            },
+            {
+                id: 'index-perms',
+                task: 'Make index.html readable by all (644)',
+                hint: 'chmod 644 index.html',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/index.html'];
+                    return node && node.perms === '-rw-r--r--';
+                }
+            },
+            {
+                id: 'scripts-perms',
+                task: 'Make scripts directory executable (755)',
+                hint: 'chmod 755 scripts',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/scripts'];
+                    return node && node.perms === 'drwxr-xr-x';
+                }
+            },
+            {
+                id: 'config-owner',
+                task: 'Set owner of config.php to www-data',
+                hint: 'chown www-data config.php',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/config.php'];
+                    return node && node.owner === 'www-data';
+                }
+            },
+            {
+                id: 'uploads-group',
+                task: 'Set group ownership of uploads to webadmins',
+                hint: 'chgrp webadmins uploads',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/uploads'];
+                    return node && node.group === 'webadmins';
+                }
+            },
+            {
+                id: 'config-no-other-write',
+                task: 'Remove write permission from others on config.php',
+                hint: 'chmod o-w config.php',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/config.php'];
+                    // Check that others don't have write (position 8 in perms string)
+                    return node && node.perms && node.perms[8] !== 'w';
+                }
+            },
+            {
+                id: 'umask-set',
+                task: 'Set default permissions for new files (umask 027)',
+                hint: 'umask 027',
+                validateState: () => state.terminal?.umask === '0027'
+            },
+            {
+                id: 'backup-perms',
+                task: 'Make backup.sh executable only by owner (700)',
+                hint: 'chmod 700 backup.sh',
+                validateState: () => {
+                    const node = state.terminal?.fs['/var/www/html/backup.sh'];
+                    return node && node.perms === '-rwx------';
+                }
+            },
+            {
+                id: 'verify',
+                task: 'Verify all permissions are correctly set',
+                hint: 'ls -la',
+                validate: (cmd) => {
+                    // Only complete if all other objectives are done and user runs ls -l
+                    const allOthersComplete = OBJECTIVES.slice(0, 8).every(o => state.completed.has(o.id));
+                    return allOthersComplete && /^ls\s+(-la|-al|-l)\s*$/.test(cmd.trim());
+                }
+            }
+        ];
+
+        // Initialize terminal with mission filesystem
+        function init() {
+            state.terminal = new LinuxTerminal({
+                container: '#terminal',
+                user: 'sysadmin',
+                hostname: 'webserver',
+                startDir: '/var/www/html',
+                height: '100%',
+                onCommand: handleCommand
+            });
+
+            // Set up mission filesystem with insecure permissions
+            state.terminal.addFiles({
+                '/var/www/html/index.html': {
+                    type: 'file',
+                    perms: '-rw-rw-rw-',  // 666 - too permissive
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 4096,
+                    content: '<!DOCTYPE html>\n<html>\n<head><title>Nexus Corp</title></head>\n<body>\n<h1>Welcome to Nexus Corp</h1>\n</body>\n</html>'
+                },
+                '/var/www/html/config.php': {
+                    type: 'file',
+                    perms: '-rw-rw-rw-',  // 666 - dangerous for config!
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 1024,
+                    content: '<?php\n$db_host = "localhost";\n$db_user = "nexus_app";\n$db_pass = "REDACTED";\n$db_name = "nexus_prod";\n?>'
+                },
+                '/var/www/html/styles.css': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 2048,
+                    content: '/* Nexus Corp Styles */\nbody { font-family: Arial, sans-serif; }\nh1 { color: #333; }'
+                },
+                '/var/www/html/scripts': {
+                    type: 'dir',
+                    perms: 'drwxrwxr-x',  // 775 - needs to be 755
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    children: ['app.js', 'utils.js']
+                },
+                '/var/www/html/scripts/app.js': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 8192,
+                    content: '// Main application\nconst app = {\n  init() { console.log("Nexus App loaded"); }\n};\napp.init();'
+                },
+                '/var/www/html/scripts/utils.js': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 4096,
+                    content: '// Utility functions\nfunction formatDate(d) { return d.toISOString(); }'
+                },
+                '/var/www/html/uploads': {
+                    type: 'dir',
+                    perms: 'drwxrwxrwx',  // 777 - very dangerous!
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    children: []
+                },
+                '/var/www/html/backup.sh': {
+                    type: 'file',
+                    perms: '-rwxr-xr-x',  // 755 - needs to be 700
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 512,
+                    content: '#!/bin/bash\n# Backup script - SENSITIVE\ntar -czf /backup/nexus-$(date +%Y%m%d).tar.gz /var/www/html\nmysqldump nexus_prod > /backup/db-$(date +%Y%m%d).sql'
+                },
+                '/var/www/html/images': {
+                    type: 'dir',
+                    perms: 'drwxr-xr-x',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    children: ['logo.png', 'banner.jpg']
+                },
+                '/var/www/html/images/logo.png': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 15360,
+                    content: '[PNG image data]'
+                },
+                '/var/www/html/images/banner.jpg': {
+                    type: 'file',
+                    perms: '-rw-r--r--',
+                    owner: 'sysadmin',
+                    group: 'sysadmin',
+                    size: 51200,
+                    content: '[JPEG image data]'
+                }
+            });
+
+            printBriefing();
+            updateObjectiveList();
+            updateProgress();
+        }
+
+        // Handle command execution for objective tracking
+        function handleCommand(cmd, output, cmdName, args) {
+            state.commandCount++;
+
+            // Track ls -l usage for audit objective
+            if (cmdName === 'ls' && (args.includes('-l') || args.includes('-la') || args.includes('-al'))) {
+                state.lsExecuted = true;
+            }
+
+            // Track stat/ls usage to update permission matrix
+            if (cmdName === 'stat' && args.length > 0) {
+                updatePermMatrix(args[args.length - 1]);
+            } else if (cmdName === 'chmod' || cmdName === 'chown' || cmdName === 'chgrp') {
+                // Update matrix for the file that was just modified
+                const target = args[args.length - 1];
+                if (target) updatePermMatrix(target);
+            }
+
+            // Check all objectives
+            checkObjectives(cmd);
+        }
+
+        // Check all objectives against current state
+        function checkObjectives(cmd) {
+            let newlyCompleted = false;
+
+            for (const obj of OBJECTIVES) {
+                if (state.completed.has(obj.id)) continue;
+
+                let completed = false;
+
+                // Command-based validation
+                if (obj.validate && obj.validate(cmd)) {
+                    completed = true;
+                }
+                // State-based validation (check filesystem)
+                else if (obj.validateState && obj.validateState()) {
+                    completed = true;
+                }
+
+                if (completed) {
+                    state.completed.add(obj.id);
+                    newlyCompleted = true;
+                    state.terminal.print(`<span class="success">[OBJECTIVE] ${obj.task} - COMPLETE</span>`);
+                }
+            }
+
+            if (newlyCompleted) {
+                updateObjectiveList();
+                updateProgress();
+
+                // Check for mission complete
+                if (state.completed.size === OBJECTIVES.length) {
+                    setTimeout(showCompletionModal, 1000);
+                }
+            }
+        }
+
+        // Update permission matrix display
+        function updatePermMatrix(filename) {
+            // Resolve path
+            let fullPath;
+            if (filename.startsWith('/')) {
+                fullPath = filename;
+            } else {
+                fullPath = state.terminal.cwd + '/' + filename;
+            }
+            fullPath = fullPath.replace(/\/+/g, '/');
+
+            const node = state.terminal.fs[fullPath];
+            if (!node) return;
+
+            state.lastInspectedFile = filename;
+            document.getElementById('selectedFile').textContent = filename;
+
+            const perms = node.perms || '----------';
+            const permStr = perms.substring(1); // Remove type char
+
+            const mapping = [
+                ['perm-ur', permStr[0]], ['perm-uw', permStr[1]], ['perm-ux', permStr[2]],
+                ['perm-gr', permStr[3]], ['perm-gw', permStr[4]], ['perm-gx', permStr[5]],
+                ['perm-or', permStr[6]], ['perm-ow', permStr[7]], ['perm-ox', permStr[8]]
+            ];
+
+            mapping.forEach(([id, val]) => {
+                const el = document.getElementById(id);
+                if (val !== '-') {
+                    el.className = 'cell on';
+                    el.textContent = val.toUpperCase();
+                } else {
+                    el.className = 'cell off';
+                    el.textContent = '-';
+                }
+            });
+
+            document.getElementById('permSymbolic').textContent = perms;
+            document.getElementById('permNumeric').textContent = symbolicToOctal(perms);
+        }
+
+        // Convert symbolic permissions to octal
+        function symbolicToOctal(symbolic) {
+            const permStr = symbolic.substring(1);
+            let octal = '';
+            for (let i = 0; i < 3; i++) {
+                const chunk = permStr.substring(i * 3, i * 3 + 3);
+                let val = 0;
+                if (chunk[0] === 'r') val += 4;
+                if (chunk[1] === 'w') val += 2;
+                if (chunk[2] === 'x' || chunk[2] === 's' || chunk[2] === 't') val += 1;
+                octal += val;
+            }
+            return octal;
+        }
+
+        // Update objective list UI
+        function updateObjectiveList() {
+            const list = document.getElementById('objectiveList');
+            list.innerHTML = '';
+
+            OBJECTIVES.forEach((obj, index) => {
+                const li = document.createElement('li');
+                li.className = 'objective-item';
+                const isComplete = state.completed.has(obj.id);
+                const prevComplete = index === 0 || state.completed.has(OBJECTIVES[index - 1].id);
+
+                if (isComplete) {
+                    li.classList.add('completed');
+                } else if (prevComplete) {
+                    li.classList.add('active');
+                }
+
+                li.innerHTML = `
+                    <div class="check">${isComplete ? '&#10003;' : index + 1}</div>
+                    <span>${obj.task}</span>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const completed = state.completed.size;
+            const total = OBJECTIVES.length;
+            const percent = (completed / total) * 100;
+
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `${completed}/${total} Complete`;
+        }
+
+        // Show completion modal
+        function showCompletionModal() {
+            const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+
+            document.getElementById('commandCount').textContent = state.commandCount;
+            document.getElementById('timeElapsed').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
+        }
+
+        // Reset mission
+        function resetMission() {
+            document.getElementById('completionModal').classList.remove('show');
+            state.completed.clear();
+            state.commandCount = 0;
+            state.startTime = Date.now();
+            state.lsExecuted = false;
+            state.lastInspectedFile = null;
+
+            // Destroy and recreate terminal
+            const container = document.getElementById('terminal');
+            container.innerHTML = '';
+            init();
+        }
+
+        // Save progress to localStorage
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['mission-permissions'] = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                commandCount: state.commandCount,
+                timeElapsed: Math.floor((Date.now() - state.startTime) / 1000)
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        // Print mission briefing
+        function printBriefing() {
+            state.terminal.print('<span style="color:#ffa657;">╔══════════════════════════════════════════════════════════════╗</span>');
+            state.terminal.print('<span style="color:#ffa657;">║</span>     <span style="color:#a78bfa;font-weight:bold;">MISSION: SECURE WEB SERVER DEPLOYMENT</span>                  <span style="color:#ffa657;">║</span>');
+            state.terminal.print('<span style="color:#ffa657;">╚══════════════════════════════════════════════════════════════╝</span>');
+            state.terminal.print('');
+            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] You are sysadmin at Nexus Corp.</span>');
+            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] The new web server needs permissions secured before launch.</span>');
+            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] Current permissions are TOO PERMISSIVE and pose security risks.</span>');
+            state.terminal.print('');
+            state.terminal.print('<span style="color:#8b949e;">Your objectives:</span>');
+            state.terminal.print('<span style="color:#8b949e;">  1. Audit current permissions (ls -la)</span>');
+            state.terminal.print('<span style="color:#8b949e;">  2. Set proper file permissions (chmod)</span>');
+            state.terminal.print('<span style="color:#8b949e;">  3. Configure correct ownership (chown/chgrp)</span>');
+            state.terminal.print('<span style="color:#8b949e;">  4. Set secure default umask</span>');
+            state.terminal.print('');
+            state.terminal.print('Type <span style="color:#ffa657;">help</span> for available commands.');
+            state.terminal.print('<span style="color:#484f58;">────────────────────────────────────────────────────────────────</span>');
+            state.terminal.print('');
+        }
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

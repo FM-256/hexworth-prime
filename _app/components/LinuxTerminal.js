@@ -72,6 +72,7 @@ class LinuxTerminal {
         this.historyIndex = -1;
         this.env = this._initEnv();
         this.fs = this._initFilesystem();
+        this.umask = '0022';
 
         // User info
         this.currentUser = {
@@ -425,7 +426,7 @@ class LinuxTerminal {
                 return this._whereis(args);
 
             case 'locate':
-                return '<span class="error">locate: database not available in simulation</span>';
+                return this._locate(args);
 
             // ─────────────── User Info ───────────────
             case 'whoami':
@@ -525,7 +526,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
                 return this._chgrp(args);
 
             case 'umask':
-                return args.length ? '<span class="success">umask set</span>' : '0022';
+                return this._umask(args);
 
             // ─────────────── Environment ───────────────
             case 'env':
@@ -1206,17 +1207,62 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
 
     _which(args) {
         const commands = {
-            'ls': '/bin/ls', 'cat': '/bin/cat', 'cp': '/bin/cp', 'mv': '/bin/mv',
-            'rm': '/bin/rm', 'mkdir': '/bin/mkdir', 'bash': '/bin/bash',
-            'python3': '/usr/bin/python3', 'vim': '/usr/bin/vim',
-            'git': '/usr/bin/git', 'curl': '/usr/bin/curl', 'wget': '/usr/bin/wget'
+            'ls': '/usr/bin/ls', 'cat': '/usr/bin/cat', 'cp': '/usr/bin/cp', 'mv': '/usr/bin/mv',
+            'rm': '/usr/bin/rm', 'mkdir': '/usr/bin/mkdir', 'bash': '/usr/bin/bash',
+            'python': '/usr/bin/python3', 'python3': '/usr/bin/python3', 'vim': '/usr/bin/vim',
+            'git': '/usr/bin/git', 'curl': '/usr/bin/curl', 'wget': '/usr/bin/wget',
+            'nginx': '/usr/sbin/nginx', 'apache2': '/usr/sbin/apache2',
+            'ssh': '/usr/bin/ssh', 'scp': '/usr/bin/scp', 'rsync': '/usr/bin/rsync',
+            'grep': '/usr/bin/grep', 'find': '/usr/bin/find', 'sed': '/usr/bin/sed',
+            'awk': '/usr/bin/awk', 'head': '/usr/bin/head', 'tail': '/usr/bin/tail',
+            'less': '/usr/bin/less', 'more': '/usr/bin/more', 'nano': '/usr/bin/nano',
+            'docker': '/usr/bin/docker', 'systemctl': '/usr/bin/systemctl',
+            'sudo': '/usr/bin/sudo', 'apt': '/usr/bin/apt', 'node': '/usr/bin/node',
+            'npm': '/usr/bin/npm', 'tar': '/usr/bin/tar', 'gzip': '/usr/bin/gzip',
+            'chmod': '/usr/bin/chmod', 'chown': '/usr/bin/chown', 'chgrp': '/usr/bin/chgrp'
         };
 
-        return args.map(cmd => commands[cmd] || `${cmd} not found`).join('\n');
+        return args.map(cmd => commands[cmd] || `${cmd}: not found`).join('\n');
     }
 
     _whereis(args) {
-        return args.map(cmd => `${cmd}: /usr/bin/${cmd} /usr/share/man/man1/${cmd}.1.gz`).join('\n');
+        const locations = {
+            'bash': 'bash: /usr/bin/bash /etc/bash.bashrc /usr/share/man/man1/bash.1.gz',
+            'nginx': 'nginx: /usr/sbin/nginx /etc/nginx /usr/share/nginx /usr/share/man/man8/nginx.8.gz',
+            'python': 'python: /usr/bin/python3 /usr/lib/python3.10 /usr/share/man/man1/python.1.gz',
+            'python3': 'python3: /usr/bin/python3 /usr/lib/python3.10 /usr/share/man/man1/python3.1.gz',
+            'vim': 'vim: /usr/bin/vim /etc/vim /usr/share/vim /usr/share/man/man1/vim.1.gz',
+            'git': 'git: /usr/bin/git /usr/share/git-core /usr/share/man/man1/git.1.gz',
+            'ssh': 'ssh: /usr/bin/ssh /etc/ssh /usr/share/man/man1/ssh.1.gz',
+            'docker': 'docker: /usr/bin/docker /etc/docker /usr/share/man/man1/docker.1.gz',
+            'grep': 'grep: /usr/bin/grep /usr/share/man/man1/grep.1.gz',
+            'find': 'find: /usr/bin/find /usr/share/man/man1/find.1.gz',
+            'ls': 'ls: /usr/bin/ls /usr/share/man/man1/ls.1.gz'
+        };
+        return args.map(cmd => locations[cmd] || `${cmd}: /usr/bin/${cmd} /usr/share/man/man1/${cmd}.1.gz`).join('\n');
+    }
+
+    _locate(args) {
+        if (args.length === 0) {
+            return '<span class="error">locate: no pattern to search for</span>';
+        }
+
+        const pattern = args[0].replace(/['"]/g, '').replace(/\*/g, '.*');
+        const regex = new RegExp(pattern, 'i');
+        const results = [];
+
+        for (const path of Object.keys(this.fs)) {
+            const name = path.split('/').pop();
+            if (regex.test(name) || regex.test(path)) {
+                results.push(path);
+            }
+        }
+
+        if (results.length === 0) {
+            return '<span class="output">No matches found</span>';
+        }
+
+        return results.sort().join('\n');
     }
 
     _id(args) {
@@ -1465,17 +1511,143 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
 
     _chmod(args) {
         if (args.length < 2) return '<span class="error">chmod: missing operand</span>';
-        return `<span class="success">chmod: mode changed for ${args[args.length - 1]}</span>`;
+
+        const mode = args[0];
+        const target = args[args.length - 1];
+        const path = this._resolvePath(target);
+        const node = this.fs[path];
+
+        if (!node) {
+            return `<span class="error">chmod: cannot access '${target}': No such file or directory</span>`;
+        }
+
+        const isDir = node.type === 'dir';
+        const typeChar = isDir ? 'd' : '-';
+
+        // Handle octal mode (e.g., 755, 644)
+        if (/^[0-7]{3,4}$/.test(mode)) {
+            const octal = mode.slice(-3);
+            const symbolic = this._octalToSymbolic(octal);
+            node.perms = typeChar + symbolic;
+            return null;
+        }
+
+        // Handle symbolic mode (e.g., u+x, go-w, a=rw)
+        const match = mode.match(/^([ugoa]*)([+-=])([rwxXst]*)$/);
+        if (match) {
+            const [, who, op, perms] = match;
+            const currentPerms = (node.perms || '---------').substring(1);
+            const newPerms = this._applySymbolicMode(currentPerms, who || 'a', op, perms);
+            node.perms = typeChar + newPerms;
+            return null;
+        }
+
+        return `<span class="error">chmod: invalid mode: '${mode}'</span>`;
+    }
+
+    _octalToSymbolic(octal) {
+        const map = { '0': '---', '1': '--x', '2': '-w-', '3': '-wx', '4': 'r--', '5': 'r-x', '6': 'rw-', '7': 'rwx' };
+        return octal.split('').map(d => map[d] || '---').join('');
+    }
+
+    _symbolicToOctal(symbolic) {
+        const permStr = symbolic.length === 10 ? symbolic.substring(1) : symbolic;
+        let octal = '';
+        for (let i = 0; i < 3; i++) {
+            const chunk = permStr.substring(i * 3, i * 3 + 3);
+            let val = 0;
+            if (chunk[0] === 'r') val += 4;
+            if (chunk[1] === 'w') val += 2;
+            if (chunk[2] === 'x' || chunk[2] === 's' || chunk[2] === 't') val += 1;
+            octal += val;
+        }
+        return octal;
+    }
+
+    _applySymbolicMode(current, who, op, perms) {
+        let permArray = current.split('');
+        const positions = {
+            u: [0, 1, 2],
+            g: [3, 4, 5],
+            o: [6, 7, 8],
+            a: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        };
+
+        let indices = [];
+        for (const w of (who || 'a')) {
+            if (positions[w]) indices.push(...positions[w]);
+        }
+        indices = [...new Set(indices)];
+
+        for (const p of perms) {
+            const offset = p === 'r' ? 0 : (p === 'w' ? 1 : (p === 'x' ? 2 : -1));
+            if (offset === -1) continue;
+
+            indices.forEach(i => {
+                const pos = Math.floor(i / 3) * 3 + offset;
+                if (op === '+') permArray[pos] = p;
+                else if (op === '-') permArray[pos] = '-';
+                else if (op === '=') {
+                    // For '=', first clear then set
+                    const base = Math.floor(i / 3) * 3;
+                    if (op === '=' && !perms.includes('r')) permArray[base] = '-';
+                    if (op === '=' && !perms.includes('w')) permArray[base + 1] = '-';
+                    if (op === '=' && !perms.includes('x')) permArray[base + 2] = '-';
+                    permArray[pos] = p;
+                }
+            });
+        }
+
+        return permArray.join('');
     }
 
     _chown(args) {
         if (args.length < 2) return '<span class="error">chown: missing operand</span>';
-        return `<span class="error">chown: changing ownership requires root privileges</span>`;
+
+        const ownerSpec = args[0];
+        const target = args[args.length - 1];
+        const path = this._resolvePath(target);
+        const node = this.fs[path];
+
+        if (!node) {
+            return `<span class="error">chown: cannot access '${target}': No such file or directory</span>`;
+        }
+
+        const [newOwner, newGroup] = ownerSpec.split(':');
+        if (newOwner) node.owner = newOwner;
+        if (newGroup) node.group = newGroup;
+
+        return null;
     }
 
     _chgrp(args) {
         if (args.length < 2) return '<span class="error">chgrp: missing operand</span>';
-        return `<span class="error">chgrp: changing group requires appropriate privileges</span>`;
+
+        const newGroup = args[0];
+        const target = args[args.length - 1];
+        const path = this._resolvePath(target);
+        const node = this.fs[path];
+
+        if (!node) {
+            return `<span class="error">chgrp: cannot access '${target}': No such file or directory</span>`;
+        }
+
+        node.group = newGroup;
+        return null;
+    }
+
+    _umask(args) {
+        if (args.length === 0) {
+            return this.umask;
+        }
+
+        const mask = args[0];
+        if (/^[0-7]{3,4}$/.test(mask)) {
+            this.umask = mask.length === 4 ? mask : '0' + mask;
+            return null;
+        }
+
+        return `<span class="error">umask: invalid mask: '${mask}'</span>`;
     }
 
     _export(args) {
