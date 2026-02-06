@@ -43,6 +43,9 @@ function parseArgs(args) {
         archive: false,
         orphansOnly: false,
         deepOrphans: false,
+        reachabilityMode: 'links',  // 'links' or 'links+registry'
+        failOn: null,               // 'critical', 'critical,high', etc.
+        warnOnly: false,
         help: false,
         version: false
     };
@@ -106,6 +109,20 @@ function parseArgs(args) {
                 options.deepOrphans = true;
                 break;
 
+            case '--reachability':
+                options.reachabilityMode = nextArg || 'links';
+                i++;
+                break;
+
+            case '--fail-on':
+                options.failOn = nextArg || 'critical';
+                i++;
+                break;
+
+            case '--warn-only':
+                options.warnOnly = true;
+                break;
+
             case '--no-color':
                 options.colors = false;
                 break;
@@ -127,7 +144,7 @@ function parseArgs(args) {
 // Print help
 function printHelp() {
     console.log(`
-EduScan v1.2.0 - Content Topology Scanner for Educational Platforms
+EduScan v1.3.0 - Content Topology Scanner for Educational Platforms
 
 Usage: eduscan [options]
 
@@ -143,6 +160,9 @@ Options:
   --archive              Save scan to history for future --diff comparisons
   --orphans-only         Only run orphan detection (registry + filesystem)
   --deep                 Enable deep reachability crawl for filesystem orphans
+  --reachability <mode>  Reachability mode: links (default), links+registry
+  --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
+  --warn-only            Never exit with error code (for CI adoption)
   --no-color             Disable colored output
   -h, --help             Show this help message
   --version              Show version
@@ -156,6 +176,10 @@ Examples:
   eduscan --diff --archive           # Compare + save for next time
   eduscan --orphans-only             # Quick orphan check (registry only)
   eduscan --orphans-only --deep      # Full orphan scan with reachability
+  eduscan --deep --reachability links+registry  # Include registry as reachable
+  eduscan --fail-on critical         # CI gate: fail only on critical
+  eduscan --fail-on critical,high    # CI gate: fail on critical or high
+  eduscan --warn-only                # Never fail (for gradual adoption)
   eduscan -p ./src -o ./audit        # Custom paths
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
@@ -175,12 +199,18 @@ Issue Codes:
   TRACK-*        Progress tracking issues
   CFG-*          Configuration issues
 
-Orphan Detection:
-  Registry orphans are always detected (quick, critical severity).
-  Use --deep to enable filesystem orphan detection via reachability crawl.
+Orphan Reason Codes (with --deep):
+  NOT-IN-REGISTRY    File not declared in content-registry.js
+  NOT-LINKED         Not linked from any crawled page
+  ROUTER-ONLY        Only accessible via dynamic routing (dashboard)
+  PATH-MISMATCH      Case sensitivity or path format issue
+  LIFECYCLE-ARCHIVE  Marked as archived via directive
+  LIFECYCLE-DRAFT    Marked as draft via directive
+
+Lifecycle Directives:
+  <!-- eduscan-lifecycle: status="draft|live|archive" owner="Name" -->
 
 Ignore Directives:
-  Add to HTML files to suppress specific issues:
   <!-- eduscan-ignore: ID-001 reason="legacy content" -->
   <!-- eduscan-ignore-all reason="archived module" -->
 
@@ -195,7 +225,7 @@ For more information: _tools/EDUSCAN_DESIGN.md
 
 // Print version
 function printVersion() {
-    console.log('EduScan v1.2.0');
+    console.log('EduScan v1.3.0');
 }
 
 // Main execution
@@ -233,10 +263,10 @@ function main() {
                 console.log(JSON.stringify(results.orphans, null, 2));
             }
 
-            // Exit with error code if critical orphans found
-            const criticalCount = results.orphans.registryOrphans.length;
-            if (criticalCount > 0) {
-                process.exit(1);
+            // Determine exit code based on orphan issues
+            const exitCode = determineExitCode(results.orphans.issues, options);
+            if (exitCode !== 0) {
+                process.exit(exitCode);
             }
         } else if (options.jsonOutput) {
             // Quick scan, output JSON to stdout
@@ -290,13 +320,10 @@ function main() {
                 }
             }
 
-            // Exit with error code if critical issues found
-            const criticalCount = results.validation.issues.filter(
-                i => i.severity === 'critical'
-            ).length;
-
-            if (criticalCount > 0) {
-                process.exit(1);
+            // Determine exit code based on --fail-on and --warn-only
+            const exitCode = determineExitCode(results.validation.issues, options);
+            if (exitCode !== 0) {
+                process.exit(exitCode);
             }
         }
 
@@ -307,6 +334,41 @@ function main() {
         }
         process.exit(2);
     }
+}
+
+/**
+ * Determine exit code based on issues and policy options
+ * @param {Array} issues - Array of issue objects
+ * @param {Object} options - CLI options
+ * @returns {number} Exit code (0 = success, 1 = issues found)
+ */
+function determineExitCode(issues, options) {
+    // --warn-only always returns success
+    if (options.warnOnly) {
+        return 0;
+    }
+
+    // Parse --fail-on severities
+    const failOnSeverities = options.failOn
+        ? options.failOn.toLowerCase().split(',').map(s => s.trim())
+        : ['critical']; // Default: only fail on critical
+
+    // Count issues by severity
+    const counts = {
+        critical: issues.filter(i => i.severity === 'critical').length,
+        high: issues.filter(i => i.severity === 'high').length,
+        medium: issues.filter(i => i.severity === 'medium').length,
+        low: issues.filter(i => i.severity === 'low').length
+    };
+
+    // Check if any fail-on severity has issues
+    for (const severity of failOnSeverities) {
+        if (counts[severity] > 0) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 // Run

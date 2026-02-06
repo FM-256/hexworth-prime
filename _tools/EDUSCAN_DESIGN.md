@@ -361,23 +361,24 @@ Add to HTML files to suppress specific issues:
 - [x] Colored terminal output
 - [x] npm scripts integration
 
-### Phase 2.5: Orphan Detection (COMPLETE - Feb 6, 2026)
+### Phase 3: Orphan Intelligence (COMPLETE - Feb 6, 2026)
 - [x] Registry Orphan detection (REG-ORPHAN-001)
 - [x] Filesystem Orphan detection via reachability graph (FS-ORPHAN-001)
 - [x] Dead Path detection (FS-DEADPATH-001)
-- [x] `--orphans-only` flag for quick orphan check
-- [x] `--deep` flag for full reachability crawl
-- [x] Severity categorization (HIGH/MEDIUM/LOW based on location)
-- [x] External URL filtering (CloudFront, etc.)
-- [x] npm scripts: `scan:orphans`, `scan:orphans:deep`
+- [x] "Why unreachable?" reason codes (NOT-IN-REGISTRY, NOT-LINKED, ROUTER-ONLY, etc.)
+- [x] Dynamic routing awareness (`--reachability links+registry`)
+- [x] Remediation suggestions with confidence scores
+- [x] Content lifecycle directives (`<!-- eduscan-lifecycle: status="draft" -->`)
+- [x] CI gate policy knobs (`--fail-on`, `--warn-only`)
+- [x] npm scripts: `scan:orphans`, `scan:orphans:deep`, `scan:ci:strict`, `scan:ci:warn`
 
-### Phase 3: Automation (Future)
+### Phase 4: Automation (Future)
 - [ ] Watch mode (--watch)
 - [ ] Auto-fix mode (--fix)
 - [ ] Pre-commit hook integration
-- [ ] CI/CD pipeline integration
+- [ ] Rule Packs (profile-based scanning)
 
-### Phase 4: Distribution (Future)
+### Phase 5: Distribution (Future)
 - [ ] Package as executable (pkg)
 - [ ] Cross-platform builds
 - [ ] Version management
@@ -507,6 +508,77 @@ ORPHAN DETECTION RESULTS
 | Registry points to deleted file | Handlers assign content that 404s | REG-ORPHAN-001 |
 | Content exists but isn't linked | Students never see it, maintenance drag | FS-ORPHAN-001 |
 | Whole directory is dead | Bloats repo, false sense of coverage | FS-DEADPATH-001 |
+
+---
+
+## Phase 3 Completion Summary: Orphan Intelligence (Feb 6, 2026)
+
+### Reason Codes
+
+When FS-ORPHAN-001 fires, the `reason` field explains WHY:
+
+| Reason Code | Meaning | Remediation |
+|-------------|---------|-------------|
+| NOT-IN-REGISTRY | File not declared in content-registry.js | Register and link |
+| NOT-LINKED | In registry but not linked from any page | Add link from index |
+| ROUTER-ONLY | Only accessible via dynamic routing (dashboard) | Optional: add direct link |
+| PATH-MISMATCH | Case sensitivity or path format issue | Fix the path |
+| LIFECYCLE-ARCHIVE | Marked as archived via directive | Move to _archive or delete |
+| LIFECYCLE-DRAFT | Marked as draft via directive | Finish or delete |
+| ENTRYPOINT-MISSING | Entry point file is missing | Restore entry point |
+
+### Reachability Modes
+
+```bash
+--reachability links          # Default: only files linked via href/navigateTo
+--reachability links+registry # Also treat registry entries as reachable
+```
+
+Use `links+registry` to reduce false positives for content launched via dashboard.
+
+### Confidence Scoring
+
+Remediation suggestions now include confidence scores:
+
+```json
+{
+  "fix": "Add link from houses/script/index.html",
+  "confidence": 0.85,
+  "autoFixable": true
+}
+```
+
+- 0.9+ = Safe to auto-fix
+- 0.7-0.9 = Likely correct, human review recommended
+- <0.7 = Needs investigation
+
+### Lifecycle Directives
+
+Mark content status explicitly:
+
+```html
+<!-- eduscan-lifecycle: status="draft" owner="Mora" -->
+<!-- eduscan-lifecycle: status="live" -->
+<!-- eduscan-lifecycle: status="archive" owner="Legacy" -->
+```
+
+Lifecycle status affects severity (draft/archive = LOW).
+
+### CI Gate Policy
+
+```bash
+--fail-on critical            # Exit 1 only on critical (default)
+--fail-on critical,high       # Exit 1 on critical OR high
+--fail-on critical,high,medium  # Strict mode
+--warn-only                   # Never exit with error (adoption mode)
+```
+
+### New npm Scripts
+
+```bash
+npm run scan:ci:strict   # Fail on critical or high
+npm run scan:ci:warn     # Never fail (warnings only)
+```
 
 ---
 

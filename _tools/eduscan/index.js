@@ -28,7 +28,8 @@ class EduScan {
             registryPath: options.registryPath || './_app/config/content-registry.js',
             colors: options.colors !== false,
             orphansOnly: options.orphansOnly || false,
-            deepOrphans: options.deepOrphans || false
+            deepOrphans: options.deepOrphans || false,
+            reachabilityMode: options.reachabilityMode || 'links'
         };
 
         // Initialize components
@@ -49,7 +50,8 @@ class EduScan {
         this.orphanDetector = new OrphanDetector({
             rootPath: this.options.path,
             verbose: this.options.verbose,
-            deep: this.options.deepOrphans
+            deep: this.options.deepOrphans,
+            reachabilityMode: this.options.reachabilityMode || 'links'
         });
 
         this.console = new ConsoleReporter({
