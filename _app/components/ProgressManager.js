@@ -181,6 +181,15 @@ class ProgressManager {
             }
         }
 
+        // DUAL-WRITE: Also save in flat format for Handler Dashboard sync
+        // This ensures checkLocalCompletion() can find completions from QuizEngine
+        if (!progress[houseId]) progress[houseId] = {};
+        progress[houseId][moduleId] = {
+            completed: true,
+            completedAt: new Date().toISOString(),
+            score: metadata.score || null
+        };
+
         // Calculate XP based on module type
         switch (moduleType) {
             case 'quiz':
