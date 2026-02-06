@@ -368,17 +368,64 @@ Add to HTML files to suppress specific issues:
 - [ ] Package as executable (pkg)
 - [ ] Cross-platform builds
 - [ ] Version management
-
-### Phase 4: Distribution
-- [ ] Package as executable (pkg)
-- [ ] Cross-platform builds
-- [ ] Version management
-
-### Phase 5: Future
-- [ ] Auto-fix for simple issues
-- [ ] CI/CD integration
 - [ ] Web UI for reports
-- [ ] Historical comparison (diff between scans)
+
+---
+
+## Phase 2 Completion Summary (Feb 6, 2026)
+
+### What Was Built
+
+| Feature | Description |
+|---------|-------------|
+| Auto-fix suggestions | Issues include `suggested` value and `searchPattern`/`replaceWith` for automation |
+| Severity model | CRITICAL → HIGH → MEDIUM → LOW (not just critical/warning) |
+| Ignore directives | `<!-- eduscan-ignore: ID-001 reason="..." -->` suppresses issues |
+| Drift tracking | `--diff` compares against previous scan, `--archive` saves history |
+| Combined ID-001 | Single issue code for house prefix + -quiz suffix problems |
+
+### New CLI Commands
+
+```bash
+npm run scan          # Standard scan
+npm run scan:diff     # Compare against previous scan
+npm run scan:archive  # Save scan to history
+npm run scan:ci       # Compare + archive (for CI/CD)
+```
+
+### Sample Output
+
+```
+Issues by Severity:
+  CRITICAL: 0 (breaks sync/grading)
+  HIGH:     1 (breaks analytics)
+  MEDIUM:   0 (reporting issues)
+  LOW:      1 (hygiene)
+  WARNING:  666
+
+DRIFT ANALYSIS
+  Trend: → STABLE
+  Issues:     1034 → 1034 (+0)
+  Critical:   0 → 0 (+0)
+  Sync Ready: 528 → 528 (+0)
+```
+
+### Operational Integration
+
+**Pre-commit workflow:**
+```bash
+npm run scan:issues   # Quick check before commit
+```
+
+**Pre-deploy workflow:**
+```bash
+npm run scan          # Full scan with reports
+```
+
+**Nightly/CI workflow:**
+```bash
+npm run scan:ci       # Compare + archive for trend tracking
+```
 
 ---
 
