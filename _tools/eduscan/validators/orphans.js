@@ -27,6 +27,8 @@ const REASON = {
     PATH_MISMATCH: 'PATH-MISMATCH',
     LIFECYCLE_ARCHIVE: 'LIFECYCLE-ARCHIVE',
     LIFECYCLE_DRAFT: 'LIFECYCLE-DRAFT',
+    LIFECYCLE_GATED: 'LIFECYCLE-GATED',
+    LIFECYCLE_PRIVATE: 'LIFECYCLE-PRIVATE',
     ENTRYPOINT_MISSING: 'ENTRYPOINT-MISSING'
 };
 
@@ -81,6 +83,7 @@ class OrphanDetector {
         this.crawled = new Set();
         this.linkedFrom = new Map();          // Track where each file is linked from
         this.lifecycleDirectives = new Map(); // Track lifecycle directives per file
+        this.gatedRoots = new Map();          // Track gated subtree roots
     }
 
     /**
@@ -94,11 +97,15 @@ class OrphanDetector {
             registryOrphans: [],
             filesystemOrphans: [],
             deadPaths: [],
+            gatedContent: [],        // Intentionally gated (not errors)
+            gateIssues: [],          // Broken gates
             issues: [],
             summary: {
                 registryOrphans: 0,
                 filesystemOrphans: 0,
                 deadPaths: 0,
+                gatedContent: 0,
+                gateIssues: 0,
                 byReason: {}
             }
         };
@@ -124,12 +131,21 @@ class OrphanDetector {
             // Detect orphans with reason codes
             this.detectFilesystemOrphans(contentFiles, registry, results);
             this.detectDeadPaths(results);
+
+            // Verify gate integrity for gated subtrees
+            this.verifyGateIntegrity(contentFiles, results);
         }
 
         // Update summary
         results.summary.registryOrphans = results.registryOrphans.length;
         results.summary.filesystemOrphans = results.filesystemOrphans.length;
         results.summary.deadPaths = results.deadPaths.length;
+        results.summary.gatedContent = results.filesystemOrphans.filter(
+            o => o.reason === REASON.LIFECYCLE_GATED
+        ).length;
+        results.summary.gateIssues = results.issues.filter(
+            i => i.category === 'gate-integrity'
+        ).length;
 
         // Count by reason
         for (const orphan of results.filesystemOrphans) {
@@ -171,24 +187,73 @@ class OrphanDetector {
      */
     extractLifecycleDirectives(contentFiles) {
         this.lifecycleDirectives.clear();
+        this.gatedRoots.clear();
 
         for (const file of contentFiles) {
             if (file.content) {
                 const directive = this.parseLifecycleDirective(file.content);
                 if (directive) {
                     this.lifecycleDirectives.set(file.path, directive);
+
+                    // Track gated subtree roots
+                    if (directive.status === 'gated') {
+                        const dir = path.dirname(file.path);
+                        this.gatedRoots.set(dir, {
+                            root: file.path,
+                            gates: directive.gates,
+                            gateEntry: directive.gateEntry,
+                            reason: directive.reason
+                        });
+                    }
                 }
             }
         }
 
-        if (this.verbose && this.lifecycleDirectives.size > 0) {
-            console.log(`[ORPHAN] Found ${this.lifecycleDirectives.size} lifecycle directives`);
+        if (this.verbose) {
+            if (this.lifecycleDirectives.size > 0) {
+                console.log(`[ORPHAN] Found ${this.lifecycleDirectives.size} lifecycle directives`);
+            }
+            if (this.gatedRoots.size > 0) {
+                console.log(`[ORPHAN] Found ${this.gatedRoots.size} gated subtrees`);
+            }
         }
     }
 
     /**
+     * Check if a file is within a gated subtree
+     */
+    isInGatedSubtree(filePath) {
+        const fileDir = path.dirname(filePath);
+
+        // Check each gated root
+        for (const [gatedDir, info] of this.gatedRoots) {
+            // Check if file is in or under the gated directory
+            if (filePath.startsWith(gatedDir) || fileDir.startsWith(gatedDir)) {
+                return info;
+            }
+        }
+
+        // Also check known gated paths by convention (e.g., dark-arts/)
+        const gatedPatterns = [
+            /dark-arts\//i,
+            /gates?\//i,
+            /vault\//i,
+            /locked\//i,
+            /restricted\//i
+        ];
+
+        for (const pattern of gatedPatterns) {
+            if (pattern.test(filePath)) {
+                return { root: 'convention', reason: 'Matches gated path pattern' };
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Parse lifecycle directive from file content
-     * <!-- eduscan-lifecycle: status="draft|live|archive" owner="Name" -->
+     * <!-- eduscan-lifecycle: status="draft|live|archive|gated" owner="Name" gates=5 reason="..." -->
      */
     parseLifecycleDirective(content) {
         const pattern = /<!--\s*eduscan-lifecycle:\s*([^>]+)-->/i;
@@ -198,10 +263,13 @@ class OrphanDetector {
 
         const directive = {
             status: null,
-            owner: null
+            owner: null,
+            gates: null,
+            reason: null,
+            gateEntry: null
         };
 
-        // Extract status
+        // Extract status (draft, live, archive, gated, private)
         const statusMatch = match[1].match(/status\s*=\s*["']([^"']+)["']/i);
         if (statusMatch) {
             directive.status = statusMatch[1].toLowerCase();
@@ -211,6 +279,24 @@ class OrphanDetector {
         const ownerMatch = match[1].match(/owner\s*=\s*["']([^"']+)["']/i);
         if (ownerMatch) {
             directive.owner = ownerMatch[1];
+        }
+
+        // Extract gates count (for gated content)
+        const gatesMatch = match[1].match(/gates\s*=\s*["']?(\d+)["']?/i);
+        if (gatesMatch) {
+            directive.gates = parseInt(gatesMatch[1], 10);
+        }
+
+        // Extract reason
+        const reasonMatch = match[1].match(/reason\s*=\s*["']([^"']+)["']/i);
+        if (reasonMatch) {
+            directive.reason = reasonMatch[1];
+        }
+
+        // Extract gate entry file
+        const gateEntryMatch = match[1].match(/gateEntry\s*=\s*["']([^"']+)["']/i);
+        if (gateEntryMatch) {
+            directive.gateEntry = gateEntryMatch[1];
         }
 
         return directive;
@@ -520,6 +606,29 @@ class OrphanDetector {
                     detail: `Marked as draft${lifecycle.owner ? ` by ${lifecycle.owner}` : ''}`
                 };
             }
+            if (lifecycle.status === 'gated') {
+                const gateInfo = lifecycle.gates ? ` (${lifecycle.gates} gates)` : '';
+                const reasonInfo = lifecycle.reason ? `: ${lifecycle.reason}` : '';
+                return {
+                    reason: REASON.LIFECYCLE_GATED,
+                    detail: `Intentionally gated content${gateInfo}${reasonInfo}`
+                };
+            }
+            if (lifecycle.status === 'private') {
+                return {
+                    reason: REASON.LIFECYCLE_PRIVATE,
+                    detail: `Private content${lifecycle.owner ? ` (${lifecycle.owner})` : ''}`
+                };
+            }
+        }
+
+        // Check if file is in a gated subtree (inherits gated status from parent)
+        const parentGated = this.isInGatedSubtree(file.path);
+        if (parentGated) {
+            return {
+                reason: REASON.LIFECYCLE_GATED,
+                detail: `In gated subtree: ${parentGated.root}`
+            };
         }
 
         // Check if in registry
@@ -691,6 +800,20 @@ class OrphanDetector {
                 remediation.confidence = 0.6;
                 break;
 
+            case REASON.LIFECYCLE_GATED:
+                remediation.primary = 'Intentionally gated content - no action needed unless gate is broken';
+                remediation.action = 'verify_gate';
+                remediation.autoFixable = false;
+                remediation.confidence = 0.95;  // High confidence this is correct
+                break;
+
+            case REASON.LIFECYCLE_PRIVATE:
+                remediation.primary = 'Private content - verify access controls are in place';
+                remediation.action = 'verify_access';
+                remediation.autoFixable = false;
+                remediation.confidence = 0.9;
+                break;
+
             case REASON.PATH_MISMATCH:
                 remediation.primary = `Fix path: ${reasonAnalysis.detail}`;
                 remediation.action = 'fix_path';
@@ -808,6 +931,146 @@ class OrphanDetector {
         if (this.verbose) {
             console.log(`[ORPHAN] Found ${results.deadPaths.length} dead paths`);
         }
+    }
+
+    /**
+     * Phase 2d: Verify gate integrity for gated subtrees
+     */
+    verifyGateIntegrity(contentFiles, results) {
+        if (this.verbose) {
+            console.log('[ORPHAN] Verifying gate integrity...');
+        }
+
+        // Check each gated root
+        for (const [gatedDir, info] of this.gatedRoots) {
+            // If gates count is specified, verify gate chain
+            if (info.gates && info.gates > 0) {
+                const missingGates = [];
+                const foundGates = [];
+
+                for (let i = 1; i <= info.gates; i++) {
+                    // Look for gate files with common naming patterns
+                    const gatePatterns = [
+                        `gate-${i}.html`,
+                        `gate${i}.html`,
+                        `Gate-${i}.html`,
+                        `Gate${i}.html`,
+                        `puzzle-${i}.html`,
+                        `challenge-${i}.html`
+                    ];
+
+                    let found = false;
+                    for (const file of contentFiles) {
+                        if (file.path.startsWith(gatedDir)) {
+                            for (const pattern of gatePatterns) {
+                                if (file.path.endsWith(pattern)) {
+                                    found = true;
+                                    foundGates.push(i);
+                                    break;
+                                }
+                            }
+                        }
+                        if (found) break;
+                    }
+
+                    if (!found) {
+                        missingGates.push(i);
+                    }
+                }
+
+                if (missingGates.length > 0) {
+                    results.issues.push({
+                        code: 'GATE-CHAIN-001',
+                        severity: 'high',
+                        category: 'gate-integrity',
+                        message: `Gate chain broken in ${gatedDir}: missing gate(s) ${missingGates.join(', ')}`,
+                        gatedRoot: info.root,
+                        expectedGates: info.gates,
+                        foundGates,
+                        missingGates,
+                        fix: `Create or restore missing gate files: ${missingGates.map(g => `gate-${g}.html`).join(', ')}`,
+                        action: 'restore_gates',
+                        autoFixable: false,
+                        confidence: 0.85
+                    });
+                }
+            }
+
+            // Check for gate entry point
+            if (info.gateEntry) {
+                const entryPath = path.join(gatedDir, info.gateEntry);
+                const entryExists = contentFiles.some(f =>
+                    f.path === entryPath || f.path.endsWith(info.gateEntry)
+                );
+
+                if (!entryExists) {
+                    results.issues.push({
+                        code: 'GATE-ROOT-001',
+                        severity: 'critical',
+                        category: 'gate-integrity',
+                        message: `Gated subtree ${gatedDir} declares entry '${info.gateEntry}' but file not found`,
+                        gatedRoot: info.root,
+                        declaredEntry: info.gateEntry,
+                        fix: `Create or restore the gate entry file: ${info.gateEntry}`,
+                        action: 'restore_entry',
+                        autoFixable: false,
+                        confidence: 0.9
+                    });
+                }
+            }
+        }
+
+        // Also check for conventional gated areas without declarations
+        const conventionalGatedAreas = this.findConventionalGatedAreas(contentFiles);
+        for (const area of conventionalGatedAreas) {
+            // Check if there's at least one entry point (gate-1, index, etc.)
+            const hasEntry = contentFiles.some(f =>
+                f.path.startsWith(area) &&
+                (f.path.includes('gate-1') || f.path.includes('index') || f.path.includes('gate1'))
+            );
+
+            if (!hasEntry) {
+                results.issues.push({
+                    code: 'GATE-ROOT-001',
+                    severity: 'medium',
+                    category: 'gate-integrity',
+                    message: `Apparent gated area ${area} has no entry point (gate-1 or index)`,
+                    directory: area,
+                    fix: 'Add gate entry point or lifecycle directive',
+                    action: 'add_entry_or_directive',
+                    autoFixable: false,
+                    confidence: 0.6
+                });
+            }
+        }
+
+        if (this.verbose) {
+            const gateIssues = results.issues.filter(i => i.category === 'gate-integrity').length;
+            console.log(`[ORPHAN] Found ${gateIssues} gate integrity issues`);
+        }
+    }
+
+    /**
+     * Find directories that look like gated areas by convention
+     */
+    findConventionalGatedAreas(contentFiles) {
+        const areas = new Set();
+        const gatedPatterns = [
+            /^_app\/dark-arts\/?$/i,
+            /gates?\/?$/i,
+            /vault\/?$/i
+        ];
+
+        for (const file of contentFiles) {
+            const dir = path.dirname(file.path);
+            for (const pattern of gatedPatterns) {
+                if (pattern.test(dir) && !this.gatedRoots.has(dir)) {
+                    areas.add(dir);
+                }
+            }
+        }
+
+        return Array.from(areas);
     }
 
     /**
@@ -956,6 +1219,8 @@ ${links}
         if (reasonAnalysis) {
             if (reasonAnalysis.reason === REASON.LIFECYCLE_ARCHIVE) return 'low';
             if (reasonAnalysis.reason === REASON.LIFECYCLE_DRAFT) return 'low';
+            if (reasonAnalysis.reason === REASON.LIFECYCLE_GATED) return 'info';  // Intentionally unreachable
+            if (reasonAnalysis.reason === REASON.LIFECYCLE_PRIVATE) return 'low';
             if (reasonAnalysis.reason === REASON.ROUTER_ONLY) return 'low';
         }
 
@@ -971,6 +1236,11 @@ ${links}
             if (lower.includes(indicator)) {
                 return 'low';
             }
+        }
+
+        // Gated content by path convention = info (not an error)
+        if (/dark-arts\/|gates?\/|vault\/|locked\/|restricted\//i.test(lower)) {
+            return 'info';
         }
 
         // Live house content = high
