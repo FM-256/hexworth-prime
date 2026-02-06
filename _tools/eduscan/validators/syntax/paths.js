@@ -8,10 +8,101 @@
  * - CDN whitelist for external resources
  * - Severity remapping (scripts=high, images=low)
  * - Template placeholder detection
+ *
+ * Enhanced Features:
+ * - Intelligent issue bucketing (WRONG_RELATIVE_DEPTH, CASE_MISMATCH, etc.)
+ * - Nearest-match suggestions with confidence scoring
+ * - Auto-fix candidacy assessment
  */
 
 const fs = require('fs');
 const path = require('path');
+
+// Issue bucket types
+const BUCKET_TYPES = {
+    WRONG_RELATIVE_DEPTH: 'WRONG_RELATIVE_DEPTH',
+    CASE_MISMATCH: 'CASE_MISMATCH',
+    MOVED_RENAMED: 'MOVED_RENAMED',
+    MISSING_LOCAL: 'MISSING_LOCAL',
+    DYNAMIC_LOAD: 'DYNAMIC_LOAD',
+    STRUCTURAL_DEPTH: 'STRUCTURAL_DEPTH',  // Proactive depth rule violation (undershoot)
+    STRUCTURAL_OVERSHOOT: 'STRUCTURAL_OVERSHOOT',  // Too many ../ (overshoot past root)
+    WRONG_ANCHOR: 'WRONG_ANCHOR'  // Path resolves to wrong anchor directory
+};
+
+// Known anchor directories - common target directories for relative paths
+const ANCHOR_DIRECTORIES = ['components', 'assets', 'config', 'styles', 'utils', 'houses', 'digital-life'];
+
+// Structural depth rules - proactive prevention based on file location
+// Format: { pattern: RegExp for file path, target: RegExp for referenced path, minDepth: number, description: string }
+// Rules can specify:
+//   - minDepth: minimum required ../ count (triggers PATH-DEPTH-001 if below)
+//   - maxDepth: maximum allowed ../ count (triggers PATH-DEPTH-002 if above)
+//   - exactDepth: exact required ../ count (triggers both codes if wrong)
+const STRUCTURAL_DEPTH_RULES = [
+    {
+        // Files at houses/*/index.html level - exactly 1 level to reach components
+        filePattern: /^houses\/[^/]+\/index\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 1,
+        description: 'house index files'
+    },
+    {
+        // Files at houses/*/applets/*/*.html level - exactly 3 levels
+        filePattern: /^houses\/[^/]+\/applets\/[^/]+\/[^/]+\.html$/,
+        targetPattern: /components\//,
+        exactDepth: 3,
+        description: 'applet root files'
+    },
+    {
+        // Files in houses/*/applets/*/week*/ need 5+ levels to reach components/
+        filePattern: /houses\/[^/]+\/applets\/[^/]+\/week[^/]*\//,
+        targetPattern: /components\//,
+        minDepth: 5,
+        description: 'week-level applet files'
+    },
+    {
+        // Files in houses/*/applets/*/week*/labs/ need 6+ levels to reach components/
+        filePattern: /houses\/[^/]+\/applets\/[^/]+\/week[^/]*\/labs\//,
+        targetPattern: /components\//,
+        minDepth: 6,
+        description: 'week/labs-level applet files'
+    },
+    {
+        // Files in houses/*/modules/*/m*/labs/ need 6+ levels to reach components/
+        filePattern: /houses\/[^/]+\/modules\/[^/]+\/m\d+\/labs?\//,
+        targetPattern: /components\//,
+        minDepth: 6,
+        description: 'module labs files'
+    },
+    {
+        // Files in houses/*/applets/comptia-aplus/core-*/labs/ need 6+ levels
+        filePattern: /houses\/[^/]+\/applets\/comptia-aplus\/core-[^/]+\/labs\//,
+        targetPattern: /components\//,
+        minDepth: 6,
+        description: 'CompTIA labs files'
+    },
+    {
+        // Files in houses/*/applets/comptia-aplus/core-*/presentations/ need 5+ levels
+        filePattern: /houses\/[^/]+\/applets\/comptia-aplus\/core-[^/]+\/presentations\//,
+        targetPattern: /components\//,
+        minDepth: 5,
+        description: 'CompTIA presentation files'
+    },
+    {
+        // Files in houses/*/applets/comptia-aplus/core-*/quizzes/ need 5+ levels
+        filePattern: /houses\/[^/]+\/applets\/comptia-aplus\/core-[^/]+\/quizzes\//,
+        targetPattern: /components\//,
+        minDepth: 5,
+        description: 'CompTIA quiz files'
+    }
+];
+
+// Confidence thresholds
+const CONFIDENCE = {
+    HIGH: 0.95,
+    MEDIUM: 0.70
+};
 
 class PathValidator {
     constructor(options = {}) {
@@ -19,6 +110,10 @@ class PathValidator {
         this.rootPath = options.rootPath || './_app';
         this.checkedPaths = new Map();
         this.profile = options.profile || 'ci'; // ci, strict, inventory
+
+        // Cache for file index (populated lazily)
+        this._fileIndex = null;
+        this._fileIndexTime = null;
     }
 
     // Known CDN patterns - never flag as missing
@@ -47,6 +142,16 @@ class PathValidator {
         /\$\{.*?\}/         // Template literals in attributes
     ];
 
+    // Dynamic path patterns - warn but don't error
+    dynamicPathPatterns = [
+        /\+\s*['"`]/,       // String concatenation
+        /\$\{/,             // Template literal
+        /\[.*?\]/,          // Bracket notation
+        /\bwindow\./,       // Window reference
+        /\bdocument\./,     // Document reference
+        /\blocation\./      // Location reference
+    ];
+
     /**
      * Validate paths in HTML file
      */
@@ -60,6 +165,9 @@ class PathValidator {
             ? fileDir
             : path.resolve(this.rootPath, fileDir);
 
+        // PROACTIVE: Check structural depth rules first (prevents bugs before they happen)
+        issues.push(...this.checkStructuralDepthRules(file));
+
         issues.push(...this.checkScriptPaths(file, absoluteFileDir));
         issues.push(...this.checkLinkPaths(file, absoluteFileDir));
         issues.push(...this.checkImgPaths(file, absoluteFileDir));
@@ -68,6 +176,164 @@ class PathValidator {
         if (this.profile === 'strict') {
             issues.push(...this.checkAnchorPaths(file, absoluteFileDir));
             issues.push(...this.checkDynamicImports(file, absoluteFileDir));
+        }
+
+        return issues;
+    }
+
+    /**
+     * Check structural depth rules - PROACTIVE prevention
+     * These rules fire based on file location + path pattern, regardless of whether
+     * the target file exists. This catches depth bugs at the pattern level.
+     *
+     * Now includes anchor validation to catch paths with correct depth that resolve
+     * to the wrong directory.
+     *
+     * Example: A file at houses/eye/applets/cyberops/week2/index.html
+     * referencing ../../../../components/ is ALWAYS wrong (needs 5 levels, not 4)
+     */
+    checkStructuralDepthRules(file) {
+        const issues = [];
+        const content = file.content;
+        const filePath = file.path;
+
+        // Find all script/link src/href references that target known anchor directories
+        // Expanded to catch any anchor directory, not just components/
+        const anchorPattern = ANCHOR_DIRECTORIES.join('|');
+        const patterns = [
+            { regex: new RegExp(`<script[^>]*\\ssrc\\s*=\\s*["']([^"']*(?:${anchorPattern})\\/[^"']+)["'][^>]*>`, 'gi'), type: 'script' },
+            { regex: new RegExp(`<link[^>]*\\shref\\s*=\\s*["']([^"']*(?:${anchorPattern})\\/[^"']+)["'][^>]*>`, 'gi'), type: 'stylesheet' }
+        ];
+
+        for (const rule of STRUCTURAL_DEPTH_RULES) {
+            // Check if this file matches the rule's file pattern
+            if (!rule.filePattern.test(filePath)) {
+                continue;
+            }
+
+            // File matches - now check all anchor references
+            for (const { regex, type } of patterns) {
+                regex.lastIndex = 0; // Reset regex state
+                let match;
+
+                while ((match = regex.exec(content)) !== null) {
+                    const refPath = match[1];
+
+                    // Skip external URLs
+                    if (this.shouldSkipUrl(refPath)) {
+                        continue;
+                    }
+
+                    // Check if this reference targets what the rule cares about
+                    if (!rule.targetPattern.test(refPath)) {
+                        continue;
+                    }
+
+                    // Count the ../ depth in the reference
+                    const depthMatch = refPath.match(/^((?:\.\.\/)+)/);
+                    const actualDepth = depthMatch ? (depthMatch[1].match(/\.\.\//g) || []).length : 0;
+                    const line = this.getLineNumber(content, match.index);
+
+                    // Get required depth (exactDepth takes precedence over minDepth)
+                    const requiredDepth = rule.exactDepth !== undefined ? rule.exactDepth : rule.minDepth;
+
+                    // If depth is insufficient (undershoot), flag it
+                    if (actualDepth < requiredDepth) {
+                        const correctPrefix = '../'.repeat(requiredDepth);
+                        const pathAfterDots = refPath.replace(/^(?:\.\.\/)+/, '');
+                        const correctPath = correctPrefix + pathAfterDots;
+
+                        issues.push({
+                            code: 'PATH-DEPTH-001',
+                            severity: 'high',
+                            category: 'path',
+                            bucket: BUCKET_TYPES.STRUCTURAL_DEPTH,
+                            message: `Insufficient path depth for ${rule.description}: ${refPath} (needs ${requiredDepth} levels, has ${actualDepth})`,
+                            file: filePath,
+                            line,
+                            missingPath: refPath,
+                            actualDepth,
+                            requiredDepth,
+                            suggestion: {
+                                path: correctPath,
+                                confidence: 1.0,  // Structural rules are 100% confident
+                                reason: `${rule.description} require ${requiredDepth}+ levels to reach ${this.getExpectedAnchor(refPath) || 'target'}/`
+                            },
+                            autoFixable: true,
+                            fix: `Change path to: ${correctPath}`
+                        });
+                        continue; // Don't also report anchor issue for same path
+                    }
+
+                    // Check for overshoot (too many ../)
+                    // For exactDepth rules: flag if actual > exact
+                    // For maxDepth rules: flag if actual > max
+                    const maxAllowed = rule.exactDepth !== undefined ? rule.exactDepth : rule.maxDepth;
+                    if (maxAllowed !== undefined && actualDepth > maxAllowed) {
+                        const correctPrefix = '../'.repeat(maxAllowed);
+                        const pathAfterDots = refPath.replace(/^(?:\.\.\/)+/, '');
+                        const correctPath = correctPrefix + pathAfterDots;
+
+                        issues.push({
+                            code: 'PATH-DEPTH-002',
+                            severity: 'high',
+                            category: 'path',
+                            bucket: BUCKET_TYPES.STRUCTURAL_OVERSHOOT,
+                            message: `Excessive path depth (overshoot): ${actualDepth} levels, expected ${maxAllowed} for ${rule.description}`,
+                            file: filePath,
+                            line,
+                            missingPath: refPath,
+                            actualDepth,
+                            requiredDepth: maxAllowed,
+                            suggestion: {
+                                path: correctPath,
+                                confidence: 1.0,  // Structural rules are 100% confident
+                                reason: `${rule.description} require exactly ${maxAllowed} level(s) to reach ${this.getExpectedAnchor(refPath) || 'target'}/`
+                            },
+                            autoFixable: true,
+                            fix: `Change path to: ${correctPath}`
+                        });
+                        continue; // Don't also report anchor issue for same path
+                    }
+
+                    // ANCHOR VALIDATION: Even if depth count is correct, verify resolution
+                    // This catches bugs where depth matches numerically but resolves wrong
+                    const expectedAnchor = this.getExpectedAnchor(refPath);
+                    if (expectedAnchor) {
+                        const resolution = this.getResolvedAnchor(filePath, refPath);
+
+                        if (resolution.valid && resolution.anchor !== expectedAnchor) {
+                            // Path resolves to wrong directory!
+                            const correctPrefix = '../'.repeat(requiredDepth);
+                            const pathAfterDots = refPath.replace(/^(?:\.\.\/)+/, '');
+                            const correctPath = correctPrefix + pathAfterDots;
+
+                            issues.push({
+                                code: 'PATH-ANCHOR-001',
+                                severity: 'high',
+                                category: 'path',
+                                bucket: BUCKET_TYPES.WRONG_ANCHOR,
+                                message: `Path targets wrong directory: expected '${expectedAnchor}/', resolves to '${resolution.anchor}/${pathAfterDots.split('/').slice(1).join('/') || ''}'`,
+                                file: filePath,
+                                line,
+                                missingPath: refPath,
+                                expectedAnchor,
+                                actualAnchor: resolution.anchor,
+                                resolvedPath: resolution.resolvedPath,
+                                actualDepth,
+                                requiredDepth,
+                                suggestion: {
+                                    path: correctPath,
+                                    confidence: 1.0,
+                                    reason: `Path needs ${requiredDepth} levels up to reach ${expectedAnchor}/, currently resolves to ${resolution.anchor}/`
+                                },
+                                autoFixable: true,
+                                fix: `Change path to: ${correctPath}`
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         return issues;
@@ -92,22 +358,33 @@ class PathValidator {
                 continue;
             }
 
+            // Check for dynamic path construction
+            if (this.isDynamicPath(src)) {
+                issues.push(this.createDynamicIssue(file, src, line, 'PATH-001', 'script'));
+                continue;
+            }
+
             const resolved = this.resolvePath(src, fileDir);
             const exists = this.checkExists(resolved);
 
             if (!exists) {
+                const analysis = this.analyzePathIssue(src, resolved, fileDir, file.path, '.js');
                 issues.push({
                     code: 'PATH-001',
                     severity: 'high',  // Scripts are critical
                     category: 'path',
+                    bucket: analysis.bucket,
                     message: `Script not found: ${src}`,
                     file: file.path,
                     line,
                     missingPath: src,
                     resolvedPath: resolved,
-                    fix: `Create ${src} or fix the path`,
-                    suggestions: this.suggestSimilar(src, fileDir, '.js'),
-                    autoFixable: false
+                    suggestion: analysis.suggestion,
+                    autoFixable: analysis.autoFixable,
+                    fix: analysis.suggestion
+                        ? `Change path to: ${analysis.suggestion.path}`
+                        : `Create ${src} or fix the path`,
+                    suggestions: analysis.allMatches || []
                 });
             }
         }
@@ -145,21 +422,33 @@ class PathValidator {
                 continue;
             }
 
+            // Check for dynamic path construction
+            if (this.isDynamicPath(href)) {
+                issues.push(this.createDynamicIssue(file, href, line, 'PATH-002', 'stylesheet'));
+                continue;
+            }
+
             const resolved = this.resolvePath(href, fileDir);
             const exists = this.checkExists(resolved);
 
             if (!exists) {
+                const analysis = this.analyzePathIssue(href, resolved, fileDir, file.path, '.css');
                 issues.push({
                     code: 'PATH-002',
                     severity: 'medium',  // CSS is important but not critical
                     category: 'path',
+                    bucket: analysis.bucket,
                     message: `Stylesheet not found: ${href}`,
                     file: file.path,
                     line,
                     missingPath: href,
                     resolvedPath: resolved,
-                    fix: `Create ${href} or fix the path`,
-                    suggestions: this.suggestSimilar(href, fileDir, '.css')
+                    suggestion: analysis.suggestion,
+                    autoFixable: analysis.autoFixable,
+                    fix: analysis.suggestion
+                        ? `Change path to: ${analysis.suggestion.path}`
+                        : `Create ${href} or fix the path`,
+                    suggestions: analysis.allMatches || []
                 });
             }
         }
@@ -186,21 +475,34 @@ class PathValidator {
                 continue;
             }
 
+            // Check for dynamic path construction
+            if (this.isDynamicPath(src)) {
+                issues.push(this.createDynamicIssue(file, src, line, 'PATH-003', 'image'));
+                continue;
+            }
+
             const resolved = this.resolvePath(src, fileDir);
             const exists = this.checkExists(resolved);
 
             if (!exists) {
+                const ext = path.extname(src) || '.png';
+                const analysis = this.analyzePathIssue(src, resolved, fileDir, file.path, ext);
                 issues.push({
                     code: 'PATH-003',
                     severity: 'low',  // Images are cosmetic
                     category: 'path',
+                    bucket: analysis.bucket,
                     message: `Image not found: ${src}`,
                     file: file.path,
                     line,
                     missingPath: src,
                     resolvedPath: resolved,
-                    fix: `Add image at ${src} or fix the path`,
-                    suggestions: this.suggestSimilar(src, fileDir, path.extname(src))
+                    suggestion: analysis.suggestion,
+                    autoFixable: analysis.autoFixable,
+                    fix: analysis.suggestion
+                        ? `Change path to: ${analysis.suggestion.path}`
+                        : `Add image at ${src} or fix the path`,
+                    suggestions: analysis.allMatches || []
                 });
             }
         }
@@ -227,21 +529,33 @@ class PathValidator {
                 continue;
             }
 
+            // Check for dynamic path construction
+            if (this.isDynamicPath(href)) {
+                issues.push(this.createDynamicIssue(file, href, line, 'PATH-004', 'link'));
+                continue;
+            }
+
             const resolved = this.resolvePath(href, fileDir);
             const exists = this.checkExists(resolved);
 
             if (!exists) {
+                const analysis = this.analyzePathIssue(href, resolved, fileDir, file.path, '.html');
                 issues.push({
                     code: 'PATH-004',
                     severity: 'low',
                     category: 'path',
+                    bucket: analysis.bucket,
                     message: `Linked page not found: ${href}`,
                     file: file.path,
                     line,
                     missingPath: href,
                     resolvedPath: resolved,
-                    fix: `Create ${href} or fix the link`,
-                    suggestions: this.suggestSimilar(href, fileDir, '.html')
+                    suggestion: analysis.suggestion,
+                    autoFixable: analysis.autoFixable,
+                    fix: analysis.suggestion
+                        ? `Change path to: ${analysis.suggestion.path}`
+                        : `Create ${href} or fix the link`,
+                    suggestions: analysis.allMatches || []
                 });
             }
         }
@@ -279,20 +593,34 @@ class PathValidator {
                     continue;
                 }
 
+                // Check for dynamic path construction
+                if (this.isDynamicPath(importPath)) {
+                    issues.push(this.createDynamicIssue(file, importPath, line, 'PATH-005', 'dynamic import'));
+                    continue;
+                }
+
                 const resolved = this.resolvePath(importPath, fileDir);
                 const exists = this.checkExists(resolved);
 
                 if (!exists) {
+                    const ext = path.extname(importPath) || '.js';
+                    const analysis = this.analyzePathIssue(importPath, resolved, fileDir, file.path, ext);
                     issues.push({
                         code: 'PATH-005',
                         severity: 'medium',
                         category: 'path',
+                        bucket: analysis.bucket,
                         message: `Dynamic import target not found: ${importPath}`,
                         file: file.path,
                         line,
                         missingPath: importPath,
                         resolvedPath: resolved,
-                        fix: `Create ${importPath} or fix the path`
+                        suggestion: analysis.suggestion,
+                        autoFixable: analysis.autoFixable,
+                        fix: analysis.suggestion
+                            ? `Change path to: ${analysis.suggestion.path}`
+                            : `Create ${importPath} or fix the path`,
+                        suggestions: analysis.allMatches || []
                     });
                 }
             }
@@ -300,6 +628,477 @@ class PathValidator {
 
         return issues;
     }
+
+    // =========================================================================
+    // INTELLIGENT ISSUE BUCKETING
+    // =========================================================================
+
+    /**
+     * Analyze a path issue and determine its bucket + suggestion
+     * @param {string} missingPath - The original path from the source
+     * @param {string} resolvedPath - The fully resolved path that was checked
+     * @param {string} fileDir - Directory of the source file
+     * @param {string} sourceFile - Path to the source file
+     * @param {string} expectedExt - Expected file extension
+     * @returns {Object} Analysis result with bucket, suggestion, autoFixable
+     */
+    analyzePathIssue(missingPath, resolvedPath, fileDir, sourceFile, expectedExt) {
+        const filename = path.basename(missingPath);
+
+        // 1. Check for case mismatch first (common on Linux)
+        const caseMismatch = this.checkCaseMismatch(resolvedPath, filename);
+        if (caseMismatch) {
+            const correctedPath = this.buildCorrectedPath(missingPath, caseMismatch.correctName);
+            return {
+                bucket: BUCKET_TYPES.CASE_MISMATCH,
+                suggestion: {
+                    path: correctedPath,
+                    confidence: 0.99,
+                    reason: `File exists as "${caseMismatch.correctName}" (case difference)`
+                },
+                autoFixable: true,
+                allMatches: [{
+                    path: correctedPath,
+                    confidence: 0.99,
+                    location: caseMismatch.fullPath
+                }]
+            };
+        }
+
+        // 2. Search for file in codebase
+        const matches = this.findFileInCodebase(filename, expectedExt);
+
+        if (matches.length === 0) {
+            // File truly doesn't exist anywhere
+            return {
+                bucket: BUCKET_TYPES.MISSING_LOCAL,
+                suggestion: null,
+                autoFixable: false,
+                allMatches: []
+            };
+        }
+
+        // 3. Analyze matches to determine bucket
+        const sourceSubtree = this.getSubtree(sourceFile);
+        const scoredMatches = matches.map(match => {
+            const relativePath = this.calculateRelativePath(sourceFile, match.path);
+            const confidence = this.assessConfidence(match, sourceFile, sourceSubtree, missingPath);
+            return {
+                path: relativePath,
+                confidence,
+                reason: this.buildReason(match, sourceSubtree, missingPath),
+                location: match.path
+            };
+        }).sort((a, b) => b.confidence - a.confidence);
+
+        const bestMatch = scoredMatches[0];
+
+        // Determine bucket based on analysis
+        let bucket;
+        if (this.isDepthMismatch(missingPath, bestMatch.path, filename)) {
+            bucket = BUCKET_TYPES.WRONG_RELATIVE_DEPTH;
+        } else {
+            bucket = BUCKET_TYPES.MOVED_RENAMED;
+        }
+
+        // Determine auto-fixability
+        const autoFixable = (bucket === BUCKET_TYPES.WRONG_RELATIVE_DEPTH && bestMatch.confidence >= CONFIDENCE.HIGH) ||
+                           (bucket === BUCKET_TYPES.CASE_MISMATCH);
+
+        return {
+            bucket,
+            suggestion: bestMatch,
+            autoFixable,
+            allMatches: scoredMatches.slice(0, 5) // Top 5 matches
+        };
+    }
+
+    /**
+     * Check if file exists with different case
+     */
+    checkCaseMismatch(resolvedPath, filename) {
+        const dir = path.dirname(resolvedPath);
+
+        try {
+            if (!fs.existsSync(dir)) {
+                return null;
+            }
+
+            const files = fs.readdirSync(dir);
+            const lowerFilename = filename.toLowerCase();
+
+            for (const file of files) {
+                if (file.toLowerCase() === lowerFilename && file !== filename) {
+                    return {
+                        correctName: file,
+                        fullPath: path.join(dir, file)
+                    };
+                }
+            }
+        } catch (e) {
+            // Directory read failed
+        }
+
+        return null;
+    }
+
+    /**
+     * Build corrected path with correct filename case
+     */
+    buildCorrectedPath(originalPath, correctFilename) {
+        const dir = path.dirname(originalPath);
+        if (dir === '.') {
+            return correctFilename;
+        }
+        return path.join(dir, correctFilename).replace(/\\/g, '/');
+    }
+
+    /**
+     * Check if the issue is a relative depth mismatch
+     */
+    isDepthMismatch(originalPath, suggestedPath, filename) {
+        // Count ../ segments
+        const originalDepth = (originalPath.match(/\.\.\//g) || []).length;
+        const suggestedDepth = (suggestedPath.match(/\.\.\//g) || []).length;
+
+        // If only the depth differs, it's a depth mismatch
+        const originalFilename = path.basename(originalPath);
+        const suggestedFilename = path.basename(suggestedPath);
+
+        return originalFilename === suggestedFilename && originalDepth !== suggestedDepth;
+    }
+
+    // =========================================================================
+    // FILE SEARCH HELPERS
+    // =========================================================================
+
+    /**
+     * Find all instances of a filename in the codebase
+     * @param {string} filename - Filename to search for
+     * @param {string} expectedExt - Expected extension
+     * @returns {Array} Array of match objects {path, subtree}
+     */
+    findFileInCodebase(filename, expectedExt) {
+        const matches = [];
+        const index = this.getFileIndex();
+
+        // Normalize filename for comparison
+        const normalizedFilename = filename.toLowerCase();
+
+        for (const [filePath, info] of index.entries()) {
+            const fileBasename = path.basename(filePath).toLowerCase();
+
+            // Exact match (case-insensitive)
+            if (fileBasename === normalizedFilename) {
+                matches.push({
+                    path: filePath,
+                    subtree: info.subtree,
+                    exactMatch: true
+                });
+            }
+            // Extension-corrected match (e.g., looking for .js but it's .mjs)
+            else if (expectedExt &&
+                     path.basename(filePath, path.extname(filePath)).toLowerCase() ===
+                     path.basename(filename, expectedExt).toLowerCase()) {
+                matches.push({
+                    path: filePath,
+                    subtree: info.subtree,
+                    exactMatch: false
+                });
+            }
+        }
+
+        return matches;
+    }
+
+    /**
+     * Build/retrieve file index for the codebase
+     * Cached for performance
+     */
+    getFileIndex() {
+        // Return cached index if still valid (5 minute TTL)
+        const now = Date.now();
+        if (this._fileIndex && this._fileIndexTime && (now - this._fileIndexTime < 300000)) {
+            return this._fileIndex;
+        }
+
+        this._fileIndex = new Map();
+        this._fileIndexTime = now;
+
+        try {
+            this.indexDirectory(this.rootPath, this._fileIndex);
+        } catch (e) {
+            if (this.verbose) {
+                console.warn(`[PATH] Failed to build file index: ${e.message}`);
+            }
+        }
+
+        return this._fileIndex;
+    }
+
+    /**
+     * Recursively index directory
+     */
+    indexDirectory(dir, index, depth = 0) {
+        // Limit recursion depth
+        if (depth > 15) return;
+
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+
+                // Skip hidden and common non-content directories
+                if (entry.name.startsWith('.') ||
+                    entry.name === 'node_modules' ||
+                    entry.name === '_archive' ||
+                    entry.name === '_planning') {
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    this.indexDirectory(fullPath, index, depth + 1);
+                } else if (entry.isFile()) {
+                    const subtree = this.getSubtree(fullPath);
+                    index.set(fullPath, { subtree });
+                }
+            }
+        } catch (e) {
+            // Directory read failed - skip
+        }
+    }
+
+    /**
+     * Get subtree identifier from path (e.g., "houses/web", "components")
+     */
+    getSubtree(filePath) {
+        const relative = path.relative(this.rootPath, filePath);
+        const parts = relative.split(path.sep);
+
+        // For houses, return "houses/<houseName>"
+        if (parts[0] === 'houses' && parts.length > 1) {
+            return `houses/${parts[1]}`;
+        }
+
+        // For other top-level dirs, return just the dir name
+        return parts[0] || '';
+    }
+
+    /**
+     * Calculate relative path from source file to target file
+     * @param {string} fromFile - Source file path
+     * @param {string} toFile - Target file path
+     * @returns {string} Relative path
+     */
+    calculateRelativePath(fromFile, toFile) {
+        const fromDir = path.dirname(fromFile);
+
+        // Handle both absolute and relative paths
+        const fromAbsolute = path.isAbsolute(fromDir)
+            ? fromDir
+            : path.resolve(this.rootPath, fromDir);
+        const toAbsolute = path.isAbsolute(toFile)
+            ? toFile
+            : path.resolve(this.rootPath, toFile);
+
+        let relativePath = path.relative(fromAbsolute, toAbsolute);
+
+        // Ensure path uses forward slashes and starts with ./ or ../
+        relativePath = relativePath.replace(/\\/g, '/');
+        if (!relativePath.startsWith('.') && !relativePath.startsWith('/')) {
+            relativePath = './' + relativePath;
+        }
+
+        return relativePath;
+    }
+
+    /**
+     * Assess confidence of a match
+     * @param {Object} match - Match object from findFileInCodebase
+     * @param {string} sourceFile - Source file path
+     * @param {string} sourceSubtree - Subtree of source file
+     * @param {string} originalPath - Original broken path
+     * @returns {number} Confidence score 0-1
+     */
+    assessConfidence(match, sourceFile, sourceSubtree, originalPath) {
+        let confidence = 0.5; // Base confidence
+
+        // Exact filename match
+        if (match.exactMatch) {
+            confidence += 0.2;
+        }
+
+        // Same subtree (e.g., same house)
+        if (match.subtree === sourceSubtree) {
+            confidence += 0.25;
+        }
+        // Related subtree (e.g., components referenced from houses)
+        else if (this.areSubtreesRelated(sourceSubtree, match.subtree)) {
+            confidence += 0.15;
+        }
+
+        // Check if the directory structure hints match
+        const originalDir = path.dirname(originalPath);
+        const matchDir = path.dirname(match.path);
+        if (matchDir.includes(path.basename(originalDir))) {
+            confidence += 0.1;
+        }
+
+        // Unique match in subtree gets bonus
+        // (This would require counting matches, simplified here)
+
+        return Math.min(confidence, 1.0);
+    }
+
+    /**
+     * Check if two subtrees are commonly related
+     */
+    areSubtreesRelated(subtree1, subtree2) {
+        // Components and config are commonly referenced from houses
+        const commonRoots = ['components', 'config', 'utils', 'styles', 'assets'];
+        return commonRoots.includes(subtree1) || commonRoots.includes(subtree2);
+    }
+
+    /**
+     * Build human-readable reason for suggestion
+     */
+    buildReason(match, sourceSubtree, originalPath) {
+        if (match.subtree === sourceSubtree) {
+            return 'File exists in same module/house';
+        }
+        if (this.areSubtreesRelated(sourceSubtree, match.subtree)) {
+            return `File exists in related location (${match.subtree})`;
+        }
+        return `File exists elsewhere in codebase (${match.subtree})`;
+    }
+
+    // =========================================================================
+    // ANCHOR RESOLUTION
+    // =========================================================================
+
+    /**
+     * Resolve a relative path from a file location and return the first anchor directory
+     *
+     * An "anchor" is the first meaningful directory component after path resolution.
+     * This helps detect when a path has correct depth numerically but resolves to
+     * the wrong target directory.
+     *
+     * @param {string} filePath - Path to the source file (relative to rootPath)
+     * @param {string} relativePath - The relative path being resolved (e.g., "../../components/Foo.js")
+     * @returns {Object} Resolution info with anchor and full resolved path
+     *
+     * @example
+     * // From houses/web/labs/x.html, resolving ../../components/Foo.js
+     * getResolvedAnchor('houses/web/labs/x.html', '../../components/Foo.js')
+     * // Returns: { anchor: 'components', resolvedPath: 'components/Foo.js', valid: true }
+     *
+     * @example
+     * // Wrong depth: houses/web/labs/x.html with ../components/Foo.js (only 1 level up)
+     * getResolvedAnchor('houses/web/labs/x.html', '../components/Foo.js')
+     * // Returns: { anchor: 'web', resolvedPath: 'houses/web/components/Foo.js', valid: true }
+     */
+    getResolvedAnchor(filePath, relativePath) {
+        // Get directory of the source file
+        const fileDir = path.dirname(filePath);
+        const dirParts = fileDir.split('/').filter(p => p && p !== '.');
+
+        // Count ../ levels in the relative path
+        const depthMatch = relativePath.match(/^((?:\.\.\/)+)/);
+        const depth = depthMatch ? (depthMatch[1].match(/\.\.\//g) || []).length : 0;
+
+        // Get the path portion after ../
+        const pathAfterDots = relativePath.replace(/^(?:\.\.\/)+/, '');
+
+        // Check if we're going past the root (too many ../)
+        if (depth > dirParts.length) {
+            return {
+                anchor: null,
+                resolvedPath: null,
+                valid: false,
+                error: 'PATH_ESCAPE',
+                message: `Path escapes root directory (${depth} levels up from ${dirParts.length}-deep path)`
+            };
+        }
+
+        // Calculate remaining directory parts after navigating up
+        const remainingDirParts = dirParts.slice(0, dirParts.length - depth);
+
+        // Build the resolved path
+        const resolvedPath = [...remainingDirParts, pathAfterDots].join('/');
+
+        // Extract the anchor (first directory component of resolved path)
+        const resolvedParts = resolvedPath.split('/').filter(p => p && p !== '.');
+        const anchor = resolvedParts[0] || null;
+
+        return {
+            anchor,
+            resolvedPath,
+            valid: true,
+            depth,
+            remainingDir: remainingDirParts.join('/')
+        };
+    }
+
+    /**
+     * Get expected anchor from a path reference
+     * Extracts what the path is TRYING to reach based on its structure
+     *
+     * @param {string} relativePath - The relative path (e.g., "../../components/Foo.js")
+     * @returns {string|null} Expected anchor directory or null if not determinable
+     */
+    getExpectedAnchor(relativePath) {
+        // Remove leading ../ to find what comes after
+        const pathAfterDots = relativePath.replace(/^(?:\.\.\/)+/, '');
+        const firstPart = pathAfterDots.split('/')[0];
+
+        // Only return if it's a known anchor
+        if (ANCHOR_DIRECTORIES.includes(firstPart)) {
+            return firstPart;
+        }
+
+        return null;
+    }
+
+    // =========================================================================
+    // DYNAMIC PATH DETECTION
+    // =========================================================================
+
+    /**
+     * Check if path contains dynamic/variable components
+     */
+    isDynamicPath(pathStr) {
+        for (const pattern of this.dynamicPathPatterns) {
+            if (pattern.test(pathStr)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Create issue for dynamic path (warn only)
+     */
+    createDynamicIssue(file, pathStr, line, code, resourceType) {
+        return {
+            code,
+            severity: 'info',  // Info only - can't validate dynamic paths
+            category: 'path',
+            bucket: BUCKET_TYPES.DYNAMIC_LOAD,
+            message: `Dynamic ${resourceType} path cannot be validated: ${pathStr}`,
+            file: file.path,
+            line,
+            missingPath: pathStr,
+            resolvedPath: null,
+            suggestion: null,
+            autoFixable: false,
+            fix: 'Manual review required - path is constructed dynamically'
+        };
+    }
+
+    // =========================================================================
+    // URL HANDLING
+    // =========================================================================
 
     /**
      * Check if URL should be skipped (external, CDN, template, special)
@@ -372,7 +1171,7 @@ class PathValidator {
     }
 
     /**
-     * Suggest similar paths that do exist
+     * Suggest similar paths that do exist (legacy method for compatibility)
      */
     suggestSimilar(missingPath, fileDir, expectedExt) {
         const suggestions = [];
@@ -445,5 +1244,11 @@ class PathValidator {
         return (before.match(/\n/g) || []).length + 1;
     }
 }
+
+// Export bucket types, rules, and anchors for external use
+PathValidator.BUCKET_TYPES = BUCKET_TYPES;
+PathValidator.CONFIDENCE = CONFIDENCE;
+PathValidator.STRUCTURAL_DEPTH_RULES = STRUCTURAL_DEPTH_RULES;
+PathValidator.ANCHOR_DIRECTORIES = ANCHOR_DIRECTORIES;
 
 module.exports = PathValidator;

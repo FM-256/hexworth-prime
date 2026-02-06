@@ -21,6 +21,8 @@
  *   --deep                 Enable deep reachability crawl for filesystem orphans
  *   --syntax-only          Only run syntax validation
  *   --syntax=<profile>     Syntax profile: ci (default), strict, inventory
+ *   --coverage             Run coverage analysis (curriculum gaps)
+ *   --remediation          Generate PATCH_PLAN.md and PATCH_PLAN.json
  *   --no-syntax            Disable syntax validation in full scans
  *   --no-color             Disable colored output
  *   -h, --help             Show help
@@ -30,6 +32,7 @@
 const path = require('path');
 const EduScan = require('./index');
 const DriftTracker = require('./utils/drift');
+const RemediationPlanner = require('./utils/remediation');
 
 // Parse command line arguments
 function parseArgs(args) {
@@ -49,6 +52,8 @@ function parseArgs(args) {
         syntaxOnly: false,
         enableSyntax: true,         // Syntax validation enabled by default
         syntaxProfile: 'ci',        // 'ci', 'strict', or 'inventory'
+        coverageOnly: false,        // Only run coverage analysis
+        remediation: false,         // Generate remediation plan
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
         warnOnly: false,
@@ -133,6 +138,16 @@ function parseArgs(args) {
                 options.syntaxOnly = true;
                 break;
 
+            case '--coverage':
+            case '--coverage-only':
+                options.coverageOnly = true;
+                break;
+
+            case '--remediation':
+            case '--patch-plan':
+                options.remediation = true;
+                break;
+
             case '--no-syntax':
                 options.enableSyntax = false;
                 break;
@@ -194,6 +209,8 @@ Options:
                            strict    Full coverage including hygiene issues
                            inventory Collect all stats, never fail (exit code 0)
   --no-syntax            Disable syntax validation in full scans
+  --coverage             Run coverage analysis (modules without quizzes/labs)
+  --remediation          Generate PATCH_PLAN.md/json with grouped fixes
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
   --warn-only            Never exit with error code (for CI adoption)
@@ -215,6 +232,9 @@ Examples:
   eduscan --syntax=strict            # Full syntax coverage
   eduscan --syntax=inventory         # Collect stats only, no failures
   eduscan --no-syntax                # Skip syntax validation
+  eduscan --coverage                 # Analyze curriculum coverage gaps
+  eduscan --remediation              # Generate PATCH_PLAN with fix batches
+  eduscan --syntax-only --remediation  # Syntax scan + remediation plan
   eduscan --fail-on critical         # CI gate: fail only on critical
   eduscan --fail-on critical,high    # CI gate: fail on critical or high
   eduscan --warn-only                # Never fail (for gradual adoption)
@@ -241,6 +261,7 @@ Issue Codes:
   JS-*           JavaScript syntax errors (brackets, quotes)
   ENG-*          Missing engine/library (undefined globals)
   PATH-*         Broken paths (404 resources)
+  COV-*          Coverage gaps (missing quizzes, labs, assessments)
 
 Orphan Reason Codes (with --deep):
   NOT-IN-REGISTRY    File not declared in content-registry.js
@@ -261,6 +282,8 @@ Ignore Directives:
 Reports:
   TREASURE_MAP.json    Machine-readable content map + issues
   TREASURE_MAP.md      Human-readable report
+  PATCH_PLAN.json      Remediation plan (grouped by subtree/code)
+  PATCH_PLAN.md        Human-readable fix batches
   history/*.json       Archived scans for drift tracking
 
 For more information: _tools/EDUSCAN_DESIGN.md
@@ -299,12 +322,43 @@ function main() {
             currentReportPath: path.join(options.outputDir, 'TREASURE_MAP.json')
         });
 
+        // Initialize remediation planner if flag is set
+        const remediationPlanner = options.remediation ? new RemediationPlanner({
+            outputDir: options.outputDir,
+            verbose: options.verbose
+        }) : null;
+
+        // Color function for console output
+        const colorFn = options.colors
+            ? (text, ...colors) => {
+                const ansi = {
+                    reset: '\x1b[0m', bright: '\x1b[1m', dim: '\x1b[2m',
+                    red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
+                    blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m'
+                };
+                const codes = colors.map(c => ansi[c] || '').join('');
+                return `${codes}${text}${ansi.reset}`;
+            }
+            : (text) => text;
+
         if (options.orphansOnly) {
             // Orphan-only scan
             const results = scanner.orphanScan();
 
             if (options.jsonOutput) {
                 console.log(JSON.stringify(results.orphans, null, 2));
+            }
+
+            // Generate remediation plan if requested
+            if (options.remediation) {
+                const plan = remediationPlanner.generatePlan(results);
+                const saved = remediationPlanner.savePlan(plan);
+                if (!options.quiet) {
+                    console.log(remediationPlanner.formatForConsole(plan, colorFn));
+                    console.log(`  Saved: ${saved.json.path}`);
+                    console.log(`  Saved: ${saved.markdown.path}`);
+                    console.log('');
+                }
             }
 
             // Determine exit code based on orphan issues
@@ -320,8 +374,49 @@ function main() {
                 console.log(JSON.stringify(results.syntax, null, 2));
             }
 
+            // Generate remediation plan if requested
+            if (options.remediation) {
+                const plan = remediationPlanner.generatePlan(results);
+                const saved = remediationPlanner.savePlan(plan);
+                if (!options.quiet) {
+                    console.log(remediationPlanner.formatForConsole(plan, colorFn));
+                    console.log(`  Saved: ${saved.json.path}`);
+                    console.log(`  Saved: ${saved.markdown.path}`);
+                    console.log('');
+                }
+            }
+
             // Determine exit code based on syntax issues
             const exitCode = determineExitCode(results.syntax.issues, options);
+            if (exitCode !== 0) {
+                process.exit(exitCode);
+            }
+        } else if (options.coverageOnly) {
+            // Coverage analysis scan
+            const results = scanner.coverageScan();
+
+            if (options.jsonOutput) {
+                // Output simplified report format for JSON
+                const CoverageAnalyzer = require('./validators/coverage');
+                const analyzer = new CoverageAnalyzer();
+                const simpleReport = analyzer.getSimpleReport(results.coverage);
+                console.log(JSON.stringify(simpleReport, null, 2));
+            }
+
+            // Generate remediation plan if requested
+            if (options.remediation) {
+                const plan = remediationPlanner.generatePlan(results);
+                const saved = remediationPlanner.savePlan(plan);
+                if (!options.quiet) {
+                    console.log(remediationPlanner.formatForConsole(plan, colorFn));
+                    console.log(`  Saved: ${saved.json.path}`);
+                    console.log(`  Saved: ${saved.markdown.path}`);
+                    console.log('');
+                }
+            }
+
+            // Determine exit code based on coverage issues
+            const exitCode = determineExitCode(results.coverage.issues, options);
             if (exitCode !== 0) {
                 process.exit(exitCode);
             }
@@ -342,18 +437,6 @@ function main() {
                 };
 
                 const drift = driftTracker.compare(jsonReport);
-                const colorFn = options.colors
-                    ? (text, ...colors) => {
-                        const ansi = {
-                            reset: '\x1b[0m', bright: '\x1b[1m', dim: '\x1b[2m',
-                            red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
-                            blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m'
-                        };
-                        const codes = colors.map(c => ansi[c] || '').join('');
-                        return `${codes}${text}${ansi.reset}`;
-                    }
-                    : (text) => text;
-
                 console.log(driftTracker.formatForConsole(drift, colorFn));
             }
 
@@ -373,6 +456,18 @@ function main() {
                 const archivePath = driftTracker.archiveReport(jsonReport);
                 if (!options.quiet) {
                     console.log(`  Archived to: ${archivePath}`);
+                    console.log('');
+                }
+            }
+
+            // Generate remediation plan if requested
+            if (options.remediation) {
+                const plan = remediationPlanner.generatePlan(results);
+                const saved = remediationPlanner.savePlan(plan);
+                if (!options.quiet) {
+                    console.log(remediationPlanner.formatForConsole(plan, colorFn));
+                    console.log(`  Saved: ${saved.json.path}`);
+                    console.log(`  Saved: ${saved.markdown.path}`);
                     console.log('');
                 }
             }

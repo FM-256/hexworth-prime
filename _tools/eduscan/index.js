@@ -13,6 +13,7 @@ const ParserOrchestrator = require('./parsers');
 const ValidatorOrchestrator = require('./validators');
 const OrphanDetector = require('./validators/orphans');
 const SyntaxValidator = require('./validators/syntax');
+const CoverageAnalyzer = require('./validators/coverage');
 const JSONReporter = require('./reporters/json');
 const MarkdownReporter = require('./reporters/markdown');
 const ConsoleReporter = require('./reporters/console');
@@ -33,7 +34,9 @@ class EduScan {
             reachabilityMode: options.reachabilityMode || 'links',
             syntaxOnly: options.syntaxOnly || false,
             enableSyntax: options.enableSyntax !== false,  // Syntax validation enabled by default
-            syntaxProfile: options.syntaxProfile || 'ci'   // 'ci', 'strict', or 'inventory'
+            syntaxProfile: options.syntaxProfile || 'ci',  // 'ci', 'strict', or 'inventory'
+            failOn: options.failOn || null,                // Severities that cause exit code 1
+            warnOnly: options.warnOnly || false            // Never fail (exit code always 0)
         };
 
         // Initialize components
@@ -62,6 +65,11 @@ class EduScan {
             verbose: this.options.verbose,
             rootPath: this.options.path,
             profile: this.options.syntaxProfile
+        });
+
+        this.coverageAnalyzer = new CoverageAnalyzer({
+            verbose: this.options.verbose,
+            rootPath: this.options.path
         });
 
         this.console = new ConsoleReporter({
@@ -290,12 +298,36 @@ class EduScan {
      */
     printSyntaxSummary(syntax) {
         const c = (text, ...colors) => this.console.c(text, ...colors);
+        const useColor = this.options.colors;
         const profile = syntax.summary.profile || this.options.syntaxProfile;
         const profileLabel = {
             ci: 'CI (critical/high only)',
             strict: 'Strict (full coverage)',
             inventory: 'Inventory (stats only)'
         }[profile] || profile;
+
+        // Determine which severities cause failures (same logic as determineExitCode in cli.js)
+        const failOnSeverities = this.options.failOn
+            ? this.options.failOn.toLowerCase().split(',').map(s => s.trim())
+            : ['critical']; // Default: only fail on critical
+
+        // Never fail in warnOnly mode or inventory profile
+        const isNeverFail = this.options.warnOnly || this.options.syntaxProfile === 'inventory';
+
+        // Count issues by severity
+        const sev = syntax.summary.bySeverity || {
+            critical: syntax.issues.filter(i => i.severity === 'critical').length,
+            high: syntax.issues.filter(i => i.severity === 'high').length,
+            medium: syntax.issues.filter(i => i.severity === 'medium').length,
+            low: syntax.issues.filter(i => i.severity === 'low').length,
+            info: syntax.issues.filter(i => i.severity === 'info').length || 0
+        };
+
+        // Separate failing vs non-blocking based on failOnSeverities
+        const failingSeverities = isNeverFail ? [] : failOnSeverities;
+        const failingCount = failingSeverities.reduce((sum, s) => sum + (sev[s] || 0), 0);
+        const nonBlockingSeverities = ['critical', 'high', 'medium', 'low', 'info'].filter(s => !failingSeverities.includes(s));
+        const nonBlockingCount = nonBlockingSeverities.reduce((sum, s) => sum + (sev[s] || 0), 0);
 
         console.log(c('─'.repeat(60), 'dim'));
         console.log(c(' SYNTAX VALIDATION RESULTS', 'bright', 'yellow'));
@@ -325,15 +357,78 @@ class EduScan {
         }
         console.log('');
 
-        // Show severity breakdown (useful for inventory mode)
-        if (syntax.summary.bySeverity && syntax.summary.totalIssues > 0) {
-            console.log(c('  Issues by Severity:', 'bright'));
-            const sev = syntax.summary.bySeverity;
-            if (sev.critical > 0) console.log(`    ${c('CRITICAL:', 'red', 'bright')} ${sev.critical}`);
-            if (sev.high > 0) console.log(`    ${c('HIGH:', 'red')}     ${sev.high}`);
-            if (sev.medium > 0) console.log(`    ${c('MEDIUM:', 'yellow')}   ${sev.medium}`);
-            if (sev.low > 0) console.log(`    ${c('LOW:', 'blue')}      ${sev.low}`);
-            console.log('');
+        // Show severity breakdown in two blocks: FAILING and NON-BLOCKING
+        if (syntax.summary.totalIssues > 0) {
+            // Box drawing characters for color mode, plain text for no-color
+            const box = useColor ? {
+                tl: '\u250C', tr: '\u2510', bl: '\u2514', br: '\u2518',
+                h: '\u2500', v: '\u2502'
+            } : {
+                tl: '+', tr: '+', bl: '+', br: '+',
+                h: '-', v: '|'
+            };
+
+            // FAILING block (only if there are failing severities configured)
+            if (!isNeverFail && failingSeverities.length > 0) {
+                const failingLabel = ' FAILING (exit code 1 if any) ';
+                const failingWidth = 48;
+                const failingPadding = failingWidth - failingLabel.length - 2;
+
+                console.log(c(`  ${box.tl}${box.h}${failingLabel}${box.h.repeat(failingPadding)}${box.tr}`, 'red'));
+
+                // Build the counts line
+                const failingParts = [];
+                if (failingSeverities.includes('critical')) {
+                    failingParts.push(`${c('CRITICAL:', 'red', 'bright')} ${sev.critical}`);
+                }
+                if (failingSeverities.includes('high')) {
+                    failingParts.push(`${c('HIGH:', 'red')} ${sev.high}`);
+                }
+                if (failingSeverities.includes('medium')) {
+                    failingParts.push(`${c('MEDIUM:', 'yellow')} ${sev.medium}`);
+                }
+                if (failingSeverities.includes('low')) {
+                    failingParts.push(`${c('LOW:', 'blue')} ${sev.low}`);
+                }
+
+                const failingLine = failingParts.join('    ');
+                console.log(c(`  ${box.v}  `, 'red') + failingLine);
+                console.log(c(`  ${box.bl}${box.h.repeat(failingWidth)}${box.br}`, 'red'));
+                console.log('');
+            }
+
+            // NON-BLOCKING block (only if there are non-blocking issues)
+            if (nonBlockingCount > 0 || isNeverFail) {
+                const nonBlockingLabel = ' NON-BLOCKING (informational) ';
+                const nonBlockingWidth = 48;
+                const nonBlockingPadding = nonBlockingWidth - nonBlockingLabel.length - 2;
+
+                console.log(c(`  ${box.tl}${box.h}${nonBlockingLabel}${box.h.repeat(nonBlockingPadding)}${box.tr}`, 'dim'));
+
+                // Build the counts line for non-blocking
+                const nonBlockingParts = [];
+                const displaySeverities = isNeverFail ? ['critical', 'high', 'medium', 'low', 'info'] : nonBlockingSeverities;
+
+                for (const severity of displaySeverities) {
+                    const count = sev[severity] || 0;
+                    if (severity === 'critical' && (count > 0 || isNeverFail)) {
+                        nonBlockingParts.push(`${c('CRITICAL:', 'red', 'bright')} ${count}`);
+                    } else if (severity === 'high' && (count > 0 || isNeverFail)) {
+                        nonBlockingParts.push(`${c('HIGH:', 'red')} ${count}`);
+                    } else if (severity === 'medium') {
+                        nonBlockingParts.push(`${c('MEDIUM:', 'yellow')} ${count}`);
+                    } else if (severity === 'low') {
+                        nonBlockingParts.push(`${c('LOW:', 'blue')} ${count}`);
+                    } else if (severity === 'info') {
+                        nonBlockingParts.push(`INFO: ${count}`);
+                    }
+                }
+
+                const nonBlockingLine = nonBlockingParts.join('    ');
+                console.log(c(`  ${box.v}  `, 'dim') + nonBlockingLine);
+                console.log(c(`  ${box.bl}${box.h.repeat(nonBlockingWidth)}${box.br}`, 'dim'));
+                console.log('');
+            }
         }
 
         // Show top issues
@@ -481,6 +576,44 @@ class EduScan {
     }
 
     /**
+     * Coverage scan - analyzes curriculum coverage metrics
+     * @returns {Object} Coverage analysis results
+     */
+    coverageScan() {
+        const startTime = Date.now();
+
+        if (!this.options.quiet) {
+            this.console.printHeader();
+            console.log(this.console.c('[COVERAGE]', 'cyan') + ' Analyzing curriculum coverage...\n');
+        }
+
+        // Scan and parse files
+        const scanResult = this.scanner.scan();
+        const content = this.parser.parseAll(scanResult.files);
+        const registry = this.validator.loadRegistry();
+
+        // Run coverage analysis
+        const coverage = this.coverageAnalyzer.analyze(content, registry);
+
+        if (!this.options.quiet) {
+            // Use the analyzer's built-in console formatter
+            const colorFn = this.options.colors
+                ? (text, ...colors) => this.console.c(text, ...colors)
+                : (text) => text;
+            console.log(this.coverageAnalyzer.formatForConsole(coverage, colorFn));
+        }
+
+        return {
+            coverage,
+            scanStats: {
+                filesScanned: scanResult.stats.filesScanned,
+                contentParsed: content.length,
+                duration: Date.now() - startTime
+            }
+        };
+    }
+
+    /**
      * Static convenience method
      */
     static scan(options = {}) {
@@ -510,6 +643,14 @@ class EduScan {
     static syntaxScan(options = {}) {
         const scanner = new EduScan(options);
         return scanner.syntaxScan();
+    }
+
+    /**
+     * Static coverage scan
+     */
+    static coverageScan(options = {}) {
+        const scanner = new EduScan(options);
+        return scanner.coverageScan();
     }
 }
 
