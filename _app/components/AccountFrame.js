@@ -4,10 +4,14 @@
  * Renders visual frames around user avatars indicating account type:
  * - Operative (student, default): House-colored border ring
  * - Handler (instructor): Gold pulsing frame with crossed keys sigil
+ * - Admin: Red pulsing frame with shield sigil
  *
- * Handler status is unlocked via an instructor code validated through
- * the Caesar-17 cipher system (PathCipher). The plaintext code never
- * appears in source — only the encoded form is stored as a constant.
+ * Tier hierarchy: operative < handler < admin
+ * Use hasMinimumRole() for tier-based permission checks.
+ *
+ * Handler/Admin status is unlocked via authorization codes validated through
+ * the Caesar-17 cipher system (PathCipher). The plaintext codes never
+ * appear in source — only the encoded forms are stored as constants.
  *
  * Usage:
  *   AccountFrame.injectStyles();
@@ -15,7 +19,8 @@
  *   AccountFrame.showActivationModal();
  *
  * API:
- *   AccountFrame.getAccountType()       → 'operative' | 'handler'
+ *   AccountFrame.getAccountType()       → 'operative' | 'handler' | 'admin'
+ *   AccountFrame.hasMinimumRole(role)   → boolean (tier check)
  *   AccountFrame.validateCode(input)    → boolean
  *   AccountFrame.wrap(el, options)      → wrapped element
  *   AccountFrame.showActivationModal()  → shows code entry modal
@@ -24,12 +29,12 @@
  *
  * Events:
  *   'accountTypeChanged' — dispatched on document when type changes
- *     detail: { type: 'operative' | 'handler' }
+ *     detail: { type: 'operative' | 'handler' | 'admin' }
  *
  * Dependencies:
  *   - PathCipher (config/cipher.js) — for code validation
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 const AccountFrame = (function() {
@@ -40,9 +45,13 @@ const AccountFrame = (function() {
 
     const STORAGE_KEY = 'hexworth_account_type';
 
-    // Instructor code encoded with PathCipher.encode()
+    // Authorization codes encoded with PathCipher.encode()
     // Plaintext never appears in source
     const ENCODED_HANDLER_CODE = 'YREUCVI-GIZDV';
+    const ENCODED_ADMIN_CODE = 'TWDNFIKY-GIZDV'; // Admin code
+
+    // Tier hierarchy for permission checks
+    const TIER_LEVELS = { operative: 0, handler: 1, admin: 2 };
 
     // Size configurations for frame wrapping
     const SIZE_CONFIG = {
@@ -77,6 +86,14 @@ const AccountFrame = (function() {
             <line x1="8.5" y1="3.5" x2="3" y2="9"/>
             <line x1="4.5" y1="7.5" x2="3" y2="6.5"/>
             <line x1="3.5" y1="8.5" x2="2.5" y2="7.5"/>
+        </g>
+    </svg>`;
+
+    // Admin shield SVG (inline, 12x12 viewBox)
+    const ADMIN_SHIELD_SVG = `<svg class="af-sigil" viewBox="0 0 12 12" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+        <g stroke="#ef4444" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 1L10 3V6C10 8.5 8 10.5 6 11C4 10.5 2 8.5 2 6V3L6 1Z"/>
+            <path d="M6 4V7M6 8.5V8.5" stroke-width="1"/>
         </g>
     </svg>`;
 
@@ -132,7 +149,7 @@ const AccountFrame = (function() {
 
     /**
      * Restore account type from Firebase (call on page load after auth)
-     * If Firebase has 'handler' but localStorage doesn't, restore it
+     * If Firebase has elevated status but localStorage doesn't, restore it
      */
     async function restoreFromFirebase() {
         try {
@@ -143,13 +160,17 @@ const AccountFrame = (function() {
             if (!user || !user.uid) return;
 
             const profile = await FirestoreManager.getUserProfile(user.uid);
-            if (profile && profile.accountType === 'handler') {
+            if (profile && (profile.accountType === 'handler' || profile.accountType === 'admin')) {
                 const localType = localStorage.getItem(STORAGE_KEY);
-                if (localType !== 'handler') {
-                    console.log('[AccountFrame] Restoring handler status from Firebase');
-                    localStorage.setItem(STORAGE_KEY, 'handler');
+                const localLevel = TIER_LEVELS[localType] || 0;
+                const firebaseLevel = TIER_LEVELS[profile.accountType] || 0;
+
+                // Only restore if Firebase has higher tier
+                if (firebaseLevel > localLevel) {
+                    console.log('[AccountFrame] Restoring', profile.accountType, 'status from Firebase');
+                    localStorage.setItem(STORAGE_KEY, profile.accountType);
                     document.dispatchEvent(new CustomEvent('accountTypeChanged', {
-                        detail: { type: 'handler' }
+                        detail: { type: profile.accountType }
                     }));
                     refreshAll();
                 }
@@ -160,13 +181,29 @@ const AccountFrame = (function() {
     }
 
     /**
-     * Validate an instructor code against the stored encoded constant
-     * @param {string} input - User-entered code
+     * Check if current user has at least the specified role tier
+     * Tier hierarchy: operative < handler < admin
+     * @param {'operative'|'handler'|'admin'} minimumRole - The minimum required role
      * @returns {boolean}
+     */
+    function hasMinimumRole(minimumRole) {
+        const currentType = getAccountType();
+        const currentLevel = TIER_LEVELS[currentType] || 0;
+        const requiredLevel = TIER_LEVELS[minimumRole] || 0;
+        return currentLevel >= requiredLevel;
+    }
+
+    /**
+     * Validate an authorization code against stored encoded constants
+     * @param {string} input - User-entered code
+     * @returns {'handler'|'admin'|false} - Returns the role type if valid, false otherwise
      */
     function validateCode(input) {
         if (!input || typeof PathCipher === 'undefined') return false;
-        return PathCipher.encode(input.trim()) === ENCODED_HANDLER_CODE;
+        const encoded = PathCipher.encode(input.trim());
+        if (encoded === ENCODED_ADMIN_CODE) return 'admin';
+        if (encoded === ENCODED_HANDLER_CODE) return 'handler';
+        return false;
     }
 
     /**
@@ -192,19 +229,19 @@ const AccountFrame = (function() {
         // Create wrapper
         const wrapper = document.createElement('div');
         wrapper.className = `af-wrapper af-${type} af-size-${size}`;
-        if (showTitle && type === 'handler') {
-            wrapper.setAttribute('data-title', 'HANDLER');
+        if (showTitle && (type === 'handler' || type === 'admin')) {
+            wrapper.setAttribute('data-title', type.toUpperCase());
         }
 
         // Insert wrapper around element
         element.parentNode.insertBefore(wrapper, element);
         wrapper.appendChild(element);
 
-        // Add sigil for handler
-        if (type === 'handler') {
+        // Add sigil for handler/admin
+        if (type === 'handler' || type === 'admin') {
             const sigil = document.createElement('div');
             sigil.className = 'af-sigil-badge';
-            sigil.innerHTML = CROSSED_KEYS_SVG;
+            sigil.innerHTML = type === 'admin' ? ADMIN_SHIELD_SVG : CROSSED_KEYS_SVG;
             wrapper.appendChild(sigil);
         }
 
@@ -220,20 +257,25 @@ const AccountFrame = (function() {
     function updateWrapper(wrapper, type, size, showTitle) {
         wrapper.className = `af-wrapper af-${type} af-size-${size}`;
 
-        if (showTitle && type === 'handler') {
-            wrapper.setAttribute('data-title', 'HANDLER');
+        if (showTitle && (type === 'handler' || type === 'admin')) {
+            wrapper.setAttribute('data-title', type.toUpperCase());
         } else {
             wrapper.removeAttribute('data-title');
         }
 
         // Add or remove sigil
         const existingSigil = wrapper.querySelector('.af-sigil-badge');
-        if (type === 'handler' && !existingSigil) {
+        const needsSigil = type === 'handler' || type === 'admin';
+
+        if (needsSigil && !existingSigil) {
             const sigil = document.createElement('div');
             sigil.className = 'af-sigil-badge';
-            sigil.innerHTML = CROSSED_KEYS_SVG;
+            sigil.innerHTML = type === 'admin' ? ADMIN_SHIELD_SVG : CROSSED_KEYS_SVG;
             wrapper.appendChild(sigil);
-        } else if (type !== 'handler' && existingSigil) {
+        } else if (needsSigil && existingSigil) {
+            // Update sigil if type changed
+            existingSigil.innerHTML = type === 'admin' ? ADMIN_SHIELD_SVG : CROSSED_KEYS_SVG;
+        } else if (!needsSigil && existingSigil) {
             existingSigil.remove();
         }
 
@@ -316,15 +358,17 @@ const AccountFrame = (function() {
                 return;
             }
 
-            if (validateCode(code)) {
+            const validatedRole = validateCode(code);
+            if (validatedRole) {
                 // Success
                 errorMsg.style.display = 'none';
                 input.style.display = 'none';
                 authBtn.style.display = 'none';
+                successMsg.textContent = validatedRole === 'admin' ? 'ADMIN STATUS GRANTED' : 'HANDLER STATUS GRANTED';
                 successMsg.style.display = 'block';
-                modal.classList.add('af-success-flash');
+                modal.classList.add(validatedRole === 'admin' ? 'af-admin-flash' : 'af-success-flash');
 
-                setAccountType('handler');
+                setAccountType(validatedRole);
                 refreshAll();
 
                 setTimeout(close, 1500);
@@ -393,6 +437,48 @@ const AccountFrame = (function() {
             @keyframes af-handler-pulse {
                 0%, 100% { box-shadow: 0 0 8px rgba(212, 160, 23, 0.4); }
                 50%      { box-shadow: 0 0 16px rgba(212, 160, 23, 0.7); }
+            }
+
+            /* Admin Frame */
+            .af-admin {
+                border: 2px solid #ef4444;
+                box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+                animation: af-admin-pulse 3s ease-in-out infinite;
+            }
+
+            @keyframes af-admin-pulse {
+                0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+                50%      { box-shadow: 0 0 16px rgba(239, 68, 68, 0.7); }
+            }
+
+            /* Red corner accents for admin */
+            .af-admin::before,
+            .af-admin::after {
+                content: '';
+                position: absolute;
+                width: 6px;
+                height: 6px;
+                border-color: #ef4444;
+                border-style: solid;
+                pointer-events: none;
+            }
+
+            .af-admin::before {
+                top: -3px;
+                left: -3px;
+                border-width: 2px 0 0 2px;
+                border-radius: 2px 0 0 0;
+            }
+
+            .af-admin::after {
+                bottom: -3px;
+                right: -3px;
+                border-width: 0 2px 2px 0;
+                border-radius: 0 0 2px 0;
+            }
+
+            .af-admin[data-title] {
+                cursor: default;
             }
 
             /* Gold corner accents for handler */
@@ -502,6 +588,36 @@ const AccountFrame = (function() {
             }
 
             .af-handler:hover .af-sigil-badge::after {
+                opacity: 1;
+            }
+
+            /* Admin sigil badge styling */
+            .af-admin .af-sigil-badge {
+                border-color: #ef4444;
+            }
+
+            /* Tooltip on hover for admin */
+            .af-admin .af-sigil-badge::after {
+                content: 'ADMIN';
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                margin-top: 4px;
+                padding: 2px 6px;
+                background: rgba(239, 68, 68, 0.9);
+                color: #fff;
+                font-size: 8px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                border-radius: 3px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s;
+            }
+
+            .af-admin:hover .af-sigil-badge::after {
                 opacity: 1;
             }
 
@@ -658,6 +774,17 @@ const AccountFrame = (function() {
                 100% { box-shadow: 0 0 0 rgba(212, 160, 23, 0); }
             }
 
+            /* Admin success flash on modal */
+            .af-admin-flash {
+                animation: af-red-flash 0.6s ease;
+            }
+
+            @keyframes af-red-flash {
+                0%   { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+                50%  { box-shadow: 0 0 40px rgba(239, 68, 68, 0.6), inset 0 0 20px rgba(239, 68, 68, 0.1); }
+                100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+            }
+
             /* Input shake animation */
             .af-shake {
                 animation: af-shake 0.4s ease;
@@ -697,6 +824,12 @@ const AccountFrame = (function() {
                 color: #d4a017;
                 border: 1px solid #d4a017;
             }
+
+            .af-role-badge.af-badge-admin {
+                background: rgba(239, 68, 68, 0.15);
+                color: #ef4444;
+                border: 1px solid #ef4444;
+            }
         `;
     }
 
@@ -706,6 +839,7 @@ const AccountFrame = (function() {
 
     return {
         getAccountType: getAccountType,
+        hasMinimumRole: hasMinimumRole,
         validateCode: validateCode,
         wrap: wrap,
         showActivationModal: showActivationModal,
