@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Directory Explorer - Script House</title>
+    <!-- AccessGuard: Content Protection -->
+    <style id="access-guard-preload">body{visibility:hidden;}</style>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Scanline effect overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.1) 2px,
+                rgba(0, 0, 0, 0.1) 4px
+            );
+            z-index: 9999;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(180deg, #0d1a0d 0%, #0a0a0a 100%);
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .header::before {
+            content: '[ LINUX FILESYSTEM EXPLORER ]';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: #0a0a0a;
+            padding: 0 10px;
+            color: #00ff00;
+            font-size: 0.9rem;
+        }
+
+        .header h1 {
+            color: #00ff00;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .header p {
+            color: #00aa00;
+            font-size: 0.95rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #00aa00;
+            text-decoration: none;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            border: 1px solid #00aa00;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #00ff00;
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            max-width: 400px;
+            background: #0d0d0d;
+            border: 1px solid #00aa00;
+            border-radius: 4px;
+            padding: 12px 15px;
+            color: #00ff00;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .search-input::placeholder {
+            color: #006600;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+
+        .search-hint {
+            color: #006600;
+            font-size: 0.85rem;
+        }
+
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tree Panel */
+        .tree-panel {
+            background: #0d0d0d;
+            border: 1px solid #00aa00;
+            border-radius: 4px;
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .tree-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tree-panel::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .tree-panel::-webkit-scrollbar-thumb {
+            background: #00aa00;
+            border-radius: 4px;
+        }
+
+        .tree-panel h3 {
+            color: #00ff00;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #004400;
+        }
+
+        /* Tree Structure */
+        .tree-node {
+            margin-left: 0;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            margin: 2px 0;
+        }
+
+        .tree-item:hover {
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .tree-item.selected {
+            background: rgba(0, 255, 0, 0.2);
+            border-left: 3px solid #00ff00;
+        }
+
+        .tree-item.highlight {
+            background: rgba(255, 255, 0, 0.2);
+            animation: highlight-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes highlight-pulse {
+            0%, 100% { background: rgba(255, 255, 0, 0.1); }
+            50% { background: rgba(255, 255, 0, 0.3); }
+        }
+
+        .tree-item.hidden {
+            display: none;
+        }
+
+        .tree-toggle {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            color: #00aa00;
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-toggle.empty {
+            visibility: hidden;
+        }
+
+        .tree-icon {
+            margin-right: 8px;
+            font-size: 1rem;
+        }
+
+        .tree-icon.folder {
+            color: #ffcc00;
+        }
+
+        .tree-icon.folder-open {
+            color: #ffdd33;
+        }
+
+        .tree-name {
+            color: #00ff00;
+            font-size: 0.95rem;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            display: none;
+            border-left: 1px dashed #004400;
+            padding-left: 5px;
+        }
+
+        .tree-children.expanded {
+            display: block;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            background: #0d0d0d;
+            border: 1px solid #00aa00;
+            border-radius: 4px;
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .info-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .info-panel::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .info-panel::-webkit-scrollbar-thumb {
+            background: #00aa00;
+            border-radius: 4px;
+        }
+
+        .info-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #004400;
+        }
+
+        .info-icon {
+            font-size: 2.5rem;
+        }
+
+        .info-title h2 {
+            color: #00ff00;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+
+        .info-path {
+            color: #00aa00;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .info-section {
+            margin-bottom: 25px;
+        }
+
+        .info-section h3 {
+            color: #00ff00;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #003300;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-section h3::before {
+            content: '>';
+            color: #00aa00;
+        }
+
+        .info-text {
+            color: #00cc00;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .file-list li {
+            padding: 6px 0;
+            color: #00cc00;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-list li::before {
+            content: '-';
+            color: #006600;
+        }
+
+        .file-type {
+            color: #006600;
+            font-size: 0.85rem;
+            margin-left: auto;
+        }
+
+        .permissions-box {
+            background: #0a0a0a;
+            border: 1px solid #003300;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .perm-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #002200;
+        }
+
+        .perm-row:last-child {
+            border-bottom: none;
+        }
+
+        .perm-label {
+            color: #006600;
+        }
+
+        .perm-value {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .command-box {
+            background: #000000;
+            border: 1px solid #003300;
+            border-radius: 4px;
+            padding: 12px 15px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .command-prompt {
+            color: #00ff00;
+        }
+
+        .command-text {
+            color: #00cc00;
+            flex: 1;
+        }
+
+        .command-desc {
+            color: #006600;
+            font-size: 0.85rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #006600;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: #00aa00;
+            margin-bottom: 10px;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #0d0d0d;
+            border: 1px solid #003300;
+            border-radius: 4px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: #006600;
+            font-size: 0.85rem;
+        }
+
+        .stat-value {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: rgba(0, 100, 0, 0.1);
+            border-radius: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #00aa00;
+        }
+
+        /* Tag badges */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+
+        .tag-essential {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff6666;
+            border: 1px solid #ff6666;
+        }
+
+        .tag-virtual {
+            background: rgba(0, 200, 255, 0.2);
+            color: #00ccff;
+            border: 1px solid #00ccff;
+        }
+
+        .tag-user {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+
+        .tag-temp {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            border: 1px solid #ffff00;
+        }
+
+        /* Blinking cursor effect */
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background: #00ff00;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../../index.html" class="back-link">&lt;-- Back to Script House</a>
+
+        <div class="header">
+            <h1>/ Linux Filesystem Explorer<span class="cursor"></span></h1>
+            <p>Interactive navigation through the standard Linux directory hierarchy (FHS)</p>
+        </div>
+
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search directories... (e.g., 'etc' or 'log')">
+                <span class="search-hint">Press Enter to search, Esc to clear</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Tree Panel -->
+            <div class="tree-panel">
+                <h3>> Directory Tree</h3>
+                <div id="treeContainer"></div>
+            </div>
+
+            <!-- Info Panel -->
+            <div class="info-panel">
+                <div id="infoContent">
+                    <div class="empty-state">
+                        <div class="icon">[ ]</div>
+                        <h3>Select a Directory</h3>
+                        <p>Click on any folder in the tree to view its details</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Total Directories:</span>
+                <span class="stat-value" id="totalDirs">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Currently Viewing:</span>
+                <span class="stat-value" id="currentPath">/</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Search Results:</span>
+                <span class="stat-value" id="searchResults">--</span>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span style="color:#ff6666">[!]</span> Essential System</div>
+            <div class="legend-item"><span style="color:#00ccff">[V]</span> Virtual/Pseudo</div>
+            <div class="legend-item"><span style="color:#00ff00">[U]</span> User Space</div>
+            <div class="legend-item"><span style="color:#ffff00">[T]</span> Temporary</div>
+        </div>
+    </div>
+
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        // Initialize AccessGuard
+        AccessGuard.require('sorted');
+    </script>
+    <script>
+        // Linux Filesystem Data Structure
+        const filesystemData = {
+            name: '/',
+            path: '/',
+            description: 'The root directory is the top of the filesystem hierarchy. Every file and directory on a Linux system starts from root. Unlike Windows with multiple drive letters (C:, D:), Linux uses a single unified tree structure.',
+            tag: 'essential',
+            owner: 'root:root',
+            permissions: 'drwxr-xr-x (755)',
+            commonFiles: [
+                { name: '.', desc: 'Current directory reference' },
+                { name: '..', desc: 'Parent directory (same as / at root)' }
+            ],
+            commands: [
+                { cmd: 'ls /', desc: 'List root directory contents' },
+                { cmd: 'cd /', desc: 'Change to root directory' },
+                { cmd: 'df -h /', desc: 'Show disk usage for root filesystem' }
+            ],
+            children: [
+                {
+                    name: 'bin',
+                    path: '/bin',
+                    description: 'Essential user command binaries. Contains fundamental commands needed for single-user mode and system recovery. On modern systems, this is often a symlink to /usr/bin.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'bash', desc: 'Bourne Again Shell' },
+                        { name: 'ls', desc: 'List directory contents' },
+                        { name: 'cp', desc: 'Copy files' },
+                        { name: 'mv', desc: 'Move/rename files' },
+                        { name: 'rm', desc: 'Remove files' },
+                        { name: 'cat', desc: 'Concatenate and display files' },
+                        { name: 'grep', desc: 'Search text patterns' },
+                        { name: 'chmod', desc: 'Change file permissions' }
+                    ],
+                    commands: [
+                        { cmd: 'ls -la /bin', desc: 'List all binaries with details' },
+                        { cmd: 'which bash', desc: 'Find location of bash' },
+                        { cmd: 'file /bin/ls', desc: 'Determine file type' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'sbin',
+                    path: '/sbin',
+                    description: 'System binaries essential for booting, restoring, or repairing the system. These commands typically require root privileges. On modern systems, often symlinked to /usr/sbin.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'init', desc: 'Process 1 (or symlink to systemd)' },
+                        { name: 'fdisk', desc: 'Partition table manipulator' },
+                        { name: 'fsck', desc: 'Filesystem check and repair' },
+                        { name: 'mkfs', desc: 'Build a filesystem' },
+                        { name: 'iptables', desc: 'Firewall configuration' },
+                        { name: 'ifconfig', desc: 'Network interface config' },
+                        { name: 'reboot', desc: 'Restart the system' },
+                        { name: 'shutdown', desc: 'Halt/poweroff the system' }
+                    ],
+                    commands: [
+                        { cmd: 'sudo /sbin/fdisk -l', desc: 'List partition tables' },
+                        { cmd: 'sudo /sbin/iptables -L', desc: 'List firewall rules' },
+                        { cmd: '/sbin/ifconfig -a', desc: 'Show all network interfaces' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'etc',
+                    path: '/etc',
+                    description: 'System-wide configuration files. The name historically meant "et cetera" but now stands for "Editable Text Configuration". Critical for system behavior and service configuration.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'passwd', desc: 'User account information' },
+                        { name: 'shadow', desc: 'Encrypted passwords (root only)' },
+                        { name: 'group', desc: 'Group definitions' },
+                        { name: 'hosts', desc: 'Static hostname mappings' },
+                        { name: 'fstab', desc: 'Filesystem mount table' },
+                        { name: 'ssh/', desc: 'SSH server configuration' },
+                        { name: 'nginx/', desc: 'Nginx web server config' },
+                        { name: 'crontab', desc: 'System cron jobs' }
+                    ],
+                    commands: [
+                        { cmd: 'cat /etc/passwd', desc: 'View user accounts' },
+                        { cmd: 'cat /etc/hosts', desc: 'View hostname mappings' },
+                        { cmd: 'ls /etc/*.conf', desc: 'List configuration files' }
+                    ],
+                    children: [
+                        {
+                            name: 'ssh',
+                            path: '/etc/ssh',
+                            description: 'SSH daemon configuration. Contains host keys and sshd_config for server settings.',
+                            tag: 'essential',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'sshd_config', desc: 'SSH daemon configuration' },
+                                { name: 'ssh_config', desc: 'SSH client defaults' },
+                                { name: 'ssh_host_*_key', desc: 'Host private keys' }
+                            ],
+                            commands: [
+                                { cmd: 'cat /etc/ssh/sshd_config', desc: 'View SSH server config' },
+                                { cmd: 'sudo systemctl restart sshd', desc: 'Restart SSH daemon' }
+                            ],
+                            children: []
+                        },
+                        {
+                            name: 'systemd',
+                            path: '/etc/systemd',
+                            description: 'Systemd configuration directory. Contains system and user service configurations.',
+                            tag: 'essential',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'system/', desc: 'System unit files' },
+                                { name: 'user/', desc: 'User unit files' },
+                                { name: 'system.conf', desc: 'Manager configuration' }
+                            ],
+                            commands: [
+                                { cmd: 'systemctl list-units', desc: 'List active units' },
+                                { cmd: 'systemctl status <service>', desc: 'Check service status' }
+                            ],
+                            children: []
+                        }
+                    ]
+                },
+                {
+                    name: 'home',
+                    path: '/home',
+                    description: 'User home directories. Each user has a subdirectory here containing personal files, configurations, and data. The ~ shortcut refers to the current user\'s home.',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: '<username>/', desc: 'User home directory' },
+                        { name: '.bashrc', desc: 'Bash shell configuration' },
+                        { name: '.ssh/', desc: 'SSH keys and config' },
+                        { name: '.config/', desc: 'Application configs (XDG)' },
+                        { name: 'Documents/', desc: 'User documents' },
+                        { name: 'Downloads/', desc: 'Downloaded files' }
+                    ],
+                    commands: [
+                        { cmd: 'cd ~', desc: 'Go to your home directory' },
+                        { cmd: 'ls -la ~', desc: 'List home with hidden files' },
+                        { cmd: 'du -sh /home/*', desc: 'Disk usage per user' }
+                    ],
+                    children: [
+                        {
+                            name: 'user',
+                            path: '/home/user',
+                            description: 'Example user home directory. Contains personal files, shell configuration, and application data.',
+                            tag: 'user',
+                            owner: 'user:user',
+                            permissions: 'drwxr-x--- (750)',
+                            commonFiles: [
+                                { name: '.bashrc', desc: 'Bash configuration' },
+                                { name: '.profile', desc: 'Login shell profile' },
+                                { name: '.ssh/', desc: 'SSH keys directory' },
+                                { name: '.local/', desc: 'User-local data' }
+                            ],
+                            commands: [
+                                { cmd: 'cat ~/.bashrc', desc: 'View bash config' },
+                                { cmd: 'ssh-keygen', desc: 'Generate SSH keys' }
+                            ],
+                            children: []
+                        }
+                    ]
+                },
+                {
+                    name: 'var',
+                    path: '/var',
+                    description: 'Variable data files. Contains files that are expected to grow or change during normal system operation: logs, mail spools, print queues, and temporary files.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'log/', desc: 'System and application logs' },
+                        { name: 'lib/', desc: 'Variable state information' },
+                        { name: 'cache/', desc: 'Application cache data' },
+                        { name: 'spool/', desc: 'Spool directories (mail, print)' },
+                        { name: 'www/', desc: 'Web server document root' },
+                        { name: 'tmp/', desc: 'Temporary files (survives reboot)' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /var/log', desc: 'List log files' },
+                        { cmd: 'tail -f /var/log/syslog', desc: 'Follow system log' },
+                        { cmd: 'du -sh /var/*', desc: 'Disk usage breakdown' }
+                    ],
+                    children: [
+                        {
+                            name: 'log',
+                            path: '/var/log',
+                            description: 'System log files. Critical for troubleshooting, security auditing, and system monitoring. Most logs require root to read.',
+                            tag: 'essential',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'syslog', desc: 'General system messages' },
+                                { name: 'auth.log', desc: 'Authentication logs' },
+                                { name: 'kern.log', desc: 'Kernel messages' },
+                                { name: 'dmesg', desc: 'Boot/hardware messages' },
+                                { name: 'apache2/', desc: 'Apache web server logs' },
+                                { name: 'nginx/', desc: 'Nginx web server logs' }
+                            ],
+                            commands: [
+                                { cmd: 'tail -f /var/log/syslog', desc: 'Follow system log' },
+                                { cmd: 'grep "error" /var/log/syslog', desc: 'Search for errors' },
+                                { cmd: 'journalctl -xe', desc: 'View systemd journal' }
+                            ],
+                            children: []
+                        },
+                        {
+                            name: 'www',
+                            path: '/var/www',
+                            description: 'Web server document root. Default location for website files served by Apache, Nginx, or other web servers.',
+                            tag: 'user',
+                            owner: 'www-data:www-data',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'html/', desc: 'Default document root' },
+                                { name: 'index.html', desc: 'Default homepage' }
+                            ],
+                            commands: [
+                                { cmd: 'ls -la /var/www/html', desc: 'List web files' },
+                                { cmd: 'sudo chown -R www-data:www-data /var/www', desc: 'Fix web ownership' }
+                            ],
+                            children: []
+                        }
+                    ]
+                },
+                {
+                    name: 'tmp',
+                    path: '/tmp',
+                    description: 'Temporary files. Cleared on reboot. World-writable with sticky bit set, meaning users can only delete their own files. Often mounted as tmpfs (RAM disk).',
+                    tag: 'temp',
+                    owner: 'root:root',
+                    permissions: 'drwxrwxrwt (1777)',
+                    commonFiles: [
+                        { name: '(various)', desc: 'Temporary application files' },
+                        { name: 'systemd-*', desc: 'Systemd temporary data' }
+                    ],
+                    commands: [
+                        { cmd: 'ls -la /tmp', desc: 'List temporary files' },
+                        { cmd: 'mktemp', desc: 'Create a temporary file' },
+                        { cmd: 'df -h /tmp', desc: 'Check tmp space (may be RAM)' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'usr',
+                    path: '/usr',
+                    description: 'User programs and data. Secondary hierarchy containing the majority of user utilities, applications, and libraries. Historically "Unix System Resources", not "user".',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'bin/', desc: 'User command binaries' },
+                        { name: 'sbin/', desc: 'System binaries' },
+                        { name: 'lib/', desc: 'Libraries for /usr/bin' },
+                        { name: 'local/', desc: 'Locally installed software' },
+                        { name: 'share/', desc: 'Architecture-independent data' },
+                        { name: 'include/', desc: 'C/C++ header files' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /usr/bin | wc -l', desc: 'Count user commands' },
+                        { cmd: 'which python3', desc: 'Find program location' },
+                        { cmd: 'dpkg -L package', desc: 'List package files' }
+                    ],
+                    children: [
+                        {
+                            name: 'bin',
+                            path: '/usr/bin',
+                            description: 'Non-essential user command binaries. Most user commands live here. On modern merged-usr systems, /bin is a symlink to this directory.',
+                            tag: 'user',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'python3', desc: 'Python interpreter' },
+                                { name: 'vim', desc: 'Vi IMproved editor' },
+                                { name: 'git', desc: 'Version control' },
+                                { name: 'curl', desc: 'Transfer data from URLs' },
+                                { name: 'wget', desc: 'Download files' }
+                            ],
+                            commands: [
+                                { cmd: 'ls /usr/bin | head -20', desc: 'List first 20 commands' },
+                                { cmd: 'file /usr/bin/python3', desc: 'Check file type' }
+                            ],
+                            children: []
+                        },
+                        {
+                            name: 'local',
+                            path: '/usr/local',
+                            description: 'Locally installed software. Software compiled from source or installed outside the package manager goes here to avoid conflicts.',
+                            tag: 'user',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'bin/', desc: 'Local binaries' },
+                                { name: 'lib/', desc: 'Local libraries' },
+                                { name: 'share/', desc: 'Local data files' }
+                            ],
+                            commands: [
+                                { cmd: 'ls /usr/local/bin', desc: 'List local programs' },
+                                { cmd: 'echo $PATH', desc: 'Verify in PATH' }
+                            ],
+                            children: []
+                        },
+                        {
+                            name: 'share',
+                            path: '/usr/share',
+                            description: 'Architecture-independent data. Documentation, man pages, icons, fonts, and other data shared across architectures.',
+                            tag: 'user',
+                            owner: 'root:root',
+                            permissions: 'drwxr-xr-x (755)',
+                            commonFiles: [
+                                { name: 'man/', desc: 'Manual pages' },
+                                { name: 'doc/', desc: 'Documentation' },
+                                { name: 'icons/', desc: 'Icon themes' },
+                                { name: 'fonts/', desc: 'Font files' }
+                            ],
+                            commands: [
+                                { cmd: 'man ls', desc: 'View man page' },
+                                { cmd: 'ls /usr/share/doc', desc: 'Browse documentation' }
+                            ],
+                            children: []
+                        }
+                    ]
+                },
+                {
+                    name: 'opt',
+                    path: '/opt',
+                    description: 'Optional application software packages. Third-party applications that don\'t follow the standard FHS layout install here. Each package gets its own subdirectory.',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: '<vendor>/<app>', desc: 'Third-party applications' },
+                        { name: 'google/', desc: 'Google applications' },
+                        { name: 'microsoft/', desc: 'Microsoft applications' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /opt', desc: 'List installed packages' },
+                        { cmd: 'du -sh /opt/*', desc: 'Size of each package' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'dev',
+                    path: '/dev',
+                    description: 'Device files. Everything is a file in Linux - including hardware devices. This virtual filesystem provides device nodes for hardware access.',
+                    tag: 'virtual',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'sda', desc: 'First SATA/SCSI disk' },
+                        { name: 'sda1', desc: 'First partition of sda' },
+                        { name: 'null', desc: 'Discard output (black hole)' },
+                        { name: 'zero', desc: 'Endless stream of zeros' },
+                        { name: 'random', desc: 'Random number generator' },
+                        { name: 'tty', desc: 'Current terminal' },
+                        { name: 'stdin', desc: 'Standard input (fd 0)' },
+                        { name: 'stdout', desc: 'Standard output (fd 1)' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /dev/sd*', desc: 'List disk devices' },
+                        { cmd: 'cat /dev/null', desc: 'Output nothing' },
+                        { cmd: 'dd if=/dev/zero of=file bs=1M count=10', desc: 'Create 10MB file of zeros' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'proc',
+                    path: '/proc',
+                    description: 'Process information pseudo-filesystem. Virtual filesystem providing process and kernel information. Each running process has a numbered directory here.',
+                    tag: 'virtual',
+                    owner: 'root:root',
+                    permissions: 'dr-xr-xr-x (555)',
+                    commonFiles: [
+                        { name: '<pid>/', desc: 'Process information' },
+                        { name: 'cpuinfo', desc: 'CPU information' },
+                        { name: 'meminfo', desc: 'Memory information' },
+                        { name: 'version', desc: 'Kernel version' },
+                        { name: 'cmdline', desc: 'Kernel boot parameters' },
+                        { name: 'mounts', desc: 'Mounted filesystems' }
+                    ],
+                    commands: [
+                        { cmd: 'cat /proc/cpuinfo', desc: 'View CPU details' },
+                        { cmd: 'cat /proc/meminfo', desc: 'View memory stats' },
+                        { cmd: 'ls /proc/$$', desc: 'Current shell process' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'sys',
+                    path: '/sys',
+                    description: 'Sysfs virtual filesystem. Exports information about kernel subsystems, hardware devices, and associated device drivers. Used for device configuration.',
+                    tag: 'virtual',
+                    owner: 'root:root',
+                    permissions: 'dr-xr-xr-x (555)',
+                    commonFiles: [
+                        { name: 'class/', desc: 'Device classes' },
+                        { name: 'devices/', desc: 'Device hierarchy' },
+                        { name: 'block/', desc: 'Block devices' },
+                        { name: 'bus/', desc: 'Bus types (USB, PCI)' },
+                        { name: 'kernel/', desc: 'Kernel parameters' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /sys/class/net', desc: 'List network interfaces' },
+                        { cmd: 'cat /sys/class/dmi/id/product_name', desc: 'Get hardware model' },
+                        { cmd: 'ls /sys/block', desc: 'List block devices' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'boot',
+                    path: '/boot',
+                    description: 'Boot loader files. Contains the Linux kernel, initial RAM disk (initrd/initramfs), and bootloader configuration (GRUB). Critical for system startup.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'vmlinuz-*', desc: 'Linux kernel' },
+                        { name: 'initrd.img-*', desc: 'Initial RAM disk' },
+                        { name: 'grub/', desc: 'GRUB bootloader config' },
+                        { name: 'config-*', desc: 'Kernel configuration' },
+                        { name: 'System.map-*', desc: 'Kernel symbol table' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /boot', desc: 'List boot files' },
+                        { cmd: 'uname -r', desc: 'Current kernel version' },
+                        { cmd: 'cat /boot/grub/grub.cfg', desc: 'View GRUB config' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'lib',
+                    path: '/lib',
+                    description: 'Essential shared libraries needed by binaries in /bin and /sbin. Contains the C library and kernel modules. On modern systems, may symlink to /usr/lib.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'libc.so.*', desc: 'C standard library' },
+                        { name: 'ld-linux*.so*', desc: 'Dynamic linker' },
+                        { name: 'modules/', desc: 'Kernel modules' },
+                        { name: 'firmware/', desc: 'Device firmware' }
+                    ],
+                    commands: [
+                        { cmd: 'ldd /bin/ls', desc: 'List library dependencies' },
+                        { cmd: 'ls /lib/modules/$(uname -r)', desc: 'List kernel modules' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'lib64',
+                    path: '/lib64',
+                    description: '64-bit shared libraries. On 64-bit systems, contains 64-bit versions of essential libraries. May be a symlink to /usr/lib64 on modern systems.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'ld-linux-x86-64.so.2', desc: '64-bit dynamic linker' },
+                        { name: 'libc.so.6', desc: '64-bit C library' }
+                    ],
+                    commands: [
+                        { cmd: 'file /lib64/ld-linux-x86-64.so.2', desc: 'Check linker type' },
+                        { cmd: 'ldconfig -p | grep lib64', desc: 'List 64-bit libraries' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'mnt',
+                    path: '/mnt',
+                    description: 'Temporary mount point. Traditionally used by system administrators for manually mounting filesystems temporarily (USB drives, network shares, etc.).',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: '(empty by default)', desc: 'Used for manual mounts' }
+                    ],
+                    commands: [
+                        { cmd: 'sudo mount /dev/sdb1 /mnt', desc: 'Mount a device' },
+                        { cmd: 'ls /mnt', desc: 'List mounted contents' },
+                        { cmd: 'sudo umount /mnt', desc: 'Unmount device' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'media',
+                    path: '/media',
+                    description: 'Mount points for removable media. Modern desktop systems auto-mount USB drives, CD-ROMs, and other removable storage here under user subdirectories.',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: '<username>/', desc: 'User mount points' },
+                        { name: 'cdrom/', desc: 'CD-ROM mount' },
+                        { name: 'usb/', desc: 'USB drive mounts' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /media/$USER', desc: 'List your mounted media' },
+                        { cmd: 'lsblk', desc: 'List block devices' },
+                        { cmd: 'udisksctl mount -b /dev/sdb1', desc: 'Mount via udisks' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'root',
+                    path: '/root',
+                    description: 'Home directory for the root user. Unlike regular users in /home, the superuser\'s home is at the top level for access even if /home is on a separate partition.',
+                    tag: 'essential',
+                    owner: 'root:root',
+                    permissions: 'drwx------ (700)',
+                    commonFiles: [
+                        { name: '.bashrc', desc: 'Root bash config' },
+                        { name: '.ssh/', desc: 'Root SSH keys' },
+                        { name: '.bash_history', desc: 'Command history' }
+                    ],
+                    commands: [
+                        { cmd: 'sudo ls /root', desc: 'List root home (requires sudo)' },
+                        { cmd: 'sudo cat /root/.bashrc', desc: 'View root bash config' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'run',
+                    path: '/run',
+                    description: 'Runtime variable data. Transient state files created since boot. Stored in tmpfs (RAM) and cleared on reboot. Contains PIDs, sockets, and lock files.',
+                    tag: 'virtual',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'user/', desc: 'User runtime data' },
+                        { name: 'lock/', desc: 'Lock files' },
+                        { name: 'systemd/', desc: 'Systemd runtime data' },
+                        { name: '*.pid', desc: 'Process ID files' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /run', desc: 'List runtime files' },
+                        { cmd: 'cat /run/sshd.pid', desc: 'View SSH daemon PID' },
+                        { cmd: 'df -h /run', desc: 'Check runtime tmpfs size' }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'srv',
+                    path: '/srv',
+                    description: 'Site-specific data served by the system. Data for services like web servers, FTP, rsync. Less commonly used; many admins prefer /var/www.',
+                    tag: 'user',
+                    owner: 'root:root',
+                    permissions: 'drwxr-xr-x (755)',
+                    commonFiles: [
+                        { name: 'http/', desc: 'Web server data' },
+                        { name: 'ftp/', desc: 'FTP server data' },
+                        { name: 'git/', desc: 'Git repositories' }
+                    ],
+                    commands: [
+                        { cmd: 'ls /srv', desc: 'List service data' },
+                        { cmd: 'sudo mkdir /srv/myproject', desc: 'Create project directory' }
+                    ],
+                    children: []
+                }
+            ]
+        };
+
+        // State
+        let selectedNode = null;
+        let totalDirs = 0;
+
+        // Count total directories
+        function countDirs(node) {
+            let count = 1;
+            if (node.children) {
+                node.children.forEach(child => {
+                    count += countDirs(child);
+                });
+            }
+            return count;
+        }
+
+        // Build tree HTML
+        function buildTree(node, isRoot = false) {
+            const hasChildren = node.children && node.children.length > 0;
+            const toggleClass = hasChildren ? '' : 'empty';
+
+            let html = `
+                <div class="tree-node" data-path="${node.path}">
+                    <div class="tree-item" onclick="selectNode('${node.path}')">
+                        <span class="tree-toggle ${toggleClass}" onclick="event.stopPropagation(); toggleNode('${node.path}')">&#9654;</span>
+                        <span class="tree-icon folder">&#128193;</span>
+                        <span class="tree-name">${node.name}</span>
+                        ${getTagBadge(node.tag)}
+                    </div>
+            `;
+
+            if (hasChildren) {
+                html += `<div class="tree-children" data-parent="${node.path}">`;
+                node.children.forEach(child => {
+                    html += buildTree(child);
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        // Get tag badge HTML
+        function getTagBadge(tag) {
+            const badges = {
+                essential: '<span class="tag tag-essential">[!]</span>',
+                virtual: '<span class="tag tag-virtual">[V]</span>',
+                user: '<span class="tag tag-user">[U]</span>',
+                temp: '<span class="tag tag-temp">[T]</span>'
+            };
+            return badges[tag] || '';
+        }
+
+        // Find node by path
+        function findNode(path, node = filesystemData) {
+            if (node.path === path) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNode(path, child);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        // Toggle node expansion
+        function toggleNode(path) {
+            const nodeEl = document.querySelector(`[data-path="${path}"]`);
+            const toggle = nodeEl.querySelector('.tree-toggle');
+            const children = nodeEl.querySelector('.tree-children');
+            const icon = nodeEl.querySelector('.tree-icon');
+
+            if (children) {
+                toggle.classList.toggle('expanded');
+                children.classList.toggle('expanded');
+                icon.classList.toggle('folder-open');
+            }
+        }
+
+        // Select node and show info
+        function selectNode(path) {
+            // Update selection styling
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            const nodeEl = document.querySelector(`[data-path="${path}"]`);
+            nodeEl.querySelector('.tree-item').classList.add('selected');
+
+            // Expand parent nodes
+            toggleNode(path);
+
+            // Update current path display
+            document.getElementById('currentPath').textContent = path;
+
+            // Get node data and render info
+            const node = findNode(path);
+            if (node) {
+                selectedNode = node;
+                renderInfoPanel(node);
+            }
+        }
+
+        // Render info panel
+        function renderInfoPanel(node) {
+            const infoContent = document.getElementById('infoContent');
+
+            const iconMap = {
+                '/': '/',
+                essential: '&#128274;',
+                virtual: '&#9881;',
+                user: '&#128100;',
+                temp: '&#9200;'
+            };
+
+            const tagDescMap = {
+                essential: 'Essential System Directory',
+                virtual: 'Virtual/Pseudo Filesystem',
+                user: 'User Space Directory',
+                temp: 'Temporary Storage'
+            };
+
+            let filesHtml = '';
+            if (node.commonFiles && node.commonFiles.length > 0) {
+                filesHtml = `
+                    <div class="info-section">
+                        <h3>Common Files</h3>
+                        <ul class="file-list">
+                            ${node.commonFiles.map(f => `
+                                <li>
+                                    <code>${f.name}</code>
+                                    <span class="file-type">${f.desc}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            let commandsHtml = '';
+            if (node.commands && node.commands.length > 0) {
+                commandsHtml = `
+                    <div class="info-section">
+                        <h3>Example Commands</h3>
+                        ${node.commands.map(c => `
+                            <div class="command-box">
+                                <span class="command-prompt">$</span>
+                                <code class="command-text">${c.cmd}</code>
+                            </div>
+                            <div class="command-desc"># ${c.desc}</div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            infoContent.innerHTML = `
+                <div class="info-header">
+                    <div class="info-icon">&#128193;</div>
+                    <div class="info-title">
+                        <h2>${node.name === '/' ? '/ (root)' : node.name}</h2>
+                        <div class="info-path">${node.path}</div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>Purpose</h3>
+                    <p class="info-text">${node.description}</p>
+                </div>
+
+                <div class="info-section">
+                    <h3>Permissions</h3>
+                    <div class="permissions-box">
+                        <div class="perm-row">
+                            <span class="perm-label">Owner</span>
+                            <span class="perm-value">${node.owner}</span>
+                        </div>
+                        <div class="perm-row">
+                            <span class="perm-label">Permissions</span>
+                            <span class="perm-value">${node.permissions}</span>
+                        </div>
+                        <div class="perm-row">
+                            <span class="perm-label">Type</span>
+                            <span class="perm-value">${tagDescMap[node.tag] || 'Standard Directory'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${filesHtml}
+                ${commandsHtml}
+            `;
+        }
+
+        // Search functionality
+        function searchDirectories(query) {
+            query = query.toLowerCase().trim();
+            let matchCount = 0;
+
+            // Reset all nodes
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.classList.remove('highlight', 'hidden');
+            });
+
+            if (!query) {
+                document.getElementById('searchResults').textContent = '--';
+                return;
+            }
+
+            // Find and highlight matches
+            function searchNode(node) {
+                const nodeEl = document.querySelector(`[data-path="${node.path}"]`);
+                const itemEl = nodeEl?.querySelector('.tree-item');
+
+                if (node.name.toLowerCase().includes(query) ||
+                    node.path.toLowerCase().includes(query)) {
+                    if (itemEl) {
+                        itemEl.classList.add('highlight');
+                        matchCount++;
+                        // Expand parent nodes
+                        expandToNode(node.path);
+                    }
+                }
+
+                if (node.children) {
+                    node.children.forEach(searchNode);
+                }
+            }
+
+            searchNode(filesystemData);
+            document.getElementById('searchResults').textContent = matchCount;
+        }
+
+        // Expand tree to show a specific node
+        function expandToNode(path) {
+            const parts = path.split('/').filter(p => p);
+            let currentPath = '';
+
+            parts.forEach(part => {
+                currentPath += '/' + part;
+                const children = document.querySelector(`[data-parent="${currentPath === '/' + parts[0] ? '/' : currentPath.substring(0, currentPath.lastIndexOf('/'))}"]`);
+                if (children && !children.classList.contains('expanded')) {
+                    children.classList.add('expanded');
+                    const toggle = children.previousElementSibling?.querySelector('.tree-toggle');
+                    if (toggle) toggle.classList.add('expanded');
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Count and display total directories
+            totalDirs = countDirs(filesystemData);
+            document.getElementById('totalDirs').textContent = totalDirs;
+
+            // Build tree
+            document.getElementById('treeContainer').innerHTML = buildTree(filesystemData, true);
+
+            // Auto-select root
+            selectNode('/');
+
+            // Search input handler
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    searchDirectories(searchInput.value);
+                } else if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    searchDirectories('');
+                }
+            });
+
+            // Also search on input for live filtering
+            let debounceTimer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    searchDirectories(searchInput.value);
+                }, 300);
+            });
+        });
+    </script>
+</body>
+</html>
