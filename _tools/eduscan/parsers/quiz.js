@@ -2,9 +2,17 @@
  * EduScan - Quiz Parser
  *
  * Detects QuizEngine usage and extracts configuration.
+ *
+ * Phase 2 Enhancements:
+ * - Auto-fix suggestions with computed correct values
+ * - Expanded severity model (CRITICAL, HIGH, MEDIUM, LOW)
+ * - eduscan-ignore directive support
  */
 
 const { PATTERNS, extractFirst, test } = require('../utils/patterns');
+
+// Valid house names for validation
+const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
 
 /**
  * Parse file content for quiz indicators
@@ -16,7 +24,8 @@ function parse(content, filePath) {
     const result = {
         detected: false,
         config: {},
-        issues: []
+        issues: [],
+        ignored: []
     };
 
     // Check for QuizEngine
@@ -25,6 +34,9 @@ function parse(content, filePath) {
     }
 
     result.detected = true;
+
+    // Extract ignore directives
+    const ignoreDirectives = extractIgnoreDirectives(content);
 
     // Extract configuration
     result.config = {
@@ -41,9 +53,38 @@ function parse(content, filePath) {
     };
 
     // Validate configuration and collect issues
-    validateConfig(result, filePath);
+    validateConfig(result, filePath, ignoreDirectives);
 
     return result;
+}
+
+/**
+ * Extract eduscan-ignore directives from content
+ * Format: <!-- eduscan-ignore: ISSUE-CODE reason="explanation" -->
+ * Or: <!-- eduscan-ignore-all reason="explanation" -->
+ */
+function extractIgnoreDirectives(content) {
+    const directives = {
+        all: false,
+        allReason: null,
+        codes: {}
+    };
+
+    // Check for ignore-all
+    const ignoreAllMatch = content.match(/<!--\s*eduscan-ignore-all(?::\s*reason\s*=\s*["']([^"']+)["'])?\s*-->/i);
+    if (ignoreAllMatch) {
+        directives.all = true;
+        directives.allReason = ignoreAllMatch[1] || 'No reason provided';
+    }
+
+    // Check for specific code ignores
+    const codePattern = /<!--\s*eduscan-ignore:\s*([A-Z]+-\d+)(?:\s+reason\s*=\s*["']([^"']+)["'])?\s*-->/gi;
+    let match;
+    while ((match = codePattern.exec(content)) !== null) {
+        directives.codes[match[1]] = match[2] || 'No reason provided';
+    }
+
+    return directives;
 }
 
 /**
@@ -88,99 +129,195 @@ function countQuestions(content) {
 }
 
 /**
+ * Compute the correct moduleId by stripping house prefix and -quiz suffix
+ * @param {string} moduleId - Current moduleId
+ * @param {string} pathHouse - House detected from file path
+ * @returns {string} Corrected moduleId
+ */
+function computeCorrectModuleId(moduleId, pathHouse) {
+    if (!moduleId) return null;
+
+    let corrected = moduleId;
+
+    // Strip house prefix if present (check all houses, not just path house)
+    for (const house of VALID_HOUSES) {
+        if (corrected.startsWith(house + '-')) {
+            corrected = corrected.substring(house.length + 1);
+            break;
+        }
+    }
+
+    // Strip -quiz suffix if present
+    if (corrected.endsWith('-quiz')) {
+        corrected = corrected.slice(0, -5);
+    }
+
+    return corrected;
+}
+
+/**
+ * Check if an issue should be ignored
+ */
+function shouldIgnore(code, directives) {
+    if (directives.all) return { ignored: true, reason: directives.allReason };
+    if (directives.codes[code]) return { ignored: true, reason: directives.codes[code] };
+    return { ignored: false };
+}
+
+/**
  * Validate quiz configuration and add issues
  */
-function validateConfig(result, filePath) {
+function validateConfig(result, filePath, ignoreDirectives) {
     const config = result.config;
     const pathHouse = extractHouseFromPath(filePath);
 
-    // SYNC-001: moduleId should not contain house prefix
-    if (config.moduleId && pathHouse) {
-        if (config.moduleId.startsWith(pathHouse + '-')) {
+    // Compute what the moduleId SHOULD be
+    const suggestedModuleId = computeCorrectModuleId(config.moduleId, pathHouse);
+    const hasModuleIdIssues = config.moduleId && suggestedModuleId !== config.moduleId;
+
+    // ID-001: Combined moduleId issue (house prefix or -quiz suffix)
+    // This is the primary sync-breaking issue
+    if (hasModuleIdIssues) {
+        const ignoreCheck = shouldIgnore('ID-001', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({
+                code: 'ID-001',
+                reason: ignoreCheck.reason
+            });
+        } else {
+            const problems = [];
+            if (config.moduleId.match(/^(web|shield|forge|script|cloud|code|key|eye)-/)) {
+                problems.push('has house prefix');
+            }
+            if (config.moduleId.endsWith('-quiz')) {
+                problems.push('ends with -quiz suffix');
+            }
+
             result.issues.push({
-                code: 'SYNC-001',
+                code: 'ID-001',
                 severity: 'critical',
-                type: 'moduleId_has_house_prefix',
-                message: `moduleId '${config.moduleId}' contains house prefix '${pathHouse}-'`,
+                category: 'sync',
+                type: 'moduleId_malformed',
+                message: `moduleId '${config.moduleId}' ${problems.join(' and ')} — will break sync`,
                 current: config.moduleId,
-                expected: config.moduleId.replace(pathHouse + '-', ''),
-                fix: `Remove '${pathHouse}-' prefix from moduleId`
+                suggested: suggestedModuleId,
+                fix: `Change moduleId to '${suggestedModuleId}'`,
+                autoFixable: true,
+                searchPattern: `moduleId: '${config.moduleId}'`,
+                replaceWith: `moduleId: '${suggestedModuleId}'`
             });
         }
     }
 
-    // SYNC-002: moduleId should not end with '-quiz'
-    if (config.moduleId && config.moduleId.endsWith('-quiz')) {
-        result.issues.push({
-            code: 'SYNC-002',
-            severity: 'critical',
-            type: 'moduleId_has_quiz_suffix',
-            message: `moduleId '${config.moduleId}' ends with '-quiz' suffix`,
-            current: config.moduleId,
-            expected: config.moduleId.replace(/-quiz$/, ''),
-            fix: `Remove '-quiz' suffix from moduleId`
-        });
-    }
-
     // SYNC-003: houseId should be valid
-    if (config.houseId) {
-        if (!test(config.houseId, PATTERNS.validation.validHouses)) {
+    if (config.houseId && !VALID_HOUSES.includes(config.houseId)) {
+        const ignoreCheck = shouldIgnore('SYNC-003', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({ code: 'SYNC-003', reason: ignoreCheck.reason });
+        } else {
             result.issues.push({
                 code: 'SYNC-003',
                 severity: 'critical',
+                category: 'sync',
                 type: 'invalid_houseId',
                 message: `houseId '${config.houseId}' is not a valid house name`,
                 current: config.houseId,
-                expected: pathHouse || 'one of: web, shield, forge, script, cloud, code, key, eye',
-                fix: `Change houseId to valid house name`
+                suggested: pathHouse || VALID_HOUSES[0],
+                fix: `Change houseId to '${pathHouse || 'valid house name'}'`,
+                autoFixable: pathHouse !== null
             });
         }
     }
 
     // SYNC-004: houseId should match path house
     if (config.houseId && pathHouse && config.houseId !== pathHouse) {
-        result.issues.push({
-            code: 'SYNC-004',
-            severity: 'warning',
-            type: 'houseId_path_mismatch',
-            message: `houseId '${config.houseId}' doesn't match path house '${pathHouse}'`,
-            current: config.houseId,
-            expected: pathHouse,
-            fix: `Change houseId to '${pathHouse}' to match file location`
-        });
+        const ignoreCheck = shouldIgnore('SYNC-004', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({ code: 'SYNC-004', reason: ignoreCheck.reason });
+        } else {
+            result.issues.push({
+                code: 'SYNC-004',
+                severity: 'high',
+                category: 'sync',
+                type: 'houseId_path_mismatch',
+                message: `houseId '${config.houseId}' doesn't match path house '${pathHouse}'`,
+                current: config.houseId,
+                suggested: pathHouse,
+                fix: `Change houseId to '${pathHouse}'`,
+                autoFixable: true,
+                searchPattern: `houseId: '${config.houseId}'`,
+                replaceWith: `houseId: '${pathHouse}'`
+            });
+        }
     }
 
     // CFG-001: Missing moduleId
     if (!config.moduleId) {
-        result.issues.push({
-            code: 'CFG-001',
-            severity: 'warning',
-            type: 'missing_moduleId',
-            message: 'Quiz has no moduleId configured',
-            fix: 'Add moduleId to QuizEngine configuration'
-        });
+        const ignoreCheck = shouldIgnore('CFG-001', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({ code: 'CFG-001', reason: ignoreCheck.reason });
+        } else {
+            // Try to suggest moduleId from filename
+            const filename = filePath.split('/').pop().replace('.html', '').replace(/-quiz$/, '');
+
+            result.issues.push({
+                code: 'CFG-001',
+                severity: 'high',
+                category: 'config',
+                type: 'missing_moduleId',
+                message: 'Quiz has no moduleId configured — progress cannot be tracked',
+                suggested: filename,
+                fix: `Add moduleId: '${filename}' to QuizEngine configuration`,
+                autoFixable: false
+            });
+        }
     }
 
-    // CFG-002: Missing houseId
+    // CFG-002: Missing houseId (lower severity - auto-detection works)
     if (!config.houseId) {
-        result.issues.push({
-            code: 'CFG-002',
-            severity: 'info',
-            type: 'missing_houseId',
-            message: 'Quiz has no explicit houseId (will auto-detect from URL)',
-            fix: 'Consider adding explicit houseId for reliability'
-        });
+        const ignoreCheck = shouldIgnore('CFG-002', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({ code: 'CFG-002', reason: ignoreCheck.reason });
+        } else {
+            result.issues.push({
+                code: 'CFG-002',
+                severity: 'low',
+                category: 'config',
+                type: 'missing_houseId',
+                message: 'Quiz has no explicit houseId (will auto-detect from URL)',
+                suggested: pathHouse,
+                fix: pathHouse ? `Add houseId: '${pathHouse}' for reliability` : 'Add explicit houseId',
+                autoFixable: false
+            });
+        }
     }
 
     // TRACK-001: trackProgress disabled
     if (config.trackProgress === false) {
-        result.issues.push({
-            code: 'TRACK-001',
-            severity: 'info',
-            type: 'tracking_disabled',
-            message: 'Progress tracking is disabled for this quiz',
-            fix: 'Set trackProgress: true if completion should be tracked'
-        });
+        const ignoreCheck = shouldIgnore('TRACK-001', ignoreDirectives);
+
+        if (ignoreCheck.ignored) {
+            result.ignored.push({ code: 'TRACK-001', reason: ignoreCheck.reason });
+        } else {
+            result.issues.push({
+                code: 'TRACK-001',
+                severity: 'medium',
+                category: 'tracking',
+                type: 'tracking_disabled',
+                message: 'Progress tracking is disabled for this quiz',
+                current: 'false',
+                suggested: 'true',
+                fix: 'Set trackProgress: true if completion should be tracked',
+                autoFixable: true,
+                searchPattern: 'trackProgress: false',
+                replaceWith: 'trackProgress: true'
+            });
+        }
     }
 }
 
@@ -192,4 +329,8 @@ function extractHouseFromPath(filePath) {
     return match ? match[1] : null;
 }
 
-module.exports = { parse };
+module.exports = {
+    parse,
+    computeCorrectModuleId,
+    VALID_HOUSES
+};

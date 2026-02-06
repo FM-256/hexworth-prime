@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-06 1:06:30 AM
+                    Scanned: 2026-02-06 1:26:35 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1101 |
 | Directories | 444 |
 | Content Files | 1101 |
-| Scan Duration | 593ms |
+| Scan Duration | 165ms |
 
 ### Content by Type
 
@@ -29,17 +29,17 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 8 |
+| Critical | 0 |
 | Warning | 666 |
-| Info | 367 |
-| **Total** | **1041** |
+| Info | 366 |
+| **Total** | **1034** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 524 |
-| Not Ready | 214 |
+| Ready | 528 |
+| Not Ready | 210 |
 | Unknown | 363 |
 
 
@@ -1710,7 +1710,7 @@
 | azure-fundamentals | presentation | ✓ | 2 |
 | cloud-concepts | applet | ✓ | 1 |
 | cloud-presentation | presentation | ✓ | 2 |
-| cloud-aws-quiz | quiz | ❌ | 2 |
+| aws-fundamentals | quiz | ✓ | 0 |
 | cse-01-fundamentals | quiz | ✓ | 0 |
 | cse-02-iam | quiz | ✓ | 0 |
 | cse-03-encryption | quiz | ✓ | 0 |
@@ -1927,7 +1927,7 @@
 | system-tools | presentation | ✓ | 1 |
 | windows-editions | presentation | ✓ | 2 |
 | windows-settings | presentation | ✓ | 2 |
-| forge-windows-admin-quiz | quiz | ❌ | 2 |
+| windows-admin | quiz | ✓ | 0 |
 
 ### KEY (Cryptography)
 ──────────────────────────────────────────────────
@@ -2159,7 +2159,7 @@
 | python-chapter8 | presentation | ✓ | 0 |
 | scripting-basics | presentation | ✓ | 1 |
 | linux-bash-quiz | presentation | ✓ | 1 |
-| script-linux-quiz | quiz | ❌ | 2 |
+| linux-basics | quiz | ✓ | 0 |
 
 ### SHIELD (Security)
 ──────────────────────────────────────────────────
@@ -2380,7 +2380,7 @@
 | vlan-presentation | presentation | ✓ | 1 |
 | wireless-architecture-presentation | presentation | ✓ | 1 |
 | wireless-presentation | presentation | ✓ | 1 |
-| web-subnetting-quiz | quiz | ❌ | 2 |
+| subnetting | quiz | ✓ | 0 |
 | interactive-network-simulator.v2 | presentation | ✓ | 1 |
 | packet-tracer-lite-v3 | applet | ✓ | 1 |
 | networking-textbook-ch7-20 | applet | ✓ | 1 |
@@ -2393,56 +2393,6 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
-
-### CRITICAL (8)
-
-**[SYNC-001]** moduleId 'cloud-aws-quiz' contains house prefix 'cloud-'
-  File: `houses/cloud/quizzes/aws-fundamentals-quiz.html`
-  Current: `cloud-aws-quiz`
-  Expected: `aws-quiz`
-  Fix: Remove 'cloud-' prefix from moduleId
-
-**[SYNC-002]** moduleId 'cloud-aws-quiz' ends with '-quiz' suffix
-  File: `houses/cloud/quizzes/aws-fundamentals-quiz.html`
-  Current: `cloud-aws-quiz`
-  Expected: `cloud-aws`
-  Fix: Remove '-quiz' suffix from moduleId
-
-**[SYNC-001]** moduleId 'forge-windows-admin-quiz' contains house prefix 'forge-'
-  File: `houses/forge/quizzes/windows-admin-quiz.html`
-  Current: `forge-windows-admin-quiz`
-  Expected: `windows-admin-quiz`
-  Fix: Remove 'forge-' prefix from moduleId
-
-**[SYNC-002]** moduleId 'forge-windows-admin-quiz' ends with '-quiz' suffix
-  File: `houses/forge/quizzes/windows-admin-quiz.html`
-  Current: `forge-windows-admin-quiz`
-  Expected: `forge-windows-admin`
-  Fix: Remove '-quiz' suffix from moduleId
-
-**[SYNC-001]** moduleId 'script-linux-quiz' contains house prefix 'script-'
-  File: `houses/script/quizzes/linux-basics-quiz.html`
-  Current: `script-linux-quiz`
-  Expected: `linux-quiz`
-  Fix: Remove 'script-' prefix from moduleId
-
-**[SYNC-002]** moduleId 'script-linux-quiz' ends with '-quiz' suffix
-  File: `houses/script/quizzes/linux-basics-quiz.html`
-  Current: `script-linux-quiz`
-  Expected: `script-linux`
-  Fix: Remove '-quiz' suffix from moduleId
-
-**[SYNC-001]** moduleId 'web-subnetting-quiz' contains house prefix 'web-'
-  File: `houses/web/quizzes/subnetting-quiz.html`
-  Current: `web-subnetting-quiz`
-  Expected: `subnetting-quiz`
-  Fix: Remove 'web-' prefix from moduleId
-
-**[SYNC-002]** moduleId 'web-subnetting-quiz' ends with '-quiz' suffix
-  File: `houses/web/quizzes/subnetting-quiz.html`
-  Current: `web-subnetting-quiz`
-  Expected: `web-subnetting`
-  Fix: Remove '-quiz' suffix from moduleId
 
 ### WARNING (666)
 
@@ -2577,10 +2527,6 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/privilege-escalation-lab.html`
   Fix: Add entry to content-registry.js
-
-**[CFG-001]** Quiz has no moduleId configured
-  File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
-  Fix: Add moduleId to QuizEngine configuration
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
@@ -3173,6 +3119,10 @@
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/presentations/cloud-presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/aws-fundamentals-quiz.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/applets/ansible-playbook-visualizer.html`
@@ -5110,7 +5060,7 @@
   File: `houses/web/tools/dns-header-reference.html`
   Fix: Add entry to content-registry.js
 
-### INFO (367)
+### INFO (366)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -5219,10 +5169,6 @@
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/privilege-escalation-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[CFG-002]** Quiz has no explicit houseId (will auto-detect from URL)
-  File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
-  Fix: Consider adding explicit houseId for reliability
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/session-hijacking-lab.html`
@@ -6584,7 +6530,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (542)
+### Unregistered Content (543)
 
 | Path | Type | House |
 |------|------|-------|
@@ -6707,6 +6653,7 @@
 | houses/cloud/modules/wsa/m19-troubleshooting-migration/ps-lab.html | lab | cloud |
 | houses/cloud/modules/wsa/m20-failsafe-capstone/simulation.html | presentation | cloud |
 | houses/cloud/presentations/aws-fundamentals.html | presentation | cloud |
+| houses/cloud/quizzes/aws-fundamentals-quiz.html | quiz | cloud |
 | houses/code/applets/ansible-playbook-visualizer.html | applet | code |
 | houses/code/applets/automation-visualizer.html | applet | code |
 | houses/code/applets/kubernetes-cluster-sim.html | applet | code |

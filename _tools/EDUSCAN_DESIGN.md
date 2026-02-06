@@ -295,46 +295,79 @@ Examples:
 
 ---
 
+## Severity Levels
+
+| Level | Meaning | Action Required |
+|-------|---------|-----------------|
+| CRITICAL | Breaks sync, grading, or compliance | Must fix immediately |
+| HIGH | Breaks analytics or progress tracking | Fix before deploy |
+| MEDIUM | Affects reporting consistency | Fix when convenient |
+| LOW | Hygiene, legacy, informational | Optional cleanup |
+
+---
+
 ## Issue Codes
 
 | Code | Severity | Category | Description |
 |------|----------|----------|-------------|
-| SYNC-001 | Critical | Sync | moduleId contains house prefix |
-| SYNC-002 | Critical | Sync | moduleId ends with '-quiz' suffix |
+| ID-001 | Critical | Sync | moduleId has house prefix or -quiz suffix |
 | SYNC-003 | Critical | Sync | houseId is not valid house name |
-| SYNC-004 | Critical | Sync | trackProgress disabled on tracked content |
+| SYNC-004 | High | Sync | houseId doesn't match file path |
+| CFG-001 | High | Config | Missing moduleId (progress can't be tracked) |
+| CFG-002 | Low | Config | Missing houseId (will auto-detect) |
+| TRACK-001 | Medium | Tracking | trackProgress disabled |
+| TRACK-002 | Warning | Tracking | Presentation has no progress tracking |
+| TRACK-003 | Warning | Tracking | Lab has no progress tracking |
+| TRACK-004 | Info | Tracking | Applet has no progress tracking |
 | REG-001 | Warning | Registry | Content file not in registry |
 | REG-002 | Warning | Registry | Registry entry has no matching file |
-| REG-003 | Info | Registry | Registry path doesn't match actual path |
-| PATH-001 | Warning | Paths | houseId doesn't match directory house |
-| PATH-002 | Warning | Paths | Incorrect relative path in href |
-| CFG-001 | Info | Config | Missing optional configuration |
-| CFG-002 | Warning | Config | Deprecated configuration pattern |
+
+---
+
+## Ignore Directives
+
+Add to HTML files to suppress specific issues:
+
+```html
+<!-- eduscan-ignore: ID-001 reason="legacy content" -->
+<!-- eduscan-ignore: REG-001 reason="experimental module" -->
+<!-- eduscan-ignore-all reason="archived content" -->
+```
 
 ---
 
 ## Roadmap
 
-### Phase 1: Core Scanner (Current)
-- [ ] File tree walker
-- [ ] Quiz parser
-- [ ] Presentation parser
-- [ ] Lab parser
-- [ ] JSON reporter
-- [ ] Markdown reporter
-- [ ] Basic CLI
+### Phase 1: Core Scanner (COMPLETE - Feb 6, 2026)
+- [x] File tree walker
+- [x] Quiz parser
+- [x] Presentation parser
+- [x] Lab parser
+- [x] JSON reporter
+- [x] Markdown reporter
+- [x] Basic CLI
 
-### Phase 2: Validation
-- [ ] Sync compatibility validator
-- [ ] Registry cross-reference
-- [ ] Issue detection rules
-- [ ] Severity classification
+### Phase 2: Validation + Enhancements (COMPLETE - Feb 6, 2026)
+- [x] Sync compatibility validator
+- [x] Registry cross-reference
+- [x] Issue detection rules
+- [x] Expanded severity model (CRITICAL, HIGH, MEDIUM, LOW)
+- [x] Auto-fix suggestions (suggested values in output)
+- [x] Ignore directives (eduscan-ignore comments)
+- [x] Drift tracking (--diff, --archive flags)
+- [x] Colored terminal output
+- [x] npm scripts integration
 
-### Phase 3: Polish
-- [ ] Colored terminal output
-- [ ] Progress indicators
-- [ ] Watch mode
-- [ ] npm scripts integration
+### Phase 3: Automation (Future)
+- [ ] Watch mode (--watch)
+- [ ] Auto-fix mode (--fix)
+- [ ] Pre-commit hook integration
+- [ ] CI/CD pipeline integration
+
+### Phase 4: Distribution (Future)
+- [ ] Package as executable (pkg)
+- [ ] Cross-platform builds
+- [ ] Version management
 
 ### Phase 4: Distribution
 - [ ] Package as executable (pkg)
