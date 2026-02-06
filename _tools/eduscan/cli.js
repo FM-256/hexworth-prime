@@ -24,12 +24,14 @@
  *   --coverage             Run coverage analysis (curriculum gaps)
  *   --remediation          Generate PATCH_PLAN.md and PATCH_PLAN.json
  *   --no-syntax            Disable syntax validation in full scans
+ *   --watch                Watch mode - re-scan on file changes
  *   --no-color             Disable colored output
  *   -h, --help             Show help
  *   --version              Show version
  */
 
 const path = require('path');
+const fs = require('fs');
 const EduScan = require('./index');
 const DriftTracker = require('./utils/drift');
 const RemediationPlanner = require('./utils/remediation');
@@ -57,6 +59,7 @@ function parseArgs(args) {
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
         warnOnly: false,
+        watch: false,               // Watch mode - re-scan on changes
         help: false,
         version: false
     };
@@ -170,6 +173,11 @@ function parseArgs(args) {
                 options.colors = false;
                 break;
 
+            case '-w':
+            case '--watch':
+                options.watch = true;
+                break;
+
             case '-h':
             case '--help':
                 options.help = true;
@@ -214,6 +222,7 @@ Options:
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
   --warn-only            Never exit with error code (for CI adoption)
+  -w, --watch            Watch mode - re-scan automatically on file changes
   --no-color             Disable colored output
   -h, --help             Show this help message
   --version              Show version
@@ -238,6 +247,8 @@ Examples:
   eduscan --fail-on critical         # CI gate: fail only on critical
   eduscan --fail-on critical,high    # CI gate: fail on critical or high
   eduscan --warn-only                # Never fail (for gradual adoption)
+  eduscan --watch                    # Watch mode - re-scan on file changes
+  eduscan --syntax=ci --watch        # Watch with syntax-only CI profile
   eduscan -p ./src -o ./audit        # Custom paths
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
@@ -315,6 +326,25 @@ function main() {
     options.path = path.resolve(process.cwd(), options.path);
     options.outputDir = path.resolve(process.cwd(), options.outputDir);
 
+    // Color function for console output
+    const colorFn = options.colors
+        ? (text, ...colors) => {
+            const ansi = {
+                reset: '\x1b[0m', bright: '\x1b[1m', dim: '\x1b[2m',
+                red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
+                blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m'
+            };
+            const codes = colors.map(c => ansi[c] || '').join('');
+            return `${codes}${text}${ansi.reset}`;
+        }
+        : (text) => text;
+
+    // Watch mode - run watcher instead of single scan
+    if (options.watch) {
+        runWatch(options, colorFn);
+        return; // Watch mode runs indefinitely
+    }
+
     try {
         const scanner = new EduScan(options);
         const driftTracker = new DriftTracker({
@@ -327,19 +357,6 @@ function main() {
             outputDir: options.outputDir,
             verbose: options.verbose
         }) : null;
-
-        // Color function for console output
-        const colorFn = options.colors
-            ? (text, ...colors) => {
-                const ansi = {
-                    reset: '\x1b[0m', bright: '\x1b[1m', dim: '\x1b[2m',
-                    red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
-                    blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m'
-                };
-                const codes = colors.map(c => ansi[c] || '').join('');
-                return `${codes}${text}${ansi.reset}`;
-            }
-            : (text) => text;
 
         if (options.orphansOnly) {
             // Orphan-only scan
@@ -526,6 +543,167 @@ function determineExitCode(issues, options) {
     }
 
     return 0;
+}
+
+/**
+ * Run a single scan cycle (used by both normal and watch modes)
+ * @param {Object} options - CLI options
+ * @param {Function} colorFn - Color function
+ * @returns {Object} Scan results and exit code
+ */
+function runScanCycle(options, colorFn) {
+    const EduScan = require('./index');
+    const RemediationPlanner = require('./utils/remediation');
+
+    const scanner = new EduScan(options);
+    const remediationPlanner = options.remediation ? new RemediationPlanner({
+        outputDir: options.outputDir,
+        verbose: options.verbose
+    }) : null;
+
+    let results = null;
+    let exitCode = 0;
+
+    if (options.orphansOnly) {
+        results = scanner.orphanScan();
+        if (options.remediation && remediationPlanner) {
+            const plan = remediationPlanner.generatePlan(results);
+            remediationPlanner.savePlan(plan);
+        }
+        exitCode = determineExitCode(results.orphans.issues, options);
+    } else if (options.syntaxOnly) {
+        results = scanner.syntaxScan();
+        if (options.remediation && remediationPlanner) {
+            const plan = remediationPlanner.generatePlan(results);
+            remediationPlanner.savePlan(plan);
+        }
+        exitCode = determineExitCode(results.syntax.issues, options);
+    } else if (options.coverageOnly) {
+        results = scanner.coverageScan();
+        if (options.remediation && remediationPlanner) {
+            const plan = remediationPlanner.generatePlan(results);
+            remediationPlanner.savePlan(plan);
+        }
+        exitCode = determineExitCode(results.coverage.issues, options);
+    } else {
+        results = scanner.scan();
+        if (options.remediation && remediationPlanner) {
+            const plan = remediationPlanner.generatePlan(results);
+            remediationPlanner.savePlan(plan);
+        }
+        exitCode = determineExitCode(results.validation.issues, options);
+    }
+
+    return { results, exitCode };
+}
+
+/**
+ * Watch mode - re-scan on file changes
+ * @param {Object} options - CLI options
+ * @param {Function} colorFn - Color function
+ */
+function runWatch(options, colorFn) {
+    const c = colorFn;
+    let debounceTimer = null;
+    let isScanning = false;
+    let scanCount = 0;
+
+    // Clear console helper
+    const clearConsole = () => {
+        process.stdout.write('\x1b[2J\x1b[0f');
+    };
+
+    // Run scan and show results
+    const doScan = () => {
+        if (isScanning) return;
+        isScanning = true;
+        scanCount++;
+
+        clearConsole();
+
+        console.log(c('╔═══════════════════════════════════════════════════════════════╗', 'cyan'));
+        console.log(c('║', 'cyan') + c('                     EDUSCAN WATCH MODE                        ', 'bright', 'cyan') + c('║', 'cyan'));
+        console.log(c('╚═══════════════════════════════════════════════════════════════╝', 'cyan'));
+        console.log('');
+        console.log(c(`  Scan #${scanCount} at ${new Date().toLocaleTimeString()}`, 'dim'));
+        console.log('');
+
+        try {
+            const { results, exitCode } = runScanCycle(options, colorFn);
+
+            console.log('');
+            console.log(c('─'.repeat(60), 'dim'));
+
+            if (exitCode === 0) {
+                console.log(c('  ✓ No blocking issues', 'green'));
+            } else {
+                console.log(c('  ✗ Issues detected (would fail CI)', 'red'));
+            }
+
+            console.log('');
+            console.log(c('  Watching for changes... (Ctrl+C to stop)', 'dim'));
+            console.log('');
+        } catch (err) {
+            console.error(c(`  Error: ${err.message}`, 'red'));
+            if (options.verbose) {
+                console.error(err.stack);
+            }
+            console.log('');
+            console.log(c('  Watching for changes... (Ctrl+C to stop)', 'dim'));
+        }
+
+        isScanning = false;
+    };
+
+    // Debounced change handler
+    const onFileChange = (eventType, filename) => {
+        // Skip hidden files, node_modules, and report files
+        if (filename && (
+            filename.startsWith('.') ||
+            filename.includes('node_modules') ||
+            filename.includes('TREASURE_MAP') ||
+            filename.includes('PATCH_PLAN')
+        )) {
+            return;
+        }
+
+        // Clear existing timer
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+
+        // Set new timer (debounce 500ms)
+        debounceTimer = setTimeout(doScan, 500);
+    };
+
+    // Initial scan
+    doScan();
+
+    // Set up file watcher
+    try {
+        const watchPath = options.path;
+
+        // Use recursive watch (Node 14+)
+        const watcher = fs.watch(watchPath, { recursive: true }, onFileChange);
+
+        // Handle watcher errors
+        watcher.on('error', (err) => {
+            console.error(c(`  Watch error: ${err.message}`, 'red'));
+        });
+
+        // Handle Ctrl+C gracefully
+        process.on('SIGINT', () => {
+            console.log('');
+            console.log(c('  Watch mode stopped.', 'dim'));
+            watcher.close();
+            process.exit(0);
+        });
+
+    } catch (err) {
+        console.error(c(`  Failed to start watch: ${err.message}`, 'red'));
+        console.error(c('  Make sure the path exists and is accessible.', 'dim'));
+        process.exit(1);
+    }
 }
 
 // Run
