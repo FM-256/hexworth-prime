@@ -321,6 +321,9 @@ Examples:
 | TRACK-004 | Info | Tracking | Applet has no progress tracking |
 | REG-001 | Warning | Registry | Content file not in registry |
 | REG-002 | Warning | Registry | Registry entry has no matching file |
+| REG-ORPHAN-001 | Critical | Orphan | Registry declares file but it's missing on disk |
+| FS-ORPHAN-001 | High/Med/Low | Orphan | File exists but unreachable from entry points |
+| FS-DEADPATH-001 | Medium | Orphan | Directory has no inbound references |
 
 ---
 
@@ -357,6 +360,16 @@ Add to HTML files to suppress specific issues:
 - [x] Drift tracking (--diff, --archive flags)
 - [x] Colored terminal output
 - [x] npm scripts integration
+
+### Phase 2.5: Orphan Detection (COMPLETE - Feb 6, 2026)
+- [x] Registry Orphan detection (REG-ORPHAN-001)
+- [x] Filesystem Orphan detection via reachability graph (FS-ORPHAN-001)
+- [x] Dead Path detection (FS-DEADPATH-001)
+- [x] `--orphans-only` flag for quick orphan check
+- [x] `--deep` flag for full reachability crawl
+- [x] Severity categorization (HIGH/MEDIUM/LOW based on location)
+- [x] External URL filtering (CloudFront, etc.)
+- [x] npm scripts: `scan:orphans`, `scan:orphans:deep`
 
 ### Phase 3: Automation (Future)
 - [ ] Watch mode (--watch)
@@ -429,6 +442,74 @@ npm run scan:ci       # Compare + archive for trend tracking
 
 ---
 
+## Phase 2.5 Completion Summary: Orphan Detection (Feb 6, 2026)
+
+### Orphan Types
+
+| Type | Code | Severity | Description |
+|------|------|----------|-------------|
+| Registry Orphan | REG-ORPHAN-001 | Critical | File declared in content-registry.js but missing on disk |
+| Filesystem Orphan | FS-ORPHAN-001 | Varies | File exists but unreachable from any entry point |
+| Dead Path | FS-DEADPATH-001 | Medium | Directory has no inbound references |
+
+### How It Works
+
+**Registry Orphans (always detected):**
+- Load content-registry.js entries
+- For each declared path, verify file exists on disk
+- Skip external URLs (http, https, CloudFront, etc.)
+- Report missing files as CRITICAL
+
+**Filesystem Orphans (with `--deep` flag):**
+1. Define entry points (index.html, house indexes, dashboard)
+2. Crawl references: `<a href>`, `navigateTo()`, component paths
+3. Build reachability graph of all linked files
+4. Compare against discovered content files
+5. Flag unreachable files with severity based on location:
+   - HIGH: Live house content (`houses/*/modules/`)
+   - MEDIUM: General content
+   - LOW: Archive/draft folders
+
+**Dead Paths (with `--deep` flag):**
+- Identify content directories (`modules/`, `courses/`, `labs/`)
+- Check if any files in directory are reachable
+- Flag entire directory if completely unreferenced
+
+### New CLI Commands
+
+```bash
+npm run scan:orphans        # Quick orphan check (registry only)
+npm run scan:orphans:deep   # Full reachability crawl
+```
+
+### Sample Output
+
+```
+ORPHAN DETECTION RESULTS
+────────────────────────────────────────────────────────────
+
+  Registry Orphans (declared but missing):
+    None - All registry entries have matching files
+
+  Filesystem Orphans (exist but unreachable):
+    396 HIGH - Live content unreachable
+    86 MEDIUM - Content unreachable
+    6 LOW - Archive/draft content
+
+  Dead Paths (unreferenced directories):
+    188 directories with no inbound references
+```
+
+### Why This Matters
+
+| Problem | Impact | Detection |
+|---------|--------|-----------|
+| Registry points to deleted file | Handlers assign content that 404s | REG-ORPHAN-001 |
+| Content exists but isn't linked | Students never see it, maintenance drag | FS-ORPHAN-001 |
+| Whole directory is dead | Bloats repo, false sense of coverage | FS-DEADPATH-001 |
+
+---
+
 ## Potential Applications
 
 1. **Hexworth Prime** — Original use case, audit our own content
@@ -450,6 +531,7 @@ npm run scan:ci       # Compare + archive for trend tracking
 - Sync compatibility validation logic
 - Educational topology mapping concept
 - Issue detection rule system for learning platforms
+- Reachability graph analysis for educational content orphan detection
 
 **Not novel (prior art):**
 - File scanning

@@ -11,6 +11,7 @@
 const Scanner = require('./scanner');
 const ParserOrchestrator = require('./parsers');
 const ValidatorOrchestrator = require('./validators');
+const OrphanDetector = require('./validators/orphans');
 const JSONReporter = require('./reporters/json');
 const MarkdownReporter = require('./reporters/markdown');
 const ConsoleReporter = require('./reporters/console');
@@ -25,7 +26,9 @@ class EduScan {
             format: options.format || 'both', // 'json', 'md', 'both'
             issuesOnly: options.issuesOnly || false,
             registryPath: options.registryPath || './_app/config/content-registry.js',
-            colors: options.colors !== false
+            colors: options.colors !== false,
+            orphansOnly: options.orphansOnly || false,
+            deepOrphans: options.deepOrphans || false
         };
 
         // Initialize components
@@ -41,6 +44,12 @@ class EduScan {
         this.validator = new ValidatorOrchestrator({
             verbose: this.options.verbose,
             registryPath: this.options.registryPath
+        });
+
+        this.orphanDetector = new OrphanDetector({
+            rootPath: this.options.path,
+            verbose: this.options.verbose,
+            deep: this.options.deepOrphans
         });
 
         this.console = new ConsoleReporter({
@@ -109,12 +118,33 @@ class EduScan {
             console.log(`[VALIDATE] Found ${validation.issues.length} issues`);
         }
 
+        // Phase 4: Orphan Detection
+        if (this.options.verbose) {
+            console.log('[ORPHAN] Detecting orphaned content...');
+        }
+
+        const orphans = this.orphanDetector.detect(content, registry);
+
+        // Merge orphan issues into validation issues
+        validation.issues.push(...orphans.issues);
+
+        // Re-sort issues by severity
+        validation.issues.sort((a, b) => {
+            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, info: 5 };
+            return (order[a.severity] || 6) - (order[b.severity] || 6);
+        });
+
+        if (this.options.verbose) {
+            console.log(`[ORPHAN] Found ${orphans.summary.registryOrphans} registry orphans, ${orphans.summary.filesystemOrphans} filesystem orphans`);
+        }
+
         // Compile results
         const results = {
             hierarchy: scanResult.hierarchy,
             content,
             validation,
             registry,
+            orphans,
             scanStats: {
                 ...scanResult.stats,
                 totalDuration: Date.now() - startTime
@@ -170,10 +200,131 @@ class EduScan {
 
         const scanResult = this.scanner.scan();
         const content = this.parser.parseAll(scanResult.files);
-        this.validator.loadRegistry();
+        const registry = this.validator.loadRegistry();
         const validation = this.validator.validate(content);
 
+        // Include orphan detection
+        const orphans = this.orphanDetector.detect(content, registry);
+        validation.issues.push(...orphans.issues);
+
         return validation.issues;
+    }
+
+    /**
+     * Orphan-only scan - focuses on orphan detection
+     * @returns {Object} Orphan detection results
+     */
+    orphanScan() {
+        const startTime = Date.now();
+
+        if (!this.options.quiet) {
+            this.console.printHeader();
+            console.log(this.console.c('[ORPHAN]', 'magenta') + ' Running orphan detection scan...\n');
+        }
+
+        // Scan and parse files
+        const scanResult = this.scanner.scan();
+        const content = this.parser.parseAll(scanResult.files);
+        const registry = this.validator.loadRegistry();
+
+        // Run orphan detection
+        const orphans = this.orphanDetector.detect(content, registry);
+
+        if (!this.options.quiet) {
+            this.printOrphanSummary(orphans);
+        }
+
+        return {
+            orphans,
+            scanStats: {
+                filesScanned: scanResult.stats.filesScanned,
+                contentParsed: content.length,
+                duration: Date.now() - startTime
+            }
+        };
+    }
+
+    /**
+     * Print orphan summary to console
+     */
+    printOrphanSummary(orphans) {
+        const c = (text, ...colors) => this.console.c(text, ...colors);
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log(c(' ORPHAN DETECTION RESULTS', 'bright', 'magenta'));
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
+
+        // Registry Orphans
+        console.log(c('  Registry Orphans (declared but missing):', 'bright'));
+        if (orphans.registryOrphans.length === 0) {
+            console.log(`    ${c('None', 'green')} - All registry entries have matching files`);
+        } else {
+            console.log(`    ${c(String(orphans.registryOrphans.length), 'red', 'bright')} ${c('CRITICAL', 'red')} - Files declared but missing on disk`);
+            for (const orphan of orphans.registryOrphans.slice(0, 5)) {
+                console.log(`      ${c('→', 'red')} ${orphan.entryId}: ${orphan.declaredPath}`);
+            }
+            if (orphans.registryOrphans.length > 5) {
+                console.log(c(`      ... and ${orphans.registryOrphans.length - 5} more`, 'dim'));
+            }
+        }
+        console.log('');
+
+        // Filesystem Orphans
+        if (this.options.deepOrphans) {
+            console.log(c('  Filesystem Orphans (exist but unreachable):', 'bright'));
+            if (orphans.filesystemOrphans.length === 0) {
+                console.log(`    ${c('None', 'green')} - All content files are reachable`);
+            } else {
+                // Group by severity
+                const high = orphans.filesystemOrphans.filter(o => o.severity === 'high');
+                const medium = orphans.filesystemOrphans.filter(o => o.severity === 'medium');
+                const low = orphans.filesystemOrphans.filter(o => o.severity === 'low');
+
+                if (high.length > 0) {
+                    console.log(`    ${c(String(high.length), 'red')} HIGH - Live content unreachable`);
+                }
+                if (medium.length > 0) {
+                    console.log(`    ${c(String(medium.length), 'yellow')} MEDIUM - Content unreachable`);
+                }
+                if (low.length > 0) {
+                    console.log(`    ${c(String(low.length), 'blue')} LOW - Archive/draft content`);
+                }
+
+                console.log('');
+                console.log(c('  Top unreachable files:', 'dim'));
+                for (const orphan of orphans.filesystemOrphans.slice(0, 8)) {
+                    const sevColor = { high: 'red', medium: 'yellow', low: 'blue' }[orphan.severity];
+                    console.log(`    ${c('[' + orphan.severity.toUpperCase() + ']', sevColor)} ${orphan.path}`);
+                    if (orphan.nearestParent) {
+                        console.log(c(`         nearest index: ${orphan.nearestParent}`, 'dim'));
+                    }
+                }
+                if (orphans.filesystemOrphans.length > 8) {
+                    console.log(c(`    ... and ${orphans.filesystemOrphans.length - 8} more`, 'dim'));
+                }
+            }
+            console.log('');
+
+            // Dead Paths
+            if (orphans.deadPaths.length > 0) {
+                console.log(c('  Dead Paths (unreferenced directories):', 'bright'));
+                console.log(`    ${c(String(orphans.deadPaths.length), 'yellow')} directories with no inbound references`);
+                for (const deadPath of orphans.deadPaths.slice(0, 3)) {
+                    console.log(`      ${c('→', 'yellow')} ${deadPath.directory} (${deadPath.files.length} files)`);
+                }
+                if (orphans.deadPaths.length > 3) {
+                    console.log(c(`      ... and ${orphans.deadPaths.length - 3} more`, 'dim'));
+                }
+                console.log('');
+            }
+        } else {
+            console.log(c('  Filesystem Orphans: Use --deep for reachability analysis', 'dim'));
+            console.log('');
+        }
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
     }
 
     /**
@@ -190,6 +341,14 @@ class EduScan {
     static quickScan(options = {}) {
         const scanner = new EduScan(options);
         return scanner.quickScan();
+    }
+
+    /**
+     * Static orphan scan
+     */
+    static orphanScan(options = {}) {
+        const scanner = new EduScan(options);
+        return scanner.orphanScan();
     }
 }
 

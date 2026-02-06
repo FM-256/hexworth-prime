@@ -17,6 +17,8 @@
  *   --json                 Output issues as JSON to stdout
  *   --diff                 Compare against previous scan (drift analysis)
  *   --archive              Save scan to history for future comparisons
+ *   --orphans-only         Only run orphan detection
+ *   --deep                 Enable deep reachability crawl for filesystem orphans
  *   --no-color             Disable colored output
  *   -h, --help             Show help
  *   --version              Show version
@@ -39,6 +41,8 @@ function parseArgs(args) {
         colors: true,
         diff: false,
         archive: false,
+        orphansOnly: false,
+        deepOrphans: false,
         help: false,
         version: false
     };
@@ -93,6 +97,15 @@ function parseArgs(args) {
                 options.archive = true;
                 break;
 
+            case '--orphans-only':
+            case '--orphans':
+                options.orphansOnly = true;
+                break;
+
+            case '--deep':
+                options.deepOrphans = true;
+                break;
+
             case '--no-color':
                 options.colors = false;
                 break;
@@ -114,7 +127,7 @@ function parseArgs(args) {
 // Print help
 function printHelp() {
     console.log(`
-EduScan v1.1.0 - Content Topology Scanner for Educational Platforms
+EduScan v1.2.0 - Content Topology Scanner for Educational Platforms
 
 Usage: eduscan [options]
 
@@ -128,6 +141,8 @@ Options:
   --json                 Output issues as JSON to stdout (implies --quiet)
   --diff                 Compare against previous scan (drift analysis)
   --archive              Save scan to history for future --diff comparisons
+  --orphans-only         Only run orphan detection (registry + filesystem)
+  --deep                 Enable deep reachability crawl for filesystem orphans
   --no-color             Disable colored output
   -h, --help             Show this help message
   --version              Show version
@@ -139,6 +154,8 @@ Examples:
   eduscan --diff                     # Show changes since last scan
   eduscan --archive                  # Save scan for future comparisons
   eduscan --diff --archive           # Compare + save for next time
+  eduscan --orphans-only             # Quick orphan check (registry only)
+  eduscan --orphans-only --deep      # Full orphan scan with reachability
   eduscan -p ./src -o ./audit        # Custom paths
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
@@ -149,11 +166,18 @@ Severity Levels:
   LOW        Hygiene, legacy, informational
 
 Issue Codes:
-  ID-*      moduleId issues (house prefix, -quiz suffix)
-  SYNC-*    Sync compatibility issues
-  REG-*     Registry issues (not registered, orphaned)
-  TRACK-*   Progress tracking issues
-  CFG-*     Configuration issues
+  ID-*           moduleId issues (house prefix, -quiz suffix)
+  SYNC-*         Sync compatibility issues
+  REG-*          Registry issues (not registered)
+  REG-ORPHAN-*   Registry orphans (declared but file missing)
+  FS-ORPHAN-*    Filesystem orphans (exist but unreachable)
+  FS-DEADPATH-*  Dead directories (no inbound references)
+  TRACK-*        Progress tracking issues
+  CFG-*          Configuration issues
+
+Orphan Detection:
+  Registry orphans are always detected (quick, critical severity).
+  Use --deep to enable filesystem orphan detection via reachability crawl.
 
 Ignore Directives:
   Add to HTML files to suppress specific issues:
@@ -171,7 +195,7 @@ For more information: _tools/EDUSCAN_DESIGN.md
 
 // Print version
 function printVersion() {
-    console.log('EduScan v1.1.0');
+    console.log('EduScan v1.2.0');
 }
 
 // Main execution
@@ -201,7 +225,20 @@ function main() {
             currentReportPath: path.join(options.outputDir, 'TREASURE_MAP.json')
         });
 
-        if (options.jsonOutput) {
+        if (options.orphansOnly) {
+            // Orphan-only scan
+            const results = scanner.orphanScan();
+
+            if (options.jsonOutput) {
+                console.log(JSON.stringify(results.orphans, null, 2));
+            }
+
+            // Exit with error code if critical orphans found
+            const criticalCount = results.orphans.registryOrphans.length;
+            if (criticalCount > 0) {
+                process.exit(1);
+            }
+        } else if (options.jsonOutput) {
             // Quick scan, output JSON to stdout
             const issues = scanner.quickScan();
             console.log(JSON.stringify(issues, null, 2));
