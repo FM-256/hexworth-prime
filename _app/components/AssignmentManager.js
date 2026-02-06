@@ -306,6 +306,85 @@ const AssignmentManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // ACTIVITY LOGGING
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Log an activity event for the current student
+     * @param {string} classId - Parent class Firestore ID
+     * @param {string} eventType - Event type: module_started, module_completed, quiz_passed, quiz_failed
+     * @param {string} contentId - Content identifier
+     * @param {string} contentTitle - Human-readable content title
+     * @param {Object} extras - Optional extra data (score, etc.)
+     */
+    async function logActivity(classId, eventType, contentId, contentTitle, extras = {}) {
+        if (!initialized) await init();
+        if (!db) throw new Error('Database not available');
+
+        const user = FirebaseAuth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const { collection: colRef, addDoc, serverTimestamp } = window.firebaseFirestore;
+
+        const activityRef = colRef(db, 'classes', classId, 'activity');
+        await addDoc(activityRef, {
+            studentUid: user.uid,
+            studentName: user.displayName || user.email?.split('@')[0] || 'Student',
+            eventType,
+            contentId,
+            contentTitle,
+            score: extras.score || null,
+            timestamp: serverTimestamp()
+        });
+
+        console.log(`[AssignmentManager] Activity logged: ${eventType} for ${contentId}`);
+    }
+
+    /**
+     * Get activity events for a class
+     * @param {string} classId - Parent class Firestore ID
+     * @param {Object} options - { studentUid, limit }
+     * @returns {Promise<Array>} Array of activity events
+     */
+    async function getClassActivity(classId, options = {}) {
+        if (!initialized) await init();
+        if (!db) return [];
+
+        const { collection: colRef, getDocs, query, where, orderBy, limit: limitFn } = window.firebaseFirestore;
+
+        let q;
+        const activityRef = colRef(db, 'classes', classId, 'activity');
+
+        if (options.studentUid) {
+            q = query(
+                activityRef,
+                where('studentUid', '==', options.studentUid),
+                orderBy('timestamp', 'desc'),
+                limitFn(options.limit || 50)
+            );
+        } else {
+            q = query(
+                activityRef,
+                orderBy('timestamp', 'desc'),
+                limitFn(options.limit || 50)
+            );
+        }
+
+        const snapshot = await getDocs(q);
+        const events = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            events.push({
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp)
+            });
+        });
+
+        return events;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════
 
@@ -316,7 +395,9 @@ const AssignmentManager = (function() {
         deleteAssignment,
         updateAssignment,
         submitProgress,
-        getClassProgress
+        getClassProgress,
+        logActivity,
+        getClassActivity
     };
 
 })();

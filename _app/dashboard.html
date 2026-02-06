@@ -4382,6 +4382,9 @@
 
             console.log('[ProgressSync] Starting sync for user:', user.uid);
 
+            // Track which activities have been logged to avoid duplicates
+            const syncedActivity = JSON.parse(localStorage.getItem('hexworth_synced_activity') || '{}');
+
             try {
                 const classes = await ClassManager.getStudentClasses(user.uid);
                 console.log('[ProgressSync] Found classes:', classes.length);
@@ -4395,11 +4398,34 @@
                         console.log(`[ProgressSync] ${assignment.contentId}:`, localProgress);
 
                         if (localProgress && localProgress.completed) {
+                            // Submit progress
                             await AssignmentManager.submitProgress(cls.id, assignment.contentId, localProgress);
                             console.log(`[ProgressSync] Submitted: ${assignment.contentId}`);
+
+                            // Log activity if not already logged for this class+content combo
+                            const activityKey = `${cls.id}:${assignment.contentId}`;
+                            if (!syncedActivity[activityKey]) {
+                                try {
+                                    const eventType = localProgress.score !== undefined ? 'quiz_passed' : 'module_completed';
+                                    await AssignmentManager.logActivity(
+                                        cls.id,
+                                        eventType,
+                                        assignment.contentId,
+                                        assignment.title || assignment.contentId,
+                                        { score: localProgress.score }
+                                    );
+                                    syncedActivity[activityKey] = Date.now();
+                                    console.log(`[ProgressSync] Activity logged: ${eventType}`);
+                                } catch (actErr) {
+                                    console.warn('[ProgressSync] Activity log failed:', actErr);
+                                }
+                            }
                         }
                     }
                 }
+
+                // Save synced activity tracker
+                localStorage.setItem('hexworth_synced_activity', JSON.stringify(syncedActivity));
                 console.log('[ProgressSync] Sync complete');
             } catch (error) {
                 console.error('[ProgressSync] Failed:', error);

@@ -425,6 +425,37 @@
             border-radius: 10px;
         }
 
+        .hd-activity-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hd-activity-filter {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: var(--hd-text);
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .hd-activity-filter:hover {
+            border-color: var(--hd-gold-border);
+        }
+
+        .hd-activity-filter:focus {
+            outline: none;
+            border-color: var(--hd-gold);
+        }
+
+        .hd-activity-filter option {
+            background: var(--hd-card-bg);
+            color: var(--hd-text);
+        }
+
         .hd-activity-feed {
             max-height: 200px;
             overflow-y: auto;
@@ -648,6 +679,33 @@
         .hd-roster-progress-label.none { color: var(--hd-text-muted); }
 
         .hd-roster-card { cursor: pointer; }
+
+        .hd-roster-active-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.12);
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin-left: 6px;
+        }
+
+        .hd-roster-active-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse-active 1.5s infinite;
+        }
+
+        @keyframes pulse-active {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
 
         /* Student Detail Modal */
         .hd-student-detail {
@@ -1927,7 +1985,12 @@
                 <div class="hd-activity-section">
                     <div class="hd-activity-header">
                         <div class="hd-activity-title">Recent Activity</div>
-                        <span class="hd-activity-badge" id="activityCount">0 events</span>
+                        <div class="hd-activity-controls">
+                            <select class="hd-activity-filter" id="activityStudentFilter" onchange="filterActivityByStudent()">
+                                <option value="">All Students</option>
+                            </select>
+                            <span class="hd-activity-badge" id="activityCount">0 events</span>
+                        </div>
                     </div>
                     <div class="hd-activity-feed" id="activityFeed">
                         <div class="hd-activity-empty">No activity yet. Student progress will appear here.</div>
@@ -2605,15 +2668,47 @@
             }
         }
 
+        function populateActivityFilter() {
+            const filter = document.getElementById('activityStudentFilter');
+            if (!filter) return;
+
+            // Keep current selection if possible
+            const currentValue = filter.value;
+
+            filter.innerHTML = '<option value="">All Students</option>';
+            rosterMembers.forEach(member => {
+                const name = member.displayName || member.email?.split('@')[0] || 'Student';
+                filter.innerHTML += `<option value="${member.uid}">${escapeHtml(name)}</option>`;
+            });
+
+            // Restore selection if still valid
+            if (currentValue && [...filter.options].some(o => o.value === currentValue)) {
+                filter.value = currentValue;
+            }
+        }
+
+        function filterActivityByStudent() {
+            renderActivityFeed();
+        }
+
         function renderActivityFeed() {
             const feed = document.getElementById('activityFeed');
             const countBadge = document.getElementById('activityCount');
+            const filter = document.getElementById('activityStudentFilter');
+            const filterUid = filter ? filter.value : '';
+
+            // Populate filter dropdown if roster changed
+            populateActivityFilter();
 
             // Build activity events from progress data
             const events = [];
 
             for (const studentProgress of classProgressData) {
+                // Apply student filter
+                if (filterUid && studentProgress.uid !== filterUid) continue;
+
                 const studentName = getStudentName(studentProgress.uid);
+                const studentUid = studentProgress.uid;
                 const completions = studentProgress.completions || {};
 
                 for (const [contentId, data] of Object.entries(completions)) {
@@ -2621,6 +2716,7 @@
                         const contentTitle = getContentTitle(contentId);
                         events.push({
                             type: 'completed',
+                            studentUid,
                             studentName,
                             contentTitle,
                             contentId,
@@ -2637,10 +2733,12 @@
             // Take only the most recent 20 events
             const recentEvents = events.slice(0, 20);
 
-            countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}`;
+            const filterText = filterUid ? ` (filtered)` : '';
+            countBadge.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}${filterText}`;
 
             if (recentEvents.length === 0) {
-                feed.innerHTML = '<div class="hd-activity-empty">No activity yet. Student progress will appear here.</div>';
+                const emptyText = filterUid ? 'No activity for this student.' : 'No activity yet. Student progress will appear here.';
+                feed.innerHTML = `<div class="hd-activity-empty">${emptyText}</div>`;
                 return;
             }
 
@@ -3248,11 +3346,15 @@
                        <span class="hd-roster-progress-label none">--</span>
                    </div>`;
 
+            // Recently active badge (activity in last 24h)
+            const recentlyActive = hasRecentActivity(member.uid);
+            const activeBadge = recentlyActive ? '<span class="hd-roster-active-badge">Active</span>' : '';
+
             return `
                 <div class="hd-roster-card" onclick="showStudentDetail('${member.uid}')">
                     <div class="hd-roster-avatar" style="${avatarBg}">${avatarHtml}</div>
                     <div class="hd-roster-info">
-                        <div class="hd-roster-name">${escapeHtml(fullName)}</div>
+                        <div class="hd-roster-name">${escapeHtml(fullName)}${activeBadge}</div>
                         <div class="hd-roster-meta">
                             <span class="hd-roster-house" style="color:${houseColor}">${houseName}</span>
                             ${studentIdBadge}
@@ -3265,6 +3367,26 @@
                     </div>
                 </div>
             `;
+        }
+
+        function hasRecentActivity(studentUid) {
+            const now = Date.now();
+            const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+            const studentProgress = classProgressData.find(p => p.uid === studentUid);
+            if (!studentProgress || !studentProgress.completions) return false;
+
+            for (const [contentId, data] of Object.entries(studentProgress.completions)) {
+                if (data.completedAt) {
+                    const completedTime = data.completedAt.toDate
+                        ? data.completedAt.toDate().getTime()
+                        : new Date(data.completedAt).getTime();
+                    if (completedTime > twentyFourHoursAgo) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         function getInitials(name) {
