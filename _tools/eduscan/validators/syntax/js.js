@@ -14,6 +14,11 @@ class JSValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci'; // ci, strict, inventory
+
+        // JS validator is under repair - downgrade to non-blocking in CI
+        // Bracket counting produces false positives on complex code
+        // TODO: Replace with actual JS parser (new Function()) for accurate detection
+        this.stabilizing = true;
     }
 
     /**

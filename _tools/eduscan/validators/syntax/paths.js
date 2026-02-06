@@ -41,17 +41,19 @@ const ANCHOR_DIRECTORIES = ['components', 'assets', 'config', 'styles', 'utils',
 //   - exactDepth: exact required ../ count (triggers both codes if wrong)
 const STRUCTURAL_DEPTH_RULES = [
     {
-        // Files at houses/*/index.html level - exactly 1 level to reach components
+        // Files at houses/*/index.html level - exactly 2 levels to reach components
+        // houses(1)/cloud(2)/index.html → ../../components/
         filePattern: /^houses\/[^/]+\/index\.html$/,
         targetPattern: /components\//,
-        exactDepth: 1,
+        exactDepth: 2,
         description: 'house index files'
     },
     {
-        // Files at houses/*/applets/*/*.html level - exactly 3 levels
+        // Files at houses/*/applets/*/*.html level - exactly 4 levels
+        // houses(1)/cloud(2)/applets(3)/aws(4)/file.html → ../../../../components/
         filePattern: /^houses\/[^/]+\/applets\/[^/]+\/[^/]+\.html$/,
         targetPattern: /components\//,
-        exactDepth: 3,
+        exactDepth: 4,
         description: 'applet root files'
     },
     {
@@ -83,17 +85,19 @@ const STRUCTURAL_DEPTH_RULES = [
         description: 'CompTIA labs files'
     },
     {
-        // Files in houses/*/applets/comptia-aplus/core-*/presentations/ need 5+ levels
+        // Files in houses/*/applets/comptia-aplus/core-*/presentations/ need 6 levels
+        // houses(1)/forge(2)/applets(3)/comptia-aplus(4)/core-2(5)/presentations(6)/file.html
         filePattern: /houses\/[^/]+\/applets\/comptia-aplus\/core-[^/]+\/presentations\//,
         targetPattern: /components\//,
-        minDepth: 5,
+        minDepth: 6,
         description: 'CompTIA presentation files'
     },
     {
-        // Files in houses/*/applets/comptia-aplus/core-*/quizzes/ need 5+ levels
+        // Files in houses/*/applets/comptia-aplus/core-*/quizzes/ need 6 levels
+        // houses(1)/forge(2)/applets(3)/comptia-aplus(4)/core-2(5)/quizzes(6)/file.html
         filePattern: /houses\/[^/]+\/applets\/comptia-aplus\/core-[^/]+\/quizzes\//,
         targetPattern: /components\//,
-        minDepth: 5,
+        minDepth: 6,
         description: 'CompTIA quiz files'
     }
 ];
