@@ -1,0 +1,160 @@
+name: EduScan Content Audit
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - '_app/**'
+      - '_tools/eduscan/**'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '_app/**'
+      - '_tools/eduscan/**'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  scan:
+    name: Content Integrity Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '_tools/eduscan/package.json'
+
+      - name: Run EduScan
+        id: eduscan
+        run: |
+          # Run full scan with CI profile (outputs to _tools/reports/)
+          node _tools/eduscan/cli.js --syntax=ci --format both
+
+          # Generate status summary
+          node << 'EOF'
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('_tools/reports/TREASURE_MAP.json', 'utf8'));
+
+            const bySeverity = report.summary?.issuesBySeverity || {};
+            const issues = report.issues || [];
+
+            const status = {
+              timestamp: new Date().toISOString(),
+              totalFiles: report.summary?.totalFilesScanned || 0,
+              issues: {
+                critical: bySeverity.critical || 0,
+                high: bySeverity.high || 0,
+                medium: bySeverity.medium || 0,
+                low: bySeverity.low || 0
+              },
+              autoFixable: issues.filter(i => i.autoFixable).length
+            };
+
+            status.total = status.issues.critical + status.issues.high + status.issues.medium + status.issues.low;
+            status.passed = status.issues.critical === 0;
+
+            fs.writeFileSync('_tools/reports/status.json', JSON.stringify(status, null, 2));
+
+            // Output for GitHub Actions
+            const core = require('@actions/core');
+            if (typeof core !== 'undefined' && core.setOutput) {
+              core.setOutput('critical', status.issues.critical);
+              core.setOutput('high', status.issues.high);
+              core.setOutput('total', status.total);
+              core.setOutput('passed', status.passed);
+            }
+
+            console.log('Status:', JSON.stringify(status));
+          EOF
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: eduscan-reports-${{ github.sha }}
+          path: |
+            _tools/reports/TREASURE_MAP.json
+            _tools/reports/TREASURE_MAP.md
+            _tools/reports/status.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const status = JSON.parse(fs.readFileSync('_tools/reports/status.json', 'utf8'));
+
+            const icon = status.passed ? '✅' : '❌';
+            const badge = status.passed ? '🟢' : '🔴';
+
+            const body = `## ${icon} EduScan Content Audit
+
+            | Metric | Count |
+            |--------|-------|
+            | Files Scanned | ${status.totalFiles} |
+            | Critical Issues | ${status.issues.critical} |
+            | High Issues | ${status.issues.high} |
+            | Medium Issues | ${status.issues.medium} |
+            | Low Issues | ${status.issues.low} |
+            | **Total Issues** | **${status.total}** |
+            | Auto-fixable | ${status.autoFixable} |
+
+            ${status.passed ? '### ✅ No critical issues found' : '### ❌ Critical issues require attention'}
+
+            ${status.autoFixable > 0 ? `> 💡 **${status.autoFixable} issues** can be auto-fixed. Run \`node _tools/eduscan/fixers/naming-fixer.js\` locally.` : ''}
+
+            <details>
+            <summary>📊 View Full Report</summary>
+
+            Download the full report from the Actions artifacts.
+            </details>
+
+            ---
+            *Scanned at ${status.timestamp}*`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('EduScan Content Audit')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      - name: Check Gates
+        if: always()
+        run: |
+          if [ -f "_tools/reports/status.json" ]; then
+            CRITICAL=$(cat _tools/reports/status.json | grep -o '"critical": [0-9]*' | grep -o '[0-9]*')
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "❌ CRITICAL issues found: $CRITICAL"
+              echo "::error::EduScan found $CRITICAL critical issues"
+              exit 1
+            else
+              echo "✅ No critical issues"
+            fi
+          fi
