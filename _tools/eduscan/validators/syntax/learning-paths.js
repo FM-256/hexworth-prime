@@ -73,17 +73,27 @@ class LearningPathsValidator {
             .split(/\s+/)
             .filter(w => w.length > 2);
 
+        // Detect expected type from href path
+        const expectedType = this.detectExpectedType(href);
+
         // Build potential moduleId patterns to search for
+        // Include type suffix variations
         const potentialIds = [];
         if (house) {
+            // Try with type suffix first (e.g., web-ospf-presentation)
+            if (expectedType) {
+                potentialIds.push(`${house}-${filename.toLowerCase().replace(/[_\s]+/g, '-')}-${expectedType}`);
+            }
             potentialIds.push(`${house}-${filename.toLowerCase().replace(/[_\s]+/g, '-')}`);
+        }
+        if (expectedType) {
+            potentialIds.push(`${filename.toLowerCase().replace(/[_\s]+/g, '-')}-${expectedType}`);
         }
         potentialIds.push(filename.toLowerCase().replace(/[_\s]+/g, '-'));
 
         // First: exact moduleId match
         for (const id of potentialIds) {
             if (this.registry.modules[id]) {
-                // Registry paths are already relative to _app, which includes houses/
                 const regPath = this.registry.modules[id].path;
                 return {
                     path: regPath.startsWith('houses/') ? regPath : 'houses/' + regPath,
@@ -95,7 +105,7 @@ class LearningPathsValidator {
             }
         }
 
-        // Second: partial moduleId match
+        // Second: partial moduleId match with type preference
         const matches = [];
         for (const [moduleId, info] of Object.entries(this.registry.modules)) {
             // Skip if different house (strict house matching)
@@ -107,11 +117,22 @@ class LearningPathsValidator {
 
             if (matchedTerms.length >= Math.ceil(searchTerms.length * 0.6)) {
                 const regPath = info.path;
+
+                // Type matching bonus: boost score if types align
+                let typeBonus = 0;
+                if (expectedType && info.type === expectedType) {
+                    typeBonus = 0.3;  // Significant boost for type match
+                } else if (expectedType && info.type !== expectedType) {
+                    typeBonus = -0.2;  // Penalty for type mismatch
+                }
+
                 matches.push({
                     moduleId,
                     path: regPath.startsWith('houses/') ? regPath : 'houses/' + regPath,
                     house: info.house,
-                    matchScore: matchedTerms.length / searchTerms.length
+                    type: info.type,
+                    matchScore: (matchedTerms.length / searchTerms.length) + typeBonus,
+                    typeMatch: expectedType === info.type
                 });
             }
         }
@@ -132,6 +153,35 @@ class LearningPathsValidator {
                     path: m.path
                 }))
             };
+        }
+
+        return null;
+    }
+
+    /**
+     * Detect expected content type from href path
+     * @param {string} href - The href to analyze
+     * @returns {string|null} Expected type or null
+     */
+    detectExpectedType(href) {
+        const hrefLower = href.toLowerCase();
+
+        // Check for path patterns (with or without leading slash)
+        if (hrefLower.includes('presentations/') || hrefLower.startsWith('presentations/') ||
+            hrefLower.includes('-presentation.') || hrefLower.includes('_presentation.')) {
+            return 'presentation';
+        }
+        if (hrefLower.includes('quizzes/') || hrefLower.startsWith('quizzes/') ||
+            hrefLower.includes('-quiz.') || hrefLower.includes('_quiz.')) {
+            return 'quiz';
+        }
+        if (hrefLower.includes('labs/') || hrefLower.startsWith('labs/') ||
+            hrefLower.includes('-lab.') || hrefLower.includes('_lab.')) {
+            return 'lab';
+        }
+        if (hrefLower.includes('applets/') || hrefLower.startsWith('applets/') ||
+            hrefLower.includes('visualizers/') || hrefLower.startsWith('visualizers/')) {
+            return 'applet';
         }
 
         return null;
