@@ -11,6 +11,7 @@ const HTMLValidator = require('./html');
 const JSValidator = require('./js');
 const EngineValidator = require('./engine');
 const PathValidator = require('./paths');
+const LearningPathsValidator = require('./learning-paths');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -37,6 +38,10 @@ class SyntaxValidator {
             rootPath: this.rootPath,
             profile: this.profile
         });
+        this.learningPathsValidator = new LearningPathsValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
     }
 
     /**
@@ -56,6 +61,7 @@ class SyntaxValidator {
                 jsErrors: 0,
                 engineErrors: 0,
                 pathErrors: 0,
+                learningPathErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -65,6 +71,16 @@ class SyntaxValidator {
                 }
             }
         };
+
+        // Run LearningPaths validation (global, not per-file)
+        const lpResults = this.learningPathsValidator.validate();
+        if (lpResults.issues.length > 0) {
+            results.issues.push(...lpResults.issues);
+            results.summary.learningPathErrors = lpResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] LearningPaths: ${lpResults.issues.length} issues`);
+            }
+        }
 
         for (const file of contentFiles) {
             // Only validate HTML files

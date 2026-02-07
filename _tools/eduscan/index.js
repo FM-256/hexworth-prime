@@ -351,6 +351,9 @@ class EduScan {
         if (syntax.summary.pathErrors > 0) {
             console.log(`    ${c('Path:', 'magenta')}    ${syntax.summary.pathErrors} broken paths`);
         }
+        if (syntax.summary.learningPathErrors > 0) {
+            console.log(`    ${c('LPaths:', 'red')}  ${syntax.summary.learningPathErrors} broken module hrefs`);
+        }
 
         if (syntax.summary.totalIssues === 0) {
             console.log(`    ${c('None!', 'green')} All syntax checks passed.`);
