@@ -4,7 +4,20 @@
 
 🌐 **Live Demo:** [https://hexworth-prime.web.app](https://hexworth-prime.web.app)
 
-Hexworth Prime transforms technical education into an immersive journey through a magical academy. Get sorted into a house, complete learning modules, earn achievements, and watch your progress come alive through the Digital Life ecosystem.
+---
+
+## Start Here
+
+**What it is:** A browser-based training platform for IT fundamentals, networking, and cybersecurity — with 500+ interactive labs, simulations, and quizzes.
+
+**Who it's for:**
+- **Students** learning CompTIA A+, Network+, Security+, or Windows Server administration
+- **Instructors** who need classroom management, progress tracking, and LMS-compatible exports
+- **Self-learners** exploring IT/security topics at their own pace
+
+**Two modes:**
+- **Offline (default)** — Download, open START.html, learn. No account needed. Progress saved locally.
+- **Online (classes)** — Sign in with Google, join a class via code, sync progress with your instructor.
 
 ---
 
@@ -329,6 +342,43 @@ Your progress is stored in your browser's localStorage. Here's how to keep it sa
 ---
 
 ## Technical Information
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        BROWSER (Client)                         │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │ Dashboard   │  │ Digital Life│  │ Learning Modules        │  │
+│  │ (Vue-like)  │  │ (Canvas)    │  │ (HTML/JS)               │  │
+│  └──────┬──────┘  └─────────────┘  └───────────┬─────────────┘  │
+│         │                                       │                │
+│         ▼                                       ▼                │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │              localStorage (Offline Mode)                    ││
+│  │  • Progress • Achievements • House • Settings • Streaks    ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    (Optional - Classes Only)
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     FIREBASE (Google Cloud)                      │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │ Firebase    │  │ Firestore   │  │ Firebase Hosting        │  │
+│  │ Auth        │  │ Database    │  │ (CDN + 99.95% SLA)      │  │
+│  │ (Google)    │  │ (Classes)   │  │                         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+
+Data Flow:
+  Solo Learner: Browser ←→ localStorage (100% offline)
+  Class Member: Browser ←→ localStorage + Firestore (synced)
+  Instructor:   Browser ←→ Firestore (class management)
+```
 
 ### Browser Support
 - **Recommended:** Chrome, Edge (Chromium-based)

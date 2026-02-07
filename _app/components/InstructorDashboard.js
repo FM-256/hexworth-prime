@@ -98,7 +98,21 @@ const InstructorDashboard = (function() {
                         <div class="id-empty-sigil">📋</div>
                         <div class="id-empty-title">Welcome, Instructor</div>
                         <div class="id-empty-subtitle">
-                            Create your first class to get started. Each class generates a unique code that students can use to join.
+                            Get started in 3 simple steps:
+                        </div>
+                        <div class="id-quickstart">
+                            <div class="id-quickstart-step">
+                                <div class="id-step-num">1</div>
+                                <div class="id-step-text"><strong>Create a class</strong> — Click the button below to generate a unique join code</div>
+                            </div>
+                            <div class="id-quickstart-step">
+                                <div class="id-step-num">2</div>
+                                <div class="id-step-text"><strong>Share the code</strong> — Give students your HEX-XXXX code to join</div>
+                            </div>
+                            <div class="id-quickstart-step">
+                                <div class="id-step-num">3</div>
+                                <div class="id-step-text"><strong>Assign content</strong> — Pick modules, labs, or full learning paths</div>
+                            </div>
                         </div>
                         <button class="id-primary-btn" onclick="InstructorDashboard.showCreateModal()">+ Create Your First Class</button>
                     </div>
@@ -1261,7 +1275,50 @@ const InstructorDashboard = (function() {
                 color: var(--id-text-muted);
                 max-width: 400px;
                 line-height: 1.6;
+                margin-bottom: 20px;
+            }
+
+            .id-quickstart {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
                 margin-bottom: 30px;
+                text-align: left;
+                max-width: 400px;
+            }
+
+            .id-quickstart-step {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                background: var(--id-gold-subtle);
+                border: 1px solid var(--id-gold-border);
+                border-radius: 8px;
+                padding: 12px 15px;
+            }
+
+            .id-step-num {
+                width: 24px;
+                height: 24px;
+                background: var(--id-gold);
+                color: #000;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 0.8rem;
+                flex-shrink: 0;
+            }
+
+            .id-step-text {
+                font-size: 0.85rem;
+                color: var(--id-text);
+                line-height: 1.5;
+            }
+
+            .id-step-text strong {
+                color: var(--id-gold);
             }
 
             .id-home-stats {
