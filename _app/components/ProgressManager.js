@@ -7,8 +7,16 @@
  * - Achievement tracking
  * - Learning path progression
  * - Skill tree unlocks (divergent paths)
+ * - Firestore sync for instructor analytics (v3.11.0+)
  *
- * Storage: localStorage with 'hexworth_' prefix
+ * Storage:
+ *   - Primary: localStorage with 'hexworth_' prefix
+ *   - Sync: Firestore classes/{classId}/progress and activity subcollections
+ *
+ * Dependencies (for Firestore sync):
+ *   - FirebaseAuth (components/FirebaseAuth.js)
+ *   - ClassManager (components/ClassManager.js)
+ *   - AssignmentManager (components/AssignmentManager.js)
  */
 
 class ProgressManager {
@@ -126,6 +134,99 @@ class ProgressManager {
         window.dispatchEvent(new CustomEvent('hexworth:progressUpdate', {
             detail: { progress }
         }));
+    }
+
+    /**
+     * Sync completion to Firestore for instructor analytics
+     * Called automatically by completeModule() - non-blocking
+     * @param {string} moduleId - The module ID
+     * @param {string} houseId - The house ID
+     * @param {string} moduleType - Type: 'presentation', 'quiz', 'lab', etc.
+     * @param {object} metadata - Additional data (score, etc.)
+     */
+    static async syncToFirestore(moduleId, houseId, moduleType, metadata = {}) {
+        // Check if Firebase/Firestore dependencies are available
+        if (typeof FirebaseAuth === 'undefined' || typeof ClassManager === 'undefined' || typeof AssignmentManager === 'undefined') {
+            console.log('[ProgressManager] Firestore sync skipped - dependencies not loaded');
+            return;
+        }
+
+        // Check if user is authenticated
+        const user = FirebaseAuth.getUser();
+        if (!user) {
+            console.log('[ProgressManager] Firestore sync skipped - not authenticated');
+            return;
+        }
+
+        try {
+            // Initialize managers if needed
+            await ClassManager.init();
+            await AssignmentManager.init();
+
+            // Get all classes the student is enrolled in
+            const enrolledClasses = await ClassManager.getStudentClasses(user.uid);
+
+            if (!enrolledClasses || enrolledClasses.length === 0) {
+                console.log('[ProgressManager] Firestore sync skipped - not enrolled in any classes');
+                return;
+            }
+
+            // Get a readable title for the content
+            let contentTitle = moduleId;
+            try {
+                if (typeof LearningPaths !== 'undefined') {
+                    const moduleInfo = LearningPaths.getModuleById ?
+                        LearningPaths.getModuleById(moduleId) : null;
+                    if (moduleInfo && moduleInfo.title) {
+                        contentTitle = moduleInfo.title;
+                    }
+                }
+            } catch (e) {
+                // Use moduleId as fallback
+            }
+
+            // Determine event type based on module type and metadata
+            let eventType = 'module_completed';
+            if (moduleType === 'quiz') {
+                eventType = metadata.score >= 70 ? 'quiz_passed' : 'quiz_failed';
+            } else if (moduleType === 'lab') {
+                eventType = 'lab_completed';
+            } else if (moduleType === 'presentation') {
+                eventType = 'presentation_viewed';
+            }
+
+            // Sync to each enrolled class
+            const syncPromises = enrolledClasses.map(async (cls) => {
+                try {
+                    // Submit progress update
+                    await AssignmentManager.submitProgress(cls.id, moduleId, {
+                        completed: true,
+                        score: metadata.score || null,
+                        completedAt: new Date().toISOString()
+                    });
+
+                    // Log activity event
+                    await AssignmentManager.logActivity(
+                        cls.id,
+                        eventType,
+                        moduleId,
+                        contentTitle,
+                        { score: metadata.score || null, house: houseId }
+                    );
+
+                    console.log(`[ProgressManager] Synced to class: ${cls.name} (${cls.id})`);
+                } catch (err) {
+                    console.warn(`[ProgressManager] Failed to sync to class ${cls.id}:`, err.message);
+                }
+            });
+
+            await Promise.allSettled(syncPromises);
+            console.log(`[ProgressManager] Firestore sync complete for ${moduleId}`);
+
+        } catch (error) {
+            console.error('[ProgressManager] Firestore sync error:', error);
+            throw error; // Re-throw so caller can catch
+        }
     }
 
     /**
@@ -252,8 +353,13 @@ class ProgressManager {
         // Determine next module in path
         result.nextModule = LearningPaths.getNextModule(houseId, moduleId);
 
-        // Save progress
+        // Save progress to localStorage
         this.saveProgress(progress);
+
+        // Sync to Firestore for instructor analytics (async, non-blocking)
+        this.syncToFirestore(moduleId, houseId, moduleType, metadata).catch(err => {
+            console.warn('[ProgressManager] Firestore sync failed (offline?):', err.message);
+        });
 
         // Check for achievements
         result.achievements = AchievementSystem.checkProgressAchievements(progress, {
