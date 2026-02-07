@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tcpdump & NetFlow | CyberOps Week 2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); min-height: 100vh; color: #e2e8f0; line-height: 1.6; }
+        .top-nav { background: rgba(15, 23, 42, 0.95); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(6, 182, 212, 0.3); position: sticky; top: 0; z-index: 100; }
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb .separator { color: #64748b; }
+        .breadcrumb .current { color: #8b5cf6; }
+        .nav-progress { display: flex; align-items: center; gap: 1rem; }
+        .progress-bar { width: 200px; height: 8px; background: rgba(100, 116, 139, 0.3); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); transition: width 0.5s; }
+        .progress-text { font-size: 0.85rem; color: #94a3b8; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .section-nav { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .section-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #94a3b8; cursor: pointer; transition: all 0.3s; }
+        .section-btn:hover { border-color: #06b6d4; color: #06b6d4; }
+        .section-btn.active { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border-color: #8b5cf6; color: #fff; }
+        .section-btn.completed { border-color: #10b981; color: #10b981; }
+        .section-btn.completed::after { content: ' ✓'; }
+        .section { display: none; animation: fadeIn 0.5s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .section-header { text-align: center; margin-bottom: 2rem; }
+        .section-header h1 { font-size: 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+        .section-header p { color: #94a3b8; font-size: 1.1rem; }
+        .card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(100, 116, 139, 0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h3 { color: #06b6d4; margin-bottom: 1rem; }
+
+        /* Terminal */
+        .terminal { background: #0a0a0a; border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 8px; font-family: 'Consolas', monospace; overflow: hidden; }
+        .terminal-header { background: rgba(30, 41, 59, 0.8); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #f59e0b; }
+        .terminal-dot.green { background: #10b981; }
+        .terminal-body { padding: 1rem; max-height: 400px; overflow-y: auto; }
+        .terminal-line { margin-bottom: 0.5rem; }
+        .terminal-line .prompt { color: #10b981; }
+        .terminal-line .command { color: #06b6d4; }
+        .terminal-line .output { color: #94a3b8; white-space: pre-wrap; font-size: 0.85rem; }
+
+        /* Command Reference */
+        .command-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+        .command-card { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.3s; }
+        .command-card:hover { border-color: #06b6d4; }
+        .command-card code { display: block; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; color: #06b6d4; font-size: 0.85rem; }
+        .command-card p { font-size: 0.85rem; color: #94a3b8; }
+
+        /* Comparison */
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        .comparison-table th, .comparison-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .comparison-table th { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+        /* Link Card */
+        .link-card { background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; display: flex; align-items: center; gap: 1rem; }
+        .link-card a { color: #06b6d4; text-decoration: none; font-weight: 600; }
+
+        /* Quiz */
+        .quiz-container { background: rgba(30, 41, 59, 0.8); border-radius: 12px; padding: 2rem; }
+        .quiz-question { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(100, 116, 139, 0.2); }
+        .quiz-question h4 { color: #f1f5f9; margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .quiz-option { padding: 1rem; background: rgba(30, 41, 59, 0.6); border: 2px solid rgba(100, 116, 139, 0.3); border-radius: 8px; cursor: pointer; }
+        .quiz-option:hover { border-color: #06b6d4; }
+        .quiz-option.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+        .submit-btn { padding: 1rem 2rem; background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+        .quiz-results { text-align: center; padding: 2rem; display: none; }
+        .quiz-results.show { display: block; }
+        .score-display { font-size: 3rem; font-weight: bold; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(100, 116, 139, 0.2); }
+        .nav-btn { padding: 0.75rem 1.5rem; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; color: #e2e8f0; cursor: pointer; }
+        .nav-btn:hover { border-color: #06b6d4; }
+        .nav-btn.primary { background: linear-gradient(135deg, #06b6d4, #8b5cf6); border: none; }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="breadcrumb">
+            <a href="/houses/eye/">Eye House</a>
+            <span class="separator">›</span>
+            <a href="../../modules/cyberops/index.html">CyberOps</a>
+            <span class="separator">›</span>
+            <a href="week2/index.html">Week 2</a>
+            <span class="separator">›</span>
+            <span class="current">tcpdump & NetFlow</span>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+            <span class="progress-text" id="progressText">0% Complete</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section-nav">
+            <button class="section-btn active" data-section="tcpdump">1. tcpdump</button>
+            <button class="section-btn" data-section="netflow">2. NetFlow</button>
+            <button class="section-btn" data-section="comparison">3. Comparison</button>
+            <button class="section-btn" data-section="quiz">4. Assessment</button>
+        </div>
+
+        <!-- Section 1: tcpdump -->
+        <div class="section active" id="tcpdump">
+            <div class="section-header">
+                <h1>tcpdump: Packet Capture Tool</h1>
+                <p>The essential command-line packet analyzer for network forensics</p>
+            </div>
+
+            <div class="card">
+                <h3>🖥️ Interactive tcpdump Examples</h3>
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-dot red"></div>
+                        <div class="terminal-dot yellow"></div>
+                        <div class="terminal-dot green"></div>
+                        <span style="margin-left: 1rem; color: #94a3b8;">analyst@soc:~</span>
+                    </div>
+                    <div class="terminal-body" id="tcpdumpTerminal">
+                        <div class="terminal-line"><span class="prompt">$ </span><span class="command">sudo tcpdump -i eth0 -c 5</span></div>
+                        <div class="terminal-line"><span class="output">14:23:45.123456 IP 192.168.1.100.49152 > 10.0.0.50.443: Flags [S], seq 1234567890
+14:23:45.123567 IP 10.0.0.50.443 > 192.168.1.100.49152: Flags [S.], seq 987654321, ack 1234567891
+14:23:45.123678 IP 192.168.1.100.49152 > 10.0.0.50.443: Flags [.], ack 987654322
+14:23:45.234567 IP 192.168.1.100.49152 > 10.0.0.50.443: Flags [P.], seq 1:50, ack 1
+14:23:45.345678 IP 10.0.0.50.443 > 192.168.1.100.49152: Flags [.], ack 50
+5 packets captured</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Essential tcpdump Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <code>tcpdump -i any</code>
+                        <p>Capture on all interfaces</p>
+                    </div>
+                    <div class="command-card">
+                        <code>tcpdump -nn port 443</code>
+                        <p>Capture HTTPS traffic, no DNS resolution</p>
+                    </div>
+                    <div class="command-card">
+                        <code>tcpdump host 192.168.1.100</code>
+                        <p>Filter by specific IP address</p>
+                    </div>
+                    <div class="command-card">
+                        <code>tcpdump -w capture.pcap</code>
+                        <p>Write packets to file for later analysis</p>
+                    </div>
+                    <div class="command-card">
+                        <code>tcpdump -r capture.pcap</code>
+                        <p>Read packets from saved file</p>
+                    </div>
+                    <div class="command-card">
+                        <code>tcpdump -X</code>
+                        <p>Show packet contents in hex and ASCII</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="link-card">
+                <span>📚</span>
+                <div>
+                    <strong>Related Tool:</strong> For GUI-based packet analysis, see the
+                    <a href="../../tools/eye-wireshark.tool.html">Wireshark Training module</a>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <div></div>
+                <button class="nav-btn primary" onclick="goToSection('netflow')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 2: NetFlow -->
+        <div class="section" id="netflow">
+            <div class="section-header">
+                <h1>NetFlow: Flow-Based Visibility</h1>
+                <p>Network traffic metadata for large-scale monitoring</p>
+            </div>
+
+            <div class="card">
+                <h3>📊 What is NetFlow?</h3>
+                <p>NetFlow (and its variants: IPFIX, sFlow) provides summarized flow records rather than full packet captures. A "flow" is defined by:</p>
+                <ul style="margin: 1rem 0 0 1.5rem; color: #94a3b8;">
+                    <li><strong style="color: #06b6d4;">5-Tuple:</strong> Source IP, Dest IP, Source Port, Dest Port, Protocol</li>
+                    <li><strong style="color: #06b6d4;">Timing:</strong> Start time, duration, last seen</li>
+                    <li><strong style="color: #06b6d4;">Metrics:</strong> Bytes transferred, packet count</li>
+                    <li><strong style="color: #06b6d4;">Interfaces:</strong> Ingress/egress interface IDs</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🖥️ Sample NetFlow Record</h3>
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-dot red"></div>
+                        <div class="terminal-dot yellow"></div>
+                        <div class="terminal-dot green"></div>
+                        <span style="margin-left: 1rem; color: #94a3b8;">NetFlow v9 Record</span>
+                    </div>
+                    <div class="terminal-body">
+                        <div class="terminal-line"><span class="output">Start Time:     2024-01-15 14:23:45
+Duration:       5.23 seconds
+Source:         192.168.1.100:49152
+Destination:    10.0.0.50:443
+Protocol:       TCP (6)
+Bytes:          15,360
+Packets:        24
+TCP Flags:      S,A,P,F
+Input IF:       GigabitEthernet0/1
+Output IF:      GigabitEthernet0/0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔍 SOC Use Cases for NetFlow</h3>
+                <table class="comparison-table">
+                    <tr><th>Use Case</th><th>How NetFlow Helps</th></tr>
+                    <tr><td>C2 Detection</td><td>Identify periodic beaconing patterns to suspicious IPs</td></tr>
+                    <tr><td>Data Exfiltration</td><td>Spot unusual outbound data volumes</td></tr>
+                    <tr><td>Lateral Movement</td><td>Track internal connection patterns</td></tr>
+                    <tr><td>DDoS Analysis</td><td>Visualize attack traffic sources and volumes</td></tr>
+                    <tr><td>Baseline Deviation</td><td>Alert on anomalous traffic patterns</td></tr>
+                </table>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('tcpdump')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('comparison')">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Section 3: Comparison -->
+        <div class="section" id="comparison">
+            <div class="section-header">
+                <h1>tcpdump vs. NetFlow</h1>
+                <p>Choosing the right tool for the job</p>
+            </div>
+
+            <div class="card">
+                <h3>📊 Feature Comparison</h3>
+                <table class="comparison-table">
+                    <tr><th>Aspect</th><th>tcpdump/PCAP</th><th>NetFlow</th></tr>
+                    <tr><td>Data Captured</td><td>Full packet (headers + payload)</td><td>Flow metadata only</td></tr>
+                    <tr><td>Storage Required</td><td>Very High (~100GB+/day)</td><td>Low (~1GB/day)</td></tr>
+                    <tr><td>Retention</td><td>Hours to days</td><td>Weeks to months</td></tr>
+                    <tr><td>Visibility</td><td>Complete - see everything</td><td>Summary - who talked to whom</td></tr>
+                    <tr><td>Performance Impact</td><td>High CPU on capture device</td><td>Low - done by routers/switches</td></tr>
+                    <tr><td>Best For</td><td>Deep forensics, malware analysis</td><td>Trending, baseline, detection</td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>🎯 When to Use Each</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1rem; border-radius: 8px;">
+                        <h4 style="color: #06b6d4;">Use tcpdump/PCAP when:</h4>
+                        <ul style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.9rem;">
+                            <li>Analyzing malware payload</li>
+                            <li>Extracting files from traffic</li>
+                            <li>Debugging protocol issues</li>
+                            <li>Deep forensic investigation</li>
+                        </ul>
+                    </div>
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px;">
+                        <h4 style="color: #8b5cf6;">Use NetFlow when:</h4>
+                        <ul style="margin-top: 0.5rem; color: #94a3b8; font-size: 0.9rem;">
+                            <li>Identifying top talkers</li>
+                            <li>Detecting C2 beaconing</li>
+                            <li>Capacity planning</li>
+                            <li>Long-term trend analysis</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('netflow')">← Back</button>
+                <button class="nav-btn primary" onclick="goToSection('quiz')">Continue to Assessment →</button>
+            </div>
+        </div>
+
+        <!-- Section 4: Quiz -->
+        <div class="section" id="quiz">
+            <div class="section-header">
+                <h1>Knowledge Assessment</h1>
+                <p>Test your understanding of tcpdump and NetFlow</p>
+            </div>
+            <div class="quiz-container" id="quizContainer"></div>
+            <div class="quiz-results" id="quizResults">
+                <h2>Assessment Complete!</h2>
+                <div class="score-display" id="scoreDisplay">0%</div>
+                <p id="scoreMessage"></p>
+                <button class="submit-btn" onclick="retakeQuiz()">Retake Quiz</button>
+            </div>
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToSection('comparison')">← Back</button>
+                <button class="nav-btn primary" id="finishBtn" style="display: none;" onclick="completeModule()">Complete Module →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = { currentSection: 'tcpdump', sectionsCompleted: { tcpdump: false, netflow: false, comparison: false, quiz: false }, quizAnswers: {} };
+
+        const quizQuestions = [
+            { id: 1, question: "What does the tcpdump flag '-nn' do?", options: ["Enable verbose mode", "Disable DNS and port name resolution", "Show packet count", "Filter by network"], correct: 1 },
+            { id: 2, question: "NetFlow captures which type of data?", options: ["Full packet payloads", "Flow metadata (5-tuple + metrics)", "Only DNS queries", "Only HTTP headers"], correct: 1 },
+            { id: 3, question: "Which tool would you use to extract a malware binary from network traffic?", options: ["NetFlow", "tcpdump/PCAP with Wireshark", "ping", "traceroute"], correct: 1 },
+            { id: 4, question: "What is the typical storage difference between PCAP and NetFlow?", options: ["Same storage requirements", "NetFlow uses more storage", "PCAP uses ~100x more storage", "Neither requires storage"], correct: 2 },
+            { id: 5, question: "NetFlow is ideal for detecting what type of malware behavior?", options: ["File contents", "C2 beaconing patterns", "Encryption algorithms", "Process injection"], correct: 1 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => { loadProgress(); setupQuiz(); updateProgress(); });
+
+        function setupQuiz() {
+            const container = document.getElementById('quizContainer');
+            container.innerHTML = quizQuestions.map((q, idx) => `<div class="quiz-question"><h4>${idx + 1}. ${q.question}</h4><div class="quiz-options">${q.options.map((opt, optIdx) => `<div class="quiz-option" data-question="${q.id}" data-option="${optIdx}">${opt}</div>`).join('')}</div></div>`).join('') + '<button class="submit-btn" onclick="submitQuiz()">Submit Answers</button>';
+            container.querySelectorAll('.quiz-option').forEach(opt => { opt.addEventListener('click', () => { const qId = opt.dataset.question; document.querySelectorAll(`[data-question="${qId}"]`).forEach(o => o.classList.remove('selected')); opt.classList.add('selected'); state.quizAnswers[qId] = parseInt(opt.dataset.option); }); });
+        }
+
+        document.querySelectorAll('.section-btn').forEach(btn => { btn.addEventListener('click', () => goToSection(btn.dataset.section)); });
+
+        function goToSection(sectionId) {
+            if (['tcpdump', 'netflow', 'comparison'].includes(state.currentSection)) { state.sectionsCompleted[state.currentSection] = true; document.querySelector(`[data-section="${state.currentSection}"]`).classList.add('completed'); }
+            state.currentSection = sectionId;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            updateProgress(); saveProgress();
+        }
+
+        function submitQuiz() {
+            if (Object.keys(state.quizAnswers).length < quizQuestions.length) { alert('Please answer all questions.'); return; }
+            let correct = 0; quizQuestions.forEach(q => { if (state.quizAnswers[q.id] === q.correct) correct++; });
+            const percentage = Math.round((correct / quizQuestions.length) * 100);
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizResults').classList.add('show');
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            document.getElementById('scoreMessage').textContent = percentage >= 80 ? `Excellent! You passed!` : `Score: ${correct}/${quizQuestions.length}. 80% required.`;
+            if (percentage >= 80) { state.sectionsCompleted.quiz = true; document.querySelector('[data-section="quiz"]').classList.add('completed'); document.getElementById('finishBtn').style.display = 'block'; }
+            updateProgress(); saveProgress();
+        }
+
+        function retakeQuiz() { state.quizAnswers = {}; document.getElementById('quizContainer').style.display = 'block'; document.getElementById('quizResults').classList.remove('show'); document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected')); }
+        function completeModule() { window.location.href = 'week2/index.html'; }
+        function updateProgress() { const completed = Object.values(state.sectionsCompleted).filter(v => v).length; document.getElementById('progressFill').style.width = `${Math.round((completed / 4) * 100)}%`; document.getElementById('progressText').textContent = `${Math.round((completed / 4) * 100)}% Complete`; }
+        function saveProgress() { localStorage.setItem('cyberops_tcpdump_netflow', JSON.stringify(state)); }
+        function loadProgress() { const saved = localStorage.getItem('cyberops_tcpdump_netflow'); if (saved) { Object.assign(state, JSON.parse(saved)); Object.entries(state.sectionsCompleted).forEach(([s, c]) => { if (c) document.querySelector(`[data-section="${s}"]`).classList.add('completed'); }); } }
+    </script>
+</body>
+</html>

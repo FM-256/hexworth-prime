@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: Log Analysis - Script House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style id="access-guard-preload">body { visibility: hidden; }</style>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Main Panel */
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #a78bfa;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(167, 139, 250, 0.1));
+            padding: 15px 20px;
+            border-bottom: 2px solid #a78bfa;
+            flex-shrink: 0;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #a78bfa; }
+
+        .classified-badge {
+            background: rgba(220, 38, 38, 0.3);
+            color: #fca5a5;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            border: 1px solid rgba(220, 38, 38, 0.5);
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            color: #fff;
+            margin: 8px 0 4px;
+        }
+        .header h1 span { color: #a78bfa; }
+
+        .header .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Terminal Container */
+        .terminal-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: #0a0a0a;
+        }
+
+        #terminal {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: rgba(13, 17, 23, 0.98);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .progress-section {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-header h3 {
+            color: #a78bfa;
+            font-size: 0.9rem;
+        }
+
+        .progress-text {
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a78bfa, #4ade80);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        /* Objectives */
+        .objectives-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .objective-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            border-left: 3px solid #30363d;
+            font-size: 0.85rem;
+            color: #888;
+            transition: all 0.3s;
+        }
+
+        .objective-item.active {
+            border-left-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            color: #fff;
+        }
+
+        .objective-item.completed {
+            border-left-color: #4ade80;
+            color: #4ade80;
+        }
+
+        .objective-item .number {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            background: #30363d;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 22px;
+            font-size: 0.75rem;
+            margin-right: 10px;
+            color: #888;
+        }
+
+        .objective-item.active .number {
+            background: #fbbf24;
+            color: #000;
+        }
+
+        .objective-item.completed .number {
+            background: #4ade80;
+            color: #000;
+        }
+
+        .objective-item .hint {
+            display: block;
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(121, 192, 255, 0.1);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #79c0ff;
+        }
+
+        .objective-item:not(.active) .hint {
+            display: none;
+        }
+
+        /* Command Reference */
+        .command-ref {
+            padding: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .command-ref h4 {
+            color: #fbbf24;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 0.75rem;
+        }
+
+        .command-grid span {
+            color: #4ade80;
+            font-family: 'Courier New', monospace;
+        }
+
+        .command-grid small {
+            color: #666;
+        }
+
+        /* Results Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(135deg, #0d1117, #161b22);
+            border: 2px solid #4ade80;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 450px;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #4ade80; font-size: 1.5rem; margin-bottom: 10px; }
+        .modal p { color: #888; margin-bottom: 20px; }
+
+        .modal .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 25px;
+        }
+
+        .modal .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .modal .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #a78bfa, #c084fc);
+            color: #000;
+        }
+
+        .modal-btn.secondary {
+            background: transparent;
+            color: #a78bfa;
+            border: 2px solid #a78bfa;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            .sidebar {
+                max-height: 40vh;
+                border-top: 2px solid #a78bfa;
+            }
+        }
+    </style>
+</head>
+<body>
+    <script>AccessGuard.require('sorted');</script>
+
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-top">
+                    <a href="../script-quick.reference.html" class="back-link">&larr; Back to Linux Reference</a>
+                    <span class="classified-badge">Mission Briefing</span>
+                </div>
+                <h1>Operation: <span>Log Hunter</span></h1>
+                <p class="subtitle">Analyze server logs to identify security incidents using text viewing commands.</p>
+            </div>
+            <div class="terminal-wrapper">
+                <div id="terminal"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="progress-section">
+                <div class="progress-header">
+                    <h3>MISSION PROGRESS</h3>
+                    <span class="progress-text" id="progressText">0/10</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="objectives-section" id="objectivesList"></div>
+
+            <div class="command-ref">
+                <h4>Quick Reference</h4>
+                <div class="command-grid">
+                    <div><span>cat</span> <small>view file</small></div>
+                    <div><span>head</span> <small>first lines</small></div>
+                    <div><span>tail</span> <small>last lines</small></div>
+                    <div><span>grep</span> <small>search</small></div>
+                    <div><span>wc</span> <small>count</small></div>
+                    <div><span>sort</span> <small>sort lines</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="trophy">&#127942;</div>
+            <h2>Mission Accomplished!</h2>
+            <p>Outstanding work, analyst! You've successfully analyzed the authentication logs.</p>
+            <div class="stats">
+                <div>
+                    <div class="stat-value" id="commandCount">0</div>
+                    <div class="stat-label">Commands</div>
+                </div>
+                <div>
+                    <div class="stat-value" id="objectivesCompleted">10</div>
+                    <div class="stat-label">Objectives</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="resetMission()">Retry</button>
+                <a href="../script-quick.reference.html" class="modal-btn primary">Continue</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // AUTH.LOG DATA
+        // ========================================
+        const AUTH_LOG = `Jan 15 08:23:01 server sshd[12341]: Accepted password for admin from 192.168.1.100 port 52431 ssh2
+Jan 15 08:24:15 server sshd[12345]: Failed password for root from 10.0.0.50 port 43211 ssh2
+Jan 15 08:24:17 server sshd[12346]: Failed password for root from 10.0.0.50 port 43212 ssh2
+Jan 15 08:24:19 server sshd[12347]: Failed password for root from 10.0.0.50 port 43213 ssh2
+Jan 15 08:24:21 server sshd[12348]: Failed password for root from 10.0.0.50 port 43214 ssh2
+Jan 15 08:24:23 server sshd[12349]: Failed password for root from 10.0.0.50 port 43215 ssh2
+Jan 15 08:25:01 server sshd[12350]: Failed password for admin from 10.0.0.50 port 43220 ssh2
+Jan 15 08:25:03 server sshd[12351]: Failed password for admin from 10.0.0.50 port 43221 ssh2
+Jan 15 08:30:00 server sshd[12400]: Accepted password for developer from 192.168.1.105 port 55123 ssh2
+Jan 15 08:45:12 server sshd[12455]: Failed password for invalid user test from 203.0.113.42 port 33445 ssh2
+Jan 15 08:45:14 server sshd[12456]: Failed password for invalid user guest from 203.0.113.42 port 33446 ssh2
+Jan 15 08:45:16 server sshd[12457]: Failed password for invalid user admin from 203.0.113.42 port 33447 ssh2
+Jan 15 09:00:00 server sshd[12500]: Accepted password for admin from 192.168.1.100 port 52500 ssh2
+Jan 15 09:15:22 server sshd[12555]: Failed password for root from 198.51.100.23 port 44100 ssh2
+Jan 15 09:15:24 server sshd[12556]: Failed password for root from 198.51.100.23 port 44101 ssh2
+Jan 15 09:15:26 server sshd[12557]: Failed password for root from 198.51.100.23 port 44102 ssh2
+Jan 15 09:15:28 server sshd[12558]: Failed password for root from 198.51.100.23 port 44103 ssh2
+Jan 15 09:15:30 server sshd[12559]: Failed password for root from 198.51.100.23 port 44104 ssh2
+Jan 15 09:15:32 server sshd[12560]: Failed password for root from 198.51.100.23 port 44105 ssh2
+Jan 15 09:15:34 server sshd[12561]: Failed password for root from 198.51.100.23 port 44106 ssh2
+Jan 15 09:15:36 server sshd[12562]: Failed password for root from 198.51.100.23 port 44107 ssh2
+Jan 15 09:15:38 server sshd[12563]: Failed password for root from 198.51.100.23 port 44108 ssh2
+Jan 15 09:15:40 server sshd[12564]: Failed password for root from 198.51.100.23 port 44109 ssh2
+Jan 15 09:30:00 server sshd[12600]: Accepted publickey for deploy from 192.168.1.200 port 60000 ssh2
+Jan 15 09:45:55 server sshd[12650]: Failed password for invalid user oracle from 203.0.113.42 port 33500 ssh2
+Jan 15 09:45:57 server sshd[12651]: Failed password for invalid user postgres from 203.0.113.42 port 33501 ssh2
+Jan 15 09:45:59 server sshd[12652]: Failed password for invalid user mysql from 203.0.113.42 port 33502 ssh2
+Jan 15 10:00:00 server sshd[12700]: Accepted password for admin from 192.168.1.100 port 52600 ssh2
+Jan 15 10:15:00 server CRON[12750]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 10:15:01 server CRON[12750]: pam_unix(cron:session): session closed for user root
+Jan 15 10:30:33 server sshd[12800]: Failed password for root from 10.0.0.50 port 43300 ssh2
+Jan 15 10:30:35 server sshd[12801]: Failed password for root from 10.0.0.50 port 43301 ssh2
+Jan 15 10:30:37 server sshd[12802]: Failed password for root from 10.0.0.50 port 43302 ssh2
+Jan 15 10:45:00 server sshd[12850]: Accepted password for developer from 192.168.1.105 port 55200 ssh2
+Jan 15 11:00:00 server sshd[12900]: Connection closed by 192.168.1.100 port 52600 [preauth]
+Jan 15 11:15:22 server sshd[12950]: Failed password for invalid user administrator from 203.0.113.42 port 33600 ssh2
+Jan 15 11:15:24 server sshd[12951]: Failed password for invalid user webmaster from 203.0.113.42 port 33601 ssh2
+Jan 15 11:30:00 server sshd[13000]: Accepted password for admin from 192.168.1.100 port 52700 ssh2
+Jan 15 11:45:15 server sshd[13050]: Failed password for root from 198.51.100.23 port 44200 ssh2
+Jan 15 11:45:17 server sshd[13051]: Failed password for root from 198.51.100.23 port 44201 ssh2
+Jan 15 11:45:19 server sshd[13052]: Failed password for root from 198.51.100.23 port 44202 ssh2
+Jan 15 11:45:21 server sshd[13053]: Failed password for root from 198.51.100.23 port 44203 ssh2
+Jan 15 11:45:23 server sshd[13054]: Failed password for root from 198.51.100.23 port 44204 ssh2
+Jan 15 12:00:00 server CRON[13100]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 12:00:01 server CRON[13100]: pam_unix(cron:session): session closed for user root
+Jan 15 12:15:00 server sshd[13150]: Accepted password for developer from 192.168.1.105 port 55300 ssh2
+Jan 15 12:30:44 server sshd[13200]: Failed password for root from 10.0.0.50 port 43400 ssh2
+Jan 15 12:30:46 server sshd[13201]: Failed password for root from 10.0.0.50 port 43401 ssh2
+Jan 15 12:45:00 server sshd[13250]: Accepted publickey for deploy from 192.168.1.200 port 60100 ssh2
+Jan 15 13:00:00 server sshd[13300]: Accepted password for admin from 192.168.1.100 port 52800 ssh2
+Jan 15 13:15:30 server sshd[13350]: Failed password for invalid user ftpuser from 203.0.113.42 port 33700 ssh2
+Jan 15 13:15:32 server sshd[13351]: Failed password for invalid user backup from 203.0.113.42 port 33701 ssh2
+Jan 15 13:15:34 server sshd[13352]: Failed password for invalid user nagios from 203.0.113.42 port 33702 ssh2
+Jan 15 13:30:00 server sshd[13400]: Connection closed by 192.168.1.105 port 55300 [preauth]
+Jan 15 13:45:55 server sshd[13450]: Failed password for root from 198.51.100.23 port 44300 ssh2
+Jan 15 13:45:57 server sshd[13451]: Failed password for root from 198.51.100.23 port 44301 ssh2
+Jan 15 13:45:59 server sshd[13452]: Failed password for root from 198.51.100.23 port 44302 ssh2
+Jan 15 14:00:00 server CRON[13500]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 14:00:01 server CRON[13500]: pam_unix(cron:session): session closed for user root
+Jan 15 14:15:00 server sshd[13550]: Accepted password for admin from 192.168.1.100 port 52900 ssh2
+Jan 15 14:30:00 server sshd[13600]: Accepted password for developer from 192.168.1.105 port 55400 ssh2
+Jan 15 14:45:22 server sshd[13650]: Failed password for invalid user support from 203.0.113.42 port 33800 ssh2
+Jan 15 14:45:24 server sshd[13651]: Failed password for invalid user info from 203.0.113.42 port 33801 ssh2
+Jan 15 15:00:00 server sshd[13700]: Accepted publickey for deploy from 192.168.1.200 port 60200 ssh2
+Jan 15 15:15:33 server sshd[13750]: Failed password for root from 10.0.0.50 port 43500 ssh2
+Jan 15 15:15:35 server sshd[13751]: Failed password for root from 10.0.0.50 port 43501 ssh2
+Jan 15 15:15:37 server sshd[13752]: Failed password for root from 10.0.0.50 port 43502 ssh2
+Jan 15 15:15:39 server sshd[13753]: Failed password for root from 10.0.0.50 port 43503 ssh2
+Jan 15 15:30:00 server sshd[13800]: Connection closed by 192.168.1.100 port 52900 [preauth]
+Jan 15 15:45:00 server sshd[13850]: Accepted password for admin from 192.168.1.100 port 53000 ssh2
+Jan 15 16:00:00 server CRON[13900]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 16:00:01 server CRON[13900]: pam_unix(cron:session): session closed for user root
+Jan 15 16:15:44 server sshd[13950]: Failed password for root from 198.51.100.23 port 44400 ssh2
+Jan 15 16:15:46 server sshd[13951]: Failed password for root from 198.51.100.23 port 44401 ssh2
+Jan 15 16:15:48 server sshd[13952]: Failed password for root from 198.51.100.23 port 44402 ssh2
+Jan 15 16:15:50 server sshd[13953]: Failed password for root from 198.51.100.23 port 44403 ssh2
+Jan 15 16:15:52 server sshd[13954]: Failed password for root from 198.51.100.23 port 44404 ssh2
+Jan 15 16:15:54 server sshd[13955]: Failed password for root from 198.51.100.23 port 44405 ssh2
+Jan 15 16:30:00 server sshd[14000]: Accepted password for developer from 192.168.1.105 port 55500 ssh2
+Jan 15 16:45:00 server sshd[14050]: Accepted password for admin from 192.168.1.100 port 53100 ssh2
+Jan 15 17:00:00 server sshd[14100]: Connection closed by 192.168.1.200 port 60200 [preauth]
+Jan 15 17:15:11 server sshd[14150]: Failed password for invalid user tomcat from 203.0.113.42 port 33900 ssh2
+Jan 15 17:15:13 server sshd[14151]: Failed password for invalid user jenkins from 203.0.113.42 port 33901 ssh2
+Jan 15 17:15:15 server sshd[14152]: Failed password for invalid user git from 203.0.113.42 port 33902 ssh2
+Jan 15 17:30:00 server sshd[14200]: Accepted publickey for deploy from 192.168.1.200 port 60300 ssh2
+Jan 15 17:45:00 server sshd[14250]: Connection closed by 192.168.1.105 port 55500 [preauth]
+Jan 15 18:00:00 server CRON[14300]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 18:00:01 server CRON[14300]: pam_unix(cron:session): session closed for user root
+Jan 15 18:15:55 server sshd[14350]: Failed password for root from 10.0.0.50 port 43600 ssh2
+Jan 15 18:15:57 server sshd[14351]: Failed password for root from 10.0.0.50 port 43601 ssh2
+Jan 15 18:15:59 server sshd[14352]: Failed password for root from 10.0.0.50 port 43602 ssh2
+Jan 15 18:30:00 server sshd[14400]: Accepted password for admin from 192.168.1.100 port 53200 ssh2
+Jan 15 18:45:00 server sshd[14450]: Accepted password for developer from 192.168.1.105 port 55600 ssh2
+Jan 15 19:00:00 server sshd[14500]: Connection closed by 192.168.1.100 port 53200 [preauth]
+Jan 15 19:15:33 server sshd[14550]: Failed password for root from 198.51.100.23 port 44500 ssh2
+Jan 15 19:15:35 server sshd[14551]: Failed password for root from 198.51.100.23 port 44501 ssh2
+Jan 15 19:15:37 server sshd[14552]: Failed password for root from 198.51.100.23 port 44502 ssh2
+Jan 15 19:30:00 server sshd[14600]: Accepted publickey for deploy from 192.168.1.200 port 60400 ssh2
+Jan 15 19:45:00 server sshd[14650]: Accepted password for admin from 192.168.1.100 port 53300 ssh2
+Jan 15 20:00:00 server CRON[14700]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 20:00:01 server CRON[14700]: pam_unix(cron:session): session closed for user root
+Jan 15 20:15:22 server sshd[14750]: Failed password for invalid user ubuntu from 203.0.113.42 port 34000 ssh2
+Jan 15 20:15:24 server sshd[14751]: Failed password for invalid user centos from 203.0.113.42 port 34001 ssh2
+Jan 15 20:30:00 server sshd[14800]: Connection closed by 192.168.1.105 port 55600 [preauth]
+Jan 15 20:45:00 server sshd[14850]: Accepted password for developer from 192.168.1.105 port 55700 ssh2
+Jan 15 21:00:00 server sshd[14900]: Accepted password for admin from 192.168.1.100 port 53400 ssh2
+Jan 15 21:15:44 server sshd[14950]: Failed password for root from 10.0.0.50 port 43700 ssh2
+Jan 15 21:15:46 server sshd[14951]: Failed password for root from 10.0.0.50 port 43701 ssh2
+Jan 15 21:30:00 server sshd[15000]: Connection closed by 192.168.1.200 port 60400 [preauth]
+Jan 15 21:45:00 server sshd[15050]: Accepted publickey for deploy from 192.168.1.200 port 60500 ssh2
+Jan 15 22:00:00 server CRON[15100]: pam_unix(cron:session): session opened for user root by (uid=0)
+Jan 15 22:00:01 server CRON[15100]: pam_unix(cron:session): session closed for user root
+Jan 15 22:15:55 server sshd[15150]: Failed password for root from 198.51.100.23 port 44600 ssh2
+Jan 15 22:15:57 server sshd[15151]: Failed password for root from 198.51.100.23 port 44601 ssh2
+Jan 15 22:15:59 server sshd[15152]: Failed password for root from 198.51.100.23 port 44602 ssh2
+Jan 15 22:16:01 server sshd[15153]: Failed password for root from 198.51.100.23 port 44603 ssh2
+Jan 15 22:30:00 server sshd[15200]: Connection closed by 192.168.1.100 port 53400 [preauth]
+Jan 15 22:45:00 server sshd[15250]: Accepted password for admin from 192.168.1.100 port 53500 ssh2
+Jan 15 23:00:00 server sshd[15300]: Connection closed by 192.168.1.105 port 55700 [preauth]
+Jan 15 23:15:00 server sshd[15350]: Accepted password for developer from 192.168.1.105 port 55800 ssh2
+Jan 15 23:30:33 server sshd[15400]: Failed password for invalid user test from 203.0.113.42 port 34100 ssh2
+Jan 15 23:30:35 server sshd[15401]: Failed password for invalid user demo from 203.0.113.42 port 34101 ssh2
+Jan 15 23:45:00 server sshd[15450]: Connection closed by 192.168.1.200 port 60500 [preauth]
+Jan 15 23:59:59 server sshd[15500]: Accepted password for admin from 192.168.1.100 port 53600 ssh2`;
+
+        // ========================================
+        // OBJECTIVES
+        // ========================================
+        const OBJECTIVES = [
+            { id: 1, title: 'View the complete log file', hint: 'cat auth.log', validate: cmd => /^cat\s+.*auth\.log/.test(cmd) },
+            { id: 2, title: 'Show first 20 lines', hint: 'head -n 20 auth.log', validate: cmd => /^head\s+(-n\s*)?-?20\s+.*auth\.log/.test(cmd) },
+            { id: 3, title: 'Show last 50 lines', hint: 'tail -n 50 auth.log', validate: cmd => /^tail\s+(-n\s*)?-?50\s+.*auth\.log/.test(cmd) },
+            { id: 4, title: 'Find all "Failed password" entries', hint: 'grep "Failed password" auth.log', validate: cmd => /^grep.*[Ff]ailed.*password.*auth\.log/.test(cmd) },
+            { id: 5, title: 'Count failed password attempts', hint: 'grep -c "Failed password" auth.log', validate: cmd => /^grep\s+-c.*[Ff]ailed.*password.*auth\.log/.test(cmd) },
+            { id: 6, title: 'Find attacks from IP 198.51.100.23', hint: 'grep "198.51.100.23" auth.log', validate: cmd => /grep.*198\.51\.100\.23.*auth\.log/.test(cmd) },
+            { id: 7, title: 'Show line numbers with matches', hint: 'grep -n "Failed password" auth.log', validate: cmd => /^grep\s+-n.*[Ff]ailed.*password.*auth\.log/.test(cmd) },
+            { id: 8, title: 'Count lines, words, bytes in the log', hint: 'wc auth.log', validate: cmd => /^wc\s+.*auth\.log/.test(cmd) },
+            { id: 9, title: 'Sort the log entries', hint: 'sort auth.log', validate: cmd => /^sort\s+.*auth\.log/.test(cmd) },
+            { id: 10, title: 'Follow log in real-time', hint: 'tail -f auth.log', validate: cmd => /^tail\s+-f\s+.*auth\.log/.test(cmd) }
+        ];
+
+        // ========================================
+        // STATE
+        // ========================================
+        let state = {
+            terminal: null,
+            completed: new Set(),
+            commandCount: 0
+        };
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        function init() {
+            // Create terminal
+            state.terminal = new LinuxTerminal({
+                container: '#terminal',
+                user: 'analyst',
+                hostname: 'security-ops',
+                startDir: '/var/log',
+                height: '100%',
+                onCommand: handleCommand
+            });
+
+            // Add auth.log file to filesystem
+            state.terminal.addFiles({
+                '/var/log/auth.log': {
+                    type: 'file',
+                    perms: '-rw-r-----',
+                    owner: 'root',
+                    group: 'adm',
+                    size: AUTH_LOG.length,
+                    content: AUTH_LOG
+                }
+            });
+
+            // Print welcome message
+            state.terminal.print('<span class="info">═══════════════════════════════════════════════════════════</span>');
+            state.terminal.print('<span class="highlight">MISSION: Log Analysis</span>');
+            state.terminal.print('<span class="info">═══════════════════════════════════════════════════════════</span>');
+            state.terminal.print('');
+            state.terminal.print('Target file: <span class="success">/var/log/auth.log</span>');
+            state.terminal.print('Your task: Analyze authentication logs for security incidents.');
+            state.terminal.print('');
+
+            renderObjectives();
+            updateProgress();
+        }
+
+        // ========================================
+        // COMMAND HANDLER
+        // ========================================
+        function handleCommand(cmd, output, cmdName, args) {
+            state.commandCount++;
+
+            // Check objectives
+            for (const obj of OBJECTIVES) {
+                if (!state.completed.has(obj.id) && obj.validate(cmd)) {
+                    completeObjective(obj.id);
+                    break;
+                }
+            }
+        }
+
+        // ========================================
+        // OBJECTIVES
+        // ========================================
+        function completeObjective(id) {
+            state.completed.add(id);
+            state.terminal.print(`<span class="success">✓ Objective ${id} Complete!</span>`);
+            renderObjectives();
+            updateProgress();
+
+            if (state.completed.size === OBJECTIVES.length) {
+                setTimeout(showCompletion, 1000);
+            }
+        }
+
+        function renderObjectives() {
+            const container = document.getElementById('objectivesList');
+            container.innerHTML = OBJECTIVES.map(obj => {
+                const isCompleted = state.completed.has(obj.id);
+                const isActive = !isCompleted && (obj.id === 1 || state.completed.has(obj.id - 1));
+                const classes = ['objective-item'];
+                if (isCompleted) classes.push('completed');
+                if (isActive) classes.push('active');
+
+                return `
+                    <div class="${classes.join(' ')}">
+                        <span class="number">${isCompleted ? '✓' : obj.id}</span>
+                        ${obj.title}
+                        <span class="hint">${obj.hint}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateProgress() {
+            const completed = state.completed.size;
+            const total = OBJECTIVES.length;
+            const percent = Math.round((completed / total) * 100);
+
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `${completed}/${total}`;
+        }
+
+        // ========================================
+        // COMPLETION
+        // ========================================
+        function showCompletion() {
+            document.getElementById('commandCount').textContent = state.commandCount;
+            document.getElementById('objectivesCompleted').textContent = state.completed.size;
+            document.getElementById('completionModal').classList.add('show');
+            saveProgress();
+        }
+
+        function resetMission() {
+            state.completed = new Set();
+            state.commandCount = 0;
+            document.getElementById('completionModal').classList.remove('show');
+            state.terminal.clear();
+            init();
+        }
+
+        function saveProgress() {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (!progress.script) progress.script = {};
+            progress.script['mission-text-viewing'] = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                commandCount: state.commandCount
+            };
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+        }
+
+        // ========================================
+        // START
+        // ========================================
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

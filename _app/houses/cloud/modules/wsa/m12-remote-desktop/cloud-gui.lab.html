@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M12 GUI Lab: Remote Desktop Services - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .sim-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .window-frame {
+            flex: 1;
+            background: #1e1e1e;
+            margin: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #333;
+        }
+
+        .window-titlebar {
+            background: linear-gradient(180deg, #2d2d30 0%, #252526 100%);
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .window-icon { width: 18px; height: 18px; background: linear-gradient(135deg, #60a5fa, #3b82f6); border-radius: 3px; }
+        .window-title { flex: 1; font-size: 0.9rem; color: #ccc; }
+        .window-controls { display: flex; gap: 8px; }
+        .window-btn { width: 12px; height: 12px; border-radius: 50%; }
+        .window-btn.minimize { background: #fbbf24; }
+        .window-btn.maximize { background: #22c55e; }
+        .window-btn.close { background: #ef4444; }
+
+        .window-content { flex: 1; display: flex; overflow: hidden; }
+
+        .tree-panel {
+            width: 280px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            overflow-y: auto;
+        }
+
+        .tree-node {
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .tree-node:hover { background: rgba(96, 165, 250, 0.1); }
+        .tree-node.selected { background: rgba(96, 165, 250, 0.25); }
+        .tree-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .tree-expand { width: 16px; color: #888; font-size: 0.7rem; }
+        .tree-children { padding-left: 20px; display: none; }
+        .tree-children.expanded { display: block; }
+
+        .detail-panel { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
+
+        .toolbar {
+            background: #2d2d30;
+            padding: 8px 12px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .toolbar-btn {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover { background: rgba(96, 165, 250, 0.2); border-color: #60a5fa; }
+        .toolbar-separator { width: 1px; background: #3c3c3c; margin: 0 4px; }
+
+        .content-area { flex: 1; overflow: auto; padding: 15px; }
+
+        .collection-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .collection-card:hover { border-color: #60a5fa; }
+        .collection-card.selected { border-color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+        .collection-card h4 { color: #60a5fa; margin-bottom: 5px; }
+        .collection-card p { font-size: 0.85rem; color: #9ca3af; }
+
+        .detail-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .detail-section h5 {
+            color: #60a5fa;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .detail-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.9rem; }
+        .detail-row .label { color: #9ca3af; }
+
+        .status-bar { background: #007acc; padding: 4px 12px; font-size: 0.8rem; color: white; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: #2d2d30;
+            border-radius: 8px;
+            width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            border: 1px solid #3c3c3c;
+        }
+
+        .modal-header {
+            background: #252526;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .modal-header h3 { color: #e0e0e0; font-size: 1rem; }
+        .modal-close { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; line-height: 1; }
+        .modal-close:hover { color: #ef4444; }
+        .modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #9ca3af; font-size: 0.9rem; }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #60a5fa; }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background: #252526;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #3c3c3c;
+        }
+
+        .btn { padding: 8px 20px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary { background: #0078d4; color: white; }
+        .btn-primary:hover { background: #1084d8; }
+        .btn-secondary { background: #3c3c3c; color: #e0e0e0; }
+        .btn-secondary:hover { background: #4c4c4c; }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+        .completion-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+
+        .app-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .app-item {
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M12: Remote Desktop Services Manager</div>
+        <nav class="lab-nav">
+            <a href="cloud-presentation.module.html">Presentation</a>
+            <a href="cloud-gui.lab.html" class="active">GUI Lab</a>
+            <a href="cloud-ps.lab.html">PowerShell Lab</a>
+            <a href="cloud-quiz.quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. Explore Server Manager</h4>
+                    <p>Navigate the RDS deployment overview.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Create Session Collection</h4>
+                    <p>Create a new session collection.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. Publish RemoteApp</h4>
+                    <p>Publish an application as RemoteApp.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. Configure Session Limits</h4>
+                    <p>Set session timeout settings.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. Enable User Profile Disks</h4>
+                    <p>Configure UPD for the collection.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="sim-area">
+            <div class="window-frame">
+                <div class="window-titlebar">
+                    <div class="window-icon"></div>
+                    <div class="window-title">Server Manager - Remote Desktop Services</div>
+                    <div class="window-controls">
+                        <div class="window-btn minimize"></div>
+                        <div class="window-btn maximize"></div>
+                        <div class="window-btn close"></div>
+                    </div>
+                </div>
+
+                <div class="window-content">
+                    <div class="tree-panel" id="treePanel"></div>
+                    <div class="detail-panel">
+                        <div class="toolbar" id="toolbar">
+                            <button class="toolbar-btn" onclick="showNewCollectionModal()">Create Collection</button>
+                            <button class="toolbar-btn" onclick="showPublishAppModal()">Publish RemoteApp</button>
+                            <div class="toolbar-separator"></div>
+                            <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
+                        </div>
+                        <div class="content-area" id="contentArea">
+                            <p style="color: #888;">Select an item to view details</p>
+                        </div>
+                        <div class="status-bar" id="statusBar">Ready</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Collection Modal -->
+    <div class="modal-overlay" id="newCollectionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create Session Collection</h3>
+                <button class="modal-close" onclick="closeModal('newCollectionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Collection name:</label>
+                    <input type="text" id="collectionName" placeholder="e.g., Corporate Apps">
+                </div>
+                <div class="form-group">
+                    <label>Session host:</label>
+                    <select id="sessionHost">
+                        <option value="RDSH01">RDSH01.hexworth.local</option>
+                        <option value="RDSH02">RDSH02.hexworth.local</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>User group:</label>
+                    <input type="text" id="userGroup" value="HEXWORTH\Domain Users">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newCollectionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createCollection()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Publish RemoteApp Modal -->
+    <div class="modal-overlay" id="publishAppModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Publish RemoteApp Program</h3>
+                <button class="modal-close" onclick="closeModal('publishAppModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Collection:</label>
+                    <select id="appCollection"></select>
+                </div>
+                <div class="form-group">
+                    <label>Application:</label>
+                    <select id="appName">
+                        <option value="wordpad">WordPad</option>
+                        <option value="notepad">Notepad</option>
+                        <option value="calc">Calculator</option>
+                        <option value="mspaint">Paint</option>
+                        <option value="excel">Microsoft Excel</option>
+                        <option value="word">Microsoft Word</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Display name:</label>
+                    <input type="text" id="appDisplayName" placeholder="Custom display name (optional)">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('publishAppModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="publishApp()">Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Settings Modal -->
+    <div class="modal-overlay" id="sessionSettingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Session Settings</h3>
+                <button class="modal-close" onclick="closeModal('sessionSettingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Idle session limit:</label>
+                    <select id="idleLimit">
+                        <option value="never">Never</option>
+                        <option value="30">30 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="120">2 hours</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Disconnected session limit:</label>
+                    <select id="disconnectLimit">
+                        <option value="never">Never</option>
+                        <option value="60">1 hour</option>
+                        <option value="240">4 hours</option>
+                        <option value="1440">1 day</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Active session limit:</label>
+                    <select id="activeLimit">
+                        <option value="never">Never</option>
+                        <option value="480">8 hours</option>
+                        <option value="720">12 hours</option>
+                        <option value="1440">1 day</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('sessionSettingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSessionSettings()">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPD Settings Modal -->
+    <div class="modal-overlay" id="updSettingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>User Profile Disk Settings</h3>
+                <button class="modal-close" onclick="closeModal('updSettingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><input type="checkbox" id="enableUpd"> Enable User Profile Disks</label>
+                </div>
+                <div class="form-group">
+                    <label>Disk path (UNC):</label>
+                    <input type="text" id="updPath" value="\\FILESERVER\UserProfileDisks$">
+                </div>
+                <div class="form-group">
+                    <label>Maximum size (GB):</label>
+                    <input type="number" id="updSize" value="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('updSettingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveUPDSettings()">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered RDS management basics.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='cloud-ps.lab.html'">PowerShell Lab</button>
+        </div>
+    </div>
+
+    <script>
+        const rdsState = {
+            deployment: 'hexworth.local',
+            collections: [
+                {
+                    name: 'QuickSessionCollection',
+                    sessionHosts: ['RDSH01'],
+                    userGroups: ['HEXWORTH\\Domain Users'],
+                    remoteApps: [],
+                    sessionSettings: { idle: 'never', disconnect: 'never', active: 'never' },
+                    upd: { enabled: false, path: '', size: 20 }
+                }
+            ],
+            servers: {
+                connectionBroker: 'RDCB01.hexworth.local',
+                webAccess: 'RDWA01.hexworth.local',
+                gateway: 'RDGW01.hexworth.local',
+                licensing: 'RDL01.hexworth.local'
+            },
+            selectedCollection: null
+        };
+
+        const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+
+        function buildTree() {
+            const treePanel = document.getElementById('treePanel');
+
+            let html = `
+                <div class="tree-node" onclick="selectNode('overview')" data-node="overview">
+                    <span class="tree-expand" onclick="toggleExpand(event, 'overview-children')">&#9654;</span>
+                    <span class="tree-icon">&#127760;</span>
+                    <span>Remote Desktop Services</span>
+                </div>
+                <div class="tree-children" id="overview-children">
+                    <div class="tree-node" onclick="selectNode('deployment')" data-node="deployment">
+                        <span class="tree-expand"></span>
+                        <span class="tree-icon">&#128421;</span>
+                        <span>Deployment Overview</span>
+                    </div>
+                    <div class="tree-node" onclick="selectNode('collections')" data-node="collections">
+                        <span class="tree-expand" onclick="toggleExpand(event, 'collections-children')">&#9654;</span>
+                        <span class="tree-icon">&#128193;</span>
+                        <span>Session Collections</span>
+                    </div>
+                    <div class="tree-children" id="collections-children">
+            `;
+
+            rdsState.collections.forEach(col => {
+                const colId = col.name.toLowerCase().replace(/\s/g, '-');
+                html += `
+                    <div class="tree-node" onclick="selectCollection('${col.name}')" data-node="col-${colId}">
+                        <span class="tree-expand"></span>
+                        <span class="tree-icon">&#128193;</span>
+                        <span>${col.name}</span>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <div class="tree-node" onclick="selectNode('servers')" data-node="servers">
+                        <span class="tree-expand"></span>
+                        <span class="tree-icon">&#128421;</span>
+                        <span>Servers</span>
+                    </div>
+                </div>
+            `;
+
+            treePanel.innerHTML = html;
+        }
+
+        function toggleExpand(event, childrenId) {
+            event.stopPropagation();
+            const children = document.getElementById(childrenId);
+            const expand = event.target;
+            if (children.classList.contains('expanded')) {
+                children.classList.remove('expanded');
+                expand.innerHTML = '&#9654;';
+            } else {
+                children.classList.add('expanded');
+                expand.innerHTML = '&#9660;';
+            }
+        }
+
+        function selectNode(nodeId) {
+            document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+            const node = document.querySelector(`[data-node="${nodeId}"]`);
+            if (node) node.classList.add('selected');
+            rdsState.selectedCollection = null;
+            updateContentArea(nodeId);
+            completeObjective('obj1');
+        }
+
+        function selectCollection(colName) {
+            document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+            const colId = colName.toLowerCase().replace(/\s/g, '-');
+            const node = document.querySelector(`[data-node="col-${colId}"]`);
+            if (node) node.classList.add('selected');
+            rdsState.selectedCollection = colName;
+            showCollectionDetails(colName);
+        }
+
+        function updateContentArea(nodeId) {
+            const contentArea = document.getElementById('contentArea');
+            const statusBar = document.getElementById('statusBar');
+
+            if (nodeId === 'deployment' || nodeId === 'overview') {
+                contentArea.innerHTML = `
+                    <h3 style="color: #60a5fa; margin-bottom: 20px;">Deployment Overview</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="detail-section">
+                            <h5>Role Services</h5>
+                            <div class="detail-row"><span class="label">RD Connection Broker:</span><span style="color:#22c55e;">Active</span></div>
+                            <div class="detail-row"><span class="label">RD Web Access:</span><span style="color:#22c55e;">Active</span></div>
+                            <div class="detail-row"><span class="label">RD Gateway:</span><span style="color:#22c55e;">Active</span></div>
+                            <div class="detail-row"><span class="label">RD Licensing:</span><span style="color:#22c55e;">Active</span></div>
+                        </div>
+                        <div class="detail-section">
+                            <h5>Deployment Servers</h5>
+                            <div class="detail-row"><span class="label">Connection Broker:</span><span>${rdsState.servers.connectionBroker}</span></div>
+                            <div class="detail-row"><span class="label">Web Access:</span><span>${rdsState.servers.webAccess}</span></div>
+                            <div class="detail-row"><span class="label">Gateway:</span><span>${rdsState.servers.gateway}</span></div>
+                        </div>
+                    </div>
+                `;
+                statusBar.textContent = 'Deployment Overview';
+            } else if (nodeId === 'collections') {
+                let html = '<h3 style="color: #60a5fa; margin-bottom: 15px;">Session Collections</h3>';
+                rdsState.collections.forEach(col => {
+                    html += `
+                        <div class="collection-card" onclick="selectCollection('${col.name}')">
+                            <h4>${col.name}</h4>
+                            <p>Hosts: ${col.sessionHosts.join(', ')} | RemoteApps: ${col.remoteApps.length}</p>
+                        </div>
+                    `;
+                });
+                contentArea.innerHTML = html;
+                statusBar.textContent = `${rdsState.collections.length} collection(s)`;
+            } else if (nodeId === 'servers') {
+                contentArea.innerHTML = `
+                    <h3 style="color: #60a5fa; margin-bottom: 20px;">RDS Servers</h3>
+                    <div class="collection-card"><h4>RDCB01</h4><p>RD Connection Broker - Active</p></div>
+                    <div class="collection-card"><h4>RDSH01</h4><p>RD Session Host - Active (2 sessions)</p></div>
+                    <div class="collection-card"><h4>RDSH02</h4><p>RD Session Host - Active (0 sessions)</p></div>
+                    <div class="collection-card"><h4>RDWA01</h4><p>RD Web Access - Active</p></div>
+                    <div class="collection-card"><h4>RDGW01</h4><p>RD Gateway - Active</p></div>
+                `;
+                statusBar.textContent = '5 server(s)';
+            }
+        }
+
+        function showCollectionDetails(colName) {
+            const col = rdsState.collections.find(c => c.name === colName);
+            if (!col) return;
+
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <h3 style="color: #60a5fa; margin-bottom: 15px;">${col.name}</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="detail-section">
+                        <h5>Session Hosts</h5>
+                        ${col.sessionHosts.map(h => `<div class="detail-row"><span>${h}.hexworth.local</span><span style="color:#22c55e;">Online</span></div>`).join('')}
+                    </div>
+                    <div class="detail-section">
+                        <h5>User Groups</h5>
+                        ${col.userGroups.map(g => `<div class="detail-row"><span>${g}</span></div>`).join('')}
+                    </div>
+                </div>
+                <div class="detail-section" style="margin-top: 15px;">
+                    <h5>RemoteApp Programs</h5>
+                    ${col.remoteApps.length > 0
+                        ? `<div class="app-list">${col.remoteApps.map(a => `<div class="app-item">${a}</div>`).join('')}</div>`
+                        : '<p style="color: #888;">No RemoteApps published</p>'
+                    }
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div class="detail-section">
+                        <h5>Session Settings</h5>
+                        <div class="detail-row"><span class="label">Idle limit:</span><span>${col.sessionSettings.idle === 'never' ? 'Never' : col.sessionSettings.idle + ' min'}</span></div>
+                        <div class="detail-row"><span class="label">Disconnect limit:</span><span>${col.sessionSettings.disconnect === 'never' ? 'Never' : col.sessionSettings.disconnect + ' min'}</span></div>
+                        <button class="toolbar-btn" style="margin-top: 10px;" onclick="showSessionSettingsModal()">Configure</button>
+                    </div>
+                    <div class="detail-section">
+                        <h5>User Profile Disks</h5>
+                        <div class="detail-row"><span class="label">Enabled:</span><span>${col.upd.enabled ? 'Yes' : 'No'}</span></div>
+                        ${col.upd.enabled ? `<div class="detail-row"><span class="label">Path:</span><span>${col.upd.path}</span></div>` : ''}
+                        <button class="toolbar-btn" style="margin-top: 10px;" onclick="showUPDSettingsModal()">Configure</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('statusBar').textContent = `Collection: ${col.name}`;
+        }
+
+        function showNewCollectionModal() {
+            document.getElementById('collectionName').value = '';
+            document.getElementById('newCollectionModal').classList.add('show');
+        }
+
+        function showPublishAppModal() {
+            const select = document.getElementById('appCollection');
+            select.innerHTML = rdsState.collections.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            document.getElementById('publishAppModal').classList.add('show');
+        }
+
+        function showSessionSettingsModal() {
+            const col = rdsState.collections.find(c => c.name === rdsState.selectedCollection);
+            if (col) {
+                document.getElementById('idleLimit').value = col.sessionSettings.idle;
+                document.getElementById('disconnectLimit').value = col.sessionSettings.disconnect;
+                document.getElementById('activeLimit').value = col.sessionSettings.active;
+            }
+            document.getElementById('sessionSettingsModal').classList.add('show');
+        }
+
+        function showUPDSettingsModal() {
+            const col = rdsState.collections.find(c => c.name === rdsState.selectedCollection);
+            if (col) {
+                document.getElementById('enableUpd').checked = col.upd.enabled;
+                document.getElementById('updPath').value = col.upd.path || '\\\\FILESERVER\\UserProfileDisks$';
+                document.getElementById('updSize').value = col.upd.size;
+            }
+            document.getElementById('updSettingsModal').classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        function createCollection() {
+            const name = document.getElementById('collectionName').value.trim();
+            const host = document.getElementById('sessionHost').value;
+            const userGroup = document.getElementById('userGroup').value.trim();
+
+            if (!name) {
+                alert('Please enter a collection name.');
+                return;
+            }
+
+            const newCollection = {
+                name: name,
+                sessionHosts: [host],
+                userGroups: [userGroup],
+                remoteApps: [],
+                sessionSettings: { idle: 'never', disconnect: 'never', active: 'never' },
+                upd: { enabled: false, path: '', size: 20 }
+            };
+
+            rdsState.collections.push(newCollection);
+            buildTree();
+            closeModal('newCollectionModal');
+            completeObjective('obj2');
+            document.getElementById('statusBar').textContent = `Collection "${name}" created`;
+        }
+
+        function publishApp() {
+            const colName = document.getElementById('appCollection').value;
+            const appName = document.getElementById('appName').value;
+            const displayName = document.getElementById('appDisplayName').value.trim() || appName;
+
+            const col = rdsState.collections.find(c => c.name === colName);
+            if (col && !col.remoteApps.includes(displayName)) {
+                col.remoteApps.push(displayName);
+            }
+
+            closeModal('publishAppModal');
+            if (rdsState.selectedCollection === colName) {
+                showCollectionDetails(colName);
+            }
+            completeObjective('obj3');
+            document.getElementById('statusBar').textContent = `RemoteApp "${displayName}" published`;
+        }
+
+        function saveSessionSettings() {
+            const col = rdsState.collections.find(c => c.name === rdsState.selectedCollection);
+            if (col) {
+                col.sessionSettings.idle = document.getElementById('idleLimit').value;
+                col.sessionSettings.disconnect = document.getElementById('disconnectLimit').value;
+                col.sessionSettings.active = document.getElementById('activeLimit').value;
+                showCollectionDetails(col.name);
+            }
+            closeModal('sessionSettingsModal');
+            completeObjective('obj4');
+            document.getElementById('statusBar').textContent = 'Session settings updated';
+        }
+
+        function saveUPDSettings() {
+            const col = rdsState.collections.find(c => c.name === rdsState.selectedCollection);
+            if (col) {
+                col.upd.enabled = document.getElementById('enableUpd').checked;
+                col.upd.path = document.getElementById('updPath').value;
+                col.upd.size = parseInt(document.getElementById('updSize').value);
+                showCollectionDetails(col.name);
+                if (col.upd.enabled) {
+                    completeObjective('obj5');
+                }
+            }
+            closeModal('updSettingsModal');
+            document.getElementById('statusBar').textContent = 'UPD settings updated';
+        }
+
+        function refreshView() {
+            if (rdsState.selectedCollection) {
+                showCollectionDetails(rdsState.selectedCollection);
+            } else {
+                selectNode('deployment');
+            }
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(objectives).every(v => v)) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                        WSAProgress.markGuiLabComplete('m12');
+                }, 500);
+            }
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        buildTree();
+        setTimeout(() => {
+            document.getElementById('overview-children').classList.add('expanded');
+            document.querySelector('[onclick*="overview-children"]').innerHTML = '&#9660;';
+            selectNode('deployment');
+        }, 300);
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

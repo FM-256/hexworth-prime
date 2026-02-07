@@ -22,7 +22,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'presentations/cia-triad.html',
+                    href: 'presentations/shield-cia-triad.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -31,7 +31,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'quizzes/cia-triad-quiz.html',
+                    href: 'quizzes/shield-cia-triad.quiz.html',
                     prerequisites: ['shield-cia-triad']
                 },
                 {
@@ -40,7 +40,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'presentations/security-presentation.html',
+                    href: 'presentations/shield-security.presentation.html',
                     prerequisites: ['shield-cia-triad-quiz']
                 },
                 {
@@ -49,7 +49,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'applets/access/access-control-models.html',
+                    href: 'applets/access/shield-access-control-models.applet.html',
                     prerequisites: ['shield-security-fundamentals']
                 },
                 {
@@ -58,7 +58,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/shield/applets/threats/threat_actors/ThreatActors.html',
+                    href: 'houses/shield/applets/threats/threat_actors/shield-threat-actors.applet.html',
                     prerequisites: ['shield-access-control']
                 },
                 {
@@ -67,7 +67,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/shield/applets/risk/risk_management/risk_management.html',
+                    href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
                     prerequisites: ['shield-threats']
                 },
                 {
@@ -76,7 +76,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/shield/applets/network/home-network-security.html',
+                    href: 'houses/shield/applets/network/shield-home-network-security.applet.html',
                     prerequisites: ['shield-risk']
                 },
                 {
@@ -85,7 +85,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/key/presentations/encryption-basics.html',
+                    href: 'houses/key/presentations/key-encryption-basics.presentation.html',
                     prerequisites: ['shield-network-security']
                 },
                 {
@@ -94,7 +94,7 @@ class LearningPaths {
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'tools/yara-training.html',
+                    href: 'tools/shield-yara.tool.html',
                     prerequisites: ['shield-crypto-intro']
                 }
             ]
@@ -112,7 +112,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/osi-model.html',
+                    href: 'presentations/web-osi-model.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -121,7 +121,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'quizzes/osi-quiz.html',
+                    href: 'quizzes/web-osi.quiz.html',
                     prerequisites: ['web-osi-model']
                 },
                 {
@@ -130,7 +130,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/web/applets/ip-addressing/binaryIP/binaryIP.html',
+                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
                     prerequisites: ['web-osi-quiz']
                 },
                 {
@@ -139,7 +139,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'houses/web/presentations/subnetting-presentation.html',
+                    href: 'houses/web/presentations/web-subnetting.presentation.html',
                     prerequisites: ['web-ip-addressing']
                 },
                 {
@@ -148,7 +148,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'quizzes/subnetting-quiz.html',
+                    href: 'quizzes/web-subnetting.quiz.html',
                     prerequisites: ['web-subnetting']
                 },
                 {
@@ -157,7 +157,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/web/presentations/switch-operations-presentation.html',
+                    href: 'houses/web/presentations/web-switch-operations.presentation.html',
                     prerequisites: ['web-subnetting-quiz']
                 },
                 {
@@ -166,7 +166,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/web/presentations/vlan-presentation.html',
+                    href: 'houses/web/presentations/web-vlan.presentation.html',
                     prerequisites: ['web-switching']
                 },
                 {
@@ -175,7 +175,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/web/presentations/topologies-presentation.html',
+                    href: 'houses/web/presentations/web-topologies.presentation.html',
                     prerequisites: ['web-vlan']
                 },
                 {
@@ -184,7 +184,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'houses/web/presentations/ospf-presentation.html',
+                    href: 'houses/web/presentations/web-ospf.presentation.html',
                     prerequisites: ['web-routing']
                 },
                 {
@@ -193,7 +193,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'advanced',
                     duration: '60 min',
-                    href: 'simulators/interactive-network-simulator.v2.html',
+                    href: 'simulators/web-interactive-network-simulatorv2.simulator.html',
                     prerequisites: ['web-ospf']
                 }
             ]
@@ -211,7 +211,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'presentations/windows-editions.html',
+                    href: 'presentations/forge-windows-editions.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -220,7 +220,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'applets/windows-edition-selector.html',
+                    href: 'applets/forge-windows-edition-selector.applet.html',
                     prerequisites: ['forge-windows-editions']
                 },
                 {
@@ -229,7 +229,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/windows-settings.html',
+                    href: 'presentations/forge-windows-settings.presentation.html',
                     prerequisites: ['forge-windows-editions-applet']
                 },
                 {
@@ -238,7 +238,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'presentations/control-panel.html',
+                    href: 'presentations/forge-control-panel.presentation.html',
                     prerequisites: ['forge-windows-settings']
                 },
                 {
@@ -247,7 +247,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/admin-tools.html',
+                    href: 'presentations/forge-admin-tools.presentation.html',
                     prerequisites: ['forge-control-panel']
                 },
                 {
@@ -256,7 +256,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/system-tools.html',
+                    href: 'presentations/forge-system-tools.presentation.html',
                     prerequisites: ['forge-admin-tools']
                 },
                 {
@@ -265,7 +265,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'applets/hardware/hardware-trainer.html',
+                    href: 'applets/hardware/forge-hardware-trainer.applet.html',
                     prerequisites: ['forge-system-tools']
                 },
                 {
@@ -274,7 +274,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/macos-linux-basics.html',
+                    href: 'presentations/forge-macos-linux-basics.presentation.html',
                     prerequisites: ['forge-hardware']
                 },
                 {
@@ -283,7 +283,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'quizzes/windows-admin-quiz.html',
+                    href: 'quizzes/forge-windows-admin.quiz.html',
                     prerequisites: ['forge-macos-linux']
                 }
             ]
@@ -301,7 +301,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'presentations/scripting-basics.html',
+                    href: 'presentations/script-scripting-basics.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -310,7 +310,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'applets/linux/linux-command-simulator.html',
+                    href: 'applets/linux/script-linux-command.tool.html',
                     prerequisites: ['script-basics']
                 },
                 {
@@ -319,7 +319,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'applets/linux/linux-filesystem-navigator.html',
+                    href: 'applets/linux/script-linux-filesystem-navigator.applet.html',
                     prerequisites: ['script-linux-commands']
                 },
                 {
@@ -328,7 +328,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/linux/linux-permissions-calculator.html',
+                    href: 'applets/linux/script-linux-permissions.tool.html',
                     prerequisites: ['script-linux-filesystem']
                 },
                 {
@@ -337,7 +337,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'applets/linux/bash-scripting-playground.html',
+                    href: 'applets/linux/script-bash-scripting-playground.applet.html',
                     prerequisites: ['script-linux-permissions']
                 },
                 {
@@ -346,7 +346,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'applets/powershell/powershell-playground.html',
+                    href: 'applets/powershell/script-powershell-playground.applet.html',
                     prerequisites: ['script-bash']
                 },
                 {
@@ -355,7 +355,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'applets/python/python-chapter1-applet.html',
+                    href: 'applets/python/script-python-chapter1.applet.html',
                     prerequisites: ['script-basics']
                 },
                 {
@@ -364,7 +364,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'applets/python/python-chapter2-strings.html',
+                    href: 'applets/python/script-python-chapter2-strings.applet.html',
                     prerequisites: ['script-python-intro']
                 },
                 {
@@ -373,7 +373,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/python/python-chapter3-flow-control.html',
+                    href: 'applets/python/script-python-chapter3-flow-control.applet.html',
                     prerequisites: ['script-python-strings']
                 },
                 {
@@ -382,7 +382,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'applets/sysadmin/automation-visualizer.html',
+                    href: 'applets/sysadmin/script-automation.tool.html',
                     prerequisites: ['script-powershell', 'script-python-flow']
                 },
                 {
@@ -391,7 +391,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'quizzes/linux-basics-quiz.html',
+                    href: 'quizzes/script-linux-basics.quiz.html',
                     prerequisites: ['script-automation']
                 }
             ]
@@ -409,7 +409,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/cloud-concepts.html',
+                    href: 'presentations/cloud-concepts.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -418,7 +418,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'applets/fundamentals/ch01-cloud-models-visualizer.html',
+                    href: 'applets/fundamentals/cloud-ch01-cloud-models.tool.html',
                     prerequisites: ['cloud-concepts']
                 },
                 {
@@ -427,7 +427,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'presentations/aws-fundamentals.html',
+                    href: 'presentations/cloud-aws-fundamentals.presentation.html',
                     prerequisites: ['cloud-models']
                 },
                 {
@@ -436,7 +436,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'applets/aws/ch02-aws-account-explorer.html',
+                    href: 'applets/aws/cloud-ch02-aws-account.tool.html',
                     prerequisites: ['cloud-aws-fundamentals']
                 },
                 {
@@ -445,7 +445,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'applets/aws/ch04-aws-regions-explorer.html',
+                    href: 'applets/aws/cloud-ch04-aws-regions.tool.html',
                     prerequisites: ['cloud-aws-account']
                 },
                 {
@@ -454,7 +454,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'applets/aws/ch05-security-visualizer.html',
+                    href: 'applets/aws/cloud-ch05-security.tool.html',
                     prerequisites: ['cloud-aws-regions']
                 },
                 {
@@ -463,7 +463,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'applets/aws/ch07-compute-services-explorer.html',
+                    href: 'applets/aws/cloud-ch07-compute-services.tool.html',
                     prerequisites: ['cloud-aws-iam']
                 },
                 {
@@ -472,7 +472,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/aws/ch08-storage-services-explorer.html',
+                    href: 'applets/aws/cloud-ch08-storage-services.tool.html',
                     prerequisites: ['cloud-aws-compute']
                 },
                 {
@@ -481,7 +481,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/azure-fundamentals.html',
+                    href: 'presentations/cloud-azure-fundamentals.presentation.html',
                     prerequisites: ['cloud-aws-storage']
                 },
                 {
@@ -490,7 +490,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'applets/architecture/cloud-architecture-designer.html',
+                    href: 'applets/architecture/cloud-architecture-designer.applet.html',
                     prerequisites: ['cloud-azure']
                 },
                 {
@@ -499,7 +499,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'quizzes/aws-fundamentals-quiz.html',
+                    href: 'quizzes/cloud-aws-fundamentals.quiz.html',
                     prerequisites: ['cloud-architecture']
                 }
             ]
@@ -517,7 +517,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/git-basics.html',
+                    href: 'presentations/code-git-basics.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -526,7 +526,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'presentations/agile-sdlc.html',
+                    href: 'presentations/code-agile-sdlc.presentation.html',
                     prerequisites: ['code-git-basics']
                 },
                 {
@@ -535,7 +535,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'quizzes/agile-quiz.html',
+                    href: 'quizzes/code-agile.quiz.html',
                     prerequisites: ['code-agile']
                 },
                 {
@@ -544,7 +544,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/cicd-fundamentals.html',
+                    href: 'presentations/code-cicd-fundamentals.presentation.html',
                     prerequisites: ['code-agile-quiz']
                 },
                 {
@@ -553,7 +553,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'applets/pipeline-builder.html',
+                    href: 'applets/code-pipeline-builder.applet.html',
                     prerequisites: ['code-cicd']
                 },
                 {
@@ -562,7 +562,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/docker-fundamentals.html',
+                    href: 'presentations/code-docker-fundamentals.presentation.html',
                     prerequisites: ['code-pipeline']
                 },
                 {
@@ -571,7 +571,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'applets/docker-playground.html',
+                    href: 'applets/code-docker-playground.applet.html',
                     prerequisites: ['code-docker']
                 },
                 {
@@ -580,7 +580,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'presentations/kubernetes-fundamentals.html',
+                    href: 'presentations/code-kubernetes-fundamentals.presentation.html',
                     prerequisites: ['code-docker-playground']
                 },
                 {
@@ -589,7 +589,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'presentations/terraform-fundamentals.html',
+                    href: 'presentations/code-terraform-fundamentals.presentation.html',
                     prerequisites: ['code-kubernetes']
                 },
                 {
@@ -598,7 +598,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'applets/terraform-visualizer.html',
+                    href: 'applets/code-terraform.tool.html',
                     prerequisites: ['code-terraform']
                 }
             ]
@@ -616,7 +616,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/encryption-basics.html',
+                    href: 'presentations/key-encryption-basics.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -625,7 +625,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/advanced-symmetric.html',
+                    href: 'presentations/key-advanced-symmetric.presentation.html',
                     prerequisites: ['key-encryption-basics']
                 },
                 {
@@ -634,7 +634,7 @@ class LearningPaths {
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'tools/aes-explorer.html',
+                    href: 'tools/key-aes.tool.html',
                     prerequisites: ['key-symmetric']
                 },
                 {
@@ -643,7 +643,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
-                    href: 'presentations/elliptic-curve.html',
+                    href: 'presentations/key-elliptic-curve.presentation.html',
                     prerequisites: ['key-aes-explorer']
                 },
                 {
@@ -652,7 +652,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '30 min',
-                    href: 'presentations/key-derivation.html',
+                    href: 'presentations/key-derivation.presentation.html',
                     prerequisites: ['key-ecc']
                 },
                 {
@@ -661,7 +661,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'presentations/message-authentication.html',
+                    href: 'presentations/key-message-authentication.presentation.html',
                     prerequisites: ['key-kdf']
                 },
                 {
@@ -670,7 +670,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/certificates.html',
+                    href: 'presentations/key-certificates.presentation.html',
                     prerequisites: ['key-hmac']
                 },
                 {
@@ -679,7 +679,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
-                    href: 'presentations/post-quantum.html',
+                    href: 'presentations/key-post-quantum.presentation.html',
                     prerequisites: ['key-certificates']
                 }
             ]
@@ -697,7 +697,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'presentations/log-basics.html',
+                    href: 'presentations/eye-log-basics.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -706,7 +706,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'presentations/soc-operations.html',
+                    href: 'presentations/eye-soc-operations.presentation.html',
                     prerequisites: ['eye-log-basics']
                 },
                 {
@@ -715,7 +715,7 @@ class LearningPaths {
                     type: 'tool',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'tools/soc-simulator.html',
+                    href: 'tools/eye-soc.tool.html',
                     prerequisites: ['eye-soc-operations']
                 },
                 {
@@ -724,7 +724,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/siem-fundamentals.html',
+                    href: 'presentations/eye-siem-fundamentals.presentation.html',
                     prerequisites: ['eye-soc-simulator']
                 },
                 {
@@ -733,7 +733,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/log-correlation.html',
+                    href: 'presentations/eye-log-correlation.presentation.html',
                     prerequisites: ['eye-siem']
                 },
                 {
@@ -742,7 +742,7 @@ class LearningPaths {
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'tools/correlation-engine.html',
+                    href: 'tools/eye-correlation.tool.html',
                     prerequisites: ['eye-log-correlation']
                 },
                 {
@@ -751,7 +751,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '35 min',
-                    href: 'presentations/threat-hunting.html',
+                    href: 'presentations/eye-threat-hunting.presentation.html',
                     prerequisites: ['eye-correlation-engine']
                 },
                 {
@@ -760,7 +760,7 @@ class LearningPaths {
                     type: 'tool',
                     difficulty: 'advanced',
                     duration: '50 min',
-                    href: 'tools/hunt-workbench.html',
+                    href: 'tools/eye-hunt.tool.html',
                     prerequisites: ['eye-threat-hunting']
                 },
                 {
@@ -769,7 +769,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'presentations/network-traffic-analysis.html',
+                    href: 'presentations/eye-network-traffic-analysis.presentation.html',
                     prerequisites: ['eye-hunt-workbench']
                 }
             ]
@@ -788,7 +788,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'houses/code/presentations/git-basics.html',
+                    href: 'houses/code/presentations/code-git-basics.presentation.html',
                     prerequisites: []
                 },
                 {
@@ -797,7 +797,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/code/presentations/agile-sdlc.html',
+                    href: 'houses/code/presentations/code-agile-sdlc.presentation.html',
                     prerequisites: ['devops-git-basics']
                 },
                 {
@@ -806,7 +806,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/code/presentations/cicd-fundamentals.html',
+                    href: 'houses/code/presentations/code-cicd-fundamentals.presentation.html',
                     prerequisites: ['devops-agile']
                 },
                 {
@@ -815,7 +815,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'houses/code/applets/pipeline-builder.html',
+                    href: 'houses/code/applets/code-pipeline-builder.applet.html',
                     prerequisites: ['devops-cicd']
                 },
                 {
@@ -824,7 +824,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/code/presentations/docker-fundamentals.html',
+                    href: 'houses/code/presentations/code-docker-fundamentals.presentation.html',
                     prerequisites: ['devops-pipeline']
                 },
                 {
@@ -833,7 +833,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/code/applets/docker-playground.html',
+                    href: 'houses/code/applets/code-docker-playground.applet.html',
                     prerequisites: ['devops-docker']
                 },
                 {
@@ -842,7 +842,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'houses/code/presentations/kubernetes-fundamentals.html',
+                    href: 'houses/code/presentations/code-kubernetes-fundamentals.presentation.html',
                     prerequisites: ['devops-docker-playground']
                 },
                 {
@@ -851,7 +851,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'houses/code/presentations/terraform-fundamentals.html',
+                    href: 'houses/code/presentations/code-terraform-fundamentals.presentation.html',
                     prerequisites: ['devops-kubernetes']
                 },
                 {
@@ -860,7 +860,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/code/applets/terraform-visualizer.html',
+                    href: 'houses/code/applets/code-terraform.tool.html',
                     prerequisites: ['devops-terraform']
                 }
             ]
@@ -880,7 +880,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/modules/linux-mastery/lm-01-welcome.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-01-welcome.module.html',
                     prerequisites: []
                 },
                 {
@@ -889,7 +889,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-02-first-commands.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-02-first-commands.module.html',
                     prerequisites: ['lm-01-welcome']
                 },
                 {
@@ -898,7 +898,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/modules/linux-mastery/lm-03-getting-help.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html',
                     prerequisites: ['lm-02-first-commands']
                 },
                 {
@@ -907,7 +907,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/modules/linux-mastery/lm-04-terminal-environment.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html',
                     prerequisites: ['lm-03-getting-help']
                 },
                 {
@@ -916,7 +916,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-05-section1-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-05-section1-practice.module.html',
                     prerequisites: ['lm-04-terminal-environment']
                 },
                 // Section 2: Navigation & Files
@@ -926,7 +926,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-06-navigation.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-06-navigation.module.html',
                     prerequisites: ['lm-05-section1-practice']
                 },
                 {
@@ -935,7 +935,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-07-listing-files.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html',
                     prerequisites: ['lm-06-navigation']
                 },
                 {
@@ -944,7 +944,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-08-file-operations.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html',
                     prerequisites: ['lm-07-listing-files']
                 },
                 {
@@ -953,7 +953,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-09-copy-move.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html',
                     prerequisites: ['lm-08-file-operations']
                 },
                 {
@@ -962,7 +962,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-10-viewing-files.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html',
                     prerequisites: ['lm-09-copy-move']
                 },
                 {
@@ -971,7 +971,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-11-finding-files.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html',
                     prerequisites: ['lm-10-viewing-files']
                 },
                 {
@@ -980,7 +980,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-12-section2-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html',
                     prerequisites: ['lm-11-finding-files']
                 },
                 // Section 3: Text Processing
@@ -990,7 +990,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-13-grep-basics.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html',
                     prerequisites: ['lm-12-section2-practice']
                 },
                 {
@@ -999,7 +999,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-14-regular-expressions.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html',
                     prerequisites: ['lm-13-grep-basics']
                 },
                 {
@@ -1008,7 +1008,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-15-sed-editor.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html',
                     prerequisites: ['lm-14-regular-expressions']
                 },
                 {
@@ -1017,7 +1017,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-16-awk-processing.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html',
                     prerequisites: ['lm-15-sed-editor']
                 },
                 {
@@ -1026,7 +1026,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-17-sort-uniq.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-17-sort-uniq.module.html',
                     prerequisites: ['lm-16-awk-processing']
                 },
                 {
@@ -1035,7 +1035,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-18-cut-paste.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html',
                     prerequisites: ['lm-17-sort-uniq']
                 },
                 {
@@ -1044,7 +1044,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-19-text-pipelines.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html',
                     prerequisites: ['lm-18-cut-paste']
                 },
                 {
@@ -1053,7 +1053,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/script/modules/linux-mastery/lm-20-section3-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html',
                     prerequisites: ['lm-19-text-pipelines']
                 },
                 // Section 4: Permissions & Users
@@ -1063,7 +1063,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-21-users-groups.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html',
                     prerequisites: ['lm-20-section3-practice']
                 },
                 {
@@ -1072,7 +1072,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-22-file-permissions.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html',
                     prerequisites: ['lm-21-users-groups']
                 },
                 {
@@ -1081,7 +1081,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-23-chmod.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-23-chmod.module.html',
                     prerequisites: ['lm-22-file-permissions']
                 },
                 {
@@ -1090,7 +1090,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-24-chown.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-24-chown.module.html',
                     prerequisites: ['lm-23-chmod']
                 },
                 {
@@ -1099,7 +1099,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-25-sudo.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-25-sudo.module.html',
                     prerequisites: ['lm-24-chown']
                 },
                 {
@@ -1108,7 +1108,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-26-special-permissions.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html',
                     prerequisites: ['lm-25-sudo']
                 },
                 {
@@ -1117,7 +1117,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/script/modules/linux-mastery/lm-27-section4-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html',
                     prerequisites: ['lm-26-special-permissions']
                 },
                 // Section 5: Processes
@@ -1127,7 +1127,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-28-process-basics.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html',
                     prerequisites: ['lm-27-section4-practice']
                 },
                 {
@@ -1136,7 +1136,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-29-ps-top.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html',
                     prerequisites: ['lm-28-process-basics']
                 },
                 {
@@ -1145,7 +1145,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-30-background-jobs.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html',
                     prerequisites: ['lm-29-ps-top']
                 },
                 {
@@ -1154,7 +1154,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-31-signals-kill.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html',
                     prerequisites: ['lm-30-background-jobs']
                 },
                 {
@@ -1163,7 +1163,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-32-cron.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-32-cron.module.html',
                     prerequisites: ['lm-31-signals-kill']
                 },
                 {
@@ -1172,7 +1172,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-33-systemd.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-33-systemd.module.html',
                     prerequisites: ['lm-32-cron']
                 },
                 {
@@ -1181,7 +1181,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/script/modules/linux-mastery/lm-34-section5-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html',
                     prerequisites: ['lm-33-systemd']
                 },
                 // Section 6: Networking Basics
@@ -1191,7 +1191,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-35-network-info.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-35-network-info.module.html',
                     prerequisites: ['lm-34-section5-practice']
                 },
                 {
@@ -1200,7 +1200,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-36-connectivity.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html',
                     prerequisites: ['lm-35-network-info']
                 },
                 {
@@ -1209,7 +1209,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-37-dns-tools.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html',
                     prerequisites: ['lm-36-connectivity']
                 },
                 {
@@ -1218,7 +1218,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-38-downloading.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-38-downloading.module.html',
                     prerequisites: ['lm-37-dns-tools']
                 },
                 {
@@ -1227,7 +1227,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-39-ssh-basics.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html',
                     prerequisites: ['lm-38-downloading']
                 },
                 {
@@ -1236,7 +1236,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-40-section6-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html',
                     prerequisites: ['lm-39-ssh-basics']
                 },
                 // Section 7: Shell Scripting
@@ -1246,7 +1246,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-41-first-script.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-41-first-script.module.html',
                     prerequisites: ['lm-40-section6-practice']
                 },
                 {
@@ -1255,7 +1255,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-42-variables.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-42-variables.module.html',
                     prerequisites: ['lm-41-first-script']
                 },
                 {
@@ -1264,7 +1264,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-43-user-input.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-43-user-input.module.html',
                     prerequisites: ['lm-42-variables']
                 },
                 {
@@ -1273,7 +1273,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-44-conditionals.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html',
                     prerequisites: ['lm-43-user-input']
                 },
                 {
@@ -1282,7 +1282,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-45-loops.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-45-loops.module.html',
                     prerequisites: ['lm-44-conditionals']
                 },
                 {
@@ -1291,7 +1291,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-46-functions.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-46-functions.module.html',
                     prerequisites: ['lm-45-loops']
                 },
                 {
@@ -1300,7 +1300,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/modules/linux-mastery/lm-47-practical-scripts.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html',
                     prerequisites: ['lm-46-functions']
                 },
                 {
@@ -1309,7 +1309,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/script/modules/linux-mastery/lm-48-section7-practice.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html',
                     prerequisites: ['lm-47-practical-scripts']
                 },
                 // Section 8: Beyond Basics
@@ -1319,7 +1319,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-49-links.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-49-links.module.html',
                     prerequisites: ['lm-48-section7-practice']
                 },
                 {
@@ -1328,7 +1328,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-50-text-editors.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html',
                     prerequisites: ['lm-49-links']
                 },
                 {
@@ -1337,7 +1337,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/modules/linux-mastery/lm-51-package-management.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-51-package-management.module.html',
                     prerequisites: ['lm-50-text-editors']
                 },
                 {
@@ -1346,7 +1346,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/modules/linux-mastery/lm-52-environment-path.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html',
                     prerequisites: ['lm-51-package-management']
                 },
                 {
@@ -1355,7 +1355,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/modules/linux-mastery/lm-53-next-steps.html',
+                    href: 'houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html',
                     prerequisites: ['lm-52-environment-path']
                 }
             ]
@@ -1375,7 +1375,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'houses/script/applets/linux/ubuntu-components.html',
+                    href: 'houses/script/applets/linux/script-ubuntu-components.applet.html',
                     prerequisites: []
                 },
                 {
@@ -1384,7 +1384,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/quizzes/linux-basics-quiz.html',
+                    href: 'houses/script/quizzes/script-linux-basics.quiz.html',
                     prerequisites: ['linux-section1-intro']
                 },
                 // Section 2: Command Line Essentials
@@ -1394,7 +1394,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/script/applets/linux/linux-command-simulator.html',
+                    href: 'houses/script/applets/linux/script-linux-command.tool.html',
                     prerequisites: ['linux-section1-quiz']
                 },
                 {
@@ -1403,7 +1403,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'beginner',
                     duration: '15 min',
-                    href: 'houses/script/quizzes/linux-basics-quiz.html',
+                    href: 'houses/script/quizzes/script-linux-basics.quiz.html',
                     prerequisites: ['linux-section2-cli']
                 },
                 // Section 3: File System Navigation
@@ -1413,7 +1413,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/applets/linux/linux-filesystem-navigator.html',
+                    href: 'houses/script/applets/linux/script-linux-filesystem-navigator.applet.html',
                     prerequisites: ['linux-section2-quiz']
                 },
                 {
@@ -1422,7 +1422,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/applets/linux/linux-lab-002-file-navigation.html',
+                    href: 'houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html',
                     prerequisites: ['linux-section3-filesystem']
                 },
                 // Section 4: Permissions & Security
@@ -1432,7 +1432,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/applets/linux/linux-permissions-calculator.html',
+                    href: 'houses/script/applets/linux/script-linux-permissions.tool.html',
                     prerequisites: ['linux-section3-lab']
                 },
                 {
@@ -1441,7 +1441,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/script/applets/linux/linux-lab-001-user-identity.html',
+                    href: 'houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html',
                     prerequisites: ['linux-section4-permissions']
                 },
                 // Section 5: Scripting & Automation
@@ -1451,7 +1451,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/script/applets/linux/bash-scripting-playground.html',
+                    href: 'houses/script/applets/linux/script-bash-scripting-playground.applet.html',
                     prerequisites: ['linux-section4-lab']
                 },
                 {
@@ -1460,7 +1460,7 @@ class LearningPaths {
                     type: 'quiz',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'houses/script/quizzes/linux-bash-quiz.html',
+                    href: 'houses/script/quizzes/script-linux-bash.quiz.html',
                     prerequisites: ['linux-section5-bash']
                 },
                 // Section 6: Cross-Platform
@@ -1470,7 +1470,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/applets/linux/lab-macos-linux.html',
+                    href: 'houses/script/applets/linux/script-lab-macos-linux.applet.html',
                     prerequisites: ['linux-section5-quiz']
                 }
             ]
@@ -1654,7 +1654,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m01-fundamentals/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html',
                     prerequisites: []
                 },
                 {
@@ -1663,7 +1663,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '50 min',
-                    href: 'houses/cloud/modules/wsa/m02-active-directory/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html',
                     prerequisites: ['wsa-m01-fundamentals']
                 },
                 {
@@ -1672,7 +1672,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m03-storage/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html',
                     prerequisites: ['wsa-m02-active-directory']
                 },
                 {
@@ -1681,7 +1681,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '50 min',
-                    href: 'houses/cloud/modules/wsa/m04-hyperv/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html',
                     prerequisites: ['wsa-m03-storage']
                 },
                 {
@@ -1690,7 +1690,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m05-containers/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html',
                     prerequisites: ['wsa-m04-hyperv']
                 },
                 {
@@ -1699,7 +1699,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m06-clustering/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html',
                     prerequisites: ['wsa-m05-containers']
                 },
                 {
@@ -1708,7 +1708,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'houses/cloud/modules/wsa/m07-monitoring/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html',
                     prerequisites: ['wsa-m06-clustering']
                 },
                 {
@@ -1717,7 +1717,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m08-dns/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html',
                     prerequisites: ['wsa-m07-monitoring']
                 },
                 {
@@ -1726,7 +1726,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'houses/cloud/modules/wsa/m09-dhcp/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html',
                     prerequisites: ['wsa-m08-dns']
                 },
                 {
@@ -1735,7 +1735,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '50 min',
-                    href: 'houses/cloud/modules/wsa/m10-group-policy/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html',
                     prerequisites: ['wsa-m09-dhcp']
                 },
                 // Phase 2: Advanced Services & Operations
@@ -1745,7 +1745,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m11-iis/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html',
                     prerequisites: ['wsa-m10-group-policy']
                 },
                 {
@@ -1754,7 +1754,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'houses/cloud/modules/wsa/m12-remote-desktop/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html',
                     prerequisites: ['wsa-m11-iis']
                 },
                 {
@@ -1763,7 +1763,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m13-certificate-services/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html',
                     prerequisites: ['wsa-m12-remote-desktop']
                 },
                 {
@@ -1772,7 +1772,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m14-advanced-networking/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html',
                     prerequisites: ['wsa-m13-certificate-services']
                 },
                 {
@@ -1781,7 +1781,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'houses/cloud/modules/wsa/m15-ad-sites/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html',
                     prerequisites: ['wsa-m14-advanced-networking']
                 },
                 {
@@ -1790,7 +1790,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m16-backup-recovery/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html',
                     prerequisites: ['wsa-m15-ad-sites']
                 },
                 {
@@ -1799,7 +1799,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m17-firewall-security/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html',
                     prerequisites: ['wsa-m16-backup-recovery']
                 },
                 {
@@ -1808,7 +1808,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '50 min',
-                    href: 'houses/cloud/modules/wsa/m18-powershell-automation/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html',
                     prerequisites: ['wsa-m17-firewall-security']
                 },
                 {
@@ -1817,7 +1817,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/presentation.html',
+                    href: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html',
                     prerequisites: ['wsa-m18-powershell-automation']
                 },
                 // Capstone
