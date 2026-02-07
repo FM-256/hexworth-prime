@@ -354,6 +354,9 @@ class EduScan {
         if (syntax.summary.learningPathErrors > 0) {
             console.log(`    ${c('LPaths:', 'red')}  ${syntax.summary.learningPathErrors} broken module hrefs`);
         }
+        if (syntax.summary.namingErrors > 0) {
+            console.log(`    ${c('Naming:', 'yellow')}  ${syntax.summary.namingErrors} naming convention issues`);
+        }
 
         if (syntax.summary.totalIssues === 0) {
             console.log(`    ${c('None!', 'green')} All syntax checks passed.`);

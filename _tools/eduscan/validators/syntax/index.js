@@ -12,6 +12,7 @@ const JSValidator = require('./js');
 const EngineValidator = require('./engine');
 const PathValidator = require('./paths');
 const LearningPathsValidator = require('./learning-paths');
+const NamingValidator = require('./naming');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -42,6 +43,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.namingValidator = new NamingValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
     }
 
     /**
@@ -62,6 +67,7 @@ class SyntaxValidator {
                 engineErrors: 0,
                 pathErrors: 0,
                 learningPathErrors: 0,
+                namingErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -103,18 +109,21 @@ class SyntaxValidator {
             const jsIssues = this.jsValidator.validate(fileWithContent);
             const engineIssues = this.engineValidator.validate(fileWithContent);
             const pathIssues = this.pathValidator.validate(fileWithContent);
+            const namingIssues = this.namingValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
             results.issues.push(...jsIssues);
             results.issues.push(...engineIssues);
             results.issues.push(...pathIssues);
+            results.issues.push(...namingIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
             results.summary.jsErrors += jsIssues.length;
             results.summary.engineErrors += engineIssues.length;
             results.summary.pathErrors += pathIssues.length;
+            results.summary.namingErrors += namingIssues.length;
         }
 
         // Sort by severity
