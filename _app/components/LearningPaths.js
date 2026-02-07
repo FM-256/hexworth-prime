@@ -418,7 +418,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '20 min',
-                    href: 'applets/fundamentals/cloud-ch01-cloud-models.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
                     prerequisites: ['cloud-concepts']
                 },
                 {
@@ -436,7 +436,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '25 min',
-                    href: 'applets/aws/cloud-ch02-aws-account.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch02-aws-account.tool.html',
                     prerequisites: ['cloud-aws-fundamentals']
                 },
                 {
@@ -445,7 +445,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '20 min',
-                    href: 'applets/aws/cloud-ch04-aws-regions.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch04-aws-regions.tool.html',
                     prerequisites: ['cloud-aws-account']
                 },
                 {
@@ -463,7 +463,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'applets/aws/cloud-ch07-compute-services.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch07-compute-services.tool.html',
                     prerequisites: ['cloud-aws-iam']
                 },
                 {
@@ -472,7 +472,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/aws/cloud-ch08-storage-services.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch08-storage-services.tool.html',
                     prerequisites: ['cloud-aws-compute']
                 },
                 {
