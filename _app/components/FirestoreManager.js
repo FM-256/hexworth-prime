@@ -288,12 +288,15 @@ const FirestoreManager = (function() {
             const { doc, updateDoc, increment, serverTimestamp } = window.firebaseFirestore;
             const userRef = doc(db, COLLECTIONS.USERS, uid);
 
+            // Award more XP for perfect scores
+            const xpReward = score === 100 ? XP_VALUES.QUIZ_PERFECT : XP_VALUES.QUIZ_PASS;
+
             await updateDoc(userRef, {
                 [`quizzes.${quizId}`]: {
                     score,
                     passedAt: new Date().toISOString()
                 },
-                xp: increment(XP_VALUES.QUIZ_PASS),
+                xp: increment(xpReward),
                 [`houseProgress.${house}.quizzesPassed`]: increment(1),
                 updatedAt: serverTimestamp()
             });

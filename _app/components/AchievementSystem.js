@@ -389,6 +389,1035 @@ class AchievementSystem {
             category: 'explorer',
             points: 200,
             secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // FACTIONLESS / DIVERGENT ACHIEVEMENTS
+        // ═══════════════════════════════════════════════════════════════
+        perspective_seeker: {
+            id: 'perspective_seeker',
+            name: 'Perspective Seeker',
+            description: 'Complete at least one item in each skill tree perspective',
+            icon: '🔀',
+            category: 'factionless',
+            points: 100,
+            secret: false
+        },
+        fundamentals_scholar: {
+            id: 'fundamentals_scholar',
+            name: 'Fundamentals Scholar',
+            description: 'Complete all items in the Fundamentals perspective',
+            icon: '📚',
+            category: 'factionless',
+            points: 500,
+            secret: false
+        },
+        tool_wielder: {
+            id: 'tool_wielder',
+            name: 'Tool Wielder',
+            description: 'Complete all items in the Tools perspective',
+            icon: '🔧',
+            category: 'factionless',
+            points: 500,
+            secret: false
+        },
+        skill_master: {
+            id: 'skill_master',
+            name: 'Skill Master',
+            description: 'Complete all items in the Skills perspective',
+            icon: '⚔️',
+            category: 'factionless',
+            points: 500,
+            secret: false
+        },
+        true_divergent: {
+            id: 'true_divergent',
+            name: 'True Divergent',
+            description: 'Complete all three skill tree perspectives at 100%',
+            icon: '🌟',
+            category: 'factionless',
+            points: 2000,
+            secret: false
+        },
+        domain_explorer: {
+            id: 'domain_explorer',
+            name: 'Domain Explorer',
+            description: 'Complete at least one folder in each perspective',
+            icon: '🗂️',
+            category: 'factionless',
+            points: 200,
+            secret: false
+        },
+        multi_domain: {
+            id: 'multi_domain',
+            name: 'Multi-Domain Specialist',
+            description: 'Achieve 50%+ completion in 3 or more skill domains',
+            icon: '🌐',
+            category: 'factionless',
+            points: 300,
+            secret: false
+        },
+        jack_of_trades: {
+            id: 'jack_of_trades',
+            name: 'Jack of All Trades',
+            description: 'Complete at least one item from every folder in the skill tree',
+            icon: '🃏',
+            category: 'factionless',
+            points: 400,
+            secret: false
+        },
+        the_polymath: {
+            id: 'the_polymath',
+            name: 'The Polymath',
+            description: 'Achieve 75%+ completion across all skill tree perspectives',
+            icon: '🧠',
+            category: 'factionless',
+            points: 1000,
+            secret: false
+        },
+        path_finder: {
+            id: 'path_finder',
+            name: 'Path Finder',
+            description: 'Discover all 3 perspectives of the Factionless skill tree',
+            icon: '🧭',
+            category: 'factionless',
+            points: 50,
+            secret: false
+        },
+        terminal_explorer: {
+            id: 'terminal_explorer',
+            name: 'Terminal Explorer',
+            description: 'Navigate the skill tree using cd commands 50 times',
+            icon: '📂',
+            category: 'factionless',
+            points: 75,
+            secret: true
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // CROSS-HOUSE SPECIALIZATION BRANCH ACHIEVEMENTS
+        // ═══════════════════════════════════════════════════════════════
+        branch_security_analyst: {
+            id: 'branch_security_analyst',
+            name: 'Security Analyst',
+            description: 'Unlock the Security Analyst career path',
+            icon: '🔍',
+            category: 'career',
+            points: 500,
+            secret: false
+        },
+        branch_cloud_security: {
+            id: 'branch_cloud_security',
+            name: 'Cloud Guardian',
+            description: 'Unlock the Cloud Security Specialist path',
+            icon: '🔒',
+            category: 'career',
+            points: 600,
+            secret: false
+        },
+        branch_devops: {
+            id: 'branch_devops',
+            name: 'DevOps Engineer',
+            description: 'Unlock the DevOps Engineer career path',
+            icon: '🚀',
+            category: 'career',
+            points: 600,
+            secret: false
+        },
+        branch_network: {
+            id: 'branch_network',
+            name: 'Network Architect',
+            description: 'Unlock the Network Engineer career path',
+            icon: '🌐',
+            category: 'career',
+            points: 700,
+            secret: false
+        },
+        branch_sysadmin: {
+            id: 'branch_sysadmin',
+            name: 'Systems Administrator',
+            description: 'Unlock the Systems Administrator path',
+            icon: '🖥️',
+            category: 'career',
+            points: 500,
+            secret: false
+        },
+        branch_crypto: {
+            id: 'branch_crypto',
+            name: 'Cryptographer',
+            description: 'Unlock the Cryptographer career path',
+            icon: '🔐',
+            category: 'career',
+            points: 700,
+            secret: false
+        },
+        branch_pentester: {
+            id: 'branch_pentester',
+            name: 'Penetration Tester',
+            description: 'Unlock the Penetration Tester path',
+            icon: '🎯',
+            category: 'career',
+            points: 800,
+            secret: false
+        },
+        branch_ir: {
+            id: 'branch_ir',
+            name: 'Incident Responder',
+            description: 'Unlock the Incident Responder path',
+            icon: '🚨',
+            category: 'career',
+            points: 800,
+            secret: false
+        },
+        branch_master: {
+            id: 'branch_master',
+            name: 'Master Class Graduate',
+            description: 'Unlock Master Class access at Level 15',
+            icon: '👑',
+            category: 'career',
+            points: 1000,
+            secret: false
+        },
+        triple_threat: {
+            id: 'triple_threat',
+            name: 'Triple Threat',
+            description: 'Unlock 3 different career branches',
+            icon: '⚡',
+            category: 'career',
+            points: 500,
+            secret: false
+        },
+        renaissance_agent: {
+            id: 'renaissance_agent',
+            name: 'Renaissance Agent',
+            description: 'Unlock 5 or more career branches',
+            icon: '🎭',
+            category: 'career',
+            points: 1000,
+            secret: false
+        },
+        complete_specialist: {
+            id: 'complete_specialist',
+            name: 'Complete Specialist',
+            description: 'Unlock ALL career branches',
+            icon: '🏆',
+            category: 'career',
+            points: 2500,
+            secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // OPERATOR / MATRIX ACHIEVEMENTS
+        // ═══════════════════════════════════════════════════════════════
+        red_pill: {
+            id: 'red_pill',
+            name: 'Red Pill Taken',
+            description: 'Choose to see how deep the rabbit hole goes',
+            icon: '💊',
+            category: 'operator',
+            points: 100,
+            secret: false
+        },
+        terminal_initiate: {
+            id: 'terminal_initiate',
+            name: 'Terminal Initiate',
+            description: 'Execute your first command in the Matrix',
+            icon: '⌨️',
+            category: 'operator',
+            points: 50,
+            secret: false
+        },
+        command_warrior: {
+            id: 'command_warrior',
+            name: 'Command Line Warrior',
+            description: 'Execute 50 commands in the Matrix terminal',
+            icon: '🖥️',
+            category: 'operator',
+            points: 200,
+            secret: false
+        },
+        neo_apprentice: {
+            id: 'neo_apprentice',
+            name: "Neo's Apprentice",
+            description: 'Complete your first module via the terminal interface',
+            icon: '🕴️',
+            category: 'operator',
+            points: 150,
+            secret: false
+        },
+        the_one: {
+            id: 'the_one',
+            name: 'The One',
+            description: 'Reach Level 10 as an Operator',
+            icon: '☯️',
+            category: 'operator',
+            points: 500,
+            secret: false
+        },
+        no_spoon: {
+            id: 'no_spoon',
+            name: 'There Is No Spoon',
+            description: 'Complete all available Matrix training programs',
+            icon: '🥄',
+            category: 'operator',
+            points: 1000,
+            secret: false
+        },
+        operator_status: {
+            id: 'operator_status',
+            name: 'Operator Status',
+            description: 'Guide 3 crew members through training (class assistance)',
+            icon: '📞',
+            category: 'operator',
+            points: 300,
+            secret: false
+        },
+        construct_master: {
+            id: 'construct_master',
+            name: 'Construct Master',
+            description: 'Create a custom training construct (study path)',
+            icon: '🏗️',
+            category: 'operator',
+            points: 200,
+            secret: false
+        },
+        white_rabbit: {
+            id: 'white_rabbit',
+            name: 'Follow the White Rabbit',
+            description: 'Find the hidden Matrix easter egg',
+            icon: '🐰',
+            category: 'operator',
+            points: 250,
+            secret: true
+        },
+        free_your_mind: {
+            id: 'free_your_mind',
+            name: 'Free Your Mind',
+            description: 'Complete content from 5 different houses while in the Matrix',
+            icon: '🧠',
+            category: 'operator',
+            points: 1500,
+            secret: false
+        },
+        deja_vu: {
+            id: 'deja_vu',
+            name: 'Deja Vu',
+            description: 'Complete the same module twice in the Matrix',
+            icon: '🐈',
+            category: 'operator',
+            points: 50,
+            secret: true
+        },
+        matrix_glitch: {
+            id: 'matrix_glitch',
+            name: 'Glitch in the Matrix',
+            description: 'Trigger a hidden terminal animation',
+            icon: '📺',
+            category: 'operator',
+            points: 100,
+            secret: true
+        },
+        morpheus_wisdom: {
+            id: 'morpheus_wisdom',
+            name: "Morpheus' Wisdom",
+            description: 'Access all terminal help documentation',
+            icon: '🎩',
+            category: 'operator',
+            points: 75,
+            secret: false
+        },
+        matrix_code: {
+            id: 'matrix_code',
+            name: 'I Know Kung Fu',
+            description: 'Complete 10 modules in a single Matrix session',
+            icon: '🥋',
+            category: 'operator',
+            points: 300,
+            secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // ENHANCED HOUSE-SPECIFIC SPECIAL ACHIEVEMENTS
+        // ═══════════════════════════════════════════════════════════════
+        // Shield House Specials
+        shield_cia_triad: {
+            id: 'shield_cia_triad',
+            name: 'Triad Guardian',
+            description: 'Perfect score on CIA Triad fundamentals',
+            icon: '🛡️',
+            category: 'shield',
+            points: 200,
+            secret: false
+        },
+        shield_threat_hunter: {
+            id: 'shield_threat_hunter',
+            name: 'Threat Hunter',
+            description: 'Complete all threat analysis modules',
+            icon: '🎯',
+            category: 'shield',
+            points: 300,
+            secret: false
+        },
+        shield_defender: {
+            id: 'shield_defender',
+            name: 'First Line Defender',
+            description: 'Complete network security module with perfect score',
+            icon: '🏰',
+            category: 'shield',
+            points: 250,
+            secret: false
+        },
+        shield_social_engineer: {
+            id: 'shield_social_engineer',
+            name: 'Social Engineering Aware',
+            description: 'Master social engineering defense techniques',
+            icon: '🎭',
+            category: 'shield',
+            points: 200,
+            secret: false
+        },
+
+        // Web House Specials
+        web_osi_master: {
+            id: 'web_osi_master',
+            name: 'OSI Architect',
+            description: 'Perfect understanding of OSI model layers',
+            icon: '📊',
+            category: 'web',
+            points: 200,
+            secret: false
+        },
+        web_vlan_virtuoso: {
+            id: 'web_vlan_virtuoso',
+            name: 'VLAN Virtuoso',
+            description: 'Complete all switching and VLAN modules',
+            icon: '🔌',
+            category: 'web',
+            points: 250,
+            secret: false
+        },
+        web_routing_guru: {
+            id: 'web_routing_guru',
+            name: 'Routing Guru',
+            description: 'Master static and dynamic routing concepts',
+            icon: '🛤️',
+            category: 'web',
+            points: 300,
+            secret: false
+        },
+        web_wireless_wizard: {
+            id: 'web_wireless_wizard',
+            name: 'Wireless Wizard',
+            description: 'Complete all wireless networking content',
+            icon: '📶',
+            category: 'web',
+            points: 200,
+            secret: false
+        },
+
+        // Forge House Specials
+        forge_hardware_expert: {
+            id: 'forge_hardware_expert',
+            name: 'Hardware Expert',
+            description: 'Master all hardware components and troubleshooting',
+            icon: '🔩',
+            category: 'forge',
+            points: 250,
+            secret: false
+        },
+        forge_windows_whisperer: {
+            id: 'forge_windows_whisperer',
+            name: 'Windows Whisperer',
+            description: 'Complete all Windows administration modules',
+            icon: '🪟',
+            category: 'forge',
+            points: 300,
+            secret: false
+        },
+        forge_troubleshooter: {
+            id: 'forge_troubleshooter',
+            name: 'Master Troubleshooter',
+            description: 'Complete all troubleshooting methodology modules',
+            icon: '🔧',
+            category: 'forge',
+            points: 250,
+            secret: false
+        },
+        forge_raid_master: {
+            id: 'forge_raid_master',
+            name: 'RAID Master',
+            description: 'Perfect score on storage and RAID concepts',
+            icon: '💾',
+            category: 'forge',
+            points: 200,
+            secret: false
+        },
+
+        // Script House Specials
+        script_python_prodigy: {
+            id: 'script_python_prodigy',
+            name: 'Python Prodigy',
+            description: 'Complete all Python fundamentals modules',
+            icon: '🐍',
+            category: 'script',
+            points: 300,
+            secret: false
+        },
+        script_bash_ninja: {
+            id: 'script_bash_ninja',
+            name: 'Bash Ninja',
+            description: 'Master bash scripting and automation',
+            icon: '🥷',
+            category: 'script',
+            points: 250,
+            secret: false
+        },
+        script_linux_sage: {
+            id: 'script_linux_sage',
+            name: 'Linux Sage',
+            description: 'Complete all Linux administration content',
+            icon: '🐧',
+            category: 'script',
+            points: 300,
+            secret: false
+        },
+        script_automator: {
+            id: 'script_automator',
+            name: 'The Automator',
+            description: 'Master process and task automation',
+            icon: '🤖',
+            category: 'script',
+            points: 250,
+            secret: false
+        },
+
+        // Cloud House Specials
+        cloud_aws_certified: {
+            id: 'cloud_aws_certified',
+            name: 'AWS Explorer',
+            description: 'Complete all AWS fundamentals content',
+            icon: '☁️',
+            category: 'cloud',
+            points: 300,
+            secret: false
+        },
+        cloud_azure_adept: {
+            id: 'cloud_azure_adept',
+            name: 'Azure Adept',
+            description: 'Complete all Azure fundamentals content',
+            icon: '🔵',
+            category: 'cloud',
+            points: 300,
+            secret: false
+        },
+        cloud_multi_cloud: {
+            id: 'cloud_multi_cloud',
+            name: 'Multi-Cloud Architect',
+            description: 'Complete content across multiple cloud providers',
+            icon: '🌩️',
+            category: 'cloud',
+            points: 400,
+            secret: false
+        },
+        cloud_iam_master: {
+            id: 'cloud_iam_master',
+            name: 'IAM Master',
+            description: 'Perfect score on identity and access management',
+            icon: '🔑',
+            category: 'cloud',
+            points: 250,
+            secret: false
+        },
+
+        // Code House Specials
+        code_git_guru: {
+            id: 'code_git_guru',
+            name: 'Git Guru',
+            description: 'Master version control with Git',
+            icon: '📚',
+            category: 'code',
+            points: 250,
+            secret: false
+        },
+        code_cicd_champion: {
+            id: 'code_cicd_champion',
+            name: 'CI/CD Champion',
+            description: 'Complete all continuous integration content',
+            icon: '♾️',
+            category: 'code',
+            points: 300,
+            secret: false
+        },
+        code_container_captain: {
+            id: 'code_container_captain',
+            name: 'Container Captain',
+            description: 'Master Docker and container concepts',
+            icon: '🐳',
+            category: 'code',
+            points: 300,
+            secret: false
+        },
+        code_k8s_knight: {
+            id: 'code_k8s_knight',
+            name: 'Kubernetes Knight',
+            description: 'Complete Kubernetes orchestration content',
+            icon: '☸️',
+            category: 'code',
+            points: 350,
+            secret: false
+        },
+
+        // Key House Specials
+        key_cipher_master: {
+            id: 'key_cipher_master',
+            name: 'Cipher Master',
+            description: 'Master classical and modern ciphers',
+            icon: '🔏',
+            category: 'key',
+            points: 250,
+            secret: false
+        },
+        key_hash_hunter: {
+            id: 'key_hash_hunter',
+            name: 'Hash Hunter',
+            description: 'Understand all hashing algorithms',
+            icon: '#️⃣',
+            category: 'key',
+            points: 200,
+            secret: false
+        },
+        key_pki_professional: {
+            id: 'key_pki_professional',
+            name: 'PKI Professional',
+            description: 'Master public key infrastructure concepts',
+            icon: '📜',
+            category: 'key',
+            points: 300,
+            secret: false
+        },
+        key_entropy_expert: {
+            id: 'key_entropy_expert',
+            name: 'Entropy Expert',
+            description: 'Understand randomness and key generation',
+            icon: '🎲',
+            category: 'key',
+            points: 250,
+            secret: false
+        },
+
+        // Eye House Specials
+        eye_siem_specialist: {
+            id: 'eye_siem_specialist',
+            name: 'SIEM Specialist',
+            description: 'Master security information and event management',
+            icon: '📊',
+            category: 'eye',
+            points: 300,
+            secret: false
+        },
+        eye_log_detective: {
+            id: 'eye_log_detective',
+            name: 'Log Detective',
+            description: 'Complete all log analysis modules',
+            icon: '🔍',
+            category: 'eye',
+            points: 250,
+            secret: false
+        },
+        eye_pattern_hunter: {
+            id: 'eye_pattern_hunter',
+            name: 'Pattern Hunter',
+            description: 'Identify attack patterns in log data',
+            icon: '🎯',
+            category: 'eye',
+            points: 300,
+            secret: false
+        },
+        eye_alert_analyst: {
+            id: 'eye_alert_analyst',
+            name: 'Alert Analyst',
+            description: 'Master alert triage and prioritization',
+            icon: '🚨',
+            category: 'eye',
+            points: 250,
+            secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // DARK ARTS EXPANDED
+        // ═══════════════════════════════════════════════════════════════
+        dark_arts_gate2: {
+            id: 'dark_arts_gate2',
+            name: 'Second Seal',
+            description: 'Pass through the second gate',
+            icon: '🔓',
+            category: 'dark_arts',
+            points: 150,
+            secret: true
+        },
+        dark_arts_gate3: {
+            id: 'dark_arts_gate3',
+            name: 'Third Eye Opens',
+            description: 'Pass through the third gate',
+            icon: '👁️',
+            category: 'dark_arts',
+            points: 200,
+            secret: true
+        },
+        dark_arts_gate4: {
+            id: 'dark_arts_gate4',
+            name: 'Frequency Walker',
+            description: 'Pass through the fourth gate',
+            icon: '📻',
+            category: 'dark_arts',
+            points: 250,
+            secret: true
+        },
+        dark_arts_gate5: {
+            id: 'dark_arts_gate5',
+            name: 'Synthesis Complete',
+            description: 'Pass through the final gate',
+            icon: '🗝️',
+            category: 'dark_arts',
+            points: 300,
+            secret: true
+        },
+        dark_arts_vault: {
+            id: 'dark_arts_vault',
+            name: 'Vault Keeper',
+            description: 'Access the Dark Arts Vault',
+            icon: '🏛️',
+            category: 'dark_arts',
+            points: 500,
+            secret: true
+        },
+        dark_arts_yara: {
+            id: 'dark_arts_yara',
+            name: 'YARA Initiate',
+            description: 'Complete YARA rule training',
+            icon: '📝',
+            category: 'dark_arts',
+            points: 300,
+            secret: false
+        },
+        dark_arts_malware_basics: {
+            id: 'dark_arts_malware_basics',
+            name: 'Know Thy Enemy',
+            description: 'Complete malware fundamentals',
+            icon: '🦠',
+            category: 'dark_arts',
+            points: 350,
+            secret: false
+        },
+        dark_arts_speedrun: {
+            id: 'dark_arts_speedrun',
+            name: 'Gate Speedrunner',
+            description: 'Complete all 5 gates in under 30 minutes',
+            icon: '⏱️',
+            category: 'dark_arts',
+            points: 500,
+            secret: true
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // SEASONAL / LIMITED EDITION
+        // ═══════════════════════════════════════════════════════════════
+        // Halloween Season (October)
+        halloween_2026: {
+            id: 'halloween_2026',
+            name: 'Spooky Season 2026',
+            description: 'Study during Halloween week 2026',
+            icon: '🎃',
+            category: 'seasonal',
+            points: 100,
+            secret: false,
+            seasonal: { month: 10, weeks: [4, 5] }
+        },
+        midnight_hacker: {
+            id: 'midnight_hacker',
+            name: 'Midnight Hacker',
+            description: 'Complete a Dark Arts module at midnight on Halloween',
+            icon: '🦇',
+            category: 'seasonal',
+            points: 200,
+            secret: true,
+            seasonal: { month: 10, day: 31 }
+        },
+        ghost_protocol: {
+            id: 'ghost_protocol',
+            name: 'Ghost Protocol',
+            description: 'Complete 13 modules during October',
+            icon: '👻',
+            category: 'seasonal',
+            points: 150,
+            secret: false,
+            seasonal: { month: 10 }
+        },
+
+        // Winter Season (December-January)
+        winter_2026: {
+            id: 'winter_2026',
+            name: 'Winter Warrior 2026',
+            description: 'Study during the winter holidays 2026',
+            icon: '❄️',
+            category: 'seasonal',
+            points: 100,
+            secret: false,
+            seasonal: { months: [12, 1] }
+        },
+        new_year_resolution: {
+            id: 'new_year_resolution',
+            name: 'Resolution Keeper',
+            description: 'Complete a module on New Year\'s Day',
+            icon: '🎆',
+            category: 'seasonal',
+            points: 150,
+            secret: false,
+            seasonal: { month: 1, day: 1 }
+        },
+        snowflake_scholar: {
+            id: 'snowflake_scholar',
+            name: 'Snowflake Scholar',
+            description: 'Maintain a 7-day streak during December',
+            icon: '☃️',
+            category: 'seasonal',
+            points: 200,
+            secret: false,
+            seasonal: { month: 12 }
+        },
+        holiday_grind: {
+            id: 'holiday_grind',
+            name: 'Holiday Grind',
+            description: 'Complete 25 modules during December',
+            icon: '🎄',
+            category: 'seasonal',
+            points: 300,
+            secret: false,
+            seasonal: { month: 12 }
+        },
+
+        // Spring/Summer Season
+        spring_awakening: {
+            id: 'spring_awakening',
+            name: 'Spring Awakening',
+            description: 'Start a new house during spring',
+            icon: '🌸',
+            category: 'seasonal',
+            points: 100,
+            secret: false,
+            seasonal: { months: [3, 4, 5] }
+        },
+        summer_scholar: {
+            id: 'summer_scholar',
+            name: 'Summer Scholar',
+            description: 'Study consistently throughout summer',
+            icon: '☀️',
+            category: 'seasonal',
+            points: 150,
+            secret: false,
+            seasonal: { months: [6, 7, 8] }
+        },
+        back_to_school: {
+            id: 'back_to_school',
+            name: 'Back to School',
+            description: 'Resume studies in September',
+            icon: '📓',
+            category: 'seasonal',
+            points: 100,
+            secret: false,
+            seasonal: { month: 9 }
+        },
+
+        // Special Events
+        friday_13th: {
+            id: 'friday_13th',
+            name: 'Triskaidekaphile',
+            description: 'Complete 13 modules on Friday the 13th',
+            icon: '🔮',
+            category: 'seasonal',
+            points: 250,
+            secret: true
+        },
+        pi_day: {
+            id: 'pi_day',
+            name: 'Pi Day Scholar',
+            description: 'Study on March 14th (3.14)',
+            icon: '🥧',
+            category: 'seasonal',
+            points: 100,
+            secret: true,
+            seasonal: { month: 3, day: 14 }
+        },
+        cyber_monday: {
+            id: 'cyber_monday',
+            name: 'Cyber Monday',
+            description: 'Complete cybersecurity content on Cyber Monday',
+            icon: '💻',
+            category: 'seasonal',
+            points: 150,
+            secret: true
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // PRESTIGE / LEGENDARY
+        // ═══════════════════════════════════════════════════════════════
+        hexworth_legend: {
+            id: 'hexworth_legend',
+            name: 'Hexworth Legend',
+            description: 'Complete every house at 100%',
+            icon: '🏛️',
+            category: 'prestige',
+            points: 5000,
+            secret: false
+        },
+        completionist: {
+            id: 'completionist',
+            name: 'The Completionist',
+            description: 'Unlock 100 achievements',
+            icon: '🎖️',
+            category: 'prestige',
+            points: 1000,
+            secret: false
+        },
+        platinum_scholar: {
+            id: 'platinum_scholar',
+            name: 'Platinum Scholar',
+            description: 'Earn 10,000 total XP',
+            icon: '💎',
+            category: 'prestige',
+            points: 500,
+            secret: false
+        },
+        diamond_mind: {
+            id: 'diamond_mind',
+            name: 'Diamond Mind',
+            description: 'Earn 25,000 total XP',
+            icon: '💠',
+            category: 'prestige',
+            points: 1000,
+            secret: false
+        },
+        perfect_run: {
+            id: 'perfect_run',
+            name: 'Perfect Run',
+            description: 'Score 100% on 25 different quizzes',
+            icon: '⭐',
+            category: 'prestige',
+            points: 1500,
+            secret: false
+        },
+        iron_will: {
+            id: 'iron_will',
+            name: 'Iron Will',
+            description: 'Maintain a 30-day study streak',
+            icon: '🔗',
+            category: 'prestige',
+            points: 1000,
+            secret: false
+        },
+        streak_master: {
+            id: 'streak_master',
+            name: 'Streak Master',
+            description: 'Maintain a 100-day study streak',
+            icon: '🔥',
+            category: 'prestige',
+            points: 2500,
+            secret: false
+        },
+        quiz_legend: {
+            id: 'quiz_legend',
+            name: 'Quiz Legend',
+            description: 'Pass 100 quizzes',
+            icon: '📖',
+            category: 'prestige',
+            points: 2000,
+            secret: false
+        },
+        lab_master: {
+            id: 'lab_master',
+            name: 'Lab Master',
+            description: 'Complete 50 hands-on labs',
+            icon: '🧪',
+            category: 'prestige',
+            points: 1500,
+            secret: false
+        },
+        dedication: {
+            id: 'dedication',
+            name: 'Unwavering Dedication',
+            description: 'Study for 365 total days',
+            icon: '📅',
+            category: 'prestige',
+            points: 5000,
+            secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // RARE / EASTER EGGS
+        // ═══════════════════════════════════════════════════════════════
+        konami_code: {
+            id: 'konami_code',
+            name: 'Up Up Down Down',
+            description: 'Discover the hidden konami code',
+            icon: '🎮',
+            category: 'easter_egg',
+            points: 100,
+            secret: true
+        },
+        binary_reader: {
+            id: 'binary_reader',
+            name: 'Binary Reader',
+            description: 'Decode a hidden binary message',
+            icon: '0️⃣',
+            category: 'easter_egg',
+            points: 150,
+            secret: true
+        },
+        firefly_whisperer: {
+            id: 'firefly_whisperer',
+            name: 'Firefly Whisperer',
+            description: 'Interact with 1000 digital fireflies',
+            icon: '✨',
+            category: 'easter_egg',
+            points: 100,
+            secret: true
+        },
+        digital_life: {
+            id: 'digital_life',
+            name: 'Digital Life Observer',
+            description: 'Watch the firefly ecosystem for 10 minutes',
+            icon: '🌌',
+            category: 'easter_egg',
+            points: 50,
+            secret: true
+        },
+        console_hacker: {
+            id: 'console_hacker',
+            name: 'Console Hacker',
+            description: 'Find the developer console easter egg',
+            icon: '👩‍💻',
+            category: 'easter_egg',
+            points: 150,
+            secret: true
+        },
+        time_traveler: {
+            id: 'time_traveler',
+            name: 'Time Traveler',
+            description: 'Access Hexworth from before 6 AM and after midnight same day',
+            icon: '⏰',
+            category: 'easter_egg',
+            points: 100,
+            secret: true
+        },
+        founder_badge: {
+            id: 'founder_badge',
+            name: 'Founding Member',
+            description: 'Join Hexworth Prime during the founding era',
+            icon: '🏅',
+            category: 'easter_egg',
+            points: 500,
+            secret: false,
+            limited: true
         }
     };
 
@@ -507,7 +1536,12 @@ class AchievementSystem {
         }
 
         // Time-based achievements
-        const hour = new Date().getHours();
+        const now = new Date();
+        const hour = now.getHours();
+        const month = now.getMonth() + 1; // 1-12
+        const day = now.getDate();
+        const dayOfWeek = now.getDay();
+
         if (hour >= 0 && hour < 4) {
             if (this.unlock('night_owl')) {
                 newAchievements.push(this.ACHIEVEMENTS.night_owl);
@@ -519,7 +1553,276 @@ class AchievementSystem {
             }
         }
 
+        // Streak achievements
+        if (progress.streak >= 7) {
+            if (this.unlock('streak_7')) newAchievements.push(this.ACHIEVEMENTS.streak_7);
+        }
+        if (progress.streak >= 30) {
+            if (this.unlock('iron_will')) newAchievements.push(this.ACHIEVEMENTS.iron_will);
+        }
+        if (progress.streak >= 100) {
+            if (this.unlock('streak_master')) newAchievements.push(this.ACHIEVEMENTS.streak_master);
+        }
+
+        // Quiz count achievements
+        const quizCount = progress.quizzesPassed?.length || 0;
+        if (quizCount >= 25) {
+            if (this.unlock('quiz_master_25')) newAchievements.push(this.ACHIEVEMENTS.quiz_master_25);
+        }
+        if (quizCount >= 100) {
+            if (this.unlock('quiz_legend')) newAchievements.push(this.ACHIEVEMENTS.quiz_legend);
+        }
+
+        // Perfect score count
+        const perfectScores = progress.perfectScores || 0;
+        if (perfectScores >= 25) {
+            if (this.unlock('perfect_run')) newAchievements.push(this.ACHIEVEMENTS.perfect_run);
+        }
+
+        // Lab achievements
+        const labCount = progress.labsCompleted?.length || 0;
+        if (labCount >= 50) {
+            if (this.unlock('lab_master')) newAchievements.push(this.ACHIEVEMENTS.lab_master);
+        }
+
+        // XP milestones
+        if (progress.xp >= 10000) {
+            if (this.unlock('platinum_scholar')) newAchievements.push(this.ACHIEVEMENTS.platinum_scholar);
+        }
+        if (progress.xp >= 25000) {
+            if (this.unlock('diamond_mind')) newAchievements.push(this.ACHIEVEMENTS.diamond_mind);
+        }
+
+        // Achievement count milestones
+        const unlockedCount = this.getUnlockedAchievements().length;
+        if (unlockedCount >= 100) {
+            if (this.unlock('completionist')) newAchievements.push(this.ACHIEVEMENTS.completionist);
+        }
+
+        // Seasonal achievements
+        this.checkSeasonalAchievements(progress, { month, day, dayOfWeek, hour }, newAchievements);
+
+        // Factionless/Divergent achievements
+        if (progress.isFactionless || progress.house === 'factionless') {
+            this.checkFactionlessAchievements(progress, newAchievements);
+        }
+
+        // Career branch achievements
+        if (progress.divergentBranches?.length > 0) {
+            this.checkCareerBranchAchievements(progress, newAchievements);
+        }
+
+        // Operator/Matrix achievements
+        if (progress.isOperator || progress.house === 'operator') {
+            this.checkOperatorAchievements(progress, newAchievements);
+        }
+
+        // Prestige: All houses complete
+        const allHousesComplete = Object.values(progress.houses || {})
+            .every(h => h.progressPercent >= 100);
+        if (allHousesComplete && Object.keys(progress.houses || {}).length >= 8) {
+            if (this.unlock('hexworth_legend')) newAchievements.push(this.ACHIEVEMENTS.hexworth_legend);
+        }
+
         return newAchievements;
+    }
+
+    /**
+     * Check seasonal achievements
+     */
+    static checkSeasonalAchievements(progress, dateInfo, newAchievements) {
+        const { month, day } = dateInfo;
+
+        // Halloween season (October)
+        if (month === 10) {
+            if (this.unlock('halloween_2026')) newAchievements.push(this.ACHIEVEMENTS.halloween_2026);
+            // Ghost Protocol: 13 modules in October
+            const octModules = progress.monthlyModules?.[10] || 0;
+            if (octModules >= 13) {
+                if (this.unlock('ghost_protocol')) newAchievements.push(this.ACHIEVEMENTS.ghost_protocol);
+            }
+        }
+
+        // Halloween night special
+        if (month === 10 && day === 31) {
+            if (this.unlock('midnight_hacker')) newAchievements.push(this.ACHIEVEMENTS.midnight_hacker);
+        }
+
+        // Winter season (December)
+        if (month === 12) {
+            if (this.unlock('winter_2026')) newAchievements.push(this.ACHIEVEMENTS.winter_2026);
+            // Holiday grind: 25 modules in December
+            const decModules = progress.monthlyModules?.[12] || 0;
+            if (decModules >= 25) {
+                if (this.unlock('holiday_grind')) newAchievements.push(this.ACHIEVEMENTS.holiday_grind);
+            }
+            // Snowflake scholar: 7-day streak in December
+            if (progress.streak >= 7) {
+                if (this.unlock('snowflake_scholar')) newAchievements.push(this.ACHIEVEMENTS.snowflake_scholar);
+            }
+        }
+
+        // New Year's Day
+        if (month === 1 && day === 1) {
+            if (this.unlock('new_year_resolution')) newAchievements.push(this.ACHIEVEMENTS.new_year_resolution);
+        }
+
+        // Pi Day (March 14)
+        if (month === 3 && day === 14) {
+            if (this.unlock('pi_day')) newAchievements.push(this.ACHIEVEMENTS.pi_day);
+        }
+
+        // Spring (March-May)
+        if (month >= 3 && month <= 5) {
+            if (this.unlock('spring_awakening')) newAchievements.push(this.ACHIEVEMENTS.spring_awakening);
+        }
+
+        // Summer (June-August)
+        if (month >= 6 && month <= 8) {
+            if (this.unlock('summer_scholar')) newAchievements.push(this.ACHIEVEMENTS.summer_scholar);
+        }
+
+        // Back to school (September)
+        if (month === 9) {
+            if (this.unlock('back_to_school')) newAchievements.push(this.ACHIEVEMENTS.back_to_school);
+        }
+    }
+
+    /**
+     * Check Factionless/Divergent skill tree achievements
+     */
+    static checkFactionlessAchievements(progress, newAchievements) {
+        // Check if SkillTree is available
+        if (typeof SkillTree === 'undefined') return;
+
+        const fundamentals = SkillTree.getPerspectiveStats('fundamentals');
+        const tools = SkillTree.getPerspectiveStats('tools');
+        const skills = SkillTree.getPerspectiveStats('skills');
+
+        // Path Finder: discovered all 3 perspectives
+        if (progress.perspectivesVisited?.length >= 3) {
+            if (this.unlock('path_finder')) newAchievements.push(this.ACHIEVEMENTS.path_finder);
+        }
+
+        // Perspective Seeker: at least one in each
+        if (fundamentals.completed >= 1 && tools.completed >= 1 && skills.completed >= 1) {
+            if (this.unlock('perspective_seeker')) newAchievements.push(this.ACHIEVEMENTS.perspective_seeker);
+        }
+
+        // Fundamentals Scholar: 100%
+        if (fundamentals.percentage >= 100) {
+            if (this.unlock('fundamentals_scholar')) newAchievements.push(this.ACHIEVEMENTS.fundamentals_scholar);
+        }
+
+        // Tool Wielder: 100%
+        if (tools.percentage >= 100) {
+            if (this.unlock('tool_wielder')) newAchievements.push(this.ACHIEVEMENTS.tool_wielder);
+        }
+
+        // Skill Master: 100%
+        if (skills.percentage >= 100) {
+            if (this.unlock('skill_master')) newAchievements.push(this.ACHIEVEMENTS.skill_master);
+        }
+
+        // True Divergent: all 100%
+        if (fundamentals.percentage >= 100 && tools.percentage >= 100 && skills.percentage >= 100) {
+            if (this.unlock('true_divergent')) newAchievements.push(this.ACHIEVEMENTS.true_divergent);
+        }
+
+        // The Polymath: 75%+ across all
+        const avgPercent = (fundamentals.percentage + tools.percentage + skills.percentage) / 3;
+        if (avgPercent >= 75) {
+            if (this.unlock('the_polymath')) newAchievements.push(this.ACHIEVEMENTS.the_polymath);
+        }
+    }
+
+    /**
+     * Check career branch achievements
+     */
+    static checkCareerBranchAchievements(progress, newAchievements) {
+        const branches = progress.divergentBranches || [];
+
+        // Individual branch unlocks
+        const branchMapping = {
+            'security_analyst': 'branch_security_analyst',
+            'cloud_security': 'branch_cloud_security',
+            'devops_engineer': 'branch_devops',
+            'network_engineer': 'branch_network',
+            'systems_admin': 'branch_sysadmin',
+            'cryptographer': 'branch_crypto',
+            'pentester': 'branch_pentester',
+            'incident_responder': 'branch_ir',
+            'master_class': 'branch_master'
+        };
+
+        branches.forEach(branchId => {
+            const achievementId = branchMapping[branchId];
+            if (achievementId && this.ACHIEVEMENTS[achievementId]) {
+                if (this.unlock(achievementId)) {
+                    newAchievements.push(this.ACHIEVEMENTS[achievementId]);
+                }
+            }
+        });
+
+        // Triple Threat: 3 branches
+        if (branches.length >= 3) {
+            if (this.unlock('triple_threat')) newAchievements.push(this.ACHIEVEMENTS.triple_threat);
+        }
+
+        // Renaissance Agent: 5 branches
+        if (branches.length >= 5) {
+            if (this.unlock('renaissance_agent')) newAchievements.push(this.ACHIEVEMENTS.renaissance_agent);
+        }
+
+        // Complete Specialist: all branches
+        if (branches.length >= Object.keys(branchMapping).length) {
+            if (this.unlock('complete_specialist')) newAchievements.push(this.ACHIEVEMENTS.complete_specialist);
+        }
+    }
+
+    /**
+     * Check Operator/Matrix achievements
+     */
+    static checkOperatorAchievements(progress, newAchievements) {
+        // Red Pill Taken: completed Matrix onboarding
+        if (progress.matrixOnboarded) {
+            if (this.unlock('red_pill')) newAchievements.push(this.ACHIEVEMENTS.red_pill);
+        }
+
+        // Terminal Initiate: first command
+        if (progress.terminalCommands >= 1) {
+            if (this.unlock('terminal_initiate')) newAchievements.push(this.ACHIEVEMENTS.terminal_initiate);
+        }
+
+        // Command Line Warrior: 50 commands
+        if (progress.terminalCommands >= 50) {
+            if (this.unlock('command_warrior')) newAchievements.push(this.ACHIEVEMENTS.command_warrior);
+        }
+
+        // Neo's Apprentice: first module via terminal
+        if (progress.terminalModules >= 1) {
+            if (this.unlock('neo_apprentice')) newAchievements.push(this.ACHIEVEMENTS.neo_apprentice);
+        }
+
+        // The One: Level 10 as Operator
+        if (progress.level >= 10) {
+            if (this.unlock('the_one')) newAchievements.push(this.ACHIEVEMENTS.the_one);
+        }
+
+        // Morpheus' Wisdom: accessed all help docs
+        if (progress.helpDocsViewed >= 10) {
+            if (this.unlock('morpheus_wisdom')) newAchievements.push(this.ACHIEVEMENTS.morpheus_wisdom);
+        }
+
+        // I Know Kung Fu: 10 modules in one session
+        if (progress.sessionModules >= 10) {
+            if (this.unlock('matrix_code')) newAchievements.push(this.ACHIEVEMENTS.matrix_code);
+        }
+
+        // Free Your Mind: 5 different houses in Matrix
+        if (progress.matrixHouses?.length >= 5) {
+            if (this.unlock('free_your_mind')) newAchievements.push(this.ACHIEVEMENTS.free_your_mind);
+        }
     }
 
     /**
@@ -701,21 +2004,30 @@ class AchievementSystem {
         const unlockedIds = new Set(unlocked.map(a => a.id));
 
         const categories = {
-            milestone: { name: 'Milestones', achievements: [] },
-            quiz: { name: 'Quiz Master', achievements: [] },
-            level: { name: 'Leveling Up', achievements: [] },
-            explorer: { name: 'Explorer', achievements: [] },
-            special: { name: 'Special', achievements: [] },
-            dark_arts: { name: 'Dark Arts', achievements: [] }
+            milestone: { name: 'Milestones', icon: '🚀', achievements: [] },
+            quiz: { name: 'Quiz Master', icon: '📝', achievements: [] },
+            level: { name: 'Leveling Up', icon: '⬆️', achievements: [] },
+            explorer: { name: 'Explorer', icon: '🗺️', achievements: [] },
+            special: { name: 'Special', icon: '✨', achievements: [] },
+            dark_arts: { name: 'Dark Arts', icon: '💀', achievements: [] },
+            factionless: { name: 'Divergent Path', icon: '🔀', achievements: [] },
+            career: { name: 'Career Paths', icon: '💼', achievements: [] },
+            operator: { name: 'Matrix Operator', icon: '💊', achievements: [] },
+            seasonal: { name: 'Seasonal', icon: '🗓️', achievements: [] },
+            prestige: { name: 'Prestige', icon: '👑', achievements: [] },
+            easter_egg: { name: 'Hidden Secrets', icon: '🔮', achievements: [] }
         };
 
         // Add house categories
-        Object.keys(ProgressManager.HOUSES).forEach(houseId => {
-            categories[houseId] = {
-                name: ProgressManager.HOUSES[houseId].name,
-                achievements: []
-            };
-        });
+        if (typeof ProgressManager !== 'undefined' && ProgressManager.HOUSES) {
+            Object.keys(ProgressManager.HOUSES).forEach(houseId => {
+                categories[houseId] = {
+                    name: ProgressManager.HOUSES[houseId].name,
+                    icon: ProgressManager.HOUSES[houseId].icon || '🏠',
+                    achievements: []
+                };
+            });
+        }
 
         // Sort achievements into categories
         Object.values(this.ACHIEVEMENTS).forEach(achievement => {
@@ -769,6 +2081,138 @@ class AchievementSystem {
             displayProgress: `${unlockedNonSecret}/${nonSecret}`, // Don't reveal secret count
             points: this.getTotalPoints()
         };
+    }
+
+    /**
+     * Trigger Dark Arts gate achievement
+     * Call this from the gate pages when a gate is passed
+     */
+    static unlockDarkArtsGate(gateNumber) {
+        const gateMap = {
+            1: 'dark_arts_gate1',
+            2: 'dark_arts_gate2',
+            3: 'dark_arts_gate3',
+            4: 'dark_arts_gate4',
+            5: 'dark_arts_gate5'
+        };
+
+        const achievementId = gateMap[gateNumber];
+        if (achievementId) {
+            this.unlock(achievementId);
+        }
+
+        // Check if all 5 gates complete -> Dark Arts Master
+        const allGates = [1, 2, 3, 4, 5].every(g =>
+            this.isUnlocked(gateMap[g])
+        );
+        if (allGates) {
+            this.unlock('dark_arts_master');
+        }
+
+        return achievementId ? this.isUnlocked(achievementId) : false;
+    }
+
+    /**
+     * Trigger Dark Arts vault access achievement
+     */
+    static unlockDarkArtsVault() {
+        return this.unlock('dark_arts_vault');
+    }
+
+    /**
+     * Trigger branch unlock achievement
+     * Call this from SkillTreeData when a branch is unlocked
+     */
+    static unlockCareerBranch(branchId) {
+        const branchMapping = {
+            'security_analyst': 'branch_security_analyst',
+            'cloud_security': 'branch_cloud_security',
+            'devops_engineer': 'branch_devops',
+            'network_engineer': 'branch_network',
+            'systems_admin': 'branch_sysadmin',
+            'cryptographer': 'branch_crypto',
+            'pentester': 'branch_pentester',
+            'incident_responder': 'branch_ir',
+            'master_class': 'branch_master',
+            'dark_arts_initiate': 'dark_arts_gate1' // Special: links to Dark Arts
+        };
+
+        const achievementId = branchMapping[branchId];
+        if (achievementId) {
+            this.unlock(achievementId);
+        }
+
+        // Check milestone achievements
+        const progress = typeof ProgressManager !== 'undefined'
+            ? ProgressManager.getProgress()
+            : { divergentBranches: [] };
+
+        const branchCount = progress.divergentBranches?.length || 0;
+        if (branchCount >= 3) this.unlock('triple_threat');
+        if (branchCount >= 5) this.unlock('renaissance_agent');
+        if (branchCount >= Object.keys(branchMapping).length - 1) { // -1 for dark_arts special
+            this.unlock('complete_specialist');
+        }
+
+        return achievementId ? this.isUnlocked(achievementId) : false;
+    }
+
+    /**
+     * Get achievement stats by category
+     */
+    static getCategoryStats() {
+        const unlocked = this.getUnlockedAchievements();
+        const unlockedIds = new Set(unlocked.map(a => a.id));
+        const stats = {};
+
+        Object.values(this.ACHIEVEMENTS).forEach(achievement => {
+            const cat = achievement.category;
+            if (!stats[cat]) {
+                stats[cat] = { total: 0, unlocked: 0, points: 0, earnedPoints: 0 };
+            }
+            stats[cat].total++;
+            stats[cat].points += achievement.points;
+            if (unlockedIds.has(achievement.id)) {
+                stats[cat].unlocked++;
+                stats[cat].earnedPoints += achievement.points;
+            }
+        });
+
+        return stats;
+    }
+
+    /**
+     * Check for founding member badge (limited time)
+     * Should be called on first login during founding era
+     */
+    static checkFoundingMember() {
+        const founderEnd = new Date('2027-01-01'); // Founding era ends
+        if (new Date() < founderEnd) {
+            return this.unlock('founder_badge');
+        }
+        return false;
+    }
+
+    /**
+     * Trigger easter egg achievements
+     */
+    static triggerEasterEgg(eggId) {
+        const validEggs = [
+            'konami_code',
+            'binary_reader',
+            'firefly_whisperer',
+            'digital_life',
+            'console_hacker',
+            'time_traveler',
+            'white_rabbit',
+            'deja_vu',
+            'matrix_glitch'
+        ];
+
+        if (validEggs.includes(eggId)) {
+            return this.unlock(eggId);
+        }
+        return false;
     }
 }
 
