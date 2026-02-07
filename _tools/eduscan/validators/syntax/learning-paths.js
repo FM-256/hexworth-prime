@@ -15,6 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const PathValidator = require('./paths');
 
 // Known house folders (actual directories under houses/)
 const HOUSE_FOLDERS = ['shield', 'web', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
@@ -27,6 +28,12 @@ class LearningPathsValidator {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
+
+        // Reuse PathValidator's file indexing capability
+        this.pathValidator = new PathValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
     }
 
     /**
@@ -352,64 +359,134 @@ class LearningPathsValidator {
     }
 
     /**
-     * Try to find the actual file location
+     * Try to find the actual file location using PathValidator's file index
      */
     findActualFile(href) {
         const filename = path.basename(href);
+        const ext = path.extname(href) || '.html';
+        const baseName = path.basename(filename, ext);
 
-        // Search in all house folders
-        for (const house of HOUSE_FOLDERS) {
-            const result = this.searchInDirectory(path.join(this.rootPath, 'houses', house), filename);
-            if (result) {
-                return {
-                    path: `houses/${house}/${result.relativePath}`,
-                    confidence: 0.9,
-                    reason: `Found in ${house} house`
-                };
+        // Use PathValidator's existing file index (same one used for path validation)
+        let matches = this.pathValidator.findFileInCodebase(filename, ext);
+
+        // If no exact match, try fuzzy matching
+        if (matches.length === 0) {
+            matches = this.findSimilarFiles(baseName, ext);
+        }
+
+        if (matches.length === 0) {
+            return null;
+        }
+
+        // Find best match - prefer same subtree pattern
+        const hrefDir = path.dirname(href);
+        let bestMatch = matches[0];
+
+        for (const match of matches) {
+            // Prefer matches that share directory structure hints
+            if (match.path.includes(hrefDir) || hrefDir.split('/').some(d => match.path.includes(d))) {
+                bestMatch = match;
+                break;
             }
         }
 
-        return null;
+        // Calculate the correct relative path from _app root
+        const relativePath = path.relative(this.rootPath, bestMatch.path).replace(/\\/g, '/');
+
+        return {
+            path: relativePath,
+            confidence: bestMatch.exactMatch ? 0.95 : 0.7,
+            reason: bestMatch.exactMatch
+                ? `Exact match found at ${bestMatch.subtree}`
+                : `Similar file found: ${path.basename(bestMatch.path)}`,
+            allMatches: matches.slice(0, 5).map(m => ({
+                path: path.relative(this.rootPath, m.path).replace(/\\/g, '/'),
+                subtree: m.subtree,
+                similarity: m.similarity
+            }))
+        };
     }
 
     /**
-     * Search for a file in a directory recursively
+     * Find files with similar names (fuzzy matching)
      */
-    searchInDirectory(dir, filename, maxDepth = 6, currentDepth = 0) {
-        if (currentDepth > maxDepth) return null;
+    findSimilarFiles(baseName, ext) {
+        const matches = [];
+        const index = this.pathValidator.getFileIndex();
 
-        try {
-            if (!fs.existsSync(dir)) return null;
+        // Normalize the search term - extract key words
+        const searchTerms = baseName.toLowerCase()
+            .replace(/[-_]/g, ' ')  // Replace separators with spaces
+            .split(/\s+/)           // Split into words
+            .filter(w => w.length > 2);  // Filter short words
 
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const [filePath, info] of index.entries()) {
+            const fileExt = path.extname(filePath);
 
-            for (const entry of entries) {
-                if (entry.name.startsWith('.')) continue;
+            // Only match same extension (HTML files for HTML hrefs)
+            if (ext === '.html' && fileExt !== '.html') continue;
 
-                const fullPath = path.join(dir, entry.name);
+            const fileBasename = path.basename(filePath, fileExt);
+            const normalizedFile = fileBasename.toLowerCase().replace(/[-_]/g, ' ');
 
-                if (entry.isFile() && entry.name === filename) {
-                    return {
-                        fullPath,
-                        relativePath: path.relative(dir, fullPath).replace(/\\/g, '/')
-                    };
-                }
+            // Check if search terms are contained in filename
+            const matchedTerms = searchTerms.filter(term =>
+                normalizedFile.includes(term) || term.includes(normalizedFile.split(' ')[0])
+            );
 
-                if (entry.isDirectory()) {
-                    const result = this.searchInDirectory(fullPath, filename, maxDepth, currentDepth + 1);
-                    if (result) {
-                        return {
-                            fullPath: result.fullPath,
-                            relativePath: path.join(entry.name, result.relativePath).replace(/\\/g, '/')
-                        };
-                    }
-                }
+            if (matchedTerms.length === 0) continue;
+
+            // Calculate match quality based on how many terms matched
+            const matchQuality = matchedTerms.length / searchTerms.length;
+
+            // Also use string similarity for overall match
+            const similarity = this.stringSimilarity(
+                baseName.toLowerCase().replace(/[-_]/g, ''),
+                fileBasename.toLowerCase().replace(/[-_]/g, '')
+            );
+
+            // Require at least 50% of terms to match AND reasonable similarity
+            if (matchQuality >= 0.5 && similarity > 0.4) {
+                matches.push({
+                    path: filePath,
+                    subtree: info.subtree,
+                    exactMatch: false,
+                    similarity: Math.round((matchQuality * 0.6 + similarity * 0.4) * 100),
+                    matchedTerms
+                });
             }
-        } catch (err) {
-            // Ignore read errors
         }
 
-        return null;
+        // Sort by similarity
+        matches.sort((a, b) => b.similarity - a.similarity);
+
+        return matches.slice(0, 10);
+    }
+
+    /**
+     * Simple string similarity (Dice coefficient)
+     */
+    stringSimilarity(str1, str2) {
+        if (str1 === str2) return 1;
+        if (str1.length < 2 || str2.length < 2) return 0;
+
+        const getBigrams = s => {
+            const bigrams = new Set();
+            for (let i = 0; i < s.length - 1; i++) {
+                bigrams.add(s.substring(i, i + 2));
+            }
+            return bigrams;
+        };
+
+        const b1 = getBigrams(str1);
+        const b2 = getBigrams(str2);
+
+        let intersection = 0;
+        for (const bigram of b1) {
+            if (b2.has(bigram)) intersection++;
+        }
+
+        return (2 * intersection) / (b1.size + b2.size);
     }
 }
 
