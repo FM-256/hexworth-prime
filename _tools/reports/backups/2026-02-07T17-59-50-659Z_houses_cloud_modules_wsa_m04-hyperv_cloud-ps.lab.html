@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M04 PS Lab: Hyper-V PowerShell - Hexworth Prime</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #12141f;
+            --panel-bg: #1a1c28;
+            --border-color: #2d3748;
+            --accent-blue: #60a5fa;
+            --accent-light: #93c5fd;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --ps-blue: #012456;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        .page-header {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header h1 { font-size: 1.2rem; color: var(--accent-blue); }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .progress-text { color: var(--accent-light); font-size: 0.9rem; }
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .header-btn:hover { background: var(--accent-blue); color: #000; }
+        .main-layout { display: flex; height: calc(100vh - 120px); }
+        .instructions-sidebar {
+            width: 380px;
+            background: var(--secondary-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .task-section { margin-bottom: 25px; }
+        .task-section h3 {
+            color: var(--accent-blue);
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        .task {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .task.completed {
+            border-color: var(--success-color);
+            background: rgba(34, 197, 94, 0.05);
+        }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task.completed .task-title::after { content: " ✓"; color: var(--success-color); }
+        .task-description { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+        .task-hint {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            background: rgba(1, 36, 86, 0.5);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #fff;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .tip-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--warning-color);
+        }
+        .terminal-container { flex: 1; background: var(--ps-blue); overflow: hidden; }
+        .completion-banner {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(135deg, #166534, #22c55e);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            z-index: 2000;
+        }
+        .completion-banner.show { display: block; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .completion-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .completion-btn.primary { background: #fff; color: #166534; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+        .nav-footer {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { background: var(--accent-blue); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M04: Hyper-V PowerShell Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 6 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="presentation.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>PowerShell Lab Complete!</h2>
+        <p>You've mastered Hyper-V management with PowerShell!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="quiz.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="gui-lab.html">Try GUI Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="instructions-sidebar">
+            <div class="task-section">
+                <h3>Lab Tasks</h3>
+
+                <div class="task" id="task1">
+                    <div class="task-title">1. List Virtual Machines</div>
+                    <div class="task-description">View all VMs on the Hyper-V host.</div>
+                    <div class="task-hint">Get-VM</div>
+                </div>
+
+                <div class="task" id="task2">
+                    <div class="task-title">2. Create a New VM</div>
+                    <div class="task-description">Create a new Generation 2 VM with 2 GB RAM.</div>
+                    <div class="task-hint">New-VM -Name "TEST01" -Generation 2 -MemoryStartupBytes 2GB</div>
+                </div>
+
+                <div class="task" id="task3">
+                    <div class="task-title">3. Start a VM</div>
+                    <div class="task-description">Power on an existing virtual machine.</div>
+                    <div class="task-hint">Start-VM -Name "WEB01"</div>
+                </div>
+
+                <div class="task" id="task4">
+                    <div class="task-title">4. Create a Checkpoint</div>
+                    <div class="task-description">Create a checkpoint (snapshot) for a VM.</div>
+                    <div class="task-hint">Checkpoint-VM -Name "DC02" -SnapshotName "Before Update"</div>
+                </div>
+
+                <div class="task" id="task5">
+                    <div class="task-title">5. View Virtual Switches</div>
+                    <div class="task-description">List all virtual switches on the host.</div>
+                    <div class="task-hint">Get-VMSwitch</div>
+                </div>
+
+                <div class="task" id="task6">
+                    <div class="task-title">6. Get Host Information</div>
+                    <div class="task-description">View the Hyper-V host configuration.</div>
+                    <div class="task-hint">Get-VMHost</div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Hyper-V cmdlets require the Hyper-V module. Use <code>Get-Command -Module Hyper-V</code> to see all available cmdlets.
+            </div>
+        </div>
+
+        <div class="terminal-container" id="terminalContainer"></div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="presentation.html" class="nav-btn">&larr; Presentation</a>
+        <a href="gui-lab.html" class="nav-btn">GUI Lab</a>
+        <a href="quiz.html" class="nav-btn">Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Home</a>
+    </div>
+
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/PSTerminal.js"></script>
+
+    <script>
+        const labState = { completedTasks: new Set() };
+        let terminal = null;
+
+        function handleObjectiveComplete(objectiveId) {
+            const taskMap = {
+                'get-vm': 1,
+                'new-vm': 2,
+                'start-vm': 3,
+                'checkpoint': 4,
+                'get-vmswitch': 5,
+                'get-vmhost': 6,
+            };
+            if (taskMap[objectiveId]) completeTask(taskMap[objectiveId]);
+        }
+
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+            if (labState.completedTasks.size === 6) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    saveProgress();
+                    WSAProgress.markPsLabComplete('m04');
+                }, 500);
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('progressText').textContent = `${labState.completedTasks.size} / 6 Tasks Complete`;
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        function resetLab() {
+            if (!confirm('Reset lab progress?')) return;
+            labState.completedTasks.clear();
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            dismissBanner();
+            updateProgress();
+            if (terminal) terminal.destroy();
+            initializeTerminal();
+        }
+
+        function saveProgress() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
+                progress['wsa-m04-ps-lab'] = { completed: true, date: new Date().toISOString() };
+                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
+            } catch (e) {}
+        }
+
+        function initializeTerminal() {
+            terminal = PSTerminal.init('WSA-M04', '#terminalContainer', {
+                hostname: 'DC01',
+                domain: 'hexworth.local',
+                objectives: [
+                    { id: 'get-vm', desc: 'List VMs with Get-VM' },
+                    { id: 'new-vm', desc: 'Create VM with New-VM' },
+                    { id: 'start-vm', desc: 'Start VM with Start-VM' },
+                    { id: 'checkpoint', desc: 'Create checkpoint with Checkpoint-VM' },
+                    { id: 'get-vmswitch', desc: 'List switches with Get-VMSwitch' },
+                    { id: 'get-vmhost', desc: 'View host with Get-VMHost' },
+                ],
+                onObjectiveComplete: handleObjectiveComplete,
+                initialState: {
+                    vms: {
+                        'DC02': { Name: 'DC02', State: 'Running', CPUUsage: 12, MemoryAssigned: 4294967296, Uptime: '2.14:32:05', Version: '9.0', Generation: 2 },
+                        'FS01': { Name: 'FS01', State: 'Running', CPUUsage: 3, MemoryAssigned: 2147483648, Uptime: '5.08:15:22', Version: '9.0', Generation: 2 },
+                        'WEB01': { Name: 'WEB01', State: 'Off', CPUUsage: 0, MemoryAssigned: 0, Uptime: '0:00:00', Version: '9.0', Generation: 2 },
+                    },
+                    vmSwitches: {
+                        'External Network': { Name: 'External Network', SwitchType: 'External' },
+                        'Internal Network': { Name: 'Internal Network', SwitchType: 'Internal' },
+                        'Private Lab': { Name: 'Private Lab', SwitchType: 'Private' },
+                    },
+                },
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeTerminal);
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

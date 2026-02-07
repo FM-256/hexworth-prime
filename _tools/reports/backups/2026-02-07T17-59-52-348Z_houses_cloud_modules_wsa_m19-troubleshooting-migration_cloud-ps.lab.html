@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M19 PS Lab: Troubleshooting & Migration - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-bg: #0a0a0f; --secondary-bg: #12141f; --panel-bg: #1a1c28;
+            --border-color: #2d3748; --accent-blue: #60a5fa; --accent-light: #93c5fd;
+            --text-primary: #e0e0e0; --text-secondary: #9ca3af;
+            --success-color: #22c55e; --warning-color: #f59e0b;
+            --ps-blue: #012456;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--primary-bg); color: var(--text-primary); min-height: 100vh; }
+        .page-header { background: var(--secondary-bg); padding: 12px 20px; border-bottom: 2px solid var(--accent-blue); display: flex; justify-content: space-between; align-items: center; }
+        .page-header h1 { font-size: 1.2rem; color: var(--accent-blue); }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .progress-text { color: var(--accent-light); font-size: 0.9rem; }
+        .header-btn { padding: 8px 16px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s; text-decoration: none; }
+        .header-btn:hover { background: var(--accent-blue); color: #000; }
+        .main-layout { display: flex; height: calc(100vh - 120px); }
+        .instructions-sidebar { width: 380px; background: var(--secondary-bg); border-right: 1px solid var(--border-color); padding: 20px; overflow-y: auto; flex-shrink: 0; }
+        .task-section { margin-bottom: 25px; }
+        .task-section h3 { color: var(--accent-blue); font-size: 1rem; margin-bottom: 15px; }
+        .task { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .task.completed { border-color: var(--success-color); background: rgba(34, 197, 94, 0.05); }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task.completed .task-title::after { content: " "; color: var(--success-color); }
+        .task-description { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+        .task-hint { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.8rem; background: rgba(1, 36, 86, 0.5); padding: 6px 10px; border-radius: 4px; color: #fff; border-left: 3px solid var(--accent-blue); }
+        .tip-box { background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning-color); padding: 10px; margin-top: 15px; font-size: 0.85rem; color: var(--warning-color); }
+        .info-box { background: rgba(96, 165, 250, 0.1); border-left: 3px solid var(--accent-blue); padding: 10px; margin-top: 15px; font-size: 0.85rem; color: var(--accent-light); }
+        .terminal-container { flex: 1; background: var(--ps-blue); overflow: hidden; }
+        .completion-banner { display: none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #166534, #22c55e); color: #fff; padding: 20px; text-align: center; z-index: 2000; }
+        .completion-banner.show { display: block; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .completion-btn { padding: 10px 25px; border-radius: 6px; font-size: 0.95rem; cursor: pointer; border: none; text-decoration: none; }
+        .completion-btn.primary { background: #fff; color: #166534; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+        .nav-footer { background: var(--secondary-bg); padding: 12px 20px; display: flex; justify-content: center; gap: 15px; border-top: 1px solid var(--border-color); }
+        .nav-btn { padding: 10px 20px; background: transparent; border: 1px solid var(--accent-blue); color: var(--accent-blue); border-radius: 6px; font-size: 0.9rem; text-decoration: none; transition: all 0.3s; }
+        .nav-btn:hover { background: var(--accent-blue); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M19: Troubleshooting PowerShell Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 5 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="presentation.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>PowerShell Lab Complete!</h2>
+        <p>You've mastered troubleshooting and migration commands!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="quiz.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="gui-lab.html">Try GUI Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="instructions-sidebar">
+            <div class="task-section">
+                <h3>Lab Tasks</h3>
+
+                <div class="task" id="task1">
+                    <div class="task-title">1. Query Error Events</div>
+                    <div class="task-description">Get recent error events from the System log.</div>
+                    <div class="task-hint">Get-WinEvent -LogName System | Where-Object Level -eq 2</div>
+                </div>
+
+                <div class="task" id="task2">
+                    <div class="task-title">2. Run Domain Controller Diagnostics</div>
+                    <div class="task-description">Execute dcdiag to check AD health.</div>
+                    <div class="task-hint">dcdiag /v</div>
+                </div>
+
+                <div class="task" id="task3">
+                    <div class="task-title">3. Check AD Replication</div>
+                    <div class="task-description">View AD replication status using repadmin.</div>
+                    <div class="task-hint">repadmin /replsummary</div>
+                </div>
+
+                <div class="task" id="task4">
+                    <div class="task-title">4. Test Network Connectivity</div>
+                    <div class="task-description">Test network connection to another server.</div>
+                    <div class="task-hint">Test-NetConnection -ComputerName DC02 -Port 389</div>
+                </div>
+
+                <div class="task" id="task5">
+                    <div class="task-title">5. Check System File Integrity</div>
+                    <div class="task-description">Run system file checker to verify Windows files.</div>
+                    <div class="task-hint">sfc /scannow</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Diagnostic Commands:</strong><br>
+                dcdiag - Domain controller diagnostics<br>
+                repadmin - AD replication status<br>
+                sfc - System file checker<br>
+                Test-NetConnection - Network testing
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Use <code>Get-WinEvent -FilterHashtable @{LogName='System';Level=2}</code> for faster event filtering.
+            </div>
+        </div>
+
+        <div class="terminal-container" id="terminalContainer"></div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="presentation.html" class="nav-btn">&larr; Presentation</a>
+        <a href="gui-lab.html" class="nav-btn">GUI Lab</a>
+        <a href="quiz.html" class="nav-btn">Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Home</a>
+    </div>
+
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/PSTerminal.js"></script>
+
+    <script>
+        const labState = { completedTasks: new Set() };
+        let terminal = null;
+
+        function handleObjectiveComplete(objectiveId) {
+            const taskMap = {
+                'get-winevent-error': 1,
+                'dcdiag': 2,
+                'repadmin': 3,
+                'test-netconnection': 4,
+                'sfc-scannow': 5,
+            };
+            if (taskMap[objectiveId]) completeTask(taskMap[objectiveId]);
+        }
+
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+            if (labState.completedTasks.size === 5) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    saveProgress();
+                    WSAProgress.markPsLabComplete('m19');
+                }, 500);
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('progressText').textContent = `${labState.completedTasks.size} / 5 Tasks Complete`;
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        function resetLab() {
+            if (!confirm('Reset lab progress?')) return;
+            labState.completedTasks.clear();
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            dismissBanner();
+            updateProgress();
+            if (terminal) terminal.destroy();
+            initializeTerminal();
+        }
+
+        function saveProgress() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
+                progress['wsa-m19-ps-lab'] = { completed: true, date: new Date().toISOString() };
+                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
+            } catch (e) {}
+        }
+
+        function initializeTerminal() {
+            terminal = PSTerminal.init('WSA-M19', '#terminalContainer', {
+                hostname: 'DC01',
+                domain: 'hexworth.local',
+                objectives: [
+                    { id: 'get-winevent-error', desc: 'Query error events' },
+                    { id: 'dcdiag', desc: 'Run DC diagnostics' },
+                    { id: 'repadmin', desc: 'Check AD replication' },
+                    { id: 'test-netconnection', desc: 'Test network connectivity' },
+                    { id: 'sfc-scannow', desc: 'Check system files' },
+                ],
+                onObjectiveComplete: handleObjectiveComplete,
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeTerminal);
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

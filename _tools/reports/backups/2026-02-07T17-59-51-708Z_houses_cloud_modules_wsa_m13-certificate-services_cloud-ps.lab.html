@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M13 PowerShell Lab: Certificate Services - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .hint-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hint-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: #93c5fd;
+        }
+
+        .terminal-container { flex: 1; display: flex; flex-direction: column; padding: 15px; }
+
+        .terminal {
+            flex: 1;
+            background: #012456;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-header-text { color: #ccc; font-size: 0.85rem; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+
+        .terminal-input-line { display: flex; align-items: center; color: #ffff00; }
+        .terminal-input-line .prompt-text { margin-right: 5px; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+        .completion-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M13: PowerShell PKI Lab</div>
+        <nav class="lab-nav">
+            <a href="presentation.html">Presentation</a>
+            <a href="gui-lab.html">GUI Lab</a>
+            <a href="ps-lab.html" class="active">PowerShell Lab</a>
+            <a href="quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. List Templates</h4>
+                    <p>View available certificate templates.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Request Certificate</h4>
+                    <p>Request a certificate using Get-Certificate.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. View Certificates</h4>
+                    <p>List certificates in the local store.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. Publish CRL</h4>
+                    <p>Publish a new CRL from the CA.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. Backup CA</h4>
+                    <p>Backup the CA database and key.</p>
+                </div>
+            </div>
+
+            <div class="hint-box">
+                <strong>Hint:</strong> Use <code>Get-Command *Certificate*</code> and <code>certutil</code> for PKI management.
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-header-text">Administrator: Windows PowerShell</div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line info">Windows PowerShell</div>
+                    <div class="terminal-line info">Copyright (C) Microsoft Corporation. All rights reserved.</div>
+                    <div class="terminal-line info"></div>
+                    <div class="terminal-line success">PKI and ADCS modules loaded.</div>
+                    <div class="terminal-line info">CA: Hexworth Issuing CA</div>
+                    <div class="terminal-line info"></div>
+                </div>
+                <div style="padding: 0 15px 15px;">
+                    <div class="terminal-input-line">
+                        <span class="prompt-text">PS C:\Users\Administrator&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered PowerShell PKI administration.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='quiz.html'">Take Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const caState = {
+            caName: 'Hexworth Issuing CA',
+            templates: [
+                { name: 'User', oid: '1.3.6.1.4.1.311.21.8.1' },
+                { name: 'Computer', oid: '1.3.6.1.4.1.311.21.8.2' },
+                { name: 'WebServer', oid: '1.3.6.1.4.1.311.21.8.3' },
+                { name: 'DomainController', oid: '1.3.6.1.4.1.311.21.8.4' },
+                { name: 'CodeSigning', oid: '1.3.6.1.4.1.311.21.8.5' }
+            ],
+            localCerts: [
+                { thumbprint: 'A1B2C3D4E5F6', subject: 'CN=CA01.hexworth.local', issuer: 'Hexworth Root CA', notAfter: '1/15/2031' },
+                { thumbprint: 'F6E5D4C3B2A1', subject: 'CN=Hexworth Issuing CA', issuer: 'Hexworth Root CA', notAfter: '1/15/2029' }
+            ]
+        };
+
+        const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+        const terminalBody = document.getElementById('terminalBody');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addPrompt(command) {
+            addLine(`PS C:\\Users\\Administrator> ${command}`, 'prompt');
+        }
+
+        function processCommand(input) {
+            const cmd = input.trim();
+            if (!cmd) return;
+
+            addPrompt(cmd);
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(/\s+/);
+            const cmdName = parts[0].toLowerCase();
+
+            if (cmdLower === 'help' || cmdLower === 'get-help') {
+                showHelp();
+                return;
+            }
+
+            if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalBody.innerHTML = '';
+                return;
+            }
+
+            if (cmdLower.includes('get-catemplate')) {
+                handleGetCATemplate();
+                return;
+            }
+
+            if (cmdName === 'get-certificate') {
+                handleGetCertificate(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-childitem') && cmdLower.includes('cert:')) {
+                handleGetCertStore(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('publish-crl') || (cmdLower.includes('certutil') && cmdLower.includes('-crl'))) {
+                handlePublishCRL();
+                return;
+            }
+
+            if (cmdLower.includes('backup-caroleservice') || (cmdLower.includes('certutil') && cmdLower.includes('-backup'))) {
+                handleBackupCA(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-command') && (cmdLower.includes('cert') || cmdLower.includes('ca'))) {
+                showCertCommands();
+                return;
+            }
+
+            if (cmdLower.includes('certutil') && cmdLower.includes('-ca')) {
+                handleCertutilCA();
+                return;
+            }
+
+            if (cmdLower.includes('certutil') && cmdLower.includes('-view')) {
+                handleCertutilView();
+                return;
+            }
+
+            addLine(`${parts[0]} : The term '${parts[0]}' is not recognized as the name of a cmdlet.`, 'error');
+        }
+
+        function showHelp() {
+            addLine('');
+            addLine('Available PKI Commands:', 'info');
+            addLine('  Get-CATemplate                  - List CA templates');
+            addLine('  Get-Certificate -Template       - Request certificate');
+            addLine('  Get-ChildItem Cert:\\            - Browse cert store');
+            addLine('  Publish-CRL                     - Publish new CRL');
+            addLine('  Backup-CARoleService -Path      - Backup CA');
+            addLine('  certutil -ca                    - View CA info');
+            addLine('  certutil -view                  - View issued certs');
+            addLine('  certutil -crl                   - Force CRL publish');
+            addLine('  certutil -backup                - Backup CA');
+            addLine('');
+        }
+
+        function showCertCommands() {
+            addLine('');
+            addLine('CommandType     Name');
+            addLine('-----------     ----');
+            addLine('Cmdlet          Add-CATemplate');
+            addLine('Cmdlet          Backup-CARoleService');
+            addLine('Cmdlet          Get-CATemplate');
+            addLine('Cmdlet          Get-Certificate');
+            addLine('Cmdlet          Get-ChildItem (Cert: provider)');
+            addLine('Cmdlet          New-SelfSignedCertificate');
+            addLine('Cmdlet          Publish-CRL');
+            addLine('Cmdlet          Remove-CATemplate');
+            addLine('Cmdlet          Restore-CARoleService');
+            addLine('Cmdlet          Revoke-Certificate');
+            addLine('Application     certutil.exe');
+            addLine('Application     certreq.exe');
+            addLine('');
+        }
+
+        function handleGetCATemplate() {
+            addLine('');
+            addLine('Name                          Oid');
+            addLine('----                          ---');
+            caState.templates.forEach(t => {
+                addLine(`${t.name.padEnd(29)} ${t.oid}`);
+            });
+            addLine('');
+            completeObjective('obj1');
+        }
+
+        function handleGetCertificate(cmd) {
+            const templateMatch = cmd.match(/-Template\s+["']?(\w+)["']?/i);
+            const subjectMatch = cmd.match(/-SubjectName\s+["']([^"']+)["']/i);
+
+            if (!templateMatch) {
+                addLine('Get-Certificate : Missing required parameter -Template', 'error');
+                return;
+            }
+
+            const template = templateMatch[1];
+            const subject = subjectMatch ? subjectMatch[1] : 'CN=server.hexworth.local';
+
+            addLine('');
+            addLine('Requesting certificate...', 'info');
+            addLine('');
+
+            const thumbprint = Math.random().toString(16).substr(2, 12).toUpperCase();
+
+            caState.localCerts.push({
+                thumbprint: thumbprint,
+                subject: subject,
+                issuer: 'Hexworth Issuing CA',
+                notAfter: new Date(Date.now() + 730 * 24 * 60 * 60 * 1000).toLocaleDateString()
+            });
+
+            addLine(`Certificate request succeeded.`, 'success');
+            addLine('');
+            addLine(`Thumbprint                            Subject`);
+            addLine(`----------                            -------`);
+            addLine(`${thumbprint}                         ${subject}`);
+            addLine('');
+
+            completeObjective('obj2');
+        }
+
+        function handleGetCertStore(cmd) {
+            addLine('');
+            addLine('   PSParentPath: Microsoft.PowerShell.Security\\Certificate::LocalMachine\\My');
+            addLine('');
+            addLine('Thumbprint                                Subject');
+            addLine('----------                                -------');
+            caState.localCerts.forEach(c => {
+                addLine(`${c.thumbprint.padEnd(42)}${c.subject}`);
+            });
+            addLine('');
+            completeObjective('obj3');
+        }
+
+        function handlePublishCRL() {
+            addLine('');
+            addLine('Publishing CRL...', 'info');
+            addLine('');
+            addLine('CRL published successfully.', 'success');
+            addLine('');
+            addLine('CRL Information:');
+            addLine(`  CA Name        : ${caState.caName}`);
+            addLine(`  Published      : ${new Date().toLocaleString()}`);
+            addLine(`  Next Update    : ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleString()}`);
+            addLine(`  CRL Number     : 42`);
+            addLine('');
+            completeObjective('obj4');
+        }
+
+        function handleBackupCA(cmd) {
+            const pathMatch = cmd.match(/-Path\s+["']([^"']+)["']|[-]Path\s+([^\s]+)/i) ||
+                              cmd.match(/certutil\s+-backup\s+["']?([^"'\s]+)["']?/i);
+
+            if (!pathMatch) {
+                addLine('Backup-CARoleService : Missing required parameter -Path', 'error');
+                addLine('Usage: Backup-CARoleService -Path "C:\\CABackup"', 'info');
+                return;
+            }
+
+            const path = pathMatch[1] || pathMatch[2];
+
+            addLine('');
+            addLine(`Backing up CA to ${path}...`, 'info');
+            addLine('');
+            addLine('Backing up CA private key and certificate...', 'output');
+            addLine('Backing up CA database...', 'output');
+            addLine('Backing up CA log files...', 'output');
+            addLine('');
+            addLine('CA backup completed successfully.', 'success');
+            addLine('');
+            addLine(`Backup location: ${path}`);
+            addLine(`  - CA certificate and key (encrypted)`);
+            addLine(`  - Database files`);
+            addLine(`  - Log files`);
+            addLine('');
+            completeObjective('obj5');
+        }
+
+        function handleCertutilCA() {
+            addLine('');
+            addLine(`CA Name: ${caState.caName}`);
+            addLine('CA Type: Enterprise Subordinate CA');
+            addLine('CA Server: CA01.hexworth.local');
+            addLine('Key Length: 4096');
+            addLine('Hash Algorithm: sha256');
+            addLine('Status: Running');
+            addLine('');
+        }
+
+        function handleCertutilView() {
+            addLine('');
+            addLine('Row 1:');
+            addLine('  Serial Number: "6100001a"');
+            addLine('  Issued Common Name: "HEXWORTH-DC01"');
+            addLine('  Certificate Expiration Date: 1/15/2027 12:00 AM');
+            addLine('  Certificate Template: "DomainController"');
+            addLine('');
+            addLine('Row 2:');
+            addLine('  Serial Number: "6100001b"');
+            addLine('  Issued Common Name: "mail.hexworth.local"');
+            addLine('  Certificate Expiration Date: 1/20/2028 12:00 AM');
+            addLine('  Certificate Template: "WebServer"');
+            addLine('');
+            addLine('Maximum Row Index: 2');
+            addLine('');
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(objectives).every(v => v)) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m13');
+                }, 500);
+            }
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(terminalInput.value);
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        document.querySelector('.terminal').addEventListener('click', () => {
+            terminalInput.focus();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

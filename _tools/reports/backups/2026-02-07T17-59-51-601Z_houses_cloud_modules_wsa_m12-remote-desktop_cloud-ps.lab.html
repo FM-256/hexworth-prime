@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M12 PowerShell Lab: Remote Desktop Services - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .hint-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hint-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: #93c5fd;
+        }
+
+        .terminal-container { flex: 1; display: flex; flex-direction: column; padding: 15px; }
+
+        .terminal {
+            flex: 1;
+            background: #012456;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-header-text { color: #ccc; font-size: 0.85rem; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+
+        .terminal-input-line { display: flex; align-items: center; color: #ffff00; }
+        .terminal-input-line .prompt-text { margin-right: 5px; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+        .completion-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M12: PowerShell RDS Lab</div>
+        <nav class="lab-nav">
+            <a href="presentation.html">Presentation</a>
+            <a href="gui-lab.html">GUI Lab</a>
+            <a href="ps-lab.html" class="active">PowerShell Lab</a>
+            <a href="quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. List Collections</h4>
+                    <p>View all session collections.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Create Collection</h4>
+                    <p>Create a new session collection.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. Publish RemoteApp</h4>
+                    <p>Publish an application as RemoteApp.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. View Sessions</h4>
+                    <p>List active user sessions.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. Configure Licensing</h4>
+                    <p>Set the RD Licensing configuration.</p>
+                </div>
+            </div>
+
+            <div class="hint-box">
+                <strong>Hint:</strong> Use <code>Get-Command *RD*</code> to discover RDS cmdlets.
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-header-text">Administrator: Windows PowerShell</div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line info">Windows PowerShell</div>
+                    <div class="terminal-line info">Copyright (C) Microsoft Corporation. All rights reserved.</div>
+                    <div class="terminal-line info"></div>
+                    <div class="terminal-line success">RemoteDesktop module loaded.</div>
+                    <div class="terminal-line info">Connection Broker: RDCB01.hexworth.local</div>
+                    <div class="terminal-line info"></div>
+                </div>
+                <div style="padding: 0 15px 15px;">
+                    <div class="terminal-input-line">
+                        <span class="prompt-text">PS C:\Users\Administrator&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered PowerShell RDS administration.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='quiz.html'">Take Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const rdsState = {
+            connectionBroker: 'RDCB01.hexworth.local',
+            collections: [
+                {
+                    collectionName: 'QuickSessionCollection',
+                    resourceType: 'RemoteDesktop',
+                    collectionType: 'PooledManaged',
+                    sessionHosts: ['RDSH01.hexworth.local'],
+                    remoteApps: []
+                }
+            ],
+            sessions: [
+                { userName: 'HEXWORTH\\jsmith', sessionHost: 'RDSH01', sessionId: 2, state: 'Active', idleTime: '00:05:23' },
+                { userName: 'HEXWORTH\\mjones', sessionHost: 'RDSH01', sessionId: 3, state: 'Disconnected', idleTime: '01:15:00' }
+            ],
+            licensing: { server: '', mode: '' }
+        };
+
+        const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+        const terminalBody = document.getElementById('terminalBody');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addPrompt(command) {
+            addLine(`PS C:\\Users\\Administrator> ${command}`, 'prompt');
+        }
+
+        function processCommand(input) {
+            const cmd = input.trim();
+            if (!cmd) return;
+
+            addPrompt(cmd);
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(/\s+/);
+            const cmdName = parts[0].toLowerCase();
+
+            if (cmdLower === 'help' || cmdLower === 'get-help') {
+                showHelp();
+                return;
+            }
+
+            if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalBody.innerHTML = '';
+                return;
+            }
+
+            if (cmdLower.includes('get-rdsessioncollection')) {
+                handleGetCollection();
+                return;
+            }
+
+            if (cmdName === 'new-rdsessioncollection') {
+                handleNewCollection(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-rdremoteapp')) {
+                handleGetRemoteApp(cmd);
+                return;
+            }
+
+            if (cmdName === 'new-rdremoteapp') {
+                handleNewRemoteApp(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-rdusersession')) {
+                handleGetUserSession();
+                return;
+            }
+
+            if (cmdLower.includes('get-rdsessionhost')) {
+                handleGetSessionHost();
+                return;
+            }
+
+            if (cmdName === 'set-rdlicenseconfiguration') {
+                handleSetLicense(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-rdlicenseconfiguration')) {
+                handleGetLicense();
+                return;
+            }
+
+            if (cmdLower.includes('get-command') && cmdLower.includes('rd')) {
+                showRDCommands();
+                return;
+            }
+
+            if (cmdName === 'disconnect-rdusersession') {
+                handleDisconnectSession(cmd);
+                return;
+            }
+
+            if (cmdName === 'invoke-rdusersessionlogoff') {
+                handleLogoffSession(cmd);
+                return;
+            }
+
+            addLine(`${parts[0]} : The term '${parts[0]}' is not recognized as the name of a cmdlet.`, 'error');
+        }
+
+        function showHelp() {
+            addLine('');
+            addLine('Available RDS Commands:', 'info');
+            addLine('  Get-RDSessionCollection         - List session collections');
+            addLine('  New-RDSessionCollection         - Create collection');
+            addLine('  Get-RDRemoteApp                 - List published RemoteApps');
+            addLine('  New-RDRemoteApp                 - Publish RemoteApp');
+            addLine('  Get-RDUserSession               - List active sessions');
+            addLine('  Get-RDSessionHost               - List session hosts');
+            addLine('  Get-RDLicenseConfiguration      - View licensing config');
+            addLine('  Set-RDLicenseConfiguration      - Set licensing config');
+            addLine('  Disconnect-RDUserSession        - Disconnect a session');
+            addLine('  Invoke-RDUserSessionLogoff      - Force logoff');
+            addLine('');
+        }
+
+        function showRDCommands() {
+            addLine('');
+            addLine('CommandType     Name');
+            addLine('-----------     ----');
+            addLine('Cmdlet          Get-RDSessionCollection');
+            addLine('Cmdlet          Get-RDSessionHost');
+            addLine('Cmdlet          Get-RDRemoteApp');
+            addLine('Cmdlet          Get-RDUserSession');
+            addLine('Cmdlet          Get-RDLicenseConfiguration');
+            addLine('Cmdlet          New-RDSessionCollection');
+            addLine('Cmdlet          New-RDRemoteApp');
+            addLine('Cmdlet          Set-RDSessionCollectionConfiguration');
+            addLine('Cmdlet          Set-RDLicenseConfiguration');
+            addLine('Cmdlet          Disconnect-RDUserSession');
+            addLine('Cmdlet          Invoke-RDUserSessionLogoff');
+            addLine('Cmdlet          Remove-RDSessionCollection');
+            addLine('Cmdlet          Remove-RDRemoteApp');
+            addLine('');
+        }
+
+        function handleGetCollection() {
+            addLine('');
+            addLine('CollectionName                    ResourceType      CollectionType');
+            addLine('--------------                    ------------      --------------');
+            rdsState.collections.forEach(col => {
+                addLine(`${col.collectionName.padEnd(33)} ${col.resourceType.padEnd(17)} ${col.collectionType}`);
+            });
+            addLine('');
+            completeObjective('obj1');
+        }
+
+        function handleNewCollection(cmd) {
+            const nameMatch = cmd.match(/-CollectionName\s+["']([^"']+)["']|[-]CollectionName\s+([^\s]+)/i);
+            const hostMatch = cmd.match(/-SessionHost\s+["']([^"']+)["']|[-]SessionHost\s+([^\s]+)/i);
+
+            if (!nameMatch) {
+                addLine('New-RDSessionCollection : Missing required parameter -CollectionName', 'error');
+                return;
+            }
+
+            const name = nameMatch[1] || nameMatch[2];
+            const host = hostMatch ? (hostMatch[1] || hostMatch[2]) : 'RDSH01.hexworth.local';
+
+            if (rdsState.collections.find(c => c.collectionName.toLowerCase() === name.toLowerCase())) {
+                addLine(`New-RDSessionCollection : Collection '${name}' already exists.`, 'error');
+                return;
+            }
+
+            const newCollection = {
+                collectionName: name,
+                resourceType: 'RemoteDesktop',
+                collectionType: 'PooledManaged',
+                sessionHosts: [host],
+                remoteApps: []
+            };
+
+            rdsState.collections.push(newCollection);
+
+            addLine('');
+            addLine('Session collection created successfully.', 'success');
+            addLine('');
+            addLine('CollectionName                    ResourceType      CollectionType');
+            addLine('--------------                    ------------      --------------');
+            addLine(`${name.padEnd(33)} RemoteDesktop     PooledManaged`);
+            addLine('');
+
+            completeObjective('obj2');
+        }
+
+        function handleGetRemoteApp(cmd) {
+            const colMatch = cmd.match(/-CollectionName\s+["']([^"']+)["']|[-]CollectionName\s+([^\s]+)/i);
+
+            addLine('');
+            addLine('Alias                DisplayName          CollectionName');
+            addLine('-----                -----------          --------------');
+
+            const cols = colMatch
+                ? rdsState.collections.filter(c => c.collectionName.toLowerCase() === (colMatch[1] || colMatch[2]).toLowerCase())
+                : rdsState.collections;
+
+            cols.forEach(col => {
+                col.remoteApps.forEach(app => {
+                    addLine(`${app.alias.padEnd(20)} ${app.displayName.padEnd(20)} ${col.collectionName}`);
+                });
+            });
+
+            addLine('');
+        }
+
+        function handleNewRemoteApp(cmd) {
+            const colMatch = cmd.match(/-CollectionName\s+["']([^"']+)["']|[-]CollectionName\s+([^\s]+)/i);
+            const displayMatch = cmd.match(/-DisplayName\s+["']([^"']+)["']|[-]DisplayName\s+([^\s]+)/i);
+            const aliasMatch = cmd.match(/-Alias\s+["']([^"']+)["']|[-]Alias\s+([^\s]+)/i);
+            const fileMatch = cmd.match(/-FilePath\s+["']([^"']+)["']|[-]FilePath\s+([^\s]+)/i);
+
+            if (!colMatch || !displayMatch) {
+                addLine('New-RDRemoteApp : Missing required parameters -CollectionName and -DisplayName', 'error');
+                return;
+            }
+
+            const colName = colMatch[1] || colMatch[2];
+            const displayName = displayMatch[1] || displayMatch[2];
+            const alias = aliasMatch ? (aliasMatch[1] || aliasMatch[2]) : displayName.toLowerCase().replace(/\s/g, '');
+            const filePath = fileMatch ? (fileMatch[1] || fileMatch[2]) : 'C:\\Windows\\System32\\' + alias + '.exe';
+
+            const col = rdsState.collections.find(c => c.collectionName.toLowerCase() === colName.toLowerCase());
+            if (!col) {
+                addLine(`New-RDRemoteApp : Collection '${colName}' not found.`, 'error');
+                return;
+            }
+
+            col.remoteApps.push({ alias, displayName, filePath });
+
+            addLine('');
+            addLine('RemoteApp published successfully.', 'success');
+            addLine('');
+            addLine('Alias                DisplayName          FilePath');
+            addLine('-----                -----------          --------');
+            addLine(`${alias.padEnd(20)} ${displayName.padEnd(20)} ${filePath}`);
+            addLine('');
+
+            completeObjective('obj3');
+        }
+
+        function handleGetUserSession() {
+            addLine('');
+            addLine('UserName                    HostServer       SessionId  SessionState   IdleTime');
+            addLine('--------                    ----------       ---------  ------------   --------');
+            rdsState.sessions.forEach(s => {
+                addLine(`${s.userName.padEnd(27)} ${s.sessionHost.padEnd(16)} ${s.sessionId.toString().padEnd(10)} ${s.state.padEnd(14)} ${s.idleTime}`);
+            });
+            addLine('');
+            completeObjective('obj4');
+        }
+
+        function handleGetSessionHost() {
+            addLine('');
+            addLine('SessionHost                   SessionsCount  NewConnectionsAllowed');
+            addLine('-----------                   -------------  ---------------------');
+            addLine('RDSH01.hexworth.local         2              Yes');
+            addLine('RDSH02.hexworth.local         0              Yes');
+            addLine('');
+        }
+
+        function handleSetLicense(cmd) {
+            const serverMatch = cmd.match(/-LicenseServer\s+["']([^"']+)["']|[-]LicenseServer\s+([^\s]+)/i);
+            const modeMatch = cmd.match(/-Mode\s+(\w+)/i);
+
+            if (!serverMatch || !modeMatch) {
+                addLine('Set-RDLicenseConfiguration : Missing required parameters -LicenseServer and -Mode', 'error');
+                return;
+            }
+
+            rdsState.licensing.server = serverMatch[1] || serverMatch[2];
+            rdsState.licensing.mode = modeMatch[1];
+
+            addLine('');
+            addLine('RD Licensing configuration updated.', 'success');
+            addLine('');
+            addLine(`LicenseServer : ${rdsState.licensing.server}`);
+            addLine(`Mode          : ${rdsState.licensing.mode}`);
+            addLine('');
+
+            completeObjective('obj5');
+        }
+
+        function handleGetLicense() {
+            addLine('');
+            if (rdsState.licensing.server) {
+                addLine(`LicenseServer : ${rdsState.licensing.server}`);
+                addLine(`Mode          : ${rdsState.licensing.mode}`);
+            } else {
+                addLine('LicenseServer : (Not configured)');
+                addLine('Mode          : (Not configured)');
+            }
+            addLine('');
+        }
+
+        function handleDisconnectSession(cmd) {
+            const idMatch = cmd.match(/-UnifiedSessionId\s+(\d+)/i);
+            if (idMatch) {
+                const session = rdsState.sessions.find(s => s.sessionId === parseInt(idMatch[1]));
+                if (session) {
+                    session.state = 'Disconnected';
+                    addLine('');
+                    addLine(`Session ${idMatch[1]} disconnected.`, 'success');
+                    addLine('');
+                    return;
+                }
+            }
+            addLine('Session not found or invalid parameters.', 'error');
+        }
+
+        function handleLogoffSession(cmd) {
+            const idMatch = cmd.match(/-UnifiedSessionId\s+(\d+)/i);
+            if (idMatch) {
+                const idx = rdsState.sessions.findIndex(s => s.sessionId === parseInt(idMatch[1]));
+                if (idx !== -1) {
+                    rdsState.sessions.splice(idx, 1);
+                    addLine('');
+                    addLine(`Session ${idMatch[1]} logged off.`, 'success');
+                    addLine('');
+                    return;
+                }
+            }
+            addLine('Session not found or invalid parameters.', 'error');
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(objectives).every(v => v)) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m12');
+                }, 500);
+            }
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(terminalInput.value);
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        document.querySelector('.terminal').addEventListener('click', () => {
+            terminalInput.focus();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

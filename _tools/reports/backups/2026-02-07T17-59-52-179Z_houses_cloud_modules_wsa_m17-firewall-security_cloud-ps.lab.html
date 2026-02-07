@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M17 PowerShell Lab: Windows Firewall - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .hint-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hint-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: #93c5fd;
+        }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .terminal {
+            flex: 1;
+            background: #0c0c0c;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-header-text { color: #ccc; font-size: 0.85rem; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+
+        .terminal-input-line { display: flex; align-items: center; color: #ffff00; }
+        .terminal-input-line .prompt-text { margin-right: 5px; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+        .completion-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M17: PowerShell Windows Firewall Lab</div>
+        <nav class="lab-nav">
+            <a href="presentation.html">Presentation</a>
+            <a href="gui-lab.html">GUI Lab</a>
+            <a href="ps-lab.html" class="active">PowerShell Lab</a>
+            <a href="quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. View Firewall Profiles</h4>
+                    <p>Check firewall profile status.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Create Firewall Rule</h4>
+                    <p>Create a new inbound firewall rule.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. List Firewall Rules</h4>
+                    <p>Query existing firewall rules.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. Configure Logging</h4>
+                    <p>Enable firewall logging.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. Test Connectivity</h4>
+                    <p>Use Test-NetConnection.</p>
+                </div>
+            </div>
+
+            <div class="hint-box">
+                <strong>Hint:</strong> Use <code>Get-Command *NetFirewall*</code> to discover available firewall cmdlets.
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-header-text">Administrator: Windows PowerShell</div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line info">Windows PowerShell</div>
+                    <div class="terminal-line info">Copyright (C) Microsoft Corporation. All rights reserved.</div>
+                    <div class="terminal-line info"></div>
+                    <div class="terminal-line info">NetSecurity module loaded.</div>
+                    <div class="terminal-line info">Server: DC1.hexworth.local</div>
+                    <div class="terminal-line info"></div>
+                </div>
+                <div style="padding: 0 15px 15px;">
+                    <div class="terminal-input-line">
+                        <span class="prompt-text">PS C:\Users\Administrator&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered PowerShell firewall management.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='quiz.html'">Take Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const firewallState = {
+            rules: [
+                { displayName: 'Remote Desktop - User Mode (TCP-In)', direction: 'Inbound', action: 'Allow', enabled: 'True', profile: 'Any', protocol: 'TCP', localPort: '3389' },
+                { displayName: 'Windows Remote Management (HTTP-In)', direction: 'Inbound', action: 'Allow', enabled: 'True', profile: 'Domain, Private', protocol: 'TCP', localPort: '5985' },
+                { displayName: 'File and Printer Sharing (SMB-In)', direction: 'Inbound', action: 'Allow', enabled: 'True', profile: 'Domain, Private', protocol: 'TCP', localPort: '445' },
+                { displayName: 'Core Networking - DNS (UDP-In)', direction: 'Inbound', action: 'Allow', enabled: 'True', profile: 'Any', protocol: 'UDP', localPort: '53' }
+            ],
+            profiles: {
+                Domain: { enabled: true, defaultInbound: 'Block', defaultOutbound: 'Allow', logBlocked: false, logAllowed: false },
+                Private: { enabled: true, defaultInbound: 'Block', defaultOutbound: 'Allow', logBlocked: false, logAllowed: false },
+                Public: { enabled: true, defaultInbound: 'Block', defaultOutbound: 'Allow', logBlocked: false, logAllowed: false }
+            }
+        };
+
+        const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+        const terminalBody = document.getElementById('terminalBody');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addPrompt(command) {
+            addLine(`PS C:\\Users\\Administrator> ${command}`, 'prompt');
+        }
+
+        function processCommand(input) {
+            const cmd = input.trim();
+            if (!cmd) return;
+
+            addPrompt(cmd);
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(/\s+/);
+            const cmdName = parts[0].toLowerCase();
+
+            if (cmdLower === 'help' || cmdLower === 'get-help') {
+                showHelp();
+                return;
+            }
+
+            if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalBody.innerHTML = '';
+                return;
+            }
+
+            if (cmdLower.includes('get-netfirewallprofile')) {
+                handleGetProfile(cmd);
+                return;
+            }
+
+            if (cmdName === 'set-netfirewallprofile') {
+                handleSetProfile(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-netfirewallrule')) {
+                handleGetRule(cmd);
+                return;
+            }
+
+            if (cmdName === 'new-netfirewallrule') {
+                handleNewRule(cmd);
+                return;
+            }
+
+            if (cmdName === 'disable-netfirewallrule' || cmdName === 'enable-netfirewallrule') {
+                handleToggleRule(cmd);
+                return;
+            }
+
+            if (cmdName === 'remove-netfirewallrule') {
+                handleRemoveRule(cmd);
+                return;
+            }
+
+            if (cmdName === 'test-netconnection') {
+                handleTestConnection(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-command') && cmdLower.includes('netfirewall')) {
+                showFirewallCommands();
+                return;
+            }
+
+            addLine(`${parts[0]} : The term '${parts[0]}' is not recognized as the name of a cmdlet.`, 'error');
+        }
+
+        function showHelp() {
+            addLine('');
+            addLine('Available Firewall Commands:', 'info');
+            addLine('  Get-NetFirewallProfile           - View profile status');
+            addLine('  Set-NetFirewallProfile           - Modify profile settings');
+            addLine('  Get-NetFirewallRule              - List firewall rules');
+            addLine('  New-NetFirewallRule              - Create new rule');
+            addLine('  Enable-NetFirewallRule           - Enable a rule');
+            addLine('  Disable-NetFirewallRule          - Disable a rule');
+            addLine('  Remove-NetFirewallRule           - Delete a rule');
+            addLine('  Test-NetConnection               - Test connectivity');
+            addLine('');
+        }
+
+        function showFirewallCommands() {
+            addLine('');
+            addLine('CommandType     Name');
+            addLine('-----------     ----');
+            addLine('Cmdlet          Disable-NetFirewallRule');
+            addLine('Cmdlet          Enable-NetFirewallRule');
+            addLine('Cmdlet          Get-NetFirewallAddressFilter');
+            addLine('Cmdlet          Get-NetFirewallApplicationFilter');
+            addLine('Cmdlet          Get-NetFirewallPortFilter');
+            addLine('Cmdlet          Get-NetFirewallProfile');
+            addLine('Cmdlet          Get-NetFirewallRule');
+            addLine('Cmdlet          New-NetFirewallRule');
+            addLine('Cmdlet          Remove-NetFirewallRule');
+            addLine('Cmdlet          Set-NetFirewallProfile');
+            addLine('Cmdlet          Set-NetFirewallRule');
+            addLine('');
+        }
+
+        function handleGetProfile(cmd) {
+            addLine('');
+            addLine('Name                  : Domain');
+            addLine('Enabled               : ' + firewallState.profiles.Domain.enabled);
+            addLine('DefaultInboundAction  : ' + firewallState.profiles.Domain.defaultInbound);
+            addLine('DefaultOutboundAction : ' + firewallState.profiles.Domain.defaultOutbound);
+            addLine('LogBlocked            : ' + firewallState.profiles.Domain.logBlocked);
+            addLine('LogAllowed            : ' + firewallState.profiles.Domain.logAllowed);
+            addLine('');
+            addLine('Name                  : Private');
+            addLine('Enabled               : ' + firewallState.profiles.Private.enabled);
+            addLine('DefaultInboundAction  : ' + firewallState.profiles.Private.defaultInbound);
+            addLine('DefaultOutboundAction : ' + firewallState.profiles.Private.defaultOutbound);
+            addLine('LogBlocked            : ' + firewallState.profiles.Private.logBlocked);
+            addLine('LogAllowed            : ' + firewallState.profiles.Private.logAllowed);
+            addLine('');
+            addLine('Name                  : Public');
+            addLine('Enabled               : ' + firewallState.profiles.Public.enabled);
+            addLine('DefaultInboundAction  : ' + firewallState.profiles.Public.defaultInbound);
+            addLine('DefaultOutboundAction : ' + firewallState.profiles.Public.defaultOutbound);
+            addLine('LogBlocked            : ' + firewallState.profiles.Public.logBlocked);
+            addLine('LogAllowed            : ' + firewallState.profiles.Public.logAllowed);
+            addLine('');
+            completeObjective('obj1');
+        }
+
+        function handleSetProfile(cmd) {
+            const profileMatch = cmd.match(/-Profile\s+([^\s]+)/i);
+            const logBlockedMatch = cmd.match(/-LogBlocked\s+(True|False|\$true|\$false)/i);
+            const logAllowedMatch = cmd.match(/-LogAllowed\s+(True|False|\$true|\$false)/i);
+
+            if (!profileMatch) {
+                addLine('Set-NetFirewallProfile : Missing required parameter -Profile', 'error');
+                return;
+            }
+
+            const profiles = profileMatch[1].split(',');
+
+            profiles.forEach(p => {
+                const profile = p.trim();
+                if (firewallState.profiles[profile]) {
+                    if (logBlockedMatch) {
+                        firewallState.profiles[profile].logBlocked = logBlockedMatch[1].toLowerCase().includes('true');
+                    }
+                    if (logAllowedMatch) {
+                        firewallState.profiles[profile].logAllowed = logAllowedMatch[1].toLowerCase().includes('true');
+                    }
+                }
+            });
+
+            addLine('');
+            addLine('Firewall profile settings updated successfully.', 'success');
+            addLine('');
+
+            if (logBlockedMatch || logAllowedMatch) {
+                completeObjective('obj4');
+            }
+        }
+
+        function handleGetRule(cmd) {
+            const directionMatch = cmd.match(/-Direction\s+(Inbound|Outbound)/i);
+            const enabledMatch = cmd.match(/-Enabled\s+(True|False|\$true|\$false)/i);
+            const nameMatch = cmd.match(/-DisplayName\s+["']([^"']+)["']/i);
+
+            let rules = [...firewallState.rules];
+
+            if (directionMatch) {
+                rules = rules.filter(r => r.direction.toLowerCase() === directionMatch[1].toLowerCase());
+            }
+
+            if (enabledMatch) {
+                const enabled = enabledMatch[1].toLowerCase().includes('true');
+                rules = rules.filter(r => (r.enabled === 'True') === enabled);
+            }
+
+            if (nameMatch) {
+                rules = rules.filter(r => r.displayName.toLowerCase().includes(nameMatch[1].toLowerCase()));
+            }
+
+            addLine('');
+            if (rules.length > 0) {
+                addLine('DisplayName                                    Direction   Action  Enabled');
+                addLine('-----------                                    ---------   ------  -------');
+                rules.forEach(rule => {
+                    addLine(`${rule.displayName.padEnd(46)} ${rule.direction.padEnd(11)} ${rule.action.padEnd(7)} ${rule.enabled}`);
+                });
+            } else {
+                addLine('No rules found matching the specified criteria.');
+            }
+            addLine('');
+            completeObjective('obj3');
+        }
+
+        function handleNewRule(cmd) {
+            const displayNameMatch = cmd.match(/-DisplayName\s+["']([^"']+)["']/i);
+            const directionMatch = cmd.match(/-Direction\s+(Inbound|Outbound)/i);
+            const actionMatch = cmd.match(/-Action\s+(Allow|Block)/i);
+            const protocolMatch = cmd.match(/-Protocol\s+(\w+)/i);
+            const localPortMatch = cmd.match(/-LocalPort\s+([^\s]+)/i);
+            const profileMatch = cmd.match(/-Profile\s+([^\s]+)/i);
+
+            if (!displayNameMatch) {
+                addLine('New-NetFirewallRule : Missing required parameter -DisplayName', 'error');
+                return;
+            }
+
+            const newRule = {
+                displayName: displayNameMatch[1],
+                direction: directionMatch ? directionMatch[1] : 'Inbound',
+                action: actionMatch ? actionMatch[1] : 'Allow',
+                enabled: 'True',
+                profile: profileMatch ? profileMatch[1] : 'Any',
+                protocol: protocolMatch ? protocolMatch[1] : 'Any',
+                localPort: localPortMatch ? localPortMatch[1] : 'Any'
+            };
+
+            firewallState.rules.unshift(newRule);
+
+            addLine('');
+            addLine(`DisplayName       : ${newRule.displayName}`);
+            addLine(`Direction         : ${newRule.direction}`);
+            addLine(`Action            : ${newRule.action}`);
+            addLine(`Enabled           : ${newRule.enabled}`);
+            addLine(`Profile           : ${newRule.profile}`);
+            addLine(`Protocol          : ${newRule.protocol}`);
+            addLine(`LocalPort         : ${newRule.localPort}`);
+            addLine('');
+            addLine('Rule created successfully.', 'success');
+            addLine('');
+
+            completeObjective('obj2');
+        }
+
+        function handleToggleRule(cmd) {
+            const cmdName = cmd.split(/\s+/)[0].toLowerCase();
+            const displayNameMatch = cmd.match(/-DisplayName\s+["']([^"']+)["']/i);
+
+            if (!displayNameMatch) {
+                addLine(`${cmdName} : Missing required parameter -DisplayName`, 'error');
+                return;
+            }
+
+            const rule = firewallState.rules.find(r => r.displayName.toLowerCase() === displayNameMatch[1].toLowerCase());
+
+            if (!rule) {
+                addLine(`${cmdName} : No rule found with DisplayName '${displayNameMatch[1]}'`, 'error');
+                return;
+            }
+
+            rule.enabled = cmdName.includes('enable') ? 'True' : 'False';
+
+            addLine('');
+            addLine(`Rule "${rule.displayName}" ${cmdName.includes('enable') ? 'enabled' : 'disabled'} successfully.`, 'success');
+            addLine('');
+        }
+
+        function handleRemoveRule(cmd) {
+            const displayNameMatch = cmd.match(/-DisplayName\s+["']([^"']+)["']/i);
+
+            if (!displayNameMatch) {
+                addLine('Remove-NetFirewallRule : Missing required parameter -DisplayName', 'error');
+                return;
+            }
+
+            const idx = firewallState.rules.findIndex(r => r.displayName.toLowerCase() === displayNameMatch[1].toLowerCase());
+
+            if (idx === -1) {
+                addLine(`Remove-NetFirewallRule : No rule found with DisplayName '${displayNameMatch[1]}'`, 'error');
+                return;
+            }
+
+            firewallState.rules.splice(idx, 1);
+
+            addLine('');
+            addLine(`Rule "${displayNameMatch[1]}" removed successfully.`, 'success');
+            addLine('');
+        }
+
+        function handleTestConnection(cmd) {
+            const computerMatch = cmd.match(/-ComputerName\s+(\S+)/i);
+            const portMatch = cmd.match(/-Port\s+(\d+)/i);
+
+            const computer = computerMatch ? computerMatch[1] : 'localhost';
+            const port = portMatch ? parseInt(portMatch[1]) : null;
+
+            addLine('');
+            addLine(`ComputerName     : ${computer}`);
+            addLine(`RemoteAddress    : 10.0.0.${Math.floor(Math.random() * 254) + 1}`);
+            addLine(`PingSucceeded    : True`);
+            addLine(`PingReplyDetails : TTL=128, RoundtripTime=${Math.floor(Math.random() * 5) + 1}ms`);
+
+            if (port) {
+                const success = [22, 53, 80, 443, 445, 3389, 5985].includes(port);
+                addLine(`TcpTestSucceeded : ${success}`);
+                if (!success) {
+                    addLine(`  (Port ${port} appears to be filtered or closed)`, 'info');
+                }
+            }
+
+            addLine('');
+            completeObjective('obj5');
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(objectives).every(v => v)) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m17');
+                }, 500);
+            }
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(terminalInput.value);
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        document.querySelector('.terminal').addEventListener('click', () => {
+            terminalInput.focus();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

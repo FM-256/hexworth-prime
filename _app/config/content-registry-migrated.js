@@ -107,7 +107,7 @@ const MIGRATED_ENTRIES = {
             topics: ['access-control', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/access/shield-aaa-flow.tool.html'
+                applet: 'houses/shield/tools/shield-aaa-flow.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -571,7 +571,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cryptography', 'security', 'encryption'],
             paths: [],
             components: {
-                lab: 'houses/shield/applets/crypto/shield-gpg-encryption.lab.html'
+                lab: 'houses/shield/labs/shield-gpg-encryption.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -635,7 +635,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cryptography', 'security', 'hashing'],
             paths: [],
             components: {
-                lab: 'houses/shield/applets/crypto/hashing_steganography/shield-hash.lab.html'
+                lab: 'houses/shield/labs/shield-hash.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -683,7 +683,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cryptography', 'security', 'hashing'],
             paths: [],
             components: {
-                presentation: 'houses/shield/applets/crypto/hashing_steganography/shield-hash-steg.presentation.html'
+                presentation: 'houses/shield/presentations/shield-hash-steg.presentation.html'
             },
             prerequisites: [],
             objectives: []
@@ -715,7 +715,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cryptography', 'security', 'hashing'],
             paths: [],
             components: {
-                lab: 'houses/shield/applets/crypto/hashing_steganography/shield-hashing.lab.html'
+                lab: 'houses/shield/labs/shield-hashing.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -939,7 +939,7 @@ const MIGRATED_ENTRIES = {
             topics: ['fundamentals', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/fundamentals/shield-data-lifecycle.tool.html'
+                applet: 'houses/shield/tools/shield-data-lifecycle.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -1003,7 +1003,7 @@ const MIGRATED_ENTRIES = {
             topics: ['threats', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/games/ethical_hacking_case/shield-eh-exam-1-a.exam.html'
+                applet: 'houses/shield/exams/shield-eh-exam-1-a.exam.html'
             },
             prerequisites: [],
             objectives: []
@@ -1259,7 +1259,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/risk/shield-incident-response.tool.html'
+                applet: 'houses/shield/tools/shield-incident-response.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -1307,7 +1307,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/risk/shield-bia.tool.html'
+                applet: 'houses/shield/tools/shield-bia.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -1323,7 +1323,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/risk/shield-crisc-risk.tool.html'
+                applet: 'houses/shield/tools/shield-crisc-risk.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -1739,7 +1739,7 @@ const MIGRATED_ENTRIES = {
             topics: ['architecture', 'security'],
             paths: [],
             components: {
-                quiz: 'houses/shield/applets/architecture/shield-zero-trust.tool.html'
+                quiz: 'houses/shield/tools/shield-zero-trust.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -1755,7 +1755,7 @@ const MIGRATED_ENTRIES = {
             topics: ['operations', 'security'],
             paths: [],
             components: {
-                lab: 'houses/shield/applets/operations/shield-ir-forensics.lab.html'
+                lab: 'houses/shield/labs/shield-ir-forensics.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -1803,7 +1803,7 @@ const MIGRATED_ENTRIES = {
             topics: ['architecture', 'security'],
             paths: [],
             components: {
-                quiz: 'houses/shield/applets/architecture/shield-security-models.tool.html'
+                quiz: 'houses/shield/tools/shield-security-models.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2256,7 +2256,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/web-networking-exam-flashcards.exam.html'
+                applet: 'houses/web/exams/web-networking-exam-flashcards.exam.html'
             },
             prerequisites: [],
             objectives: []
@@ -2448,7 +2448,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-acl.tool.html'
+                applet: 'houses/web/tools/web-acl.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2464,7 +2464,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-cable.tool.html'
+                applet: 'houses/web/tools/web-cable.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2480,7 +2480,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-devices.tool.html'
+                applet: 'houses/web/tools/web-devices.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2496,7 +2496,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-etherchannel.tool.html'
+                applet: 'houses/web/tools/web-etherchannel.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2512,7 +2512,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-fhrp.tool.html'
+                applet: 'houses/web/tools/web-fhrp.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2528,7 +2528,7 @@ const MIGRATED_ENTRIES = {
             topics: ['ip-addressing', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-ipv6.tool.html'
+                applet: 'houses/web/tools/web-ipv6.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2544,7 +2544,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-osi-deep-dive.tool.html'
+                applet: 'houses/web/tools/web-osi-deep-dive.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2560,7 +2560,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-osi.tool.html'
+                applet: 'houses/web/tools/web-osi.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2576,7 +2576,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-ospf-cost.tool.html'
+                applet: 'houses/web/tools/web-ospf-cost.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2592,7 +2592,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-port.tool.html'
+                applet: 'houses/web/tools/web-port.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2608,7 +2608,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-qos.tool.html'
+                applet: 'houses/web/tools/web-qos.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2624,7 +2624,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-security.tool.html'
+                applet: 'houses/web/tools/web-security.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2640,7 +2640,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-stp.tool.html'
+                applet: 'houses/web/tools/web-stp.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2656,7 +2656,7 @@ const MIGRATED_ENTRIES = {
             topics: ['ip-addressing', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-subnetting.tool.html'
+                applet: 'houses/web/tools/web-subnetting.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2672,7 +2672,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-switch-operations.tool.html'
+                applet: 'houses/web/tools/web-switch-operations.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2688,7 +2688,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-topology.tool.html'
+                applet: 'houses/web/tools/web-topology.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2704,7 +2704,7 @@ const MIGRATED_ENTRIES = {
             topics: ['visualizers', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-troubleshooting.tool.html'
+                applet: 'houses/web/tools/web-troubleshooting.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2720,7 +2720,7 @@ const MIGRATED_ENTRIES = {
             topics: ['routing-switching', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-vlan.tool.html'
+                applet: 'houses/web/tools/web-vlan.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2736,7 +2736,7 @@ const MIGRATED_ENTRIES = {
             topics: ['wireless', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-wireless-architecture.tool.html'
+                applet: 'houses/web/tools/web-wireless-architecture.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -2752,7 +2752,7 @@ const MIGRATED_ENTRIES = {
             topics: ['wireless', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/visualizers/web-wireless.tool.html'
+                applet: 'houses/web/tools/web-wireless.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3333,7 +3333,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud', 'aws'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/aws/cloud-ch03-support-plans.tool.html'
+                applet: 'houses/cloud/tools/cloud-ch03-support-plans.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3349,7 +3349,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud', 'aws'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/aws/cloud-ch04-aws-regions.tool.html'
+                applet: 'houses/cloud/tools/cloud-ch04-aws-regions.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3365,7 +3365,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                quiz: 'houses/cloud/applets/aws/cloud-ch05-iam-security.quiz.html'
+                quiz: 'houses/cloud/quizzes/cloud-ch05-iam-security.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -3381,7 +3381,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/aws/cloud-ch07-ec2-instance.tool.html'
+                applet: 'houses/cloud/tools/cloud-ch07-ec2-instance.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3397,7 +3397,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                quiz: 'houses/cloud/applets/aws/cloud-ch08-storage.quiz.html'
+                quiz: 'houses/cloud/quizzes/cloud-ch08-storage.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -3413,7 +3413,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                quiz: 'houses/cloud/applets/aws/cloud-ch09-database.quiz.html'
+                quiz: 'houses/cloud/quizzes/cloud-ch09-database.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -3429,7 +3429,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud', 'networking'],
             paths: [],
             components: {
-                quiz: 'houses/cloud/applets/aws/cloud-ch10-networking.quiz.html'
+                quiz: 'houses/cloud/quizzes/cloud-ch10-networking.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -3445,7 +3445,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud', 'aws'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/aws/cloud-ch11-automation.tool.html'
+                applet: 'houses/cloud/tools/cloud-ch11-automation.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3461,7 +3461,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud', 'aws'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/aws/cloud-ch12-use-cases.tool.html'
+                applet: 'houses/cloud/tools/cloud-ch12-use-cases.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -3477,7 +3477,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                quiz: 'houses/cloud/applets/fundamentals/cloud-ch01-cloud-fundamentals.quiz.html'
+                quiz: 'houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -3493,7 +3493,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cloud'],
             paths: [],
             components: {
-                applet: 'houses/cloud/applets/fundamentals/cloud-cloud.tool.html'
+                applet: 'houses/cloud/tools/cloud-cloud.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -4410,7 +4410,7 @@ const MIGRATED_ENTRIES = {
             topics: ['systems'],
             paths: [],
             components: {
-                applet: 'houses/forge/reference/forge-cpu-architecture.applet.html'
+                applet: 'houses/forge/applets/forge-cpu-architecture.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4426,7 +4426,7 @@ const MIGRATED_ENTRIES = {
             topics: ['systems', 'windows'],
             paths: [],
             components: {
-                applet: 'houses/forge/reference/forge-windows-shortcuts.applet.html'
+                applet: 'houses/forge/applets/forge-windows-shortcuts.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4511,7 +4511,7 @@ const MIGRATED_ENTRIES = {
             topics: ['scripting'],
             paths: [],
             components: {
-                applet: 'houses/script/applets/sysadmin/script-package-manager.tool.html'
+                applet: 'houses/script/tools/script-package-manager.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -4591,7 +4591,7 @@ const MIGRATED_ENTRIES = {
             topics: ['clh', 'scripting'],
             paths: [],
             components: {
-                lab: 'houses/script/courses/clh/modules/clh-001/script-lab.lab.html'
+                lab: 'houses/script/labs/script-lab.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -5604,7 +5604,7 @@ const MIGRATED_ENTRIES = {
             topics: ['devops'],
             paths: [],
             components: {
-                applet: 'houses/code/applets/code-automation.tool.html'
+                applet: 'houses/code/tools/code-automation.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -5620,7 +5620,7 @@ const MIGRATED_ENTRIES = {
             topics: ['devops'],
             paths: [],
             components: {
-                applet: 'houses/code/applets/code-terraform.tool.html'
+                applet: 'houses/code/tools/code-terraform.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -5746,7 +5746,7 @@ const MIGRATED_ENTRIES = {
             topics: ['devops'],
             paths: [],
             components: {
-                applet: 'houses/code/applets/code-sprint.tool.html'
+                applet: 'houses/code/tools/code-sprint.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -6034,7 +6034,7 @@ const MIGRATED_ENTRIES = {
             topics: ['devops'],
             paths: [],
             components: {
-                applet: 'houses/code/applets/code-api.tool.html'
+                applet: 'houses/code/tools/code-api.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -6050,7 +6050,7 @@ const MIGRATED_ENTRIES = {
             topics: ['devops'],
             paths: [],
             components: {
-                applet: 'houses/code/applets/code-ansible-playbook.tool.html'
+                applet: 'houses/code/tools/code-ansible-playbook.tool.html'
             },
             prerequisites: [],
             objectives: []
@@ -6533,7 +6533,7 @@ const MIGRATED_ENTRIES = {
             topics: ['cryptography'],
             paths: [],
             components: {
-                applet: 'houses/key/tools/key-cryptanalysis.lab.html'
+                applet: 'houses/key/labs/key-cryptanalysis.lab.html'
             },
             prerequisites: [],
             objectives: []

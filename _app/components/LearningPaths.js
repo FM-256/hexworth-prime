@@ -310,7 +310,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'applets/linux/script-linux-command.tool.html',
+                    href: 'houses/script/tools/script-linux-command.tool.html',
                     prerequisites: ['script-basics']
                 },
                 {
@@ -328,7 +328,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/linux/script-linux-permissions.tool.html',
+                    href: 'houses/script/tools/script-linux-permissions.tool.html',
                     prerequisites: ['script-linux-filesystem']
                 },
                 {
@@ -382,7 +382,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'applets/sysadmin/script-automation.tool.html',
+                    href: 'houses/script/tools/script-automation.tool.html',
                     prerequisites: ['script-powershell', 'script-python-flow']
                 },
                 {
@@ -454,7 +454,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'applets/aws/cloud-ch05-security.tool.html',
+                    href: 'houses/cloud/tools/cloud-ch05-security.tool.html',
                     prerequisites: ['cloud-aws-regions']
                 },
                 {
@@ -598,7 +598,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'applets/code-terraform.tool.html',
+                    href: 'houses/code/tools/code-terraform.tool.html',
                     prerequisites: ['code-terraform']
                 }
             ]
@@ -860,7 +860,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '45 min',
-                    href: 'houses/code/applets/code-terraform.tool.html',
+                    href: 'houses/code/tools/code-terraform.tool.html',
                     prerequisites: ['devops-terraform']
                 }
             ]
@@ -1394,7 +1394,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/script/applets/linux/script-linux-command.tool.html',
+                    href: 'houses/script/tools/script-linux-command.tool.html',
                     prerequisites: ['linux-section1-quiz']
                 },
                 {
@@ -1432,7 +1432,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/script/applets/linux/script-linux-permissions.tool.html',
+                    href: 'houses/script/tools/script-linux-permissions.tool.html',
                     prerequisites: ['linux-section3-lab']
                 },
                 {

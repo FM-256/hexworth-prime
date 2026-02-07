@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M09 PowerShell Lab: DHCP Management - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .hint-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hint-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: #93c5fd;
+        }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .terminal {
+            flex: 1;
+            background: #0c0c0c;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-header-text {
+            color: #ccc;
+            font-size: 0.85rem;
+        }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line {
+            margin-bottom: 2px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            color: #ffff00;
+        }
+
+        .terminal-input-line .prompt-text { margin-right: 5px; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+
+        .completion-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+        .completion-btn:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M09: PowerShell DHCP Management Lab</div>
+        <nav class="lab-nav">
+            <a href="presentation.html">Presentation</a>
+            <a href="gui-lab.html">GUI Lab</a>
+            <a href="ps-lab.html" class="active">PowerShell Lab</a>
+            <a href="quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. View DHCP Scopes</h4>
+                    <p>List all configured DHCP scopes on the server.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Create New Scope</h4>
+                    <p>Create a new DHCP scope using PowerShell.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. Add Reservation</h4>
+                    <p>Create a DHCP reservation for a device.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. View Active Leases</h4>
+                    <p>Query active DHCP leases in a scope.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. Configure Options</h4>
+                    <p>Set DHCP scope options for DNS and gateway.</p>
+                </div>
+            </div>
+
+            <div class="hint-box">
+                <strong>Hint:</strong> Use <code>Get-Command *Dhcp*</code> to discover available DHCP cmdlets.
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-header-text">Administrator: Windows PowerShell</div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line info">Windows PowerShell</div>
+                    <div class="terminal-line info">Copyright (C) Microsoft Corporation. All rights reserved.</div>
+                    <div class="terminal-line info"></div>
+                    <div class="terminal-line info">DHCP Server Module loaded.</div>
+                    <div class="terminal-line info">Server: DC1.hexworth.local</div>
+                    <div class="terminal-line info"></div>
+                </div>
+                <div style="padding: 0 15px 15px;">
+                    <div class="terminal-input-line">
+                        <span class="prompt-text">PS C:\Users\Administrator&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered PowerShell DHCP management.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='quiz.html'">Take Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        // DHCP State
+        const dhcpState = {
+            scopes: [
+                {
+                    scopeId: '192.168.1.0',
+                    name: 'Main Office',
+                    startRange: '192.168.1.100',
+                    endRange: '192.168.1.200',
+                    subnetMask: '255.255.255.0',
+                    state: 'Active',
+                    leaseDuration: '8.00:00:00',
+                    options: {
+                        '003': { name: 'Router', value: '192.168.1.1' },
+                        '006': { name: 'DNS Servers', value: '192.168.1.10' },
+                        '015': { name: 'DNS Domain Name', value: 'hexworth.local' }
+                    },
+                    leases: [
+                        { ipAddress: '192.168.1.101', clientId: '00-11-22-33-44-55', hostname: 'WS-HR01', leaseExpires: '2/5/2026 2:30:00 PM' },
+                        { ipAddress: '192.168.1.102', clientId: '00-11-22-33-44-66', hostname: 'WS-FINANCE01', leaseExpires: '2/5/2026 3:15:00 PM' },
+                        { ipAddress: '192.168.1.105', clientId: '00-11-22-33-44-77', hostname: 'WS-IT01', leaseExpires: '2/4/2026 9:00:00 AM' }
+                    ],
+                    reservations: [
+                        { ipAddress: '192.168.1.150', clientId: '00-1A-2B-3C-4D-5E', name: 'SRV-Print01', description: 'Main printer' }
+                    ]
+                }
+            ]
+        };
+
+        const objectives = {
+            obj1: false,
+            obj2: false,
+            obj3: false,
+            obj4: false,
+            obj5: false
+        };
+
+        const terminalBody = document.getElementById('terminalBody');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addPrompt(command) {
+            addLine(`PS C:\\Users\\Administrator> ${command}`, 'prompt');
+        }
+
+        function processCommand(input) {
+            const cmd = input.trim();
+            if (!cmd) return;
+
+            addPrompt(cmd);
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(/\s+/);
+            const cmdName = parts[0].toLowerCase();
+
+            // Help commands
+            if (cmdLower === 'help' || cmdLower === 'get-help') {
+                showHelp();
+                return;
+            }
+
+            if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalBody.innerHTML = '';
+                return;
+            }
+
+            // Get-DhcpServerv4Scope
+            if (cmdLower === 'get-dhcpserverv4scope' || cmdLower.includes('get-dhcpserverv4scope')) {
+                showScopes();
+                completeObjective('obj1');
+                return;
+            }
+
+            // Add-DhcpServerv4Scope
+            if (cmdName === 'add-dhcpserverv4scope') {
+                handleAddScope(cmd);
+                return;
+            }
+
+            // Get-DhcpServerv4Lease
+            if (cmdLower.includes('get-dhcpserverv4lease')) {
+                handleGetLeases(cmd);
+                return;
+            }
+
+            // Add-DhcpServerv4Reservation
+            if (cmdName === 'add-dhcpserverv4reservation') {
+                handleAddReservation(cmd);
+                return;
+            }
+
+            // Get-DhcpServerv4Reservation
+            if (cmdLower.includes('get-dhcpserverv4reservation')) {
+                handleGetReservations(cmd);
+                return;
+            }
+
+            // Set-DhcpServerv4OptionValue
+            if (cmdName === 'set-dhcpserverv4optionvalue') {
+                handleSetOption(cmd);
+                return;
+            }
+
+            // Get-DhcpServerv4OptionValue
+            if (cmdLower.includes('get-dhcpserverv4optionvalue')) {
+                handleGetOptions(cmd);
+                return;
+            }
+
+            // Get-DhcpServerv4ScopeStatistics
+            if (cmdLower.includes('get-dhcpserverv4scopestatistics')) {
+                handleScopeStats(cmd);
+                return;
+            }
+
+            // Get-Command
+            if (cmdLower.includes('get-command') && cmdLower.includes('dhcp')) {
+                showDhcpCommands();
+                return;
+            }
+
+            addLine(`${parts[0]} : The term '${parts[0]}' is not recognized as the name of a cmdlet.`, 'error');
+        }
+
+        function showHelp() {
+            addLine('');
+            addLine('Available DHCP Commands:', 'info');
+            addLine('  Get-DhcpServerv4Scope              - List all scopes');
+            addLine('  Add-DhcpServerv4Scope              - Create a new scope');
+            addLine('  Get-DhcpServerv4Lease              - View active leases');
+            addLine('  Add-DhcpServerv4Reservation        - Create a reservation');
+            addLine('  Get-DhcpServerv4Reservation        - View reservations');
+            addLine('  Set-DhcpServerv4OptionValue        - Configure scope options');
+            addLine('  Get-DhcpServerv4OptionValue        - View scope options');
+            addLine('  Get-DhcpServerv4ScopeStatistics    - View scope statistics');
+            addLine('');
+        }
+
+        function showDhcpCommands() {
+            addLine('');
+            addLine('CommandType     Name');
+            addLine('-----------     ----');
+            addLine('Cmdlet          Add-DhcpServerv4ExclusionRange');
+            addLine('Cmdlet          Add-DhcpServerv4Failover');
+            addLine('Cmdlet          Add-DhcpServerv4Reservation');
+            addLine('Cmdlet          Add-DhcpServerv4Scope');
+            addLine('Cmdlet          Get-DhcpServerv4Lease');
+            addLine('Cmdlet          Get-DhcpServerv4OptionValue');
+            addLine('Cmdlet          Get-DhcpServerv4Reservation');
+            addLine('Cmdlet          Get-DhcpServerv4Scope');
+            addLine('Cmdlet          Get-DhcpServerv4ScopeStatistics');
+            addLine('Cmdlet          Remove-DhcpServerv4Lease');
+            addLine('Cmdlet          Remove-DhcpServerv4Reservation');
+            addLine('Cmdlet          Remove-DhcpServerv4Scope');
+            addLine('Cmdlet          Set-DhcpServerv4OptionValue');
+            addLine('Cmdlet          Set-DhcpServerv4Scope');
+            addLine('');
+        }
+
+        function showScopes() {
+            addLine('');
+            addLine('ScopeId         SubnetMask      Name         State    StartRange       EndRange         LeaseDuration');
+            addLine('-------         ----------      ----         -----    ----------       --------         -------------');
+            dhcpState.scopes.forEach(scope => {
+                addLine(`${scope.scopeId.padEnd(15)} ${scope.subnetMask.padEnd(15)} ${scope.name.padEnd(12)} ${scope.state.padEnd(8)} ${scope.startRange.padEnd(16)} ${scope.endRange.padEnd(16)} ${scope.leaseDuration}`);
+            });
+            addLine('');
+        }
+
+        function handleAddScope(cmd) {
+            const nameMatch = cmd.match(/-Name\s+["']?([^"'\s-]+)["']?/i);
+            const startMatch = cmd.match(/-StartRange\s+["']?([0-9.]+)["']?/i);
+            const endMatch = cmd.match(/-EndRange\s+["']?([0-9.]+)["']?/i);
+            const subnetMatch = cmd.match(/-SubnetMask\s+["']?([0-9.]+)["']?/i);
+
+            if (!nameMatch || !startMatch || !endMatch) {
+                addLine('Add-DhcpServerv4Scope : Missing required parameters.', 'error');
+                addLine('Required: -Name, -StartRange, -EndRange, -SubnetMask', 'error');
+                return;
+            }
+
+            const name = nameMatch[1];
+            const startRange = startMatch[1];
+            const endRange = endMatch[1];
+            const subnetMask = subnetMatch ? subnetMatch[1] : '255.255.255.0';
+
+            // Calculate scope ID from start range
+            const parts = startRange.split('.');
+            const scopeId = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+
+            // Check if scope already exists
+            if (dhcpState.scopes.find(s => s.scopeId === scopeId)) {
+                addLine(`Add-DhcpServerv4Scope : Scope ${scopeId} already exists.`, 'error');
+                return;
+            }
+
+            dhcpState.scopes.push({
+                scopeId: scopeId,
+                name: name,
+                startRange: startRange,
+                endRange: endRange,
+                subnetMask: subnetMask,
+                state: 'Active',
+                leaseDuration: '8.00:00:00',
+                options: {},
+                leases: [],
+                reservations: []
+            });
+
+            addLine('');
+            addLine(`Scope [${scopeId}] ${name} created successfully.`, 'success');
+            addLine('');
+            completeObjective('obj2');
+        }
+
+        function handleGetLeases(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+
+            let scopes = dhcpState.scopes;
+            if (scopeMatch) {
+                scopes = dhcpState.scopes.filter(s => s.scopeId === scopeMatch[1]);
+                if (scopes.length === 0) {
+                    addLine(`Get-DhcpServerv4Lease : Scope ${scopeMatch[1]} not found.`, 'error');
+                    return;
+                }
+            }
+
+            addLine('');
+            addLine('IPAddress       ClientId              HostName         LeaseExpiryTime');
+            addLine('---------       --------              --------         ---------------');
+            scopes.forEach(scope => {
+                scope.leases.forEach(lease => {
+                    addLine(`${lease.ipAddress.padEnd(15)} ${lease.clientId.padEnd(21)} ${lease.hostname.padEnd(16)} ${lease.leaseExpires}`);
+                });
+            });
+            addLine('');
+            completeObjective('obj4');
+        }
+
+        function handleAddReservation(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+            const ipMatch = cmd.match(/-IPAddress\s+["']?([0-9.]+)["']?/i);
+            const clientMatch = cmd.match(/-ClientId\s+["']?([0-9A-Fa-f:-]+)["']?/i);
+            const nameMatch = cmd.match(/-Name\s+["']?([^"'\s-]+)["']?/i);
+
+            if (!scopeMatch || !ipMatch || !clientMatch) {
+                addLine('Add-DhcpServerv4Reservation : Missing required parameters.', 'error');
+                addLine('Required: -ScopeId, -IPAddress, -ClientId', 'error');
+                return;
+            }
+
+            const scope = dhcpState.scopes.find(s => s.scopeId === scopeMatch[1]);
+            if (!scope) {
+                addLine(`Add-DhcpServerv4Reservation : Scope ${scopeMatch[1]} not found.`, 'error');
+                return;
+            }
+
+            scope.reservations.push({
+                ipAddress: ipMatch[1],
+                clientId: clientMatch[1],
+                name: nameMatch ? nameMatch[1] : 'Reservation',
+                description: ''
+            });
+
+            addLine('');
+            addLine(`Reservation for ${ipMatch[1]} created successfully.`, 'success');
+            addLine('');
+            completeObjective('obj3');
+        }
+
+        function handleGetReservations(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+
+            let scopes = dhcpState.scopes;
+            if (scopeMatch) {
+                scopes = dhcpState.scopes.filter(s => s.scopeId === scopeMatch[1]);
+            }
+
+            addLine('');
+            addLine('IPAddress       ClientId              Name             ScopeId');
+            addLine('---------       --------              ----             -------');
+            scopes.forEach(scope => {
+                scope.reservations.forEach(res => {
+                    addLine(`${res.ipAddress.padEnd(15)} ${res.clientId.padEnd(21)} ${res.name.padEnd(16)} ${scope.scopeId}`);
+                });
+            });
+            addLine('');
+        }
+
+        function handleSetOption(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+            const routerMatch = cmd.match(/-Router\s+["']?([0-9.]+)["']?/i);
+            const dnsMatch = cmd.match(/-DnsServer\s+["']?([0-9.,\s]+)["']?/i);
+            const domainMatch = cmd.match(/-DnsDomain\s+["']?([^"'\s-]+)["']?/i);
+
+            if (!scopeMatch) {
+                addLine('Set-DhcpServerv4OptionValue : -ScopeId parameter is required.', 'error');
+                return;
+            }
+
+            const scope = dhcpState.scopes.find(s => s.scopeId === scopeMatch[1]);
+            if (!scope) {
+                addLine(`Set-DhcpServerv4OptionValue : Scope ${scopeMatch[1]} not found.`, 'error');
+                return;
+            }
+
+            if (routerMatch) {
+                scope.options['003'] = { name: 'Router', value: routerMatch[1] };
+            }
+            if (dnsMatch) {
+                scope.options['006'] = { name: 'DNS Servers', value: dnsMatch[1].trim() };
+            }
+            if (domainMatch) {
+                scope.options['015'] = { name: 'DNS Domain Name', value: domainMatch[1] };
+            }
+
+            addLine('');
+            addLine('Scope options updated successfully.', 'success');
+            addLine('');
+            completeObjective('obj5');
+        }
+
+        function handleGetOptions(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+
+            if (!scopeMatch) {
+                addLine('Get-DhcpServerv4OptionValue : -ScopeId parameter is required.', 'error');
+                return;
+            }
+
+            const scope = dhcpState.scopes.find(s => s.scopeId === scopeMatch[1]);
+            if (!scope) {
+                addLine(`Get-DhcpServerv4OptionValue : Scope ${scopeMatch[1]} not found.`, 'error');
+                return;
+            }
+
+            addLine('');
+            addLine('OptionId   Name                   Value                    VendorClass');
+            addLine('--------   ----                   -----                    -----------');
+            Object.entries(scope.options).forEach(([id, opt]) => {
+                addLine(`${id.padEnd(10)} ${opt.name.padEnd(22)} ${opt.value.padEnd(24)} Standard`);
+            });
+            addLine('');
+        }
+
+        function handleScopeStats(cmd) {
+            const scopeMatch = cmd.match(/-ScopeId\s+["']?([0-9.]+)["']?/i);
+
+            let scopes = dhcpState.scopes;
+            if (scopeMatch) {
+                scopes = dhcpState.scopes.filter(s => s.scopeId === scopeMatch[1]);
+            }
+
+            addLine('');
+            scopes.forEach(scope => {
+                const total = 101; // Simulated pool size
+                const inUse = scope.leases.length;
+                const available = total - inUse;
+                const percentInUse = ((inUse / total) * 100).toFixed(1);
+
+                addLine(`ScopeId           : ${scope.scopeId}`);
+                addLine(`AddressesFree     : ${available}`);
+                addLine(`AddressesInUse    : ${inUse}`);
+                addLine(`PercentageInUse   : ${percentInUse}%`);
+                addLine('');
+            });
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            const allComplete = Object.values(objectives).every(v => v);
+            if (allComplete) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    saveProgress();
+                    WSAProgress.markPsLabComplete('m09');
+                }, 500);
+            }
+        }
+
+        function saveProgress() {
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
+                progress['wsa-m09-ps-lab'] = { completed: true, date: new Date().toISOString() };
+                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
+            } catch (e) {}
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        // Input handling
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(terminalInput.value);
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        // Focus input on click
+        document.querySelector('.terminal').addEventListener('click', () => {
+            terminalInput.focus();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

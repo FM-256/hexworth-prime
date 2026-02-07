@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-06 11:38:38 AM
+                    Scanned: 2026-02-07 1:38:16 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,19 +10,19 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1110 |
-| Directories | 444 |
-| Content Files | 1110 |
-| Scan Duration | 164ms |
+| Files Scanned | 1124 |
+| Directories | 449 |
+| Content Files | 1124 |
+| Scan Duration | 149ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 424 |
-| html | 372 |
-| applet | 166 |
-| lab | 134 |
+| presentation | 425 |
+| html | 377 |
+| applet | 169 |
+| lab | 139 |
 | quiz | 14 |
 
 ### Issues Summary
@@ -30,17 +30,17 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Warning | 661 |
-| Info | 366 |
-| **Total** | **1302** |
+| Warning | 814 |
+| Info | 369 |
+| **Total** | **1637** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 527 |
+| Ready | 536 |
 | Not Ready | 211 |
-| Unknown | 372 |
+| Unknown | 377 |
 
 
 ## FILE HIERARCHY
@@ -48,6 +48,7 @@
 
 ```
 📁 _app [root]
+├── 📄 about.html
 ├── 📁 admin
 │   ├── 📄 audit-tool.html
 │   └── 📁 scripts
@@ -128,296 +129,296 @@
 │   ├── 🏠 cloud [house:cloud]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
-│   │   │   │   └── 📄 cloud-architecture-designer.html
+│   │   │   │   └── 📄 cloud-architecture-designer.applet.html
 │   │   │   ├── 📁 aws [applets]
-│   │   │   │   ├── 📄 aws-service-explorer.html
-│   │   │   │   ├── 📄 ch02-aws-account-explorer.html
-│   │   │   │   ├── 📄 ch03-support-plans-visualizer.html
-│   │   │   │   ├── 📄 ch04-aws-regions-explorer.html
-│   │   │   │   ├── ❓ ch05-iam-security-quiz.html
-│   │   │   │   ├── 📄 ch05-security-visualizer.html
-│   │   │   │   ├── 📄 ch06-aws-tools-explorer.html
-│   │   │   │   ├── 📄 ch07-compute-services-explorer.html
-│   │   │   │   ├── 📄 ch07-ec2-instance-visualizer.html
-│   │   │   │   ├── ❓ ch08-storage-quiz.html
-│   │   │   │   ├── 📄 ch08-storage-services-explorer.html
-│   │   │   │   ├── ❓ ch09-database-quiz.html
-│   │   │   │   ├── 📄 ch09-database-services-explorer.html
-│   │   │   │   ├── ❓ ch10-networking-quiz.html
-│   │   │   │   ├── 📄 ch10-vpc-networking-visualizer.html
-│   │   │   │   ├── 📄 ch11-automation-explorer.html
-│   │   │   │   ├── ❓ ch12-aws-practitioner-final-quiz.html
-│   │   │   │   └── 📄 ch12-use-cases-visualizer.html
 │   │   │   └── 📁 fundamentals [applets]
-│   │   │       ├── ❓ ch01-cloud-fundamentals-quiz.html
-│   │   │       ├── 📄 ch01-cloud-models-visualizer.html
-│   │   │       ├── 📄 cloud-provider-comparison.html
-│   │   │       └── 📄 cloud-visualizer.html
+│   │   │       └── 📄 cloud-provider-comparison.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 aws-services-lab.html
-│   │   │   ├── 🔬 cloud-architecture-lab.html
-│   │   │   ├── 🔬 cloud-lab-simulator.html
-│   │   │   └── 🔬 cloud-security-lab.html
+│   │   │   ├── 🔬 cloud-architecture.lab.html
+│   │   │   ├── 🔬 cloud-aws-services.lab.html
+│   │   │   ├── 🔬 cloud-cse-module01.lab.html
+│   │   │   ├── 🔬 cloud-cse-module02.lab.html
+│   │   │   ├── 🔬 cloud-cse-module03.lab.html
+│   │   │   ├── 🔬 cloud-cse-module04.lab.html
+│   │   │   ├── 🔬 cloud-cse-module05.lab.html
+│   │   │   ├── 🔬 cloud-cse-module06.lab.html
+│   │   │   ├── 🔬 cloud-cse-module07.lab.html
+│   │   │   ├── 🔬 cloud-cse-module08.lab.html
+│   │   │   ├── 🔬 cloud-gui.lab.html
+│   │   │   ├── 🔬 cloud-lab.lab.html
+│   │   │   ├── 🔬 cloud-ps.lab.html
+│   │   │   └── 🔬 cloud-security.lab.html
 │   │   ├── 📁 modules [modules]
 │   │   │   ├── 📁 cse [modules]
-│   │   │   │   ├── 🔬 cse-module01-lab.html
-│   │   │   │   ├── 📊 cse-module01-presentation.html
-│   │   │   │   ├── ❓ cse-module01-quiz.html
-│   │   │   │   ├── 🔬 cse-module02-lab.html
-│   │   │   │   ├── 📊 cse-module02-presentation.html
-│   │   │   │   ├── ❓ cse-module02-quiz.html
-│   │   │   │   ├── 🔬 cse-module03-lab.html
-│   │   │   │   ├── 📊 cse-module03-presentation.html
-│   │   │   │   ├── ❓ cse-module03-quiz.html
-│   │   │   │   ├── 🔬 cse-module04-lab.html
-│   │   │   │   ├── 📊 cse-module04-presentation.html
-│   │   │   │   ├── ❓ cse-module04-quiz.html
-│   │   │   │   ├── 🔬 cse-module05-lab.html
-│   │   │   │   ├── 📊 cse-module05-presentation.html
-│   │   │   │   ├── ❓ cse-module05-quiz.html
-│   │   │   │   ├── 🔬 cse-module06-lab.html
-│   │   │   │   ├── 📊 cse-module06-presentation.html
-│   │   │   │   ├── ❓ cse-module06-quiz.html
-│   │   │   │   ├── 🔬 cse-module07-lab.html
-│   │   │   │   ├── 📊 cse-module07-presentation.html
-│   │   │   │   ├── ❓ cse-module07-quiz.html
-│   │   │   │   ├── 🔬 cse-module08-lab.html
-│   │   │   │   ├── 📊 cse-module08-presentation.html
-│   │   │   │   └── ❓ cse-module08-quiz.html
 │   │   │   └── 📁 wsa [modules]
-│   │   │       ├── 📄 gui-style-samples.html
+│   │   │       ├── 📄 cloud-gui-style-samples.module.html
 │   │   │       ├── 📍 index.html
 │   │   │       ├── 📁 m01-fundamentals [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   └── 📊 cloud-presentation.module.html
 │   │   │       ├── 📁 m02-active-directory [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m03-storage [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m04-hyperv [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m05-containers [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m06-clustering [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m07-monitoring [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m08-dns [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m09-dhcp [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m10-group-policy [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m11-iis [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m12-remote-desktop [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m13-certificate-services [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m14-advanced-networking [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m15-ad-sites [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m16-backup-recovery [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m17-firewall-security [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m18-powershell-automation [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m19-troubleshooting-migration [modules]
-│   │   │       │   ├── 🔬 gui-lab.html
-│   │   │       │   ├── 📊 presentation.html
-│   │   │       │   ├── 🔬 ps-lab.html
-│   │   │       │   └── ❓ quiz.html
+│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-ps.lab.html
+│   │   │       │   └── ❓ cloud-quiz.quiz.html
 │   │   │       ├── 📁 m20-failsafe-capstone [modules]
-│   │   │       │   ├── 📍 index.html
-│   │   │       │   └── 📄 simulation.html
+│   │   │       │   ├── 📄 cloud-simulation.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       └── 📁 midterm-outpost [modules]
-│   │   │           ├── 📍 index.html
-│   │   │           └── 📄 simulation.html
+│   │   │           ├── 📄 cloud-simulation.module.html
+│   │   │           └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 aws-fundamentals.html
-│   │   │   ├── 📄 azure-fundamentals.html
-│   │   │   ├── 📄 cloud-concepts.html
-│   │   │   ├── 📊 cloud-presentation.html
-│   │   │   ├── 📄 cse-01-cloud-fundamentals.html
-│   │   │   ├── 📄 cse-02-identity-access-management.html
-│   │   │   ├── 📄 cse-03-data-protection-encryption.html
-│   │   │   ├── 📄 cse-04-network-security.html
-│   │   │   ├── 📄 cse-05-application-security.html
-│   │   │   ├── 📄 cse-06-security-monitoring-ir.html
-│   │   │   ├── 📄 cse-07-risk-assessment.html
-│   │   │   └── 📄 cse-08-compliance-governance.html
+│   │   │   ├── 📊 cloud-aws-fundamentals.presentation.html
+│   │   │   ├── 📊 cloud-azure-fundamentals.presentation.html
+│   │   │   ├── 📊 cloud-cloud.presentation.html
+│   │   │   ├── 📊 cloud-concepts.presentation.html
+│   │   │   ├── 📊 cloud-cse-01-cloud-fundamentals.presentation.html
+│   │   │   ├── 📊 cloud-cse-02-identity-access-management.presentation.html
+│   │   │   ├── 📊 cloud-cse-03-data-protection-encryption.presentation.html
+│   │   │   ├── 📊 cloud-cse-04-network-security.presentation.html
+│   │   │   ├── 📊 cloud-cse-05-application-security.presentation.html
+│   │   │   ├── 📊 cloud-cse-06-security-monitoring-ir.presentation.html
+│   │   │   ├── 📊 cloud-cse-07-risk-assessment.presentation.html
+│   │   │   ├── 📊 cloud-cse-08-compliance-governance.presentation.html
+│   │   │   ├── 📊 cloud-cse-module01.presentation.html
+│   │   │   ├── 📊 cloud-cse-module02.presentation.html
+│   │   │   ├── 📊 cloud-cse-module03.presentation.html
+│   │   │   ├── 📊 cloud-cse-module04.presentation.html
+│   │   │   ├── 📊 cloud-cse-module05.presentation.html
+│   │   │   ├── 📊 cloud-cse-module06.presentation.html
+│   │   │   ├── 📊 cloud-cse-module07.presentation.html
+│   │   │   └── 📊 cloud-cse-module08.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ aws-fundamentals-quiz.html
-│   │   │   ├── ❓ cse-01-quiz.html
-│   │   │   ├── ❓ cse-02-quiz.html
-│   │   │   ├── ❓ cse-03-quiz.html
-│   │   │   ├── ❓ cse-04-quiz.html
-│   │   │   ├── ❓ cse-05-quiz.html
-│   │   │   ├── ❓ cse-06-quiz.html
-│   │   │   ├── ❓ cse-07-quiz.html
-│   │   │   └── ❓ cse-08-quiz.html
+│   │   │   ├── ❓ cloud-aws-fundamentals.quiz.html
+│   │   │   ├── ❓ cloud-ch01-cloud-fundamentals.quiz.html
+│   │   │   ├── ❓ cloud-ch05-iam-security.quiz.html
+│   │   │   ├── ❓ cloud-ch08-storage.quiz.html
+│   │   │   ├── ❓ cloud-ch09-database.quiz.html
+│   │   │   ├── ❓ cloud-ch10-networking.quiz.html
+│   │   │   ├── ❓ cloud-ch12-aws-practitioner-final.quiz.html
+│   │   │   ├── ❓ cloud-cse-01.quiz.html
+│   │   │   ├── ❓ cloud-cse-02.quiz.html
+│   │   │   ├── ❓ cloud-cse-03.quiz.html
+│   │   │   ├── ❓ cloud-cse-04.quiz.html
+│   │   │   ├── ❓ cloud-cse-05.quiz.html
+│   │   │   ├── ❓ cloud-cse-06.quiz.html
+│   │   │   ├── ❓ cloud-cse-07.quiz.html
+│   │   │   ├── ❓ cloud-cse-08.quiz.html
+│   │   │   ├── ❓ cloud-cse-module01.quiz.html
+│   │   │   ├── ❓ cloud-cse-module02.quiz.html
+│   │   │   ├── ❓ cloud-cse-module03.quiz.html
+│   │   │   ├── ❓ cloud-cse-module04.quiz.html
+│   │   │   ├── ❓ cloud-cse-module05.quiz.html
+│   │   │   ├── ❓ cloud-cse-module06.quiz.html
+│   │   │   ├── ❓ cloud-cse-module07.quiz.html
+│   │   │   ├── ❓ cloud-cse-module08.quiz.html
+│   │   │   └── ❓ cloud-quiz.quiz.html
 │   │   ├── 📁 speaker-notes
 │   │   └── 📁 tools
+│   │       ├── 📄 cloud-aws-service.tool.html
+│   │       ├── 📄 cloud-ch01-cloud-models.tool.html
+│   │       ├── 📄 cloud-ch02-aws-account.tool.html
+│   │       ├── 📄 cloud-ch03-support-plans.tool.html
+│   │       ├── 📄 cloud-ch04-aws-regions.tool.html
+│   │       ├── 📄 cloud-ch05-security.tool.html
+│   │       ├── 📄 cloud-ch06-aws-tools.tool.html
+│   │       ├── 📄 cloud-ch07-compute-services.tool.html
+│   │       ├── 📄 cloud-ch07-ec2-instance.tool.html
+│   │       ├── 📄 cloud-ch08-storage-services.tool.html
+│   │       ├── 📄 cloud-ch09-database-services.tool.html
+│   │       ├── 📄 cloud-ch10-vpc-networking.tool.html
+│   │       ├── 📄 cloud-ch11-automation.tool.html
+│   │       ├── 📄 cloud-ch12-use-cases.tool.html
+│   │       └── 📄 cloud-cloud.tool.html
 │   ├── 🏠 code [house:code]
 │   │   ├── 📁 applets [applets]
-│   │   │   ├── 📄 ansible-playbook-visualizer.html
-│   │   │   ├── 📄 api-explorer.html
-│   │   │   ├── 📄 automation-visualizer.html
-│   │   │   ├── 📄 cloudformation-designer.html
-│   │   │   ├── 📁 config_management [applets]
-│   │   │   │   ├── 📄 ConfigMgmt.html
-│   │   │   │   └── 📁 ConfigMgmt.hyperesources [applets]
-│   │   │   ├── 📄 data-format-converter.html
-│   │   │   ├── 📄 docker-playground.html
-│   │   │   ├── 📄 kubernetes-cluster-sim.html
-│   │   │   ├── 📄 pipeline-builder.html
-│   │   │   ├── 📄 sprint-simulator.html
-│   │   │   └── 📄 terraform-visualizer.html
+│   │   │   ├── 📄 code-cloudformation-designer.applet.html
+│   │   │   ├── 📄 code-data-format-converter.applet.html
+│   │   │   ├── 📄 code-docker-playground.applet.html
+│   │   │   ├── 📄 code-kubernetes-cluster-sim.applet.html
+│   │   │   ├── 📄 code-pipeline-builder.applet.html
+│   │   │   └── 📁 config_management [applets]
+│   │   │       ├── 📁 ConfigMgmt.hyperesources [applets]
+│   │   │       └── 📄 code-config-mgmt.applet.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 guides
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 cicd-lab.html
-│   │   │   ├── 🔬 cloudformation-lab.html
-│   │   │   ├── 🔬 docker-lab.html
-│   │   │   ├── 🔬 kubernetes-lab.html
-│   │   │   ├── 🔬 terraform-lab.html
-│   │   │   └── 🔬 unit-testing-lab.html
+│   │   │   ├── 🔬 code-cicd.lab.html
+│   │   │   ├── 🔬 code-cloudformation.lab.html
+│   │   │   ├── 🔬 code-docker.lab.html
+│   │   │   ├── 🔬 code-kubernetes.lab.html
+│   │   │   ├── 🔬 code-terraform.lab.html
+│   │   │   └── 🔬 code-unit-testing.lab.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 agile-sdlc.html
-│   │   │   ├── 📊 automation-presentation.html
-│   │   │   ├── 📄 cicd-fundamentals.html
-│   │   │   ├── 📄 cloudformation-fundamentals.html
-│   │   │   ├── 📄 docker-fundamentals.html
-│   │   │   ├── 📄 git-basics.html
-│   │   │   ├── 📄 kubernetes-fundamentals.html
-│   │   │   ├── 📄 terraform-fundamentals.html
-│   │   │   └── 📄 unit-testing.html
+│   │   │   ├── 📊 code-agile-sdlc.presentation.html
+│   │   │   ├── 📊 code-automation.presentation.html
+│   │   │   ├── 📊 code-cicd-fundamentals.presentation.html
+│   │   │   ├── 📊 code-cloudformation-fundamentals.presentation.html
+│   │   │   ├── 📊 code-docker-fundamentals.presentation.html
+│   │   │   ├── 📊 code-git-basics.presentation.html
+│   │   │   ├── 📊 code-kubernetes-fundamentals.presentation.html
+│   │   │   ├── 📊 code-terraform-fundamentals.presentation.html
+│   │   │   └── 📊 code-unit-testing.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ agile-quiz.html
-│   │   │   ├── ❓ cicd-quiz.html
-│   │   │   ├── ❓ cloudformation-quiz.html
-│   │   │   ├── ❓ docker-quiz.html
-│   │   │   ├── ❓ kubernetes-quiz.html
-│   │   │   ├── ❓ terraform-quiz.html
-│   │   │   └── ❓ unit-testing-quiz.html
+│   │   │   ├── ❓ code-agile.quiz.html
+│   │   │   ├── ❓ code-cicd.quiz.html
+│   │   │   ├── ❓ code-cloudformation.quiz.html
+│   │   │   ├── ❓ code-docker.quiz.html
+│   │   │   ├── ❓ code-kubernetes.quiz.html
+│   │   │   ├── ❓ code-terraform.quiz.html
+│   │   │   └── ❓ code-unit-testing.quiz.html
 │   │   └── 📁 tools
+│   │       ├── 📄 code-ansible-playbook.tool.html
+│   │       ├── 📄 code-api.tool.html
+│   │       ├── 📄 code-automation.tool.html
+│   │       ├── 📄 code-sprint.tool.html
+│   │       └── 📄 code-terraform.tool.html
 │   ├── 📁 dark-arts
 │   │   ├── 📁 labs [labs]
 │   │   ├── 📁 presentations [presentations]
 │   │   ├── 📁 quizzes [quizzes]
 │   │   └── 📁 tools
 │   │       └── 📁 ctf-leaderboard
-│   │           ├── 📍 index.html
-│   │           └── 📄 sample.html
+│   │           ├── 📄 dark-arts-sample.tool.html
+│   │           └── 📍 index.html
 │   ├── 🏠 eye [house:eye]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 cyberops [applets]
-│   │   │   │   ├── 📄 5-tuple-approach.html
-│   │   │   │   ├── 📄 app-visibility-control.html
-│   │   │   │   ├── 📄 artifact-elements.html
-│   │   │   │   ├── 📄 attack-surface-vuln.html
-│   │   │   │   ├── 📄 attack-surface.html
-│   │   │   │   ├── 📄 attribution-investigation.html
-│   │   │   │   ├── 📄 content-filtering.html
-│   │   │   │   ├── 📄 cvss-terminology.html
-│   │   │   │   ├── 📄 data-loss-traffic.html
-│   │   │   │   ├── 📄 data-types-output.html
-│   │   │   │   ├── 📄 data-visibility-challenges.html
-│   │   │   │   ├── 📄 data-visibility.html
-│   │   │   │   ├── 📄 detection-methods.html
-│   │   │   │   ├── 📄 disk-images.html
-│   │   │   │   ├── 📄 endpoint-attacks.html
-│   │   │   │   ├── 📄 evasion-obfuscation.html
-│   │   │   │   ├── 📄 evidence-types.html
-│   │   │   │   ├── 📄 firewall-data.html
-│   │   │   │   ├── 📄 firewall-operations.html
-│   │   │   │   ├── 📄 forensic-elements.html
-│   │   │   │   ├── 📄 intrusion-elements.html
-│   │   │   │   ├── 📄 intrusion-events.html
-│   │   │   │   ├── 📄 irp-elements.html
+│   │   │   │   ├── 📄 eye-5-tuple-approach.applet.html
+│   │   │   │   ├── 📄 eye-app-visibility-control.applet.html
+│   │   │   │   ├── 📄 eye-artifact-elements.applet.html
+│   │   │   │   ├── 📄 eye-attack-surface-vuln.applet.html
+│   │   │   │   ├── 📄 eye-attack-surface.applet.html
+│   │   │   │   ├── 📄 eye-attribution-investigation.applet.html
+│   │   │   │   ├── 📄 eye-content-filtering.applet.html
+│   │   │   │   ├── 📄 eye-cvss-terminology.applet.html
+│   │   │   │   ├── 📄 eye-data-loss-traffic.applet.html
+│   │   │   │   ├── 📄 eye-data-types-output.applet.html
+│   │   │   │   ├── 📄 eye-data-visibility-challenges.applet.html
+│   │   │   │   ├── 📄 eye-data-visibility.applet.html
+│   │   │   │   ├── 📄 eye-detection-methods.applet.html
+│   │   │   │   ├── 📄 eye-disk-images.applet.html
+│   │   │   │   ├── 📄 eye-endpoint-attacks.applet.html
+│   │   │   │   ├── 📄 eye-evasion-obfuscation.applet.html
+│   │   │   │   ├── 📄 eye-evidence-types.applet.html
+│   │   │   │   ├── 📄 eye-firewall-data.applet.html
+│   │   │   │   ├── 📄 eye-firewall-operations.applet.html
+│   │   │   │   ├── 📄 eye-forensic-elements.applet.html
+│   │   │   │   ├── 📄 eye-intrusion-elements.applet.html
+│   │   │   │   ├── 📄 eye-intrusion-events.applet.html
+│   │   │   │   ├── 📄 eye-irp-elements.applet.html
+│   │   │   │   ├── 📄 eye-malware-analysis-output.applet.html
+│   │   │   │   ├── 📄 eye-network-attacks.applet.html
+│   │   │   │   ├── 📄 eye-network-profiling.applet.html
+│   │   │   │   ├── 📄 eye-nist-800-86.applet.html
+│   │   │   │   ├── 📄 eye-nsm-data-types.applet.html
+│   │   │   │   ├── 📄 eye-protected-data.applet.html
+│   │   │   │   ├── 📄 eye-regular-expressions.applet.html
+│   │   │   │   ├── 📄 eye-risk-rating.applet.html
+│   │   │   │   ├── 📄 eye-risk-register.applet.html
+│   │   │   │   ├── 📄 eye-security-approaches.applet.html
+│   │   │   │   ├── 📄 eye-security-policy.applet.html
+│   │   │   │   ├── 📄 eye-siem-overview.applet.html
+│   │   │   │   ├── 📄 eye-soc-metrics.applet.html
+│   │   │   │   ├── 📄 eye-soc-overview.applet.html
+│   │   │   │   ├── 📄 eye-source-technologies.applet.html
+│   │   │   │   ├── 📄 eye-tcp-stream-extraction.applet.html
+│   │   │   │   ├── 📄 eye-tcpdump-netflow.applet.html
+│   │   │   │   ├── 📄 eye-traffic-analysis.applet.html
+│   │   │   │   ├── 📄 eye-web-attacks.applet.html
 │   │   │   │   ├── 📁 labs [labs]
-│   │   │   │   │   ├── 🔬 lab-1-0-6-top-hacker.html
-│   │   │   │   │   ├── 🔬 lab-1-2-3-attack-details.html
-│   │   │   │   │   ├── 🔬 lab-2-2-5-becoming-defender.html
-│   │   │   │   │   ├── 🔬 lab-3-0-3-running-processes.html
-│   │   │   │   │   ├── 🔬 lab-3-2-11-windows-internals.html
-│   │   │   │   │   └── 🔬 lab-3-3-10-user-accounts.html
-│   │   │   │   ├── 📄 malware-analysis-output.html
-│   │   │   │   ├── 📄 network-attacks.html
-│   │   │   │   ├── 📄 network-profiling.html
-│   │   │   │   ├── 📄 nist-800-86.html
-│   │   │   │   ├── 📄 nsm-data-types.html
-│   │   │   │   ├── 📄 protected-data.html
-│   │   │   │   ├── 📄 regular-expressions.html
-│   │   │   │   ├── 📄 risk-rating.html
-│   │   │   │   ├── 📄 risk-register.html
-│   │   │   │   ├── 📄 security-approaches.html
-│   │   │   │   ├── 📄 security-policy.html
-│   │   │   │   ├── 📄 siem-overview.html
-│   │   │   │   ├── 📄 soc-metrics.html
-│   │   │   │   ├── 📄 soc-overview.html
-│   │   │   │   ├── 📄 source-technologies.html
-│   │   │   │   ├── 📄 tcp-stream-extraction.html
-│   │   │   │   ├── 📄 tcpdump-netflow.html
-│   │   │   │   ├── 📄 traffic-analysis.html
-│   │   │   │   ├── 📄 web-attacks.html
+│   │   │   │   │   ├── 🔬 eye-lab-1-0-6-top-hacker.lab.html
+│   │   │   │   │   ├── 🔬 eye-lab-1-2-3-attack-details.lab.html
+│   │   │   │   │   ├── 🔬 eye-lab-2-2-5-becoming-defender.lab.html
+│   │   │   │   │   ├── 🔬 eye-lab-3-0-3-running-processes.lab.html
+│   │   │   │   │   ├── 🔬 eye-lab-3-2-11-windows-internals.lab.html
+│   │   │   │   │   └── 🔬 eye-lab-3-3-10-user-accounts.lab.html
 │   │   │   │   ├── 📁 week1 [applets]
 │   │   │   │   │   ├── 📄 evaluation.html
 │   │   │   │   │   └── 📍 index.html
@@ -425,74 +426,72 @@
 │   │   │   │   │   ├── 📄 evaluation.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
-│   │   │   │   │       ├── 📄 linux-servers.html
-│   │   │   │   │       ├── 📄 windows-system-resources.html
-│   │   │   │   │       └── 📄 windows-task-manager.html
+│   │   │   │   │       ├── 🔬 eye-linux-servers.lab.html
+│   │   │   │   │       ├── 🔬 eye-windows-system-resources.lab.html
+│   │   │   │   │       └── 🔬 eye-windows-task-manager.lab.html
 │   │   │   │   ├── 📁 week3 [applets]
 │   │   │   │   │   ├── 📄 evaluation.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
-│   │   │   │   │       ├── 📄 exploring-nmap.html
-│   │   │   │   │       ├── 📄 tracing-route.html
-│   │   │   │   │       ├── 📄 verify-ipv4-ipv6.html
-│   │   │   │   │       ├── 📄 wireshark-ethernet.html
-│   │   │   │   │       ├── 📄 wireshark-intro.html
-│   │   │   │   │       └── 📄 wireshark-tcp-handshake.html
+│   │   │   │   │       ├── 🔬 eye-exploring-nmap.lab.html
+│   │   │   │   │       ├── 🔬 eye-tracing-route.lab.html
+│   │   │   │   │       ├── 🔬 eye-verify-ipv4-ipv6.lab.html
+│   │   │   │   │       ├── 🔬 eye-wireshark-ethernet.lab.html
+│   │   │   │   │       ├── 🔬 eye-wireshark-intro.lab.html
+│   │   │   │   │       └── 🔬 eye-wireshark-tcp-handshake.lab.html
 │   │   │   │   ├── 📁 week4 [applets]
 │   │   │   │   │   ├── 📄 evaluation.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
-│   │   │   │   │       ├── 📄 acl-demo.html
-│   │   │   │   │       ├── 📄 packet-flow.html
-│   │   │   │   │       ├── 📄 wireshark-http-https.html
-│   │   │   │   │       ├── 📄 wireshark-tcp-udp.html
-│   │   │   │   │       └── 📄 wireshark-udp-dns.html
+│   │   │   │   │       ├── 🔬 eye-acl-demo.lab.html
+│   │   │   │   │       ├── 🔬 eye-packet-flow.lab.html
+│   │   │   │   │       ├── 🔬 eye-wireshark-http-https.lab.html
+│   │   │   │   │       ├── 🔬 eye-wireshark-tcp-udp.lab.html
+│   │   │   │   │       └── 🔬 eye-wireshark-udp-dns.lab.html
 │   │   │   │   └── 📁 week5 [applets]
 │   │   │   │       ├── 📄 evaluation.html
 │   │   │   │       ├── 📍 index.html
 │   │   │   │       └── 📁 labs [labs]
-│   │   │   │           ├── 📄 dns-traffic.html
-│   │   │   │           ├── 📄 logging-network-activity.html
-│   │   │   │           ├── 📄 mysql-attack.html
-│   │   │   │           ├── 📄 server-logs.html
-│   │   │   │           ├── 📄 soc-triage-simulator.html
-│   │   │   │           └── 📄 whats-going-on.html
+│   │   │   │           ├── 🔬 eye-dns-traffic.lab.html
+│   │   │   │           ├── 🔬 eye-logging-network-activity.lab.html
+│   │   │   │           ├── 🔬 eye-mysql-attack.lab.html
+│   │   │   │           ├── 🔬 eye-server-logs.lab.html
+│   │   │   │           ├── 🔬 eye-soc-triage.lab.html
+│   │   │   │           └── 🔬 eye-whats-going-on.lab.html
 │   │   │   └── 📁 osint [applets]
-│   │   │       └── 📄 google-dorking-reference.html
+│   │   │       └── 📄 eye-google-dorking.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 correlation-lab.html
-│   │   │   ├── 🔬 hunting-lab.html
-│   │   │   ├── 🔬 siem-lab.html
-│   │   │   ├── 🔬 soc-lab.html
-│   │   │   └── 🔬 traffic-lab.html
+│   │   │   ├── 🔬 eye-correlation.lab.html
+│   │   │   ├── 🔬 eye-hunting.lab.html
+│   │   │   ├── 🔬 eye-siem.lab.html
+│   │   │   ├── 🔬 eye-soc.lab.html
+│   │   │   └── 🔬 eye-traffic.lab.html
 │   │   ├── 📁 modules [modules]
 │   │   │   └── 📁 cyberops [modules]
 │   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 log-basics.html
-│   │   │   ├── 📄 log-correlation.html
-│   │   │   ├── 📄 network-traffic-analysis.html
-│   │   │   ├── 📄 siem-fundamentals.html
-│   │   │   ├── 📄 soc-operations.html
-│   │   │   └── 📄 threat-hunting.html
+│   │   │   ├── 📊 eye-log-basics.presentation.html
+│   │   │   ├── 📊 eye-log-correlation.presentation.html
+│   │   │   ├── 📊 eye-network-traffic-analysis.presentation.html
+│   │   │   ├── 📊 eye-siem-fundamentals.presentation.html
+│   │   │   ├── 📊 eye-soc-operations.presentation.html
+│   │   │   └── 📊 eye-threat-hunting.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ correlation-quiz.html
-│   │   │   ├── ❓ hunting-quiz.html
-│   │   │   ├── ❓ siem-quiz.html
-│   │   │   ├── ❓ soc-quiz.html
-│   │   │   └── ❓ traffic-quiz.html
+│   │   │   ├── ❓ eye-correlation.quiz.html
+│   │   │   ├── ❓ eye-hunting.quiz.html
+│   │   │   ├── ❓ eye-siem.quiz.html
+│   │   │   ├── ❓ eye-soc.quiz.html
+│   │   │   └── ❓ eye-traffic.quiz.html
 │   │   └── 📁 tools
-│   │       ├── 📄 correlation-engine.html
-│   │       ├── 📄 hunt-workbench.html
-│   │       ├── 📄 packet-analyzer.html
-│   │       ├── 📄 siem-simulator.html
-│   │       ├── 📄 soc-simulator.html
-│   │       └── 📄 wireshark-training.html
+│   │       ├── 📄 eye-correlation.tool.html
+│   │       ├── 📄 eye-hunt.tool.html
+│   │       ├── 📄 eye-packet.tool.html
+│   │       ├── 📄 eye-siem.tool.html
+│   │       ├── 📄 eye-soc.tool.html
+│   │       └── 📄 eye-wireshark.tool.html
 │   ├── 🏠 forge [house:forge]
 │   │   ├── 📁 applets [applets]
-│   │   │   ├── 📄 admin-tools-explorer.html
-│   │   │   ├── 📄 command-translator.html
 │   │   │   ├── 📁 comptia-aplus [applets]
 │   │   │   │   ├── 📁 core-1 [applets]
 │   │   │   │   │   ├── 📁 chapters [applets]
@@ -531,46 +530,46 @@
 │   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
-│   │   │   │   │       ├── 🔬 bluetooth-pairing-lab.html
-│   │   │   │   │       ├── 🔬 cable-matching-lab.html
-│   │   │   │   │       ├── 🔬 cloud-scenarios-lab.html
-│   │   │   │   │       ├── 🔬 command-line-lab.html
-│   │   │   │   │       ├── 🔬 cpu-sockets-lab.html
-│   │   │   │   │       ├── 🔬 diagnostic-tools-lab.html
-│   │   │   │   │       ├── 🔬 display-troubleshoot-lab.html
-│   │   │   │   │       ├── 🔬 dns-config-lab.html
-│   │   │   │   │       ├── 🔬 docking-config-lab.html
-│   │   │   │   │       ├── 🔬 email-config-lab.html
-│   │   │   │   │       ├── 🔬 esd-workspace-lab.html
-│   │   │   │   │       ├── 🔬 hardware-diagnosis-lab.html
-│   │   │   │   │       ├── 🔬 laptop-memory-lab.html
-│   │   │   │   │       ├── 🔬 mdm-config-lab.html
-│   │   │   │   │       ├── 🔬 mobile-email-lab.html
-│   │   │   │   │       ├── 🔬 mobile-identifier-lab.html
-│   │   │   │   │       ├── 🔬 mobile-sync-lab.html
-│   │   │   │   │       ├── 🔬 network-commands-lab.html
-│   │   │   │   │       ├── 🔬 network-config-lab.html
-│   │   │   │   │       ├── 🔬 network-design-lab.html
-│   │   │   │   │       ├── 🔬 pc-builder-lab.html
-│   │   │   │   │       ├── 🔬 pc-components-lab.html
-│   │   │   │   │       ├── 🔬 port-identification-lab.html
-│   │   │   │   │       ├── 🔬 post-beep-codes-lab.html
-│   │   │   │   │       ├── 🔬 printer-troubleshoot-lab.html
-│   │   │   │   │       ├── 🔬 protocol-analysis-lab.html
-│   │   │   │   │       ├── 🔬 psu-connectors-lab.html
-│   │   │   │   │       ├── 🔬 raid-config-lab.html
-│   │   │   │   │       ├── 🔬 ram-identification-lab.html
-│   │   │   │   │       ├── 🔬 router-config-lab.html
-│   │   │   │   │       ├── 🔬 server-roles-lab.html
-│   │   │   │   │       ├── 🔬 soho-designer-lab.html
-│   │   │   │   │       ├── 📄 soho-rescue.html
-│   │   │   │   │       ├── 🔬 storage-upgrade-lab.html
-│   │   │   │   │       ├── 🔬 subnet-calculator-lab.html
-│   │   │   │   │       ├── 🔬 topology-builder-lab.html
-│   │   │   │   │       ├── 🔬 troubleshooting-flowchart-lab.html
-│   │   │   │   │       ├── 🔬 troubleshooting-lab.html
-│   │   │   │   │       ├── 🔬 vm-setup-lab.html
-│   │   │   │   │       └── 🔬 wireless-security-lab.html
+│   │   │   │   │       ├── 🔬 forge-bluetooth-pairing.lab.html
+│   │   │   │   │       ├── 🔬 forge-cable-matching.lab.html
+│   │   │   │   │       ├── 🔬 forge-cloud-scenarios.lab.html
+│   │   │   │   │       ├── 🔬 forge-command-line.lab.html
+│   │   │   │   │       ├── 🔬 forge-cpu-sockets.lab.html
+│   │   │   │   │       ├── 🔬 forge-diagnostic-tools.lab.html
+│   │   │   │   │       ├── 🔬 forge-display-troubleshoot.lab.html
+│   │   │   │   │       ├── 🔬 forge-dns-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-docking-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-email-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-esd-workspace.lab.html
+│   │   │   │   │       ├── 🔬 forge-hardware-diagnosis.lab.html
+│   │   │   │   │       ├── 🔬 forge-laptop-memory.lab.html
+│   │   │   │   │       ├── 🔬 forge-mdm-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-mobile-email.lab.html
+│   │   │   │   │       ├── 🔬 forge-mobile-identifier.lab.html
+│   │   │   │   │       ├── 🔬 forge-mobile-sync.lab.html
+│   │   │   │   │       ├── 🔬 forge-network-commands.lab.html
+│   │   │   │   │       ├── 🔬 forge-network-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-network-design.lab.html
+│   │   │   │   │       ├── 🔬 forge-pc-builder.lab.html
+│   │   │   │   │       ├── 🔬 forge-pc-components.lab.html
+│   │   │   │   │       ├── 🔬 forge-port-identification.lab.html
+│   │   │   │   │       ├── 🔬 forge-post-beep-codes.lab.html
+│   │   │   │   │       ├── 🔬 forge-printer-troubleshoot.lab.html
+│   │   │   │   │       ├── 🔬 forge-protocol-analysis.lab.html
+│   │   │   │   │       ├── 🔬 forge-psu-connectors.lab.html
+│   │   │   │   │       ├── 🔬 forge-raid-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-ram-identification.lab.html
+│   │   │   │   │       ├── 🔬 forge-router-config.lab.html
+│   │   │   │   │       ├── 🔬 forge-server-roles.lab.html
+│   │   │   │   │       ├── 🔬 forge-soho-designer.lab.html
+│   │   │   │   │       ├── 🔬 forge-soho-rescue.lab.html
+│   │   │   │   │       ├── 🔬 forge-storage-upgrade.lab.html
+│   │   │   │   │       ├── 🔬 forge-subnet-calculator.lab.html
+│   │   │   │   │       ├── 🔬 forge-topology-builder.lab.html
+│   │   │   │   │       ├── 🔬 forge-troubleshooting-flowchart.lab.html
+│   │   │   │   │       ├── 🔬 forge-troubleshooting.lab.html
+│   │   │   │   │       ├── 🔬 forge-vm-setup.lab.html
+│   │   │   │   │       └── 🔬 forge-wireless-security.lab.html
 │   │   │   │   ├── 📁 core-2 [applets]
 │   │   │   │   │   ├── 📁 chapters [applets]
 │   │   │   │   │   │   ├── 📁 ch13-windows-editions [applets]
@@ -608,989 +607,1009 @@
 │   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   ├── 📁 labs [labs]
-│   │   │   │   │   │   ├── 🔬 admin-tools-lab.html
-│   │   │   │   │   │   ├── 🔬 change-management-lab.html
-│   │   │   │   │   │   ├── 🔬 control-panel-lab.html
-│   │   │   │   │   │   ├── 🔬 core2_roleplay_lab.html
-│   │   │   │   │   │   ├── 🔬 documentation-lab.html
-│   │   │   │   │   │   ├── 🔬 incident-response-lab.html
-│   │   │   │   │   │   ├── 🔬 lab-macos-linux.html
-│   │   │   │   │   │   ├── 🔬 malware-lab.html
-│   │   │   │   │   │   ├── 🔬 physical-security-lab.html
-│   │   │   │   │   │   ├── 🔬 security-fundamentals-lab.html
-│   │   │   │   │   │   ├── 🔬 system-tools-lab.html
-│   │   │   │   │   │   ├── 🔬 users-groups-lab.html
-│   │   │   │   │   │   ├── 🔬 windows-editions-lab.html
-│   │   │   │   │   │   └── 🔬 windows-settings-lab.html
+│   │   │   │   │   │   ├── 🔬 forge-admin-tools.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-change-management.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-control-panel.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-core2-roleplay.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-documentation.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-incident-response.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-lab-macos-linux.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-malware.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-physical-security.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-security-fundamentals.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-system-tools.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-users-groups.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-windows-editions.lab.html
+│   │   │   │   │   │   └── 🔬 forge-windows-settings.lab.html
 │   │   │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   │   │   ├── 📄 admin-tools.html
-│   │   │   │   │   │   ├── 📄 change-management.html
-│   │   │   │   │   │   ├── 📄 control-panel.html
-│   │   │   │   │   │   ├── 📄 documentation.html
-│   │   │   │   │   │   ├── 📄 incident-response.html
-│   │   │   │   │   │   ├── 📄 macos-linux-basics.html
-│   │   │   │   │   │   ├── 📄 malware.html
-│   │   │   │   │   │   ├── 📄 physical-security.html
-│   │   │   │   │   │   ├── 📄 security-fundamentals.html
-│   │   │   │   │   │   ├── 📄 system-tools.html
-│   │   │   │   │   │   ├── 📄 users-groups.html
-│   │   │   │   │   │   ├── 📄 windows-editions.html
-│   │   │   │   │   │   └── 📄 windows-settings.html
+│   │   │   │   │   │   ├── 📊 forge-admin-tools.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-change-management.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-control-panel.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-documentation.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-incident-response.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-macos-linux-basics.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-malware.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-physical-security.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-security-fundamentals.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-system-tools.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-users-groups.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-windows-editions.presentation.html
+│   │   │   │   │   │   └── 📊 forge-windows-settings.presentation.html
 │   │   │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   │   │   ├── 📄 aplus-core2-ch19-22.html
-│   │   │   │   │   │   ├── ❓ aplus-core2-quiz.html
-│   │   │   │   │   │   ├── ❓ ch13-quiz.html
-│   │   │   │   │   │   ├── ❓ ch14-quiz.html
-│   │   │   │   │   │   ├── ❓ ch15-quiz.html
-│   │   │   │   │   │   ├── ❓ ch16-quiz.html
-│   │   │   │   │   │   ├── ❓ ch17-quiz.html
-│   │   │   │   │   │   ├── ❓ ch18-quiz.html
-│   │   │   │   │   │   ├── ❓ ch19-quiz.html
-│   │   │   │   │   │   ├── ❓ ch20-quiz.html
-│   │   │   │   │   │   ├── ❓ ch21-quiz.html
-│   │   │   │   │   │   ├── ❓ ch22-quiz.html
-│   │   │   │   │   │   ├── ❓ ch23-quiz.html
-│   │   │   │   │   │   ├── ❓ ch24-quiz.html
-│   │   │   │   │   │   └── ❓ core2-quiz-ch19-22.html
+│   │   │   │   │   │   ├── ❓ forge-aplus-core2-ch19-22.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-aplus-core2.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch13.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch14.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch15.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch16.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch17.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch18.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch19.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch20.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch21.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch22.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch23.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch24.quiz.html
+│   │   │   │   │   │   └── ❓ forge-core2-quiz-ch19-22.quiz.html
 │   │   │   │   │   ├── 📁 reference [applets]
-│   │   │   │   │   │   └── 📄 windows-shortcuts.html
+│   │   │   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
 │   │   │   │   │   └── 📁 tools [applets]
-│   │   │   │   │       ├── 📄 admin-tools-explorer.html
-│   │   │   │   │       ├── 📄 control-panel-explorer.html
-│   │   │   │   │       ├── 📄 os_core.html
-│   │   │   │   │       ├── 📄 settings-explorer.html
-│   │   │   │   │       ├── 📄 system-tools-sim.html
-│   │   │   │   │       ├── 📄 windows-edition-selector.html
-│   │   │   │   │       └── 📄 windows10-components.html
-│   │   │   │   ├── ❓ core2-quiz-ch19-22.html
-│   │   │   │   ├── 🔬 core2_roleplay_lab.html
-│   │   │   │   ├── 📄 os_core.html
-│   │   │   │   └── 📄 windows-shortcuts.html
-│   │   │   ├── 📄 control-panel-explorer.html
-│   │   │   ├── 📁 hardware [applets]
-│   │   │   │   ├── 📄 backup-strategy-planner.html
-│   │   │   │   ├── 📁 cpu_architecture [applets]
-│   │   │   │   │   └── 📄 cpu_architecture.html
-│   │   │   │   ├── 📁 display_types [applets]
-│   │   │   │   │   └── 📄 display_types.html
-│   │   │   │   ├── 📁 expansion_cards [applets]
-│   │   │   │   │   └── 📄 expansion_cards.html
-│   │   │   │   ├── 📁 hard_drive_geometry [applets]
-│   │   │   │   │   ├── 📄 hard_drive_geometry1.html
-│   │   │   │   │   └── 📁 hard_drive_geometry1.hyperesources [applets]
-│   │   │   │   ├── 📄 hardware-trainer.html
-│   │   │   │   ├── 📁 laptop_hardware [applets]
-│   │   │   │   │   └── 📄 laptop_hardware.html
-│   │   │   │   ├── 📁 mobile_accessories [applets]
-│   │   │   │   │   └── 📄 mobile_accessories.html
-│   │   │   │   ├── 📁 motherboards [applets]
-│   │   │   │   │   └── 📄 motherboards.html
-│   │   │   │   ├── 📁 multimeter [applets]
-│   │   │   │   │   ├── 📄 multimeter_jedit_v1.html
-│   │   │   │   │   └── 📁 multimeter_jedit_v1.hyperesources [applets]
-│   │   │   │   ├── 📁 network_cables [applets]
-│   │   │   │   │   └── 📄 network_cables.html
-│   │   │   │   ├── 📁 network_ports [applets]
-│   │   │   │   │   └── 📄 network_ports.html
-│   │   │   │   ├── 📁 peripheral_devices [applets]
-│   │   │   │   │   └── 📄 peripheral_devices.html
-│   │   │   │   ├── 📁 power_supplies [applets]
-│   │   │   │   │   └── 📄 power_supplies.html
-│   │   │   │   ├── 📁 printers [applets]
-│   │   │   │   │   └── 📄 printers.html
-│   │   │   │   ├── 📄 raid-level-visualizer.html
-│   │   │   │   ├── 📁 raid_storage [applets]
-│   │   │   │   │   └── 📄 raid_storage.html
-│   │   │   │   ├── 📁 ram_types [applets]
-│   │   │   │   │   └── 📄 ram_types.html
-│   │   │   │   ├── 📁 storage_devices [applets]
-│   │   │   │   │   └── 📄 storage_devices.html
-│   │   │   │   ├── 📁 virtualization [applets]
-│   │   │   │   │   └── 📄 virtualization.html
-│   │   │   │   └── 📁 wireless_networking [applets]
-│   │   │   │       └── 📄 wireless_networking.html
-│   │   │   ├── 📄 settings-explorer.html
-│   │   │   ├── 📄 system-tools-sim.html
-│   │   │   ├── 📄 windows-edition-selector.html
-│   │   │   └── 📄 windows10-components.html
+│   │   │   │   ├── ❓ forge-core2-quiz-ch19-22.applet.html
+│   │   │   │   ├── 📄 forge-os-core.applet.html
+│   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
+│   │   │   ├── 📄 forge-admin-tools.tool.html
+│   │   │   ├── 📄 forge-command-translator.applet.html
+│   │   │   ├── 📄 forge-control-panel.tool.html
+│   │   │   ├── 📄 forge-cpu-architecture.applet.html
+│   │   │   ├── 📄 forge-settings.tool.html
+│   │   │   ├── 📄 forge-system-tools-sim.applet.html
+│   │   │   ├── 📄 forge-windows-edition-selector.applet.html
+│   │   │   ├── 📄 forge-windows-shortcuts.applet.html
+│   │   │   ├── 📄 forge-windows10-components.applet.html
+│   │   │   └── 📁 hardware [applets]
+│   │   │       ├── 📁 cpu_architecture [applets]
+│   │   │       │   └── 📄 forge-cpu-architecture.applet.html
+│   │   │       ├── 📁 display_types [applets]
+│   │   │       │   └── 📄 forge-display-types.applet.html
+│   │   │       ├── 📁 expansion_cards [applets]
+│   │   │       │   └── 📄 forge-expansion-cards.applet.html
+│   │   │       ├── 📄 forge-backup-strategy-planner.applet.html
+│   │   │       ├── 📄 forge-hardware-trainer.applet.html
+│   │   │       ├── 📁 hard_drive_geometry [applets]
+│   │   │       │   ├── 📄 forge-hard-drive-geometry1.applet.html
+│   │   │       │   └── 📁 hard_drive_geometry1.hyperesources [applets]
+│   │   │       ├── 📁 laptop_hardware [applets]
+│   │   │       │   └── 📄 forge-laptop-hardware.applet.html
+│   │   │       ├── 📁 mobile_accessories [applets]
+│   │   │       │   └── 📄 forge-mobile-accessories.applet.html
+│   │   │       ├── 📁 motherboards [applets]
+│   │   │       │   └── 📄 forge-motherboards.applet.html
+│   │   │       ├── 📁 multimeter [applets]
+│   │   │       │   ├── 📄 forge-multimeter-jedit-v1.applet.html
+│   │   │       │   └── 📁 multimeter_jedit_v1.hyperesources [applets]
+│   │   │       ├── 📁 network_cables [applets]
+│   │   │       │   └── 📄 forge-network-cables.applet.html
+│   │   │       ├── 📁 network_ports [applets]
+│   │   │       │   └── 📄 forge-network-ports.applet.html
+│   │   │       ├── 📁 peripheral_devices [applets]
+│   │   │       │   └── 📄 forge-peripheral-devices.applet.html
+│   │   │       ├── 📁 power_supplies [applets]
+│   │   │       │   └── 📄 forge-power-supplies.applet.html
+│   │   │       ├── 📁 printers [applets]
+│   │   │       │   └── 📄 forge-printers.applet.html
+│   │   │       ├── 📁 raid_storage [applets]
+│   │   │       │   └── 📄 forge-raid-storage.applet.html
+│   │   │       ├── 📁 ram_types [applets]
+│   │   │       │   └── 📄 forge-ram-types.applet.html
+│   │   │       ├── 📁 storage_devices [applets]
+│   │   │       │   └── 📄 forge-storage-devices.applet.html
+│   │   │       ├── 📁 virtualization [applets]
+│   │   │       │   └── 📄 forge-virtualization.applet.html
+│   │   │       └── 📁 wireless_networking [applets]
+│   │   │           └── 📄 forge-wireless-networking.applet.html
 │   │   ├── 📁 games
-│   │   │   └── 📄 aplus-jeopardy.html
+│   │   │   └── 📄 forge-aplus-jeopardy.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 admin-tools-lab.html
-│   │   │   ├── 🔬 control-panel-lab.html
-│   │   │   ├── 🔬 hardware-essentials-lab.html
-│   │   │   ├── 🔬 lab-macos-linux.html
-│   │   │   ├── 🔬 system-tools-lab.html
-│   │   │   ├── 🔬 windows-editions-lab.html
-│   │   │   └── 🔬 windows-settings-lab.html
+│   │   │   ├── 🔬 forge-admin-tools.lab.html
+│   │   │   ├── 🔬 forge-control-panel.lab.html
+│   │   │   ├── 🔬 forge-core2-roleplay.lab.html
+│   │   │   ├── 🔬 forge-hardware-essentials.lab.html
+│   │   │   ├── 🔬 forge-lab-macos-linux.lab.html
+│   │   │   ├── 🔬 forge-system-tools.lab.html
+│   │   │   ├── 🔬 forge-windows-editions.lab.html
+│   │   │   └── 🔬 forge-windows-settings.lab.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 admin-tools.html
-│   │   │   ├── 📄 control-panel.html
-│   │   │   ├── 📄 macos-linux-basics.html
-│   │   │   ├── 📄 system-tools.html
-│   │   │   ├── 📄 windows-editions.html
-│   │   │   └── 📄 windows-settings.html
+│   │   │   ├── 📊 forge-admin-tools.presentation.html
+│   │   │   ├── 📊 forge-control-panel.presentation.html
+│   │   │   ├── 📊 forge-macos-linux-basics.presentation.html
+│   │   │   ├── 📊 forge-system-tools.presentation.html
+│   │   │   ├── 📊 forge-windows-editions.presentation.html
+│   │   │   └── 📊 forge-windows-settings.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── 📄 aplus-core2-ch19-22.html
-│   │   │   ├── ❓ aplus-core2-quiz.html
-│   │   │   ├── ❓ hardware-essentials-quiz.html
-│   │   │   └── ❓ windows-admin-quiz.html
+│   │   │   ├── ❓ forge-aplus-core2-ch19-22.quiz.html
+│   │   │   ├── ❓ forge-aplus-core2.quiz.html
+│   │   │   ├── ❓ forge-hardware-essentials.quiz.html
+│   │   │   └── ❓ forge-windows-admin.quiz.html
 │   │   ├── 📁 reference
-│   │   │   ├── 📄 cpu-architecture.html
-│   │   │   └── 📄 windows-shortcuts.html
 │   │   ├── 📁 tools
+│   │   │   ├── 📄 forge-admin-tools.tool.html
+│   │   │   ├── 📄 forge-control-panel.tool.html
+│   │   │   ├── 📄 forge-os-core.tool.html
+│   │   │   ├── 📄 forge-raid-level.tool.html
+│   │   │   ├── 📄 forge-settings.tool.html
+│   │   │   ├── 📄 forge-system-tools-sim.tool.html
+│   │   │   ├── 📄 forge-windows-edition-selector.tool.html
+│   │   │   └── 📄 forge-windows10-components.tool.html
 │   │   └── 📁 tutorials
 │   ├── 🏠 key [house:key]
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 aes-lab.html
-│   │   │   ├── 🔬 attack-lab.html
-│   │   │   ├── 🔬 cert-lab.html
-│   │   │   ├── 🔬 crypto-stego-lab.html
-│   │   │   ├── 🔬 ecc-lab.html
-│   │   │   ├── 🔬 hmac-lab.html
-│   │   │   ├── 🔬 hsm-lab.html
-│   │   │   ├── 🔬 kdf-lab.html
-│   │   │   └── 🔬 pqc-lab.html
+│   │   │   ├── 🔬 key-aes.lab.html
+│   │   │   ├── 🔬 key-attack.lab.html
+│   │   │   ├── 🔬 key-cert.lab.html
+│   │   │   ├── 🔬 key-cryptanalysis.lab.html
+│   │   │   ├── 🔬 key-crypto-stego.lab.html
+│   │   │   ├── 🔬 key-ecc.lab.html
+│   │   │   ├── 🔬 key-hmac.lab.html
+│   │   │   ├── 🔬 key-hsm.lab.html
+│   │   │   ├── 🔬 key-kdf.lab.html
+│   │   │   └── 🔬 key-pqc.lab.html
 │   │   ├── 📁 modules [modules]
-│   │   │   └── 📄 hash-stego-intro.html
+│   │   │   └── 📄 key-hash-stego-intro.module.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 advanced-symmetric.html
-│   │   │   ├── 📄 certificates.html
-│   │   │   ├── 📄 cryptanalysis.html
-│   │   │   ├── 📄 cryptography-fundamentals.html
-│   │   │   ├── 📄 elliptic-curve.html
-│   │   │   ├── 📄 encryption-basics.html
-│   │   │   ├── 📄 key-derivation.html
-│   │   │   ├── 📄 key-management.html
-│   │   │   ├── 📄 message-authentication.html
-│   │   │   └── 📄 post-quantum.html
+│   │   │   ├── 📊 key-advanced-symmetric.presentation.html
+│   │   │   ├── 📊 key-certificates.presentation.html
+│   │   │   ├── 📊 key-cryptanalysis.presentation.html
+│   │   │   ├── 📊 key-cryptography-fundamentals.presentation.html
+│   │   │   ├── 📊 key-derivation.presentation.html
+│   │   │   ├── 📊 key-elliptic-curve.presentation.html
+│   │   │   ├── 📊 key-encryption-basics.presentation.html
+│   │   │   ├── 📊 key-management.presentation.html
+│   │   │   ├── 📊 key-message-authentication.presentation.html
+│   │   │   └── 📊 key-post-quantum.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ cert-quiz.html
-│   │   │   ├── ❓ cryptanalysis-quiz.html
-│   │   │   ├── ❓ ecc-quiz.html
-│   │   │   ├── ❓ hsm-quiz.html
-│   │   │   ├── ❓ kdf-quiz.html
-│   │   │   ├── ❓ mac-quiz.html
-│   │   │   ├── ❓ pqc-quiz.html
-│   │   │   └── ❓ symmetric-quiz.html
+│   │   │   ├── ❓ key-cert.quiz.html
+│   │   │   ├── ❓ key-cryptanalysis.quiz.html
+│   │   │   ├── ❓ key-ecc.quiz.html
+│   │   │   ├── ❓ key-hsm.quiz.html
+│   │   │   ├── ❓ key-kdf.quiz.html
+│   │   │   ├── ❓ key-mac.quiz.html
+│   │   │   ├── ❓ key-pqc.quiz.html
+│   │   │   └── ❓ key-symmetric.quiz.html
 │   │   └── 📁 tools
-│   │       ├── 📄 aes-explorer.html
-│   │       ├── 📄 cert-inspector.html
-│   │       ├── 🔬 cryptanalysis-lab.html
-│   │       ├── 📄 ecc-visualizer.html
-│   │       ├── 📄 hmac-calculator.html
-│   │       ├── 📄 kdf-analyzer.html
-│   │       ├── 📄 key-lifecycle.html
-│   │       └── 📄 pqc-explorer.html
+│   │       ├── 📄 key-aes.tool.html
+│   │       ├── 📄 key-cert.tool.html
+│   │       ├── 📄 key-ecc.tool.html
+│   │       ├── 📄 key-hmac.tool.html
+│   │       ├── 📄 key-kdf.tool.html
+│   │       ├── 📄 key-lifecycle.tool.html
+│   │       └── 📄 key-pqc.tool.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 linux [applets]
-│   │   │   │   ├── 📄 bash-scripting-playground.html
-│   │   │   │   ├── 📄 clh-001-intro-to-hacker-cli.html
-│   │   │   │   ├── 📄 clh-002-navigation-recon.html
-│   │   │   │   ├── 📄 clh-003-pattern-hunting.html
-│   │   │   │   ├── 📄 clh-004-process-investigation.html
-│   │   │   │   ├── 📄 clh-005-log-analysis.html
-│   │   │   │   ├── 📄 clh-006-file-operations.html
-│   │   │   │   ├── 📄 clh-007-permissions.html
-│   │   │   │   ├── 📄 clh-008-shell-scripting.html
-│   │   │   │   ├── 📄 clh-009-text-processing.html
-│   │   │   │   ├── 📄 clh-010-io-redirection.html
-│   │   │   │   ├── 📄 clh-011-advanced-grep.html
-│   │   │   │   ├── 📄 clh-012-network-basics.html
-│   │   │   │   ├── 📄 clh-013-environment.html
-│   │   │   │   ├── 📄 clh-014-process-control.html
-│   │   │   │   ├── 📄 clh-015-capstone.html
-│   │   │   │   ├── 📄 clh-016-system-intel.html
-│   │   │   │   ├── 📄 clh-017-find-locate.html
-│   │   │   │   ├── 📄 clh-018-archive-ops.html
-│   │   │   │   ├── 📄 clh-019-disk-forensics.html
-│   │   │   │   ├── 📄 clh-020-user-recon.html
-│   │   │   │   ├── 📄 clh-021-ssh-ops.html
-│   │   │   │   ├── 📄 clh-022-network-recon.html
-│   │   │   │   ├── 📄 clh-023-services.html
-│   │   │   │   ├── 📄 clh-024-cron.html
-│   │   │   │   ├── 📄 clh-025-packages.html
-│   │   │   │   ├── 📄 clh-026-access.html
-│   │   │   │   ├── 📄 clh-027-users.html
-│   │   │   │   ├── 📄 clh-028-monitoring.html
-│   │   │   │   ├── 📄 clh-029-vim.html
-│   │   │   │   ├── 📄 clh-030-chimera.html
-│   │   │   │   ├── 📄 clh-031-blackout.html
-│   │   │   │   ├── 📄 command-translator.html
-│   │   │   │   ├── 🔬 lab-macos-linux.html
-│   │   │   │   ├── 📄 linux-command-simulator.html
-│   │   │   │   ├── 📄 linux-filesystem-navigator.html
-│   │   │   │   ├── 🔬 linux-lab-001-user-identity.html
-│   │   │   │   ├── 🔬 linux-lab-002-file-navigation.html
-│   │   │   │   ├── 📄 linux-permissions-calculator.html
-│   │   │   │   └── 📄 ubuntu-components.html
+│   │   │   │   ├── 📄 script-bash-scripting-playground.applet.html
+│   │   │   │   ├── 📄 script-clh-001-intro-to-hacker-cli.applet.html
+│   │   │   │   ├── 📄 script-clh-002-navigation-recon.applet.html
+│   │   │   │   ├── 📄 script-clh-003-pattern-hunting.applet.html
+│   │   │   │   ├── 📄 script-clh-004-process-investigation.applet.html
+│   │   │   │   ├── 📄 script-clh-005-log-analysis.applet.html
+│   │   │   │   ├── 📄 script-clh-006-file-operations.applet.html
+│   │   │   │   ├── 📄 script-clh-007-permissions.applet.html
+│   │   │   │   ├── 📄 script-clh-008-shell-scripting.applet.html
+│   │   │   │   ├── 📄 script-clh-009-text-processing.applet.html
+│   │   │   │   ├── 📄 script-clh-010-io-redirection.applet.html
+│   │   │   │   ├── 📄 script-clh-011-advanced-grep.applet.html
+│   │   │   │   ├── 📄 script-clh-012-network-basics.applet.html
+│   │   │   │   ├── 📄 script-clh-013-environment.applet.html
+│   │   │   │   ├── 📄 script-clh-014-process-control.applet.html
+│   │   │   │   ├── 📄 script-clh-015-capstone.applet.html
+│   │   │   │   ├── 📄 script-clh-016-system-intel.applet.html
+│   │   │   │   ├── 📄 script-clh-017-find-locate.applet.html
+│   │   │   │   ├── 📄 script-clh-018-archive-ops.applet.html
+│   │   │   │   ├── 📄 script-clh-019-disk-forensics.applet.html
+│   │   │   │   ├── 📄 script-clh-020-user-recon.applet.html
+│   │   │   │   ├── 📄 script-clh-021-ssh-ops.applet.html
+│   │   │   │   ├── 📄 script-clh-022-network-recon.applet.html
+│   │   │   │   ├── 📄 script-clh-023-services.applet.html
+│   │   │   │   ├── 📄 script-clh-024-cron.applet.html
+│   │   │   │   ├── 📄 script-clh-025-packages.applet.html
+│   │   │   │   ├── 📄 script-clh-026-access.applet.html
+│   │   │   │   ├── 📄 script-clh-027-users.applet.html
+│   │   │   │   ├── 📄 script-clh-028-monitoring.applet.html
+│   │   │   │   ├── 📄 script-clh-029-vim.applet.html
+│   │   │   │   ├── 📄 script-clh-030-chimera.applet.html
+│   │   │   │   ├── 📄 script-clh-031-blackout.applet.html
+│   │   │   │   ├── 📄 script-command-translator.applet.html
+│   │   │   │   ├── 🔬 script-lab-macos-linux.applet.html
+│   │   │   │   ├── 📄 script-linux-filesystem-navigator.applet.html
+│   │   │   │   ├── 🔬 script-linux-lab-001-user-identity.applet.html
+│   │   │   │   ├── 🔬 script-linux-lab-002-file-navigation.applet.html
+│   │   │   │   └── 📄 script-ubuntu-components.applet.html
 │   │   │   ├── 📁 powershell [applets]
-│   │   │   │   ├── 📄 powershell-playground.html
-│   │   │   │   ├── 📄 windows-cli-tools.html
-│   │   │   │   ├── 📄 windows-registry-explorer.html
-│   │   │   │   └── 📄 windows-troubleshooting.html
+│   │   │   │   ├── 📄 script-powershell-playground.applet.html
+│   │   │   │   ├── 📄 script-windows-cli-tools.applet.html
+│   │   │   │   └── 📄 script-windows-troubleshooting.applet.html
 │   │   │   ├── 📁 python [applets]
-│   │   │   │   ├── 📄 python-chapter1-applet.html
-│   │   │   │   ├── 📄 python-chapter2-strings.html
-│   │   │   │   ├── 📄 python-chapter3-flow-control.html
-│   │   │   │   ├── 📄 python-chapter4-functions.html
-│   │   │   │   ├── 📄 python-chapter5-collections.html
-│   │   │   │   ├── 📄 python-chapter6-dictionaries.html
-│   │   │   │   ├── 📄 python-chapter7-file-handling.html
-│   │   │   │   └── 📄 python-chapter8-oop.html
+│   │   │   │   ├── 📄 script-python-chapter1.applet.html
+│   │   │   │   ├── 📄 script-python-chapter2-strings.applet.html
+│   │   │   │   ├── 📄 script-python-chapter3-flow-control.applet.html
+│   │   │   │   ├── 📄 script-python-chapter4-functions.applet.html
+│   │   │   │   ├── 📄 script-python-chapter5-collections.applet.html
+│   │   │   │   ├── 📄 script-python-chapter6-dictionaries.applet.html
+│   │   │   │   ├── 📄 script-python-chapter7-file-handling.applet.html
+│   │   │   │   └── 📄 script-python-chapter8-oop.applet.html
 │   │   │   └── 📁 sysadmin [applets]
-│   │   │       ├── 📄 automation-visualizer.html
-│   │   │       ├── 📄 log-management-visualizer.html
-│   │   │       ├── 📄 package-manager-simulator.html
-│   │   │       └── 📄 process-management-visualizer.html
 │   │   ├── 📁 clh
-│   │   │   ├── 📄 clh-001-intro.html
-│   │   │   ├── ❓ clh-001-quiz.html
-│   │   │   ├── 📄 clh-002-intro.html
-│   │   │   ├── ❓ clh-002-quiz.html
-│   │   │   ├── 📄 clh-003-intro.html
-│   │   │   ├── ❓ clh-003-quiz.html
-│   │   │   ├── 📄 clh-004-intro.html
-│   │   │   ├── ❓ clh-004-quiz.html
-│   │   │   ├── 📄 clh-005-intro.html
-│   │   │   ├── ❓ clh-005-quiz.html
-│   │   │   ├── 📄 clh-006-intro.html
-│   │   │   ├── ❓ clh-006-quiz.html
-│   │   │   ├── 📄 clh-007-intro.html
-│   │   │   ├── ❓ clh-007-quiz.html
-│   │   │   ├── 📄 clh-008-intro.html
-│   │   │   ├── ❓ clh-008-quiz.html
-│   │   │   ├── 📄 clh-009-intro.html
-│   │   │   ├── ❓ clh-009-quiz.html
-│   │   │   ├── 📄 clh-010-intro.html
-│   │   │   ├── ❓ clh-010-quiz.html
-│   │   │   ├── 📄 clh-011-intro.html
-│   │   │   ├── ❓ clh-011-quiz.html
-│   │   │   ├── 📄 clh-012-intro.html
-│   │   │   ├── ❓ clh-012-quiz.html
-│   │   │   ├── 📄 clh-013-intro.html
-│   │   │   ├── ❓ clh-013-quiz.html
-│   │   │   ├── 📄 clh-014-intro.html
-│   │   │   ├── ❓ clh-014-quiz.html
-│   │   │   ├── 📄 clh-015-intro.html
-│   │   │   ├── ❓ clh-015-quiz.html
-│   │   │   ├── 📄 clh-016-intro.html
-│   │   │   ├── ❓ clh-016-quiz.html
-│   │   │   ├── 📄 clh-017-intro.html
-│   │   │   ├── ❓ clh-017-quiz.html
-│   │   │   ├── 📄 clh-018-intro.html
-│   │   │   ├── ❓ clh-018-quiz.html
-│   │   │   ├── 📄 clh-019-intro.html
-│   │   │   ├── ❓ clh-019-quiz.html
-│   │   │   ├── 📄 clh-020-intro.html
-│   │   │   ├── ❓ clh-020-quiz.html
-│   │   │   ├── 📄 clh-021-intro.html
-│   │   │   ├── ❓ clh-021-quiz.html
-│   │   │   ├── 📄 clh-022-intro.html
-│   │   │   ├── ❓ clh-022-quiz.html
-│   │   │   ├── 📄 clh-023-intro.html
-│   │   │   ├── ❓ clh-023-quiz.html
-│   │   │   ├── 📄 clh-024-intro.html
-│   │   │   ├── ❓ clh-024-quiz.html
-│   │   │   ├── 📄 clh-025-intro.html
-│   │   │   ├── ❓ clh-025-quiz.html
-│   │   │   ├── 📄 clh-026-intro.html
-│   │   │   ├── ❓ clh-026-quiz.html
-│   │   │   ├── 📄 clh-027-intro.html
-│   │   │   ├── ❓ clh-027-quiz.html
-│   │   │   ├── 📄 clh-028-intro.html
-│   │   │   ├── ❓ clh-028-quiz.html
-│   │   │   ├── 📄 clh-029-intro.html
-│   │   │   ├── ❓ clh-029-quiz.html
-│   │   │   ├── 📄 clh-030-intro.html
-│   │   │   └── ❓ clh-030-quiz.html
+│   │   │   ├── 📄 script-clh-001-intro.applet.html
+│   │   │   ├── ❓ script-clh-001.quiz.html
+│   │   │   ├── 📄 script-clh-002-intro.applet.html
+│   │   │   ├── ❓ script-clh-002.quiz.html
+│   │   │   ├── 📄 script-clh-003-intro.applet.html
+│   │   │   ├── ❓ script-clh-003.quiz.html
+│   │   │   ├── 📄 script-clh-004-intro.applet.html
+│   │   │   ├── ❓ script-clh-004.quiz.html
+│   │   │   ├── 📄 script-clh-005-intro.applet.html
+│   │   │   ├── ❓ script-clh-005.quiz.html
+│   │   │   ├── 📄 script-clh-006-intro.applet.html
+│   │   │   ├── ❓ script-clh-006.quiz.html
+│   │   │   ├── 📄 script-clh-007-intro.applet.html
+│   │   │   ├── ❓ script-clh-007.quiz.html
+│   │   │   ├── 📄 script-clh-008-intro.applet.html
+│   │   │   ├── ❓ script-clh-008.quiz.html
+│   │   │   ├── 📄 script-clh-009-intro.applet.html
+│   │   │   ├── ❓ script-clh-009.quiz.html
+│   │   │   ├── 📄 script-clh-010-intro.applet.html
+│   │   │   ├── ❓ script-clh-010.quiz.html
+│   │   │   ├── 📄 script-clh-011-intro.applet.html
+│   │   │   ├── ❓ script-clh-011.quiz.html
+│   │   │   ├── 📄 script-clh-012-intro.applet.html
+│   │   │   ├── ❓ script-clh-012.quiz.html
+│   │   │   ├── 📄 script-clh-013-intro.applet.html
+│   │   │   ├── ❓ script-clh-013.quiz.html
+│   │   │   ├── 📄 script-clh-014-intro.applet.html
+│   │   │   ├── ❓ script-clh-014.quiz.html
+│   │   │   ├── 📄 script-clh-015-intro.applet.html
+│   │   │   ├── ❓ script-clh-015.quiz.html
+│   │   │   ├── 📄 script-clh-016-intro.applet.html
+│   │   │   ├── ❓ script-clh-016.quiz.html
+│   │   │   ├── 📄 script-clh-017-intro.applet.html
+│   │   │   ├── ❓ script-clh-017.quiz.html
+│   │   │   ├── 📄 script-clh-018-intro.applet.html
+│   │   │   ├── ❓ script-clh-018.quiz.html
+│   │   │   ├── 📄 script-clh-019-intro.applet.html
+│   │   │   ├── ❓ script-clh-019.quiz.html
+│   │   │   ├── 📄 script-clh-020-intro.applet.html
+│   │   │   ├── ❓ script-clh-020.quiz.html
+│   │   │   ├── 📄 script-clh-021-intro.applet.html
+│   │   │   ├── ❓ script-clh-021.quiz.html
+│   │   │   ├── 📄 script-clh-022-intro.applet.html
+│   │   │   ├── ❓ script-clh-022.quiz.html
+│   │   │   ├── 📄 script-clh-023-intro.applet.html
+│   │   │   ├── ❓ script-clh-023.quiz.html
+│   │   │   ├── 📄 script-clh-024-intro.applet.html
+│   │   │   ├── ❓ script-clh-024.quiz.html
+│   │   │   ├── 📄 script-clh-025-intro.applet.html
+│   │   │   ├── ❓ script-clh-025.quiz.html
+│   │   │   ├── 📄 script-clh-026-intro.applet.html
+│   │   │   ├── ❓ script-clh-026.quiz.html
+│   │   │   ├── 📄 script-clh-027-intro.applet.html
+│   │   │   ├── ❓ script-clh-027.quiz.html
+│   │   │   ├── 📄 script-clh-028-intro.applet.html
+│   │   │   ├── ❓ script-clh-028.quiz.html
+│   │   │   ├── 📄 script-clh-029-intro.applet.html
+│   │   │   ├── ❓ script-clh-029.quiz.html
+│   │   │   ├── 📄 script-clh-030-intro.applet.html
+│   │   │   └── ❓ script-clh-030.quiz.html
 │   │   ├── 📁 courses [courses]
 │   │   │   ├── 📁 clh [courses]
 │   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📁 modules [modules]
 │   │   │   │   │   ├── 📁 clh-001 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   └── 📄 script-intro.module.html
 │   │   │   │   │   ├── 📁 clh-002 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-003 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-004 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-005 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-006 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-007 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-008 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-009 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-010 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-011 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-012 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-013 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-014 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-015 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-016 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-017 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-018 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-019 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-020 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-021 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-022 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-023 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-024 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-025 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-026 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-027 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-028 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-029 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   ├── 📁 clh-030 [modules]
-│   │   │   │   │   │   ├── 📄 intro.html
-│   │   │   │   │   │   ├── 🔬 lab.html
-│   │   │   │   │   │   └── ❓ quiz.html
+│   │   │   │   │   │   ├── 📄 script-intro.module.html
+│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
 │   │   │   │   │   └── 📁 clh-031 [modules]
-│   │   │   │   │       └── 🔬 lab.html
+│   │   │   │   │       └── 🔬 script-lab.lab.html
 │   │   │   │   ├── 📁 reference [courses]
 │   │   │   │   └── 📁 tiers [courses]
 │   │   │   └── 📁 grep-pipe-mastery [courses]
-│   │   │       ├── 📄 blacksite-demo.html
-│   │   │       └── 📍 index.html
+│   │   │       ├── 📍 index.html
+│   │   │       └── 📄 script-blacksite-demo.applet.html
+│   │   ├── 📁 exams
+│   │   │   ├── 📄 script-python-exam-chapter1.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter2.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter3.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter4.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter5.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter6.exam.html
+│   │   │   ├── 📄 script-python-exam-chapter7.exam.html
+│   │   │   └── 📄 script-python-exam-chapter8.exam.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 linux-bash-lab.html
-│   │   │   ├── 🔬 powershell-lab.html
-│   │   │   ├── 🔬 python-lab.html
-│   │   │   └── 🔬 sysadmin-lab.html
+│   │   │   ├── 🔬 script-lab.lab.html
+│   │   │   ├── 🔬 script-linux-bash.lab.html
+│   │   │   ├── 🔬 script-powershell.lab.html
+│   │   │   ├── 🔬 script-python.lab.html
+│   │   │   └── 🔬 script-sysadmin.lab.html
+│   │   ├── 📁 linux
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 script-mission-file-operations.lab.html
+│   │   │   │   ├── 🔬 script-mission-file-search.lab.html
+│   │   │   │   ├── 🔬 script-mission-permissions.lab.html
+│   │   │   │   ├── 🔬 script-mission-text-viewing.lab.html
+│   │   │   │   ├── 🔬 script-template-warmup.lab.html
+│   │   │   │   └── 🔬 script-warmup-navigation.lab.html
+│   │   │   ├── 📄 script-quick.reference.html
+│   │   │   └── 📁 tools
+│   │   │       ├── 📄 script-directory.tool.html
+│   │   │       └── 📄 script-permission.tool.html
 │   │   ├── 📁 modules [modules]
 │   │   │   ├── 📁 linux-mastery [modules]
 │   │   │   │   ├── 📍 index.html
-│   │   │   │   ├── 📄 lm-01-welcome.html
-│   │   │   │   ├── 📄 lm-02-first-commands.html
-│   │   │   │   ├── 📄 lm-03-getting-help.html
-│   │   │   │   ├── 📄 lm-04-terminal-environment.html
-│   │   │   │   ├── 📄 lm-05-section1-practice.html
-│   │   │   │   ├── 📄 lm-06-navigation.html
-│   │   │   │   ├── 📄 lm-07-listing-files.html
-│   │   │   │   ├── 📄 lm-08-file-operations.html
-│   │   │   │   ├── 📄 lm-09-copy-move.html
-│   │   │   │   ├── 📄 lm-10-viewing-files.html
-│   │   │   │   ├── 📄 lm-11-finding-files.html
-│   │   │   │   ├── 📄 lm-12-section2-practice.html
-│   │   │   │   ├── 📄 lm-13-grep-basics.html
-│   │   │   │   ├── 📄 lm-14-regular-expressions.html
-│   │   │   │   ├── 📄 lm-15-sed-editor.html
-│   │   │   │   ├── 📄 lm-16-awk-processing.html
-│   │   │   │   ├── 📄 lm-17-sort-uniq.html
-│   │   │   │   ├── 📄 lm-18-cut-paste.html
-│   │   │   │   ├── 📄 lm-19-text-pipelines.html
-│   │   │   │   ├── 📄 lm-20-section3-practice.html
-│   │   │   │   ├── 📄 lm-21-users-groups.html
-│   │   │   │   ├── 📄 lm-22-file-permissions.html
-│   │   │   │   ├── 📄 lm-23-chmod.html
-│   │   │   │   ├── 📄 lm-24-chown.html
-│   │   │   │   ├── 📄 lm-25-sudo.html
-│   │   │   │   ├── 📄 lm-26-special-permissions.html
-│   │   │   │   ├── 📄 lm-27-section4-practice.html
-│   │   │   │   ├── 📄 lm-28-process-basics.html
-│   │   │   │   ├── 📄 lm-29-ps-top.html
-│   │   │   │   ├── 📄 lm-30-background-jobs.html
-│   │   │   │   ├── 📄 lm-31-signals-kill.html
-│   │   │   │   ├── 📄 lm-32-cron.html
-│   │   │   │   ├── 📄 lm-33-systemd.html
-│   │   │   │   ├── 📄 lm-34-section5-practice.html
-│   │   │   │   ├── 📄 lm-35-network-info.html
-│   │   │   │   ├── 📄 lm-36-connectivity.html
-│   │   │   │   ├── 📄 lm-37-dns-tools.html
-│   │   │   │   ├── 📄 lm-38-downloading.html
-│   │   │   │   ├── 📄 lm-39-ssh-basics.html
-│   │   │   │   ├── 📄 lm-40-section6-practice.html
-│   │   │   │   ├── 📄 lm-41-first-script.html
-│   │   │   │   ├── 📄 lm-42-variables.html
-│   │   │   │   ├── 📄 lm-43-user-input.html
-│   │   │   │   ├── 📄 lm-44-conditionals.html
-│   │   │   │   ├── 📄 lm-45-loops.html
-│   │   │   │   ├── 📄 lm-46-functions.html
-│   │   │   │   ├── 📄 lm-47-practical-scripts.html
-│   │   │   │   ├── 📄 lm-48-section7-practice.html
-│   │   │   │   ├── 📄 lm-49-links.html
-│   │   │   │   ├── 📄 lm-50-text-editors.html
-│   │   │   │   ├── 📄 lm-51-package-management.html
-│   │   │   │   ├── 📄 lm-52-environment-path.html
-│   │   │   │   └── 📄 lm-53-next-steps.html
+│   │   │   │   ├── 📄 script-lm-01-welcome.module.html
+│   │   │   │   ├── 📄 script-lm-02-first-commands.module.html
+│   │   │   │   ├── 📄 script-lm-03-getting-help.module.html
+│   │   │   │   ├── 📄 script-lm-04-terminal-environment.module.html
+│   │   │   │   ├── 📄 script-lm-05-section1-practice.module.html
+│   │   │   │   ├── 📄 script-lm-06-navigation.module.html
+│   │   │   │   ├── 📄 script-lm-07-listing-files.module.html
+│   │   │   │   ├── 📄 script-lm-08-file-operations.module.html
+│   │   │   │   ├── 📄 script-lm-09-copy-move.module.html
+│   │   │   │   ├── 📄 script-lm-10-viewing-files.module.html
+│   │   │   │   ├── 📄 script-lm-11-finding-files.module.html
+│   │   │   │   ├── 📄 script-lm-12-section2-practice.module.html
+│   │   │   │   ├── 📄 script-lm-13-grep-basics.module.html
+│   │   │   │   ├── 📄 script-lm-14-regular-expressions.module.html
+│   │   │   │   ├── 📄 script-lm-15-sed-editor.module.html
+│   │   │   │   ├── 📄 script-lm-16-awk-processing.module.html
+│   │   │   │   ├── 📄 script-lm-17-sort-uniq.module.html
+│   │   │   │   ├── 📄 script-lm-18-cut-paste.module.html
+│   │   │   │   ├── 📄 script-lm-19-text-pipelines.module.html
+│   │   │   │   ├── 📄 script-lm-20-section3-practice.module.html
+│   │   │   │   ├── 📄 script-lm-21-users-groups.module.html
+│   │   │   │   ├── 📄 script-lm-22-file-permissions.module.html
+│   │   │   │   ├── 📄 script-lm-23-chmod.module.html
+│   │   │   │   ├── 📄 script-lm-24-chown.module.html
+│   │   │   │   ├── 📄 script-lm-25-sudo.module.html
+│   │   │   │   ├── 📄 script-lm-26-special-permissions.module.html
+│   │   │   │   ├── 📄 script-lm-27-section4-practice.module.html
+│   │   │   │   ├── 📄 script-lm-28-process-basics.module.html
+│   │   │   │   ├── 📄 script-lm-29-ps-top.module.html
+│   │   │   │   ├── 📄 script-lm-30-background-jobs.module.html
+│   │   │   │   ├── 📄 script-lm-31-signals-kill.module.html
+│   │   │   │   ├── 📄 script-lm-32-cron.module.html
+│   │   │   │   ├── 📄 script-lm-33-systemd.module.html
+│   │   │   │   ├── 📄 script-lm-34-section5-practice.module.html
+│   │   │   │   ├── 📄 script-lm-35-network-info.module.html
+│   │   │   │   ├── 📄 script-lm-36-connectivity.module.html
+│   │   │   │   ├── 📄 script-lm-37-dns-tools.module.html
+│   │   │   │   ├── 📄 script-lm-38-downloading.module.html
+│   │   │   │   ├── 📄 script-lm-39-ssh-basics.module.html
+│   │   │   │   ├── 📄 script-lm-40-section6-practice.module.html
+│   │   │   │   ├── 📄 script-lm-41-first-script.module.html
+│   │   │   │   ├── 📄 script-lm-42-variables.module.html
+│   │   │   │   ├── 📄 script-lm-43-user-input.module.html
+│   │   │   │   ├── 📄 script-lm-44-conditionals.module.html
+│   │   │   │   ├── 📄 script-lm-45-loops.module.html
+│   │   │   │   ├── 📄 script-lm-46-functions.module.html
+│   │   │   │   ├── 📄 script-lm-47-practical-scripts.module.html
+│   │   │   │   ├── 📄 script-lm-48-section7-practice.module.html
+│   │   │   │   ├── 📄 script-lm-49-links.module.html
+│   │   │   │   ├── 📄 script-lm-50-text-editors.module.html
+│   │   │   │   ├── 📄 script-lm-51-package-management.module.html
+│   │   │   │   ├── 📄 script-lm-52-environment-path.module.html
+│   │   │   │   └── 📄 script-lm-53-next-steps.module.html
 │   │   │   └── 📁 python [modules]
 │   │   │       ├── 📍 index.html
-│   │   │       ├── 📄 python-exam-chapter1.html
-│   │   │       ├── 📄 python-exam-chapter2.html
-│   │   │       ├── 📄 python-exam-chapter3.html
-│   │   │       ├── 📄 python-exam-chapter4.html
-│   │   │       ├── 📄 python-exam-chapter5.html
-│   │   │       ├── 📄 python-exam-chapter6.html
-│   │   │       ├── 📄 python-exam-chapter7.html
-│   │   │       ├── 📄 python-exam-chapter8.html
-│   │   │       ├── 📄 python-immersive-chapter1.html
-│   │   │       ├── 📄 python-immersive-chapter2.html
-│   │   │       ├── 📄 python-immersive-chapter3.html
-│   │   │       ├── 📄 python-immersive-chapter4.html
-│   │   │       ├── 📄 python-immersive-chapter5.html
-│   │   │       ├── 📄 python-immersive-chapter6.html
-│   │   │       ├── 📄 python-immersive-chapter7.html
-│   │   │       └── 📄 python-immersive-chapter8.html
+│   │   │       ├── 📄 script-python-immersive-chapter1.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter2.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter3.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter4.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter5.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter6.module.html
+│   │   │       ├── 📄 script-python-immersive-chapter7.module.html
+│   │   │       └── 📄 script-python-immersive-chapter8.module.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📊 automation-presentation.html
-│   │   │   ├── 📄 macos-linux-basics.html
 │   │   │   ├── 📁 python [presentations]
-│   │   │   │   ├── 📄 python-chapter1.html
-│   │   │   │   ├── 📄 python-chapter2.html
-│   │   │   │   ├── 📄 python-chapter3.html
-│   │   │   │   ├── 📄 python-chapter4.html
-│   │   │   │   ├── 📄 python-chapter5.html
-│   │   │   │   ├── 📄 python-chapter6.html
-│   │   │   │   ├── 📄 python-chapter7.html
-│   │   │   │   └── 📄 python-chapter8.html
-│   │   │   └── 📄 scripting-basics.html
+│   │   │   │   ├── 📊 script-python-chapter1.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter2.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter3.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter4.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter5.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter6.presentation.html
+│   │   │   │   ├── 📊 script-python-chapter7.presentation.html
+│   │   │   │   └── 📊 script-python-chapter8.presentation.html
+│   │   │   ├── 📊 script-automation.presentation.html
+│   │   │   ├── 📊 script-macos-linux-basics.presentation.html
+│   │   │   └── 📊 script-scripting-basics.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ linux-bash-quiz.html
-│   │   │   ├── ❓ linux-basics-quiz.html
-│   │   │   ├── ❓ powershell-quiz.html
-│   │   │   ├── ❓ python-quiz.html
-│   │   │   └── ❓ sysadmin-quiz.html
+│   │   │   ├── ❓ script-linux-bash.quiz.html
+│   │   │   ├── ❓ script-linux-basics.quiz.html
+│   │   │   ├── ❓ script-powershell.quiz.html
+│   │   │   ├── ❓ script-python.quiz.html
+│   │   │   ├── ❓ script-quiz.quiz.html
+│   │   │   └── ❓ script-sysadmin.quiz.html
 │   │   ├── 📁 tools
+│   │   │   ├── 📄 script-automation.tool.html
+│   │   │   ├── 📄 script-linux-command.tool.html
+│   │   │   ├── 📄 script-linux-permissions.tool.html
+│   │   │   ├── 📄 script-log-management.tool.html
+│   │   │   ├── 📄 script-package-manager.tool.html
+│   │   │   ├── 📄 script-process-management.tool.html
+│   │   │   └── 📄 script-windows-registry.tool.html
 │   │   └── 📁 tutorials
 │   ├── 🏠 shield [house:shield]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 access [applets]
-│   │   │   │   ├── 📄 aaa-flow-simulator.html
-│   │   │   │   ├── 📄 access-control-models.html
 │   │   │   │   ├── 📁 access_control [applets]
-│   │   │   │   │   ├── 📄 access_control.html
-│   │   │   │   │   └── 📁 access_control.hyperesources [applets]
+│   │   │   │   │   ├── 📁 access_control.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-access-control.applet.html
 │   │   │   │   ├── 📁 biometrics [applets]
-│   │   │   │   │   ├── 📄 Biometrics.html
-│   │   │   │   │   └── 📁 Biometrics.hyperesources [applets]
-│   │   │   │   └── 📁 kerberos [applets]
-│   │   │   │       ├── 📄 kerberos.html
-│   │   │   │       └── 📁 kerberos.hyperesources [applets]
+│   │   │   │   │   ├── 📁 Biometrics.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-biometrics.applet.html
+│   │   │   │   ├── 📁 kerberos [applets]
+│   │   │   │   │   ├── 📁 kerberos.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-kerberos.applet.html
+│   │   │   │   └── 📄 shield-access-control-models.applet.html
 │   │   │   ├── 📁 architecture [applets]
-│   │   │   │   ├── 📄 security-models-visualizer.html
-│   │   │   │   └── 📄 zero-trust-visualizer.html
 │   │   │   ├── 📁 compliance [applets]
 │   │   │   │   ├── 📁 cmmc_access_control [applets]
-│   │   │   │   │   └── 📄 ACv2.html
+│   │   │   │   │   └── 📄 shield-acv2.applet.html
 │   │   │   │   ├── 📁 cmmc_audit_accountability [applets]
-│   │   │   │   │   └── 📄 AUv2.html
+│   │   │   │   │   └── 📄 shield-auv2.applet.html
 │   │   │   │   ├── 📁 cmmc_awareness_training [applets]
-│   │   │   │   │   └── 📄 ATv2.html
+│   │   │   │   │   └── 📄 shield-atv2.applet.html
 │   │   │   │   ├── 📁 cmmc_config_management [applets]
-│   │   │   │   │   └── 📄 CMv2.html
+│   │   │   │   │   └── 📄 shield-cmv2.applet.html
 │   │   │   │   ├── 📁 cmmc_cui [applets]
-│   │   │   │   │   ├── 📄 CUI_2.html
-│   │   │   │   │   └── 📁 CUI_2.hyperesources [applets]
+│   │   │   │   │   ├── 📁 CUI_2.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cui-2.applet.html
 │   │   │   │   ├── 📁 cmmc_framework [applets]
-│   │   │   │   │   ├── 📄 CMMCFrameworkv2.html
-│   │   │   │   │   └── 📁 CMMCFrameworkv2.hyperesources [applets]
+│   │   │   │   │   ├── 📁 CMMCFrameworkv2.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cmmc-frameworkv2.applet.html
 │   │   │   │   ├── 📁 cmmc_identification_auth [applets]
-│   │   │   │   │   └── 📄 IAv2.html
+│   │   │   │   │   └── 📄 shield-iav2.applet.html
 │   │   │   │   ├── 📁 cmmc_incident_response [applets]
-│   │   │   │   │   └── 📄 IRv2.html
+│   │   │   │   │   └── 📄 shield-irv2.applet.html
 │   │   │   │   ├── 📁 cmmc_maintenance [applets]
-│   │   │   │   │   └── 📄 MAv2.html
+│   │   │   │   │   └── 📄 shield-mav2.applet.html
 │   │   │   │   ├── 📁 cmmc_media_protection [applets]
-│   │   │   │   │   └── 📄 MPv2.html
+│   │   │   │   │   └── 📄 shield-mpv2.applet.html
 │   │   │   │   ├── 📁 cmmc_personnel_security [applets]
-│   │   │   │   │   └── 📄 PSv2.html
+│   │   │   │   │   └── 📄 shield-psv2.applet.html
 │   │   │   │   ├── 📁 cmmc_physical_protection [applets]
-│   │   │   │   │   └── 📄 PEv2.html
+│   │   │   │   │   └── 📄 shield-pev2.applet.html
 │   │   │   │   ├── 📁 cmmc_quiz [applets]
-│   │   │   │   │   ├── 📄 CMMCTestKnowledge2.html
-│   │   │   │   │   └── 📁 CMMCTestKnowledge2.hyperesources [applets]
+│   │   │   │   │   ├── 📁 CMMCTestKnowledge2.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cmmc-test-knowledge2.applet.html
 │   │   │   │   ├── 📁 cmmc_risk_assessment [applets]
-│   │   │   │   │   └── 📄 RAv2.html
+│   │   │   │   │   └── 📄 shield-rav2.applet.html
 │   │   │   │   ├── 📁 cmmc_security_assessment [applets]
-│   │   │   │   │   └── 📄 CAv2.html
+│   │   │   │   │   └── 📄 shield-cav2.applet.html
 │   │   │   │   ├── 📁 cmmc_system_comm_protection [applets]
-│   │   │   │   │   └── 📄 SCv2.html
+│   │   │   │   │   └── 📄 shield-scv2.applet.html
 │   │   │   │   ├── 📁 cmmc_system_info_integrity [applets]
-│   │   │   │   │   └── 📄 SIv2.html
+│   │   │   │   │   └── 📄 shield-siv2.applet.html
 │   │   │   │   ├── 📁 cui [applets]
-│   │   │   │   ├── 📄 framework-selector.html
-│   │   │   │   └── 📄 laws-regulations-reference.html
+│   │   │   │   ├── 📄 shield-framework-selector.applet.html
+│   │   │   │   └── 📄 shield-laws-regulations.applet.html
 │   │   │   ├── 📁 crypto [applets]
 │   │   │   │   ├── 📁 block_mode [applets]
-│   │   │   │   │   ├── 📄 Block.html
-│   │   │   │   │   └── 📁 Block.hyperesources [applets]
+│   │   │   │   │   ├── 📁 Block.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-block.applet.html
 │   │   │   │   ├── 📁 blockchain [applets]
-│   │   │   │   │   ├── 📄 blockchain.html
-│   │   │   │   │   └── 📁 blockchain.hyperesources [applets]
-│   │   │   │   ├── 📄 checksum-verifier.html
+│   │   │   │   │   ├── 📁 blockchain.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-blockchain.applet.html
 │   │   │   │   ├── 📁 cryptography [applets]
-│   │   │   │   │   ├── 📄 cryptography.html
-│   │   │   │   │   └── 📁 cryptography.hyperesources [applets]
+│   │   │   │   │   ├── 📁 cryptography.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cryptography.applet.html
 │   │   │   │   ├── 📁 cryptomatch [applets]
-│   │   │   │   │   ├── 📄 CryptoMatch.html
-│   │   │   │   │   └── 📁 CryptoMatch.hyperesources [applets]
+│   │   │   │   │   ├── 📁 CryptoMatch.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-crypto-match.applet.html
 │   │   │   │   ├── 📁 diffie_hellman [applets]
-│   │   │   │   │   ├── 📄 diffie_hellman.html
-│   │   │   │   │   └── 📁 diffie_hellman.hyperesources [applets]
+│   │   │   │   │   ├── 📁 diffie_hellman.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-diffie-hellman.applet.html
 │   │   │   │   ├── 📁 digital_signatures [applets]
-│   │   │   │   │   ├── 📄 DigitalSignature.html
-│   │   │   │   │   └── 📁 DigitalSignature.hyperesources [applets]
+│   │   │   │   │   ├── 📁 DigitalSignature.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-digital-signature.applet.html
 │   │   │   │   ├── 📁 encrypt_data [applets]
-│   │   │   │   │   ├── 📄 EncryptData.html
-│   │   │   │   │   └── 📁 EncryptData.hyperesources [applets]
+│   │   │   │   │   ├── 📁 EncryptData.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-encrypt-data.applet.html
 │   │   │   │   ├── 📁 encryption [applets]
-│   │   │   │   │   ├── 📄 encryption_jedit_6_1.html
-│   │   │   │   │   └── 📁 encryption_jedit_6_1.hyperesources [applets]
+│   │   │   │   │   ├── 📁 encryption_jedit_6_1.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-encryption-jedit-6-1.applet.html
 │   │   │   │   ├── 📁 factor_prime [applets]
-│   │   │   │   │   ├── 📄 FactorPrime.html
-│   │   │   │   │   └── 📁 FactorPrime.hyperesources [applets]
-│   │   │   │   ├── 🔬 gpg-encryption-lab.html
+│   │   │   │   │   ├── 📁 FactorPrime.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-factor-prime.applet.html
 │   │   │   │   ├── 📁 hashing [applets]
-│   │   │   │   │   ├── 📄 Hashing.html
-│   │   │   │   │   └── 📁 Hashing.hyperesources [applets]
+│   │   │   │   │   ├── 📁 Hashing.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-hashing.applet.html
 │   │   │   │   ├── 📁 hashing_narrated [applets]
-│   │   │   │   │   ├── 📄 Hashing_vo.html
-│   │   │   │   │   └── 📁 Hashing_vo.hyperesources [applets]
+│   │   │   │   │   ├── 📁 Hashing_vo.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-hashing-vo.applet.html
 │   │   │   │   ├── 📁 hashing_steganography [applets]
-│   │   │   │   │   ├── 📄 Encryption_II.html
-│   │   │   │   │   ├── 📄 Hash_Lab.html
-│   │   │   │   │   ├── 📄 Stego.html
-│   │   │   │   │   ├── 📄 encryption_task.html
-│   │   │   │   │   ├── 📊 hash_steg_presentation.html
-│   │   │   │   │   ├── 📄 hash_v3.html
-│   │   │   │   │   └── 📄 hashing_Lab.html
+│   │   │   │   │   ├── 📄 shield-encryption-ii.applet.html
+│   │   │   │   │   ├── 📄 shield-encryption-task.applet.html
+│   │   │   │   │   ├── 📄 shield-hash-v3.applet.html
+│   │   │   │   │   └── 📄 shield-stego.applet.html
 │   │   │   │   ├── 📁 pki [applets]
-│   │   │   │   │   ├── 📄 pki.html
-│   │   │   │   │   └── 📁 pki.hyperesources [applets]
-│   │   │   │   └── 📁 rsa [applets]
-│   │   │   │       ├── 📄 RSA.html
-│   │   │   │       └── 📁 RSA.hyperesources [applets]
+│   │   │   │   │   ├── 📁 pki.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-pki.applet.html
+│   │   │   │   ├── 📁 rsa [applets]
+│   │   │   │   │   ├── 📁 RSA.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-rsa.applet.html
+│   │   │   │   └── 📄 shield-checksum-verifier.applet.html
 │   │   │   ├── 📁 fundamentals [applets]
-│   │   │   │   ├── 📄 asset-classification-wizard.html
 │   │   │   │   ├── 📁 career_exploration [applets]
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 cybersecurity_controls [applets]
-│   │   │   │   │   ├── 📄 cybersecurity_controls.html
-│   │   │   │   │   └── 📁 cybersecurity_controls.hyperesources [applets]
-│   │   │   │   ├── 📄 data-lifecycle-visualizer.html
+│   │   │   │   │   ├── 📁 cybersecurity_controls.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cybersecurity-controls.applet.html
 │   │   │   │   ├── 📁 data_roles [applets]
-│   │   │   │   │   ├── 📄 dataroles.html
-│   │   │   │   │   └── 📁 dataroles.hyperesources [applets]
+│   │   │   │   │   ├── 📁 dataroles.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-dataroles.applet.html
 │   │   │   │   ├── 📁 design_principles [applets]
-│   │   │   │   │   ├── 📄 cybersecuritydesignprinciples.html
-│   │   │   │   │   └── 📁 cybersecuritydesignprinciples.hyperesources [applets]
+│   │   │   │   │   ├── 📁 cybersecuritydesignprinciples.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cybersecuritydesignprinciples.applet.html
 │   │   │   │   ├── 📁 ethics_challenge [applets]
-│   │   │   │   │   ├── 📄 ethics_challenge.html
-│   │   │   │   │   └── 📁 ethics_challenge.hyperesources [applets]
+│   │   │   │   │   ├── 📁 ethics_challenge.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-ethics-challenge.applet.html
 │   │   │   │   ├── 📁 ethics_conduct [applets]
-│   │   │   │   │   ├── 📄 EthicsProfConduct.html
-│   │   │   │   │   └── 📁 EthicsProfConduct.hyperesources [applets]
+│   │   │   │   │   ├── 📁 EthicsProfConduct.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-ethics-prof-conduct.applet.html
 │   │   │   │   ├── 📁 five_pillars [applets]
-│   │   │   │   │   ├── 📄 FivePillars.html
-│   │   │   │   │   └── 📁 FivePillars.hyperesources [applets]
+│   │   │   │   │   ├── 📁 FivePillars.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-five-pillars.applet.html
 │   │   │   │   ├── 📁 physical_protection [applets]
-│   │   │   │   │   ├── 📄 physical_environmental.html
-│   │   │   │   │   └── 📁 physical_environmental.hyperesources [applets]
+│   │   │   │   │   ├── 📁 physical_environmental.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-physical-environmental.applet.html
 │   │   │   │   ├── 📁 privacy [applets]
-│   │   │   │   │   ├── 📄 privacy.html
-│   │   │   │   │   └── 📁 privacy.hyperesources [applets]
-│   │   │   │   ├── 📄 secure-sdlc-framework.html
-│   │   │   │   ├── 📄 security-best-practices.html
-│   │   │   │   ├── 📄 security-governance-dashboard.html
+│   │   │   │   │   ├── 📁 privacy.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-privacy.applet.html
+│   │   │   │   ├── 📄 shield-asset-classification-wizard.applet.html
+│   │   │   │   ├── 📄 shield-secure-sdlc-framework.applet.html
+│   │   │   │   ├── 📄 shield-security-best-practices.applet.html
+│   │   │   │   ├── 📄 shield-security-governance-dashboard.applet.html
 │   │   │   │   └── 📁 the_cube [applets]
-│   │   │   │       ├── 📄 cube.html
-│   │   │   │       └── 📁 cube.hyperesources [applets]
+│   │   │   │       ├── 📁 cube.hyperesources [applets]
+│   │   │   │       └── 📄 shield-cube.applet.html
 │   │   │   ├── 📁 games [applets]
 │   │   │   │   ├── 📁 cookie_caper [applets]
-│   │   │   │   │   ├── 📄 cookies.html
-│   │   │   │   │   └── 📁 cookies.hyperesources [applets]
+│   │   │   │   │   ├── 📁 cookies.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cookies.applet.html
 │   │   │   │   ├── 📁 cyber_hat_match [applets]
-│   │   │   │   │   ├── 📄 hatmatch.html
-│   │   │   │   │   └── 📁 hatmatch.hyperesources [applets]
+│   │   │   │   │   ├── 📁 hatmatch.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-hatmatch.applet.html
 │   │   │   │   ├── 📁 cyber_scramble [applets]
-│   │   │   │   │   ├── 📄 cyberscramble.html
-│   │   │   │   │   └── 📁 cyberscramble.hyperesources [applets]
+│   │   │   │   │   ├── 📁 cyberscramble.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cyberscramble.applet.html
 │   │   │   │   ├── 📁 ethical_hacking_case [applets]
-│   │   │   │   │   ├── 📄 EH_exam_1A.html
 │   │   │   │   │   └── 📁 EH_exam_1A.hyperesources [applets]
 │   │   │   │   ├── 📁 hacker_hangman [applets]
-│   │   │   │   │   ├── 📄 hangman.html
-│   │   │   │   │   └── 📁 hangman.hyperesources [applets]
+│   │   │   │   │   ├── 📁 hangman.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-hangman.applet.html
 │   │   │   │   └── 📁 whats_my_crime [applets]
-│   │   │   │       ├── 📄 crime.html
-│   │   │   │       └── 📁 crime.hyperesources [applets]
+│   │   │   │       ├── 📁 crime.hyperesources [applets]
+│   │   │   │       └── 📄 shield-crime.applet.html
 │   │   │   ├── 📁 governance [applets]
-│   │   │   │   └── 📄 cism-management-dashboard.html
+│   │   │   │   └── 📄 shield-cism-management-dashboard.applet.html
 │   │   │   ├── 📁 network [applets]
-│   │   │   │   ├── 📄 browser-security-hardening.html
 │   │   │   │   ├── 📁 eap [applets]
-│   │   │   │   │   ├── 📄 EAP.html
-│   │   │   │   │   └── 📁 EAP.hyperesources [applets]
+│   │   │   │   │   ├── 📁 EAP.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-eap.applet.html
 │   │   │   │   ├── 📁 firewalls [applets]
 │   │   │   │   │   ├── 📁 Filrewalls_NCYTE.hyperesources [applets]
-│   │   │   │   │   └── 📄 Firewalls.html
-│   │   │   │   ├── 📄 home-network-security.html
+│   │   │   │   │   └── 📄 shield-firewalls.applet.html
 │   │   │   │   ├── 📁 ids_ips [applets]
-│   │   │   │   │   ├── 📄 IDS_IPS.html
-│   │   │   │   │   └── 📁 IDS_IPS.hyperesources [applets]
-│   │   │   │   ├── 📄 linux-firewall-builder.html
+│   │   │   │   │   ├── 📁 IDS_IPS.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-ids-ips.applet.html
 │   │   │   │   ├── 📁 nat_pat [applets]
-│   │   │   │   │   ├── 📄 NAT.html
-│   │   │   │   │   └── 📁 NAT.hyperesources [applets]
+│   │   │   │   │   ├── 📁 NAT.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-nat.applet.html
 │   │   │   │   ├── 📁 protocol_analysis [applets]
-│   │   │   │   │   ├── 📄 ProtocolAnalysis.html
-│   │   │   │   │   └── 📁 ProtocolAnalysis.hyperesources [applets]
+│   │   │   │   │   ├── 📁 ProtocolAnalysis.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-protocol-analysis.applet.html
+│   │   │   │   ├── 📄 shield-browser-security-hardening.applet.html
+│   │   │   │   ├── 📄 shield-home-network-security.applet.html
+│   │   │   │   ├── 📄 shield-linux-firewall-builder.applet.html
 │   │   │   │   ├── 📁 threeway_handshake [applets]
-│   │   │   │   │   ├── 📄 threeway_handshake1_audio.html
+│   │   │   │   │   ├── 📄 shield-threeway-handshake1-audio.applet.html
 │   │   │   │   │   └── 📁 threeway_handshake1_audio.hyperesources [applets]
 │   │   │   │   ├── 📁 vpn [applets]
-│   │   │   │   │   ├── 📄 vpn.html
+│   │   │   │   │   ├── 📄 shield-vpn.applet.html
 │   │   │   │   │   └── 📁 vpn.hyperesources [applets]
 │   │   │   │   └── 📁 wireless_security [applets]
-│   │   │   │       ├── 📄 WirelessSecurity.html
-│   │   │   │       └── 📁 WirelessSecurity.hyperesources [applets]
+│   │   │   │       ├── 📁 WirelessSecurity.hyperesources [applets]
+│   │   │   │       └── 📄 shield-wireless-security.applet.html
 │   │   │   ├── 📁 operations [applets]
-│   │   │   │   ├── 📄 cfr-310-incident-response.html
-│   │   │   │   ├── 📄 cyber-arts-bootcamp.html
-│   │   │   │   ├── 📄 cysa-analyst-toolkit.html
-│   │   │   │   ├── 📄 ics-scada-security.html
-│   │   │   │   ├── 🔬 ir-forensics-lab.html
-│   │   │   │   └── 📄 pentest-plus-toolkit.html
+│   │   │   │   ├── 📄 shield-cfr-310-incident-response.applet.html
+│   │   │   │   ├── 📄 shield-cyber-arts-bootcamp.applet.html
+│   │   │   │   ├── 📄 shield-cysa-analyst-toolkit.applet.html
+│   │   │   │   ├── 📄 shield-ics-scada-security.applet.html
+│   │   │   │   └── 📄 shield-pentest-plus-toolkit.applet.html
 │   │   │   ├── 📁 risk [applets]
-│   │   │   │   ├── 📄 bia-calculator.html
-│   │   │   │   ├── 📄 business-continuity-planner.html
-│   │   │   │   ├── 📄 change-management.html
 │   │   │   │   ├── 📁 config_management [applets]
-│   │   │   │   │   ├── 📄 ConfigMgmt.html
-│   │   │   │   │   └── 📁 ConfigMgmt.hyperesources [applets]
-│   │   │   │   ├── 📄 crisc-risk-calculator.html
+│   │   │   │   │   ├── 📁 ConfigMgmt.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-config-mgmt.applet.html
 │   │   │   │   ├── 📁 cybersecurity_scenario [applets]
-│   │   │   │   │   ├── 📄 cyber_scenario.html
-│   │   │   │   │   └── 📁 cyber_scenario.hyperesources [applets]
-│   │   │   │   ├── 📄 incident-response-simulator.html
+│   │   │   │   │   ├── 📁 cyber_scenario.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-cyber-scenario.applet.html
 │   │   │   │   ├── 📁 pspg [applets]
-│   │   │   │   │   ├── 📄 PSPG.html
-│   │   │   │   │   └── 📁 PSPG.hyperesources [applets]
+│   │   │   │   │   ├── 📁 PSPG.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-pspg.applet.html
 │   │   │   │   ├── 📁 risk_analysis [applets]
-│   │   │   │   │   ├── 📄 risk_analysis.html
-│   │   │   │   │   └── 📁 risk_analysis.hyperesources [applets]
-│   │   │   │   └── 📁 risk_management [applets]
-│   │   │   │       ├── 📄 risk_management.html
-│   │   │   │       └── 📁 risk_management.hyperesources [applets]
+│   │   │   │   │   ├── 📁 risk_analysis.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-risk-analysis.applet.html
+│   │   │   │   ├── 📁 risk_management [applets]
+│   │   │   │   │   ├── 📁 risk_management.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-risk-management.applet.html
+│   │   │   │   ├── 📄 shield-business-continuity-planner.applet.html
+│   │   │   │   └── 📄 shield-change-management.applet.html
 │   │   │   └── 📁 threats [applets]
 │   │   │       ├── 📁 attacks_malware [applets]
-│   │   │       │   ├── 📄 attacks.html
-│   │   │       │   └── 📁 attacks.hyperesources [applets]
+│   │   │       │   ├── 📁 attacks.hyperesources [applets]
+│   │   │       │   └── 📄 shield-attacks.applet.html
 │   │   │       ├── 📁 buffer_overflow [applets]
-│   │   │       │   ├── 📄 bufferoverflow.html
-│   │   │       │   └── 📁 bufferoverflow.hyperesources [applets]
+│   │   │       │   ├── 📁 bufferoverflow.hyperesources [applets]
+│   │   │       │   └── 📄 shield-bufferoverflow.applet.html
 │   │   │       ├── 📁 code_injection [applets]
-│   │   │       │   ├── 📄 codeinjection.html
-│   │   │       │   └── 📁 codeinjection.hyperesources [applets]
+│   │   │       │   ├── 📁 codeinjection.hyperesources [applets]
+│   │   │       │   └── 📄 shield-codeinjection.applet.html
 │   │   │       ├── 📁 cross_site_scripting [applets]
-│   │   │       │   ├── 📄 crosssitescripting.html
-│   │   │       │   └── 📁 crosssitescripting.hyperesources [applets]
+│   │   │       │   ├── 📁 crosssitescripting.hyperesources [applets]
+│   │   │       │   └── 📄 shield-crosssitescripting.applet.html
 │   │   │       ├── 📁 google_hacking [applets]
-│   │   │       │   ├── 📄 googlehacking.html
-│   │   │       │   └── 📁 googlehacking.hyperesources [applets]
+│   │   │       │   ├── 📁 googlehacking.hyperesources [applets]
+│   │   │       │   └── 📄 shield-googlehacking.applet.html
 │   │   │       ├── 📁 heartbleed [applets]
-│   │   │       │   ├── 📄 heartbleed.html
-│   │   │       │   └── 📁 heartbleed.hyperesources [applets]
-│   │   │       ├── 📄 malware-types-reference.html
+│   │   │       │   ├── 📁 heartbleed.hyperesources [applets]
+│   │   │       │   └── 📄 shield-heartbleed.applet.html
 │   │   │       ├── 📁 meltdown_spectre [applets]
-│   │   │       │   ├── 📄 meltdown_spectre.html
-│   │   │       │   └── 📁 meltdown_spectre.hyperesources [applets]
+│   │   │       │   ├── 📁 meltdown_spectre.hyperesources [applets]
+│   │   │       │   └── 📄 shield-meltdown-spectre.applet.html
 │   │   │       ├── 📁 os_command_injection [applets]
-│   │   │       │   ├── 📄 oscommandinjection.html
-│   │   │       │   └── 📁 oscommandinjection.hyperesources [applets]
+│   │   │       │   ├── 📁 oscommandinjection.hyperesources [applets]
+│   │   │       │   └── 📄 shield-oscommandinjection.applet.html
 │   │   │       ├── 📁 osint [applets]
-│   │   │       │   ├── 📄 OSINT.html
-│   │   │       │   └── 📁 OSINT.hyperesources [applets]
+│   │   │       │   ├── 📁 OSINT.hyperesources [applets]
+│   │   │       │   └── 📄 shield-osint.applet.html
 │   │   │       ├── 📁 osint_challenge [applets]
-│   │   │       │   └── 📄 OSINT_PD_Challenge.html
+│   │   │       │   └── 📄 shield-osint-pd-challenge.applet.html
 │   │   │       ├── 📁 pen_testing [applets]
-│   │   │       │   ├── 📄 pen_testing.html
-│   │   │       │   └── 📁 pen_testing.hyperesources [applets]
+│   │   │       │   ├── 📁 pen_testing.hyperesources [applets]
+│   │   │       │   └── 📄 shield-pen-testing.applet.html
 │   │   │       ├── 📁 phishing_mystery [applets]
-│   │   │       │   ├── 📄 phishing.html
-│   │   │       │   └── 📁 phishing.hyperesources [applets]
+│   │   │       │   ├── 📁 phishing.hyperesources [applets]
+│   │   │       │   └── 📄 shield-phishing.applet.html
 │   │   │       ├── 📁 ransomware [applets]
-│   │   │       │   ├── 📄 RansomwareAttack.html
-│   │   │       │   └── 📁 RansomwareAttack.hyperesources [applets]
+│   │   │       │   ├── 📁 RansomwareAttack.hyperesources [applets]
+│   │   │       │   └── 📄 shield-ransomware-attack.applet.html
+│   │   │       ├── 📄 shield-malware-types.applet.html
 │   │   │       ├── 📁 social_engineering [applets]
-│   │   │       │   ├── 📄 social_engineering.html
+│   │   │       │   ├── 📄 shield-social-engineering.applet.html
 │   │   │       │   └── 📁 social_engineering.hyperesources [applets]
 │   │   │       ├── 📁 social_engineering_tactics [applets]
-│   │   │       │   ├── 📄 SocialEngineeringTactics.html
-│   │   │       │   └── 📁 SocialEngineeringTactics.hyperesources [applets]
+│   │   │       │   ├── 📁 SocialEngineeringTactics.hyperesources [applets]
+│   │   │       │   └── 📄 shield-social-engineering-tactics.applet.html
 │   │   │       ├── 📁 spoofing [applets]
-│   │   │       │   ├── 📄 spoofing1.html
+│   │   │       │   ├── 📄 shield-spoofing1.applet.html
 │   │   │       │   └── 📁 spoofing1.hyperesources [applets]
 │   │   │       ├── 📁 sql_injection [applets]
-│   │   │       │   ├── 📄 SQLinjection.html
-│   │   │       │   └── 📁 SQLinjection.hyperesources [applets]
+│   │   │       │   ├── 📁 SQLinjection.hyperesources [applets]
+│   │   │       │   └── 📄 shield-sq-linjection.applet.html
 │   │   │       ├── 📁 stuxnet [applets]
-│   │   │       │   ├── 📄 stuxnet.html
+│   │   │       │   ├── 📄 shield-stuxnet.applet.html
 │   │   │       │   └── 📁 stuxnet.hyperesources [applets]
 │   │   │       └── 📁 threat_actors [applets]
-│   │   │           ├── 📄 ThreatActors.html
-│   │   │           └── 📁 ThreatActors.hyperesources [applets]
+│   │   │           ├── 📁 ThreatActors.hyperesources [applets]
+│   │   │           └── 📄 shield-threat-actors.applet.html
 │   │   ├── 📁 challenges
-│   │   │   └── 📄 attack-vector-challenge.html
+│   │   │   └── 📄 shield-attack-vector-challenge.applet.html
+│   │   ├── 📁 exams
+│   │   │   └── 📄 shield-eh-exam-1-a.exam.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 🔬 access-control-lab.html
-│   │   │   ├── 🔬 compliance-lab.html
-│   │   │   ├── 🔬 cryptography-lab.html
-│   │   │   ├── 🔬 network-security-lab.html
-│   │   │   ├── 📄 osint-google-dorking.html
-│   │   │   ├── 🔬 security-fundamentals-lab.html
-│   │   │   └── 🔬 threats-lab.html
+│   │   │   ├── 🔬 shield-access-control.lab.html
+│   │   │   ├── 🔬 shield-compliance.lab.html
+│   │   │   ├── 🔬 shield-cryptography.lab.html
+│   │   │   ├── 🔬 shield-gpg-encryption.lab.html
+│   │   │   ├── 🔬 shield-hash.lab.html
+│   │   │   ├── 🔬 shield-hashing.lab.html
+│   │   │   ├── 🔬 shield-ir-forensics.lab.html
+│   │   │   ├── 🔬 shield-network-security.lab.html
+│   │   │   ├── 🔬 shield-osint-google-dorking.lab.html
+│   │   │   ├── 🔬 shield-security-fundamentals.lab.html
+│   │   │   └── 🔬 shield-threats.lab.html
 │   │   ├── 📁 presentations [presentations]
-│   │   │   ├── 📄 cia-triad.html
-│   │   │   ├── 📄 cse-06-security-monitoring-incident-response.html
-│   │   │   ├── 📄 cse-07-risk-assessment-management.html
-│   │   │   ├── 📄 cse-08-compliance-governance.html
-│   │   │   ├── 📄 security-fundamentals.html
-│   │   │   ├── 📊 security-presentation.html
-│   │   │   └── 📄 social-engineering.html
+│   │   │   ├── 📊 shield-cia-triad.presentation.html
+│   │   │   ├── 📊 shield-cse-06-security-monitoring-incident-response.presentation.html
+│   │   │   ├── 📊 shield-cse-07-risk-assessment-management.presentation.html
+│   │   │   ├── 📊 shield-cse-08-compliance-governance.presentation.html
+│   │   │   ├── 📊 shield-hash-steg.presentation.html
+│   │   │   ├── 📊 shield-security-fundamentals.presentation.html
+│   │   │   ├── 📊 shield-security.presentation.html
+│   │   │   └── 📊 shield-social-engineering.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
-│   │   │   ├── ❓ access-control-quiz.html
-│   │   │   ├── ❓ cia-triad-quiz.html
-│   │   │   ├── ❓ compliance-quiz.html
-│   │   │   ├── ❓ cryptography-quiz.html
-│   │   │   ├── ❓ cse-06-quiz.html
-│   │   │   ├── ❓ cse-07-quiz.html
-│   │   │   ├── ❓ cse-08-quiz.html
-│   │   │   ├── ❓ network-security-quiz.html
-│   │   │   ├── ❓ security-fundamentals-quiz.html
-│   │   │   └── ❓ threats-quiz.html
+│   │   │   ├── ❓ shield-access-control.quiz.html
+│   │   │   ├── ❓ shield-cia-triad.quiz.html
+│   │   │   ├── ❓ shield-compliance.quiz.html
+│   │   │   ├── ❓ shield-cryptography.quiz.html
+│   │   │   ├── ❓ shield-cse-06.quiz.html
+│   │   │   ├── ❓ shield-cse-07.quiz.html
+│   │   │   ├── ❓ shield-cse-08.quiz.html
+│   │   │   ├── ❓ shield-network-security.quiz.html
+│   │   │   ├── ❓ shield-security-fundamentals.quiz.html
+│   │   │   └── ❓ shield-threats.quiz.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
-│   │   │   ├── 📄 cve-lookup.html
-│   │   │   ├── 📄 google-dorking-osint.html
-│   │   │   └── 📄 yara-training.html
+│   │   │   ├── 📄 shield-aaa-flow.tool.html
+│   │   │   ├── 📄 shield-bia.tool.html
+│   │   │   ├── 📄 shield-crisc-risk.tool.html
+│   │   │   ├── 📄 shield-cve-lookup.tool.html
+│   │   │   ├── 📄 shield-data-lifecycle.tool.html
+│   │   │   ├── 📄 shield-google-dorking-osint.tool.html
+│   │   │   ├── 📄 shield-incident-response.tool.html
+│   │   │   ├── 📄 shield-security-models.tool.html
+│   │   │   ├── 📄 shield-yara.tool.html
+│   │   │   └── 📄 shield-zero-trust.tool.html
 │   │   └── 📁 tutorials
 │   └── 🏠 web [house:web]
 │       ├── 📁 applets [applets]
 │       │   ├── 📁 ip-addressing [applets]
 │       │   │   ├── 📁 IPv6 [applets]
-│       │   │   │   ├── 📄 IPv6.html
-│       │   │   │   └── 📁 IPv6.hyperesources [applets]
+│       │   │   │   ├── 📁 IPv6.hyperesources [applets]
+│       │   │   │   └── 📄 web-ipv6.applet.html
 │       │   │   ├── 📁 IPv6Challenge [applets]
-│       │   │   │   ├── 📄 IPv6Challenge.html
-│       │   │   │   └── 📁 IPv6Challenge.hyperesources [applets]
+│       │   │   │   ├── 📁 IPv6Challenge.hyperesources [applets]
+│       │   │   │   └── 📄 web-ipv6-challenge.applet.html
 │       │   │   ├── 📁 NAT [applets]
-│       │   │   │   ├── 📄 NAT.html
-│       │   │   │   └── 📁 NAT.hyperesources [applets]
+│       │   │   │   ├── 📁 NAT.hyperesources [applets]
+│       │   │   │   └── 📄 web-nat.applet.html
 │       │   │   ├── 📁 VLSM [applets]
-│       │   │   │   ├── 📄 VLSM.html
-│       │   │   │   └── 📁 VLSM.hyperesources [applets]
+│       │   │   │   ├── 📁 VLSM.hyperesources [applets]
+│       │   │   │   └── 📄 web-vlsm.applet.html
 │       │   │   ├── 📁 VLSM_challenge [applets]
-│       │   │   │   ├── 📄 VLSM_challenge.html
-│       │   │   │   └── 📁 VLSM_challenge.hyperesources [applets]
-│       │   │   ├── 📄 binary-decimal-converter.html
+│       │   │   │   ├── 📁 VLSM_challenge.hyperesources [applets]
+│       │   │   │   └── 📄 web-vlsm-challenge.applet.html
 │       │   │   ├── 📁 binaryIP [applets]
-│       │   │   │   ├── 📄 binaryIP.html
-│       │   │   │   └── 📁 binaryIP.hyperesources [applets]
+│       │   │   │   ├── 📁 binaryIP.hyperesources [applets]
+│       │   │   │   └── 📄 web-binary-ip.applet.html
 │       │   │   ├── 📁 classA [applets]
-│       │   │   │   ├── 📄 classA.html
-│       │   │   │   └── 📁 classA.hyperesources [applets]
+│       │   │   │   ├── 📁 classA.hyperesources [applets]
+│       │   │   │   └── 📄 web-class-a.applet.html
 │       │   │   ├── 📁 classB [applets]
-│       │   │   │   ├── 📄 classB.html
-│       │   │   │   └── 📁 classB.hyperesources [applets]
+│       │   │   │   ├── 📁 classB.hyperesources [applets]
+│       │   │   │   └── 📄 web-class-b.applet.html
 │       │   │   ├── 📁 intro_subnetting [applets]
-│       │   │   │   ├── 📄 intro_subnetting.html
-│       │   │   │   └── 📁 intro_subnetting.hyperesources [applets]
+│       │   │   │   ├── 📁 intro_subnetting.hyperesources [applets]
+│       │   │   │   └── 📄 web-intro-subnetting.applet.html
 │       │   │   ├── 📁 macaddressing [applets]
-│       │   │   │   ├── 📄 EMate_pizzaparty_exercise_102918.html
-│       │   │   │   └── 📁 EMate_pizzaparty_exercise_102918.hyperesources [applets]
+│       │   │   │   ├── 📁 EMate_pizzaparty_exercise_102918.hyperesources [applets]
+│       │   │   │   └── 📄 web-emate-pizzaparty-exercise-102918.applet.html
 │       │   │   ├── 📁 network_classes2 [applets]
-│       │   │   │   ├── 📄 network_classes2.html
-│       │   │   │   └── 📁 network_classes2.hyperesources [applets]
+│       │   │   │   ├── 📁 network_classes2.hyperesources [applets]
+│       │   │   │   └── 📄 web-network-classes2.applet.html
 │       │   │   ├── 📁 networkaddressing [applets]
-│       │   │   │   ├── 📄 EMate_understanding_addresses.html
-│       │   │   │   └── 📁 EMate_understanding_addresses.hyperesources [applets]
-│       │   │   └── 📁 subnetting [applets]
-│       │   │       ├── 📄 subnetting.html
-│       │   │       └── 📁 subnetting.hyperesources [applets]
-│       │   ├── 📄 networking-exam-flashcards.html
-│       │   ├── 📄 networking-interactive-guide.html
+│       │   │   │   ├── 📁 EMate_understanding_addresses.hyperesources [applets]
+│       │   │   │   └── 📄 web-emate-understanding-addresses.applet.html
+│       │   │   ├── 📁 subnetting [applets]
+│       │   │   │   ├── 📁 subnetting.hyperesources [applets]
+│       │   │   │   └── 📄 web-subnetting.applet.html
+│       │   │   └── 📄 web-binary-decimal-converter.applet.html
 │       │   ├── 📁 networking-quizzes [applets]
-│       │   │   ├── 📄 networking-ch7-10.html
-│       │   │   ├── 📄 networking-ch7-20.html
-│       │   │   ├── 📄 networking-final-review.html
-│       │   │   └── ❓ week3-quiz.html
 │       │   ├── 📁 services [applets]
-│       │   │   ├── 📄 http-status-codes.html
-│       │   │   ├── 📄 smb-file-sharing-guide.html
-│       │   │   └── 📄 web-server-comparison.html
-│       │   └── 📁 visualizers [applets]
-│       │       ├── 📄 acl-visualizer.html
-│       │       ├── 📄 cable-visualizer.html
-│       │       ├── 📄 devices-visualizer.html
-│       │       ├── 📄 etherchannel-visualizer.html
-│       │       ├── 📄 fhrp-visualizer.html
-│       │       ├── 📄 ipv6-visualizer.html
-│       │       ├── 📄 network-services-visualizer.html
-│       │       ├── 📄 osi-deep-dive-visualizer.html
-│       │       ├── 📄 osi-visualizer.html
-│       │       ├── 📄 ospf-cost-visualizer.html
-│       │       ├── 📄 port-visualizer.html
-│       │       ├── 📄 qos-visualizer.html
-│       │       ├── 📄 security-visualizer.html
-│       │       ├── 📄 stp-visualizer.html
-│       │       ├── 📄 subnetting-visualizer.html
-│       │       ├── 📄 switch-operations-visualizer.html
-│       │       ├── 📄 topology-visualizer.html
-│       │       ├── 📄 troubleshooting-visualizer.html
-│       │       ├── 📄 vlan-visualizer.html
-│       │       ├── 📄 wireless-architecture-visualizer.html
-│       │       └── 📄 wireless-visualizer.html
+│       │   │   ├── 📄 web-http-status-codes.applet.html
+│       │   │   ├── 📄 web-server-comparison.applet.html
+│       │   │   └── 📄 web-smb-file-sharing.applet.html
+│       │   ├── 📁 visualizers [applets]
+│       │   └── 📄 web-networking-interactive.applet.html
 │       ├── 📁 exams
-│       │   └── 📄 networking-midterm.html
+│       │   ├── 📄 web-networking-exam-flashcards.exam.html
+│       │   └── 📄 web-networking-midterm.exam.html
 │       ├── 📁 handouts
 │       ├── 📍 index.html
 │       ├── 📁 labs [labs]
-│       │   ├── 🔬 networking-fundamentals-lab.html
-│       │   └── 🔬 static-routes-lab.html
+│       │   ├── 🔬 web-networking-fundamentals.lab.html
+│       │   └── 🔬 web-static-routes.lab.html
 │       ├── 📁 modules [modules]
-│       │   ├── 📄 ip-addressing-ch7-10.html
-│       │   └── 📄 networking-flashcards.html
+│       │   ├── 📄 web-ip-addressing-ch7-10.module.html
+│       │   └── 📄 web-networking-flashcards.module.html
 │       ├── 📁 presentations [presentations]
-│       │   ├── 📊 arp-presentation.html
-│       │   ├── 📊 cables-presentation.html
-│       │   ├── 📊 devices-presentation.html
-│       │   ├── 📊 dhcp-presentation.html
-│       │   ├── 📊 dns-presentation.html
-│       │   ├── 📊 eigrp-presentation.html
-│       │   ├── 📊 etherchannel-presentation.html
-│       │   ├── 📊 fhrp-presentation.html
-│       │   ├── 📊 ipv6-presentation.html
-│       │   ├── 📊 nat-presentation.html
-│       │   ├── 📊 network-essentials-presentation.html
-│       │   ├── 📊 ntp-presentation.html
-│       │   ├── 📊 osi-deep-dive-presentation.html
-│       │   ├── 📄 osi-model.html
-│       │   ├── 📊 osi-presentation.html
-│       │   ├── 📊 ospf-presentation.html
-│       │   ├── 📊 ports-presentation.html
-│       │   ├── 📊 stp-presentation.html
-│       │   ├── 📊 subnetting-presentation.html
-│       │   ├── 📊 switch-operations-presentation.html
-│       │   ├── 📊 tcp-presentation.html
-│       │   ├── 📊 topologies-presentation.html
-│       │   ├── 📊 troubleshooting-presentation.html
-│       │   ├── 📊 vlan-presentation.html
-│       │   ├── 📊 wireless-architecture-presentation.html
-│       │   └── 📊 wireless-presentation.html
+│       │   ├── 📊 web-arp.presentation.html
+│       │   ├── 📊 web-cables.presentation.html
+│       │   ├── 📊 web-devices.presentation.html
+│       │   ├── 📊 web-dhcp.presentation.html
+│       │   ├── 📊 web-dns.presentation.html
+│       │   ├── 📊 web-eigrp.presentation.html
+│       │   ├── 📊 web-etherchannel.presentation.html
+│       │   ├── 📊 web-fhrp.presentation.html
+│       │   ├── 📊 web-ipv6.presentation.html
+│       │   ├── 📊 web-nat.presentation.html
+│       │   ├── 📊 web-network-essentials.presentation.html
+│       │   ├── 📊 web-ntp.presentation.html
+│       │   ├── 📊 web-osi-deep-dive.presentation.html
+│       │   ├── 📊 web-osi-model.presentation.html
+│       │   ├── 📊 web-osi.presentation.html
+│       │   ├── 📊 web-ospf.presentation.html
+│       │   ├── 📊 web-ports.presentation.html
+│       │   ├── 📊 web-stp.presentation.html
+│       │   ├── 📊 web-subnetting.presentation.html
+│       │   ├── 📊 web-switch-operations.presentation.html
+│       │   ├── 📊 web-tcp.presentation.html
+│       │   ├── 📊 web-topologies.presentation.html
+│       │   ├── 📊 web-troubleshooting.presentation.html
+│       │   ├── 📊 web-vlan.presentation.html
+│       │   ├── 📊 web-wireless-architecture.presentation.html
+│       │   └── 📊 web-wireless.presentation.html
 │       ├── 📁 quizzes [quizzes]
-│       │   ├── 📄 networking-fundamentals-ports.html
-│       │   ├── ❓ osi-quiz.html
-│       │   └── ❓ subnetting-quiz.html
+│       │   ├── ❓ web-networking-ch7-10.quiz.html
+│       │   ├── ❓ web-networking-ch7-20.quiz.html
+│       │   ├── ❓ web-networking-final-review.quiz.html
+│       │   ├── ❓ web-networking-fundamentals-ports.quiz.html
+│       │   ├── ❓ web-osi.quiz.html
+│       │   ├── ❓ web-subnetting.quiz.html
+│       │   └── ❓ web-week3.quiz.html
 │       ├── 📁 simulators
-│       │   ├── 📄 interactive-network-simulator.v2.html
-│       │   └── 📄 packet-tracer-lite-v3.html
+│       │   ├── 📄 web-interactive-network-simulatorv2.simulator.html
+│       │   └── 📄 web-packet-tracer-lite-v3.simulator.html
 │       ├── 📁 speaker-notes
 │       ├── 📁 textbook
-│       │   └── 📄 networking-textbook-ch7-20.html
+│       │   └── 📄 web-networking-textbook-ch7-20.textbook.html
 │       ├── 📁 tools
-│       │   ├── 📄 burp-training.html
-│       │   ├── 📄 dns-header-reference.html
-│       │   ├── 📄 gobuster-training.html
-│       │   ├── 📄 nikto-training.html
-│       │   ├── 📄 sqlmap-training.html
-│       │   └── 📄 subnet-calculator.html
+│       │   ├── 📄 web-acl.tool.html
+│       │   ├── 📄 web-burp.tool.html
+│       │   ├── 📄 web-cable.tool.html
+│       │   ├── 📄 web-devices.tool.html
+│       │   ├── 📄 web-dns-header.tool.html
+│       │   ├── 📄 web-etherchannel.tool.html
+│       │   ├── 📄 web-fhrp.tool.html
+│       │   ├── 📄 web-gobuster.tool.html
+│       │   ├── 📄 web-ipv6.tool.html
+│       │   ├── 📄 web-network-services.tool.html
+│       │   ├── 📄 web-nikto.tool.html
+│       │   ├── 📄 web-osi-deep-dive.tool.html
+│       │   ├── 📄 web-osi.tool.html
+│       │   ├── 📄 web-ospf-cost.tool.html
+│       │   ├── 📄 web-port.tool.html
+│       │   ├── 📄 web-qos.tool.html
+│       │   ├── 📄 web-security.tool.html
+│       │   ├── 📄 web-sqlmap.tool.html
+│       │   ├── 📄 web-stp.tool.html
+│       │   ├── 📄 web-subnet.tool.html
+│       │   ├── 📄 web-subnetting.tool.html
+│       │   ├── 📄 web-switch-operations.tool.html
+│       │   ├── 📄 web-topology.tool.html
+│       │   ├── 📄 web-troubleshooting.tool.html
+│       │   ├── 📄 web-vlan.tool.html
+│       │   ├── 📄 web-wireless-architecture.tool.html
+│       │   └── 📄 web-wireless.tool.html
 │       ├── 📁 troubleshooting
-│       │   └── 🔬 lab-troubleshooting-guide.html
+│       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
 ├── 📄 path-view.html
+├── 📄 privacy.html
+├── 📄 product-info.html
+├── 📄 quickstart.html
 ├── 📁 scripts
 ├── 📄 sorting.html
 ├── 📁 styles
+├── 🔬 syllabus-template.html
 ├── 📁 templates
 │   └── ❓ quiz-template.html
 ├── 📄 terminal.html
@@ -1612,213 +1631,211 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| cloud-architecture-designer | presentation | ✓ | 0 |
-| aws-service-explorer | presentation | ✓ | 1 |
-| ch02-aws-account-explorer | presentation | ✓ | 1 |
-| ch03-support-plans-visualizer | presentation | ✓ | 0 |
-| ch04-aws-regions-explorer | presentation | ✓ | 1 |
-| ch05-security-visualizer | presentation | ✓ | 1 |
-| ch06-aws-tools-explorer | presentation | ✓ | 0 |
-| ch07-compute-services-explorer | presentation | ✓ | 0 |
-| ch07-ec2-instance-visualizer | presentation | ✓ | 1 |
-| ch08-storage-services-explorer | presentation | ✓ | 0 |
-| ch09-database-services-explorer | presentation | ✓ | 0 |
-| ch10-vpc-networking-visualizer | presentation | ✓ | 1 |
-| ch11-automation-explorer | presentation | ✓ | 0 |
-| ch12-use-cases-visualizer | presentation | ✓ | 1 |
-| ch01-cloud-models-visualizer | presentation | ✓ | 1 |
-| cloud-provider-comparison | presentation | ✓ | 1 |
-| cloud-visualizer | presentation | ✓ | 1 |
+| cloud-architecture-designer.applet | presentation | ✓ | 0 |
+| cloud-provider-comparison.applet | presentation | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| aws-services-lab | lab | ✓ | 0 |
-| cloud-architecture-lab | lab | ✓ | 0 |
-| cloud-lab-simulator | lab | ✓ | 2 |
-| cloud-security-lab | lab | ✓ | 0 |
-| cse-module01-lab | lab | ✓ | 0 |
-| cse-module01-presentation | presentation | ✓ | 1 |
-| cse-module02-lab | lab | ✓ | 1 |
-| cse-module02-presentation | presentation | ✓ | 1 |
-| cse-module03-lab | lab | ✓ | 1 |
-| cse-module03-presentation | presentation | ✓ | 1 |
-| cse-module04-lab | lab | ✓ | 1 |
-| cse-module04-presentation | presentation | ✓ | 1 |
-| cse-module04-quiz | presentation | ✓ | 0 |
-| cse-module05-lab | lab | ✓ | 1 |
-| cse-module05-presentation | presentation | ✓ | 1 |
-| cse-module05-quiz | presentation | ✓ | 1 |
-| cse-module06-lab | lab | ✓ | 1 |
-| cse-module06-presentation | presentation | ✓ | 1 |
-| cse-module06-quiz | presentation | ✓ | 0 |
-| cse-module07-lab | lab | ✓ | 1 |
-| cse-module07-presentation | presentation | ✓ | 1 |
-| cse-module08-lab | lab | ✓ | 1 |
-| cse-module08-presentation | presentation | ✓ | 1 |
-| cse-module08-quiz | applet | ✓ | 1 |
-| gui-lab | presentation | ✓ | 0 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| quiz | presentation | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| quiz | presentation | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 2 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 2 |
-| ps-lab | lab | ✓ | 1 |
-| quiz | applet | ✓ | 1 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | presentation | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | lab | ✓ | 0 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | lab | ✓ | 0 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | lab | ✓ | 1 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 1 |
-| gui-lab | presentation | ✓ | 0 |
-| presentation | presentation | ✓ | 2 |
-| ps-lab | lab | ✓ | 0 |
-| gui-lab | presentation | ✓ | 0 |
-| presentation | presentation | ✓ | 1 |
-| ps-lab | lab | ✓ | 0 |
-| simulation | presentation | ✓ | 0 |
-| aws-fundamentals | presentation | ✓ | 1 |
-| azure-fundamentals | presentation | ✓ | 2 |
-| cloud-concepts | applet | ✓ | 1 |
-| cloud-presentation | presentation | ✓ | 2 |
+| cloud-architecture.lab | lab | ✓ | 0 |
+| cloud-aws-services.lab | lab | ✓ | 0 |
+| cloud-cse-module01.lab | lab | ✓ | 0 |
+| cloud-cse-module02.lab | lab | ✓ | 1 |
+| cloud-cse-module03.lab | lab | ✓ | 1 |
+| cloud-cse-module04.lab | lab | ✓ | 1 |
+| cloud-cse-module05.lab | lab | ✓ | 1 |
+| cloud-cse-module06.lab | lab | ✓ | 1 |
+| cloud-cse-module07.lab | lab | ✓ | 1 |
+| cloud-cse-module08.lab | lab | ✓ | 1 |
+| cloud-gui.lab | presentation | ✓ | 0 |
+| cloud-lab.lab | lab | ✓ | 2 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-security.lab | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-quiz.quiz | presentation | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-quiz.quiz | applet | ✓ | 1 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-gui.lab | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-gui.lab | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-simulation.module | presentation | ✓ | 0 |
+| cloud-aws-fundamentals.presentation | presentation | ✓ | 1 |
+| cloud-azure-fundamentals.presentation | presentation | ✓ | 2 |
+| cloud-cloud.presentation | presentation | ✓ | 2 |
+| cloud-concepts.presentation | applet | ✓ | 1 |
+| cloud-cse-module01.presentation | presentation | ✓ | 1 |
+| cloud-cse-module02.presentation | presentation | ✓ | 1 |
+| cloud-cse-module03.presentation | presentation | ✓ | 1 |
+| cloud-cse-module04.presentation | presentation | ✓ | 1 |
+| cloud-cse-module05.presentation | presentation | ✓ | 1 |
+| cloud-cse-module06.presentation | presentation | ✓ | 1 |
+| cloud-cse-module07.presentation | presentation | ✓ | 1 |
+| cloud-cse-module08.presentation | presentation | ✓ | 1 |
 | aws-fundamentals | quiz | ✓ | 0 |
 | cse-01-fundamentals | quiz | ✓ | 0 |
 | cse-02-iam | quiz | ✓ | 0 |
 | cse-03-encryption | quiz | ✓ | 0 |
 | cse-04-network | quiz | ✓ | 0 |
 | cse-05-appsec | quiz | ✓ | 1 |
+| cloud-cse-module04.quiz | presentation | ✓ | 0 |
+| cloud-cse-module05.quiz | presentation | ✓ | 1 |
+| cloud-cse-module06.quiz | presentation | ✓ | 0 |
+| cloud-cse-module08.quiz | applet | ✓ | 1 |
+| cloud-quiz.quiz | presentation | ✓ | 0 |
+| cloud-aws-service.tool | presentation | ✓ | 1 |
+| cloud-ch01-cloud-models.tool | presentation | ✓ | 1 |
+| cloud-ch02-aws-account.tool | presentation | ✓ | 1 |
+| cloud-ch03-support-plans.tool | presentation | ✓ | 0 |
+| cloud-ch04-aws-regions.tool | presentation | ✓ | 1 |
+| cloud-ch05-security.tool | presentation | ✓ | 1 |
+| cloud-ch06-aws-tools.tool | presentation | ✓ | 0 |
+| cloud-ch07-compute-services.tool | presentation | ✓ | 0 |
+| cloud-ch07-ec2-instance.tool | presentation | ✓ | 1 |
+| cloud-ch08-storage-services.tool | presentation | ✓ | 0 |
+| cloud-ch09-database-services.tool | presentation | ✓ | 0 |
+| cloud-ch10-vpc-networking.tool | presentation | ✓ | 1 |
+| cloud-ch11-automation.tool | presentation | ✓ | 0 |
+| cloud-ch12-use-cases.tool | presentation | ✓ | 1 |
+| cloud-cloud.tool | presentation | ✓ | 1 |
 
 ### CODE (DevOps)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| ansible-playbook-visualizer | applet | ✓ | 1 |
-| automation-visualizer | applet | ✓ | 1 |
-| docker-playground | applet | ✓ | 1 |
-| kubernetes-cluster-sim | applet | ✓ | 1 |
-| sprint-simulator | applet | ✓ | 1 |
+| code-docker-playground.applet | applet | ✓ | 1 |
+| code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| cicd-lab | presentation | ✓ | 0 |
-| cloudformation-lab | presentation | ✓ | 0 |
-| docker-lab | presentation | ✓ | 1 |
-| kubernetes-lab | presentation | ✓ | 1 |
-| unit-testing-lab | presentation | ✓ | 0 |
-| agile-sdlc | applet | ✓ | 1 |
-| automation-presentation | presentation | ✓ | 1 |
-| cicd-fundamentals | applet | ✓ | 1 |
-| cloudformation-fundamentals | applet | ✓ | 1 |
-| docker-fundamentals | applet | ✓ | 1 |
-| git-basics | applet | ✓ | 1 |
-| kubernetes-fundamentals | applet | ✓ | 1 |
-| terraform-fundamentals | applet | ✓ | 1 |
+| code-cicd.lab | presentation | ✓ | 0 |
+| code-cloudformation.lab | presentation | ✓ | 0 |
+| code-docker.lab | presentation | ✓ | 1 |
+| code-kubernetes.lab | presentation | ✓ | 1 |
+| code-unit-testing.lab | presentation | ✓ | 0 |
+| code-agile-sdlc.presentation | applet | ✓ | 1 |
+| code-automation.presentation | presentation | ✓ | 1 |
+| code-cicd-fundamentals.presentation | applet | ✓ | 1 |
+| code-cloudformation-fundamentals.presentation | applet | ✓ | 1 |
+| code-docker-fundamentals.presentation | applet | ✓ | 1 |
+| code-git-basics.presentation | applet | ✓ | 1 |
+| code-kubernetes-fundamentals.presentation | applet | ✓ | 1 |
+| code-terraform-fundamentals.presentation | applet | ✓ | 1 |
+| code-ansible-playbook.tool | applet | ✓ | 1 |
+| code-automation.tool | applet | ✓ | 1 |
+| code-sprint.tool | applet | ✓ | 1 |
 
 ### EYE (Monitoring)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| 5-tuple-approach | applet | ✓ | 1 |
-| app-visibility-control | presentation | ✓ | 1 |
-| attack-surface-vuln | presentation | ✓ | 0 |
-| attack-surface | applet | ✓ | 1 |
-| attribution-investigation | presentation | ✓ | 0 |
-| content-filtering | presentation | ✓ | 0 |
-| cvss-terminology | applet | ✓ | 1 |
-| data-types-output | applet | ✓ | 1 |
-| data-visibility-challenges | presentation | ✓ | 0 |
-| data-visibility | applet | ✓ | 1 |
-| detection-methods | applet | ✓ | 1 |
-| disk-images | presentation | ✓ | 1 |
-| endpoint-attacks | presentation | ✓ | 1 |
-| evasion-obfuscation | presentation | ✓ | 1 |
-| evidence-types | presentation | ✓ | 0 |
-| firewall-data | applet | ✓ | 1 |
-| irp-elements | applet | ✓ | 1 |
-| lab-3-0-3-running-processes | lab | ✓ | 0 |
-| lab-3-2-11-windows-internals | lab | ✓ | 0 |
-| lab-3-3-10-user-accounts | lab | ✓ | 0 |
-| malware-analysis-output | presentation | ✓ | 1 |
-| network-attacks | applet | ✓ | 1 |
-| nsm-data-types | presentation | ✓ | 1 |
-| risk-rating | applet | ✓ | 1 |
-| risk-register | applet | ✓ | 1 |
-| security-approaches | applet | ✓ | 1 |
-| source-technologies | applet | ✓ | 1 |
-| tcpdump-netflow | presentation | ✓ | 1 |
-| web-attacks | applet | ✓ | 1 |
+| eye-5-tuple-approach.applet | applet | ✓ | 1 |
+| eye-app-visibility-control.applet | presentation | ✓ | 1 |
+| eye-attack-surface-vuln.applet | presentation | ✓ | 0 |
+| eye-attack-surface.applet | applet | ✓ | 1 |
+| eye-attribution-investigation.applet | presentation | ✓ | 0 |
+| eye-content-filtering.applet | presentation | ✓ | 0 |
+| eye-cvss-terminology.applet | applet | ✓ | 1 |
+| eye-data-types-output.applet | applet | ✓ | 1 |
+| eye-data-visibility-challenges.applet | presentation | ✓ | 0 |
+| eye-data-visibility.applet | applet | ✓ | 1 |
+| eye-detection-methods.applet | applet | ✓ | 1 |
+| eye-disk-images.applet | presentation | ✓ | 1 |
+| eye-endpoint-attacks.applet | presentation | ✓ | 1 |
+| eye-evasion-obfuscation.applet | presentation | ✓ | 1 |
+| eye-evidence-types.applet | presentation | ✓ | 0 |
+| eye-firewall-data.applet | applet | ✓ | 1 |
+| eye-irp-elements.applet | applet | ✓ | 1 |
+| eye-malware-analysis-output.applet | presentation | ✓ | 1 |
+| eye-network-attacks.applet | applet | ✓ | 1 |
+| eye-nsm-data-types.applet | presentation | ✓ | 1 |
+| eye-risk-rating.applet | applet | ✓ | 1 |
+| eye-risk-register.applet | applet | ✓ | 1 |
+| eye-security-approaches.applet | applet | ✓ | 1 |
+| eye-source-technologies.applet | applet | ✓ | 1 |
+| eye-tcpdump-netflow.applet | presentation | ✓ | 1 |
+| eye-web-attacks.applet | applet | ✓ | 1 |
+| eye-lab-3-0-3-running-processes.lab | lab | ✓ | 0 |
+| eye-lab-3-2-11-windows-internals.lab | lab | ✓ | 0 |
+| eye-lab-3-3-10-user-accounts.lab | lab | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| linux-servers | lab | ✓ | 0 |
-| windows-system-resources | presentation | ✓ | 0 |
-| windows-task-manager | presentation | ✓ | 1 |
-| exploring-nmap | lab | ✓ | 2 |
-| tracing-route | lab | ✓ | 2 |
-| verify-ipv4-ipv6 | applet | ✓ | 1 |
+| eye-linux-servers.lab | lab | ✓ | 0 |
+| eye-windows-system-resources.lab | presentation | ✓ | 0 |
+| eye-windows-task-manager.lab | presentation | ✓ | 1 |
+| eye-exploring-nmap.lab | lab | ✓ | 2 |
+| eye-tracing-route.lab | lab | ✓ | 2 |
+| eye-verify-ipv4-ipv6.lab | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| acl-demo | applet | ✓ | 1 |
-| packet-flow | applet | ✓ | 1 |
-| logging-network-activity | applet | ✓ | 1 |
-| soc-triage-simulator | presentation | ✓ | 1 |
+| eye-acl-demo.lab | applet | ✓ | 1 |
+| eye-packet-flow.lab | applet | ✓ | 1 |
+| eye-logging-network-activity.lab | applet | ✓ | 1 |
+| eye-soc-triage.lab | presentation | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| siem-lab | applet | ✓ | 1 |
+| eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
-| log-basics | applet | ✓ | 1 |
-| log-correlation | presentation | ✓ | 2 |
-| network-traffic-analysis | presentation | ✓ | 2 |
-| siem-fundamentals | presentation | ✓ | 2 |
-| soc-operations | presentation | ✓ | 2 |
-| threat-hunting | presentation | ✓ | 2 |
-| correlation-engine | applet | ✓ | 1 |
-| packet-analyzer | applet | ✓ | 1 |
-| siem-simulator | applet | ✓ | 1 |
-| soc-simulator | applet | ✓ | 1 |
-| wireshark-training | presentation | ✓ | 1 |
+| eye-log-basics.presentation | applet | ✓ | 1 |
+| eye-log-correlation.presentation | presentation | ✓ | 2 |
+| eye-network-traffic-analysis.presentation | presentation | ✓ | 2 |
+| eye-siem-fundamentals.presentation | presentation | ✓ | 2 |
+| eye-soc-operations.presentation | presentation | ✓ | 2 |
+| eye-threat-hunting.presentation | presentation | ✓ | 2 |
+| eye-correlation.tool | applet | ✓ | 1 |
+| eye-packet.tool | applet | ✓ | 1 |
+| eye-siem.tool | applet | ✓ | 1 |
+| eye-soc.tool | applet | ✓ | 1 |
+| eye-wireshark.tool | presentation | ✓ | 1 |
 
 ### FORGE (Systems)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| admin-tools-explorer | presentation | ✓ | 0 |
-| command-translator | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
@@ -1831,42 +1848,42 @@
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
-| bluetooth-pairing-lab | presentation | ✓ | 0 |
-| cable-matching-lab | presentation | ✓ | 0 |
-| cloud-scenarios-lab | lab | ✓ | 0 |
-| command-line-lab | lab | ✓ | 0 |
-| cpu-sockets-lab | lab | ✓ | 1 |
-| diagnostic-tools-lab | lab | ✓ | 0 |
-| display-troubleshoot-lab | lab | ✓ | 0 |
-| dns-config-lab | lab | ✓ | 0 |
-| docking-config-lab | presentation | ✓ | 0 |
-| email-config-lab | presentation | ✓ | 0 |
-| hardware-diagnosis-lab | lab | ✓ | 1 |
-| laptop-memory-lab | presentation | ✓ | 1 |
-| mdm-config-lab | lab | ✓ | 0 |
-| mobile-email-lab | lab | ✓ | 1 |
-| mobile-identifier-lab | presentation | ✓ | 0 |
-| mobile-sync-lab | lab | ✓ | 0 |
-| network-commands-lab | lab | ✓ | 0 |
-| network-config-lab | lab | ✓ | 1 |
-| network-design-lab | lab | ✓ | 1 |
-| pc-builder-lab | lab | ✓ | 1 |
-| pc-components-lab | presentation | ✓ | 0 |
-| port-identification-lab | presentation | ✓ | 0 |
-| post-beep-codes-lab | presentation | ✓ | 1 |
-| printer-troubleshoot-lab | lab | ✓ | 1 |
-| protocol-analysis-lab | lab | ✓ | 0 |
-| raid-config-lab | lab | ✓ | 1 |
-| ram-identification-lab | lab | ✓ | 1 |
-| router-config-lab | presentation | ✓ | 0 |
-| server-roles-lab | presentation | ✓ | 0 |
-| soho-designer-lab | lab | ✓ | 0 |
-| storage-upgrade-lab | presentation | ✓ | 0 |
-| subnet-calculator-lab | lab | ✓ | 0 |
-| topology-builder-lab | lab | ✓ | 1 |
-| troubleshooting-flowchart-lab | lab | ✓ | 0 |
-| vm-setup-lab | presentation | ✓ | 0 |
-| wireless-security-lab | presentation | ✓ | 0 |
+| forge-bluetooth-pairing.lab | presentation | ✓ | 0 |
+| forge-cable-matching.lab | presentation | ✓ | 0 |
+| forge-cloud-scenarios.lab | lab | ✓ | 0 |
+| forge-command-line.lab | lab | ✓ | 0 |
+| forge-cpu-sockets.lab | lab | ✓ | 1 |
+| forge-diagnostic-tools.lab | lab | ✓ | 0 |
+| forge-display-troubleshoot.lab | lab | ✓ | 0 |
+| forge-dns-config.lab | lab | ✓ | 0 |
+| forge-docking-config.lab | presentation | ✓ | 0 |
+| forge-email-config.lab | presentation | ✓ | 0 |
+| forge-hardware-diagnosis.lab | lab | ✓ | 1 |
+| forge-laptop-memory.lab | presentation | ✓ | 1 |
+| forge-mdm-config.lab | lab | ✓ | 0 |
+| forge-mobile-email.lab | lab | ✓ | 1 |
+| forge-mobile-identifier.lab | presentation | ✓ | 0 |
+| forge-mobile-sync.lab | lab | ✓ | 0 |
+| forge-network-commands.lab | lab | ✓ | 0 |
+| forge-network-config.lab | lab | ✓ | 1 |
+| forge-network-design.lab | lab | ✓ | 1 |
+| forge-pc-builder.lab | lab | ✓ | 1 |
+| forge-pc-components.lab | presentation | ✓ | 0 |
+| forge-port-identification.lab | presentation | ✓ | 0 |
+| forge-post-beep-codes.lab | presentation | ✓ | 1 |
+| forge-printer-troubleshoot.lab | lab | ✓ | 1 |
+| forge-protocol-analysis.lab | lab | ✓ | 0 |
+| forge-raid-config.lab | lab | ✓ | 1 |
+| forge-ram-identification.lab | lab | ✓ | 1 |
+| forge-router-config.lab | presentation | ✓ | 0 |
+| forge-server-roles.lab | presentation | ✓ | 0 |
+| forge-soho-designer.lab | lab | ✓ | 0 |
+| forge-storage-upgrade.lab | presentation | ✓ | 0 |
+| forge-subnet-calculator.lab | lab | ✓ | 0 |
+| forge-topology-builder.lab | lab | ✓ | 1 |
+| forge-troubleshooting-flowchart.lab | lab | ✓ | 0 |
+| forge-vm-setup.lab | presentation | ✓ | 0 |
+| forge-wireless-security.lab | presentation | ✓ | 0 |
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | index | presentation | ✓ | 1 |
@@ -1879,64 +1896,66 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| admin-tools-lab | lab | ✓ | 0 |
-| change-management-lab | lab | ✓ | 0 |
-| control-panel-lab | lab | ✓ | 2 |
-| core2_roleplay_lab | presentation | ✓ | 0 |
-| documentation-lab | lab | ✓ | 0 |
-| incident-response-lab | lab | ✓ | 0 |
-| malware-lab | lab | ✓ | 0 |
-| physical-security-lab | lab | ✓ | 1 |
-| security-fundamentals-lab | lab | ✓ | 0 |
-| system-tools-lab | lab | ✓ | 2 |
-| users-groups-lab | lab | ✓ | 0 |
-| windows-editions-lab | lab | ✓ | 2 |
-| windows-settings-lab | lab | ✓ | 2 |
-| admin-tools | presentation | ✓ | 2 |
-| change-management | presentation | ✓ | 0 |
-| control-panel | presentation | ✓ | 2 |
-| documentation | presentation | ✓ | 0 |
-| incident-response | presentation | ✓ | 0 |
-| macos-linux-basics | presentation | ✓ | 1 |
-| malware | presentation | ✓ | 0 |
-| physical-security | presentation | ✓ | 1 |
-| security-fundamentals | presentation | ✓ | 0 |
-| system-tools | presentation | ✓ | 1 |
-| users-groups | presentation | ✓ | 0 |
-| windows-editions | presentation | ✓ | 2 |
-| windows-settings | presentation | ✓ | 2 |
-| ch20-quiz | presentation | ✓ | 0 |
-| ch21-quiz | presentation | ✓ | 1 |
-| ch22-quiz | presentation | ✓ | 0 |
-| ch23-quiz | presentation | ✓ | 0 |
-| ch24-quiz | presentation | ✓ | 0 |
-| windows-shortcuts | presentation | ✓ | 0 |
-| admin-tools-explorer | presentation | ✓ | 0 |
-| control-panel-explorer | presentation | ✓ | 0 |
-| os_core | presentation | ✓ | 0 |
-| settings-explorer | presentation | ✓ | 0 |
-| system-tools-sim | presentation | ✓ | 1 |
-| windows-edition-selector | presentation | ✓ | 0 |
-| control-panel-explorer | presentation | ✓ | 0 |
-| peripheral_devices | applet | ✓ | 1 |
-| raid-level-visualizer | applet | ✓ | 1 |
-| settings-explorer | presentation | ✓ | 0 |
-| system-tools-sim | presentation | ✓ | 1 |
-| windows-edition-selector | presentation | ✓ | 0 |
+| forge-admin-tools.lab | lab | ✓ | 0 |
+| forge-change-management.lab | lab | ✓ | 0 |
+| forge-control-panel.lab | lab | ✓ | 2 |
+| forge-core2-roleplay.lab | presentation | ✓ | 0 |
+| forge-documentation.lab | lab | ✓ | 0 |
+| forge-incident-response.lab | lab | ✓ | 0 |
+| forge-malware.lab | lab | ✓ | 0 |
+| forge-physical-security.lab | lab | ✓ | 1 |
+| forge-security-fundamentals.lab | lab | ✓ | 0 |
+| forge-system-tools.lab | lab | ✓ | 2 |
+| forge-users-groups.lab | lab | ✓ | 0 |
+| forge-windows-editions.lab | lab | ✓ | 2 |
+| forge-windows-settings.lab | lab | ✓ | 2 |
+| forge-admin-tools.presentation | presentation | ✓ | 2 |
+| forge-change-management.presentation | presentation | ✓ | 0 |
+| forge-control-panel.presentation | presentation | ✓ | 2 |
+| forge-documentation.presentation | presentation | ✓ | 0 |
+| forge-incident-response.presentation | presentation | ✓ | 0 |
+| forge-macos-linux-basics.presentation | presentation | ✓ | 1 |
+| forge-malware.presentation | presentation | ✓ | 0 |
+| forge-physical-security.presentation | presentation | ✓ | 1 |
+| forge-security-fundamentals.presentation | presentation | ✓ | 0 |
+| forge-system-tools.presentation | presentation | ✓ | 1 |
+| forge-users-groups.presentation | presentation | ✓ | 0 |
+| forge-windows-editions.presentation | presentation | ✓ | 2 |
+| forge-windows-settings.presentation | presentation | ✓ | 2 |
+| forge-ch20.quiz | presentation | ✓ | 0 |
+| forge-ch21.quiz | presentation | ✓ | 1 |
+| forge-ch22.quiz | presentation | ✓ | 0 |
+| forge-ch23.quiz | presentation | ✓ | 0 |
+| forge-ch24.quiz | presentation | ✓ | 0 |
+| forge-windows-shortcuts.applet | presentation | ✓ | 0 |
+| forge-admin-tools.tool | presentation | ✓ | 0 |
+| forge-command-translator.applet | applet | ✓ | 1 |
+| forge-control-panel.tool | presentation | ✓ | 0 |
+| forge-settings.tool | presentation | ✓ | 0 |
+| forge-system-tools-sim.applet | presentation | ✓ | 1 |
+| forge-windows-edition-selector.applet | presentation | ✓ | 0 |
+| forge-peripheral-devices.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| admin-tools-lab | lab | ✓ | 2 |
-| control-panel-lab | lab | ✓ | 2 |
-| hardware-essentials-lab | lab | ✓ | 0 |
-| system-tools-lab | lab | ✓ | 2 |
-| windows-editions-lab | lab | ✓ | 2 |
-| windows-settings-lab | lab | ✓ | 2 |
-| admin-tools | presentation | ✓ | 2 |
-| control-panel | presentation | ✓ | 2 |
-| macos-linux-basics | presentation | ✓ | 2 |
-| system-tools | presentation | ✓ | 1 |
-| windows-editions | presentation | ✓ | 2 |
-| windows-settings | presentation | ✓ | 2 |
+| forge-admin-tools.lab | lab | ✓ | 2 |
+| forge-control-panel.lab | lab | ✓ | 2 |
+| forge-hardware-essentials.lab | lab | ✓ | 0 |
+| forge-system-tools.lab | lab | ✓ | 2 |
+| forge-windows-editions.lab | lab | ✓ | 2 |
+| forge-windows-settings.lab | lab | ✓ | 2 |
+| forge-admin-tools.presentation | presentation | ✓ | 2 |
+| forge-control-panel.presentation | presentation | ✓ | 2 |
+| forge-macos-linux-basics.presentation | presentation | ✓ | 2 |
+| forge-system-tools.presentation | presentation | ✓ | 1 |
+| forge-windows-editions.presentation | presentation | ✓ | 2 |
+| forge-windows-settings.presentation | presentation | ✓ | 2 |
 | windows-admin | quiz | ✓ | 0 |
+| forge-admin-tools.tool | presentation | ✓ | 0 |
+| forge-control-panel.tool | presentation | ✓ | 0 |
+| forge-os-core.tool | presentation | ✓ | 0 |
+| forge-raid-level.tool | applet | ✓ | 1 |
+| forge-settings.tool | presentation | ✓ | 0 |
+| forge-system-tools-sim.tool | presentation | ✓ | 1 |
+| forge-windows-edition-selector.tool | presentation | ✓ | 0 |
 
 ### KEY (Cryptography)
 ──────────────────────────────────────────────────
@@ -1944,337 +1963,346 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | index | applet | ✓ | 1 |
-| aes-lab | presentation | ✓ | 0 |
-| attack-lab | presentation | ✓ | 0 |
-| cert-lab | presentation | ✓ | 0 |
-| crypto-stego-lab | presentation | ✓ | 1 |
-| ecc-lab | lab | ✓ | 0 |
-| hmac-lab | lab | ✓ | 0 |
-| hsm-lab | presentation | ✓ | 0 |
-| kdf-lab | presentation | ✓ | 1 |
-| pqc-lab | presentation | ✓ | 1 |
-| hash-stego-intro | presentation | ✓ | 1 |
-| advanced-symmetric | applet | ✓ | 1 |
-| certificates | applet | ✓ | 1 |
-| cryptanalysis | applet | ✓ | 1 |
-| cryptography-fundamentals | presentation | ✓ | 1 |
-| elliptic-curve | presentation | ✓ | 1 |
-| encryption-basics | applet | ✓ | 1 |
-| key-derivation | applet | ✓ | 1 |
-| key-management | presentation | ✓ | 1 |
-| message-authentication | applet | ✓ | 1 |
-| post-quantum | applet | ✓ | 1 |
-| cert-quiz | presentation | ✓ | 0 |
-| cryptanalysis-quiz | presentation | ✓ | 0 |
-| ecc-quiz | presentation | ✓ | 0 |
-| hsm-quiz | presentation | ✓ | 0 |
-| kdf-quiz | presentation | ✓ | 1 |
-| mac-quiz | presentation | ✓ | 0 |
-| pqc-quiz | presentation | ✓ | 0 |
-| symmetric-quiz | presentation | ✓ | 0 |
-| aes-explorer | presentation | ✓ | 1 |
-| cert-inspector | presentation | ✓ | 0 |
-| cryptanalysis-lab | presentation | ✓ | 1 |
-| ecc-visualizer | presentation | ✓ | 1 |
-| hmac-calculator | presentation | ✓ | 1 |
-| kdf-analyzer | presentation | ✓ | 1 |
-| key-lifecycle | presentation | ✓ | 1 |
-| pqc-explorer | presentation | ✓ | 1 |
+| key-aes.lab | presentation | ✓ | 0 |
+| key-attack.lab | presentation | ✓ | 0 |
+| key-cert.lab | presentation | ✓ | 0 |
+| key-cryptanalysis.lab | presentation | ✓ | 1 |
+| key-crypto-stego.lab | presentation | ✓ | 1 |
+| key-ecc.lab | lab | ✓ | 0 |
+| key-hmac.lab | lab | ✓ | 0 |
+| key-hsm.lab | presentation | ✓ | 0 |
+| key-kdf.lab | presentation | ✓ | 1 |
+| key-pqc.lab | presentation | ✓ | 1 |
+| key-hash-stego-intro.module | presentation | ✓ | 1 |
+| key-advanced-symmetric.presentation | applet | ✓ | 1 |
+| key-certificates.presentation | applet | ✓ | 1 |
+| key-cryptanalysis.presentation | applet | ✓ | 1 |
+| key-cryptography-fundamentals.presentation | presentation | ✓ | 1 |
+| key-derivation.presentation | applet | ✓ | 1 |
+| key-elliptic-curve.presentation | presentation | ✓ | 1 |
+| key-encryption-basics.presentation | applet | ✓ | 1 |
+| key-management.presentation | presentation | ✓ | 1 |
+| key-message-authentication.presentation | applet | ✓ | 1 |
+| key-post-quantum.presentation | applet | ✓ | 1 |
+| key-cert.quiz | presentation | ✓ | 0 |
+| key-cryptanalysis.quiz | presentation | ✓ | 0 |
+| key-ecc.quiz | presentation | ✓ | 0 |
+| key-hsm.quiz | presentation | ✓ | 0 |
+| key-kdf.quiz | presentation | ✓ | 1 |
+| key-mac.quiz | presentation | ✓ | 0 |
+| key-pqc.quiz | presentation | ✓ | 0 |
+| key-symmetric.quiz | presentation | ✓ | 0 |
+| key-aes.tool | presentation | ✓ | 1 |
+| key-cert.tool | presentation | ✓ | 0 |
+| key-ecc.tool | presentation | ✓ | 1 |
+| key-hmac.tool | presentation | ✓ | 1 |
+| key-kdf.tool | presentation | ✓ | 1 |
+| key-lifecycle.tool | presentation | ✓ | 1 |
+| key-pqc.tool | presentation | ✓ | 1 |
 
 ### SCRIPT (Automation)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| bash-scripting-playground | applet | ✓ | 1 |
-| clh-001-intro-to-hacker-cli | presentation | ✓ | 0 |
-| clh-002-navigation-recon | presentation | ✓ | 0 |
-| clh-003-pattern-hunting | presentation | ✓ | 0 |
-| clh-004-process-investigation | presentation | ✓ | 0 |
-| clh-005-log-analysis | presentation | ✓ | 0 |
-| clh-006-file-operations | presentation | ✓ | 1 |
-| clh-007-permissions | presentation | ✓ | 0 |
-| clh-008-shell-scripting | presentation | ✓ | 0 |
-| clh-009-text-processing | presentation | ✓ | 0 |
-| clh-010-io-redirection | presentation | ✓ | 0 |
-| clh-011-advanced-grep | presentation | ✓ | 0 |
-| clh-012-network-basics | presentation | ✓ | 0 |
-| clh-013-environment | presentation | ✓ | 0 |
-| clh-014-process-control | presentation | ✓ | 0 |
-| clh-015-capstone | presentation | ✓ | 0 |
-| clh-016-system-intel | presentation | ✓ | 0 |
-| clh-017-find-locate | presentation | ✓ | 0 |
-| clh-018-archive-ops | presentation | ✓ | 0 |
-| clh-019-disk-forensics | presentation | ✓ | 0 |
-| clh-020-user-recon | presentation | ✓ | 0 |
-| clh-021-ssh-ops | presentation | ✓ | 0 |
-| clh-022-network-recon | presentation | ✓ | 0 |
-| clh-023-services | presentation | ✓ | 0 |
-| clh-024-cron | presentation | ✓ | 0 |
-| clh-025-packages | presentation | ✓ | 0 |
-| clh-026-access | presentation | ✓ | 0 |
-| clh-027-users | presentation | ✓ | 0 |
-| clh-028-monitoring | presentation | ✓ | 0 |
-| clh-029-vim | presentation | ✓ | 0 |
-| clh-030-chimera | presentation | ✓ | 0 |
-| clh-031-blackout | applet | ✓ | 1 |
-| command-translator | applet | ✓ | 1 |
-| linux-command-simulator | applet | ✓ | 1 |
-| linux-filesystem-navigator | presentation | ✓ | 0 |
-| linux-lab-001-user-identity | lab | ✓ | 0 |
-| linux-lab-002-file-navigation | lab | ✓ | 0 |
-| linux-permissions-calculator | applet | ✓ | 1 |
-| windows-cli-tools | applet | ✓ | 1 |
-| windows-registry-explorer | applet | ✓ | 1 |
-| windows-troubleshooting | applet | ✓ | 1 |
-| python-chapter1-applet | applet | ✓ | 1 |
-| python-chapter2-strings | applet | ✓ | 1 |
-| python-chapter3-flow-control | applet | ✓ | 1 |
-| python-chapter4-functions | applet | ✓ | 1 |
-| python-chapter5-collections | applet | ✓ | 1 |
-| python-chapter6-dictionaries | applet | ✓ | 1 |
-| python-chapter7-file-handling | applet | ✓ | 1 |
-| python-chapter8-oop | applet | ✓ | 1 |
-| automation-visualizer | applet | ✓ | 1 |
-| log-management-visualizer | applet | ✓ | 1 |
-| package-manager-simulator | applet | ✓ | 1 |
-| process-management-visualizer | presentation | ✓ | 2 |
-| clh-001-intro | applet | ✓ | 1 |
-| clh-002-intro | applet | ✓ | 1 |
-| clh-003-intro | applet | ✓ | 1 |
-| clh-004-intro | applet | ✓ | 1 |
-| clh-005-intro | applet | ✓ | 1 |
-| clh-006-intro | applet | ✓ | 1 |
-| clh-007-intro | applet | ✓ | 1 |
-| clh-008-intro | applet | ✓ | 1 |
-| clh-009-intro | applet | ✓ | 1 |
-| clh-010-intro | applet | ✓ | 1 |
-| clh-011-intro | applet | ✓ | 1 |
-| clh-012-intro | applet | ✓ | 1 |
-| clh-013-intro | applet | ✓ | 1 |
-| clh-014-intro | applet | ✓ | 1 |
-| clh-015-intro | applet | ✓ | 1 |
-| clh-022-intro | applet | ✓ | 1 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 1 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| intro | applet | ✓ | 1 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 0 |
-| lab | lab | ✓ | 1 |
+| script-bash-scripting-playground.applet | applet | ✓ | 1 |
+| script-clh-001-intro-to-hacker-cli.applet | presentation | ✓ | 0 |
+| script-clh-002-navigation-recon.applet | presentation | ✓ | 0 |
+| script-clh-003-pattern-hunting.applet | presentation | ✓ | 0 |
+| script-clh-004-process-investigation.applet | presentation | ✓ | 0 |
+| script-clh-005-log-analysis.applet | presentation | ✓ | 0 |
+| script-clh-006-file-operations.applet | presentation | ✓ | 1 |
+| script-clh-007-permissions.applet | presentation | ✓ | 0 |
+| script-clh-008-shell-scripting.applet | presentation | ✓ | 0 |
+| script-clh-009-text-processing.applet | presentation | ✓ | 0 |
+| script-clh-010-io-redirection.applet | presentation | ✓ | 0 |
+| script-clh-011-advanced-grep.applet | presentation | ✓ | 0 |
+| script-clh-012-network-basics.applet | presentation | ✓ | 0 |
+| script-clh-013-environment.applet | presentation | ✓ | 0 |
+| script-clh-014-process-control.applet | presentation | ✓ | 0 |
+| script-clh-015-capstone.applet | presentation | ✓ | 0 |
+| script-clh-016-system-intel.applet | presentation | ✓ | 0 |
+| script-clh-017-find-locate.applet | presentation | ✓ | 0 |
+| script-clh-018-archive-ops.applet | presentation | ✓ | 0 |
+| script-clh-019-disk-forensics.applet | presentation | ✓ | 0 |
+| script-clh-020-user-recon.applet | presentation | ✓ | 0 |
+| script-clh-021-ssh-ops.applet | presentation | ✓ | 0 |
+| script-clh-022-network-recon.applet | presentation | ✓ | 0 |
+| script-clh-023-services.applet | presentation | ✓ | 0 |
+| script-clh-024-cron.applet | presentation | ✓ | 0 |
+| script-clh-025-packages.applet | presentation | ✓ | 0 |
+| script-clh-026-access.applet | presentation | ✓ | 0 |
+| script-clh-027-users.applet | presentation | ✓ | 0 |
+| script-clh-028-monitoring.applet | presentation | ✓ | 0 |
+| script-clh-029-vim.applet | presentation | ✓ | 0 |
+| script-clh-030-chimera.applet | presentation | ✓ | 0 |
+| script-clh-031-blackout.applet | applet | ✓ | 1 |
+| script-command-translator.applet | applet | ✓ | 1 |
+| script-linux-filesystem-navigator.applet | presentation | ✓ | 0 |
+| script-linux-lab-001-user-identity.applet | lab | ✓ | 0 |
+| script-linux-lab-002-file-navigation.applet | lab | ✓ | 0 |
+| script-windows-cli-tools.applet | applet | ✓ | 1 |
+| script-windows-troubleshooting.applet | applet | ✓ | 1 |
+| script-python-chapter1.applet | applet | ✓ | 1 |
+| script-python-chapter2-strings.applet | applet | ✓ | 1 |
+| script-python-chapter3-flow-control.applet | applet | ✓ | 1 |
+| script-python-chapter4-functions.applet | applet | ✓ | 1 |
+| script-python-chapter5-collections.applet | applet | ✓ | 1 |
+| script-python-chapter6-dictionaries.applet | applet | ✓ | 1 |
+| script-python-chapter7-file-handling.applet | applet | ✓ | 1 |
+| script-python-chapter8-oop.applet | applet | ✓ | 1 |
+| script-clh-001-intro.applet | applet | ✓ | 1 |
+| script-clh-002-intro.applet | applet | ✓ | 1 |
+| script-clh-003-intro.applet | applet | ✓ | 1 |
+| script-clh-004-intro.applet | applet | ✓ | 1 |
+| script-clh-005-intro.applet | applet | ✓ | 1 |
+| script-clh-006-intro.applet | applet | ✓ | 1 |
+| script-clh-007-intro.applet | applet | ✓ | 1 |
+| script-clh-008-intro.applet | applet | ✓ | 1 |
+| script-clh-009-intro.applet | applet | ✓ | 1 |
+| script-clh-010-intro.applet | applet | ✓ | 1 |
+| script-clh-011-intro.applet | applet | ✓ | 1 |
+| script-clh-012-intro.applet | applet | ✓ | 1 |
+| script-clh-013-intro.applet | applet | ✓ | 1 |
+| script-clh-014-intro.applet | applet | ✓ | 1 |
+| script-clh-015-intro.applet | applet | ✓ | 1 |
+| script-clh-022-intro.applet | applet | ✓ | 1 |
+| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 1 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| linux-bash-lab | presentation | ✓ | 1 |
-| powershell-lab | lab | ✓ | 1 |
-| python-lab | lab | ✓ | 0 |
-| sysadmin-lab | lab | ✓ | 0 |
-| lm-03-getting-help | applet | ✓ | 1 |
-| lm-04-terminal-environment | applet | ✓ | 1 |
-| lm-08-file-operations | presentation | ✓ | 1 |
-| lm-09-copy-move | presentation | ✓ | 1 |
-| lm-10-viewing-files | presentation | ✓ | 1 |
-| lm-11-finding-files | presentation | ✓ | 0 |
-| lm-12-section2-practice | presentation | ✓ | 0 |
-| lm-13-grep-basics | presentation | ✓ | 0 |
-| lm-14-regular-expressions | presentation | ✓ | 0 |
-| lm-15-sed-editor | presentation | ✓ | 0 |
-| lm-16-awk-processing | presentation | ✓ | 0 |
-| lm-20-section3-practice | presentation | ✓ | 0 |
-| lm-21-users-groups | presentation | ✓ | 0 |
-| lm-22-file-permissions | presentation | ✓ | 0 |
-| lm-23-chmod | presentation | ✓ | 0 |
-| lm-24-chown | presentation | ✓ | 0 |
-| lm-25-sudo | presentation | ✓ | 1 |
-| lm-26-special-permissions | presentation | ✓ | 0 |
-| lm-27-section4-practice | presentation | ✓ | 0 |
-| lm-28-process-basics | presentation | ✓ | 0 |
-| lm-29-ps-top | presentation | ✓ | 1 |
-| lm-30-background-jobs | presentation | ✓ | 0 |
-| lm-31-signals-kill | presentation | ✓ | 0 |
-| lm-32-cron | presentation | ✓ | 0 |
-| lm-33-systemd | presentation | ✓ | 0 |
-| lm-34-section5-practice | presentation | ✓ | 0 |
-| lm-35-network-info | presentation | ✓ | 0 |
-| lm-36-connectivity | presentation | ✓ | 1 |
-| lm-37-dns-tools | presentation | ✓ | 1 |
-| lm-38-downloading | presentation | ✓ | 1 |
-| lm-39-ssh-basics | presentation | ✓ | 1 |
-| lm-40-section6-practice | presentation | ✓ | 0 |
-| lm-41-first-script | presentation | ✓ | 1 |
-| lm-42-variables | presentation | ✓ | 0 |
-| lm-43-user-input | presentation | ✓ | 1 |
-| lm-44-conditionals | presentation | ✓ | 0 |
-| lm-45-loops | presentation | ✓ | 0 |
-| lm-46-functions | presentation | ✓ | 0 |
-| lm-47-practical-scripts | presentation | ✓ | 0 |
-| lm-48-section7-practice | presentation | ✓ | 0 |
-| lm-49-links | presentation | ✓ | 0 |
-| lm-50-text-editors | presentation | ✓ | 0 |
-| lm-51-package-management | presentation | ✓ | 1 |
-| lm-52-environment-path | presentation | ✓ | 1 |
-| lm-53-next-steps | presentation | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| script-linux-bash.lab | presentation | ✓ | 1 |
+| script-powershell.lab | lab | ✓ | 1 |
+| script-python.lab | lab | ✓ | 0 |
+| script-sysadmin.lab | lab | ✓ | 0 |
+| script-mission-file-operations.lab | lab | ✓ | 1 |
+| script-mission-file-search.lab | lab | ✓ | 0 |
+| script-mission-permissions.lab | lab | ✓ | 0 |
+| script-mission-text-viewing.lab | lab | ✓ | 0 |
+| script-template-warmup.lab | presentation | ✓ | 0 |
+| script-warmup-navigation.lab | lab | ✓ | 0 |
+| script-quick.reference | applet | ✓ | 1 |
+| script-directory.tool | applet | ✓ | 1 |
+| script-permission.tool | applet | ✓ | 1 |
+| script-lm-03-getting-help.module | applet | ✓ | 1 |
+| script-lm-04-terminal-environment.module | applet | ✓ | 1 |
+| script-lm-08-file-operations.module | presentation | ✓ | 1 |
+| script-lm-09-copy-move.module | presentation | ✓ | 1 |
+| script-lm-10-viewing-files.module | presentation | ✓ | 1 |
+| script-lm-11-finding-files.module | presentation | ✓ | 0 |
+| script-lm-12-section2-practice.module | presentation | ✓ | 0 |
+| script-lm-13-grep-basics.module | presentation | ✓ | 0 |
+| script-lm-14-regular-expressions.module | presentation | ✓ | 0 |
+| script-lm-15-sed-editor.module | presentation | ✓ | 0 |
+| script-lm-16-awk-processing.module | presentation | ✓ | 0 |
+| script-lm-20-section3-practice.module | presentation | ✓ | 0 |
+| script-lm-21-users-groups.module | presentation | ✓ | 0 |
+| script-lm-22-file-permissions.module | presentation | ✓ | 0 |
+| script-lm-23-chmod.module | presentation | ✓ | 0 |
+| script-lm-24-chown.module | presentation | ✓ | 0 |
+| script-lm-25-sudo.module | presentation | ✓ | 1 |
+| script-lm-26-special-permissions.module | presentation | ✓ | 0 |
+| script-lm-27-section4-practice.module | presentation | ✓ | 0 |
+| script-lm-28-process-basics.module | presentation | ✓ | 0 |
+| script-lm-29-ps-top.module | presentation | ✓ | 1 |
+| script-lm-30-background-jobs.module | presentation | ✓ | 0 |
+| script-lm-31-signals-kill.module | presentation | ✓ | 0 |
+| script-lm-32-cron.module | presentation | ✓ | 0 |
+| script-lm-33-systemd.module | presentation | ✓ | 0 |
+| script-lm-34-section5-practice.module | presentation | ✓ | 0 |
+| script-lm-35-network-info.module | presentation | ✓ | 0 |
+| script-lm-36-connectivity.module | presentation | ✓ | 1 |
+| script-lm-37-dns-tools.module | presentation | ✓ | 1 |
+| script-lm-38-downloading.module | presentation | ✓ | 1 |
+| script-lm-39-ssh-basics.module | presentation | ✓ | 1 |
+| script-lm-40-section6-practice.module | presentation | ✓ | 0 |
+| script-lm-41-first-script.module | presentation | ✓ | 1 |
+| script-lm-42-variables.module | presentation | ✓ | 0 |
+| script-lm-43-user-input.module | presentation | ✓ | 1 |
+| script-lm-44-conditionals.module | presentation | ✓ | 0 |
+| script-lm-45-loops.module | presentation | ✓ | 0 |
+| script-lm-46-functions.module | presentation | ✓ | 0 |
+| script-lm-47-practical-scripts.module | presentation | ✓ | 0 |
+| script-lm-48-section7-practice.module | presentation | ✓ | 0 |
+| script-lm-49-links.module | presentation | ✓ | 0 |
+| script-lm-50-text-editors.module | presentation | ✓ | 0 |
+| script-lm-51-package-management.module | presentation | ✓ | 1 |
+| script-lm-52-environment-path.module | presentation | ✓ | 1 |
+| script-lm-53-next-steps.module | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| python-immersive-chapter2 | applet | ✓ | 1 |
-| python-immersive-chapter7 | applet | ✓ | 1 |
-| automation-presentation | presentation | ✓ | 0 |
-| macos-linux-basics | presentation | ✓ | 1 |
-| python-chapter1 | presentation | ✓ | 1 |
-| python-chapter2 | presentation | ✓ | 0 |
-| python-chapter3 | presentation | ✓ | 0 |
-| python-chapter4 | presentation | ✓ | 0 |
-| python-chapter5 | presentation | ✓ | 0 |
-| python-chapter6 | presentation | ✓ | 0 |
-| python-chapter7 | presentation | ✓ | 0 |
-| python-chapter8 | presentation | ✓ | 0 |
-| scripting-basics | presentation | ✓ | 1 |
-| linux-bash-quiz | presentation | ✓ | 1 |
+| script-python-immersive-chapter2.module | applet | ✓ | 1 |
+| script-python-immersive-chapter7.module | applet | ✓ | 1 |
+| script-python-chapter1.presentation | presentation | ✓ | 1 |
+| script-python-chapter2.presentation | presentation | ✓ | 0 |
+| script-python-chapter3.presentation | presentation | ✓ | 0 |
+| script-python-chapter4.presentation | presentation | ✓ | 0 |
+| script-python-chapter5.presentation | presentation | ✓ | 0 |
+| script-python-chapter6.presentation | presentation | ✓ | 0 |
+| script-python-chapter7.presentation | presentation | ✓ | 0 |
+| script-python-chapter8.presentation | presentation | ✓ | 0 |
+| script-automation.presentation | presentation | ✓ | 0 |
+| script-macos-linux-basics.presentation | presentation | ✓ | 1 |
+| script-scripting-basics.presentation | presentation | ✓ | 1 |
+| script-linux-bash.quiz | presentation | ✓ | 1 |
 | linux-basics | quiz | ✓ | 0 |
+| script-automation.tool | applet | ✓ | 1 |
+| script-linux-command.tool | applet | ✓ | 1 |
+| script-linux-permissions.tool | applet | ✓ | 1 |
+| script-log-management.tool | applet | ✓ | 1 |
+| script-package-manager.tool | applet | ✓ | 1 |
+| script-process-management.tool | presentation | ✓ | 2 |
+| script-windows-registry.tool | applet | ✓ | 1 |
 
 ### SHIELD (Security)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| aaa-flow-simulator | presentation | ✓ | 1 |
-| access-control-models | presentation | ✓ | 1 |
-| access_control | presentation | ✓ | 0 |
-| Biometrics | presentation | ✓ | 0 |
-| kerberos | presentation | ✓ | 0 |
-| security-models-visualizer | applet | ✓ | 1 |
-| zero-trust-visualizer | applet | ✓ | 1 |
-| ACv2 | presentation | ✓ | 0 |
-| AUv2 | presentation | ✓ | 0 |
-| ATv2 | presentation | ✓ | 0 |
-| CMv2 | presentation | ✓ | 0 |
-| CUI_2 | presentation | ✓ | 0 |
-| CMMCFrameworkv2 | presentation | ✓ | 0 |
-| IAv2 | presentation | ✓ | 0 |
-| IRv2 | presentation | ✓ | 0 |
-| MAv2 | presentation | ✓ | 0 |
-| MPv2 | presentation | ✓ | 0 |
-| PSv2 | presentation | ✓ | 0 |
-| PEv2 | presentation | ✓ | 0 |
-| CMMCTestKnowledge2 | presentation | ✓ | 0 |
-| RAv2 | presentation | ✓ | 0 |
-| CAv2 | presentation | ✓ | 0 |
-| SCv2 | presentation | ✓ | 0 |
-| SIv2 | presentation | ✓ | 0 |
-| laws-regulations-reference | presentation | ✓ | 0 |
-| Block | presentation | ✓ | 0 |
-| blockchain | presentation | ✓ | 0 |
-| checksum-verifier | presentation | ✓ | 0 |
-| cryptography | presentation | ✓ | 0 |
-| CryptoMatch | presentation | ✓ | 0 |
-| diffie_hellman | presentation | ✓ | 0 |
-| DigitalSignature | presentation | ✓ | 0 |
-| EncryptData | presentation | ✓ | 0 |
-| encryption_jedit_6_1 | presentation | ✓ | 0 |
-| FactorPrime | presentation | ✓ | 0 |
-| gpg-encryption-lab | presentation | ✓ | 1 |
-| Hashing | presentation | ✓ | 0 |
-| Hashing_vo | presentation | ✓ | 0 |
-| Encryption_II | applet | ✓ | 1 |
-| Hash_Lab | presentation | ✓ | 1 |
-| Stego | presentation | ✓ | 1 |
-| encryption_task | applet | ✓ | 1 |
-| hash_steg_presentation | presentation | ✓ | 1 |
-| hash_v3 | presentation | ✓ | 1 |
-| hashing_Lab | presentation | ✓ | 1 |
-| pki | presentation | ✓ | 0 |
-| RSA | presentation | ✓ | 0 |
+| shield-access-control.applet | presentation | ✓ | 0 |
+| shield-biometrics.applet | presentation | ✓ | 0 |
+| shield-kerberos.applet | presentation | ✓ | 0 |
+| shield-access-control-models.applet | presentation | ✓ | 1 |
+| shield-acv2.applet | presentation | ✓ | 0 |
+| shield-auv2.applet | presentation | ✓ | 0 |
+| shield-atv2.applet | presentation | ✓ | 0 |
+| shield-cmv2.applet | presentation | ✓ | 0 |
+| shield-cui-2.applet | presentation | ✓ | 0 |
+| shield-cmmc-frameworkv2.applet | presentation | ✓ | 0 |
+| shield-iav2.applet | presentation | ✓ | 0 |
+| shield-irv2.applet | presentation | ✓ | 0 |
+| shield-mav2.applet | presentation | ✓ | 0 |
+| shield-mpv2.applet | presentation | ✓ | 0 |
+| shield-psv2.applet | presentation | ✓ | 0 |
+| shield-pev2.applet | presentation | ✓ | 0 |
+| shield-cmmc-test-knowledge2.applet | presentation | ✓ | 0 |
+| shield-rav2.applet | presentation | ✓ | 0 |
+| shield-cav2.applet | presentation | ✓ | 0 |
+| shield-scv2.applet | presentation | ✓ | 0 |
+| shield-siv2.applet | presentation | ✓ | 0 |
+| shield-laws-regulations.applet | presentation | ✓ | 0 |
+| shield-block.applet | presentation | ✓ | 0 |
+| shield-blockchain.applet | presentation | ✓ | 0 |
+| shield-cryptography.applet | presentation | ✓ | 0 |
+| shield-crypto-match.applet | presentation | ✓ | 0 |
+| shield-diffie-hellman.applet | presentation | ✓ | 0 |
+| shield-digital-signature.applet | presentation | ✓ | 0 |
+| shield-encrypt-data.applet | presentation | ✓ | 0 |
+| shield-encryption-jedit-6-1.applet | presentation | ✓ | 0 |
+| shield-factor-prime.applet | presentation | ✓ | 0 |
+| shield-hashing.applet | presentation | ✓ | 0 |
+| shield-hashing-vo.applet | presentation | ✓ | 0 |
+| shield-encryption-ii.applet | applet | ✓ | 1 |
+| shield-encryption-task.applet | applet | ✓ | 1 |
+| shield-hash-v3.applet | presentation | ✓ | 1 |
+| shield-stego.applet | presentation | ✓ | 1 |
+| shield-pki.applet | presentation | ✓ | 0 |
+| shield-rsa.applet | presentation | ✓ | 0 |
+| shield-checksum-verifier.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| cybersecurity_controls | presentation | ✓ | 0 |
-| data-lifecycle-visualizer | applet | ✓ | 1 |
-| dataroles | presentation | ✓ | 0 |
-| cybersecuritydesignprinciples | presentation | ✓ | 0 |
-| ethics_challenge | presentation | ✓ | 0 |
-| EthicsProfConduct | presentation | ✓ | 0 |
-| FivePillars | presentation | ✓ | 0 |
-| physical_environmental | presentation | ✓ | 0 |
-| privacy | presentation | ✓ | 0 |
-| secure-sdlc-framework | presentation | ✓ | 1 |
-| security-best-practices | presentation | ✓ | 1 |
-| security-governance-dashboard | presentation | ✓ | 0 |
-| cube | presentation | ✓ | 0 |
-| cookies | presentation | ✓ | 1 |
-| hatmatch | presentation | ✓ | 0 |
-| cyberscramble | presentation | ✓ | 0 |
-| EH_exam_1A | presentation | ✓ | 0 |
-| hangman | presentation | ✓ | 0 |
-| crime | presentation | ✓ | 0 |
-| browser-security-hardening | applet | ✓ | 1 |
-| home-network-security | applet | ✓ | 1 |
-| linux-firewall-builder | applet | ✓ | 1 |
-| cyber-arts-bootcamp | lab | ✓ | 1 |
-| cysa-analyst-toolkit | applet | ✓ | 1 |
-| ics-scada-security | applet | ✓ | 1 |
-| bia-calculator | presentation | ✓ | 2 |
-| business-continuity-planner | presentation | ✓ | 0 |
-| change-management | presentation | ✓ | 1 |
-| ConfigMgmt | presentation | ✓ | 0 |
-| crisc-risk-calculator | presentation | ✓ | 1 |
-| cyber_scenario | presentation | ✓ | 0 |
-| incident-response-simulator | presentation | ✓ | 1 |
-| PSPG | presentation | ✓ | 0 |
-| risk_analysis | presentation | ✓ | 0 |
-| risk_management | presentation | ✓ | 0 |
-| malware-types-reference | applet | ✓ | 1 |
+| shield-cybersecurity-controls.applet | presentation | ✓ | 0 |
+| shield-dataroles.applet | presentation | ✓ | 0 |
+| shield-cybersecuritydesignprinciples.applet | presentation | ✓ | 0 |
+| shield-ethics-challenge.applet | presentation | ✓ | 0 |
+| shield-ethics-prof-conduct.applet | presentation | ✓ | 0 |
+| shield-five-pillars.applet | presentation | ✓ | 0 |
+| shield-physical-environmental.applet | presentation | ✓ | 0 |
+| shield-privacy.applet | presentation | ✓ | 0 |
+| shield-secure-sdlc-framework.applet | presentation | ✓ | 1 |
+| shield-security-best-practices.applet | presentation | ✓ | 1 |
+| shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
+| shield-cube.applet | presentation | ✓ | 0 |
+| shield-cookies.applet | presentation | ✓ | 1 |
+| shield-hatmatch.applet | presentation | ✓ | 0 |
+| shield-cyberscramble.applet | presentation | ✓ | 0 |
+| shield-hangman.applet | presentation | ✓ | 0 |
+| shield-crime.applet | presentation | ✓ | 0 |
+| shield-browser-security-hardening.applet | applet | ✓ | 1 |
+| shield-home-network-security.applet | applet | ✓ | 1 |
+| shield-linux-firewall-builder.applet | applet | ✓ | 1 |
+| shield-cyber-arts-bootcamp.applet | lab | ✓ | 1 |
+| shield-cysa-analyst-toolkit.applet | applet | ✓ | 1 |
+| shield-ics-scada-security.applet | applet | ✓ | 1 |
+| shield-config-mgmt.applet | presentation | ✓ | 0 |
+| shield-cyber-scenario.applet | presentation | ✓ | 0 |
+| shield-pspg.applet | presentation | ✓ | 0 |
+| shield-risk-analysis.applet | presentation | ✓ | 0 |
+| shield-risk-management.applet | presentation | ✓ | 0 |
+| shield-business-continuity-planner.applet | presentation | ✓ | 0 |
+| shield-change-management.applet | presentation | ✓ | 1 |
+| shield-malware-types.applet | applet | ✓ | 1 |
+| shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
-| access-control-lab | presentation | ✓ | 0 |
-| compliance-lab | presentation | ✓ | 0 |
-| cryptography-lab | presentation | ✓ | 0 |
-| network-security-lab | presentation | ✓ | 1 |
-| osint-google-dorking | applet | ✓ | 1 |
-| security-fundamentals-lab | applet | ✓ | 1 |
-| threats-lab | presentation | ✓ | 0 |
-| cia-triad | presentation | ✓ | 0 |
-| security-presentation | presentation | ✓ | 1 |
-| social-engineering | applet | ✓ | 1 |
+| shield-access-control.lab | presentation | ✓ | 0 |
+| shield-compliance.lab | presentation | ✓ | 0 |
+| shield-cryptography.lab | presentation | ✓ | 0 |
+| shield-gpg-encryption.lab | presentation | ✓ | 1 |
+| shield-hash.lab | presentation | ✓ | 1 |
+| shield-hashing.lab | presentation | ✓ | 1 |
+| shield-network-security.lab | presentation | ✓ | 1 |
+| shield-osint-google-dorking.lab | applet | ✓ | 1 |
+| shield-security-fundamentals.lab | applet | ✓ | 1 |
+| shield-threats.lab | presentation | ✓ | 0 |
+| shield-cia-triad.presentation | presentation | ✓ | 0 |
+| shield-hash-steg.presentation | presentation | ✓ | 1 |
+| shield-security.presentation | presentation | ✓ | 1 |
+| shield-social-engineering.presentation | applet | ✓ | 1 |
 | cia-triad | quiz | ✓ | 0 |
 | cse-06-monitoring | quiz | ✓ | 0 |
 | cse-07-risk | quiz | ✓ | 0 |
 | cse-08-compliance | quiz | ✓ | 0 |
-| yara-training | presentation | ✓ | 1 |
+| shield-aaa-flow.tool | presentation | ✓ | 1 |
+| shield-bia.tool | presentation | ✓ | 2 |
+| shield-crisc-risk.tool | presentation | ✓ | 1 |
+| shield-data-lifecycle.tool | applet | ✓ | 1 |
+| shield-incident-response.tool | presentation | ✓ | 1 |
+| shield-security-models.tool | applet | ✓ | 1 |
+| shield-yara.tool | presentation | ✓ | 1 |
+| shield-zero-trust.tool | applet | ✓ | 1 |
 
 ### UNASSIGNED
 ──────────────────────────────────────────────────
@@ -2324,86 +2352,86 @@
 | wireless-attacks-lab | applet | ✓ | 1 |
 | xss-attacks-lab | applet | ✓ | 1 |
 | dashboard | applet | ✓ | 1 |
+| dark-arts-sample.tool | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| sample | applet | ✓ | 1 |
-| sorting | applet | ✓ | 1 |
+| product-info | applet | ✓ | 1 |
 
 ### WEB (Networking)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| binary-decimal-converter | applet | ✓ | 1 |
-| networking-interactive-guide | applet | ✓ | 1 |
-| networking-ch7-10 | applet | ✓ | 1 |
-| networking-ch7-20 | applet | ✓ | 1 |
-| web-server-comparison | applet | ✓ | 1 |
-| acl-visualizer | presentation | ✓ | 1 |
-| cable-visualizer | presentation | ✓ | 1 |
-| devices-visualizer | presentation | ✓ | 0 |
-| etherchannel-visualizer | presentation | ✓ | 1 |
-| fhrp-visualizer | presentation | ✓ | 1 |
-| ipv6-visualizer | presentation | ✓ | 1 |
-| network-services-visualizer | presentation | ✓ | 1 |
-| osi-deep-dive-visualizer | presentation | ✓ | 1 |
-| osi-visualizer | presentation | ✓ | 1 |
-| ospf-cost-visualizer | presentation | ✓ | 1 |
-| port-visualizer | presentation | ✓ | 1 |
-| qos-visualizer | presentation | ✓ | 1 |
-| security-visualizer | presentation | ✓ | 1 |
-| stp-visualizer | presentation | ✓ | 1 |
-| subnetting-visualizer | presentation | ✓ | 1 |
-| switch-operations-visualizer | presentation | ✓ | 1 |
-| topology-visualizer | presentation | ✓ | 1 |
-| troubleshooting-visualizer | presentation | ✓ | 1 |
-| vlan-visualizer | presentation | ✓ | 1 |
-| wireless-architecture-visualizer | presentation | ✓ | 1 |
-| wireless-visualizer | presentation | ✓ | 1 |
-| networking-midterm | applet | ✓ | 1 |
+| web-binary-decimal-converter.applet | applet | ✓ | 1 |
+| web-server-comparison.applet | applet | ✓ | 1 |
+| web-networking-interactive.applet | applet | ✓ | 1 |
+| web-networking-midterm.exam | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| networking-fundamentals-lab | lab | ✓ | 0 |
-| static-routes-lab | lab | ✓ | 0 |
-| ip-addressing-ch7-10 | applet | ✓ | 1 |
-| arp-presentation | presentation | ✓ | 2 |
-| cables-presentation | presentation | ✓ | 1 |
-| devices-presentation | presentation | ✓ | 1 |
-| dhcp-presentation | presentation | ✓ | 2 |
-| dns-presentation | presentation | ✓ | 2 |
-| eigrp-presentation | presentation | ✓ | 1 |
-| etherchannel-presentation | presentation | ✓ | 2 |
-| fhrp-presentation | presentation | ✓ | 1 |
-| ipv6-presentation | presentation | ✓ | 2 |
-| nat-presentation | presentation | ✓ | 2 |
-| network-essentials-presentation | presentation | ✓ | 1 |
-| ntp-presentation | presentation | ✓ | 1 |
-| osi-deep-dive-presentation | presentation | ✓ | 1 |
-| osi-presentation | presentation | ✓ | 2 |
-| ospf-presentation | presentation | ✓ | 1 |
-| ports-presentation | presentation | ✓ | 2 |
-| stp-presentation | presentation | ✓ | 1 |
-| subnetting-presentation | presentation | ✓ | 2 |
-| switch-operations-presentation | presentation | ✓ | 1 |
-| tcp-presentation | presentation | ✓ | 2 |
-| topologies-presentation | presentation | ✓ | 2 |
-| troubleshooting-presentation | presentation | ✓ | 1 |
-| vlan-presentation | presentation | ✓ | 1 |
-| wireless-architecture-presentation | presentation | ✓ | 1 |
-| wireless-presentation | presentation | ✓ | 1 |
+| web-networking-fundamentals.lab | lab | ✓ | 0 |
+| web-static-routes.lab | lab | ✓ | 0 |
+| web-ip-addressing-ch7-10.module | applet | ✓ | 1 |
+| web-arp.presentation | presentation | ✓ | 2 |
+| web-cables.presentation | presentation | ✓ | 1 |
+| web-devices.presentation | presentation | ✓ | 1 |
+| web-dhcp.presentation | presentation | ✓ | 2 |
+| web-dns.presentation | presentation | ✓ | 2 |
+| web-eigrp.presentation | presentation | ✓ | 1 |
+| web-etherchannel.presentation | presentation | ✓ | 2 |
+| web-fhrp.presentation | presentation | ✓ | 1 |
+| web-ipv6.presentation | presentation | ✓ | 2 |
+| web-nat.presentation | presentation | ✓ | 2 |
+| web-network-essentials.presentation | presentation | ✓ | 1 |
+| web-ntp.presentation | presentation | ✓ | 1 |
+| web-osi-deep-dive.presentation | presentation | ✓ | 1 |
+| web-osi.presentation | presentation | ✓ | 2 |
+| web-ospf.presentation | presentation | ✓ | 1 |
+| web-ports.presentation | presentation | ✓ | 2 |
+| web-stp.presentation | presentation | ✓ | 1 |
+| web-subnetting.presentation | presentation | ✓ | 2 |
+| web-switch-operations.presentation | presentation | ✓ | 1 |
+| web-tcp.presentation | presentation | ✓ | 2 |
+| web-topologies.presentation | presentation | ✓ | 2 |
+| web-troubleshooting.presentation | presentation | ✓ | 1 |
+| web-vlan.presentation | presentation | ✓ | 1 |
+| web-wireless-architecture.presentation | presentation | ✓ | 1 |
+| web-wireless.presentation | presentation | ✓ | 1 |
+| web-networking-ch7-10.quiz | applet | ✓ | 1 |
+| web-networking-ch7-20.quiz | applet | ✓ | 1 |
 | subnetting | quiz | ✓ | 0 |
-| interactive-network-simulator.v2 | presentation | ✓ | 1 |
-| packet-tracer-lite-v3 | applet | ✓ | 1 |
-| networking-textbook-ch7-20 | applet | ✓ | 1 |
-| burp-training | presentation | ✓ | 1 |
-| dns-header-reference | applet | ✓ | 1 |
-| gobuster-training | presentation | ✓ | 1 |
-| nikto-training | presentation | ✓ | 1 |
-| sqlmap-training | presentation | ✓ | 1 |
+| web-interactive-network-simulatorv2.simulator | presentation | ✓ | 1 |
+| web-packet-tracer-lite-v3.simulator | applet | ✓ | 1 |
+| web-networking-textbook-ch7-20.textbook | applet | ✓ | 1 |
+| web-acl.tool | presentation | ✓ | 1 |
+| web-burp.tool | presentation | ✓ | 1 |
+| web-cable.tool | presentation | ✓ | 1 |
+| web-devices.tool | presentation | ✓ | 0 |
+| web-dns-header.tool | applet | ✓ | 1 |
+| web-etherchannel.tool | presentation | ✓ | 1 |
+| web-fhrp.tool | presentation | ✓ | 1 |
+| web-gobuster.tool | presentation | ✓ | 1 |
+| web-ipv6.tool | presentation | ✓ | 1 |
+| web-network-services.tool | presentation | ✓ | 1 |
+| web-nikto.tool | presentation | ✓ | 1 |
+| web-osi-deep-dive.tool | presentation | ✓ | 1 |
+| web-osi.tool | presentation | ✓ | 1 |
+| web-ospf-cost.tool | presentation | ✓ | 1 |
+| web-port.tool | presentation | ✓ | 1 |
+| web-qos.tool | presentation | ✓ | 1 |
+| web-security.tool | presentation | ✓ | 1 |
+| web-sqlmap.tool | presentation | ✓ | 1 |
+| web-stp.tool | presentation | ✓ | 1 |
+| web-subnetting.tool | presentation | ✓ | 1 |
+| web-switch-operations.tool | presentation | ✓ | 1 |
+| web-topology.tool | presentation | ✓ | 1 |
+| web-troubleshooting.tool | presentation | ✓ | 1 |
+| web-vlan.tool | presentation | ✓ | 1 |
+| web-wireless-architecture.tool | presentation | ✓ | 1 |
+| web-wireless.tool | presentation | ✓ | 1 |
 
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (661)
+### WARNING (814)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -2602,2454 +2630,3066 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/aws-service-explorer.html`
+  File: `houses/cloud/applets/architecture/cloud-architecture-designer.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch02-aws-account-explorer.html`
+  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch03-support-plans-visualizer.html`
+  File: `houses/cloud/labs/cloud-architecture.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch04-aws-regions-explorer.html`
+  File: `houses/cloud/labs/cloud-aws-services.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch05-security-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch06-aws-tools-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch07-compute-services-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch07-ec2-instance-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch08-storage-services-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch09-database-services-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch10-vpc-networking-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch11-automation-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/aws/ch12-use-cases-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/fundamentals/ch01-cloud-models-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.html`
+  File: `houses/cloud/labs/cloud-cse-module01.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-lab-simulator.html`
+  File: `houses/cloud/labs/cloud-cse-module02.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module01-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module01-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module01-presentation.html`
+  File: `houses/cloud/labs/cloud-cse-module02.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/cse/cse-module02-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module03.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module02-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module03.lab.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module02-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/labs/cloud-cse-module04.lab.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module02-presentation.html`
+  File: `houses/cloud/labs/cloud-cse-module05.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/labs/cloud-cse-module06.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/cse/cse-module03-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module07.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module03-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module03-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module03-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module04-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module04-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module04-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module04-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module05-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module05-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module05-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module05-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module06-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module06-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module06-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module06-quiz.html`
+  File: `houses/cloud/labs/cloud-cse-module07.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/cse/cse-module07-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module08.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module07-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module08.lab.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module07-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module07-presentation.html`
+  File: `houses/cloud/labs/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/cse/cse-module08-lab.html`
+  File: `houses/cloud/labs/cloud-lab.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module08-lab.html`
+  File: `houses/cloud/labs/cloud-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/labs/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/labs/cloud-security.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/cse/cse-module08-presentation.html`
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module08-presentation.html`
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/cse/cse-module08-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m01-fundamentals/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m01-fundamentals/presentation.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m01-fundamentals/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m01-fundamentals/quiz.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m02-active-directory/presentation.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/quiz.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m03-storage/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m03-storage/presentation.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m03-storage/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m04-hyperv/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m04-hyperv/presentation.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m04-hyperv/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m05-containers/presentation.html`
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/quiz.html`
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m06-clustering/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m06-clustering/presentation.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m06-clustering/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m07-monitoring/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m07-monitoring/presentation.html`
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m07-monitoring/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m08-dns/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m08-dns/presentation.html`
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m08-dns/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m09-dhcp/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-ps.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m09-dhcp/presentation.html`
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m09-dhcp/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m10-group-policy/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m10-group-policy/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m10-group-policy/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m11-iis/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m11-iis/presentation.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m11-iis/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m13-certificate-services/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m13-certificate-services/presentation.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m13-certificate-services/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m15-ad-sites/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m15-ad-sites/presentation.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m15-ad-sites/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m17-firewall-security/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m17-firewall-security/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/ps-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m17-firewall-security/ps-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/presentation.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/ps-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/gui-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/ps-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m20-failsafe-capstone/simulation.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/aws-fundamentals.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/presentations/aws-fundamentals.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/azure-fundamentals.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/quizzes/aws-fundamentals-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/applets/ansible-playbook-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/applets/automation-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/applets/kubernetes-cluster-sim.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/labs/unit-testing-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/code/presentations/automation-presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/presentations/automation-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/presentations/docker-fundamentals.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/tools/ctf-leaderboard/sample.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/5-tuple-approach.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/app-visibility-control.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/attack-surface-vuln.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/attack-surface.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/attribution-investigation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/content-filtering.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/cvss-terminology.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/data-types-output.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/data-visibility-challenges.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/data-visibility.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/detection-methods.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/disk-images.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/endpoint-attacks.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/evasion-obfuscation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/evidence-types.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/firewall-data.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/irp-elements.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/labs/lab-3-0-3-running-processes.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/labs/lab-3-2-11-windows-internals.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/labs/lab-3-3-10-user-accounts.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/malware-analysis-output.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/network-attacks.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/nsm-data-types.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/risk-rating.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/risk-register.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/security-approaches.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/source-technologies.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/tcpdump-netflow.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/web-attacks.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week2/labs/linux-servers.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week2/labs/windows-system-resources.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week2/labs/windows-task-manager.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/eye/applets/cyberops/week3/labs/exploring-nmap.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week3/labs/exploring-nmap.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/eye/applets/cyberops/week3/labs/tracing-route.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week3/labs/tracing-route.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week3/labs/verify-ipv4-ipv6.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week4/labs/acl-demo.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week4/labs/packet-flow.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week5/labs/logging-network-activity.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/week5/labs/soc-triage-simulator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/presentations/log-basics.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/log-correlation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/network-traffic-analysis.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/presentations/network-traffic-analysis.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/siem-fundamentals.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/presentations/siem-fundamentals.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/soc-operations.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/threat-hunting.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/tools/siem-simulator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/bluetooth-pairing-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/cable-matching-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/cloud-scenarios-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/command-line-lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/cpu-sockets-lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/cpu-sockets-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/diagnostic-tools-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/display-troubleshoot-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/dns-config-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/docking-config-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/email-config-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/hardware-diagnosis-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/laptop-memory-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/mdm-config-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/mobile-email-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/mobile-identifier-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/mobile-sync-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/network-commands-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/network-config-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/network-design-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/pc-builder-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/pc-components-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/port-identification-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/post-beep-codes-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/printer-troubleshoot-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/protocol-analysis-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/raid-config-lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/ram-identification-lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/ram-identification-lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/router-config-lab.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/server-roles-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/soho-designer-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/storage-upgrade-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/subnet-calculator-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/topology-builder-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/troubleshooting-flowchart-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/vm-setup-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/wireless-security-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/change-management-lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/control-panel-lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/core2_roleplay_lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/documentation-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/incident-response-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/malware-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/physical-security-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/security-fundamentals-lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/system-tools-lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/users-groups-lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/windows-editions-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/windows-settings-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/admin-tools.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/change-management.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/control-panel.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/documentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/incident-response.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/malware.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/physical-security.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/security-fundamentals.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/system-tools.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/users-groups.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/windows-editions.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/windows-settings.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch20-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch21-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch22-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch23-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch24-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-2/tools/os_core.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/hardware/peripheral_devices/peripheral_devices.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/hardware/raid-level-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/admin-tools-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/control-panel-lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/labs/hardware-essentials-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/system-tools-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/windows-editions-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/windows-settings-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/admin-tools.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/control-panel.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/macos-linux-basics.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/system-tools.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/windows-editions.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/windows-settings.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/presentations/advanced-symmetric.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/presentations/certificates.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/presentations/message-authentication.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/tools/cert-inspector.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/tools/cryptanalysis-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/tools/hmac-calculator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/bash-scripting-playground.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-001-intro-to-hacker-cli.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-002-navigation-recon.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-003-pattern-hunting.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-004-process-investigation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-005-log-analysis.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-006-file-operations.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-007-permissions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-008-shell-scripting.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-009-text-processing.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-010-io-redirection.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-011-advanced-grep.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-012-network-basics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-013-environment.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-014-process-control.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-015-capstone.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-016-system-intel.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-017-find-locate.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-018-archive-ops.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-019-disk-forensics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-020-user-recon.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-021-ssh-ops.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-022-network-recon.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-023-services.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-024-cron.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-025-packages.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-026-access.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-027-users.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-028-monitoring.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-029-vim.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-030-chimera.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/clh-031-blackout.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/linux-command-simulator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/linux-filesystem-navigator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/linux-lab-001-user-identity.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/linux-lab-002-file-navigation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/linux/linux-permissions-calculator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/powershell/windows-cli-tools.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/powershell/windows-registry-explorer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter1-applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter2-strings.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter3-flow-control.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter4-functions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter5-collections.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter6-dictionaries.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter7-file-handling.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/python/python-chapter8-oop.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/sysadmin/automation-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/sysadmin/log-management-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/sysadmin/package-manager-simulator.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-gui.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/script/applets/sysadmin/process-management-visualizer.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/applets/sysadmin/process-management-visualizer.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-001-intro.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-002-intro.html`
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-gui.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-003-intro.html`
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-004-intro.html`
+  File: `houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-005-intro.html`
+  File: `houses/cloud/presentations/cloud-concepts.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module01.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module02.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module03.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module04.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module05.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module06.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module07.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/presentations/cloud-cse-module08.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-module08.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-006-intro.html`
+  File: `houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-007-intro.html`
+  File: `houses/cloud/quizzes/cloud-cse-module04.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-008-intro.html`
+  File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-009-intro.html`
+  File: `houses/cloud/quizzes/cloud-cse-module06.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-010-intro.html`
+  File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-011-intro.html`
+  File: `houses/cloud/quizzes/cloud-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-012-intro.html`
+  File: `houses/cloud/tools/cloud-aws-service.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-013-intro.html`
+  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-014-intro.html`
+  File: `houses/cloud/tools/cloud-ch02-aws-account.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-015-intro.html`
+  File: `houses/cloud/tools/cloud-ch03-support-plans.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/clh-022-intro.html`
+  File: `houses/cloud/tools/cloud-ch04-aws-regions.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-001/intro.html`
+  File: `houses/cloud/tools/cloud-ch05-security.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-001/lab.html`
+  File: `houses/cloud/tools/cloud-ch06-aws-tools.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-002/intro.html`
+  File: `houses/cloud/tools/cloud-ch07-compute-services.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-002/lab.html`
+  File: `houses/cloud/tools/cloud-ch07-ec2-instance.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-003/intro.html`
+  File: `houses/cloud/tools/cloud-ch08-storage-services.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-003/lab.html`
+  File: `houses/cloud/tools/cloud-ch09-database-services.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-004/intro.html`
+  File: `houses/cloud/tools/cloud-ch10-vpc-networking.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-004/lab.html`
+  File: `houses/cloud/tools/cloud-ch11-automation.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-005/intro.html`
+  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-005/lab.html`
+  File: `houses/cloud/tools/cloud-cloud.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-006/intro.html`
+  File: `houses/code/applets/code-docker-playground.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-006/lab.html`
+  File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-007/intro.html`
+  File: `houses/code/labs/code-cicd.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-007/lab.html`
+  File: `houses/code/labs/code-cloudformation.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-008/intro.html`
+  File: `houses/code/labs/code-docker.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-008/lab.html`
+  File: `houses/code/labs/code-kubernetes.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-009/intro.html`
+  File: `houses/code/labs/code-unit-testing.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-009/lab.html`
+  File: `houses/code/presentations/code-agile-sdlc.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/code/presentations/code-automation.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/presentations/code-automation.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-010/intro.html`
+  File: `houses/code/presentations/code-cicd-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-010/lab.html`
+  File: `houses/code/presentations/code-cloudformation-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-011/intro.html`
+  File: `houses/code/presentations/code-docker-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-011/lab.html`
+  File: `houses/code/presentations/code-git-basics.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-012/intro.html`
+  File: `houses/code/presentations/code-kubernetes-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-012/lab.html`
+  File: `houses/code/presentations/code-terraform-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-013/intro.html`
+  File: `houses/code/tools/code-ansible-playbook.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-013/lab.html`
+  File: `houses/code/tools/code-automation.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-014/intro.html`
+  File: `houses/code/tools/code-sprint.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-014/lab.html`
+  File: `houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-015/intro.html`
+  File: `houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-015/lab.html`
+  File: `houses/eye/applets/cyberops/eye-app-visibility-control.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-016/lab.html`
+  File: `houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-017/lab.html`
+  File: `houses/eye/applets/cyberops/eye-attack-surface.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-018/lab.html`
+  File: `houses/eye/applets/cyberops/eye-attribution-investigation.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-019/lab.html`
+  File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-020/lab.html`
+  File: `houses/eye/applets/cyberops/eye-cvss-terminology.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-021/lab.html`
+  File: `houses/eye/applets/cyberops/eye-data-types-output.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-022/intro.html`
+  File: `houses/eye/applets/cyberops/eye-data-visibility-challenges.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-022/lab.html`
+  File: `houses/eye/applets/cyberops/eye-data-visibility.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-023/lab.html`
+  File: `houses/eye/applets/cyberops/eye-detection-methods.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-024/lab.html`
+  File: `houses/eye/applets/cyberops/eye-disk-images.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-025/lab.html`
+  File: `houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-026/lab.html`
+  File: `houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-027/lab.html`
+  File: `houses/eye/applets/cyberops/eye-evidence-types.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-028/lab.html`
+  File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-029/lab.html`
+  File: `houses/eye/applets/cyberops/eye-irp-elements.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-030/lab.html`
+  File: `houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-network-attacks.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-nsm-data-types.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-risk-rating.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-risk-register.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-security-approaches.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-source-technologies.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/eye-web-attacks.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/labs/eye-lab-3-2-11-windows-internals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week2/labs/eye-linux-servers.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week2/labs/eye-windows-system-resources.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/courses/clh/modules/clh-031/lab.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-031/lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/labs/linux-bash-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-03-getting-help.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-04-terminal-environment.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-08-file-operations.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-09-copy-move.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-10-viewing-files.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-11-finding-files.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-12-section2-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-13-grep-basics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-14-regular-expressions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-15-sed-editor.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-16-awk-processing.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-20-section3-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-21-users-groups.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-22-file-permissions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-23-chmod.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-24-chown.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-25-sudo.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-26-special-permissions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-27-section4-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-28-process-basics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-29-ps-top.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-30-background-jobs.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-31-signals-kill.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-32-cron.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-33-systemd.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-34-section5-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-35-network-info.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-36-connectivity.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-37-dns-tools.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-38-downloading.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-39-ssh-basics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-40-section6-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-41-first-script.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-42-variables.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-43-user-input.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-44-conditionals.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-45-loops.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-46-functions.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-47-practical-scripts.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-48-section7-practice.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-49-links.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-50-text-editors.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-51-package-management.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-52-environment-path.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/linux-mastery/lm-53-next-steps.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/python/python-immersive-chapter2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/python/python-immersive-chapter7.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter1.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter3.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter4.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter5.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter6.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter7.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/presentations/python/python-chapter8.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/quizzes/linux-bash-quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/aaa-flow-simulator.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/access-control-models.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/access_control/access_control.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/biometrics/Biometrics.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/architecture/security-models-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/architecture/zero-trust-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_access_control/ACv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_audit_accountability/AUv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_awareness_training/ATv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_config_management/CMv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_cui/CUI_2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_framework/CMMCFrameworkv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_identification_auth/IAv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_incident_response/IRv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_maintenance/MAv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_media_protection/MPv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_personnel_security/PSv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_physical_protection/PEv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_quiz/CMMCTestKnowledge2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_risk_assessment/RAv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_security_assessment/CAv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_system_comm_protection/SCv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_system_info_integrity/SIv2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/laws-regulations-reference.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/block_mode/Block.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/checksum-verifier.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/cryptomatch/CryptoMatch.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/diffie_hellman/diffie_hellman.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/digital_signatures/DigitalSignature.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/encrypt_data/EncryptData.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/encryption/encryption_jedit_6_1.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/factor_prime/FactorPrime.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/gpg-encryption-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing/Hashing.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_narrated/Hashing_vo.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/Encryption_II.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/Hash_Lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/Stego.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/encryption_task.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/hash_steg_presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/hash_v3.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_steganography/hashing_Lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/rsa/RSA.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/cybersecurity_controls/cybersecurity_controls.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/data-lifecycle-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/data_roles/dataroles.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/design_principles/cybersecuritydesignprinciples.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/ethics_challenge/ethics_challenge.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/ethics_conduct/EthicsProfConduct.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/five_pillars/FivePillars.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/physical_protection/physical_environmental.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/secure-sdlc-framework.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/security-best-practices.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/security-governance-dashboard.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cookie_caper/cookies.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cyber_hat_match/hatmatch.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cyber_scramble/cyberscramble.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/ethical_hacking_case/EH_exam_1A.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/network/browser-security-hardening.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/network/home-network-security.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/network/linux-firewall-builder.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/shield/applets/operations/cyber-arts-bootcamp.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/operations/cysa-analyst-toolkit.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/operations/ics-scada-security.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/applets/risk/bia-calculator.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/business-continuity-planner.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/change-management.html`
+  File: `houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/config_management/ConfigMgmt.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/applets/risk/crisc-risk-calculator.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/crisc-risk-calculator.html`
+  File: `houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/cybersecurity_scenario/cyber_scenario.html`
+  File: `houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/incident-response-simulator.html`
+  File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/pspg/PSPG.html`
+  File: `houses/eye/labs/eye-siem.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/risk_analysis/risk_analysis.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/risk_management/risk_management.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/threats/malware-types-reference.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/labs/access-control-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/labs/cryptography-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/labs/network-security-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/labs/osint-google-dorking.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/labs/security-fundamentals-lab.html`
+  File: `houses/eye/presentations/eye-log-basics.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/presentations/security-presentation.html`
+  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/presentations/security-presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/ip-addressing/binary-decimal-converter.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/networking-interactive-guide.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/networking-quizzes/networking-ch7-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/networking-quizzes/networking-ch7-20.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/services/web-server-comparison.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/acl-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/cable-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/devices-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/etherchannel-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/fhrp-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/ipv6-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/network-services-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/osi-deep-dive-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/osi-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/ospf-cost-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/port-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/qos-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/security-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/stp-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/subnetting-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/switch-operations-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/topology-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/troubleshooting-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/vlan-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/wireless-architecture-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/applets/visualizers/wireless-visualizer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/exams/networking-midterm.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/modules/ip-addressing-ch7-10.html`
+  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/arp-presentation.html`
+  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/arp-presentation.html`
+  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/cables-presentation.html`
+  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/cables-presentation.html`
+  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/devices-presentation.html`
+  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/devices-presentation.html`
+  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/dhcp-presentation.html`
+  File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/dhcp-presentation.html`
+  File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/tools/eye-correlation.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/tools/eye-packet.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/tools/eye-siem.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/tools/eye-soc.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/tools/eye-wireshark.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-bluetooth-pairing.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-matching.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-command-line.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-diagnostic-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-docking-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-email-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-identifier.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-sync.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-commands.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-components.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-port-identification.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-router-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-server-roles.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-storage-upgrade.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-subnet-calculator.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-vm-setup.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-wireless-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-documentation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-security-fundamentals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/dns-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/dns-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/eigrp-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/eigrp-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-incident-response.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-security-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/etherchannel-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/etherchannel-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-users-groups.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/fhrp-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/fhrp-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/ipv6-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/ipv6-presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch20.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch22.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch23.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch24.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-admin-tools.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-command-translator.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-control-panel.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-settings.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-system-tools-sim.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/labs/forge-admin-tools.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-admin-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/labs/forge-control-panel.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-control-panel.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-hardware-essentials.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/labs/forge-system-tools.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-system-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/labs/forge-windows-editions.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-windows-editions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/labs/forge-windows-settings.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/labs/forge-windows-settings.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/nat-presentation.html`
+  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/nat-presentation.html`
+  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/network-essentials-presentation.html`
+  File: `houses/forge/presentations/forge-control-panel.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/network-essentials-presentation.html`
+  File: `houses/forge/presentations/forge-control-panel.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/ntp-presentation.html`
+  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/ntp-presentation.html`
+  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/osi-deep-dive-presentation.html`
+  File: `houses/forge/presentations/forge-system-tools.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/osi-deep-dive-presentation.html`
+  File: `houses/forge/presentations/forge-system-tools.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/osi-presentation.html`
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/osi-presentation.html`
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/ospf-presentation.html`
+  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/ospf-presentation.html`
+  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-admin-tools.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-control-panel.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-os-core.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-raid-level.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-settings.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-system-tools-sim.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/tools/forge-windows-edition-selector.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-aes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-attack.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-cert.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-cryptanalysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-crypto-stego.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-ecc.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-hmac.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-hsm.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-kdf.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/labs/key-pqc.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/modules/key-hash-stego-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-advanced-symmetric.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-certificates.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-cryptanalysis.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-derivation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-encryption-basics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-message-authentication.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-post-quantum.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-cert.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-cryptanalysis.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-ecc.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-hsm.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-kdf.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-mac.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-pqc.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/quizzes/key-symmetric.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-aes.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-cert.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-ecc.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-hmac.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-kdf.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-lifecycle.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/tools/key-pqc.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-002-navigation-recon.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-004-process-investigation.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-005-log-analysis.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-006-file-operations.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-007-permissions.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-008-shell-scripting.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-009-text-processing.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-010-io-redirection.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-011-advanced-grep.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-012-network-basics.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-013-environment.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-014-process-control.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-015-capstone.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-016-system-intel.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-017-find-locate.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-018-archive-ops.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-019-disk-forensics.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-020-user-recon.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-021-ssh-ops.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-022-network-recon.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-023-services.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-024-cron.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-025-packages.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-026-access.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-027-users.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-028-monitoring.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-029-vim.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-030-chimera.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-clh-031-blackout.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-command-translator.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-linux-filesystem-navigator.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/powershell/script-windows-cli-tools.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter1.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter3-flow-control.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter4-functions.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter5-collections.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter6-dictionaries.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/python/script-python-chapter8-oop.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-001-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-002-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-003-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-004-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-005-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-006-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-007-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-008-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-009-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-010-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-011-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-012-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-013-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-014-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-015-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-022-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-002/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-003/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-004/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-005/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-006/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-007/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-008/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-009/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-010/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-011/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-012/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-013/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-014/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-015/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-016/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-017/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-018/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-019/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-020/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-021/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-022/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-023/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-024/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-025/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-026/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-027/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-028/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-029/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-030/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/script-linux-bash.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/script-powershell.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/script-python.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/script-sysadmin.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/linux/labs/script-mission-file-operations.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-mission-file-operations.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-mission-file-search.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-mission-permissions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-mission-text-viewing.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-template-warmup.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/labs/script-warmup-navigation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/script-quick.reference.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/tools/script-directory.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/tools/script-permission.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-23-chmod.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-24-chown.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-25-sudo.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-32-cron.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-33-systemd.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-35-network-info.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-38-downloading.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-41-first-script.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-42-variables.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-43-user-input.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-45-loops.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-46-functions.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-49-links.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-51-package-management.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/python/script-python-immersive-chapter2.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/modules/python/script-python-immersive-chapter7.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter1.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter2.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter3.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter4.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter5.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter6.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter7.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/python/script-python-chapter8.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/script-automation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/presentations/script-scripting-basics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/quizzes/script-linux-bash.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-automation.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-linux-command.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-linux-permissions.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-log-management.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-package-manager.tool.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/ports-presentation.html`
+  File: `houses/script/tools/script-process-management.tool.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/ports-presentation.html`
+  File: `houses/script/tools/script-process-management.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/tools/script-windows-registry.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/access/access_control/shield-access-control.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/access/biometrics/shield-biometrics.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/access/kerberos/shield-kerberos.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/access/shield-access-control-models.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_access_control/shield-acv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_audit_accountability/shield-auv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_awareness_training/shield-atv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_config_management/shield-cmv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_identification_auth/shield-iav2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_incident_response/shield-irv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_maintenance/shield-mav2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_media_protection/shield-mpv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_personnel_security/shield-psv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_physical_protection/shield-pev2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_risk_assessment/shield-rav2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_security_assessment/shield-cav2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_system_comm_protection/shield-scv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_system_info_integrity/shield-siv2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/shield-laws-regulations.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/block_mode/shield-block.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/cryptomatch/shield-crypto-match.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/diffie_hellman/shield-diffie-hellman.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/digital_signatures/shield-digital-signature.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/encrypt_data/shield-encrypt-data.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/encryption/shield-encryption-jedit-6-1.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/factor_prime/shield-factor-prime.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing/shield-hashing.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing_narrated/shield-hashing-vo.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/pki/shield-pki.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/rsa/shield-rsa.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/crypto/shield-checksum-verifier.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/data_roles/shield-dataroles.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/ethics_challenge/shield-ethics-challenge.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/ethics_conduct/shield-ethics-prof-conduct.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/five_pillars/shield-five-pillars.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/physical_protection/shield-physical-environmental.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/privacy/shield-privacy.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/shield-security-best-practices.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/fundamentals/the_cube/shield-cube.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/cookie_caper/shield-cookies.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/whats_my_crime/shield-crime.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/network/shield-browser-security-hardening.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/network/shield-home-network-security.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/network/shield-linux-firewall-builder.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/operations/shield-ics-scada-security.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/config_management/shield-config-mgmt.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/cybersecurity_scenario/shield-cyber-scenario.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/pspg/shield-pspg.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/risk_management/shield-risk-management.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/shield-business-continuity-planner.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/risk/shield-change-management.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/exams/shield-eh-exam-1-a.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-access-control.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-cryptography.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-hash.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-hashing.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-network-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-osint-google-dorking.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-security-fundamentals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-threats.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/presentations/shield-cia-triad.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/presentations/shield-hash-steg.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/stp-presentation.html`
+  File: `houses/shield/presentations/shield-security.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/stp-presentation.html`
+  File: `houses/shield/presentations/shield-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-aaa-flow.tool.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/subnetting-presentation.html`
+  File: `houses/shield/tools/shield-bia.tool.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/subnetting-presentation.html`
+  File: `houses/shield/tools/shield-bia.tool.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/switch-operations-presentation.html`
+  File: `houses/shield/tools/shield-crisc-risk.tool.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/switch-operations-presentation.html`
+  File: `houses/shield/tools/shield-crisc-risk.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-data-lifecycle.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-incident-response.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-security-models.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-yara.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/tools/shield-zero-trust.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/applets/services/web-server-comparison.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/applets/web-networking-interactive.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/exams/web-networking-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-networking-fundamentals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-static-routes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/modules/web-ip-addressing-ch7-10.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/tcp-presentation.html`
+  File: `houses/web/presentations/web-arp.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/tcp-presentation.html`
+  File: `houses/web/presentations/web-arp.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/topologies-presentation.html`
+  File: `houses/web/presentations/web-cables.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/topologies-presentation.html`
+  File: `houses/web/presentations/web-cables.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/troubleshooting-presentation.html`
+  File: `houses/web/presentations/web-devices.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/troubleshooting-presentation.html`
+  File: `houses/web/presentations/web-devices.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/vlan-presentation.html`
+  File: `houses/web/presentations/web-dhcp.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/vlan-presentation.html`
+  File: `houses/web/presentations/web-dhcp.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/wireless-architecture-presentation.html`
+  File: `houses/web/presentations/web-dns.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/wireless-architecture-presentation.html`
+  File: `houses/web/presentations/web-dns.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/wireless-presentation.html`
+  File: `houses/web/presentations/web-eigrp.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/presentations/wireless-presentation.html`
+  File: `houses/web/presentations/web-eigrp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-etherchannel.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-etherchannel.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-fhrp.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-fhrp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-ipv6.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-ipv6.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-nat.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-nat.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-network-essentials.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-network-essentials.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-ntp.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-ntp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-osi-deep-dive.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-osi-deep-dive.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-osi.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-osi.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-ospf.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-ospf.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-ports.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-ports.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-stp.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-stp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-subnetting.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-subnetting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-switch-operations.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-switch-operations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-tcp.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-tcp.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-topologies.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-topologies.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-troubleshooting.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-troubleshooting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-vlan.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-vlan.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-wireless-architecture.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-wireless-architecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/web/presentations/web-wireless.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/presentations/web-wireless.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/simulators/interactive-network-simulator.v2.html`
+  File: `houses/web/quizzes/web-networking-ch7-10.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/simulators/packet-tracer-lite-v3.html`
+  File: `houses/web/quizzes/web-networking-ch7-20.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/textbook/networking-textbook-ch7-20.html`
+  File: `houses/web/quizzes/web-subnetting.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/tools/dns-header-reference.html`
+  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Add entry to content-registry.js
 
-### INFO (366)
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/textbook/web-networking-textbook-ch7-20.textbook.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-acl.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-burp.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-cable.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-devices.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-dns-header.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-etherchannel.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-fhrp.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-gobuster.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-ipv6.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-network-services.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-nikto.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-osi-deep-dive.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-osi.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-ospf-cost.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-port.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-qos.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-security.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-sqlmap.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-stp.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-subnetting.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-switch-operations.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-topology.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-troubleshooting.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-vlan.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-wireless-architecture.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/tools/web-wireless.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `product-info.html`
+  Fix: Add entry to content-registry.js
+
+### INFO (369)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -5204,43 +5844,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/aws-service-explorer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch02-aws-account-explorer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch04-aws-regions-explorer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch05-security-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch07-ec2-instance-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch10-vpc-networking-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/aws/ch12-use-cases-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/fundamentals/ch01-cloud-models-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/fundamentals/cloud-visualizer.html`
+  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5248,111 +5852,135 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/labs/cloud-lab-simulator.html`
+  File: `houses/cloud/labs/cloud-cse-module04.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/cse/cse-module04-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module05.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/cse/cse-module05-lab.html`
+  File: `houses/cloud/labs/cloud-cse-module06.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/cse/cse-module05-quiz.html`
+  File: `houses/cloud/labs/cloud-lab.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/cse/cse-module06-lab.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/cse/cse-module08-quiz.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m02-active-directory/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m03-storage/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m03-storage/presentation.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m04-hyperv/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/presentation.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/ps-lab.html`
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/quiz.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m06-clustering/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m07-monitoring/gui-lab.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m08-dns/gui-lab.html`
+  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/presentation.html`
+  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/azure-fundamentals.html`
+  File: `houses/cloud/presentations/cloud-concepts.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/cloud-concepts.html`
+  File: `houses/cloud/quizzes/cloud-cse-05.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/cloud-presentation.html`
+  File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cse-05-quiz.html`
+  File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/ansible-playbook-visualizer.html`
+  File: `houses/cloud/tools/cloud-aws-service.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/automation-visualizer.html`
+  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/docker-playground.html`
+  File: `houses/cloud/tools/cloud-ch02-aws-account.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/kubernetes-cluster-sim.html`
+  File: `houses/cloud/tools/cloud-ch04-aws-regions.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/sprint-simulator.html`
+  File: `houses/cloud/tools/cloud-ch05-security.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/tools/cloud-ch07-ec2-instance.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/tools/cloud-ch10-vpc-networking.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/tools/cloud-cloud.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/applets/code-docker-playground.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5360,39 +5988,55 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/labs/docker-lab.html`
+  File: `houses/code/labs/code-docker.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/labs/kubernetes-lab.html`
+  File: `houses/code/labs/code-kubernetes.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/agile-sdlc.html`
+  File: `houses/code/presentations/code-agile-sdlc.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/cicd-fundamentals.html`
+  File: `houses/code/presentations/code-cicd-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/cloudformation-fundamentals.html`
+  File: `houses/code/presentations/code-cloudformation-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/docker-fundamentals.html`
+  File: `houses/code/presentations/code-docker-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/git-basics.html`
+  File: `houses/code/presentations/code-git-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/kubernetes-fundamentals.html`
+  File: `houses/code/presentations/code-kubernetes-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/terraform-fundamentals.html`
+  File: `houses/code/presentations/code-terraform-fundamentals.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/tools/code-ansible-playbook.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/tools/code-automation.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/tools/code-sprint.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5400,107 +6044,103 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/tools/ctf-leaderboard/sample.html`
+  File: `houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/5-tuple-approach.html`
+  File: `houses/eye/applets/cyberops/eye-app-visibility-control.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/app-visibility-control.html`
+  File: `houses/eye/applets/cyberops/eye-attack-surface.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/attack-surface.html`
+  File: `houses/eye/applets/cyberops/eye-cvss-terminology.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/cvss-terminology.html`
+  File: `houses/eye/applets/cyberops/eye-data-types-output.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/data-types-output.html`
+  File: `houses/eye/applets/cyberops/eye-data-visibility.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/data-visibility.html`
+  File: `houses/eye/applets/cyberops/eye-detection-methods.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/detection-methods.html`
+  File: `houses/eye/applets/cyberops/eye-disk-images.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/disk-images.html`
+  File: `houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/endpoint-attacks.html`
+  File: `houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/evasion-obfuscation.html`
+  File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/firewall-data.html`
+  File: `houses/eye/applets/cyberops/eye-irp-elements.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/irp-elements.html`
+  File: `houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/malware-analysis-output.html`
+  File: `houses/eye/applets/cyberops/eye-network-attacks.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/network-attacks.html`
+  File: `houses/eye/applets/cyberops/eye-nsm-data-types.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/nsm-data-types.html`
+  File: `houses/eye/applets/cyberops/eye-risk-rating.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/risk-rating.html`
+  File: `houses/eye/applets/cyberops/eye-risk-register.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/risk-register.html`
+  File: `houses/eye/applets/cyberops/eye-security-approaches.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/security-approaches.html`
+  File: `houses/eye/applets/cyberops/eye-source-technologies.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/source-technologies.html`
+  File: `houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/tcpdump-netflow.html`
+  File: `houses/eye/applets/cyberops/eye-web-attacks.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/web-attacks.html`
+  File: `houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week2/labs/windows-task-manager.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/exploring-nmap.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/tracing-route.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/verify-ipv4-ipv6.html`
+  File: `houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5508,19 +6148,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week4/labs/acl-demo.html`
+  File: `houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week4/labs/packet-flow.html`
+  File: `houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week5/labs/logging-network-activity.html`
+  File: `houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week5/labs/soc-triage-simulator.html`
+  File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5528,55 +6168,51 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/labs/siem-lab.html`
+  File: `houses/eye/labs/eye-siem.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/log-basics.html`
+  File: `houses/eye/presentations/eye-log-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/log-correlation.html`
+  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/network-traffic-analysis.html`
+  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/siem-fundamentals.html`
+  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/soc-operations.html`
+  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/threat-hunting.html`
+  File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/correlation-engine.html`
+  File: `houses/eye/tools/eye-correlation.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/packet-analyzer.html`
+  File: `houses/eye/tools/eye-packet.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/siem-simulator.html`
+  File: `houses/eye/tools/eye-siem.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/soc-simulator.html`
+  File: `houses/eye/tools/eye-soc.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/wireshark-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/command-translator.html`
+  File: `houses/eye/tools/eye-wireshark.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5628,43 +6264,43 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/hardware-diagnosis-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/laptop-memory-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/mobile-email-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/network-config-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/network-design-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/pc-builder-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/post-beep-codes-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/printer-troubleshoot-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/raid-config-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/topology-builder-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5684,67 +6320,63 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/control-panel-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/physical-security-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/system-tools-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/windows-editions-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/windows-settings-lab.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/admin-tools.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/control-panel.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/macos-linux-basics.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/physical-security.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/windows-editions.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/windows-settings.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/ch21-quiz.html`
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/tools/system-tools-sim.html`
+  File: `houses/forge/applets/forge-command-translator.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/peripheral_devices/peripheral_devices.html`
+  File: `houses/forge/applets/forge-system-tools-sim.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/raid-level-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/system-tools-sim.html`
+  File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5752,43 +6384,51 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/admin-tools-lab.html`
+  File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/control-panel-lab.html`
+  File: `houses/forge/labs/forge-control-panel.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/system-tools-lab.html`
+  File: `houses/forge/labs/forge-system-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/windows-editions-lab.html`
+  File: `houses/forge/labs/forge-windows-editions.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/windows-settings-lab.html`
+  File: `houses/forge/labs/forge-windows-settings.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/admin-tools.html`
+  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/control-panel.html`
+  File: `houses/forge/presentations/forge-control-panel.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/macos-linux-basics.html`
+  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/windows-editions.html`
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/windows-settings.html`
+  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/tools/forge-raid-level.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/tools/forge-system-tools-sim.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5796,307 +6436,279 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/crypto-stego-lab.html`
+  File: `houses/key/labs/key-cryptanalysis.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/kdf-lab.html`
+  File: `houses/key/labs/key-crypto-stego.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/pqc-lab.html`
+  File: `houses/key/labs/key-kdf.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/modules/hash-stego-intro.html`
+  File: `houses/key/labs/key-pqc.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/advanced-symmetric.html`
+  File: `houses/key/modules/key-hash-stego-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/certificates.html`
+  File: `houses/key/presentations/key-advanced-symmetric.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/cryptanalysis.html`
+  File: `houses/key/presentations/key-certificates.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/cryptography-fundamentals.html`
+  File: `houses/key/presentations/key-cryptanalysis.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/elliptic-curve.html`
+  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/encryption-basics.html`
+  File: `houses/key/presentations/key-derivation.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-derivation.html`
+  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-management.html`
+  File: `houses/key/presentations/key-encryption-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/message-authentication.html`
+  File: `houses/key/presentations/key-management.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/post-quantum.html`
+  File: `houses/key/presentations/key-message-authentication.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/quizzes/kdf-quiz.html`
+  File: `houses/key/presentations/key-post-quantum.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/aes-explorer.html`
+  File: `houses/key/quizzes/key-kdf.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/cryptanalysis-lab.html`
+  File: `houses/key/tools/key-aes.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/ecc-visualizer.html`
+  File: `houses/key/tools/key-ecc.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/hmac-calculator.html`
+  File: `houses/key/tools/key-hmac.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/kdf-analyzer.html`
+  File: `houses/key/tools/key-kdf.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-lifecycle.html`
+  File: `houses/key/tools/key-lifecycle.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/pqc-explorer.html`
+  File: `houses/key/tools/key-pqc.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/bash-scripting-playground.html`
+  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/clh-006-file-operations.html`
+  File: `houses/script/applets/linux/script-clh-006-file-operations.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/clh-031-blackout.html`
+  File: `houses/script/applets/linux/script-clh-031-blackout.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/command-translator.html`
+  File: `houses/script/applets/linux/script-command-translator.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/linux-command-simulator.html`
+  File: `houses/script/applets/powershell/script-windows-cli-tools.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/linux-permissions-calculator.html`
+  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/windows-cli-tools.html`
+  File: `houses/script/applets/python/script-python-chapter1.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/windows-registry-explorer.html`
+  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/windows-troubleshooting.html`
+  File: `houses/script/applets/python/script-python-chapter3-flow-control.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter1-applet.html`
+  File: `houses/script/applets/python/script-python-chapter4-functions.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter2-strings.html`
+  File: `houses/script/applets/python/script-python-chapter5-collections.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter3-flow-control.html`
+  File: `houses/script/applets/python/script-python-chapter6-dictionaries.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter4-functions.html`
+  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter5-collections.html`
+  File: `houses/script/applets/python/script-python-chapter8-oop.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter6-dictionaries.html`
+  File: `houses/script/clh/script-clh-001-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter7-file-handling.html`
+  File: `houses/script/clh/script-clh-002-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/python-chapter8-oop.html`
+  File: `houses/script/clh/script-clh-003-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/sysadmin/automation-visualizer.html`
+  File: `houses/script/clh/script-clh-004-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/sysadmin/log-management-visualizer.html`
+  File: `houses/script/clh/script-clh-005-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/sysadmin/package-manager-simulator.html`
+  File: `houses/script/clh/script-clh-006-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/sysadmin/process-management-visualizer.html`
+  File: `houses/script/clh/script-clh-007-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-001-intro.html`
+  File: `houses/script/clh/script-clh-008-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-002-intro.html`
+  File: `houses/script/clh/script-clh-009-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-003-intro.html`
+  File: `houses/script/clh/script-clh-010-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-004-intro.html`
+  File: `houses/script/clh/script-clh-011-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-005-intro.html`
+  File: `houses/script/clh/script-clh-012-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-006-intro.html`
+  File: `houses/script/clh/script-clh-013-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-007-intro.html`
+  File: `houses/script/clh/script-clh-014-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-008-intro.html`
+  File: `houses/script/clh/script-clh-015-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-009-intro.html`
+  File: `houses/script/clh/script-clh-022-intro.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-010-intro.html`
+  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-011-intro.html`
+  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-012-intro.html`
+  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-013-intro.html`
+  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-014-intro.html`
+  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-015-intro.html`
+  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/clh-022-intro.html`
+  File: `houses/script/courses/clh/modules/clh-006/script-lab.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-001/intro.html`
+  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-002/intro.html`
+  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-003/intro.html`
+  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-004/intro.html`
+  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-005/intro.html`
+  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-006/intro.html`
+  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-006/lab.html`
+  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-007/intro.html`
+  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-008/intro.html`
+  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-009/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-010/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-011/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-012/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-013/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-014/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-015/intro.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-022/intro.html`
+  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6108,195 +6720,195 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/linux-bash-lab.html`
+  File: `houses/script/labs/script-linux-bash.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/powershell-lab.html`
+  File: `houses/script/labs/script-powershell.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-03-getting-help.html`
+  File: `houses/script/linux/script-quick.reference.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-04-terminal-environment.html`
+  File: `houses/script/linux/tools/script-directory.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-08-file-operations.html`
+  File: `houses/script/linux/tools/script-permission.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-09-copy-move.html`
+  File: `houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-10-viewing-files.html`
+  File: `houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-25-sudo.html`
+  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-29-ps-top.html`
+  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-36-connectivity.html`
+  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-37-dns-tools.html`
+  File: `houses/script/modules/linux-mastery/script-lm-25-sudo.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-38-downloading.html`
+  File: `houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-39-ssh-basics.html`
+  File: `houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-41-first-script.html`
+  File: `houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-43-user-input.html`
+  File: `houses/script/modules/linux-mastery/script-lm-38-downloading.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-51-package-management.html`
+  File: `houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/lm-52-environment-path.html`
+  File: `houses/script/modules/linux-mastery/script-lm-41-first-script.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/python/python-immersive-chapter2.html`
+  File: `houses/script/modules/linux-mastery/script-lm-43-user-input.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/python/python-immersive-chapter7.html`
+  File: `houses/script/modules/linux-mastery/script-lm-51-package-management.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/macos-linux-basics.html`
+  File: `houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/python/python-chapter1.html`
+  File: `houses/script/modules/python/script-python-immersive-chapter2.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/scripting-basics.html`
+  File: `houses/script/modules/python/script-python-immersive-chapter7.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/quizzes/linux-bash-quiz.html`
+  File: `houses/script/presentations/python/script-python-chapter1.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/access/aaa-flow-simulator.html`
+  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/access/access-control-models.html`
+  File: `houses/script/presentations/script-scripting-basics.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/architecture/security-models-visualizer.html`
+  File: `houses/script/quizzes/script-linux-bash.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/architecture/zero-trust-visualizer.html`
+  File: `houses/script/tools/script-automation.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/gpg-encryption-lab.html`
+  File: `houses/script/tools/script-linux-command.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/Encryption_II.html`
+  File: `houses/script/tools/script-linux-permissions.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/Hash_Lab.html`
+  File: `houses/script/tools/script-log-management.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/Stego.html`
+  File: `houses/script/tools/script-package-manager.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/encryption_task.html`
+  File: `houses/script/tools/script-process-management.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/hash_steg_presentation.html`
+  File: `houses/script/tools/script-windows-registry.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/hash_v3.html`
+  File: `houses/shield/applets/access/shield-access-control-models.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/hashing_Lab.html`
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/fundamentals/data-lifecycle-visualizer.html`
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/fundamentals/secure-sdlc-framework.html`
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/fundamentals/security-best-practices.html`
+  File: `houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/games/cookie_caper/cookies.html`
+  File: `houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/browser-security-hardening.html`
+  File: `houses/shield/applets/fundamentals/shield-security-best-practices.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/home-network-security.html`
+  File: `houses/shield/applets/games/cookie_caper/shield-cookies.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/linux-firewall-builder.html`
+  File: `houses/shield/applets/network/shield-browser-security-hardening.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/operations/cysa-analyst-toolkit.html`
+  File: `houses/shield/applets/network/shield-home-network-security.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/operations/ics-scada-security.html`
+  File: `houses/shield/applets/network/shield-linux-firewall-builder.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/risk/bia-calculator.html`
+  File: `houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/risk/change-management.html`
+  File: `houses/shield/applets/operations/shield-ics-scada-security.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/risk/incident-response-simulator.html`
+  File: `houses/shield/applets/risk/shield-change-management.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/threats/malware-types-reference.html`
+  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6304,127 +6916,79 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/network-security-lab.html`
+  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/osint-google-dorking.html`
+  File: `houses/shield/labs/shield-hash.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/security-fundamentals-lab.html`
+  File: `houses/shield/labs/shield-hashing.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/presentations/social-engineering.html`
+  File: `houses/shield/labs/shield-network-security.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/yara-training.html`
+  File: `houses/shield/labs/shield-osint-google-dorking.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/ip-addressing/binary-decimal-converter.html`
+  File: `houses/shield/labs/shield-security-fundamentals.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/networking-interactive-guide.html`
+  File: `houses/shield/presentations/shield-hash-steg.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/networking-quizzes/networking-ch7-10.html`
+  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/networking-quizzes/networking-ch7-20.html`
+  File: `houses/shield/tools/shield-aaa-flow.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/services/web-server-comparison.html`
+  File: `houses/shield/tools/shield-bia.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/acl-visualizer.html`
+  File: `houses/shield/tools/shield-data-lifecycle.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/cable-visualizer.html`
+  File: `houses/shield/tools/shield-incident-response.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/etherchannel-visualizer.html`
+  File: `houses/shield/tools/shield-security-models.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/fhrp-visualizer.html`
+  File: `houses/shield/tools/shield-yara.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/ipv6-visualizer.html`
+  File: `houses/shield/tools/shield-zero-trust.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/network-services-visualizer.html`
+  File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/osi-deep-dive-visualizer.html`
+  File: `houses/web/applets/services/web-server-comparison.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/osi-visualizer.html`
+  File: `houses/web/applets/web-networking-interactive.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/ospf-cost-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/port-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/qos-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/security-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/stp-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/subnetting-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/switch-operations-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/topology-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/troubleshooting-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/vlan-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/wireless-architecture-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/visualizers/wireless-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/exams/networking-midterm.html`
+  File: `houses/web/exams/web-networking-midterm.exam.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6432,94 +6996,182 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/modules/ip-addressing-ch7-10.html`
+  File: `houses/web/modules/web-ip-addressing-ch7-10.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/arp-presentation.html`
+  File: `houses/web/presentations/web-arp.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/dhcp-presentation.html`
+  File: `houses/web/presentations/web-dhcp.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/dns-presentation.html`
+  File: `houses/web/presentations/web-dns.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/etherchannel-presentation.html`
+  File: `houses/web/presentations/web-etherchannel.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/ipv6-presentation.html`
+  File: `houses/web/presentations/web-ipv6.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/nat-presentation.html`
+  File: `houses/web/presentations/web-nat.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/osi-presentation.html`
+  File: `houses/web/presentations/web-osi.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/ports-presentation.html`
+  File: `houses/web/presentations/web-ports.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/subnetting-presentation.html`
+  File: `houses/web/presentations/web-subnetting.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/tcp-presentation.html`
+  File: `houses/web/presentations/web-tcp.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/topologies-presentation.html`
+  File: `houses/web/presentations/web-topologies.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/simulators/interactive-network-simulator.v2.html`
+  File: `houses/web/quizzes/web-networking-ch7-10.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/simulators/packet-tracer-lite-v3.html`
+  File: `houses/web/quizzes/web-networking-ch7-20.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/textbook/networking-textbook-ch7-20.html`
+  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/burp-training.html`
+  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/dns-header-reference.html`
+  File: `houses/web/textbook/web-networking-textbook-ch7-20.textbook.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/gobuster-training.html`
+  File: `houses/web/tools/web-acl.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/nikto-training.html`
+  File: `houses/web/tools/web-burp.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/sqlmap-training.html`
+  File: `houses/web/tools/web-cable.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `sorting.html`
+  File: `houses/web/tools/web-dns-header.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-etherchannel.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-fhrp.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-gobuster.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-ipv6.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-network-services.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-nikto.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-osi-deep-dive.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-osi.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-ospf-cost.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-port.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-qos.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-security.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-sqlmap.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-stp.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-subnetting.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-switch-operations.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-topology.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-troubleshooting.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-vlan.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-wireless-architecture.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/tools/web-wireless.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `product-info.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (543)
+### Unregistered Content (695)
 
 | Path | Type | House |
 |------|------|-------|
@@ -6564,508 +7216,660 @@
 | dark-arts/vault/tools/nmap-training.html | presentation | - |
 | dark-arts/vault/wireless-attacks-lab.html | applet | - |
 | dark-arts/vault/xss-attacks-lab.html | applet | - |
-| houses/cloud/applets/aws/aws-service-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch02-aws-account-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch03-support-plans-visualizer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch04-aws-regions-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch05-security-visualizer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch06-aws-tools-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch07-compute-services-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch07-ec2-instance-visualizer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch08-storage-services-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch09-database-services-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch10-vpc-networking-visualizer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch11-automation-explorer.html | presentation | cloud |
-| houses/cloud/applets/aws/ch12-use-cases-visualizer.html | presentation | cloud |
-| houses/cloud/applets/fundamentals/ch01-cloud-models-visualizer.html | presentation | cloud |
-| houses/cloud/applets/fundamentals/cloud-provider-comparison.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module01-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module01-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module02-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module02-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module03-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module03-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module04-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module04-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module04-quiz.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module05-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module05-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module05-quiz.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module06-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module06-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module06-quiz.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module07-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module07-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module08-lab.html | lab | cloud |
-| houses/cloud/modules/cse/cse-module08-presentation.html | presentation | cloud |
-| houses/cloud/modules/cse/cse-module08-quiz.html | applet | cloud |
-| houses/cloud/modules/wsa/m01-fundamentals/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m01-fundamentals/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m01-fundamentals/quiz.html | presentation | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/quiz.html | presentation | cloud |
-| houses/cloud/modules/wsa/m03-storage/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m03-storage/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m04-hyperv/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m04-hyperv/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m05-containers/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m05-containers/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m05-containers/quiz.html | applet | cloud |
-| houses/cloud/modules/wsa/m06-clustering/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m06-clustering/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m07-monitoring/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m07-monitoring/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m08-dns/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m08-dns/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m09-dhcp/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m09-dhcp/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m10-group-policy/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m10-group-policy/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m11-iis/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m11-iis/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m12-remote-desktop/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m12-remote-desktop/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m13-certificate-services/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m13-certificate-services/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m14-advanced-networking/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m14-advanced-networking/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m15-ad-sites/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m15-ad-sites/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m16-backup-recovery/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m16-backup-recovery/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m17-firewall-security/gui-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m17-firewall-security/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m18-powershell-automation/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m18-powershell-automation/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m19-troubleshooting-migration/gui-lab.html | presentation | cloud |
-| houses/cloud/modules/wsa/m19-troubleshooting-migration/ps-lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m20-failsafe-capstone/simulation.html | presentation | cloud |
-| houses/cloud/presentations/aws-fundamentals.html | presentation | cloud |
-| houses/cloud/quizzes/aws-fundamentals-quiz.html | quiz | cloud |
-| houses/code/applets/ansible-playbook-visualizer.html | applet | code |
-| houses/code/applets/automation-visualizer.html | applet | code |
-| houses/code/applets/kubernetes-cluster-sim.html | applet | code |
-| houses/code/labs/unit-testing-lab.html | presentation | code |
-| houses/code/presentations/automation-presentation.html | presentation | code |
-| houses/code/presentations/docker-fundamentals.html | applet | code |
-| houses/dark-arts/tools/ctf-leaderboard/sample.html | applet | - |
-| houses/eye/applets/cyberops/5-tuple-approach.html | applet | eye |
-| houses/eye/applets/cyberops/app-visibility-control.html | presentation | eye |
-| houses/eye/applets/cyberops/attack-surface-vuln.html | presentation | eye |
-| houses/eye/applets/cyberops/attack-surface.html | applet | eye |
-| houses/eye/applets/cyberops/attribution-investigation.html | presentation | eye |
-| houses/eye/applets/cyberops/content-filtering.html | presentation | eye |
-| houses/eye/applets/cyberops/cvss-terminology.html | applet | eye |
-| houses/eye/applets/cyberops/data-types-output.html | applet | eye |
-| houses/eye/applets/cyberops/data-visibility-challenges.html | presentation | eye |
-| houses/eye/applets/cyberops/data-visibility.html | applet | eye |
-| houses/eye/applets/cyberops/detection-methods.html | applet | eye |
-| houses/eye/applets/cyberops/disk-images.html | presentation | eye |
-| houses/eye/applets/cyberops/endpoint-attacks.html | presentation | eye |
-| houses/eye/applets/cyberops/evasion-obfuscation.html | presentation | eye |
-| houses/eye/applets/cyberops/evidence-types.html | presentation | eye |
-| houses/eye/applets/cyberops/firewall-data.html | applet | eye |
-| houses/eye/applets/cyberops/irp-elements.html | applet | eye |
-| houses/eye/applets/cyberops/labs/lab-3-0-3-running-processes.html | lab | eye |
-| houses/eye/applets/cyberops/labs/lab-3-2-11-windows-internals.html | lab | eye |
-| houses/eye/applets/cyberops/labs/lab-3-3-10-user-accounts.html | lab | eye |
-| houses/eye/applets/cyberops/malware-analysis-output.html | presentation | eye |
-| houses/eye/applets/cyberops/network-attacks.html | applet | eye |
-| houses/eye/applets/cyberops/nsm-data-types.html | presentation | eye |
-| houses/eye/applets/cyberops/risk-rating.html | applet | eye |
-| houses/eye/applets/cyberops/risk-register.html | applet | eye |
-| houses/eye/applets/cyberops/security-approaches.html | applet | eye |
-| houses/eye/applets/cyberops/source-technologies.html | applet | eye |
-| houses/eye/applets/cyberops/tcpdump-netflow.html | presentation | eye |
-| houses/eye/applets/cyberops/web-attacks.html | applet | eye |
-| houses/eye/applets/cyberops/week2/labs/linux-servers.html | lab | eye |
-| houses/eye/applets/cyberops/week2/labs/windows-system-resources.html | presentation | eye |
-| houses/eye/applets/cyberops/week2/labs/windows-task-manager.html | presentation | eye |
-| houses/eye/applets/cyberops/week3/labs/exploring-nmap.html | lab | eye |
-| houses/eye/applets/cyberops/week3/labs/tracing-route.html | lab | eye |
-| houses/eye/applets/cyberops/week3/labs/verify-ipv4-ipv6.html | applet | eye |
-| houses/eye/applets/cyberops/week4/labs/acl-demo.html | applet | eye |
-| houses/eye/applets/cyberops/week4/labs/packet-flow.html | applet | eye |
-| houses/eye/applets/cyberops/week5/labs/logging-network-activity.html | applet | eye |
-| houses/eye/applets/cyberops/week5/labs/soc-triage-simulator.html | presentation | eye |
-| houses/eye/presentations/log-basics.html | applet | eye |
-| houses/eye/presentations/network-traffic-analysis.html | presentation | eye |
-| houses/eye/presentations/siem-fundamentals.html | presentation | eye |
-| houses/eye/tools/siem-simulator.html | applet | eye |
-| houses/forge/applets/comptia-aplus/core-1/labs/bluetooth-pairing-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/cable-matching-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/cloud-scenarios-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/command-line-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/cpu-sockets-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/diagnostic-tools-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/display-troubleshoot-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/dns-config-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/docking-config-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/email-config-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/hardware-diagnosis-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/laptop-memory-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/mdm-config-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/mobile-email-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/mobile-identifier-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/mobile-sync-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/network-commands-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/network-config-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/network-design-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/pc-builder-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/pc-components-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/port-identification-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/post-beep-codes-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/printer-troubleshoot-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/protocol-analysis-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/raid-config-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/ram-identification-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/router-config-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/server-roles-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/soho-designer-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/storage-upgrade-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/subnet-calculator-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/topology-builder-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/troubleshooting-flowchart-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/vm-setup-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/wireless-security-lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/change-management-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/core2_roleplay_lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/documentation-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/incident-response-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/malware-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/physical-security-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/security-fundamentals-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/labs/users-groups-lab.html | lab | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/change-management.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/documentation.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/incident-response.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/malware.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/physical-security.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/security-fundamentals.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/presentations/users-groups.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/quizzes/ch20-quiz.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/quizzes/ch21-quiz.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/quizzes/ch22-quiz.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/quizzes/ch23-quiz.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/quizzes/ch24-quiz.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-2/tools/os_core.html | presentation | forge |
-| houses/forge/applets/hardware/peripheral_devices/peripheral_devices.html | applet | forge |
-| houses/forge/applets/hardware/raid-level-visualizer.html | applet | forge |
-| houses/forge/labs/hardware-essentials-lab.html | lab | forge |
-| houses/key/presentations/advanced-symmetric.html | applet | key |
-| houses/key/presentations/certificates.html | applet | key |
-| houses/key/presentations/message-authentication.html | applet | key |
-| houses/key/tools/cert-inspector.html | presentation | key |
-| houses/key/tools/cryptanalysis-lab.html | presentation | key |
-| houses/key/tools/hmac-calculator.html | presentation | key |
-| houses/script/applets/linux/bash-scripting-playground.html | applet | script |
-| houses/script/applets/linux/clh-001-intro-to-hacker-cli.html | presentation | script |
-| houses/script/applets/linux/clh-002-navigation-recon.html | presentation | script |
-| houses/script/applets/linux/clh-003-pattern-hunting.html | presentation | script |
-| houses/script/applets/linux/clh-004-process-investigation.html | presentation | script |
-| houses/script/applets/linux/clh-005-log-analysis.html | presentation | script |
-| houses/script/applets/linux/clh-006-file-operations.html | presentation | script |
-| houses/script/applets/linux/clh-007-permissions.html | presentation | script |
-| houses/script/applets/linux/clh-008-shell-scripting.html | presentation | script |
-| houses/script/applets/linux/clh-009-text-processing.html | presentation | script |
-| houses/script/applets/linux/clh-010-io-redirection.html | presentation | script |
-| houses/script/applets/linux/clh-011-advanced-grep.html | presentation | script |
-| houses/script/applets/linux/clh-012-network-basics.html | presentation | script |
-| houses/script/applets/linux/clh-013-environment.html | presentation | script |
-| houses/script/applets/linux/clh-014-process-control.html | presentation | script |
-| houses/script/applets/linux/clh-015-capstone.html | presentation | script |
-| houses/script/applets/linux/clh-016-system-intel.html | presentation | script |
-| houses/script/applets/linux/clh-017-find-locate.html | presentation | script |
-| houses/script/applets/linux/clh-018-archive-ops.html | presentation | script |
-| houses/script/applets/linux/clh-019-disk-forensics.html | presentation | script |
-| houses/script/applets/linux/clh-020-user-recon.html | presentation | script |
-| houses/script/applets/linux/clh-021-ssh-ops.html | presentation | script |
-| houses/script/applets/linux/clh-022-network-recon.html | presentation | script |
-| houses/script/applets/linux/clh-023-services.html | presentation | script |
-| houses/script/applets/linux/clh-024-cron.html | presentation | script |
-| houses/script/applets/linux/clh-025-packages.html | presentation | script |
-| houses/script/applets/linux/clh-026-access.html | presentation | script |
-| houses/script/applets/linux/clh-027-users.html | presentation | script |
-| houses/script/applets/linux/clh-028-monitoring.html | presentation | script |
-| houses/script/applets/linux/clh-029-vim.html | presentation | script |
-| houses/script/applets/linux/clh-030-chimera.html | presentation | script |
-| houses/script/applets/linux/clh-031-blackout.html | applet | script |
-| houses/script/applets/linux/linux-command-simulator.html | applet | script |
-| houses/script/applets/linux/linux-filesystem-navigator.html | presentation | script |
-| houses/script/applets/linux/linux-lab-001-user-identity.html | lab | script |
-| houses/script/applets/linux/linux-lab-002-file-navigation.html | lab | script |
-| houses/script/applets/linux/linux-permissions-calculator.html | applet | script |
-| houses/script/applets/powershell/windows-cli-tools.html | applet | script |
-| houses/script/applets/powershell/windows-registry-explorer.html | applet | script |
-| houses/script/applets/python/python-chapter1-applet.html | applet | script |
-| houses/script/applets/python/python-chapter2-strings.html | applet | script |
-| houses/script/applets/python/python-chapter3-flow-control.html | applet | script |
-| houses/script/applets/python/python-chapter4-functions.html | applet | script |
-| houses/script/applets/python/python-chapter5-collections.html | applet | script |
-| houses/script/applets/python/python-chapter6-dictionaries.html | applet | script |
-| houses/script/applets/python/python-chapter7-file-handling.html | applet | script |
-| houses/script/applets/python/python-chapter8-oop.html | applet | script |
-| houses/script/applets/sysadmin/automation-visualizer.html | applet | script |
-| houses/script/applets/sysadmin/log-management-visualizer.html | applet | script |
-| houses/script/applets/sysadmin/package-manager-simulator.html | applet | script |
-| houses/script/applets/sysadmin/process-management-visualizer.html | presentation | script |
-| houses/script/clh/clh-001-intro.html | applet | script |
-| houses/script/clh/clh-002-intro.html | applet | script |
-| houses/script/clh/clh-003-intro.html | applet | script |
-| houses/script/clh/clh-004-intro.html | applet | script |
-| houses/script/clh/clh-005-intro.html | applet | script |
-| houses/script/clh/clh-006-intro.html | applet | script |
-| houses/script/clh/clh-007-intro.html | applet | script |
-| houses/script/clh/clh-008-intro.html | applet | script |
-| houses/script/clh/clh-009-intro.html | applet | script |
-| houses/script/clh/clh-010-intro.html | applet | script |
-| houses/script/clh/clh-011-intro.html | applet | script |
-| houses/script/clh/clh-012-intro.html | applet | script |
-| houses/script/clh/clh-013-intro.html | applet | script |
-| houses/script/clh/clh-014-intro.html | applet | script |
-| houses/script/clh/clh-015-intro.html | applet | script |
-| houses/script/clh/clh-022-intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-001/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-001/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-002/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-002/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-003/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-003/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-004/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-004/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-005/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-005/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-006/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-006/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-007/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-007/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-008/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-008/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-009/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-009/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-010/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-010/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-011/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-011/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-012/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-012/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-013/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-013/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-014/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-014/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-015/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-015/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-016/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-017/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-018/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-019/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-020/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-021/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-022/intro.html | applet | script |
-| houses/script/courses/clh/modules/clh-022/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-023/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-024/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-025/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-026/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-027/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-028/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-029/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-030/lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-031/lab.html | lab | script |
-| houses/script/labs/linux-bash-lab.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-03-getting-help.html | applet | script |
-| houses/script/modules/linux-mastery/lm-04-terminal-environment.html | applet | script |
-| houses/script/modules/linux-mastery/lm-08-file-operations.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-09-copy-move.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-10-viewing-files.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-11-finding-files.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-12-section2-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-13-grep-basics.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-14-regular-expressions.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-15-sed-editor.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-16-awk-processing.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-20-section3-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-21-users-groups.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-22-file-permissions.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-23-chmod.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-24-chown.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-25-sudo.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-26-special-permissions.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-27-section4-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-28-process-basics.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-29-ps-top.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-30-background-jobs.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-31-signals-kill.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-32-cron.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-33-systemd.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-34-section5-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-35-network-info.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-36-connectivity.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-37-dns-tools.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-38-downloading.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-39-ssh-basics.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-40-section6-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-41-first-script.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-42-variables.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-43-user-input.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-44-conditionals.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-45-loops.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-46-functions.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-47-practical-scripts.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-48-section7-practice.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-49-links.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-50-text-editors.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-51-package-management.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-52-environment-path.html | presentation | script |
-| houses/script/modules/linux-mastery/lm-53-next-steps.html | presentation | script |
-| houses/script/modules/python/python-immersive-chapter2.html | applet | script |
-| houses/script/modules/python/python-immersive-chapter7.html | applet | script |
-| houses/script/presentations/python/python-chapter1.html | presentation | script |
-| houses/script/presentations/python/python-chapter2.html | presentation | script |
-| houses/script/presentations/python/python-chapter3.html | presentation | script |
-| houses/script/presentations/python/python-chapter4.html | presentation | script |
-| houses/script/presentations/python/python-chapter5.html | presentation | script |
-| houses/script/presentations/python/python-chapter6.html | presentation | script |
-| houses/script/presentations/python/python-chapter7.html | presentation | script |
-| houses/script/presentations/python/python-chapter8.html | presentation | script |
-| houses/script/quizzes/linux-bash-quiz.html | presentation | script |
-| houses/shield/applets/access/aaa-flow-simulator.html | presentation | shield |
-| houses/shield/applets/access/access-control-models.html | presentation | shield |
-| houses/shield/applets/access/access_control/access_control.html | presentation | shield |
-| houses/shield/applets/access/biometrics/Biometrics.html | presentation | shield |
-| houses/shield/applets/architecture/security-models-visualizer.html | applet | shield |
-| houses/shield/applets/architecture/zero-trust-visualizer.html | applet | shield |
-| houses/shield/applets/compliance/cmmc_access_control/ACv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_audit_accountability/AUv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_awareness_training/ATv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_config_management/CMv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_cui/CUI_2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_framework/CMMCFrameworkv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_identification_auth/IAv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_incident_response/IRv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_maintenance/MAv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_media_protection/MPv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_personnel_security/PSv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_physical_protection/PEv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_quiz/CMMCTestKnowledge2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_risk_assessment/RAv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_security_assessment/CAv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_system_comm_protection/SCv2.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_system_info_integrity/SIv2.html | presentation | shield |
-| houses/shield/applets/compliance/laws-regulations-reference.html | presentation | shield |
-| houses/shield/applets/crypto/block_mode/Block.html | presentation | shield |
-| houses/shield/applets/crypto/checksum-verifier.html | presentation | shield |
-| houses/shield/applets/crypto/cryptomatch/CryptoMatch.html | presentation | shield |
-| houses/shield/applets/crypto/diffie_hellman/diffie_hellman.html | presentation | shield |
-| houses/shield/applets/crypto/digital_signatures/DigitalSignature.html | presentation | shield |
-| houses/shield/applets/crypto/encrypt_data/EncryptData.html | presentation | shield |
-| houses/shield/applets/crypto/encryption/encryption_jedit_6_1.html | presentation | shield |
-| houses/shield/applets/crypto/factor_prime/FactorPrime.html | presentation | shield |
-| houses/shield/applets/crypto/gpg-encryption-lab.html | presentation | shield |
-| houses/shield/applets/crypto/hashing/Hashing.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_narrated/Hashing_vo.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_steganography/Encryption_II.html | applet | shield |
-| houses/shield/applets/crypto/hashing_steganography/Hash_Lab.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_steganography/Stego.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_steganography/encryption_task.html | applet | shield |
-| houses/shield/applets/crypto/hashing_steganography/hash_steg_presentation.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_steganography/hash_v3.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_steganography/hashing_Lab.html | presentation | shield |
-| houses/shield/applets/crypto/rsa/RSA.html | presentation | shield |
-| houses/shield/applets/fundamentals/cybersecurity_controls/cybersecurity_controls.html | presentation | shield |
-| houses/shield/applets/fundamentals/data-lifecycle-visualizer.html | applet | shield |
-| houses/shield/applets/fundamentals/data_roles/dataroles.html | presentation | shield |
-| houses/shield/applets/fundamentals/design_principles/cybersecuritydesignprinciples.html | presentation | shield |
-| houses/shield/applets/fundamentals/ethics_challenge/ethics_challenge.html | presentation | shield |
-| houses/shield/applets/fundamentals/ethics_conduct/EthicsProfConduct.html | presentation | shield |
-| houses/shield/applets/fundamentals/five_pillars/FivePillars.html | presentation | shield |
-| houses/shield/applets/fundamentals/physical_protection/physical_environmental.html | presentation | shield |
-| houses/shield/applets/fundamentals/secure-sdlc-framework.html | presentation | shield |
-| houses/shield/applets/fundamentals/security-best-practices.html | presentation | shield |
-| houses/shield/applets/fundamentals/security-governance-dashboard.html | presentation | shield |
-| houses/shield/applets/games/cookie_caper/cookies.html | presentation | shield |
-| houses/shield/applets/games/cyber_hat_match/hatmatch.html | presentation | shield |
-| houses/shield/applets/games/cyber_scramble/cyberscramble.html | presentation | shield |
-| houses/shield/applets/games/ethical_hacking_case/EH_exam_1A.html | presentation | shield |
-| houses/shield/applets/network/browser-security-hardening.html | applet | shield |
-| houses/shield/applets/network/home-network-security.html | applet | shield |
-| houses/shield/applets/network/linux-firewall-builder.html | applet | shield |
-| houses/shield/applets/operations/cysa-analyst-toolkit.html | applet | shield |
-| houses/shield/applets/operations/ics-scada-security.html | applet | shield |
-| houses/shield/applets/risk/business-continuity-planner.html | presentation | shield |
-| houses/shield/applets/risk/change-management.html | presentation | shield |
-| houses/shield/applets/risk/config_management/ConfigMgmt.html | presentation | shield |
-| houses/shield/applets/risk/crisc-risk-calculator.html | presentation | shield |
-| houses/shield/applets/risk/cybersecurity_scenario/cyber_scenario.html | presentation | shield |
-| houses/shield/applets/risk/incident-response-simulator.html | presentation | shield |
-| houses/shield/applets/risk/pspg/PSPG.html | presentation | shield |
-| houses/shield/applets/risk/risk_analysis/risk_analysis.html | presentation | shield |
-| houses/shield/applets/risk/risk_management/risk_management.html | presentation | shield |
-| houses/shield/applets/threats/malware-types-reference.html | applet | shield |
-| houses/shield/labs/access-control-lab.html | presentation | shield |
-| houses/shield/labs/cryptography-lab.html | presentation | shield |
-| houses/shield/labs/network-security-lab.html | presentation | shield |
-| houses/shield/labs/osint-google-dorking.html | applet | shield |
-| houses/shield/labs/security-fundamentals-lab.html | applet | shield |
-| houses/shield/presentations/security-presentation.html | presentation | shield |
-| houses/web/applets/ip-addressing/binary-decimal-converter.html | applet | web |
-| houses/web/applets/networking-interactive-guide.html | applet | web |
-| houses/web/applets/networking-quizzes/networking-ch7-10.html | applet | web |
-| houses/web/applets/networking-quizzes/networking-ch7-20.html | applet | web |
-| houses/web/applets/services/web-server-comparison.html | applet | web |
-| houses/web/applets/visualizers/acl-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/cable-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/devices-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/etherchannel-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/fhrp-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/ipv6-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/network-services-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/osi-deep-dive-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/osi-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/ospf-cost-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/port-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/qos-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/security-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/stp-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/subnetting-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/switch-operations-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/topology-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/troubleshooting-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/vlan-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/wireless-architecture-visualizer.html | presentation | web |
-| houses/web/applets/visualizers/wireless-visualizer.html | presentation | web |
-| houses/web/exams/networking-midterm.html | applet | web |
-| houses/web/modules/ip-addressing-ch7-10.html | applet | web |
-| houses/web/presentations/arp-presentation.html | presentation | web |
-| houses/web/presentations/cables-presentation.html | presentation | web |
-| houses/web/presentations/devices-presentation.html | presentation | web |
-| houses/web/presentations/dhcp-presentation.html | presentation | web |
-| houses/web/presentations/dns-presentation.html | presentation | web |
-| houses/web/presentations/eigrp-presentation.html | presentation | web |
-| houses/web/presentations/etherchannel-presentation.html | presentation | web |
-| houses/web/presentations/fhrp-presentation.html | presentation | web |
-| houses/web/presentations/ipv6-presentation.html | presentation | web |
-| houses/web/presentations/nat-presentation.html | presentation | web |
-| houses/web/presentations/network-essentials-presentation.html | presentation | web |
-| houses/web/presentations/ntp-presentation.html | presentation | web |
-| houses/web/presentations/osi-deep-dive-presentation.html | presentation | web |
-| houses/web/presentations/osi-presentation.html | presentation | web |
-| houses/web/presentations/ospf-presentation.html | presentation | web |
-| houses/web/presentations/ports-presentation.html | presentation | web |
-| houses/web/presentations/stp-presentation.html | presentation | web |
-| houses/web/presentations/subnetting-presentation.html | presentation | web |
-| houses/web/presentations/switch-operations-presentation.html | presentation | web |
-| houses/web/presentations/tcp-presentation.html | presentation | web |
-| houses/web/presentations/topologies-presentation.html | presentation | web |
-| houses/web/presentations/troubleshooting-presentation.html | presentation | web |
-| houses/web/presentations/vlan-presentation.html | presentation | web |
-| houses/web/presentations/wireless-architecture-presentation.html | presentation | web |
-| houses/web/presentations/wireless-presentation.html | presentation | web |
-| houses/web/simulators/interactive-network-simulator.v2.html | presentation | web |
-| houses/web/simulators/packet-tracer-lite-v3.html | applet | web |
-| houses/web/textbook/networking-textbook-ch7-20.html | applet | web |
-| houses/web/tools/dns-header-reference.html | applet | web |
+| houses/cloud/applets/architecture/cloud-architecture-designer.applet.html | presentation | cloud |
+| houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html | presentation | cloud |
+| houses/cloud/labs/cloud-architecture.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-aws-services.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module01.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module02.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module03.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module04.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module05.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module06.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module07.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-cse-module08.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/labs/cloud-lab.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/labs/cloud-security.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-quiz.quiz.html | presentation | cloud |
+| houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m03-storage/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m04-hyperv/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html | applet | cloud |
+| houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m06-clustering/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m07-monitoring/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m08-dns/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m09-dhcp/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m09-dhcp/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m10-group-policy/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m10-group-policy/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m18-powershell-automation/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m18-powershell-automation/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-ps.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html | presentation | cloud |
+| houses/cloud/presentations/cloud-aws-fundamentals.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-azure-fundamentals.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cloud.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-concepts.presentation.html | applet | cloud |
+| houses/cloud/presentations/cloud-cse-module01.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module02.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module03.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module04.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module05.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module06.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module07.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-module08.presentation.html | presentation | cloud |
+| houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module04.quiz.html | presentation | cloud |
+| houses/cloud/quizzes/cloud-cse-module05.quiz.html | presentation | cloud |
+| houses/cloud/quizzes/cloud-cse-module06.quiz.html | presentation | cloud |
+| houses/cloud/quizzes/cloud-cse-module08.quiz.html | applet | cloud |
+| houses/cloud/quizzes/cloud-quiz.quiz.html | presentation | cloud |
+| houses/cloud/tools/cloud-aws-service.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch01-cloud-models.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch02-aws-account.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch03-support-plans.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch04-aws-regions.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch05-security.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch06-aws-tools.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch07-compute-services.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch07-ec2-instance.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch08-storage-services.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch09-database-services.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch10-vpc-networking.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch11-automation.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-ch12-use-cases.tool.html | presentation | cloud |
+| houses/cloud/tools/cloud-cloud.tool.html | presentation | cloud |
+| houses/code/applets/code-docker-playground.applet.html | applet | code |
+| houses/code/applets/code-kubernetes-cluster-sim.applet.html | applet | code |
+| houses/code/labs/code-cicd.lab.html | presentation | code |
+| houses/code/labs/code-cloudformation.lab.html | presentation | code |
+| houses/code/labs/code-docker.lab.html | presentation | code |
+| houses/code/labs/code-kubernetes.lab.html | presentation | code |
+| houses/code/labs/code-unit-testing.lab.html | presentation | code |
+| houses/code/presentations/code-agile-sdlc.presentation.html | applet | code |
+| houses/code/presentations/code-automation.presentation.html | presentation | code |
+| houses/code/presentations/code-cicd-fundamentals.presentation.html | applet | code |
+| houses/code/presentations/code-cloudformation-fundamentals.presentation.html | applet | code |
+| houses/code/presentations/code-docker-fundamentals.presentation.html | applet | code |
+| houses/code/presentations/code-git-basics.presentation.html | applet | code |
+| houses/code/presentations/code-kubernetes-fundamentals.presentation.html | applet | code |
+| houses/code/presentations/code-terraform-fundamentals.presentation.html | applet | code |
+| houses/code/tools/code-ansible-playbook.tool.html | applet | code |
+| houses/code/tools/code-automation.tool.html | applet | code |
+| houses/code/tools/code-sprint.tool.html | applet | code |
+| houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html | applet | - |
+| houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-app-visibility-control.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-attack-surface.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-attribution-investigation.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-content-filtering.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-cvss-terminology.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-data-types-output.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-data-visibility-challenges.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-data-visibility.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-detection-methods.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-disk-images.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-evidence-types.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-firewall-data.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-irp-elements.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-network-attacks.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-nsm-data-types.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-risk-rating.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-risk-register.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-security-approaches.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-source-technologies.applet.html | applet | eye |
+| houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html | presentation | eye |
+| houses/eye/applets/cyberops/eye-web-attacks.applet.html | applet | eye |
+| houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html | lab | eye |
+| houses/eye/applets/cyberops/labs/eye-lab-3-2-11-windows-internals.lab.html | lab | eye |
+| houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week2/labs/eye-linux-servers.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week2/labs/eye-windows-system-resources.lab.html | presentation | eye |
+| houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html | presentation | eye |
+| houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html | applet | eye |
+| houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html | applet | eye |
+| houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html | applet | eye |
+| houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html | applet | eye |
+| houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html | presentation | eye |
+| houses/eye/labs/eye-siem.lab.html | applet | eye |
+| houses/eye/presentations/eye-log-basics.presentation.html | applet | eye |
+| houses/eye/presentations/eye-log-correlation.presentation.html | presentation | eye |
+| houses/eye/presentations/eye-network-traffic-analysis.presentation.html | presentation | eye |
+| houses/eye/presentations/eye-siem-fundamentals.presentation.html | presentation | eye |
+| houses/eye/presentations/eye-soc-operations.presentation.html | presentation | eye |
+| houses/eye/presentations/eye-threat-hunting.presentation.html | presentation | eye |
+| houses/eye/tools/eye-correlation.tool.html | applet | eye |
+| houses/eye/tools/eye-packet.tool.html | applet | eye |
+| houses/eye/tools/eye-siem.tool.html | applet | eye |
+| houses/eye/tools/eye-soc.tool.html | applet | eye |
+| houses/eye/tools/eye-wireshark.tool.html | presentation | eye |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-bluetooth-pairing.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-matching.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-command-line.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-diagnostic-tools.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-docking-config.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-email-config.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-identifier.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-sync.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-network-commands.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-components.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-port-identification.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-router-config.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-server-roles.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-storage-upgrade.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-subnet-calculator.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-vm-setup.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-wireless-security.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-documentation.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-security-fundamentals.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-incident-response.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-security-fundamentals.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-users-groups.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch20.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch22.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch23.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch24.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html | presentation | forge |
+| houses/forge/applets/forge-admin-tools.tool.html | presentation | forge |
+| houses/forge/applets/forge-command-translator.applet.html | applet | forge |
+| houses/forge/applets/forge-control-panel.tool.html | presentation | forge |
+| houses/forge/applets/forge-settings.tool.html | presentation | forge |
+| houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
+| houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
+| houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
+| houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
+| houses/forge/labs/forge-control-panel.lab.html | lab | forge |
+| houses/forge/labs/forge-hardware-essentials.lab.html | lab | forge |
+| houses/forge/labs/forge-system-tools.lab.html | lab | forge |
+| houses/forge/labs/forge-windows-editions.lab.html | lab | forge |
+| houses/forge/labs/forge-windows-settings.lab.html | lab | forge |
+| houses/forge/presentations/forge-admin-tools.presentation.html | presentation | forge |
+| houses/forge/presentations/forge-control-panel.presentation.html | presentation | forge |
+| houses/forge/presentations/forge-macos-linux-basics.presentation.html | presentation | forge |
+| houses/forge/presentations/forge-system-tools.presentation.html | presentation | forge |
+| houses/forge/presentations/forge-windows-editions.presentation.html | presentation | forge |
+| houses/forge/presentations/forge-windows-settings.presentation.html | presentation | forge |
+| houses/forge/tools/forge-admin-tools.tool.html | presentation | forge |
+| houses/forge/tools/forge-control-panel.tool.html | presentation | forge |
+| houses/forge/tools/forge-os-core.tool.html | presentation | forge |
+| houses/forge/tools/forge-raid-level.tool.html | applet | forge |
+| houses/forge/tools/forge-settings.tool.html | presentation | forge |
+| houses/forge/tools/forge-system-tools-sim.tool.html | presentation | forge |
+| houses/forge/tools/forge-windows-edition-selector.tool.html | presentation | forge |
+| houses/key/labs/key-aes.lab.html | presentation | key |
+| houses/key/labs/key-attack.lab.html | presentation | key |
+| houses/key/labs/key-cert.lab.html | presentation | key |
+| houses/key/labs/key-cryptanalysis.lab.html | presentation | key |
+| houses/key/labs/key-crypto-stego.lab.html | presentation | key |
+| houses/key/labs/key-ecc.lab.html | lab | key |
+| houses/key/labs/key-hmac.lab.html | lab | key |
+| houses/key/labs/key-hsm.lab.html | presentation | key |
+| houses/key/labs/key-kdf.lab.html | presentation | key |
+| houses/key/labs/key-pqc.lab.html | presentation | key |
+| houses/key/modules/key-hash-stego-intro.module.html | presentation | key |
+| houses/key/presentations/key-advanced-symmetric.presentation.html | applet | key |
+| houses/key/presentations/key-certificates.presentation.html | applet | key |
+| houses/key/presentations/key-cryptanalysis.presentation.html | applet | key |
+| houses/key/presentations/key-cryptography-fundamentals.presentation.html | presentation | key |
+| houses/key/presentations/key-derivation.presentation.html | applet | key |
+| houses/key/presentations/key-elliptic-curve.presentation.html | presentation | key |
+| houses/key/presentations/key-encryption-basics.presentation.html | applet | key |
+| houses/key/presentations/key-management.presentation.html | presentation | key |
+| houses/key/presentations/key-message-authentication.presentation.html | applet | key |
+| houses/key/presentations/key-post-quantum.presentation.html | applet | key |
+| houses/key/quizzes/key-cert.quiz.html | presentation | key |
+| houses/key/quizzes/key-cryptanalysis.quiz.html | presentation | key |
+| houses/key/quizzes/key-ecc.quiz.html | presentation | key |
+| houses/key/quizzes/key-hsm.quiz.html | presentation | key |
+| houses/key/quizzes/key-kdf.quiz.html | presentation | key |
+| houses/key/quizzes/key-mac.quiz.html | presentation | key |
+| houses/key/quizzes/key-pqc.quiz.html | presentation | key |
+| houses/key/quizzes/key-symmetric.quiz.html | presentation | key |
+| houses/key/tools/key-aes.tool.html | presentation | key |
+| houses/key/tools/key-cert.tool.html | presentation | key |
+| houses/key/tools/key-ecc.tool.html | presentation | key |
+| houses/key/tools/key-hmac.tool.html | presentation | key |
+| houses/key/tools/key-kdf.tool.html | presentation | key |
+| houses/key/tools/key-lifecycle.tool.html | presentation | key |
+| houses/key/tools/key-pqc.tool.html | presentation | key |
+| houses/script/applets/linux/script-bash-scripting-playground.applet.html | applet | script |
+| houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-002-navigation-recon.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-004-process-investigation.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-005-log-analysis.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-006-file-operations.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-007-permissions.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-008-shell-scripting.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-009-text-processing.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-010-io-redirection.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-011-advanced-grep.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-012-network-basics.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-013-environment.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-014-process-control.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-015-capstone.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-016-system-intel.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-017-find-locate.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-018-archive-ops.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-019-disk-forensics.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-020-user-recon.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-021-ssh-ops.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-022-network-recon.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-023-services.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-024-cron.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-025-packages.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-026-access.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-027-users.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-028-monitoring.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-029-vim.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-030-chimera.applet.html | presentation | script |
+| houses/script/applets/linux/script-clh-031-blackout.applet.html | applet | script |
+| houses/script/applets/linux/script-command-translator.applet.html | applet | script |
+| houses/script/applets/linux/script-linux-filesystem-navigator.applet.html | presentation | script |
+| houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html | lab | script |
+| houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html | lab | script |
+| houses/script/applets/powershell/script-windows-cli-tools.applet.html | applet | script |
+| houses/script/applets/powershell/script-windows-troubleshooting.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter1.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter2-strings.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter3-flow-control.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter4-functions.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter5-collections.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter6-dictionaries.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter7-file-handling.applet.html | applet | script |
+| houses/script/applets/python/script-python-chapter8-oop.applet.html | applet | script |
+| houses/script/clh/script-clh-001-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-002-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-003-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-004-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-005-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-006-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-007-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-008-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-009-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-010-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-011-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-012-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-013-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-014-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-015-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-022-intro.applet.html | applet | script |
+| houses/script/courses/clh/modules/clh-001/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-002/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-002/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-003/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-003/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-004/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-004/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-005/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-005/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-006/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-006/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-007/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-007/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-008/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-008/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-009/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-009/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-010/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-010/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-011/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-011/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-012/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-012/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-013/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-013/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-014/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-014/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-015/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-015/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-016/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-017/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-018/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-019/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-020/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-021/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-022/script-intro.module.html | applet | script |
+| houses/script/courses/clh/modules/clh-022/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-023/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-024/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-025/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-026/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-027/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-028/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-029/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
+| houses/script/labs/script-lab.lab.html | lab | script |
+| houses/script/labs/script-linux-bash.lab.html | presentation | script |
+| houses/script/labs/script-powershell.lab.html | lab | script |
+| houses/script/labs/script-python.lab.html | lab | script |
+| houses/script/labs/script-sysadmin.lab.html | lab | script |
+| houses/script/linux/labs/script-mission-file-operations.lab.html | lab | script |
+| houses/script/linux/labs/script-mission-file-search.lab.html | lab | script |
+| houses/script/linux/labs/script-mission-permissions.lab.html | lab | script |
+| houses/script/linux/labs/script-mission-text-viewing.lab.html | lab | script |
+| houses/script/linux/labs/script-template-warmup.lab.html | presentation | script |
+| houses/script/linux/labs/script-warmup-navigation.lab.html | lab | script |
+| houses/script/linux/script-quick.reference.html | applet | script |
+| houses/script/linux/tools/script-directory.tool.html | applet | script |
+| houses/script/linux/tools/script-permission.tool.html | applet | script |
+| houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html | applet | script |
+| houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html | applet | script |
+| houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-23-chmod.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-24-chown.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-25-sudo.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-32-cron.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-33-systemd.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-35-network-info.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-38-downloading.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-41-first-script.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-42-variables.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-43-user-input.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-45-loops.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-46-functions.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-49-links.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-51-package-management.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html | presentation | script |
+| houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html | presentation | script |
+| houses/script/modules/python/script-python-immersive-chapter2.module.html | applet | script |
+| houses/script/modules/python/script-python-immersive-chapter7.module.html | applet | script |
+| houses/script/presentations/python/script-python-chapter1.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter2.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter3.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter4.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter5.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter6.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter7.presentation.html | presentation | script |
+| houses/script/presentations/python/script-python-chapter8.presentation.html | presentation | script |
+| houses/script/presentations/script-automation.presentation.html | presentation | script |
+| houses/script/presentations/script-macos-linux-basics.presentation.html | presentation | script |
+| houses/script/presentations/script-scripting-basics.presentation.html | presentation | script |
+| houses/script/quizzes/script-linux-bash.quiz.html | presentation | script |
+| houses/script/tools/script-automation.tool.html | applet | script |
+| houses/script/tools/script-linux-command.tool.html | applet | script |
+| houses/script/tools/script-linux-permissions.tool.html | applet | script |
+| houses/script/tools/script-log-management.tool.html | applet | script |
+| houses/script/tools/script-package-manager.tool.html | applet | script |
+| houses/script/tools/script-process-management.tool.html | presentation | script |
+| houses/script/tools/script-windows-registry.tool.html | applet | script |
+| houses/shield/applets/access/access_control/shield-access-control.applet.html | presentation | shield |
+| houses/shield/applets/access/biometrics/shield-biometrics.applet.html | presentation | shield |
+| houses/shield/applets/access/kerberos/shield-kerberos.applet.html | presentation | shield |
+| houses/shield/applets/access/shield-access-control-models.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_access_control/shield-acv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_audit_accountability/shield-auv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_awareness_training/shield-atv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_config_management/shield-cmv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_identification_auth/shield-iav2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_incident_response/shield-irv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_maintenance/shield-mav2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_media_protection/shield-mpv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_personnel_security/shield-psv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_physical_protection/shield-pev2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_risk_assessment/shield-rav2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_security_assessment/shield-cav2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_system_comm_protection/shield-scv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_system_info_integrity/shield-siv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/shield-laws-regulations.applet.html | presentation | shield |
+| houses/shield/applets/crypto/block_mode/shield-block.applet.html | presentation | shield |
+| houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html | presentation | shield |
+| houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html | presentation | shield |
+| houses/shield/applets/crypto/cryptomatch/shield-crypto-match.applet.html | presentation | shield |
+| houses/shield/applets/crypto/diffie_hellman/shield-diffie-hellman.applet.html | presentation | shield |
+| houses/shield/applets/crypto/digital_signatures/shield-digital-signature.applet.html | presentation | shield |
+| houses/shield/applets/crypto/encrypt_data/shield-encrypt-data.applet.html | presentation | shield |
+| houses/shield/applets/crypto/encryption/shield-encryption-jedit-6-1.applet.html | presentation | shield |
+| houses/shield/applets/crypto/factor_prime/shield-factor-prime.applet.html | presentation | shield |
+| houses/shield/applets/crypto/hashing/shield-hashing.applet.html | presentation | shield |
+| houses/shield/applets/crypto/hashing_narrated/shield-hashing-vo.applet.html | presentation | shield |
+| houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html | applet | shield |
+| houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html | applet | shield |
+| houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html | presentation | shield |
+| houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html | presentation | shield |
+| houses/shield/applets/crypto/pki/shield-pki.applet.html | presentation | shield |
+| houses/shield/applets/crypto/rsa/shield-rsa.applet.html | presentation | shield |
+| houses/shield/applets/crypto/shield-checksum-verifier.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/data_roles/shield-dataroles.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/ethics_challenge/shield-ethics-challenge.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/ethics_conduct/shield-ethics-prof-conduct.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/five_pillars/shield-five-pillars.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/physical_protection/shield-physical-environmental.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/privacy/shield-privacy.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/shield-security-best-practices.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html | presentation | shield |
+| houses/shield/applets/fundamentals/the_cube/shield-cube.applet.html | presentation | shield |
+| houses/shield/applets/games/cookie_caper/shield-cookies.applet.html | presentation | shield |
+| houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html | presentation | shield |
+| houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html | presentation | shield |
+| houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html | presentation | shield |
+| houses/shield/applets/games/whats_my_crime/shield-crime.applet.html | presentation | shield |
+| houses/shield/applets/network/shield-browser-security-hardening.applet.html | applet | shield |
+| houses/shield/applets/network/shield-home-network-security.applet.html | applet | shield |
+| houses/shield/applets/network/shield-linux-firewall-builder.applet.html | applet | shield |
+| houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html | lab | shield |
+| houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html | applet | shield |
+| houses/shield/applets/operations/shield-ics-scada-security.applet.html | applet | shield |
+| houses/shield/applets/risk/config_management/shield-config-mgmt.applet.html | presentation | shield |
+| houses/shield/applets/risk/cybersecurity_scenario/shield-cyber-scenario.applet.html | presentation | shield |
+| houses/shield/applets/risk/pspg/shield-pspg.applet.html | presentation | shield |
+| houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html | presentation | shield |
+| houses/shield/applets/risk/risk_management/shield-risk-management.applet.html | presentation | shield |
+| houses/shield/applets/risk/shield-business-continuity-planner.applet.html | presentation | shield |
+| houses/shield/applets/risk/shield-change-management.applet.html | presentation | shield |
+| houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
+| houses/shield/exams/shield-eh-exam-1-a.exam.html | presentation | shield |
+| houses/shield/labs/shield-access-control.lab.html | presentation | shield |
+| houses/shield/labs/shield-compliance.lab.html | presentation | shield |
+| houses/shield/labs/shield-cryptography.lab.html | presentation | shield |
+| houses/shield/labs/shield-gpg-encryption.lab.html | presentation | shield |
+| houses/shield/labs/shield-hash.lab.html | presentation | shield |
+| houses/shield/labs/shield-hashing.lab.html | presentation | shield |
+| houses/shield/labs/shield-network-security.lab.html | presentation | shield |
+| houses/shield/labs/shield-osint-google-dorking.lab.html | applet | shield |
+| houses/shield/labs/shield-security-fundamentals.lab.html | applet | shield |
+| houses/shield/labs/shield-threats.lab.html | presentation | shield |
+| houses/shield/presentations/shield-cia-triad.presentation.html | presentation | shield |
+| houses/shield/presentations/shield-hash-steg.presentation.html | presentation | shield |
+| houses/shield/presentations/shield-security.presentation.html | presentation | shield |
+| houses/shield/presentations/shield-social-engineering.presentation.html | applet | shield |
+| houses/shield/tools/shield-aaa-flow.tool.html | presentation | shield |
+| houses/shield/tools/shield-bia.tool.html | presentation | shield |
+| houses/shield/tools/shield-crisc-risk.tool.html | presentation | shield |
+| houses/shield/tools/shield-data-lifecycle.tool.html | applet | shield |
+| houses/shield/tools/shield-incident-response.tool.html | presentation | shield |
+| houses/shield/tools/shield-security-models.tool.html | applet | shield |
+| houses/shield/tools/shield-yara.tool.html | presentation | shield |
+| houses/shield/tools/shield-zero-trust.tool.html | applet | shield |
+| houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html | applet | web |
+| houses/web/applets/services/web-server-comparison.applet.html | applet | web |
+| houses/web/applets/web-networking-interactive.applet.html | applet | web |
+| houses/web/exams/web-networking-midterm.exam.html | applet | web |
+| houses/web/labs/web-networking-fundamentals.lab.html | lab | web |
+| houses/web/labs/web-static-routes.lab.html | lab | web |
+| houses/web/modules/web-ip-addressing-ch7-10.module.html | applet | web |
+| houses/web/presentations/web-arp.presentation.html | presentation | web |
+| houses/web/presentations/web-cables.presentation.html | presentation | web |
+| houses/web/presentations/web-devices.presentation.html | presentation | web |
+| houses/web/presentations/web-dhcp.presentation.html | presentation | web |
+| houses/web/presentations/web-dns.presentation.html | presentation | web |
+| houses/web/presentations/web-eigrp.presentation.html | presentation | web |
+| houses/web/presentations/web-etherchannel.presentation.html | presentation | web |
+| houses/web/presentations/web-fhrp.presentation.html | presentation | web |
+| houses/web/presentations/web-ipv6.presentation.html | presentation | web |
+| houses/web/presentations/web-nat.presentation.html | presentation | web |
+| houses/web/presentations/web-network-essentials.presentation.html | presentation | web |
+| houses/web/presentations/web-ntp.presentation.html | presentation | web |
+| houses/web/presentations/web-osi-deep-dive.presentation.html | presentation | web |
+| houses/web/presentations/web-osi.presentation.html | presentation | web |
+| houses/web/presentations/web-ospf.presentation.html | presentation | web |
+| houses/web/presentations/web-ports.presentation.html | presentation | web |
+| houses/web/presentations/web-stp.presentation.html | presentation | web |
+| houses/web/presentations/web-subnetting.presentation.html | presentation | web |
+| houses/web/presentations/web-switch-operations.presentation.html | presentation | web |
+| houses/web/presentations/web-tcp.presentation.html | presentation | web |
+| houses/web/presentations/web-topologies.presentation.html | presentation | web |
+| houses/web/presentations/web-troubleshooting.presentation.html | presentation | web |
+| houses/web/presentations/web-vlan.presentation.html | presentation | web |
+| houses/web/presentations/web-wireless-architecture.presentation.html | presentation | web |
+| houses/web/presentations/web-wireless.presentation.html | presentation | web |
+| houses/web/quizzes/web-networking-ch7-10.quiz.html | applet | web |
+| houses/web/quizzes/web-networking-ch7-20.quiz.html | applet | web |
+| houses/web/quizzes/web-subnetting.quiz.html | quiz | web |
+| houses/web/simulators/web-interactive-network-simulatorv2.simulator.html | presentation | web |
+| houses/web/simulators/web-packet-tracer-lite-v3.simulator.html | applet | web |
+| houses/web/textbook/web-networking-textbook-ch7-20.textbook.html | applet | web |
+| houses/web/tools/web-acl.tool.html | presentation | web |
+| houses/web/tools/web-burp.tool.html | presentation | web |
+| houses/web/tools/web-cable.tool.html | presentation | web |
+| houses/web/tools/web-devices.tool.html | presentation | web |
+| houses/web/tools/web-dns-header.tool.html | applet | web |
+| houses/web/tools/web-etherchannel.tool.html | presentation | web |
+| houses/web/tools/web-fhrp.tool.html | presentation | web |
+| houses/web/tools/web-gobuster.tool.html | presentation | web |
+| houses/web/tools/web-ipv6.tool.html | presentation | web |
+| houses/web/tools/web-network-services.tool.html | presentation | web |
+| houses/web/tools/web-nikto.tool.html | presentation | web |
+| houses/web/tools/web-osi-deep-dive.tool.html | presentation | web |
+| houses/web/tools/web-osi.tool.html | presentation | web |
+| houses/web/tools/web-ospf-cost.tool.html | presentation | web |
+| houses/web/tools/web-port.tool.html | presentation | web |
+| houses/web/tools/web-qos.tool.html | presentation | web |
+| houses/web/tools/web-security.tool.html | presentation | web |
+| houses/web/tools/web-sqlmap.tool.html | presentation | web |
+| houses/web/tools/web-stp.tool.html | presentation | web |
+| houses/web/tools/web-subnetting.tool.html | presentation | web |
+| houses/web/tools/web-switch-operations.tool.html | presentation | web |
+| houses/web/tools/web-topology.tool.html | presentation | web |
+| houses/web/tools/web-troubleshooting.tool.html | presentation | web |
+| houses/web/tools/web-vlan.tool.html | presentation | web |
+| houses/web/tools/web-wireless-architecture.tool.html | presentation | web |
+| houses/web/tools/web-wireless.tool.html | presentation | web |
+| product-info.html | applet | - |
 
 ### Orphaned Registry Entries (0)
 

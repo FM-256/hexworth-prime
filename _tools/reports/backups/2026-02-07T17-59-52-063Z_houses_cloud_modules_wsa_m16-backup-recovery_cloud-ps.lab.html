@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M16 PowerShell Lab: Backup & Recovery - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lab-header {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .lab-title { color: #60a5fa; font-size: 1.3rem; }
+        .lab-nav { display: flex; gap: 15px; }
+
+        .lab-nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .lab-nav a:hover { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .lab-nav a.active { background: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+
+        .lab-container { display: flex; flex: 1; overflow: hidden; }
+
+        .objectives-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(96, 165, 250, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .objectives-panel h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .objective {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .objective.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .objective-check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4b5563;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .objective.completed .objective-check {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #000;
+        }
+
+        .objective-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .objective-text p { font-size: 0.8rem; color: #9ca3af; }
+
+        .hint-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid #60a5fa;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .hint-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            color: #93c5fd;
+        }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .terminal {
+            flex: 1;
+            background: #0c0c0c;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+        }
+
+        .terminal-header {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-header-text { color: #ccc; font-size: 0.85rem; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .terminal-line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .terminal-line.prompt { color: #ffff00; }
+        .terminal-line.output { color: #cccccc; }
+        .terminal-line.error { color: #f44747; }
+        .terminal-line.success { color: #6a9955; }
+        .terminal-line.info { color: #569cd6; }
+
+        .terminal-input-line { display: flex; align-items: center; color: #ffff00; }
+        .terminal-input-line .prompt-text { margin-right: 5px; }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        .completion-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #000;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(34, 197, 94, 0.4);
+            transition: bottom 0.5s ease;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .completion-banner.show { bottom: 30px; }
+        .completion-banner h3 { font-size: 1.4rem; margin-bottom: 10px; }
+        .completion-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .completion-btn.primary { background: #000; color: #22c55e; }
+        .completion-btn.secondary { background: rgba(0, 0, 0, 0.2); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="lab-header">
+        <div class="lab-title">M16: PowerShell Backup & Recovery Lab</div>
+        <nav class="lab-nav">
+            <a href="presentation.html">Presentation</a>
+            <a href="gui-lab.html">GUI Lab</a>
+            <a href="ps-lab.html" class="active">PowerShell Lab</a>
+            <a href="quiz.html">Quiz</a>
+            <a href="../index.html">☁️ Course</a>
+        </nav>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h3>Lab Objectives</h3>
+
+            <div class="objective" id="obj1">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>1. Create Backup Policy</h4>
+                    <p>Create a WBPolicy object for backup.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj2">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>2. Add Backup Target</h4>
+                    <p>Configure backup destination.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj3">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>3. Start Backup</h4>
+                    <p>Execute an on-demand backup.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj4">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>4. View Backup Status</h4>
+                    <p>Check backup history and versions.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj5">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>5. List VSS Writers</h4>
+                    <p>Check Volume Shadow Copy writers.</p>
+                </div>
+            </div>
+
+            <div class="hint-box">
+                <strong>Hint:</strong> Use <code>Get-Command *WB*</code> to discover available Windows Backup cmdlets.
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-header-text">Administrator: Windows PowerShell</div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line info">Windows PowerShell</div>
+                    <div class="terminal-line info">Copyright (C) Microsoft Corporation. All rights reserved.</div>
+                    <div class="terminal-line info"></div>
+                    <div class="terminal-line info">Windows Server Backup module loaded.</div>
+                    <div class="terminal-line info">Server: DC1.hexworth.local</div>
+                    <div class="terminal-line info"></div>
+                </div>
+                <div style="padding: 0 15px 15px;">
+                    <div class="terminal-input-line">
+                        <span class="prompt-text">PS C:\Users\Administrator&gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" autofocus>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h3>Lab Complete!</h3>
+        <p>You've mastered PowerShell Backup & Recovery management.</p>
+        <div class="completion-buttons">
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+            <button class="completion-btn primary" onclick="location.href='quiz.html'">Take Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        const backupState = {
+            policy: null,
+            target: null,
+            backups: [
+                {
+                    version: '01/30/2026-21:00',
+                    type: 'Full Server',
+                    size: '45.2 GB'
+                }
+            ]
+        };
+
+        const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+        const terminalBody = document.getElementById('terminalBody');
+        const terminalInput = document.getElementById('terminalInput');
+        const commandHistory = [];
+        let historyIndex = -1;
+
+        function addLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        function addPrompt(command) {
+            addLine(`PS C:\\Users\\Administrator> ${command}`, 'prompt');
+        }
+
+        function processCommand(input) {
+            const cmd = input.trim();
+            if (!cmd) return;
+
+            addPrompt(cmd);
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+
+            const cmdLower = cmd.toLowerCase();
+            const parts = cmd.split(/\s+/);
+            const cmdName = parts[0].toLowerCase();
+
+            if (cmdLower === 'help' || cmdLower === 'get-help') {
+                showHelp();
+                return;
+            }
+
+            if (cmdLower === 'clear' || cmdLower === 'cls') {
+                terminalBody.innerHTML = '';
+                return;
+            }
+
+            if (cmdName === 'new-wbpolicy') {
+                handleNewPolicy(cmd);
+                return;
+            }
+
+            if (cmdName === 'new-wbbackuptarget') {
+                handleNewTarget(cmd);
+                return;
+            }
+
+            if (cmdName === 'add-wbbackuptarget') {
+                handleAddTarget(cmd);
+                return;
+            }
+
+            if (cmdName === 'add-wbbaremetalrecovery') {
+                handleAddBMR(cmd);
+                return;
+            }
+
+            if (cmdName === 'add-wbsystemstate') {
+                handleAddSystemState(cmd);
+                return;
+            }
+
+            if (cmdName === 'start-wbbackup') {
+                handleStartBackup(cmd);
+                return;
+            }
+
+            if (cmdName === 'get-wbbackupset') {
+                handleGetBackupSet(cmd);
+                return;
+            }
+
+            if (cmdName === 'get-wbsummary') {
+                handleGetSummary(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('wbadmin')) {
+                handleWbadmin(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('vssadmin')) {
+                handleVssadmin(cmd);
+                return;
+            }
+
+            if (cmdLower.includes('get-command') && cmdLower.includes('wb')) {
+                showWBCommands();
+                return;
+            }
+
+            addLine(`${parts[0]} : The term '${parts[0]}' is not recognized as the name of a cmdlet.`, 'error');
+        }
+
+        function showHelp() {
+            addLine('');
+            addLine('Available Backup Commands:', 'info');
+            addLine('  New-WBPolicy                    - Create backup policy object');
+            addLine('  New-WBBackupTarget -VolumePath  - Create backup target');
+            addLine('  Add-WBBackupTarget              - Add target to policy');
+            addLine('  Add-WBBareMetalRecovery         - Add BMR to policy');
+            addLine('  Add-WBSystemState               - Add system state to policy');
+            addLine('  Start-WBBackup -Policy          - Start backup');
+            addLine('  Get-WBBackupSet                 - List backup versions');
+            addLine('  Get-WBSummary                   - Get backup summary');
+            addLine('  wbadmin get versions            - List backups (CLI)');
+            addLine('  vssadmin list writers           - List VSS writers');
+            addLine('');
+        }
+
+        function showWBCommands() {
+            addLine('');
+            addLine('CommandType     Name');
+            addLine('-----------     ----');
+            addLine('Cmdlet          Add-WBBackupTarget');
+            addLine('Cmdlet          Add-WBBareMetalRecovery');
+            addLine('Cmdlet          Add-WBSystemState');
+            addLine('Cmdlet          Add-WBVolume');
+            addLine('Cmdlet          Get-WBBackupSet');
+            addLine('Cmdlet          Get-WBBackupTarget');
+            addLine('Cmdlet          Get-WBPolicy');
+            addLine('Cmdlet          Get-WBSummary');
+            addLine('Cmdlet          Get-WBVolume');
+            addLine('Cmdlet          New-WBBackupTarget');
+            addLine('Cmdlet          New-WBPolicy');
+            addLine('Cmdlet          Remove-WBPolicy');
+            addLine('Cmdlet          Set-WBPolicy');
+            addLine('Cmdlet          Set-WBSchedule');
+            addLine('Cmdlet          Start-WBBackup');
+            addLine('Cmdlet          Start-WBFileRecovery');
+            addLine('Cmdlet          Start-WBSystemStateRecovery');
+            addLine('');
+        }
+
+        function handleNewPolicy(cmd) {
+            backupState.policy = {
+                created: new Date().toLocaleString(),
+                bmr: false,
+                systemState: false,
+                target: null
+            };
+
+            addLine('');
+            addLine('Policy created. Use Add-WB* cmdlets to configure and Start-WBBackup to execute.', 'success');
+            addLine('');
+
+            completeObjective('obj1');
+        }
+
+        function handleNewTarget(cmd) {
+            const pathMatch = cmd.match(/-VolumePath\s+["']?([^"'\s]+)["']?/i);
+            const networkMatch = cmd.match(/-NetworkPath\s+["']([^"']+)["']/i);
+
+            let targetPath = 'E:';
+            if (pathMatch) targetPath = pathMatch[1];
+            if (networkMatch) targetPath = networkMatch[1];
+
+            backupState.target = {
+                path: targetPath,
+                type: networkMatch ? 'Network' : 'Local'
+            };
+
+            addLine('');
+            addLine(`BackupTarget`);
+            addLine(`  TargetPath : ${targetPath}`);
+            addLine(`  Type       : ${backupState.target.type}`);
+            addLine('');
+
+            completeObjective('obj2');
+        }
+
+        function handleAddTarget(cmd) {
+            if (!backupState.policy) {
+                addLine('Add-WBBackupTarget : No policy exists. Create one with New-WBPolicy first.', 'error');
+                return;
+            }
+
+            backupState.policy.target = backupState.target;
+            addLine('');
+            addLine('Backup target added to policy.', 'success');
+            addLine('');
+
+            completeObjective('obj2');
+        }
+
+        function handleAddBMR(cmd) {
+            if (!backupState.policy) {
+                addLine('Add-WBBareMetalRecovery : No policy exists. Create one with New-WBPolicy first.', 'error');
+                return;
+            }
+
+            backupState.policy.bmr = true;
+            addLine('');
+            addLine('Bare metal recovery option enabled in policy.', 'success');
+            addLine('');
+        }
+
+        function handleAddSystemState(cmd) {
+            if (!backupState.policy) {
+                addLine('Add-WBSystemState : No policy exists. Create one with New-WBPolicy first.', 'error');
+                return;
+            }
+
+            backupState.policy.systemState = true;
+            addLine('');
+            addLine('System state backup option enabled in policy.', 'success');
+            addLine('');
+        }
+
+        function handleStartBackup(cmd) {
+            if (!backupState.policy) {
+                addLine('Start-WBBackup : No policy exists. Create one with New-WBPolicy first.', 'error');
+                return;
+            }
+
+            addLine('');
+            addLine('Starting backup...', 'info');
+            addLine('');
+
+            setTimeout(() => {
+                addLine('Creating volume shadow copy...');
+            }, 500);
+
+            setTimeout(() => {
+                addLine('Backing up volume C: (System)...');
+            }, 1000);
+
+            setTimeout(() => {
+                addLine('Backing up system state...');
+            }, 1500);
+
+            setTimeout(() => {
+                addLine('Verifying backup integrity...');
+            }, 2000);
+
+            setTimeout(() => {
+                addLine('');
+                addLine('Backup completed successfully.', 'success');
+                addLine('');
+                addLine('Backup Summary:');
+                addLine(`  Backup Time       : ${new Date().toLocaleString()}`);
+                addLine('  Backup Type       : Full Server');
+                addLine('  Backup Size       : 45.2 GB');
+                addLine(`  Backup Target     : ${backupState.target ? backupState.target.path : 'E:'}`);
+                addLine('');
+
+                backupState.backups.unshift({
+                    version: new Date().toISOString().slice(0, 10).replace(/-/g, '/') + '-' + new Date().toTimeString().slice(0, 5).replace(':', ':'),
+                    type: 'Full Server',
+                    size: '45.2 GB'
+                });
+
+                completeObjective('obj3');
+            }, 2500);
+        }
+
+        function handleGetBackupSet(cmd) {
+            addLine('');
+            addLine('Version ID        Backup Time           Type');
+            addLine('----------        -----------           ----');
+            backupState.backups.forEach(backup => {
+                addLine(`${backup.version.padEnd(17)} ${new Date().toLocaleString().padEnd(21)} ${backup.type}`);
+            });
+            addLine('');
+
+            completeObjective('obj4');
+        }
+
+        function handleGetSummary(cmd) {
+            addLine('');
+            addLine('Windows Backup Summary', 'info');
+            addLine('-'.repeat(40));
+            addLine(`Last Backup Time  : ${backupState.backups.length > 0 ? new Date().toLocaleString() : 'N/A'}`);
+            addLine(`Last Backup Target: ${backupState.target ? backupState.target.path : 'E:'}`);
+            addLine('Last Backup Status: Success');
+            addLine('');
+            addLine('Next Backup Time  : Not Scheduled');
+            addLine('Backup Policy     : ' + (backupState.policy ? 'Configured' : 'Not Configured'));
+            addLine('');
+
+            completeObjective('obj4');
+        }
+
+        function handleWbadmin(cmd) {
+            const cmdLower = cmd.toLowerCase();
+
+            if (cmdLower.includes('get versions')) {
+                addLine('');
+                addLine('wbadmin 1.0 - Backup command-line tool', 'info');
+                addLine('(C) Copyright Microsoft Corporation.');
+                addLine('');
+                addLine('Backup time: ' + new Date().toLocaleDateString());
+                addLine('Backup target: Local disk labeled E:');
+                addLine('Version identifier: ' + backupState.backups[0].version);
+                addLine('Can recover: Volume(s), File(s), Application(s), System State, Bare Metal Recovery');
+                addLine('');
+
+                completeObjective('obj4');
+                return;
+            }
+
+            if (cmdLower.includes('start systemstatebackup')) {
+                addLine('');
+                addLine('wbadmin 1.0 - Backup command-line tool', 'info');
+                addLine('Starting system state backup...');
+                addLine('');
+
+                setTimeout(() => {
+                    addLine('Creating shadow copy of volumes...');
+                }, 500);
+
+                setTimeout(() => {
+                    addLine('Backing up Registry...');
+                }, 1000);
+
+                setTimeout(() => {
+                    addLine('Backing up COM+ Class Registration...');
+                }, 1500);
+
+                setTimeout(() => {
+                    addLine('Backing up Active Directory...');
+                }, 2000);
+
+                setTimeout(() => {
+                    addLine('Backing up SYSVOL...');
+                }, 2500);
+
+                setTimeout(() => {
+                    addLine('');
+                    addLine('System state backup completed successfully.', 'success');
+                    addLine('');
+                    completeObjective('obj3');
+                }, 3000);
+
+                return;
+            }
+
+            addLine('');
+            addLine('wbadmin 1.0 - Backup command-line tool', 'info');
+            addLine('Usage: wbadmin <command> [options]');
+            addLine('  get versions       - List backup versions');
+            addLine('  start backup       - Start full backup');
+            addLine('  start systemstatebackup - Start system state backup');
+            addLine('');
+        }
+
+        function handleVssadmin(cmd) {
+            const cmdLower = cmd.toLowerCase();
+
+            if (cmdLower.includes('list writers')) {
+                addLine('');
+                addLine('vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool', 'info');
+                addLine('(C) Copyright 2001-2013 Microsoft Corp.');
+                addLine('');
+                addLine('Writer name: \'System Writer\'');
+                addLine('   Writer Id: {e8132975-6f93-4464-a53e-1050253ae220}');
+                addLine('   Writer Instance Id: {' + generateGUID() + '}');
+                addLine('   State: [1] Stable');
+                addLine('   Last error: No error');
+                addLine('');
+                addLine('Writer name: \'Registry Writer\'');
+                addLine('   Writer Id: {afbab4a2-367d-4d15-a586-71dbb18f8485}');
+                addLine('   Writer Instance Id: {' + generateGUID() + '}');
+                addLine('   State: [1] Stable');
+                addLine('   Last error: No error');
+                addLine('');
+                addLine('Writer name: \'NTDS\'');
+                addLine('   Writer Id: {b2014c9e-8711-4c5c-a5a9-3cf384484757}');
+                addLine('   Writer Instance Id: {' + generateGUID() + '}');
+                addLine('   State: [1] Stable');
+                addLine('   Last error: No error');
+                addLine('');
+                addLine('Writer name: \'DFS Replication service writer\'');
+                addLine('   Writer Id: {2707761b-2324-473d-88eb-eb007a359533}');
+                addLine('   Writer Instance Id: {' + generateGUID() + '}');
+                addLine('   State: [1] Stable');
+                addLine('   Last error: No error');
+                addLine('');
+
+                completeObjective('obj5');
+                return;
+            }
+
+            if (cmdLower.includes('list shadows')) {
+                addLine('');
+                addLine('vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool', 'info');
+                addLine('');
+                addLine('Contents of shadow copy set ID: {' + generateGUID() + '}');
+                addLine('   Contained 1 shadow copies at creation time: ' + new Date().toLocaleString());
+                addLine('      Shadow Copy ID: {' + generateGUID() + '}');
+                addLine('         Original Volume: (C:)\\\\?\\Volume{' + generateGUID() + '}\\');
+                addLine('         Shadow Copy Volume: \\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy1');
+                addLine('         Originating Machine: DC1.hexworth.local');
+                addLine('         Service Machine: DC1.hexworth.local');
+                addLine('         Provider: \'Microsoft Software Shadow Copy provider 1.0\'');
+                addLine('');
+                return;
+            }
+
+            addLine('');
+            addLine('vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool', 'info');
+            addLine('Usage: vssadmin <command> [options]');
+            addLine('  list writers  - List registered VSS writers');
+            addLine('  list shadows  - List shadow copies');
+            addLine('  list volumes  - List volumes eligible for shadow copies');
+            addLine('');
+        }
+
+        function generateGUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+
+        function completeObjective(objId) {
+            if (!objectives[objId]) {
+                objectives[objId] = true;
+                const obj = document.getElementById(objId);
+                obj.classList.add('completed');
+                obj.querySelector('.check-icon').textContent = '✓';
+                checkAllComplete();
+            }
+        }
+
+        function checkAllComplete() {
+            if (Object.values(objectives).every(v => v)) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m16');
+                }, 500);
+            }
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(terminalInput.value);
+                terminalInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    terminalInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    terminalInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    terminalInput.value = '';
+                }
+            }
+        });
+
+        document.querySelector('.terminal').addEventListener('click', () => {
+            terminalInput.focus();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

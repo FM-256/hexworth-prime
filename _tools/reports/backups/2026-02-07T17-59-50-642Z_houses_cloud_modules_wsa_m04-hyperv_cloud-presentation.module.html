@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M04: Hyper-V Virtualization - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #12141f;
+            --panel-bg: #1a1c28;
+            --border-color: #2d3748;
+            --accent-blue: #60a5fa;
+            --accent-light: #93c5fd;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        .page-header {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+        }
+        .page-header h1 { font-size: 1.2rem; color: var(--accent-blue); }
+        .header-controls { display: flex; gap: 15px; }
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .header-btn:hover, .header-btn.primary { background: var(--accent-blue); color: #000; }
+        .slide-container {
+            max-width: 1200px;
+            margin: 80px auto 100px;
+            padding: 40px 20px;
+        }
+        .slide {
+            display: none;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            min-height: 500px;
+            animation: fadeIn 0.3s ease;
+        }
+        .slide.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-title {
+            color: var(--accent-blue);
+            font-size: 2rem;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .slide-content { font-size: 1.1rem; line-height: 1.8; }
+        .slide-content h3 { color: var(--accent-light); margin: 25px 0 15px; font-size: 1.3rem; }
+        .slide-content ul { margin-left: 25px; margin-bottom: 20px; }
+        .slide-content li { margin-bottom: 10px; }
+        .code-block {
+            background: #012456;
+            border-radius: 8px;
+            padding: 15px 20px;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.95rem;
+            margin: 15px 0;
+            border-left: 4px solid var(--accent-blue);
+        }
+        .code-block .comment { color: #6a9955; }
+        .code-block .cmdlet { color: #dcdcaa; }
+        .code-block .param { color: #9cdcfe; }
+        .code-block .string { color: #ce9178; }
+        .insight-box {
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .insight-box h4 { color: var(--accent-blue); margin-bottom: 10px; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .comparison-table th, .comparison-table td { padding: 12px 15px; border: 1px solid var(--border-color); text-align: left; }
+        .comparison-table th { background: var(--panel-bg); color: var(--accent-blue); }
+        .comparison-table tr:nth-child(even) { background: rgba(0,0,0,0.2); }
+        .diagram-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 0.9rem;
+            white-space: pre;
+            line-height: 1.4;
+        }
+        .two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 20px 0; }
+        .column { background: var(--panel-bg); border-radius: 8px; padding: 20px; }
+        .column h4 { color: var(--accent-blue); margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .nav-footer {
+            background: var(--secondary-bg);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-top: 1px solid var(--border-color);
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+        }
+        .slide-nav { display: flex; align-items: center; gap: 15px; }
+        .slide-nav button {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .slide-nav button:hover:not(:disabled) { background: var(--accent-blue); color: #000; }
+        .slide-nav button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .slide-counter { color: var(--text-secondary); }
+        .lab-links { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>WSA M04: Hyper-V Virtualization</h1>
+        <div class="header-controls">
+            <a class="header-btn" href="../index.html">&larr; Course Home</a>
+            <a class="header-btn primary" href="gui-lab.html">Start GUI Lab &rarr;</a>
+        </div>
+    </div>
+
+    <div class="slide-container">
+        <div class="slide active" data-slide="1">
+            <h2 class="slide-title">Module 04: Hyper-V Virtualization</h2>
+            <div class="slide-content">
+                <p>Master Windows Server virtualization with Hyper-V.</p>
+                <h3>Learning Objectives</h3>
+                <ul>
+                    <li>Understand Type 1 vs Type 2 hypervisors</li>
+                    <li>Create and configure virtual machines</li>
+                    <li>Manage virtual switches and networking</li>
+                    <li>Use checkpoints for point-in-time recovery</li>
+                    <li>Administer Hyper-V with GUI and PowerShell</li>
+                </ul>
+                <div class="insight-box">
+                    <h4>AZ-800 Alignment</h4>
+                    <p><strong>Domain:</strong> Manage virtual machines and containers (15-20%)</p>
+                    <p>This module covers Hyper-V architecture, VM creation, virtual networking, and checkpoints.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="2">
+            <h2 class="slide-title">Hypervisor Types</h2>
+            <div class="slide-content">
+                <div class="two-columns">
+                    <div class="column">
+                        <h4>Type 1 (Bare-Metal)</h4>
+                        <ul>
+                            <li>Runs directly on hardware</li>
+                            <li>No host OS required</li>
+                            <li>Better performance</li>
+                            <li>Examples: Hyper-V, VMware ESXi</li>
+                        </ul>
+                        <div class="diagram-box">┌─────────────────────┐
+│    Virtual Machines │
+├─────────────────────┤
+│     HYPERVISOR      │
+├─────────────────────┤
+│      HARDWARE       │
+└─────────────────────┘</div>
+                    </div>
+                    <div class="column">
+                        <h4>Type 2 (Hosted)</h4>
+                        <ul>
+                            <li>Runs on top of host OS</li>
+                            <li>Easier to install</li>
+                            <li>Additional overhead</li>
+                            <li>Examples: VirtualBox, VMware Workstation</li>
+                        </ul>
+                        <div class="diagram-box">┌─────────────────────┐
+│    Virtual Machines │
+├─────────────────────┤
+│     HYPERVISOR      │
+├─────────────────────┤
+│      HOST OS        │
+├─────────────────────┤
+│      HARDWARE       │
+└─────────────────────┘</div>
+                    </div>
+                </div>
+                <div class="insight-box">
+                    <h4>Hyper-V Is Type 1</h4>
+                    <p>When you enable Hyper-V on Windows, the entire OS becomes a virtual machine running on the hypervisor!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="3">
+            <h2 class="slide-title">VM Generations</h2>
+            <div class="slide-content">
+                <table class="comparison-table">
+                    <tr>
+                        <th>Feature</th>
+                        <th>Generation 1</th>
+                        <th>Generation 2</th>
+                    </tr>
+                    <tr><td>Firmware</td><td>BIOS (Legacy)</td><td>UEFI</td></tr>
+                    <tr><td>Boot Disk</td><td>IDE controller</td><td>SCSI controller</td></tr>
+                    <tr><td>Secure Boot</td><td>No</td><td>Yes</td></tr>
+                    <tr><td>PXE Boot</td><td>Legacy adapter only</td><td>Standard adapter</td></tr>
+                    <tr><td>DVD Boot</td><td>IDE CD-ROM</td><td>SCSI</td></tr>
+                    <tr><td>Hot Add Memory</td><td>No</td><td>Yes</td></tr>
+                    <tr><td>Guest OS</td><td>Older Windows, Linux</td><td>Windows 8+, Modern Linux</td></tr>
+                </table>
+                <div class="insight-box">
+                    <h4>When to Use Generation 1</h4>
+                    <p>Only use Gen 1 when running legacy operating systems (Windows 7, Server 2008) or older 32-bit Linux distributions.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="4">
+            <h2 class="slide-title">Virtual Switches</h2>
+            <div class="slide-content">
+                <h3>Switch Types</h3>
+                <table class="comparison-table">
+                    <tr>
+                        <th>Type</th>
+                        <th>VMs ↔ VMs</th>
+                        <th>VMs ↔ Host</th>
+                        <th>VMs ↔ Network</th>
+                    </tr>
+                    <tr><td><strong>External</strong></td><td>✓</td><td>✓</td><td>✓</td></tr>
+                    <tr><td><strong>Internal</strong></td><td>✓</td><td>✓</td><td>✗</td></tr>
+                    <tr><td><strong>Private</strong></td><td>✓</td><td>✗</td><td>✗</td></tr>
+                </table>
+                <div class="code-block">
+<span class="comment"># Create an external switch bound to a NIC</span>
+<span class="cmdlet">New-VMSwitch</span> <span class="param">-Name</span> <span class="string">"External"</span> <span class="param">-NetAdapterName</span> <span class="string">"Ethernet"</span> <span class="param">-AllowManagementOS</span> $true
+
+<span class="comment"># Create an internal switch for host-VM communication</span>
+<span class="cmdlet">New-VMSwitch</span> <span class="param">-Name</span> <span class="string">"Internal"</span> <span class="param">-SwitchType</span> Internal
+
+<span class="comment"># Create a private switch for isolated VMs</span>
+<span class="cmdlet">New-VMSwitch</span> <span class="param">-Name</span> <span class="string">"Private"</span> <span class="param">-SwitchType</span> Private</div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="5">
+            <h2 class="slide-title">Checkpoints (Snapshots)</h2>
+            <div class="slide-content">
+                <p>Checkpoints capture VM state for point-in-time recovery.</p>
+                <h3>Checkpoint Types</h3>
+                <div class="two-columns">
+                    <div class="column">
+                        <h4>Standard Checkpoint</h4>
+                        <ul>
+                            <li>Captures memory + disk state</li>
+                            <li>Complete VM state preserved</li>
+                            <li>Larger file size</li>
+                            <li>Recommended for dev/test</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <h4>Production Checkpoint</h4>
+                        <ul>
+                            <li>Uses VSS (backup technology)</li>
+                            <li>Application-consistent</li>
+                            <li>Supported in production</li>
+                            <li>Default in Windows Server</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="code-block">
+<span class="comment"># Create a checkpoint</span>
+<span class="cmdlet">Checkpoint-VM</span> <span class="param">-Name</span> <span class="string">"DC02"</span> <span class="param">-SnapshotName</span> <span class="string">"Before Updates"</span>
+
+<span class="comment"># List checkpoints for a VM</span>
+<span class="cmdlet">Get-VMCheckpoint</span> <span class="param">-VMName</span> <span class="string">"DC02"</span>
+
+<span class="comment"># Restore to a checkpoint</span>
+<span class="cmdlet">Restore-VMCheckpoint</span> <span class="param">-Name</span> <span class="string">"Before Updates"</span> <span class="param">-VMName</span> <span class="string">"DC02"</span></div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="6">
+            <h2 class="slide-title">PowerShell VM Management</h2>
+            <div class="slide-content">
+                <h3>Essential Cmdlets</h3>
+                <div class="code-block">
+<span class="comment"># List all VMs</span>
+<span class="cmdlet">Get-VM</span>
+
+<span class="comment"># Create a new VM</span>
+<span class="cmdlet">New-VM</span> <span class="param">-Name</span> <span class="string">"WebServer"</span> <span class="param">-Generation</span> 2 <span class="param">-MemoryStartupBytes</span> 4GB `
+    <span class="param">-NewVHDPath</span> <span class="string">"C:\VMs\WebServer.vhdx"</span> <span class="param">-NewVHDSizeBytes</span> 100GB
+
+<span class="comment"># Start/Stop VMs</span>
+<span class="cmdlet">Start-VM</span> <span class="param">-Name</span> <span class="string">"WebServer"</span>
+<span class="cmdlet">Stop-VM</span> <span class="param">-Name</span> <span class="string">"WebServer"</span>
+<span class="cmdlet">Stop-VM</span> <span class="param">-Name</span> <span class="string">"WebServer"</span> <span class="param">-Force</span>  <span class="comment"># Power off immediately</span>
+
+<span class="comment"># Configure VM settings</span>
+<span class="cmdlet">Set-VM</span> <span class="param">-Name</span> <span class="string">"WebServer"</span> <span class="param">-ProcessorCount</span> 4 <span class="param">-DynamicMemory</span>
+
+<span class="comment"># Connect VM to a switch</span>
+<span class="cmdlet">Connect-VMNetworkAdapter</span> <span class="param">-VMName</span> <span class="string">"WebServer"</span> <span class="param">-SwitchName</span> <span class="string">"External"</span></div>
+            </div>
+        </div>
+
+        <div class="slide" data-slide="7">
+            <h2 class="slide-title">Module Summary</h2>
+            <div class="slide-content">
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><strong>Type 1 Hypervisor</strong> - Hyper-V runs directly on hardware</li>
+                    <li><strong>Generation 2</strong> - Use for modern Windows/Linux (UEFI, Secure Boot)</li>
+                    <li><strong>Virtual Switches</strong> - External (network), Internal (host+VMs), Private (VMs only)</li>
+                    <li><strong>Checkpoints</strong> - Production (VSS-based) or Standard (memory+disk)</li>
+                    <li><strong>Dynamic Memory</strong> - Let VMs adjust RAM based on demand</li>
+                </ul>
+                <h3>Key Cmdlets</h3>
+                <table class="comparison-table">
+                    <tr><th>Task</th><th>Cmdlet</th></tr>
+                    <tr><td>List VMs</td><td><code>Get-VM</code></td></tr>
+                    <tr><td>Create VM</td><td><code>New-VM -Name X -Generation 2</code></td></tr>
+                    <tr><td>Start/Stop</td><td><code>Start-VM</code> / <code>Stop-VM</code></td></tr>
+                    <tr><td>Checkpoint</td><td><code>Checkpoint-VM -SnapshotName X</code></td></tr>
+                    <tr><td>Switches</td><td><code>Get-VMSwitch</code> / <code>New-VMSwitch</code></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-footer">
+        <div class="slide-nav">
+            <button id="prevBtn" onclick="changeSlide(-1)" disabled>&larr; Previous</button>
+            <span class="slide-counter"><span id="currentSlide">1</span> / <span id="totalSlides">7</span></span>
+            <button id="nextBtn" onclick="changeSlide(1)">Next &rarr;</button>
+        </div>
+        <div class="lab-links">
+            <a href="gui-lab.html" class="header-btn">GUI Lab</a>
+            <a href="ps-lab.html" class="header-btn">PS Lab</a>
+            <a href="quiz.html" class="header-btn">Quiz</a>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = document.querySelectorAll('.slide').length;
+        document.getElementById('totalSlides').textContent = totalSlides;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+            slides.forEach(s => s.classList.remove('active'));
+            slides[n - 1].classList.add('active');
+            document.getElementById('currentSlide').textContent = n;
+            document.getElementById('prevBtn').disabled = n === 1;
+            document.getElementById('nextBtn').disabled = n === totalSlides;
+            localStorage.setItem('wsaM04Slide', n);
+        }
+
+        function changeSlide(delta) {
+            currentSlide = Math.max(1, Math.min(totalSlides, currentSlide + delta));
+            showSlide(currentSlide);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') changeSlide(1);
+            else if (e.key === 'ArrowLeft') changeSlide(-1);
+        });
+
+        const saved = localStorage.getItem('wsaM04Slide');
+        if (saved) { currentSlide = parseInt(saved); showSlide(currentSlide); }
+    </script>
+    <script src="../progress.js"></script>
+    <script>WSAProgress.markPresentationViewed('m04');</script>
+</body>
+</html>
