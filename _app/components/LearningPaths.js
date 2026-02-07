@@ -58,7 +58,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/threats/threat-actors.html',
+                    href: 'houses/shield/applets/threats/threat_actors/ThreatActors.html',
                     prerequisites: ['shield-access-control']
                 },
                 {
@@ -67,7 +67,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'applets/risk/risk-assessment.html',
+                    href: 'houses/shield/applets/risk/risk_management/risk_management.html',
                     prerequisites: ['shield-threats']
                 },
                 {
@@ -76,7 +76,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'applets/network/network-security.html',
+                    href: 'houses/shield/applets/network/home-network-security.html',
                     prerequisites: ['shield-risk']
                 },
                 {
@@ -85,7 +85,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'applets/crypto/crypto-basics.html',
+                    href: 'houses/key/presentations/encryption-basics.html',
                     prerequisites: ['shield-network-security']
                 },
                 {
@@ -130,7 +130,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'applets/ip-addressing/ip-address-explorer.html',
+                    href: 'houses/web/applets/ip-addressing/binaryIP/binaryIP.html',
                     prerequisites: ['web-osi-quiz']
                 },
                 {
@@ -139,7 +139,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '40 min',
-                    href: 'presentations/subnetting.html',
+                    href: 'houses/web/presentations/subnetting-presentation.html',
                     prerequisites: ['web-ip-addressing']
                 },
                 {
@@ -157,7 +157,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'presentations/switch-operations.html',
+                    href: 'houses/web/presentations/switch-operations-presentation.html',
                     prerequisites: ['web-subnetting-quiz']
                 },
                 {
@@ -166,7 +166,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/vlan.html',
+                    href: 'houses/web/presentations/vlan-presentation.html',
                     prerequisites: ['web-switching']
                 },
                 {
@@ -175,7 +175,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'presentations/topologies.html',
+                    href: 'houses/web/presentations/topologies-presentation.html',
                     prerequisites: ['web-vlan']
                 },
                 {
@@ -184,7 +184,7 @@ class LearningPaths {
                     type: 'presentation',
                     difficulty: 'advanced',
                     duration: '40 min',
-                    href: 'presentations/ospf.html',
+                    href: 'houses/web/presentations/ospf-presentation.html',
                     prerequisites: ['web-routing']
                 },
                 {
