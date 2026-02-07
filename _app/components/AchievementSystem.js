@@ -446,10 +446,10 @@ class AchievementSystem {
             detail: { achievement: unlockedAchievement }
         }));
 
-        // Award bonus XP through ProgressManager
+        // Award achievement XP through ProgressManager
         if (typeof ProgressManager !== 'undefined') {
             const progress = ProgressManager.getProgress();
-            progress.xp += ProgressManager.XP_REWARDS.ACHIEVEMENT_UNLOCK;
+            progress.xp += achievement.points;  // Award actual achievement points, not flat rate
             ProgressManager.saveProgress(progress);
         }
 

@@ -33,13 +33,15 @@ const FirestoreManager = (function() {
         ENTERPRISE: 'enterprise'              // Institutional
     };
 
-    // XP values for actions
+    // XP values for actions (aligned with ProgressManager.XP_REWARDS)
     const XP_VALUES = {
-        MODULE_COMPLETE: 10,
-        QUIZ_PASS: 25,
-        LAB_COMPLETE: 50,
-        ACHIEVEMENT_UNLOCK: 15,
-        DAILY_LOGIN: 5,
+        MODULE_COMPLETE: 100,
+        QUIZ_PASS: 150,
+        QUIZ_PERFECT: 300,
+        LAB_COMPLETE: 200,
+        PRESENTATION_VIEW: 50,
+        TOOL_EXPLORE: 75,
+        DAILY_LOGIN: 25,
         FIRST_IN_HOUSE: 100
     };
 

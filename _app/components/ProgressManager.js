@@ -26,10 +26,11 @@ class ProgressManager {
         QUIZ_PASS: 150,
         QUIZ_PERFECT: 300,
         FIRST_ATTEMPT_PASS: 50,  // Bonus
-        ACHIEVEMENT_UNLOCK: 25,
         LAB_COMPLETE: 200,
         PRESENTATION_VIEW: 50,
-        TOOL_EXPLORE: 75
+        TOOL_EXPLORE: 75,
+        DAILY_LOGIN: 25
+        // Note: Achievements award their own .points value (see AchievementSystem.js)
     };
 
     // Level thresholds (XP required to reach each level)
