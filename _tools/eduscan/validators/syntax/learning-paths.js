@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const PathValidator = require('./paths');
+const ModuleRegistryGenerator = require('../../registry/module-registry');
 
 // Known house folders (actual directories under houses/)
 const HOUSE_FOLDERS = ['shield', 'web', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
@@ -28,12 +29,112 @@ class LearningPathsValidator {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
+        this.registryPath = options.registryPath || './_tools/reports/MODULE_REGISTRY.json';
 
         // Reuse PathValidator's file indexing capability
         this.pathValidator = new PathValidator({
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+
+        // Load module registry if available
+        this.registry = this.loadRegistry();
+    }
+
+    /**
+     * Load the module registry for moduleId lookups
+     */
+    loadRegistry() {
+        const absolutePath = path.resolve(this.registryPath);
+        if (fs.existsSync(absolutePath)) {
+            try {
+                return JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+            } catch (e) {
+                if (this.verbose) {
+                    console.log('[LP] Could not load module registry:', e.message);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find a file in registry by searching for similar moduleIds
+     * @param {string} href - The broken href to match
+     * @param {string} house - The expected house
+     * @returns {Object|null} Match info or null
+     */
+    findInRegistry(href, house) {
+        if (!this.registry || !this.registry.modules) return null;
+
+        const filename = path.basename(href, '.html');
+        const searchTerms = filename.toLowerCase()
+            .replace(/[-_]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 2);
+
+        // Build potential moduleId patterns to search for
+        const potentialIds = [];
+        if (house) {
+            potentialIds.push(`${house}-${filename.toLowerCase().replace(/[_\s]+/g, '-')}`);
+        }
+        potentialIds.push(filename.toLowerCase().replace(/[_\s]+/g, '-'));
+
+        // First: exact moduleId match
+        for (const id of potentialIds) {
+            if (this.registry.modules[id]) {
+                // Registry paths are already relative to _app, which includes houses/
+                const regPath = this.registry.modules[id].path;
+                return {
+                    path: regPath.startsWith('houses/') ? regPath : 'houses/' + regPath,
+                    moduleId: id,
+                    confidence: 0.98,
+                    reason: `Exact registry match: ${id}`,
+                    source: 'registry'
+                };
+            }
+        }
+
+        // Second: partial moduleId match
+        const matches = [];
+        for (const [moduleId, info] of Object.entries(this.registry.modules)) {
+            // Skip if different house (strict house matching)
+            if (house && info.house && info.house !== house) continue;
+
+            // Check if moduleId contains search terms
+            const moduleIdLower = moduleId.toLowerCase();
+            const matchedTerms = searchTerms.filter(term => moduleIdLower.includes(term));
+
+            if (matchedTerms.length >= Math.ceil(searchTerms.length * 0.6)) {
+                const regPath = info.path;
+                matches.push({
+                    moduleId,
+                    path: regPath.startsWith('houses/') ? regPath : 'houses/' + regPath,
+                    house: info.house,
+                    matchScore: matchedTerms.length / searchTerms.length
+                });
+            }
+        }
+
+        if (matches.length > 0) {
+            // Sort by match score
+            matches.sort((a, b) => b.matchScore - a.matchScore);
+            const best = matches[0];
+
+            return {
+                path: best.path,
+                moduleId: best.moduleId,
+                confidence: best.matchScore * 0.9,
+                reason: `Registry partial match: ${best.moduleId}`,
+                source: 'registry',
+                alternatives: matches.slice(1, 4).map(m => ({
+                    moduleId: m.moduleId,
+                    path: m.path
+                }))
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -292,12 +393,16 @@ class LearningPathsValidator {
                 resolveMethod = 'guessed';
             } else {
                 // Can't resolve - this is a design issue
+                // Try to find the file using registry
+                const suggestion = this.findActualFile(href, null);
                 return {
                     valid: false,
                     message: `Certification path '${pathId}' uses relative href '${href}' but no houseFolder specified`,
                     expectedPath: `houses/${pathId}/${href} (doesn't exist)`,
-                    suggestion: this.findActualFile(href),
-                    fix: `Change href to full path starting with 'houses/'. Use EduScan to find the correct path.`
+                    suggestion,
+                    fix: suggestion
+                        ? `Change href to: '${suggestion.path}'`
+                        : `Change href to full path starting with 'houses/'. Use EduScan to find the correct path.`
                 };
             }
         } else {
@@ -311,8 +416,10 @@ class LearningPathsValidator {
             return { valid: true };
         }
 
-        // File doesn't exist - try to find it
-        const suggestion = this.findActualFile(href);
+        // File doesn't exist - try to find it using registry and file index
+        // Pass the house context for better matching
+        const houseHint = isHousePath ? pathId : this.guessHouseFolder(href);
+        const suggestion = this.findActualFile(href, houseHint);
 
         return {
             valid: false,
@@ -359,20 +466,56 @@ class LearningPathsValidator {
     }
 
     /**
-     * Try to find the actual file location using PathValidator's file index
+     * Try to find the actual file location
+     * Priority: 1. Registry lookup  2. File index  3. Fuzzy matching
      */
-    findActualFile(href) {
+    findActualFile(href, house = null) {
         const filename = path.basename(href);
         const ext = path.extname(href) || '.html';
         const baseName = path.basename(filename, ext);
 
-        // Use PathValidator's existing file index (same one used for path validation)
+        // First: Try registry-based lookup (most accurate)
+        const registryMatch = this.findInRegistry(href, house);
+        if (registryMatch && registryMatch.confidence >= 0.9) {
+            return registryMatch;
+        }
+
+        // Second: Use PathValidator's existing file index for exact filename match
         let matches = this.pathValidator.findFileInCodebase(filename, ext);
 
-        // If no exact match, try fuzzy matching
-        if (matches.length === 0) {
-            matches = this.findSimilarFiles(baseName, ext);
+        // If exact match found, use it
+        if (matches.length > 0) {
+            const hrefDir = path.dirname(href);
+            let bestMatch = matches[0];
+
+            // Prefer matches that share directory structure hints
+            for (const match of matches) {
+                if (match.path.includes(hrefDir) || hrefDir.split('/').some(d => match.path.includes(d))) {
+                    bestMatch = match;
+                    break;
+                }
+            }
+
+            const relativePath = path.relative(this.rootPath, bestMatch.path).replace(/\\/g, '/');
+            return {
+                path: relativePath,
+                confidence: 0.95,
+                reason: `Exact filename match at ${bestMatch.subtree}`,
+                source: 'file-index',
+                allMatches: matches.slice(0, 5).map(m => ({
+                    path: path.relative(this.rootPath, m.path).replace(/\\/g, '/'),
+                    subtree: m.subtree
+                }))
+            };
         }
+
+        // Third: If registry had a lower-confidence match, use it
+        if (registryMatch) {
+            return registryMatch;
+        }
+
+        // Fourth: Fall back to fuzzy matching (least reliable)
+        matches = this.findSimilarFiles(baseName, ext);
 
         if (matches.length === 0) {
             return null;
@@ -383,22 +526,19 @@ class LearningPathsValidator {
         let bestMatch = matches[0];
 
         for (const match of matches) {
-            // Prefer matches that share directory structure hints
             if (match.path.includes(hrefDir) || hrefDir.split('/').some(d => match.path.includes(d))) {
                 bestMatch = match;
                 break;
             }
         }
 
-        // Calculate the correct relative path from _app root
         const relativePath = path.relative(this.rootPath, bestMatch.path).replace(/\\/g, '/');
 
         return {
             path: relativePath,
-            confidence: bestMatch.exactMatch ? 0.95 : 0.7,
-            reason: bestMatch.exactMatch
-                ? `Exact match found at ${bestMatch.subtree}`
-                : `Similar file found: ${path.basename(bestMatch.path)}`,
+            confidence: 0.6,  // Lower confidence for fuzzy matches
+            reason: `Fuzzy match: ${path.basename(bestMatch.path)}`,
+            source: 'fuzzy',
             allMatches: matches.slice(0, 5).map(m => ({
                 path: path.relative(this.rootPath, m.path).replace(/\\/g, '/'),
                 subtree: m.subtree,
