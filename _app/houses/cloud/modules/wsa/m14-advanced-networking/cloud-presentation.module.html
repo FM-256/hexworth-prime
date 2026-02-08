@@ -49,10 +49,10 @@
                     <h3>What You'll Learn</h3>
                     <ul>
                         <li>NIC Teaming and load balancing</li>
-                        <li>VLANs and network isolation</li>
-                        <li>Software Defined Networking (SDN)</li>
-                        <li>Network security and firewall rules</li>
-                        <li>IPsec and network encryption</li>
+                        <li>DHCP failover and DNS policies</li>
+                        <li>VPN types and remote access</li>
+                        <li>Network Policy Server (RADIUS)</li>
+                        <li>IPAM and network management</li>
                     </ul>
                 </div>
                 <div class="column">
@@ -100,6 +100,430 @@
 
 <span class="comment"># Add a VLAN to the team</span>
 <span class="cmdlet">Add-NetLbfoTeamNic</span> <span class="param">-Team</span> <span class="string">"DataTeam"</span> <span class="param">-VlanID</span> 100 <span class="param">-Name</span> <span class="string">"DataTeam-VLAN100"</span>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>NIC Teaming Deep Dive</h1>
+            <p>Understanding teaming modes and algorithms is critical for choosing the right configuration.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Switch Independent</h3>
+                    <ul>
+                        <li>No switch configuration required</li>
+                        <li>Members can connect to different switches</li>
+                        <li>Active/Standby or Active/Active modes</li>
+                        <li>Best for: Simple failover, cross-switch redundancy</li>
+                    </ul>
+                    <h3>Switch Dependent (Static)</h3>
+                    <ul>
+                        <li>All members must connect to same switch</li>
+                        <li>Switch must be configured for teaming</li>
+                        <li>Manual port channel configuration</li>
+                        <li>Best for: Controlled environments</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>LACP (802.3ad)</h3>
+                    <ul>
+                        <li>Dynamic link aggregation protocol</li>
+                        <li>Switch and server negotiate automatically</li>
+                        <li>Switch must support LACP</li>
+                        <li>Detects misconfiguration automatically</li>
+                        <li>Best for: Enterprise production environments</li>
+                    </ul>
+                    <h3>Hyper-V Port Algorithm</h3>
+                    <ul>
+                        <li>Assigns VMs to specific team members</li>
+                        <li>VM traffic stays on assigned adapter</li>
+                        <li>Best for Hyper-V hosts</li>
+                        <li>Predictable traffic distribution</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Create LACP team (switch must support 802.3ad)</span>
+<span class="cmdlet">New-NetLbfoTeam</span> <span class="param">-Name</span> <span class="string">"ProdTeam"</span> `
+    <span class="param">-TeamMembers</span> <span class="string">"NIC1"</span>, <span class="string">"NIC2"</span>, <span class="string">"NIC3"</span>, <span class="string">"NIC4"</span> `
+    <span class="param">-TeamingMode</span> LACP `
+    <span class="param">-LoadBalancingAlgorithm</span> HyperVPort
+
+<span class="comment"># View team status</span>
+<span class="cmdlet">Get-NetLbfoTeam</span> | <span class="cmdlet">Format-List</span> Name, TeamingMode, LoadBalancingAlgorithm, Status
+<span class="cmdlet">Get-NetLbfoTeamMember</span> <span class="param">-Team</span> <span class="string">"ProdTeam"</span>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>DHCP Failover</h1>
+            <p>DHCP failover provides high availability for DHCP services without requiring a cluster.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Hot Standby Mode</h3>
+                    <ul>
+                        <li>Primary server handles all requests</li>
+                        <li>Standby takes over if primary fails</li>
+                        <li>Standby reserves a % of addresses</li>
+                        <li>Best for: Hub-and-spoke topologies</li>
+                        <li>Simpler to configure</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Load Balance Mode</h3>
+                    <ul>
+                        <li>Both servers actively serve requests</li>
+                        <li>Configurable load distribution ratio</li>
+                        <li>Default: 50/50 split</li>
+                        <li>Best for: Single-site redundancy</li>
+                        <li>Better resource utilization</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Configure DHCP failover - Load Balance mode</span>
+<span class="cmdlet">Add-DhcpServerv4Failover</span> <span class="param">-Name</span> <span class="string">"DHCP-Failover"</span> `
+    <span class="param">-PartnerServer</span> <span class="string">"DHCP02.hexworth.local"</span> `
+    <span class="param">-ScopeId</span> <span class="string">"10.0.1.0"</span> `
+    <span class="param">-LoadBalancePercent</span> 50 `
+    <span class="param">-SharedSecret</span> <span class="string">"P@ssw0rd123"</span> `
+    <span class="param">-MaxClientLeadTime</span> <span class="string">"01:00:00"</span>
+
+<span class="comment"># Configure Hot Standby mode</span>
+<span class="cmdlet">Add-DhcpServerv4Failover</span> <span class="param">-Name</span> <span class="string">"DHCP-HotStandby"</span> `
+    <span class="param">-PartnerServer</span> <span class="string">"DHCP02.hexworth.local"</span> `
+    <span class="param">-ScopeId</span> <span class="string">"10.0.2.0"</span> `
+    <span class="param">-ServerRole</span> Active `
+    <span class="param">-ReservePercent</span> 10
+            </div>
+            <div class="info-box">
+                <strong>Key Concept:</strong> The Maximum Client Lead Time (MCLT) defines how long a server waits before assuming its partner has failed. Default is 1 hour.
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>DNS Policies</h1>
+            <p>DNS policies enable advanced query handling based on client location, time of day, or query type.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Policy Types</h3>
+                    <ul>
+                        <li><strong>Query Resolution:</strong> Control how queries are answered</li>
+                        <li><strong>Zone Transfer:</strong> Control which servers receive transfers</li>
+                        <li><strong>Recursion:</strong> Control forwarding behavior</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Policy Criteria</h3>
+                    <ul>
+                        <li>Client subnet (source IP range)</li>
+                        <li>Query type (A, AAAA, MX, etc.)</li>
+                        <li>Time of day</li>
+                        <li>Transport protocol (TCP/UDP)</li>
+                        <li>Server interface</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Create client subnets for DNS policies</span>
+<span class="cmdlet">Add-DnsServerClientSubnet</span> <span class="param">-Name</span> <span class="string">"HeadquartersSubnet"</span> <span class="param">-IPv4Subnet</span> <span class="string">"10.0.1.0/24"</span>
+<span class="cmdlet">Add-DnsServerClientSubnet</span> <span class="param">-Name</span> <span class="string">"BranchSubnet"</span> <span class="param">-IPv4Subnet</span> <span class="string">"10.0.2.0/24"</span>
+
+<span class="comment"># Create zone scope</span>
+<span class="cmdlet">Add-DnsServerZoneScope</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-Name</span> <span class="string">"BranchScope"</span>
+
+<span class="comment"># Add record to zone scope</span>
+<span class="cmdlet">Add-DnsServerResourceRecord</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> `
+    <span class="param">-A</span> <span class="param">-Name</span> <span class="string">"app"</span> <span class="param">-IPv4Address</span> <span class="string">"10.0.2.100"</span> <span class="param">-ZoneScope</span> <span class="string">"BranchScope"</span>
+
+<span class="comment"># Create policy for location-based resolution</span>
+<span class="cmdlet">Add-DnsServerQueryResolutionPolicy</span> <span class="param">-Name</span> <span class="string">"BranchPolicy"</span> `
+    <span class="param">-Action</span> ALLOW `
+    <span class="param">-ClientSubnet</span> <span class="string">"EQ,BranchSubnet"</span> `
+    <span class="param">-ZoneScope</span> <span class="string">"BranchScope,1"</span> `
+    <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>Split-Brain DNS</h1>
+            <p>Split-brain DNS serves different answers for the same hostname based on whether the client is internal or external.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>How It Works</h3>
+                    <ul>
+                        <li>Same DNS name resolves to different IPs</li>
+                        <li>Internal clients get private IP addresses</li>
+                        <li>External clients get public IP addresses</li>
+                        <li>Implemented with DNS policies in Server 2016+</li>
+                        <li>Previously required separate DNS servers</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Use Cases</h3>
+                    <ul>
+                        <li>Web applications with internal/external access</li>
+                        <li>Exchange Autodiscover</li>
+                        <li>SharePoint with external publishing</li>
+                        <li>Any service with different internal vs external paths</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Split-brain DNS configuration</span>
+<span class="comment"># Internal scope (default) - app.hexworth.local = 10.0.1.50</span>
+<span class="comment"># External scope - app.hexworth.local = 203.0.113.50</span>
+
+<span class="cmdlet">Add-DnsServerZoneScope</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-Name</span> <span class="string">"ExternalScope"</span>
+
+<span class="cmdlet">Add-DnsServerResourceRecord</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> `
+    <span class="param">-A</span> <span class="param">-Name</span> <span class="string">"app"</span> <span class="param">-IPv4Address</span> <span class="string">"203.0.113.50"</span> <span class="param">-ZoneScope</span> <span class="string">"ExternalScope"</span>
+
+<span class="comment"># Policy: External queries use ExternalScope</span>
+<span class="cmdlet">Add-DnsServerQueryResolutionPolicy</span> <span class="param">-Name</span> <span class="string">"SplitBrainExternal"</span> `
+    <span class="param">-Action</span> ALLOW `
+    <span class="param">-ClientSubnet</span> <span class="string">"NE,InternalSubnet"</span> `
+    <span class="param">-ZoneScope</span> <span class="string">"ExternalScope,1"</span> `
+    <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>DNSSEC (DNS Security Extensions)</h1>
+            <p>DNSSEC adds cryptographic signatures to DNS records to prevent spoofing and tampering.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>DNSSEC Components</h3>
+                    <ul>
+                        <li><strong>RRSIG:</strong> Digital signature for DNS records</li>
+                        <li><strong>DNSKEY:</strong> Public key for verifying signatures</li>
+                        <li><strong>DS:</strong> Delegation Signer (parent zone trust)</li>
+                        <li><strong>NSEC/NSEC3:</strong> Proof of non-existence</li>
+                        <li><strong>KSK:</strong> Key Signing Key (signs DNSKEY)</li>
+                        <li><strong>ZSK:</strong> Zone Signing Key (signs records)</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>DNSSEC Benefits</h3>
+                    <ul>
+                        <li>Prevents DNS cache poisoning</li>
+                        <li>Validates DNS response authenticity</li>
+                        <li>Chain of trust from root to zone</li>
+                        <li>Required by some government policies</li>
+                        <li>Supported in Server 2012+</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Sign a DNS zone with DNSSEC</span>
+<span class="cmdlet">Invoke-DnsServerZoneSign</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-SignWithDefault</span>
+
+<span class="comment"># Configure trust anchors on resolving servers</span>
+<span class="cmdlet">Add-DnsServerTrustAnchor</span> <span class="param">-Name</span> <span class="string">"hexworth.local"</span> <span class="param">-CryptoAlgorithm</span> RsaSha256 `
+    <span class="param">-KeyTag</span> 12345 <span class="param">-Digest</span> <span class="string">"ABCDEF..."</span> <span class="param">-DigestType</span> Sha256
+
+<span class="comment"># View zone signing status</span>
+<span class="cmdlet">Get-DnsServerDnsSecZoneSetting</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            </div>
+            <div class="warning-box">
+                <strong>Caution:</strong> DNSSEC increases DNS response sizes and requires key management. Plan key rollover procedures before deploying in production.
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>IPAM (IP Address Management)</h1>
+            <p>IPAM provides centralized management of the IP address space across multiple DHCP and DNS servers.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>IPAM Features</h3>
+                    <ul>
+                        <li>Centralized IP address tracking</li>
+                        <li>DHCP and DNS server management</li>
+                        <li>IP address utilization monitoring</li>
+                        <li>IP address auditing and tracking</li>
+                        <li>Multi-server management console</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>IPAM Components</h3>
+                    <ul>
+                        <li><strong>IPAM Server:</strong> Central management server</li>
+                        <li><strong>IPAM Database:</strong> WID or SQL Server</li>
+                        <li><strong>Managed Servers:</strong> DHCP/DNS/DC servers</li>
+                        <li><strong>IPAM Client:</strong> Server Manager or RSAT</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Install IPAM feature</span>
+<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> IPAM <span class="param">-IncludeManagementTools</span>
+
+<span class="comment"># Initialize IPAM with WID database</span>
+<span class="cmdlet">Invoke-IpamServerProvisioning</span> <span class="param">-WidSchemaPath</span> <span class="string">"C:\Windows\System32\ipam\ipamschema.mdf"</span>
+
+<span class="comment"># Discover servers in the domain</span>
+<span class="cmdlet">Invoke-IpamServerDiscovery</span> <span class="param">-Domain</span> <span class="string">"hexworth.local"</span>
+
+<span class="comment"># Get IP address utilization</span>
+<span class="cmdlet">Get-IpamSubnet</span> | <span class="cmdlet">Select-Object</span> NetworkId, PercentageUtilized, TotalAddresses
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>Network Policy Server (NPS/RADIUS)</h1>
+            <p>NPS is Microsoft's implementation of RADIUS for centralized network access authentication and authorization.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>NPS Use Cases</h3>
+                    <ul>
+                        <li><strong>VPN Authentication:</strong> RRAS VPN server</li>
+                        <li><strong>WiFi (802.1X):</strong> Wireless authentication</li>
+                        <li><strong>Wired 802.1X:</strong> Switch port authentication</li>
+                        <li><strong>RADIUS Proxy:</strong> Forward to other RADIUS servers</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>NPS Components</h3>
+                    <ul>
+                        <li><strong>RADIUS Clients:</strong> VPN servers, APs, switches</li>
+                        <li><strong>Connection Request Policies:</strong> How to handle requests</li>
+                        <li><strong>Network Policies:</strong> Allow/deny based on conditions</li>
+                        <li><strong>Accounting:</strong> Log authentication events</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Install NPS role</span>
+<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> NPAS <span class="param">-IncludeManagementTools</span>
+
+<span class="comment"># Register NPS in Active Directory</span>
+<span class="cmdlet">netsh</span> nps set registeredserver domain=hexworth.local server=NPS01
+
+<span class="comment"># Add RADIUS client (VPN server)</span>
+<span class="cmdlet">New-NpsRadiusClient</span> <span class="param">-Name</span> <span class="string">"VPN-Server"</span> `
+    <span class="param">-Address</span> <span class="string">"10.0.1.5"</span> `
+    <span class="param">-SharedSecret</span> <span class="string">"R@diusSecret123"</span>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>VPN Types</h1>
+            <p>Windows Server supports multiple VPN protocols through the RRAS (Routing and Remote Access Service) role.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>VPN Protocols</h3>
+                    <ul>
+                        <li><strong>IKEv2:</strong> Most recommended, fast reconnection</li>
+                        <li><strong>SSTP:</strong> Uses HTTPS (port 443), firewall-friendly</li>
+                        <li><strong>L2TP/IPsec:</strong> Strong encryption, widely supported</li>
+                        <li><strong>PPTP:</strong> Legacy, insecure - avoid in production</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Choosing a Protocol</h3>
+                    <ul>
+                        <li><strong>IKEv2:</strong> Best for mobile users (reconnect after sleep)</li>
+                        <li><strong>SSTP:</strong> Best when behind restrictive firewalls</li>
+                        <li><strong>L2TP:</strong> Compatible with most VPN clients</li>
+                        <li>IKEv2 and SSTP require certificates</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Install RRAS role</span>
+<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> DirectAccess-VPN, Routing <span class="param">-IncludeManagementTools</span>
+
+<span class="comment"># Configure RRAS for VPN</span>
+<span class="cmdlet">Install-RemoteAccess</span> <span class="param">-VpnType</span> Vpn
+
+<span class="comment"># Set VPN address pool</span>
+<span class="cmdlet">Set-RemoteAccessConfiguration</span> <span class="param">-VpnAddressPool</span> <span class="string">"10.0.100.1"</span>, <span class="string">"10.0.100.254"</span>
+            </div>
+            <div class="warning-box">
+                <strong>Security:</strong> PPTP uses MS-CHAPv2 which has known vulnerabilities. Always prefer IKEv2 or SSTP for production VPN deployments.
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>DirectAccess</h1>
+            <p>DirectAccess provides seamless, always-on remote connectivity without traditional VPN connections.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>How DirectAccess Works</h3>
+                    <ul>
+                        <li>Automatic connection when outside corporate network</li>
+                        <li>Uses IPv6 transition technologies (6to4, Teredo, IP-HTTPS)</li>
+                        <li>Bi-directional: IT can manage remote machines</li>
+                        <li>No user action required to connect</li>
+                        <li>Machine certificate authentication</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Requirements</h3>
+                    <ul>
+                        <li>Windows Enterprise or Education clients</li>
+                        <li>Domain-joined computers only</li>
+                        <li>Active Directory and Group Policy</li>
+                        <li>Certificate infrastructure (AD CS)</li>
+                        <li>DirectAccess server with 2 NICs (or behind NAT)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Install Remote Access role for DirectAccess</span>
+<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> DirectAccess-VPN <span class="param">-IncludeManagementTools</span>
+
+<span class="comment"># Configure DirectAccess (simplified)</span>
+<span class="cmdlet">Install-RemoteAccess</span> <span class="param">-DAInstallType</span> FullInstall `
+    <span class="param">-ConnectToAddress</span> <span class="string">"da.hexworth.com"</span>
+
+<span class="comment"># Apply DirectAccess GPO settings</span>
+<span class="cmdlet">Set-DAClient</span> <span class="param">-ComputerName</span> <span class="string">"DA-Clients"</span> <span class="param">-ForceTunnel</span> Enabled
+            </div>
+            <div class="info-box">
+                <strong>Note:</strong> DirectAccess is being superseded by Always On VPN in newer Windows deployments, which supports non-domain-joined devices and all Windows editions.
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>BranchCache</h1>
+            <p>BranchCache reduces WAN bandwidth consumption by caching content locally at branch offices.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>BranchCache Modes</h3>
+                    <ul>
+                        <li><strong>Distributed Cache:</strong> Clients share cached content peer-to-peer</li>
+                        <li><strong>Hosted Cache:</strong> Dedicated server stores cache at branch</li>
+                    </ul>
+                    <h3>Supported Content</h3>
+                    <ul>
+                        <li>SMB file shares (file servers)</li>
+                        <li>HTTP/HTTPS content (IIS, WSUS)</li>
+                        <li>BITS-based transfers (SCCM)</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>How It Works</h3>
+                    <ul>
+                        <li>First client downloads from HQ over WAN</li>
+                        <li>Content is cached locally</li>
+                        <li>Subsequent requests served from local cache</li>
+                        <li>Content validated using hashes</li>
+                        <li>Transparent to end users</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Install BranchCache feature</span>
+<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> BranchCache <span class="param">-IncludeManagementTools</span>
+
+<span class="comment"># Enable BranchCache on file server</span>
+<span class="cmdlet">Enable-BCDistributed</span>
+
+<span class="comment"># Enable BranchCache for a specific share</span>
+<span class="cmdlet">Set-SmbShare</span> <span class="param">-Name</span> <span class="string">"SharedDocs"</span> <span class="param">-CachingMode</span> BranchCache
+
+<span class="comment"># View BranchCache status</span>
+<span class="cmdlet">Get-BCStatus</span>
             </div>
         </div>
 
@@ -155,6 +579,43 @@
     <span class="param">-ConnectionUri</span> <span class="string">"https://nc.hexworth.local"</span> `
     <span class="param">-ResourceId</span> <span class="string">"Production-VNet"</span> `
     <span class="param">-Properties</span> $vnetProperties
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1>Network Virtualization (HNV)</h1>
+            <p>Hyper-V Network Virtualization enables overlay networks that decouple virtual networks from the physical infrastructure.</p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>HNV Concepts</h3>
+                    <ul>
+                        <li><strong>Customer Address (CA):</strong> VM's virtual IP</li>
+                        <li><strong>Provider Address (PA):</strong> Physical host IP</li>
+                        <li><strong>VXLAN/NVGRE:</strong> Encapsulation protocols</li>
+                        <li><strong>Virtual Subnet:</strong> Isolated layer 2 network</li>
+                        <li>Supports overlapping IP address spaces</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h3>Benefits</h3>
+                    <ul>
+                        <li>Multi-tenant isolation without VLANs</li>
+                        <li>Workload mobility across physical hosts</li>
+                        <li>Independent virtual network topology</li>
+                        <li>Cross-subnet live migration</li>
+                        <li>Managed via Network Controller</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-block">
+<span class="comment"># Create a virtual network via Network Controller REST API</span>
+$vnetProperties = @{
+    AddressSpace = @{ AddressPrefixes = @(<span class="string">"10.100.0.0/16"</span>) }
+    Subnets = @(
+        @{ ResourceId = <span class="string">"WebTier"</span>; Properties = @{ AddressPrefix = <span class="string">"10.100.1.0/24"</span> } }
+        @{ ResourceId = <span class="string">"AppTier"</span>; Properties = @{ AddressPrefix = <span class="string">"10.100.2.0/24"</span> } }
+    )
+}
             </div>
         </div>
 
@@ -320,9 +781,11 @@
                     <h3>GUI Lab Tasks</h3>
                     <ul>
                         <li>Create NIC Team</li>
-                        <li>Configure VLAN</li>
-                        <li>Create firewall rules</li>
+                        <li>Configure DHCP failover</li>
+                        <li>Create DNS policies</li>
+                        <li>Configure firewall rules</li>
                         <li>Configure QoS policies</li>
+                        <li>Set up NPS RADIUS</li>
                         <li>Set up NAT</li>
                     </ul>
                 </div>
@@ -330,9 +793,11 @@
                     <h3>PowerShell Lab Tasks</h3>
                     <ul>
                         <li>Create and manage NIC teams</li>
-                        <li>Configure firewall rules</li>
-                        <li>Set up IPsec policies</li>
+                        <li>Configure DHCP failover</li>
+                        <li>Create DNS zone scopes and policies</li>
+                        <li>Configure firewall and IPsec rules</li>
                         <li>Create QoS policies</li>
+                        <li>Configure BranchCache</li>
                         <li>Perform network diagnostics</li>
                     </ul>
                 </div>
