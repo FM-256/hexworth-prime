@@ -42,6 +42,8 @@
         .comparison-card li:last-child { border-bottom: none; }
         .code-block { background: var(--ps-blue); border: 1px solid #333; border-radius: 8px; padding: 15px; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.85rem; overflow-x: auto; margin: 15px 0; white-space: pre-wrap; }
         .code-block .comment { color: #6a9955; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
         .code-block .cmdlet { color: #dcdcaa; }
         .code-block .param { color: #9cdcfe; }
         .code-block .string { color: #ce9178; }
@@ -140,18 +142,20 @@
                             </ul>
                         </div>
                     </div>
+                    <p style="margin-top: 15px;">Every production script should start with requirements, parameters, and strict mode to catch errors early.</p>
                     <div class="code-block">
-<span class="comment">#Requires -Version 5.1</span>
-<span class="comment">#Requires -RunAsAdministrator</span>
+<span class="comment"># Define script prerequisites and parameters for a reusable admin script</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">#Requires -Version 5.1
+#Requires -RunAsAdministrator
 
-<span class="keyword">param</span>(
-    [<span class="keyword">Parameter</span>(Mandatory)]
-    [<span class="keyword">string</span>]<span class="variable">$ServerName</span>,
-    [<span class="keyword">switch</span>]<span class="variable">$Force</span>
+param(
+    [Parameter(Mandatory)]
+    [string]$ServerName,
+    [switch]$Force
 )
 
-<span class="cmdlet">Set-StrictMode</span> <span class="param">-Version</span> Latest
-<span class="variable">$ErrorActionPreference</span> = <span class="string">'Stop'</span>
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'</span>
                     </div>
                 `
             },
@@ -159,31 +163,30 @@
             {
                 title: "Error Handling & Logging",
                 content: `
-                    <p style="margin-bottom: 20px;">Production scripts require robust error handling and comprehensive logging:</p>
+                    <p style="margin-bottom: 20px;">Production scripts require robust error handling and comprehensive logging.</p>
+                    <p>A reusable Write-Log function timestamps every action. Wrapping your logic in try/catch ensures failures are captured and logged rather than silently lost.</p>
                     <div class="code-block">
-<span class="keyword">function</span> <span class="cmdlet">Write-Log</span> {
-    <span class="keyword">param</span>([<span class="keyword">string</span>]<span class="variable">$Message</span>, [<span class="keyword">string</span>]<span class="variable">$Level</span> = <span class="string">'INFO'</span>)
-    <span class="variable">$timestamp</span> = <span class="cmdlet">Get-Date</span> <span class="param">-Format</span> <span class="string">'yyyy-MM-dd HH:mm:ss'</span>
-    <span class="string">"[$timestamp] [$Level] $Message"</span> | <span class="cmdlet">Add-Content</span> <span class="param">-Path</span> <span class="variable">$LogPath</span>
+<span class="comment"># Logging function with try/catch pattern for production scripts</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">function Write-Log {
+    param([string]$Message, [string]$Level = 'INFO')
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    "[$timestamp] [$Level] $Message" | Add-Content -Path $LogPath
 }
 
-<span class="keyword">try</span> {
-    <span class="cmdlet">Write-Log</span> <span class="string">"Starting operation on $ServerName"</span>
-
-    <span class="comment"># Main script logic here</span>
-    <span class="cmdlet">Invoke-Command</span> <span class="param">-ComputerName</span> <span class="variable">$ServerName</span> <span class="param">-ScriptBlock</span> {
-        <span class="cmdlet">Get-Service</span> | <span class="cmdlet">Where-Object</span> Status <span class="param">-eq</span> <span class="string">'Stopped'</span>
+try {
+    Write-Log "Starting operation on $ServerName"
+    Invoke-Command -ComputerName $ServerName -ScriptBlock {
+        Get-Service | Where-Object Status -eq 'Stopped'
     }
-
-    <span class="cmdlet">Write-Log</span> <span class="string">"Operation completed successfully"</span>
+    Write-Log "Operation completed successfully"
 }
-<span class="keyword">catch</span> {
-    <span class="cmdlet">Write-Log</span> <span class="string">"ERROR: $_"</span> <span class="param">-Level</span> <span class="string">'ERROR'</span>
-    <span class="keyword">throw</span>
+catch {
+    Write-Log "ERROR: $_" -Level 'ERROR'
+    throw
 }
-<span class="keyword">finally</span> {
-    <span class="cmdlet">Write-Log</span> <span class="string">"Script execution ended"</span>
-}
+finally {
+    Write-Log "Script execution ended"
+}</span>
                     </div>
                     <div class="info-box">
                         <strong>ErrorAction Preference:</strong> Set <code>$ErrorActionPreference = 'Stop'</code> to ensure all errors are caught by try/catch blocks.
@@ -217,17 +220,19 @@
                             <p>Network, power, idle conditions</p>
                         </div>
                     </div>
+                    <p>Building a scheduled task requires three objects: the action (what to run), the trigger (when to run), and the principal (who to run as). Then register them together.</p>
                     <div class="code-block">
-<span class="comment"># Create a scheduled task for daily maintenance</span>
-<span class="variable">$action</span> = <span class="cmdlet">New-ScheduledTaskAction</span> <span class="param">-Execute</span> <span class="string">'powershell.exe'</span> `
-    <span class="param">-Argument</span> <span class="string">'-ExecutionPolicy Bypass -File C:\\Scripts\\DailyMaintenance.ps1'</span>
-
-<span class="variable">$trigger</span> = <span class="cmdlet">New-ScheduledTaskTrigger</span> <span class="param">-Daily</span> <span class="param">-At</span> <span class="string">'2:00AM'</span>
-
-<span class="variable">$principal</span> = <span class="cmdlet">New-ScheduledTaskPrincipal</span> <span class="param">-UserId</span> <span class="string">'SYSTEM'</span> <span class="param">-RunLevel</span> Highest
-
-<span class="cmdlet">Register-ScheduledTask</span> <span class="param">-TaskName</span> <span class="string">'DailyMaintenance'</span> `
-    <span class="param">-Action</span> <span class="variable">$action</span> <span class="param">-Trigger</span> <span class="variable">$trigger</span> <span class="param">-Principal</span> <span class="variable">$principal</span>
+<span class="comment"># Create and register a daily maintenance task running at 2 AM as SYSTEM</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\DailyMaintenance.ps1'
+$trigger = New-ScheduledTaskTrigger -Daily -At '2:00AM'
+$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest
+Register-ScheduledTask -TaskName 'DailyMaintenance' -Action $action -Trigger $trigger -Principal $principal</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">TaskPath   TaskName           State</span>
+<span class="comment">--------   --------           -----</span>
+\\          <span class="command">DailyMaintenance</span>   Ready
                     </div>
                 `
             },
@@ -258,21 +263,22 @@
                             </ul>
                         </div>
                     </div>
+                    <p style="margin-top: 15px;">A DSC configuration block declares what state a server should be in. This example ensures IIS is installed and a default page exists.</p>
                     <div class="code-block">
-<span class="keyword">Configuration</span> <span class="cmdlet">WebServerConfig</span> {
-    <span class="keyword">Node</span> <span class="string">'WebServer01'</span> {
-        <span class="cmdlet">WindowsFeature</span> IIS {
-            <span class="param">Name</span> = <span class="string">'Web-Server'</span>
-            <span class="param">Ensure</span> = <span class="string">'Present'</span>
+<span class="comment"># Define desired state: IIS installed with a default web page</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Configuration WebServerConfig {
+    Node 'WebServer01' {
+        WindowsFeature IIS {
+            Name = 'Web-Server'
+            Ensure = 'Present'
         }
-
-        <span class="cmdlet">File</span> WebsiteContent {
-            <span class="param">DestinationPath</span> = <span class="string">'C:\\inetpub\\wwwroot\\index.html'</span>
-            <span class="param">Contents</span> = <span class="string">'&lt;h1&gt;Welcome to Hexworth&lt;/h1&gt;'</span>
-            <span class="param">Ensure</span> = <span class="string">'Present'</span>
+        File WebsiteContent {
+            DestinationPath = 'C:\\inetpub\\wwwroot\\index.html'
+            Contents = '&lt;h1&gt;Welcome to Hexworth&lt;/h1&gt;'
+            Ensure = 'Present'
         }
     }
-}
+}</span>
                     </div>
                 `
             },
@@ -280,34 +286,51 @@
             {
                 title: "Implementing DSC",
                 content: `
-                    <p style="margin-bottom: 20px;">Deploy and enforce configurations with DSC:</p>
+                    <p style="margin-bottom: 20px;">Deploy and enforce configurations with DSC in a four-step workflow.</p>
+                    <p>First, define the configuration with the resources and desired state for each node.</p>
                     <div class="code-block">
-<span class="comment"># Step 1: Define the configuration</span>
-<span class="keyword">Configuration</span> <span class="cmdlet">SecureServer</span> {
-    <span class="keyword">Import-DscResource</span> <span class="param">-ModuleName</span> PSDesiredStateConfiguration
-
-    <span class="keyword">Node</span> <span class="variable">$AllNodes.NodeName</span> {
-        <span class="cmdlet">WindowsFeature</span> RemoveFeatures {
-            <span class="param">Name</span> = <span class="string">'Telnet-Client'</span>
-            <span class="param">Ensure</span> = <span class="string">'Absent'</span>
+<span class="comment"># Step 1: Define a security baseline configuration</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Configuration SecureServer {
+    Import-DscResource -ModuleName PSDesiredStateConfiguration
+    Node $AllNodes.NodeName {
+        WindowsFeature RemoveFeatures {
+            Name = 'Telnet-Client'
+            Ensure = 'Absent'
         }
-
-        <span class="cmdlet">Service</span> WinRM {
-            <span class="param">Name</span> = <span class="string">'WinRM'</span>
-            <span class="param">State</span> = <span class="string">'Running'</span>
-            <span class="param">StartupType</span> = <span class="string">'Automatic'</span>
+        Service WinRM {
+            Name = 'WinRM'
+            State = 'Running'
+            StartupType = 'Automatic'
         }
     }
-}
-
-<span class="comment"># Step 2: Generate MOF files</span>
-<span class="cmdlet">SecureServer</span> <span class="param">-OutputPath</span> <span class="string">'C:\\DSC\\SecureServer'</span>
-
-<span class="comment"># Step 3: Apply configuration</span>
-<span class="cmdlet">Start-DscConfiguration</span> <span class="param">-Path</span> <span class="string">'C:\\DSC\\SecureServer'</span> <span class="param">-Wait</span> <span class="param">-Verbose</span>
-
-<span class="comment"># Step 4: Check compliance</span>
-<span class="cmdlet">Test-DscConfiguration</span> <span class="param">-Detailed</span>
+}</span>
+                    </div>
+                    <p>Compile the configuration into MOF files, then push it to the target nodes and verify compliance.</p>
+                    <div class="code-block">
+<span class="comment"># Step 2: Compile the configuration into MOF files</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">SecureServer -OutputPath 'C:\\DSC\\SecureServer'</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Step 3: Push the configuration to target nodes</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Start-DscConfiguration -Path 'C:\\DSC\\SecureServer' -Wait -Verbose</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Expected output:</span>
+VERBOSE: Perform operation 'Invoke CimMethod' with following parameters...
+VERBOSE: An LCM method call arrived from computer <span class="command">YOURSERVER</span>...
+VERBOSE: [YOURSERVER]: LCM: [Start  Set     ]
+VERBOSE: [YOURSERVER]: [DSCEngine] Resource [WindowsFeature]RemoveFeatures...
+VERBOSE: [YOURSERVER]: LCM: [End    Set     ] in <span class="command">45.2300</span> seconds.
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Step 4: Verify all nodes are in the desired state</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Test-DscConfiguration -Detailed</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">InDesiredState</span>   : True
+<span class="command">ResourcesInDesiredState</span> : {[WindowsFeature]RemoveFeatures, [Service]WinRM}
+<span class="command">ResourcesNotInDesiredState</span> :
                     </div>
                     <div class="warning-box">
                         <strong>DSC Modes:</strong> Push mode applies configs on-demand. Pull mode has nodes periodically check a pull server for updates.
@@ -339,17 +362,26 @@
                             </ul>
                         </div>
                     </div>
+                    <p style="margin-top: 15px;">Invoke-Command fans out to multiple servers in parallel. The ThrottleLimit controls how many connections run simultaneously.</p>
                     <div class="code-block">
-<span class="comment"># Query multiple servers in parallel</span>
-<span class="variable">$servers</span> = <span class="string">'DC01'</span>, <span class="string">'WEB01'</span>, <span class="string">'SQL01'</span>, <span class="string">'FILE01'</span>
-
-<span class="cmdlet">Invoke-Command</span> <span class="param">-ComputerName</span> <span class="variable">$servers</span> <span class="param">-ScriptBlock</span> {
-    [<span class="keyword">PSCustomObject</span>]@{
-        ComputerName = <span class="variable">$env:COMPUTERNAME</span>
-        Uptime = ((<span class="cmdlet">Get-Date</span>) - (<span class="cmdlet">Get-CimInstance</span> Win32_OperatingSystem).LastBootUpTime).Days
-        FreeSpaceGB = [<span class="keyword">math</span>]::Round((<span class="cmdlet">Get-PSDrive</span> C).Free / 1GB, 2)
+<span class="comment"># Query uptime and disk space across four servers in parallel</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">$servers = 'DC01', 'WEB01', 'SQL01', 'FILE01'
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    [PSCustomObject]@{
+        ComputerName = $env:COMPUTERNAME
+        Uptime = ((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).Days
+        FreeSpaceGB = [math]::Round((Get-PSDrive C).Free / 1GB, 2)
     }
-} <span class="param">-ThrottleLimit</span> 10
+} -ThrottleLimit 10</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ComputerName   Uptime   FreeSpaceGB   PSComputerName</span>
+<span class="comment">------------   ------   -----------   --------------</span>
+<span class="command">DC01</span>           45       82.31         DC01
+<span class="command">WEB01</span>          12       64.50         WEB01
+<span class="command">SQL01</span>          30       120.75        SQL01
+<span class="command">FILE01</span>         90       45.22         FILE01
                     </div>
                 `
             },
@@ -380,23 +412,32 @@
                             <p>Schedule backups, verify integrity, rotate</p>
                         </div>
                     </div>
+                    <p>This function encapsulates user onboarding: creates the AD account, adds group membership, and provisions the home folder in one call.</p>
                     <div class="code-block">
-<span class="comment"># User provisioning automation example</span>
-<span class="keyword">function</span> <span class="cmdlet">New-HexworthUser</span> {
-    <span class="keyword">param</span>(<span class="variable">$FirstName</span>, <span class="variable">$LastName</span>, <span class="variable">$Department</span>)
+<span class="comment"># Reusable function that provisions a new employee end-to-end</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">function New-HexworthUser {
+    param($FirstName, $LastName, $Department)
+    $username = ($FirstName.Substring(0,1) + $LastName).ToLower()
 
-    <span class="variable">$username</span> = (<span class="variable">$FirstName</span>.Substring(0,1) + <span class="variable">$LastName</span>).ToLower()
+    # Create AD account
+    New-ADUser -Name "$FirstName $LastName" -SamAccountName $username \\
+        -Department $Department -Enabled $true
 
-    <span class="comment"># Create AD account</span>
-    <span class="cmdlet">New-ADUser</span> <span class="param">-Name</span> <span class="string">"$FirstName $LastName"</span> <span class="param">-SamAccountName</span> <span class="variable">$username</span> `
-        <span class="param">-Department</span> <span class="variable">$Department</span> <span class="param">-Enabled</span> <span class="variable">$true</span>
+    # Add to department group
+    Add-ADGroupMember -Identity "GRP-$Department" -Members $username
 
-    <span class="comment"># Add to department group</span>
-    <span class="cmdlet">Add-ADGroupMember</span> <span class="param">-Identity</span> <span class="string">"GRP-$Department"</span> <span class="param">-Members</span> <span class="variable">$username</span>
+    # Create home folder
+    New-Item -Path "\\\\fileserver\\users\\$username" -ItemType Directory
+}</span>
+                    </div>
+                    <div class="code-block">
+<span class="comment"># Expected usage and output:</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">New-HexworthUser -FirstName "Jane" -LastName "Smith" -Department "Engineering"</span>
 
-    <span class="comment"># Create home folder</span>
-    <span class="cmdlet">New-Item</span> <span class="param">-Path</span> <span class="string">"\\\\fileserver\\users\\$username"</span> <span class="param">-ItemType</span> Directory
-}
+<span class="prompt">Directory</span>: \\\\fileserver\\users
+<span class="prompt">Mode         LastWriteTime          Length   Name</span>
+<span class="comment">----         -------------          ------   ----</span>
+d-----       1/31/2026  10:30 AM              <span class="command">jsmith</span>
                     </div>
                 `
             },
@@ -426,17 +467,20 @@
                             </ul>
                         </div>
                     </div>
+                    <p style="margin-top: 15px;">The PSGallery is the public module repository. Install community and Microsoft modules from here to extend your automation capabilities.</p>
                     <div class="code-block">
-<span class="comment"># Install module from PSGallery</span>
-<span class="cmdlet">Install-Module</span> <span class="param">-Name</span> <span class="string">'Az.Accounts'</span> <span class="param">-Scope</span> AllUsers
-
-<span class="comment"># Register internal repository</span>
-<span class="cmdlet">Register-PSRepository</span> <span class="param">-Name</span> <span class="string">'HexworthRepo'</span> `
-    <span class="param">-SourceLocation</span> <span class="string">'\\\\fileserver\\PSModules'</span> `
-    <span class="param">-InstallationPolicy</span> Trusted
-
-<span class="comment"># Publish module to internal repo</span>
-<span class="cmdlet">Publish-Module</span> <span class="param">-Name</span> <span class="string">'HexworthTools'</span> <span class="param">-Repository</span> <span class="string">'HexworthRepo'</span>
+<span class="comment"># Install a module from the public PowerShell Gallery</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Install-Module -Name 'Az.Accounts' -Scope AllUsers</span>
+                    </div>
+                    <p>For enterprise use, register an internal file share as a trusted module repository so your team can share custom modules securely.</p>
+                    <div class="code-block">
+<span class="comment"># Register an internal file share as a trusted PowerShell repository</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Register-PSRepository -Name 'HexworthRepo' -SourceLocation '\\\\fileserver\\PSModules' -InstallationPolicy Trusted</span>
+                    </div>
+                    <p>Once your internal repo is registered, publish your custom modules for the entire team to install.</p>
+                    <div class="code-block">
+<span class="comment"># Publish your custom module to the internal repository</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Publish-Module -Name 'HexworthTools' -Repository 'HexworthRepo'</span>
                     </div>
                 `
             },

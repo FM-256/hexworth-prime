@@ -18,9 +18,8 @@
         .highlight { background: rgba(96,165,250,0.2); padding: 2px 8px; border-radius: 4px; color: #93c5fd; }
         .code-block { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 20px 0; font-family: 'Consolas', monospace; font-size: 1rem; overflow-x: auto; white-space: pre-wrap; }
         .code-block .comment { color: #8b949e; }
-        .code-block .cmdlet { color: #79c0ff; }
-        .code-block .param { color: #a5d6ff; }
-        .code-block .string { color: #a5d6ff; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
         .column { background: rgba(0,0,0,0.2); padding: 25px; border-radius: 12px; border: 1px solid rgba(96,165,250,0.2); }
         .column h3 { color: #60a5fa; margin-bottom: 15px; font-size: 1.3rem; }
@@ -91,15 +90,28 @@
                     </ul>
                 </div>
             </div>
+            <p>NIC Teaming bonds two or more physical adapters into a single logical interface, giving you both bandwidth aggregation and automatic failover if a link drops.</p>
             <div class="code-block">
-<span class="comment"># Create a NIC Team</span>
-<span class="cmdlet">New-NetLbfoTeam</span> <span class="param">-Name</span> <span class="string">"DataTeam"</span> `
-    <span class="param">-TeamMembers</span> <span class="string">"Ethernet1"</span>, <span class="string">"Ethernet2"</span> `
-    <span class="param">-TeamingMode</span> SwitchIndependent `
-    <span class="param">-LoadBalancingAlgorithm</span> Dynamic
+<span class="comment"># Bond two adapters into a Switch Independent team with Dynamic load balancing</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetLbfoTeam -Name "DataTeam" -TeamMembers "Ethernet1", "Ethernet2" -TeamingMode SwitchIndependent -LoadBalancingAlgorithm Dynamic</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                   Members                 TeamingMode         Status</span>
+<span class="comment">----                   -------                 -----------         ------</span>
+<span class="command">DataTeam</span>               {Ethernet1, Ethernet2}  SwitchIndependent   Up
+            </div>
 
-<span class="comment"># Add a VLAN to the team</span>
-<span class="cmdlet">Add-NetLbfoTeamNic</span> <span class="param">-Team</span> <span class="string">"DataTeam"</span> <span class="param">-VlanID</span> 100 <span class="param">-Name</span> <span class="string">"DataTeam-VLAN100"</span>
+            <p>Once the team is created, you can assign VLANs to it so a single team carries traffic for multiple network segments.</p>
+            <div class="code-block">
+<span class="comment"># Add a VLAN interface to the team for network segmentation</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-NetLbfoTeamNic -Team "DataTeam" -VlanID 100 -Name "DataTeam-VLAN100"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                Team       VlanID   Primary</span>
+<span class="comment">----                ----       ------   -------</span>
+<span class="command">DataTeam-VLAN100</span>    DataTeam   100      False
             </div>
         </div>
 
@@ -141,16 +153,44 @@
                     </ul>
                 </div>
             </div>
+            <p>LACP teams require matching configuration on both the server and the physical switch. The HyperVPort algorithm is ideal when the server hosts virtual machines.</p>
             <div class="code-block">
-<span class="comment"># Create LACP team (switch must support 802.3ad)</span>
-<span class="cmdlet">New-NetLbfoTeam</span> <span class="param">-Name</span> <span class="string">"ProdTeam"</span> `
-    <span class="param">-TeamMembers</span> <span class="string">"NIC1"</span>, <span class="string">"NIC2"</span>, <span class="string">"NIC3"</span>, <span class="string">"NIC4"</span> `
-    <span class="param">-TeamingMode</span> LACP `
-    <span class="param">-LoadBalancingAlgorithm</span> HyperVPort
+<span class="comment"># Create a four-NIC LACP team optimized for Hyper-V workloads</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetLbfoTeam -Name "ProdTeam" -TeamMembers "NIC1", "NIC2", "NIC3", "NIC4" -TeamingMode LACP -LoadBalancingAlgorithm HyperVPort</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                   Members                         TeamingMode   Status</span>
+<span class="comment">----                   -------                         -----------   ------</span>
+<span class="command">ProdTeam</span>               {NIC1, NIC2, NIC3, NIC4}        LACP          Up
+            </div>
 
-<span class="comment"># View team status</span>
-<span class="cmdlet">Get-NetLbfoTeam</span> | <span class="cmdlet">Format-List</span> Name, TeamingMode, LoadBalancingAlgorithm, Status
-<span class="cmdlet">Get-NetLbfoTeamMember</span> <span class="param">-Team</span> <span class="string">"ProdTeam"</span>
+            <p>After creating a team, verify its configuration and check that all members are active and healthy.</p>
+            <div class="code-block">
+<span class="comment"># Verify the team settings including mode and algorithm</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetLbfoTeam | Format-List Name, TeamingMode, LoadBalancingAlgorithm, Status</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">Name</span>                      : ProdTeam
+<span class="command">TeamingMode</span>               : LACP
+<span class="command">LoadBalancingAlgorithm</span>    : HyperVPort
+<span class="command">Status</span>                    : Up
+            </div>
+
+            <p>Checking individual member status confirms each physical NIC is participating and shows its current role in the team.</p>
+            <div class="code-block">
+<span class="comment"># List each member adapter and its operational state</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetLbfoTeamMember -Team "ProdTeam"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name    Team       AdministrativeMode   OperationalStatus</span>
+<span class="comment">----    ----       ------------------   -----------------</span>
+<span class="command">NIC1</span>    ProdTeam   Active               Up
+<span class="command">NIC2</span>    ProdTeam   Active               Up
+<span class="command">NIC3</span>    ProdTeam   Active               Up
+<span class="command">NIC4</span>    ProdTeam   Active               Up
             </div>
         </div>
 
@@ -179,21 +219,28 @@
                     </ul>
                 </div>
             </div>
+            <p>Load Balance mode splits the address pool evenly between two DHCP servers so both actively serve clients. The shared secret authenticates replication traffic between the partners.</p>
             <div class="code-block">
-<span class="comment"># Configure DHCP failover - Load Balance mode</span>
-<span class="cmdlet">Add-DhcpServerv4Failover</span> <span class="param">-Name</span> <span class="string">"DHCP-Failover"</span> `
-    <span class="param">-PartnerServer</span> <span class="string">"DHCP02.hexworth.local"</span> `
-    <span class="param">-ScopeId</span> <span class="string">"10.0.1.0"</span> `
-    <span class="param">-LoadBalancePercent</span> 50 `
-    <span class="param">-SharedSecret</span> <span class="string">"P@ssw0rd123"</span> `
-    <span class="param">-MaxClientLeadTime</span> <span class="string">"01:00:00"</span>
+<span class="comment"># Create a 50/50 load-balanced failover relationship for the 10.0.1.0 scope</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DhcpServerv4Failover -Name "DHCP-Failover" -PartnerServer "DHCP02.hexworth.local" -ScopeId "10.0.1.0" -LoadBalancePercent 50 -SharedSecret "P@ssw0rd123" -MaxClientLeadTime "01:00:00"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name            ScopeId     PartnerServer              Mode           Percent</span>
+<span class="comment">----            -------     -------------              ----           -------</span>
+<span class="command">DHCP-Failover</span>   10.0.1.0    DHCP02.hexworth.local      LoadBalance    50
+            </div>
 
-<span class="comment"># Configure Hot Standby mode</span>
-<span class="cmdlet">Add-DhcpServerv4Failover</span> <span class="param">-Name</span> <span class="string">"DHCP-HotStandby"</span> `
-    <span class="param">-PartnerServer</span> <span class="string">"DHCP02.hexworth.local"</span> `
-    <span class="param">-ScopeId</span> <span class="string">"10.0.2.0"</span> `
-    <span class="param">-ServerRole</span> Active `
-    <span class="param">-ReservePercent</span> 10
+            <p>Hot Standby mode designates one server as active and the other as a reserve. The standby only takes over when the active server becomes unreachable.</p>
+            <div class="code-block">
+<span class="comment"># Create a Hot Standby failover with 10% of addresses reserved for standby</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DhcpServerv4Failover -Name "DHCP-HotStandby" -PartnerServer "DHCP02.hexworth.local" -ScopeId "10.0.2.0" -ServerRole Active -ReservePercent 10</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name              ScopeId     PartnerServer              Mode          Reserve%</span>
+<span class="comment">----              -------     -------------              ----          --------</span>
+<span class="command">DHCP-HotStandby</span>   10.0.2.0    DHCP02.hexworth.local      HotStandby    10
             </div>
             <div class="info-box">
                 <strong>Key Concept:</strong> The Maximum Client Lead Time (MCLT) defines how long a server waits before assuming its partner has failed. Default is 1 hour.
@@ -223,24 +270,51 @@
                     </ul>
                 </div>
             </div>
+            <p>Before creating DNS policies, you must define client subnets so the DNS server can identify where queries originate from.</p>
             <div class="code-block">
-<span class="comment"># Create client subnets for DNS policies</span>
-<span class="cmdlet">Add-DnsServerClientSubnet</span> <span class="param">-Name</span> <span class="string">"HeadquartersSubnet"</span> <span class="param">-IPv4Subnet</span> <span class="string">"10.0.1.0/24"</span>
-<span class="cmdlet">Add-DnsServerClientSubnet</span> <span class="param">-Name</span> <span class="string">"BranchSubnet"</span> <span class="param">-IPv4Subnet</span> <span class="string">"10.0.2.0/24"</span>
+<span class="comment"># Define the headquarters subnet so DNS can identify HQ clients</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerClientSubnet -Name "HeadquartersSubnet" -IPv4Subnet "10.0.1.0/24"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                  IPv4Subnet       IPv6Subnet</span>
+<span class="comment">----                  ----------       ----------</span>
+<span class="command">HeadquartersSubnet</span>    {10.0.1.0/24}
+            </div>
 
-<span class="comment"># Create zone scope</span>
-<span class="cmdlet">Add-DnsServerZoneScope</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-Name</span> <span class="string">"BranchScope"</span>
+            <div class="code-block">
+<span class="comment"># Define the branch office subnet for location-based resolution</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerClientSubnet -Name "BranchSubnet" -IPv4Subnet "10.0.2.0/24"</span>
+            </div>
 
-<span class="comment"># Add record to zone scope</span>
-<span class="cmdlet">Add-DnsServerResourceRecord</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> `
-    <span class="param">-A</span> <span class="param">-Name</span> <span class="string">"app"</span> <span class="param">-IPv4Address</span> <span class="string">"10.0.2.100"</span> <span class="param">-ZoneScope</span> <span class="string">"BranchScope"</span>
+            <p>Zone scopes let a single DNS zone serve different records depending on which policy matches the incoming query.</p>
+            <div class="code-block">
+<span class="comment"># Create a separate zone scope for branch office DNS answers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerZoneScope -ZoneName "hexworth.local" -Name "BranchScope"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ZoneName          ZoneScope     FileName</span>
+<span class="comment">--------          ---------     --------</span>
+<span class="command">hexworth.local</span>    BranchScope   BranchScope.dns
+            </div>
 
-<span class="comment"># Create policy for location-based resolution</span>
-<span class="cmdlet">Add-DnsServerQueryResolutionPolicy</span> <span class="param">-Name</span> <span class="string">"BranchPolicy"</span> `
-    <span class="param">-Action</span> ALLOW `
-    <span class="param">-ClientSubnet</span> <span class="string">"EQ,BranchSubnet"</span> `
-    <span class="param">-ZoneScope</span> <span class="string">"BranchScope,1"</span> `
-    <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            <p>Add a resource record to the branch scope so branch clients resolve to their local application server instead of the HQ server.</p>
+            <div class="code-block">
+<span class="comment"># Add an A record for "app" that resolves to the branch server IP inside BranchScope</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerResourceRecord -ZoneName "hexworth.local" -A -Name "app" -IPv4Address "10.0.2.100" -ZoneScope "BranchScope"</span>
+            </div>
+
+            <p>The resolution policy ties everything together: when a client from the branch subnet queries, DNS returns the branch scope answer.</p>
+            <div class="code-block">
+<span class="comment"># Route queries from BranchSubnet to the BranchScope zone answers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerQueryResolutionPolicy -Name "BranchPolicy" -Action ALLOW -ClientSubnet "EQ,BranchSubnet" -ZoneScope "BranchScope,1" -ZoneName "hexworth.local"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name            Action   ClientSubnet        ZoneScope       ZoneName</span>
+<span class="comment">----            ------   ------------        ---------       --------</span>
+<span class="command">BranchPolicy</span>    ALLOW    EQ,BranchSubnet     BranchScope,1   hexworth.local
             </div>
         </div>
 
@@ -268,22 +342,34 @@
                     </ul>
                 </div>
             </div>
+            <p>The default zone scope already holds the internal record (app.hexworth.local = 10.0.1.50). Create an external scope to hold the public-facing answer.</p>
             <div class="code-block">
-<span class="comment"># Split-brain DNS configuration</span>
-<span class="comment"># Internal scope (default) - app.hexworth.local = 10.0.1.50</span>
-<span class="comment"># External scope - app.hexworth.local = 203.0.113.50</span>
+<span class="comment"># Create a zone scope to hold external-facing DNS records</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerZoneScope -ZoneName "hexworth.local" -Name "ExternalScope"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ZoneName          ZoneScope       FileName</span>
+<span class="comment">--------          ---------       --------</span>
+<span class="command">hexworth.local</span>    ExternalScope   ExternalScope.dns
+            </div>
 
-<span class="cmdlet">Add-DnsServerZoneScope</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-Name</span> <span class="string">"ExternalScope"</span>
+            <p>Add the same hostname to the external scope, but pointing to the public IP address so external clients reach the edge server.</p>
+            <div class="code-block">
+<span class="comment"># Add the public IP for "app" into the ExternalScope</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerResourceRecord -ZoneName "hexworth.local" -A -Name "app" -IPv4Address "203.0.113.50" -ZoneScope "ExternalScope"</span>
+            </div>
 
-<span class="cmdlet">Add-DnsServerResourceRecord</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> `
-    <span class="param">-A</span> <span class="param">-Name</span> <span class="string">"app"</span> <span class="param">-IPv4Address</span> <span class="string">"203.0.113.50"</span> <span class="param">-ZoneScope</span> <span class="string">"ExternalScope"</span>
-
-<span class="comment"># Policy: External queries use ExternalScope</span>
-<span class="cmdlet">Add-DnsServerQueryResolutionPolicy</span> <span class="param">-Name</span> <span class="string">"SplitBrainExternal"</span> `
-    <span class="param">-Action</span> ALLOW `
-    <span class="param">-ClientSubnet</span> <span class="string">"NE,InternalSubnet"</span> `
-    <span class="param">-ZoneScope</span> <span class="string">"ExternalScope,1"</span> `
-    <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            <p>The policy matches any query that does NOT come from the internal subnet and directs it to the external scope, achieving split-brain resolution from a single DNS server.</p>
+            <div class="code-block">
+<span class="comment"># Send non-internal clients to ExternalScope for split-brain resolution</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerQueryResolutionPolicy -Name "SplitBrainExternal" -Action ALLOW -ClientSubnet "NE,InternalSubnet" -ZoneScope "ExternalScope,1" -ZoneName "hexworth.local"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                  Action   ClientSubnet          ZoneScope          ZoneName</span>
+<span class="comment">----                  ------   ------------          ---------          --------</span>
+<span class="command">SplitBrainExternal</span>    ALLOW    NE,InternalSubnet     ExternalScope,1    hexworth.local
             </div>
         </div>
 
@@ -313,16 +399,37 @@
                     </ul>
                 </div>
             </div>
+            <p>Signing a zone generates the KSK and ZSK automatically, then creates RRSIG records for every existing DNS record in the zone.</p>
             <div class="code-block">
-<span class="comment"># Sign a DNS zone with DNSSEC</span>
-<span class="cmdlet">Invoke-DnsServerZoneSign</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span> <span class="param">-SignWithDefault</span>
+<span class="comment"># Sign the zone with default DNSSEC parameters (auto-generates KSK and ZSK)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Invoke-DnsServerZoneSign -ZoneName "hexworth.local" -SignWithDefault</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ZoneName          IsSigned   DenialOfExistence   IsKeyMasterServer</span>
+<span class="comment">--------          --------   -----------------   -----------------</span>
+<span class="command">hexworth.local</span>    True       NSec3               True
+            </div>
 
-<span class="comment"># Configure trust anchors on resolving servers</span>
-<span class="cmdlet">Add-DnsServerTrustAnchor</span> <span class="param">-Name</span> <span class="string">"hexworth.local"</span> <span class="param">-CryptoAlgorithm</span> RsaSha256 `
-    <span class="param">-KeyTag</span> 12345 <span class="param">-Digest</span> <span class="string">"ABCDEF..."</span> <span class="param">-DigestType</span> Sha256
+            <p>Resolving servers need trust anchors to validate signatures. The DS record digest ties the child zone key to the parent zone trust chain.</p>
+            <div class="code-block">
+<span class="comment"># Distribute the trust anchor digest to resolving DNS servers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-DnsServerTrustAnchor -Name "hexworth.local" -CryptoAlgorithm RsaSha256 -KeyTag 12345 -Digest "ABCDEF..." -DigestType Sha256</span>
+            </div>
 
-<span class="comment"># View zone signing status</span>
-<span class="cmdlet">Get-DnsServerDnsSecZoneSetting</span> <span class="param">-ZoneName</span> <span class="string">"hexworth.local"</span>
+            <p>After signing, verify the zone's DNSSEC settings to confirm it is actively signed and which algorithms are in use.</p>
+            <div class="code-block">
+<span class="comment"># Check the current DNSSEC signing status and key configuration</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-DnsServerDnsSecZoneSetting -ZoneName "hexworth.local"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">ZoneName</span>              : hexworth.local
+<span class="command">IsSigned</span>              : True
+<span class="command">DenialOfExistence</span>     : NSec3
+<span class="command">NSec3HashAlgorithm</span>    : RsaSha256
+<span class="command">IsKeyMasterServer</span>     : True
+<span class="command">KeyMasterServer</span>       : DC01.hexworth.local
             </div>
             <div class="warning-box">
                 <strong>Caution:</strong> DNSSEC increases DNS response sizes and requires key management. Plan key rollover procedures before deploying in production.
@@ -353,18 +460,50 @@
                     </ul>
                 </div>
             </div>
+            <p>IPAM requires its Windows feature to be installed first. The management tools include both the Server Manager snap-in and PowerShell module.</p>
             <div class="code-block">
-<span class="comment"># Install IPAM feature</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> IPAM <span class="param">-IncludeManagementTools</span>
+<span class="comment"># Install the IPAM role and its management tools</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name IPAM -IncludeManagementTools</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Success   Restart Needed   Exit Code   Feature Result</span>
+<span class="comment">-------   --------------   ---------   --------------</span>
+True      No               Success     {<span class="command">IP Address Management (IPAM) Server</span>}
+            </div>
 
-<span class="comment"># Initialize IPAM with WID database</span>
-<span class="cmdlet">Invoke-IpamServerProvisioning</span> <span class="param">-WidSchemaPath</span> <span class="string">"C:\Windows\System32\ipam\ipamschema.mdf"</span>
+            <p>Provisioning initializes the IPAM database. The WID (Windows Internal Database) option is simpler for smaller environments.</p>
+            <div class="code-block">
+<span class="comment"># Initialize the IPAM database using Windows Internal Database</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Invoke-IpamServerProvisioning -WidSchemaPath "C:\Windows\System32\ipam\ipamschema.mdf"</span>
+            </div>
 
-<span class="comment"># Discover servers in the domain</span>
-<span class="cmdlet">Invoke-IpamServerDiscovery</span> <span class="param">-Domain</span> <span class="string">"hexworth.local"</span>
+            <p>After provisioning, discover DHCP, DNS, and domain controller servers across the domain so IPAM can begin tracking their address spaces.</p>
+            <div class="code-block">
+<span class="comment"># Scan the domain to discover all DHCP, DNS, and DC servers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Invoke-IpamServerDiscovery -Domain "hexworth.local"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ServerName              ServerType     ManageabilityStatus</span>
+<span class="comment">----------              ----------     -------------------</span>
+<span class="command">DC01.hexworth.local</span>     DC, DNS        Managed
+<span class="command">DHCP01.hexworth.local</span>   DHCP           Managed
+<span class="command">DHCP02.hexworth.local</span>   DHCP           Managed
+            </div>
 
-<span class="comment"># Get IP address utilization</span>
-<span class="cmdlet">Get-IpamSubnet</span> | <span class="cmdlet">Select-Object</span> NetworkId, PercentageUtilized, TotalAddresses
+            <p>Once servers are discovered, query subnet utilization to identify address pools nearing exhaustion before they become a problem.</p>
+            <div class="code-block">
+<span class="comment"># Check IP address utilization across all managed subnets</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-IpamSubnet | Select-Object NetworkId, PercentageUtilized, TotalAddresses</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">NetworkId        PercentageUtilized   TotalAddresses</span>
+<span class="comment">---------        ------------------   --------------</span>
+<span class="command">10.0.1.0/24</span>      72                   254
+<span class="command">10.0.2.0/24</span>      45                   254
+<span class="command">10.0.3.0/24</span>      18                   254
             </div>
         </div>
 
@@ -391,17 +530,39 @@
                     </ul>
                 </div>
             </div>
+            <p>The Network Policy and Access Services (NPAS) role includes NPS, the RADIUS server, and its management console.</p>
             <div class="code-block">
-<span class="comment"># Install NPS role</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> NPAS <span class="param">-IncludeManagementTools</span>
+<span class="comment"># Install the Network Policy Server role for RADIUS authentication</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name NPAS -IncludeManagementTools</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Success   Restart Needed   Exit Code   Feature Result</span>
+<span class="comment">-------   --------------   ---------   --------------</span>
+True      No               Success     {<span class="command">Network Policy and Access Services</span>}
+            </div>
 
-<span class="comment"># Register NPS in Active Directory</span>
-<span class="cmdlet">netsh</span> nps set registeredserver domain=hexworth.local server=NPS01
+            <p>Registering NPS in Active Directory grants the server permission to read user account dial-in properties for authentication decisions.</p>
+            <div class="code-block">
+<span class="comment"># Register this NPS server with Active Directory for account lookups</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">netsh nps set registeredserver domain=hexworth.local server=NPS01</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Registration of the Network Policy Server in Active Directory domain
+<span class="command">hexworth.local</span> succeeded.
+            </div>
 
-<span class="comment"># Add RADIUS client (VPN server)</span>
-<span class="cmdlet">New-NpsRadiusClient</span> <span class="param">-Name</span> <span class="string">"VPN-Server"</span> `
-    <span class="param">-Address</span> <span class="string">"10.0.1.5"</span> `
-    <span class="param">-SharedSecret</span> <span class="string">"R@diusSecret123"</span>
+            <p>Each network device that sends authentication requests to NPS must be registered as a RADIUS client with a matching shared secret.</p>
+            <div class="code-block">
+<span class="comment"># Register the VPN server as a RADIUS client with a shared secret</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NpsRadiusClient -Name "VPN-Server" -Address "10.0.1.5" -SharedSecret "R@diusSecret123"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          Address     Enabled   SharedSecret</span>
+<span class="comment">----          -------     -------   ------------</span>
+<span class="command">VPN-Server</span>    10.0.1.5    True      ************
             </div>
         </div>
 
@@ -428,15 +589,35 @@
                     </ul>
                 </div>
             </div>
+            <p>The RRAS role provides both VPN and routing capabilities. Installing both roles enables the server to act as a VPN gateway with routing support.</p>
             <div class="code-block">
-<span class="comment"># Install RRAS role</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> DirectAccess-VPN, Routing <span class="param">-IncludeManagementTools</span>
+<span class="comment"># Install the Remote Access role with VPN and Routing sub-features</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name DirectAccess-VPN, Routing -IncludeManagementTools</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Success   Restart Needed   Exit Code   Feature Result</span>
+<span class="comment">-------   --------------   ---------   --------------</span>
+True      No               Success     {<span class="command">DirectAccess and VPN (RAS)</span>, <span class="command">Routing</span>}
+            </div>
 
-<span class="comment"># Configure RRAS for VPN</span>
-<span class="cmdlet">Install-RemoteAccess</span> <span class="param">-VpnType</span> Vpn
+            <p>After installing the role, configure the Remote Access service specifically for VPN connections.</p>
+            <div class="code-block">
+<span class="comment"># Initialize the Remote Access service in VPN mode</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-RemoteAccess -VpnType Vpn</span>
+            </div>
 
-<span class="comment"># Set VPN address pool</span>
-<span class="cmdlet">Set-RemoteAccessConfiguration</span> <span class="param">-VpnAddressPool</span> <span class="string">"10.0.100.1"</span>, <span class="string">"10.0.100.254"</span>
+            <p>The VPN address pool defines which IP addresses are handed to connecting VPN clients. Size this range based on your expected concurrent user count.</p>
+            <div class="code-block">
+<span class="comment"># Assign the IP address range that VPN clients will receive</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-RemoteAccessConfiguration -VpnAddressPool "10.0.100.1", "10.0.100.254"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">VpnType</span>           : Vpn
+<span class="command">VpnAddressStart</span>   : 10.0.100.1
+<span class="command">VpnAddressEnd</span>     : 10.0.100.254
+<span class="command">VpnStatus</span>         : Running
             </div>
             <div class="warning-box">
                 <strong>Security:</strong> PPTP uses MS-CHAPv2 which has known vulnerabilities. Always prefer IKEv2 or SSTP for production VPN deployments.
@@ -468,16 +649,34 @@
                     </ul>
                 </div>
             </div>
+            <p>DirectAccess requires the same Remote Access role as VPN. The feature name includes both capabilities in a single package.</p>
             <div class="code-block">
-<span class="comment"># Install Remote Access role for DirectAccess</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> DirectAccess-VPN <span class="param">-IncludeManagementTools</span>
+<span class="comment"># Install the Remote Access role that includes DirectAccess capability</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name DirectAccess-VPN -IncludeManagementTools</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Success   Restart Needed   Exit Code   Feature Result</span>
+<span class="comment">-------   --------------   ---------   --------------</span>
+True      No               Success     {<span class="command">DirectAccess and VPN (RAS)</span>}
+            </div>
 
-<span class="comment"># Configure DirectAccess (simplified)</span>
-<span class="cmdlet">Install-RemoteAccess</span> <span class="param">-DAInstallType</span> FullInstall `
-    <span class="param">-ConnectToAddress</span> <span class="string">"da.hexworth.com"</span>
+            <p>FullInstall mode deploys DirectAccess with all components. The ConnectToAddress is the public hostname clients use to reach the DA server.</p>
+            <div class="code-block">
+<span class="comment"># Deploy DirectAccess with full installation using the public-facing hostname</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-RemoteAccess -DAInstallType FullInstall -ConnectToAddress "da.hexworth.com"</span>
+            </div>
 
-<span class="comment"># Apply DirectAccess GPO settings</span>
-<span class="cmdlet">Set-DAClient</span> <span class="param">-ComputerName</span> <span class="string">"DA-Clients"</span> <span class="param">-ForceTunnel</span> Enabled
+            <p>Force tunneling routes all client traffic through the corporate network, not just internal destinations. This gives IT full visibility into remote client traffic.</p>
+            <div class="code-block">
+<span class="comment"># Enable force tunneling so all remote traffic routes through the DA server</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-DAClient -ComputerName "DA-Clients" -ForceTunnel Enabled</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">ComputerName</span>    : DA-Clients
+<span class="command">ForceTunnel</span>     : Enabled
+<span class="command">OnlyRemoteComputers</span> : Disabled
             </div>
             <div class="info-box">
                 <strong>Note:</strong> DirectAccess is being superseded by Always On VPN in newer Windows deployments, which supports non-domain-joined devices and all Windows editions.
@@ -512,18 +711,42 @@
                     </ul>
                 </div>
             </div>
+            <p>BranchCache must be installed as a feature on the content servers at headquarters before branch clients can start caching.</p>
             <div class="code-block">
-<span class="comment"># Install BranchCache feature</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> BranchCache <span class="param">-IncludeManagementTools</span>
+<span class="comment"># Install the BranchCache feature on the content server</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name BranchCache -IncludeManagementTools</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Success   Restart Needed   Exit Code   Feature Result</span>
+<span class="comment">-------   --------------   ---------   --------------</span>
+True      No               Success     {<span class="command">BranchCache</span>}
+            </div>
 
-<span class="comment"># Enable BranchCache on file server</span>
-<span class="cmdlet">Enable-BCDistributed</span>
+            <p>In Distributed Cache mode, branch office clients share cached content peer-to-peer without needing a dedicated cache server.</p>
+            <div class="code-block">
+<span class="comment"># Enable BranchCache in Distributed mode for peer-to-peer caching</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Enable-BCDistributed</span>
+            </div>
 
-<span class="comment"># Enable BranchCache for a specific share</span>
-<span class="cmdlet">Set-SmbShare</span> <span class="param">-Name</span> <span class="string">"SharedDocs"</span> <span class="param">-CachingMode</span> BranchCache
+            <p>Individual file shares must be explicitly enabled for BranchCache. Only shares with this setting generate content hashes for branch clients.</p>
+            <div class="code-block">
+<span class="comment"># Turn on BranchCache hash generation for this specific share</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-SmbShare -Name "SharedDocs" -CachingMode BranchCache</span>
+            </div>
 
-<span class="comment"># View BranchCache status</span>
-<span class="cmdlet">Get-BCStatus</span>
+            <p>After configuration, verify the overall BranchCache status to confirm the service is running and which mode is active.</p>
+            <div class="code-block">
+<span class="comment"># Display the current BranchCache service status and configuration</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-BCStatus</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">BranchCacheServiceStatus</span>     : Running
+<span class="command">ContentServerIsEnabled</span>       : True
+<span class="command">HostedCacheServerIsEnabled</span>   : False
+<span class="command">DistributedCachingIsEnabled</span>  : True
+<span class="command">CurrentClientMode</span>            : DistributedCache
             </div>
         </div>
 
@@ -537,13 +760,28 @@
                 <li><span class="highlight">Traffic management</span> - QoS and prioritization</li>
                 <li><span class="highlight">Multi-tenancy</span> - Customer separation</li>
             </ul>
+            <p>Tagging a physical adapter with a VLAN ID restricts it to only that VLAN's traffic. The switch port must be configured as an access or trunk port accordingly.</p>
             <div class="code-block">
-<span class="comment"># Configure VLAN on a network adapter</span>
-<span class="cmdlet">Set-NetAdapter</span> <span class="param">-Name</span> <span class="string">"Ethernet1"</span> <span class="param">-VlanID</span> 100
+<span class="comment"># Assign VLAN 100 to a physical network adapter</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-NetAdapter -Name "Ethernet1" -VlanID 100</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name        InterfaceDescription         VlanID   Status</span>
+<span class="comment">----        --------------------         ------   ------</span>
+<span class="command">Ethernet1</span>   Intel(R) I350 Adapter        100      Up
+            </div>
 
-<span class="comment"># For Hyper-V virtual switches</span>
-<span class="cmdlet">Set-VMNetworkAdapterVlan</span> <span class="param">-VMName</span> <span class="string">"WebServer"</span> `
-    <span class="param">-Access</span> <span class="param">-VlanId</span> 100
+            <p>For Hyper-V environments, you assign VLANs at the virtual NIC level so each VM can be placed on its own network segment.</p>
+            <div class="code-block">
+<span class="comment"># Tag a Hyper-V VM's virtual NIC with VLAN 100 in access mode</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-VMNetworkAdapterVlan -VMName "WebServer" -Access -VlanId 100</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">VMName       OperationMode   VlanList</span>
+<span class="comment">------       -------------   --------</span>
+<span class="command">WebServer</span>    Access          100
             </div>
             <div class="warning-box">
                 <strong>Switch Configuration:</strong> Physical switches must be configured for 802.1Q trunking to pass VLAN-tagged traffic.
@@ -573,12 +811,16 @@
                     </ul>
                 </div>
             </div>
+            <p>SDN virtual networks are created through the Network Controller's REST API. The properties object defines the address space and subnet structure.</p>
             <div class="code-block">
-<span class="comment"># Create virtual network with SDN</span>
-<span class="cmdlet">New-NetworkControllerVirtualNetwork</span> `
-    <span class="param">-ConnectionUri</span> <span class="string">"https://nc.hexworth.local"</span> `
-    <span class="param">-ResourceId</span> <span class="string">"Production-VNet"</span> `
-    <span class="param">-Properties</span> $vnetProperties
+<span class="comment"># Provision a new virtual network through the SDN Network Controller</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetworkControllerVirtualNetwork -ConnectionUri "https://nc.hexworth.local" -ResourceId "Production-VNet" -Properties $vnetProperties</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">ResourceId       ProvisioningState   ConnectionUri</span>
+<span class="comment">----------       -----------------   -------------</span>
+<span class="command">Production-VNet</span>  Succeeded           https://nc.hexworth.local
             </div>
         </div>
 
@@ -607,15 +849,23 @@
                     </ul>
                 </div>
             </div>
+            <p>Virtual network properties are defined as a PowerShell hashtable before being sent to the Network Controller REST API. This example creates a two-tier network with web and app subnets.</p>
             <div class="code-block">
-<span class="comment"># Create a virtual network via Network Controller REST API</span>
-$vnetProperties = @{
-    AddressSpace = @{ AddressPrefixes = @(<span class="string">"10.100.0.0/16"</span>) }
+<span class="comment"># Build the virtual network properties object with two subnet tiers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">$vnetProperties = @{
+    AddressSpace = @{ AddressPrefixes = @("10.100.0.0/16") }
     Subnets = @(
-        @{ ResourceId = <span class="string">"WebTier"</span>; Properties = @{ AddressPrefix = <span class="string">"10.100.1.0/24"</span> } }
-        @{ ResourceId = <span class="string">"AppTier"</span>; Properties = @{ AddressPrefix = <span class="string">"10.100.2.0/24"</span> } }
+        @{ ResourceId = "WebTier"; Properties = @{ AddressPrefix = "10.100.1.0/24" } }
+        @{ ResourceId = "AppTier"; Properties = @{ AddressPrefix = "10.100.2.0/24" } }
     )
-}
+}</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output (displaying the variable):</span>
+<span class="prompt">Name                           Value</span>
+<span class="comment">----                           -----</span>
+<span class="command">AddressSpace</span>                   {AddressPrefixes}
+<span class="command">Subnets</span>                        {WebTier, AppTier}
             </div>
         </div>
 
@@ -628,20 +878,28 @@ $vnetProperties = @{
                 <li><strong>Outbound Rules:</strong> Control outgoing connections</li>
                 <li><strong>Connection Security Rules:</strong> IPsec authentication</li>
             </ul>
+            <p>Inbound rules control what traffic is allowed to reach the server. This rule opens port 443 for HTTPS connections from any source.</p>
             <div class="code-block">
-<span class="comment"># Create inbound firewall rule</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow HTTPS"</span> `
-    <span class="param">-Direction</span> Inbound `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-LocalPort</span> 443 `
-    <span class="param">-Action</span> Allow
+<span class="comment"># Allow inbound HTTPS traffic on TCP port 443</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Allow HTTPS" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName    Direction   Action   Protocol   LocalPort</span>
+<span class="comment">----          -----------    ---------   ------   --------   ---------</span>
+{GUID}        <span class="command">Allow HTTPS</span>    Inbound     Allow    TCP        443
+            </div>
 
-<span class="comment"># Create outbound block rule</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Block Telnet"</span> `
-    <span class="param">-Direction</span> Outbound `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-RemotePort</span> 23 `
-    <span class="param">-Action</span> Block
+            <p>Outbound rules restrict what traffic leaves the server. Blocking legacy insecure protocols like Telnet prevents accidental use of unencrypted sessions.</p>
+            <div class="code-block">
+<span class="comment"># Block all outbound Telnet connections on TCP port 23</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Block Telnet" -Direction Outbound -Protocol TCP -RemotePort 23 -Action Block</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName     Direction   Action   Protocol   RemotePort</span>
+<span class="comment">----          -----------     ---------   ------   --------   ----------</span>
+{GUID}        <span class="command">Block Telnet</span>    Outbound    Block    TCP        23
             </div>
         </div>
 
@@ -665,15 +923,29 @@ $vnetProperties = @{
                     </ul>
                 </div>
             </div>
+            <p>IPsec rules enforce encryption between hosts. Requiring both inbound and outbound security ensures all traffic to and from the target subnet is encrypted.</p>
             <div class="code-block">
-<span class="comment"># Create IPsec rule requiring encryption to subnet</span>
-<span class="cmdlet">New-NetIPsecRule</span> <span class="param">-DisplayName</span> <span class="string">"Encrypt DC Traffic"</span> `
-    <span class="param">-InboundSecurity</span> Require `
-    <span class="param">-OutboundSecurity</span> Require `
-    <span class="param">-RemoteAddress</span> <span class="string">"10.0.1.0/24"</span>
+<span class="comment"># Require IPsec encryption for all traffic to the 10.0.1.0/24 subnet</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetIPsecRule -DisplayName "Encrypt DC Traffic" -InboundSecurity Require -OutboundSecurity Require -RemoteAddress "10.0.1.0/24"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">DisplayName          InboundSecurity   OutboundSecurity   RemoteAddress</span>
+<span class="comment">-----------          ---------------   ----------------   -------------</span>
+<span class="command">Encrypt DC Traffic</span>   Require           Require            10.0.1.0/24
+            </div>
 
-<span class="comment"># View active IPsec SAs</span>
-<span class="cmdlet">Get-NetIPsecQuickModeSA</span>
+            <p>Quick Mode Security Associations show active IPsec tunnels between hosts, confirming encryption is working in real time.</p>
+            <div class="code-block">
+<span class="comment"># List all active IPsec Quick Mode Security Associations</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetIPsecQuickModeSA</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name      LocalEndpoint    RemoteEndpoint   EncryptAlgorithm   AuthAlgorithm</span>
+<span class="comment">----      -------------    --------------   ----------------   -------------</span>
+{GUID}    <span class="command">10.0.1.10</span>        <span class="command">10.0.1.20</span>        AES256             SHA256
+{GUID}    <span class="command">10.0.1.10</span>        <span class="command">10.0.1.30</span>        AES256             SHA256
             </div>
         </div>
 
@@ -687,17 +959,28 @@ $vnetProperties = @{
                 <li><span class="highlight">Application-based</span> - Target specific executables</li>
                 <li><span class="highlight">Port-based</span> - Target specific services</li>
             </ul>
+            <p>DSCP marking tags packets with a priority value so network switches and routers give them preferential treatment. DSCP 46 is the Expedited Forwarding class used for real-time voice.</p>
             <div class="code-block">
-<span class="comment"># Create QoS policy for VoIP traffic</span>
-<span class="cmdlet">New-NetQosPolicy</span> <span class="param">-Name</span> <span class="string">"VoIP Priority"</span> `
-    <span class="param">-IPDstPortStart</span> 5060 <span class="param">-IPDstPortEnd</span> 5061 `
-    <span class="param">-DSCPAction</span> 46 `
-    <span class="param">-NetworkProfile</span> Domain
+<span class="comment"># Tag SIP/VoIP traffic (ports 5060-5061) with DSCP 46 for priority handling</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetQosPolicy -Name "VoIP Priority" -IPDstPortStart 5060 -IPDstPortEnd 5061 -DSCPAction 46 -NetworkProfile Domain</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name            IPDstPortStart   IPDstPortEnd   DSCPValue   NetworkProfile</span>
+<span class="comment">----            --------------   ------------   ---------   --------------</span>
+<span class="command">VoIP Priority</span>   5060             5061           46          Domain
+            </div>
 
-<span class="comment"># Throttle backup traffic</span>
-<span class="cmdlet">New-NetQosPolicy</span> <span class="param">-Name</span> <span class="string">"Backup Throttle"</span> `
-    <span class="param">-AppPathNameMatchCondition</span> <span class="string">"backup.exe"</span> `
-    <span class="param">-ThrottleRateActionBitsPerSecond</span> 100MB
+            <p>Throttle policies cap bandwidth for non-critical applications so they cannot saturate the network during business hours.</p>
+            <div class="code-block">
+<span class="comment"># Limit backup.exe to 100 Mbps so it does not consume all available bandwidth</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetQosPolicy -Name "Backup Throttle" -AppPathNameMatchCondition "backup.exe" -ThrottleRateActionBitsPerSecond 100MB</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name               AppPathName   ThrottleRate    NetworkProfile</span>
+<span class="comment">----               -----------   ------------    --------------</span>
+<span class="command">Backup Throttle</span>    backup.exe    104857600       All
             </div>
         </div>
 
@@ -724,17 +1007,28 @@ $vnetProperties = @{
                     </ul>
                 </div>
             </div>
+            <p>Windows Server NAT translates private IPs for an entire subnet. This is commonly used with Hyper-V internal switches to give VMs internet access.</p>
             <div class="code-block">
-<span class="comment"># Create NAT network for Hyper-V</span>
-<span class="cmdlet">New-NetNat</span> <span class="param">-Name</span> <span class="string">"LabNAT"</span> <span class="param">-InternalIPInterfaceAddressPrefix</span> <span class="string">"192.168.100.0/24"</span>
+<span class="comment"># Create a NAT network for the 192.168.100.0/24 private subnet</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetNat -Name "LabNAT" -InternalIPInterfaceAddressPrefix "192.168.100.0/24"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name      InternalIPInterfaceAddressPrefix   Active</span>
+<span class="comment">----      ----------------------------------  ------</span>
+<span class="command">LabNAT</span>    192.168.100.0/24                    True
+            </div>
 
-<span class="comment"># Add port forwarding rule</span>
-<span class="cmdlet">Add-NetNatStaticMapping</span> <span class="param">-NatName</span> <span class="string">"LabNAT"</span> `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-ExternalIPAddress</span> <span class="string">"0.0.0.0"</span> `
-    <span class="param">-ExternalPort</span> 8080 `
-    <span class="param">-InternalIPAddress</span> <span class="string">"192.168.100.10"</span> `
-    <span class="param">-InternalPort</span> 80
+            <p>Static port mappings forward specific external ports to internal servers, allowing you to publish services behind the NAT.</p>
+            <div class="code-block">
+<span class="comment"># Forward external port 8080 to internal web server 192.168.100.10 on port 80</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-NetNatStaticMapping -NatName "LabNAT" -Protocol TCP -ExternalIPAddress "0.0.0.0" -ExternalPort 8080 -InternalIPAddress "192.168.100.10" -InternalPort 80</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">StaticMappingID   NatName   Protocol   ExternalPort   InternalAddress     InternalPort</span>
+<span class="comment">---------------   -------   --------   ------------   ---------------     ------------</span>
+0                 <span class="command">LabNAT</span>    TCP        8080           <span class="command">192.168.100.10</span>      80
             </div>
         </div>
 
@@ -761,15 +1055,48 @@ $vnetProperties = @{
                     </ul>
                 </div>
             </div>
+            <p>Test-NetConnection is the PowerShell replacement for telnet and ping combined. It tests both ICMP reachability and TCP port connectivity in a single command.</p>
             <div class="code-block">
-<span class="comment"># Test connectivity with port check</span>
-<span class="cmdlet">Test-NetConnection</span> <span class="param">-ComputerName</span> <span class="string">"server.hexworth.local"</span> <span class="param">-Port</span> 443
+<span class="comment"># Test TCP connectivity to a remote server on port 443 (HTTPS)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Test-NetConnection -ComputerName "server.hexworth.local" -Port 443</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">ComputerName</span>     : server.hexworth.local
+<span class="command">RemoteAddress</span>    : 10.0.1.50
+<span class="command">RemotePort</span>       : 443
+<span class="command">TcpTestSucceeded</span> : True
+<span class="command">PingSucceeded</span>    : True
+            </div>
 
-<span class="comment"># Find established connections</span>
-<span class="cmdlet">Get-NetTCPConnection</span> <span class="param">-State</span> Established | <span class="cmdlet">Group-Object</span> RemoteAddress
+            <p>Grouping active TCP connections by remote address quickly reveals which external hosts your server communicates with most.</p>
+            <div class="code-block">
+<span class="comment"># Group all established TCP connections by remote IP to find top talkers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetTCPConnection -State Established | Group-Object RemoteAddress</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Count   Name             Group</span>
+<span class="comment">-----   ----             -----</span>
+12      <span class="command">10.0.1.10</span>        {Microsoft.Management.Infrastructure.CimInstance...}
+8       <span class="command">10.0.1.20</span>        {Microsoft.Management.Infrastructure.CimInstance...}
+3       <span class="command">10.0.1.30</span>        {Microsoft.Management.Infrastructure.CimInstance...}
+            </div>
 
-<span class="comment"># Start packet capture</span>
-<span class="cmdlet">netsh trace start</span> capture=yes tracefile=C:\Temp\trace.etl
+            <p>For deep packet analysis, netsh trace captures raw network traffic into an ETL file that can be opened in Message Analyzer or converted to pcap.</p>
+            <div class="code-block">
+<span class="comment"># Start a packet capture and save it to an ETL trace file</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">netsh trace start capture=yes tracefile=C:\Temp\trace.etl</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Trace configuration:
+<span class="comment">-------------------------------------------------------------------</span>
+<span class="command">Status</span>:             Running
+<span class="command">Trace File</span>:          C:\Temp\trace.etl
+<span class="command">Append</span>:              Off
+<span class="command">Circular</span>:            Off
+<span class="command">Max Size</span>:            250 MB
             </div>
         </div>
 
@@ -809,9 +1136,9 @@ $vnetProperties = @{
         </div>
 
         <div class="nav-controls">
-            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">← Previous</button>
+            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">&larr; Previous</button>
             <div class="progress-bar" id="progressBar"></div>
-            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next →</button>
+            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next &rarr;</button>
         </div>
     </div>
 

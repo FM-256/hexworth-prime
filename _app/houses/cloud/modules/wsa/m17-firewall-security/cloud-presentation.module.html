@@ -80,9 +80,8 @@
         }
 
         .code-block .comment { color: #8b949e; }
-        .code-block .cmdlet { color: #79c0ff; }
-        .code-block .param { color: #a5d6ff; }
-        .code-block .string { color: #a5d6ff; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
 
         .two-column {
             display: grid;
@@ -296,12 +295,24 @@
                 </table>
             </div>
 
+            <p>Querying the profile status shows which profiles are active and their default actions for inbound and outbound traffic.</p>
             <div class="code-block">
-<span class="comment"># View current profile status</span>
-<span class="cmdlet">Get-NetFirewallProfile</span> | <span class="cmdlet">Select</span> Name, Enabled, DefaultInboundAction, DefaultOutboundAction
+<span class="comment"># View current firewall profile settings and default actions</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallProfile | Select Name, Enabled, DefaultInboundAction, DefaultOutboundAction</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name      Enabled   DefaultInboundAction   DefaultOutboundAction</span>
+<span class="comment">----      -------   --------------------   ---------------------</span>
+<span class="command">Domain</span>    True      Block                  Allow
+<span class="command">Private</span>   True      Block                  Allow
+<span class="command">Public</span>    True      Block                  Allow
+            </div>
 
-<span class="comment"># Enable firewall for all profiles</span>
-<span class="cmdlet">Set-NetFirewallProfile</span> <span class="param">-Profile</span> Domain,Private,Public <span class="param">-Enabled</span> True
+            <p>Ensuring the firewall is enabled on all three profiles is a baseline security requirement for every Windows Server.</p>
+            <div class="code-block">
+<span class="comment"># Enable the firewall for all three profiles at once</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True</span>
             </div>
 
             <div class="warning-box">
@@ -349,28 +360,40 @@
             <h1>Creating Firewall Rules</h1>
             <p>PowerShell provides comprehensive cmdlets for firewall rule management.</p>
 
+            <p>Port-based rules are the most common type. This opens HTTP and HTTPS for a web server but only on domain and private networks.</p>
             <div class="code-block">
-<span class="comment"># Create inbound rule for custom application</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow Web Server"</span> `
-    <span class="param">-Direction</span> Inbound `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-LocalPort</span> 80,443 `
-    <span class="param">-Action</span> Allow `
-    <span class="param">-Profile</span> Domain,Private
+<span class="comment"># Allow inbound HTTP and HTTPS on Domain and Private profiles</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Allow Web Server" -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Profile Domain,Private</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName       Direction   Action   Profile</span>
+<span class="comment">----          -----------       ---------   ------   -------</span>
+{GUID}        <span class="command">Allow Web Server</span>  Inbound     Allow    Domain, Private
+            </div>
 
-<span class="comment"># Create rule for specific program</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow SQL Server"</span> `
-    <span class="param">-Direction</span> Inbound `
-    <span class="param">-Program</span> <span class="string">"C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Binn\sqlservr.exe"</span> `
-    <span class="param">-Action</span> Allow
+            <p>Program-based rules allow all traffic for a specific executable regardless of port, useful when the application uses dynamic ports.</p>
+            <div class="code-block">
+<span class="comment"># Allow all inbound traffic for the SQL Server process</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Allow SQL Server" -Direction Inbound -Program "C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Binn\sqlservr.exe" -Action Allow</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName       Direction   Action   Profile</span>
+<span class="comment">----          -----------       ---------   ------   -------</span>
+{GUID}        <span class="command">Allow SQL Server</span>  Inbound     Allow    Any
+            </div>
 
-<span class="comment"># Create rule with source IP restriction</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow RDP from Admin Network"</span> `
-    <span class="param">-Direction</span> Inbound `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-LocalPort</span> 3389 `
-    <span class="param">-RemoteAddress</span> 10.0.1.0/24 `
-    <span class="param">-Action</span> Allow
+            <p>Restricting source addresses limits who can connect. This rule only allows RDP from the admin subnet, blocking all other sources.</p>
+            <div class="code-block">
+<span class="comment"># Allow RDP only from the 10.0.1.0/24 admin network</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Allow RDP from Admin Network" -Direction Inbound -Protocol TCP -LocalPort 3389 -RemoteAddress 10.0.1.0/24 -Action Allow</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName                   Direction   Action   RemoteAddress</span>
+<span class="comment">----          -----------                   ---------   ------   -------------</span>
+{GUID}        <span class="command">Allow RDP from Admin Network</span>   Inbound     Allow    10.0.1.0/24
             </div>
         </div>
 
@@ -419,16 +442,16 @@
                 </table>
             </div>
 
+            <p>Combining multiple properties creates a highly targeted rule. This one restricts WinRM to a specific subnet and authorized user SID.</p>
             <div class="code-block">
-<span class="comment"># Create rule with multiple advanced properties</span>
-<span class="cmdlet">New-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Secure Admin Access"</span> `
-    <span class="param">-Direction</span> Inbound `
-    <span class="param">-Protocol</span> TCP `
-    <span class="param">-LocalPort</span> 5985,5986 `
-    <span class="param">-RemoteAddress</span> 10.0.1.0/24 `
-    <span class="param">-LocalUser</span> <span class="string">"D:(A;;CC;;;S-1-5-21-...)"</span> `
-    <span class="param">-Action</span> Allow `
-    <span class="param">-Enabled</span> True
+<span class="comment"># Allow WinRM only from admin subnet with user-level authorization</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetFirewallRule -DisplayName "Secure Admin Access" -Direction Inbound -Protocol TCP -LocalPort 5985,5986 -RemoteAddress 10.0.1.0/24 -LocalUser "D:(A;;CC;;;S-1-5-21-...)" -Action Allow -Enabled True</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName           Direction   Action   LocalPort</span>
+<span class="comment">----          -----------           ---------   ------   ---------</span>
+{GUID}        <span class="command">Secure Admin Access</span>   Inbound     Allow    {5985, 5986}
             </div>
         </div>
 
@@ -437,27 +460,62 @@
             <h1>Managing Existing Rules</h1>
             <p>Query, modify, and maintain firewall rules using PowerShell.</p>
 
+            <p>Listing all enabled inbound rules gives you a full picture of what traffic the server currently accepts.</p>
             <div class="code-block">
-<span class="comment"># List all enabled inbound rules</span>
-<span class="cmdlet">Get-NetFirewallRule</span> <span class="param">-Direction</span> Inbound <span class="param">-Enabled</span> True |
-    <span class="cmdlet">Select</span> DisplayName, Profile, Action
+<span class="comment"># List all enabled inbound rules with their profiles and actions</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallRule -Direction Inbound -Enabled True | Select DisplayName, Profile, Action</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">DisplayName                        Profile          Action</span>
+<span class="comment">-----------                        -------          ------</span>
+<span class="command">Core Networking - DNS (UDP-In)</span>     Any              Allow
+<span class="command">Allow Web Server</span>                   Domain, Private  Allow
+<span class="command">Allow RDP from Admin Network</span>       Any              Allow
+            </div>
 
-<span class="comment"># Find rules by display name pattern</span>
-<span class="cmdlet">Get-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"*RDP*"</span>
+            <p>Wildcard searches help you find rules when you only remember part of the display name.</p>
+            <div class="code-block">
+<span class="comment"># Search for all firewall rules containing "RDP" in their name</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallRule -DisplayName "*RDP*"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName                   Enabled   Direction   Action</span>
+<span class="comment">----          -----------                   -------   ---------   ------</span>
+{GUID}        <span class="command">Allow RDP from Admin Network</span>   True      Inbound     Allow
+{GUID}        <span class="command">Remote Desktop - User Mode</span>     True      Inbound     Allow
+            </div>
 
-<span class="comment"># Get detailed rule information</span>
-<span class="cmdlet">Get-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Remote Desktop*"</span> |
-    <span class="cmdlet">Get-NetFirewallPortFilter</span>
+            <p>Piping a rule to Get-NetFirewallPortFilter reveals which ports the rule actually targets.</p>
+            <div class="code-block">
+<span class="comment"># Get the port filter details for Remote Desktop rules</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallRule -DisplayName "Remote Desktop*" | Get-NetFirewallPortFilter</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Protocol      LocalPort   RemotePort</span>
+<span class="comment">--------      ---------   ----------</span>
+TCP           <span class="command">3389</span>        Any
+UDP           <span class="command">3389</span>        Any
+            </div>
 
-<span class="comment"># Disable a rule</span>
-<span class="cmdlet">Disable-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow Web Server"</span>
+            <p>Disabling a rule keeps it defined but inactive, useful for temporarily removing access without losing the configuration.</p>
+            <div class="code-block">
+<span class="comment"># Disable the web server rule without deleting it</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Disable-NetFirewallRule -DisplayName "Allow Web Server"</span>
+            </div>
 
-<span class="comment"># Modify existing rule</span>
-<span class="cmdlet">Set-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Allow Web Server"</span> `
-    <span class="param">-RemoteAddress</span> 10.0.0.0/8
+            <p>Modifying an existing rule avoids having to delete and recreate it. Here we expand the allowed source network.</p>
+            <div class="code-block">
+<span class="comment"># Change the allowed remote address on an existing rule</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-NetFirewallRule -DisplayName "Allow Web Server" -RemoteAddress 10.0.0.0/8</span>
+            </div>
 
-<span class="comment"># Remove a rule</span>
-<span class="cmdlet">Remove-NetFirewallRule</span> <span class="param">-DisplayName</span> <span class="string">"Temporary Test Rule"</span>
+            <p>Removing a rule permanently deletes it from the firewall configuration.</p>
+            <div class="code-block">
+<span class="comment"># Permanently delete a temporary test rule</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Remove-NetFirewallRule -DisplayName "Temporary Test Rule"</span>
             </div>
 
             <div class="info-box">
@@ -491,12 +549,16 @@
                 </div>
             </div>
 
+            <p>IPsec connection security rules enforce mutual authentication between machines. Requiring security on both directions prevents unauthenticated communication.</p>
             <div class="code-block">
-<span class="comment"># Create connection security rule requiring Kerberos authentication</span>
-<span class="cmdlet">New-NetIPsecRule</span> <span class="param">-DisplayName</span> <span class="string">"Require Domain Authentication"</span> `
-    <span class="param">-InboundSecurity</span> Require `
-    <span class="param">-OutboundSecurity</span> Require `
-    <span class="param">-Phase1AuthSet</span> <span class="string">"ComputerKerberos"</span>
+<span class="comment"># Require Kerberos-based IPsec authentication for all connections</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-NetIPsecRule -DisplayName "Require Domain Authentication" -InboundSecurity Require -OutboundSecurity Require -Phase1AuthSet "ComputerKerberos"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">DisplayName                     InboundSecurity   OutboundSecurity   Phase1AuthSet</span>
+<span class="comment">-----------                     ---------------   ----------------   -------------</span>
+<span class="command">Require Domain Authentication</span>   Require           Require            ComputerKerberos
             </div>
         </div>
 
@@ -513,16 +575,24 @@
                 <li><strong>Log file path:</strong> Default: %systemroot%\system32\LogFiles\Firewall\</li>
             </ul>
 
+            <p>Enabling logging for blocked and allowed connections gives full visibility into traffic decisions. The 4MB log size prevents disk exhaustion.</p>
             <div class="code-block">
-<span class="comment"># Enable logging for Domain profile</span>
-<span class="cmdlet">Set-NetFirewallProfile</span> <span class="param">-Profile</span> Domain `
-    <span class="param">-LogBlocked</span> True `
-    <span class="param">-LogAllowed</span> True `
-    <span class="param">-LogFileName</span> <span class="string">"%systemroot%\system32\LogFiles\Firewall\pfirewall.log"</span> `
-    <span class="param">-LogMaxSizeKilobytes</span> 4096
+<span class="comment"># Enable full firewall logging on the Domain profile with a 4MB cap</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-NetFirewallProfile -Profile Domain -LogBlocked True -LogAllowed True -LogFileName "%systemroot%\system32\LogFiles\Firewall\pfirewall.log" -LogMaxSizeKilobytes 4096</span>
+            </div>
 
-<span class="comment"># View current logging settings</span>
-<span class="cmdlet">Get-NetFirewallProfile</span> | <span class="cmdlet">Select</span> Name, LogBlocked, LogAllowed, LogFileName
+            <p>Verify the logging configuration to confirm it was applied correctly across the target profiles.</p>
+            <div class="code-block">
+<span class="comment"># Check the current logging settings for all profiles</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallProfile | Select Name, LogBlocked, LogAllowed, LogFileName</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name      LogBlocked   LogAllowed   LogFileName</span>
+<span class="comment">----      ----------   ----------   -----------</span>
+<span class="command">Domain</span>    True         True         %systemroot%\system32\LogFiles\Firewall\pfirewall.log
+<span class="command">Private</span>   False        False        %systemroot%\system32\LogFiles\Firewall\pfirewall.log
+<span class="command">Public</span>    False        False        %systemroot%\system32\LogFiles\Firewall\pfirewall.log
             </div>
 
             <div class="warning-box">
@@ -548,12 +618,12 @@
                         <strong>Domain GPO</strong><br>
                         <small>Baseline rules</small>
                     </div>
-                    <div class="diagram-arrow">→</div>
+                    <div class="diagram-arrow">&rarr;</div>
                     <div class="diagram-box">
                         <strong>Server OU GPO</strong><br>
                         <small>Server-specific</small>
                     </div>
-                    <div class="diagram-arrow">→</div>
+                    <div class="diagram-arrow">&rarr;</div>
                     <div class="diagram-box">
                         <strong>Local Rules</strong><br>
                         <small>If merge allowed</small>
@@ -640,22 +710,57 @@
             <p>Diagnose and resolve common firewall-related connectivity problems.</p>
 
             <h2>Diagnostic Commands</h2>
+
+            <p>Listing active block rules reveals what the firewall is explicitly dropping, helping you identify why a connection is failing.</p>
             <div class="code-block">
-<span class="comment"># Check if firewall is blocking</span>
-<span class="cmdlet">Get-NetFirewallRule</span> <span class="param">-Direction</span> Inbound |
-    <span class="cmdlet">Where-Object</span> { $_.Action -eq 'Block' -and $_.Enabled -eq 'True' }
+<span class="comment"># Find all enabled inbound rules that are actively blocking traffic</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallRule -Direction Inbound | Where-Object { $_.Action -eq 'Block' -and $_.Enabled -eq 'True' }</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          DisplayName              Direction   Action   Enabled</span>
+<span class="comment">----          -----------              ---------   ------   -------</span>
+{GUID}        <span class="command">Block Telnet Inbound</span>     Inbound     Block    True
+{GUID}        <span class="command">Block FTP Inbound</span>        Inbound     Block    True
+            </div>
 
-<span class="comment"># Test specific port connectivity</span>
-<span class="cmdlet">Test-NetConnection</span> <span class="param">-ComputerName</span> server01 <span class="param">-Port</span> 443
+            <p>Test-NetConnection quickly confirms whether a specific port is reachable from this server to a remote host.</p>
+            <div class="code-block">
+<span class="comment"># Test TCP connectivity to a remote server on port 443</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Test-NetConnection -ComputerName server01 -Port 443</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">ComputerName</span>     : server01
+<span class="command">RemoteAddress</span>    : 10.0.1.50
+<span class="command">RemotePort</span>       : 443
+<span class="command">TcpTestSucceeded</span> : True
+            </div>
 
-<span class="comment"># Check which rules apply to a port</span>
-<span class="cmdlet">Get-NetFirewallRule</span> <span class="param">-Direction</span> Inbound <span class="param">-Enabled</span> True |
-    <span class="cmdlet">Get-NetFirewallPortFilter</span> |
-    <span class="cmdlet">Where-Object</span> LocalPort <span class="param">-eq</span> 443
+            <p>Cross-referencing port filters with enabled rules shows exactly which rules govern a specific port.</p>
+            <div class="code-block">
+<span class="comment"># Find all enabled inbound rules that apply to port 443</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-NetFirewallRule -Direction Inbound -Enabled True | Get-NetFirewallPortFilter | Where-Object LocalPort -eq 443</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Protocol      LocalPort   RemotePort   InstanceID</span>
+<span class="comment">--------      ---------   ----------   ----------</span>
+TCP           <span class="command">443</span>         Any          {GUID}
+            </div>
 
-<span class="comment"># View firewall events in Event Log</span>
-<span class="cmdlet">Get-WinEvent</span> <span class="param">-LogName</span> <span class="string">"Microsoft-Windows-Windows Firewall With Advanced Security/Firewall"</span> `
-    <span class="param">-MaxEvents</span> 20
+            <p>The Windows Firewall event log records every rule change and connection decision, invaluable for post-incident forensics.</p>
+            <div class="code-block">
+<span class="comment"># View the 20 most recent firewall events from the security log</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-WinEvent -LogName "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall" -MaxEvents 20</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">TimeCreated            Id   LevelDisplayName   Message</span>
+<span class="comment">-----------            --   ----------------   -------</span>
+1/31/2026 10:15:00 AM  <span class="command">2004</span> Information         A rule has been added...
+1/31/2026 10:14:55 AM  <span class="command">2006</span> Information         A rule has been deleted...
+1/31/2026 10:14:30 AM  <span class="command">2003</span> Information         A rule has been modified...
             </div>
 
             <h2>Common Issues</h2>
@@ -706,9 +811,9 @@
 
         <!-- Navigation -->
         <div class="nav-controls">
-            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">← Previous</button>
+            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">&larr; Previous</button>
             <div class="progress-bar" id="progressBar"></div>
-            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next →</button>
+            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next &rarr;</button>
         </div>
     </div>
 

@@ -80,9 +80,8 @@
         }
 
         .code-block .comment { color: #8b949e; }
-        .code-block .cmdlet { color: #79c0ff; }
-        .code-block .param { color: #a5d6ff; }
-        .code-block .string { color: #a5d6ff; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
 
         .two-column {
             display: grid;
@@ -318,15 +317,36 @@
                 <li>GPO processing may use wrong site-linked policies</li>
             </ul>
 
+            <p>Creating a subnet and assigning it to a site tells AD which physical location that IP range belongs to, so clients on that network authenticate locally.</p>
             <div class="code-block">
-<span class="comment"># Create a new subnet</span>
-<span class="cmdlet">New-ADReplicationSubnet</span> <span class="param">-Name</span> <span class="string">"10.1.0.0/16"</span> <span class="param">-Site</span> <span class="string">"Branch-Office"</span>
+<span class="comment"># Associate the 10.1.0.0/16 IP range with the Branch-Office site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.1.0.0/16" -Site "Branch-Office"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          Site           Location</span>
+<span class="comment">----          ----           --------</span>
+<span class="command">10.1.0.0/16</span>   Branch-Office
+            </div>
 
-<span class="comment"># View all subnets</span>
-<span class="cmdlet">Get-ADReplicationSubnet</span> <span class="param">-Filter</span> * | <span class="cmdlet">Select</span> Name, Site
+            <p>Listing all subnets confirms every IP range in your organization has a site assignment, preventing random DC selection.</p>
+            <div class="code-block">
+<span class="comment"># List all subnets and their site assignments</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSubnet -Filter * | Select Name, Site</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name            Site</span>
+<span class="comment">----            ----</span>
+<span class="command">10.0.0.0/16</span>     CN=HQ-Site,CN=Sites,CN=Configuration,DC=hexworth,DC=local
+<span class="command">10.1.0.0/16</span>     CN=Branch-Office,CN=Sites,CN=Configuration,DC=hexworth,DC=local
+<span class="command">10.2.0.0/16</span>     CN=DR-Site,CN=Sites,CN=Configuration,DC=hexworth,DC=local
+            </div>
 
-<span class="comment"># Move a subnet to a different site</span>
-<span class="cmdlet">Set-ADReplicationSubnet</span> <span class="param">-Identity</span> <span class="string">"10.1.0.0/16"</span> <span class="param">-Site</span> <span class="string">"New-Site"</span>
+            <p>If a subnet moves to a different physical location, reassign it to the correct site without deleting and recreating it.</p>
+            <div class="code-block">
+<span class="comment"># Reassign an existing subnet to a different site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSubnet -Identity "10.1.0.0/16" -Site "New-Site"</span>
             </div>
 
             <div class="warning-box">
@@ -360,15 +380,22 @@
                 </div>
             </div>
 
+            <p>Creating a dedicated site link with a lower cost and shorter interval ensures replication happens faster over the high-bandwidth HQ-to-branch connection.</p>
             <div class="code-block">
-<span class="comment"># Create a new site link</span>
-<span class="cmdlet">New-ADReplicationSiteLink</span> <span class="param">-Name</span> <span class="string">"HQ-Branch"</span> `
-    <span class="param">-SitesIncluded</span> HQ-Site,Branch-Site `
-    <span class="param">-Cost</span> 50 `
-    <span class="param">-ReplicationFrequencyInMinutes</span> 15
+<span class="comment"># Create a site link between HQ and Branch with fast replication</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSiteLink -Name "HQ-Branch" -SitesIncluded HQ-Site,Branch-Site -Cost 50 -ReplicationFrequencyInMinutes 15</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name        Cost   ReplicationFrequencyInMinutes   SitesIncluded</span>
+<span class="comment">----        ----   ----------------------------   -------------</span>
+<span class="command">HQ-Branch</span>   50     15                             {HQ-Site, Branch-Site}
+            </div>
 
-<span class="comment"># Modify site link cost</span>
-<span class="cmdlet">Set-ADReplicationSiteLink</span> <span class="param">-Identity</span> <span class="string">"HQ-Branch"</span> <span class="param">-Cost</span> 25
+            <p>Lowering the cost of a site link makes it the preferred replication path when multiple routes exist between sites.</p>
+            <div class="code-block">
+<span class="comment"># Lower the cost to make this the preferred replication path</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSiteLink -Identity "HQ-Branch" -Cost 25</span>
             </div>
 
             <div class="info-box">
@@ -439,15 +466,44 @@
                 <li>Ensures no more than 3 hops between any DCs in a site</li>
             </ul>
 
+            <p>When you add or remove DCs, force the KCC to rebuild the replication topology immediately rather than waiting for its 15-minute cycle.</p>
             <div class="code-block">
-<span class="comment"># Force KCC to recalculate topology</span>
-<span class="cmdlet">repadmin</span> /kcc
+<span class="comment"># Trigger the KCC to recalculate the replication topology now</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Consistency check on <span class="command">DC01.hexworth.local</span> successful.
+            </div>
 
-<span class="comment"># View replication connections</span>
-<span class="cmdlet">Get-ADReplicationConnection</span> <span class="param">-Filter</span> *
+            <p>Connection objects represent the replication partnerships that KCC has automatically created between domain controllers.</p>
+            <div class="code-block">
+<span class="comment"># List all automatic replication connection objects</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationConnection -Filter *</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name                 ReplicateFromDirectoryServer          AutoGenerated</span>
+<span class="comment">----                 ----------------------------          -------------</span>
+<span class="command">{GUID}</span>               CN=DC02,CN=Servers,CN=HQ-Site...      True
+<span class="command">{GUID}</span>               CN=DC03,CN=Servers,CN=Branch-Site...  True
+            </div>
 
-<span class="comment"># Check KCC failures</span>
-<span class="cmdlet">repadmin</span> /showrepl * /errorsonly
+            <p>Filtering for errors-only across all DCs quickly reveals any replication partnerships that are failing.</p>
+            <div class="code-block">
+<span class="comment"># Show only replication errors across all domain controllers</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl * /errorsonly</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output (healthy environment):</span>
+Replication Summary Start Time: 2025-01-15 09:30:00
+
+Beginning data collection for replication summary, this may take awhile:
+  ........
+
+<span class="command">Source DSA</span>          largest delta    fails/total %%   error
+<span class="command">DC01</span>                00m:15s          0 /   5    0
+<span class="command">DC02</span>                00m:15s          0 /   5    0
             </div>
 
             <div class="warning-box">
@@ -468,13 +524,23 @@
                 <li>If bridgehead fails, KCC selects new one automatically</li>
             </ul>
 
+            <p>Querying the bridgeheadServerListBL attribute shows which DCs are currently acting as bridgehead servers for intersite replication.</p>
             <div class="code-block">
-<span class="comment"># View current bridgehead servers</span>
-<span class="cmdlet">Get-ADReplicationSite</span> <span class="param">-Filter</span> * | <span class="cmdlet">Get-ADObject</span> <span class="param">-Properties</span> bridgeheadServerListBL
+<span class="comment"># Query which DCs are designated as bridgehead servers per site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSite -Filter * | Get-ADObject -Properties bridgeheadServerListBL</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name          ObjectClass   bridgeheadServerListBL</span>
+<span class="comment">----          -----------   ----------------------</span>
+<span class="command">HQ-Site</span>       site          {CN=DC01,CN=Servers,CN=HQ-Site...}
+<span class="command">Branch-Site</span>   site          {CN=DC03,CN=Servers,CN=Branch-Site...}
+            </div>
 
-<span class="comment"># Set preferred bridgehead server</span>
-<span class="cmdlet">Set-ADObject</span> <span class="param">-Identity</span> <span class="string">"CN=DC1,CN=Servers,CN=HQ-Site,CN=Sites,CN=Configuration,DC=hexworth,DC=local"</span> `
-    <span class="param">-Add</span> @{bridgeheadTransportList="CN=IP,CN=Inter-Site Transports,CN=Sites,CN=Configuration,DC=hexworth,DC=local"}
+            <p>Manually designating a preferred bridgehead ensures your most powerful DC handles the intersite replication load instead of leaving it to GUID-based selection.</p>
+            <div class="code-block">
+<span class="comment"># Designate DC1 as the preferred bridgehead server for HQ-Site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADObject -Identity "CN=DC1,CN=Servers,CN=HQ-Site,CN=Sites,CN=Configuration,DC=hexworth,DC=local" -Add @{bridgeheadTransportList="CN=IP,CN=Inter-Site Transports,CN=Sites,CN=Configuration,DC=hexworth,DC=local"}</span>
             </div>
 
             <div class="info-box">
@@ -527,21 +593,67 @@
             <p>Use these tools and techniques to diagnose and resolve replication problems.</p>
 
             <h2>Key Diagnostic Commands</h2>
+
+            <p>The replication summary gives a quick health check across every DC, showing the largest replication delay and failure count for each partner.</p>
             <div class="code-block">
-<span class="comment"># Show replication status for all DCs</span>
-<span class="cmdlet">repadmin</span> /replsummary
+<span class="comment"># Get a high-level replication health summary for all DCs</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Replication Summary Start Time: 2025-01-15 09:30:00
 
-<span class="comment"># Show detailed replication status</span>
-<span class="cmdlet">repadmin</span> /showrepl DC1
+<span class="prompt">Source DSA          largest delta    fails/total %%   error</span>
+<span class="comment">--------------      -------------    ----------- --   -----</span>
+<span class="command">DC01</span>                00m:15s          0 /   5    0
+<span class="command">DC02</span>                01m:30s          0 /   5    0
+<span class="command">DC03</span>                15m:00s          0 /   3    0
+            </div>
 
-<span class="comment"># Force replication between DCs</span>
-<span class="cmdlet">repadmin</span> /syncall DC1 /AeD
+            <p>For a specific DC, showrepl displays each replication partner, the last successful sync time, and any errors.</p>
+            <div class="code-block">
+<span class="comment"># Show detailed replication status for a specific domain controller</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl DC1</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">DC01.hexworth.local</span>
+DSA Options: IS_GC
+Site Options: (none)
 
-<span class="comment"># Check for replication queue</span>
-<span class="cmdlet">repadmin</span> /queue
+<span class="prompt">Inbound Neighbors:</span>
+    DC=hexworth,DC=local
+        <span class="command">DC02</span> via RPC
+            Last attempt @ 2025-01-15 09:28:00 was successful.
+            Last success @ 2025-01-15 09:28:00.
+            </div>
 
-<span class="comment"># PowerShell: Get replication failures</span>
-<span class="cmdlet">Get-ADReplicationFailure</span> <span class="param">-Target</span> hexworth.local <span class="param">-Scope</span> Domain
+            <p>When you need changes propagated immediately, syncall forces replication across all DCs including transitive partners.</p>
+            <div class="code-block">
+<span class="comment"># Force immediate replication from DC1 to all partners (push mode)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /syncall DC1 /AeD</span>
+            </div>
+
+            <p>Checking the replication queue reveals whether changes are backed up waiting to be sent or received.</p>
+            <div class="code-block">
+<span class="comment"># Check if any replication operations are queued and waiting</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /queue</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Current queue contains <span class="command">0</span> items.
+            </div>
+
+            <p>The PowerShell cmdlet provides structured failure data that can be filtered, sorted, and exported for reporting.</p>
+            <div class="code-block">
+<span class="comment"># Query all replication failures across the domain using PowerShell</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationFailure -Target hexworth.local -Scope Domain</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output (healthy environment):</span>
+<span class="prompt">Server          FirstFailureTime   FailureCount   LastError   Partner</span>
+<span class="comment">------          ----------------   ------------   ---------   -------</span>
+<span class="comment">(no output = no failures detected)</span>
             </div>
 
             <h2>Common Issues</h2>
@@ -579,16 +691,50 @@
                 </div>
             </div>
 
+            <p>Before migrating from FRS, check whether your domain has already completed the migration to DFS-R by querying the global state.</p>
             <div class="code-block">
-<span class="comment"># Check SYSVOL replication status</span>
-<span class="cmdlet">dfsrmig</span> /getglobalstate
-<span class="cmdlet">dfsrmig</span> /getmigrationstate
+<span class="comment"># Check the current SYSVOL replication migration state</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getglobalstate</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Current DFSR global state: '<span class="command">Eliminated</span>'
+Succeeded.
+            </div>
 
-<span class="comment"># Check DFS-R health</span>
-<span class="cmdlet">dfsrdiag</span> pollad
+            <div class="code-block">
+<span class="comment"># Verify all DCs have reached the target migration state</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getmigrationstate</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+All Domain Controllers have migrated successfully to the Global state
+('<span class="command">Eliminated</span>').
+Migration has reached a consistent state on all Domain Controllers.
+Succeeded.
+            </div>
 
-<span class="comment"># View SYSVOL share</span>
-<span class="cmdlet">Get-SmbShare</span> <span class="param">-Name</span> SYSVOL
+            <p>Forcing AD polling ensures the DFS-R service picks up any recent configuration changes without waiting for the next automatic cycle.</p>
+            <div class="code-block">
+<span class="comment"># Force DFS-R to poll Active Directory for configuration changes</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrdiag pollad</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+Command completed successfully.
+Operation Succeeded - PollAD for member <span class="command">DC01.hexworth.local</span>.
+            </div>
+
+            <p>Verifying the SYSVOL share is accessible confirms that Group Policy objects can be served to clients from this DC.</p>
+            <div class="code-block">
+<span class="comment"># Confirm the SYSVOL share exists and is accessible</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-SmbShare -Name SYSVOL</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">Name      ScopeName   Path                          Description</span>
+<span class="comment">----      ---------   ----                          -----------</span>
+<span class="command">SYSVOL</span>    *           C:\Windows\SYSVOL\sysvol      Logon server share
             </div>
         </div>
 
@@ -606,15 +752,29 @@
                 <li>Ideal for branch offices, DMZs</li>
             </ul>
 
+            <p>Deploying an RODC to a branch site gives local users fast authentication without storing a writable copy of the AD database at a less-secure location.</p>
             <div class="code-block">
-<span class="comment"># Install RODC</span>
-<span class="cmdlet">Install-ADDSDomainController</span> <span class="param">-DomainName</span> <span class="string">"hexworth.local"</span> `
-    <span class="param">-ReadOnlyReplica</span>:$true `
-    <span class="param">-SiteName</span> <span class="string">"Branch-Site"</span>
+<span class="comment"># Promote a server as a Read-Only Domain Controller in the branch site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-ADDSDomainController -DomainName "hexworth.local" -ReadOnlyReplica:$true -SiteName "Branch-Site"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="command">Message</span>     : The operation completed successfully.
+             The server was successfully configured as a domain controller.
+<span class="command">Status</span>      : Success
+<span class="command">RebootRequired</span> : True
+            </div>
 
-<span class="comment"># Configure Password Replication Policy</span>
-<span class="cmdlet">Add-ADDomainControllerPasswordReplicationPolicy</span> <span class="param">-Identity</span> <span class="string">"RODC1"</span> `
-    <span class="param">-AllowedList</span> <span class="string">"Branch-Users"</span>
+            <p>The Password Replication Policy controls which user passwords are cached on the RODC. Only cache passwords for users who regularly log on at that branch.</p>
+            <div class="code-block">
+<span class="comment"># Allow the Branch-Users group to have passwords cached on the RODC</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-ADDomainControllerPasswordReplicationPolicy -Identity "RODC1" -AllowedList "Branch-Users"</span>
+            </div>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="prompt">AllowedList                DeniedList</span>
+<span class="comment">-----------                ----------</span>
+{<span class="command">Branch-Users</span>}              {Denied RODC Password Replication Group}
             </div>
 
             <div class="info-box">
@@ -662,9 +822,9 @@
 
         <!-- Navigation -->
         <div class="nav-controls">
-            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">← Previous</button>
+            <button class="nav-btn prev" onclick="prevSlide()" id="prevBtn">&larr; Previous</button>
             <div class="progress-bar" id="progressBar"></div>
-            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next →</button>
+            <button class="nav-btn next" onclick="nextSlide()" id="nextBtn">Next &rarr;</button>
         </div>
     </div>
 

@@ -83,6 +83,8 @@
         .code-block .cmdlet { color: #79c0ff; }
         .code-block .param { color: #a5d6ff; }
         .code-block .string { color: #a5d6ff; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
 
         .two-column {
             display: grid;
@@ -396,15 +398,58 @@
                 <li>Avoid cluttering Default Domain Policy</li>
             </ul>
 
+            <p>Create a GPO first, then link it to the OU where it should apply.</p>
+
             <div class="code-block">
-<span class="comment"># Create a new GPO</span>
-<span class="cmdlet">New-GPO</span> <span class="param">-Name</span> <span class="string">"SEC-Workstation-Firewall"</span> <span class="param">-Comment</span> <span class="string">"Enables Windows Firewall on workstations"</span>
+<span class="comment"># Create a new GPO with a descriptive name and comment</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPO -Name "SEC-Workstation-Firewall" -Comment "Enables Windows Firewall on workstations"</span>
+            </div>
 
-<span class="comment"># Link GPO to an OU</span>
-<span class="cmdlet">New-GPLink</span> <span class="param">-Name</span> <span class="string">"SEC-Workstation-Firewall"</span> <span class="param">-Target</span> <span class="string">"OU=Workstations,DC=hexworth,DC=local"</span>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">DisplayName</span>      : <span class="command">SEC-Workstation-Firewall</span>
+<span class="prompt">DomainName</span>       : hexworth.local
+<span class="prompt">Owner</span>            : HEXWORTH\Domain Admins
+<span class="prompt">Id</span>               : 3f2a1b4c-8d7e-4a91-b6c3-9e5f0d2a8b7c
+<span class="prompt">GpoStatus</span>        : AllSettingsEnabled
+<span class="prompt">Description</span>      : Enables Windows Firewall on workstations
+            </div>
 
-<span class="comment"># Link with enforcement</span>
-<span class="cmdlet">New-GPLink</span> <span class="param">-Name</span> <span class="string">"SEC-Password-Policy"</span> <span class="param">-Target</span> <span class="string">"DC=hexworth,DC=local"</span> <span class="param">-Enforced</span> Yes
+            <p>Link the GPO to a target OU so it begins applying to objects in that scope.</p>
+
+            <div class="code-block">
+<span class="comment"># Link the firewall GPO to the Workstations OU</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPLink -Name "SEC-Workstation-Firewall" -Target "OU=Workstations,DC=hexworth,DC=local"</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">GpoId</span>       : 3f2a1b4c-8d7e-4a91-b6c3-9e5f0d2a8b7c
+<span class="prompt">DisplayName</span> : <span class="command">SEC-Workstation-Firewall</span>
+<span class="prompt">Enabled</span>     : True
+<span class="prompt">Enforced</span>    : False
+<span class="prompt">Target</span>      : OU=Workstations,DC=hexworth,DC=local
+<span class="prompt">Order</span>       : 1
+            </div>
+
+            <p>Use the Enforced flag to ensure a GPO applies even when child OUs block inheritance.</p>
+
+            <div class="code-block">
+<span class="comment"># Link a password policy GPO at the domain level with enforcement</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPLink -Name "SEC-Password-Policy" -Target "DC=hexworth,DC=local" -Enforced Yes</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">GpoId</span>       : 7a4c9e2d-1b3f-4d8a-a5c7-6e0f3b2d9a1c
+<span class="prompt">DisplayName</span> : <span class="command">SEC-Password-Policy</span>
+<span class="prompt">Enabled</span>     : True
+<span class="prompt">Enforced</span>    : <span class="command">True</span>
+<span class="prompt">Target</span>      : DC=hexworth,DC=local
+<span class="prompt">Order</span>       : 1
             </div>
 
             <div class="warning-box">
@@ -425,21 +470,48 @@
                 <li>Removing Authenticated Users is common for targeted GPOs</li>
             </ul>
 
+            <p>Check which groups currently have permission to apply a GPO.</p>
+
             <div class="code-block">
-<span class="comment"># View security filtering</span>
-<span class="cmdlet">Get-GPPermission</span> <span class="param">-Name</span> <span class="string">"SEC-IT-Admin-Tools"</span> <span class="param">-All</span>
+<span class="comment"># View all security permissions on a GPO</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-GPPermission -Name "SEC-IT-Admin-Tools" -All</span>
+            </div>
 
-<span class="comment"># Add a group to security filtering</span>
-<span class="cmdlet">Set-GPPermission</span> <span class="param">-Name</span> <span class="string">"SEC-IT-Admin-Tools"</span> `
-    <span class="param">-TargetName</span> <span class="string">"IT-Administrators"</span> `
-    <span class="param">-TargetType</span> Group `
-    <span class="param">-PermissionLevel</span> GpoApply
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">Trustee</span>          : <span class="command">Authenticated Users</span>
+<span class="prompt">TrusteeType</span>      : WellKnownGroup
+<span class="prompt">Permission</span>       : GpoApply
+<span class="prompt">Inherited</span>        : False
 
-<span class="comment"># Remove Authenticated Users (for targeted GPO)</span>
-<span class="cmdlet">Set-GPPermission</span> <span class="param">-Name</span> <span class="string">"SEC-IT-Admin-Tools"</span> `
-    <span class="param">-TargetName</span> <span class="string">"Authenticated Users"</span> `
-    <span class="param">-TargetType</span> Group `
-    <span class="param">-PermissionLevel</span> None
+<span class="prompt">Trustee</span>          : <span class="command">Domain Admins</span>
+<span class="prompt">TrusteeType</span>      : Group
+<span class="prompt">Permission</span>       : GpoEditDeleteModifySecurity
+<span class="prompt">Inherited</span>        : False
+            </div>
+
+            <p>Grant the GpoApply permission to a specific security group so only its members receive the policy.</p>
+
+            <div class="code-block">
+<span class="comment"># Add IT-Administrators to the GPO's security filtering</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-GPPermission -Name "SEC-IT-Admin-Tools" -TargetName "IT-Administrators" -TargetType Group -PermissionLevel GpoApply</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">Trustee</span>          : <span class="command">IT-Administrators</span>
+<span class="prompt">TrusteeType</span>      : Group
+<span class="prompt">Permission</span>       : GpoApply
+<span class="prompt">Inherited</span>        : False
+            </div>
+
+            <p>Remove Authenticated Users so the GPO only targets the group you just added.</p>
+
+            <div class="code-block">
+<span class="comment"># Remove default Authenticated Users so GPO is targeted</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Set-GPPermission -Name "SEC-IT-Admin-Tools" -TargetName "Authenticated Users" -TargetType Group -PermissionLevel None</span>
             </div>
 
             <div class="info-box">
@@ -460,19 +532,37 @@
                 <li>Target VMs vs physical machines</li>
             </ul>
 
+            <p>WMI queries target GPOs to machines matching specific hardware or OS criteria.</p>
+
             <div class="code-block">
-<span class="comment"># WMI Query: Only Windows 11 machines</span>
-SELECT * FROM Win32_OperatingSystem WHERE Version LIKE "10.0.22%" AND ProductType = "1"
+<span class="comment"># WMI Query: Only Windows 11 machines (version 10.0.22xxx)</span>
+<span class="command">SELECT * FROM Win32_OperatingSystem WHERE Version LIKE "10.0.22%" AND ProductType = "1"</span>
+            </div>
 
-<span class="comment"># WMI Query: Only laptops (has battery)</span>
-SELECT * FROM Win32_Battery WHERE BatteryStatus IS NOT NULL
+            <div class="code-block">
+<span class="comment"># WMI Query: Only laptops (battery must be present)</span>
+<span class="command">SELECT * FROM Win32_Battery WHERE BatteryStatus IS NOT NULL</span>
+            </div>
 
+            <div class="code-block">
 <span class="comment"># WMI Query: Machines with 8GB+ RAM</span>
-SELECT * FROM Win32_ComputerSystem WHERE TotalPhysicalMemory >= 8589934592
+<span class="command">SELECT * FROM Win32_ComputerSystem WHERE TotalPhysicalMemory >= 8589934592</span>
+            </div>
 
-<span class="comment"># Create WMI filter via PowerShell</span>
-<span class="cmdlet">New-GPWmiFilter</span> <span class="param">-Name</span> <span class="string">"Windows 11 Only"</span> `
-    <span class="param">-Expression</span> <span class="string">'SELECT * FROM Win32_OperatingSystem WHERE Version LIKE "10.0.22%"'</span>
+            <p>Create a WMI filter in PowerShell and attach it to a GPO for conditional targeting.</p>
+
+            <div class="code-block">
+<span class="comment"># Create a WMI filter that targets only Windows 11</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPWmiFilter -Name "Windows 11 Only" -Expression 'SELECT * FROM Win32_OperatingSystem WHERE Version LIKE "10.0.22%"'</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">Name</span>        : <span class="command">Windows 11 Only</span>
+<span class="prompt">Description</span> :
+<span class="prompt">Expression</span>  : SELECT * FROM Win32_OperatingSystem WHERE Version LIKE "10.0.22%"
+<span class="prompt">Author</span>      : HEXWORTH\Administrator
             </div>
 
             <div class="warning-box">
@@ -572,18 +662,51 @@ SELECT * FROM Win32_ComputerSystem WHERE TotalPhysicalMemory >= 8589934592
             <p>When policies don't apply as expected, use these diagnostic approaches.</p>
 
             <h2>Diagnostic Commands</h2>
+
+            <p>Force an immediate policy refresh on the local machine to test changes right away.</p>
+
             <div class="code-block">
-<span class="comment"># Force immediate GP refresh</span>
-<span class="cmdlet">gpupdate</span> /force
+<span class="comment"># Force both computer and user policy to refresh now</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">gpupdate /force</span>
+            </div>
 
-<span class="comment"># Generate detailed HTML report</span>
-<span class="cmdlet">gpresult</span> /h C:\GPReport.html
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+Updating policy...
 
-<span class="comment"># View RSoP for specific user/computer</span>
-<span class="cmdlet">Get-GPResultantSetOfPolicy</span> <span class="param">-Computer</span> <span class="string">"WS-HR01"</span> <span class="param">-User</span> <span class="string">"jsmith"</span> <span class="param">-ReportType</span> Html <span class="param">-Path</span> <span class="string">"C:\RSoP.html"</span>
+Computer Policy update has completed successfully.
+User Policy update has completed successfully.
+            </div>
 
-<span class="comment"># Check GPO replication status</span>
-<span class="cmdlet">Get-GPO</span> <span class="param">-Name</span> <span class="string">"SEC-Workstation-Baseline"</span> | <span class="cmdlet">Get-GPOReport</span> <span class="param">-ReportType</span> Xml
+            <p>Generate an HTML report showing every GPO that applied (or failed) on this machine.</p>
+
+            <div class="code-block">
+<span class="comment"># Save a full Group Policy results report to HTML</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">gpresult /h C:\GPReport.html</span>
+            </div>
+
+            <p>Get the Resultant Set of Policy for a specific user on a specific computer, useful for remote troubleshooting.</p>
+
+            <div class="code-block">
+<span class="comment"># Generate RSoP report for a remote user/computer pair</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-GPResultantSetOfPolicy -Computer "WS-HR01" -User "jsmith" -ReportType Html -Path "C:\RSoP.html"</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">RsopMode</span>  : Logging
+<span class="prompt">Namespace</span> : \\WS-HR01\Root\Rsop\NS5A3F2B1C_8D7E_4A91_B6C3_9E5F0D2A8B7C
+<span class="prompt">LoggingComputer</span> : <span class="command">WS-HR01</span>
+<span class="prompt">LoggingUser</span>     : <span class="command">HEXWORTH\jsmith</span>
+            </div>
+
+            <p>Pipe a GPO into Get-GPOReport to inspect its full XML configuration for replication verification.</p>
+
+            <div class="code-block">
+<span class="comment"># Export GPO settings as XML for review</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-GPO -Name "SEC-Workstation-Baseline" | Get-GPOReport -ReportType Xml</span>
             </div>
 
             <h2>Common Issues</h2>
@@ -600,22 +723,67 @@ SELECT * FROM Win32_ComputerSystem WHERE TotalPhysicalMemory >= 8589934592
             <h1>GPO Backup and Restore</h1>
             <p>Regularly backup GPOs before making changes and as part of disaster recovery.</p>
 
+            <p>Back up every GPO in the domain at once for disaster recovery.</p>
+
             <div class="code-block">
-<span class="comment"># Backup all GPOs</span>
-<span class="cmdlet">Backup-GPO</span> <span class="param">-All</span> <span class="param">-Path</span> <span class="string">"C:\GPOBackups"</span>
+<span class="comment"># Backup all GPOs to a shared folder</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Backup-GPO -All -Path "C:\GPOBackups"</span>
+            </div>
 
-<span class="comment"># Backup specific GPO with comment</span>
-<span class="cmdlet">Backup-GPO</span> <span class="param">-Name</span> <span class="string">"SEC-Workstation-Baseline"</span> <span class="param">-Path</span> <span class="string">"C:\GPOBackups"</span> `
-    <span class="param">-Comment</span> <span class="string">"Before firewall change - 2026-01-31"</span>
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">DisplayName</span>  : <span class="command">Default Domain Policy</span>
+<span class="prompt">GpoId</span>        : 31b2f340-016d-11d2-945f-00c04fb984f9
+<span class="prompt">Id</span>           : a1b2c3d4-e5f6-7890-abcd-ef1234567890
+<span class="prompt">BackupDirectory</span> : C:\GPOBackups
+<span class="prompt">Timestamp</span>    : 1/31/2026 2:15:00 PM
 
-<span class="comment"># Restore GPO from backup</span>
-<span class="cmdlet">Restore-GPO</span> <span class="param">-Name</span> <span class="string">"SEC-Workstation-Baseline"</span> <span class="param">-Path</span> <span class="string">"C:\GPOBackups"</span>
+<span class="prompt">DisplayName</span>  : <span class="command">SEC-Workstation-Baseline</span>
+<span class="prompt">GpoId</span>        : 3f2a1b4c-8d7e-4a91-b6c3-9e5f0d2a8b7c
+<span class="prompt">Id</span>           : b2c3d4e5-f6a7-8901-bcde-f12345678901
+<span class="prompt">BackupDirectory</span> : C:\GPOBackups
+<span class="prompt">Timestamp</span>    : 1/31/2026 2:15:01 PM
+            </div>
 
-<span class="comment"># Import GPO settings (for copying between domains)</span>
-<span class="cmdlet">Import-GPO</span> <span class="param">-BackupGpoName</span> <span class="string">"SEC-Workstation-Baseline"</span> `
-    <span class="param">-TargetName</span> <span class="string">"SEC-Workstation-Baseline-NEW"</span> `
-    <span class="param">-Path</span> <span class="string">"C:\GPOBackups"</span> `
-    <span class="param">-CreateIfNeeded</span>
+            <p>Back up a single GPO with a comment so you know why the snapshot was taken.</p>
+
+            <div class="code-block">
+<span class="comment"># Backup one GPO with a change-management comment</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Backup-GPO -Name "SEC-Workstation-Baseline" -Path "C:\GPOBackups" -Comment "Before firewall change - 2026-01-31"</span>
+            </div>
+
+            <p>Restore a GPO to roll back unwanted changes using the backup directory.</p>
+
+            <div class="code-block">
+<span class="comment"># Restore a GPO from its most recent backup</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Restore-GPO -Name "SEC-Workstation-Baseline" -Path "C:\GPOBackups"</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">DisplayName</span>  : <span class="command">SEC-Workstation-Baseline</span>
+<span class="prompt">DomainName</span>   : hexworth.local
+<span class="prompt">Owner</span>        : HEXWORTH\Domain Admins
+<span class="prompt">GpoStatus</span>    : AllSettingsEnabled
+<span class="prompt">Description</span>  : Restored from backup
+            </div>
+
+            <p>Import GPO settings from a backup into a new GPO, useful for copying policies between domains.</p>
+
+            <div class="code-block">
+<span class="comment"># Import backed-up settings into a new GPO (cross-domain copy)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Import-GPO -BackupGpoName "SEC-Workstation-Baseline" -TargetName "SEC-Workstation-Baseline-NEW" -Path "C:\GPOBackups" -CreateIfNeeded</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">DisplayName</span>  : <span class="command">SEC-Workstation-Baseline-NEW</span>
+<span class="prompt">DomainName</span>   : hexworth.local
+<span class="prompt">Owner</span>        : HEXWORTH\Domain Admins
+<span class="prompt">GpoStatus</span>    : AllSettingsEnabled
             </div>
 
             <div class="warning-box">

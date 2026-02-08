@@ -21,6 +21,8 @@
         .code-block .cmdlet { color: #79c0ff; }
         .code-block .param { color: #a5d6ff; }
         .code-block .string { color: #a5d6ff; }
+        .code-block .prompt { color: #60a5fa; }
+        .code-block .command { color: #f0f0f0; }
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
         .column { background: rgba(0,0,0,0.2); padding: 25px; border-radius: 12px; border: 1px solid rgba(96,165,250,0.2); }
         .column h3 { color: #60a5fa; margin-bottom: 15px; font-size: 1.3rem; }
@@ -240,16 +242,26 @@
                 <li><strong>NDES:</strong> Network Device Enrollment Service (SCEP)</li>
                 <li><strong>CES/CEP:</strong> Certificate Enrollment Policy/Service</li>
             </ul>
-            <div class="code-block">
-<span class="comment"># Install Enterprise Issuing CA</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> ADCS-Cert-Authority <span class="param">-IncludeManagementTools</span>
+            <p>Install the AD CS role first, then configure the CA type in a second step.</p>
 
-<span class="comment"># Configure as Enterprise Subordinate CA</span>
-<span class="cmdlet">Install-AdcsCertificationAuthority</span> `
-    <span class="param">-CAType</span> EnterpriseSubordinateCA `
-    <span class="param">-CACommonName</span> <span class="string">"Hexworth Issuing CA"</span> `
-    <span class="param">-KeyLength</span> 4096 `
-    <span class="param">-HashAlgorithmName</span> SHA256
+            <div class="code-block">
+<span class="comment"># Install the Certificate Authority role with management tools</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name ADCS-Cert-Authority -IncludeManagementTools</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">Success</span> Restart Needed  Exit Code  Feature Result
+<span class="prompt">───────</span> ──────────────  ─────────  ──────────────
+<span class="command">True</span>    No              Success    {Active Directory Certificate Services}
+            </div>
+
+            <p>Configure this server as an Enterprise Subordinate CA with a 4096-bit key and SHA-256 hashing.</p>
+
+            <div class="code-block">
+<span class="comment"># Configure as Enterprise Subordinate CA with strong crypto</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-AdcsCertificationAuthority -CAType EnterpriseSubordinateCA -CACommonName "Hexworth Issuing CA" -KeyLength 4096 -HashAlgorithmName SHA256</span>
             </div>
         </div>
 
@@ -278,12 +290,29 @@
                     </ul>
                 </div>
             </div>
-            <div class="code-block">
-<span class="comment"># List available templates</span>
-<span class="cmdlet">Get-CATemplate</span> | <span class="cmdlet">Select-Object</span> Name, DisplayName
+            <p>List all certificate templates currently published on the CA.</p>
 
-<span class="comment"># Add template to CA</span>
-<span class="cmdlet">Add-CATemplate</span> <span class="param">-Name</span> <span class="string">"WebServer"</span> <span class="param">-Force</span>
+            <div class="code-block">
+<span class="comment"># List templates available for enrollment on this CA</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-CATemplate | Select-Object Name, DisplayName</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">Name</span>                    <span class="prompt">DisplayName</span>
+<span class="command">User</span>                    User
+<span class="command">Machine</span>                 Computer
+<span class="command">DomainController</span>        Domain Controller
+<span class="command">WebServer</span>               Web Server
+<span class="command">CodeSigning</span>             Code Signing
+            </div>
+
+            <p>Publish a template on the CA so users and computers can enroll for that certificate type.</p>
+
+            <div class="code-block">
+<span class="comment"># Publish the WebServer template on this CA</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-CATemplate -Name "WebServer" -Force</span>
             </div>
         </div>
 
@@ -311,14 +340,18 @@
                 </div>
             </div>
             <div class="code-block">
-<span class="comment"># Duplicate a template (GUI: Certificate Templates Console)</span>
+<span class="comment"># Duplicate a template via GUI (Certificate Templates Console):</span>
 <span class="comment"># 1. Open certtmpl.msc</span>
 <span class="comment"># 2. Right-click "Web Server" > Duplicate Template</span>
 <span class="comment"># 3. Configure: Name, Validity, Key Size, Subject Name, Security</span>
 <span class="comment"># 4. Set Enroll and Autoenroll permissions for target groups</span>
+            </div>
 
-<span class="comment"># Publish custom template to CA</span>
-<span class="cmdlet">Add-CATemplate</span> <span class="param">-Name</span> <span class="string">"HexworthWebServer"</span> <span class="param">-Force</span>
+            <p>After creating the custom template in the GUI, publish it on the CA so it becomes available.</p>
+
+            <div class="code-block">
+<span class="comment"># Publish the custom template to the CA</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Add-CATemplate -Name "HexworthWebServer" -Force</span>
             </div>
             <div class="warning-box">
                 <strong>Important:</strong> When using "Supply in the request" for Subject Name, be very careful with Enroll permissions. Any user with Enroll rights can request a certificate for any identity.
@@ -384,15 +417,25 @@
                     </ul>
                 </div>
             </div>
+            <p>Trigger certificate autoenrollment immediately instead of waiting for the next policy cycle.</p>
+
             <div class="code-block">
-<span class="comment"># Force autoenrollment processing</span>
-<span class="cmdlet">certutil</span> <span class="param">-pulse</span>
+<span class="comment"># Force autoenrollment processing right now</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -pulse</span>
+            </div>
 
-<span class="comment"># Or trigger Group Policy refresh</span>
-<span class="cmdlet">gpupdate</span> /force
+            <p>Alternatively, refresh Group Policy which also triggers autoenrollment processing.</p>
 
-<span class="comment"># Check autoenrollment status</span>
-<span class="cmdlet">certutil</span> <span class="param">-enrollmentServerURL</span>
+            <div class="code-block">
+<span class="comment"># Trigger Group Policy refresh (also processes autoenrollment)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">gpupdate /force</span>
+            </div>
+
+            <p>Verify which enrollment server URLs are configured on this machine.</p>
+
+            <div class="code-block">
+<span class="comment"># Check the configured enrollment server URLs</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -enrollmentServerURL</span>
             </div>
             <div class="info-box">
                 <strong>Best Practice:</strong> Configure separate GPOs for Computer autoenrollment and User autoenrollment. Link them to the appropriate OUs.
@@ -409,16 +452,24 @@
                 <li><span class="highlight">Download CA Certificate</span> - Retrieve the CA's certificate chain</li>
                 <li><span class="highlight">Download CRL</span> - Retrieve current Certificate Revocation List</li>
             </ul>
+            <p>Install the Web Enrollment role service and configure it in one sequence.</p>
+
             <div class="code-block">
-<span class="comment"># Install CA Web Enrollment</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> ADCS-Web-Enrollment <span class="param">-IncludeManagementTools</span>
-<span class="cmdlet">Install-AdcsWebEnrollment</span> <span class="param">-Force</span>
+<span class="comment"># Install and configure CA Web Enrollment</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name ADCS-Web-Enrollment -IncludeManagementTools</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-AdcsWebEnrollment -Force</span>
+            </div>
 
-<span class="comment"># Access web enrollment</span>
+            <div class="code-block">
+<span class="comment"># Web enrollment URL (access via browser):</span>
 <span class="comment"># https://ca-server.hexworth.local/certsrv</span>
+            </div>
 
-<span class="comment"># Submit request using certreq.exe</span>
-<span class="cmdlet">certreq</span> <span class="param">-submit</span> <span class="param">-config</span> <span class="string">"CA01.hexworth.local\Hexworth Issuing CA"</span> request.req cert.cer
+            <p>Submit a certificate request file directly to the CA from the command line.</p>
+
+            <div class="code-block">
+<span class="comment"># Submit a certificate signing request (CSR) to the CA</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certreq -submit -config "CA01.hexworth.local\Hexworth Issuing CA" request.req cert.cer</span>
             </div>
             <div class="warning-box">
                 <strong>Security:</strong> Always use HTTPS for web enrollment. The default HTTP site exposes certificate requests to network interception.
@@ -448,12 +499,18 @@
                     </ul>
                 </div>
             </div>
-            <div class="code-block">
-<span class="comment"># Revoke a certificate</span>
-<span class="cmdlet">Revoke-Certificate</span> <span class="param">-SerialNumber</span> <span class="string">"61001234AB"</span> <span class="param">-Reason</span> KeyCompromise
+            <p>Revoke a compromised certificate by its serial number with an appropriate reason code.</p>
 
-<span class="comment"># Publish new CRL</span>
-<span class="cmdlet">Publish-CRL</span> <span class="param">-UpdateType</span> Base
+            <div class="code-block">
+<span class="comment"># Revoke a certificate due to key compromise</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Revoke-Certificate -SerialNumber "61001234AB" -Reason KeyCompromise</span>
+            </div>
+
+            <p>Publish a new base CRL immediately so clients learn the certificate is revoked.</p>
+
+            <div class="code-block">
+<span class="comment"># Publish a fresh base CRL to all distribution points</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Publish-CRL -UpdateType Base</span>
             </div>
         </div>
 
@@ -482,16 +539,30 @@
                     </ul>
                 </div>
             </div>
+            <p>View the configured CRL Distribution Point and Authority Information Access URLs on the CA.</p>
+
             <div class="code-block">
-<span class="comment"># View CDP and AIA configuration</span>
-<span class="cmdlet">certutil</span> <span class="param">-getreg</span> CA\CRLPublicationURLs
-<span class="cmdlet">certutil</span> <span class="param">-getreg</span> CA\CACertPublicationURLs
+<span class="comment"># View the configured CRL publication URLs (CDP)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -getreg CA\CRLPublicationURLs</span>
+            </div>
 
-<span class="comment"># Verify CRL is accessible</span>
-<span class="cmdlet">certutil</span> <span class="param">-URL</span> <span class="string">"http://pki.hexworth.local/cdp/HexworthIssuingCA.crl"</span>
+            <div class="code-block">
+<span class="comment"># View the configured CA certificate publication URLs (AIA)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -getreg CA\CACertPublicationURLs</span>
+            </div>
 
-<span class="comment"># Check a certificate's CDP and AIA</span>
-<span class="cmdlet">certutil</span> <span class="param">-verify</span> <span class="param">-urlfetch</span> certificate.cer
+            <p>Test whether a CRL URL is reachable and the CRL can be downloaded.</p>
+
+            <div class="code-block">
+<span class="comment"># Verify a CRL URL is accessible (opens URL testing tool)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -URL "http://pki.hexworth.local/cdp/HexworthIssuingCA.crl"</span>
+            </div>
+
+            <p>Validate the full chain for a certificate, including fetching CRLs and OCSP responses.</p>
+
+            <div class="code-block">
+<span class="comment"># Verify certificate chain and fetch revocation data</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -verify -urlfetch certificate.cer</span>
             </div>
             <div class="info-box">
                 <strong>Critical:</strong> Configure CDP and AIA URLs BEFORE issuing any certificates. These URLs are embedded permanently in issued certificates and cannot be changed retroactively.
@@ -523,14 +594,19 @@
                     </ul>
                 </div>
             </div>
-            <div class="code-block">
-<span class="comment"># Install Online Responder</span>
-<span class="cmdlet">Install-WindowsFeature</span> <span class="param">-Name</span> ADCS-Online-Cert <span class="param">-IncludeManagementTools</span>
-<span class="cmdlet">Install-AdcsOnlineResponder</span> <span class="param">-Force</span>
+            <p>Install the OCSP Online Responder role and configure it in one sequence.</p>
 
-<span class="comment"># Test OCSP response</span>
-<span class="cmdlet">certutil</span> <span class="param">-verify</span> <span class="param">-urlfetch</span> certificate.cer
-<span class="comment"># Look for "OCSP" entries in the output</span>
+            <div class="code-block">
+<span class="comment"># Install and configure the Online Responder (OCSP)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-WindowsFeature -Name ADCS-Online-Cert -IncludeManagementTools</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Install-AdcsOnlineResponder -Force</span>
+            </div>
+
+            <p>Test that OCSP responses work by verifying a certificate with URL fetching enabled.</p>
+
+            <div class="code-block">
+<span class="comment"># Verify a certificate and check for OCSP entries in the output</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -verify -urlfetch certificate.cer</span>
             </div>
         </div>
 
@@ -559,17 +635,36 @@
                     </ul>
                 </div>
             </div>
-            <div class="code-block">
-<span class="comment"># Browse certificate stores with PowerShell</span>
-<span class="cmdlet">Get-ChildItem</span> <span class="string">Cert:\LocalMachine\My</span>          <span class="comment"># Computer personal</span>
-<span class="cmdlet">Get-ChildItem</span> <span class="string">Cert:\CurrentUser\My</span>           <span class="comment"># User personal</span>
-<span class="cmdlet">Get-ChildItem</span> <span class="string">Cert:\LocalMachine\Root</span>        <span class="comment"># Trusted Root CAs</span>
-<span class="cmdlet">Get-ChildItem</span> <span class="string">Cert:\LocalMachine\CA</span>          <span class="comment"># Intermediate CAs</span>
+            <p>Browse certificate stores using the Cert: PSDrive, just like navigating a file system.</p>
 
-<span class="comment"># Find expiring certificates</span>
-<span class="cmdlet">Get-ChildItem</span> <span class="string">Cert:\LocalMachine\My</span> | <span class="cmdlet">Where-Object</span> {
-    $_.NotAfter <span class="param">-lt</span> (Get-Date).AddDays(30)
-} | <span class="cmdlet">Select-Object</span> Subject, NotAfter
+            <div class="code-block">
+<span class="comment"># List certificates in the computer's personal store</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ChildItem Cert:\LocalMachine\My</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+<span class="prompt">PSParentPath</span> : Microsoft.PowerShell.Security\Certificate::LocalMachine\My
+
+<span class="prompt">Thumbprint</span>                               <span class="prompt">Subject</span>
+──────────                               ───────
+<span class="command">A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2</span> CN=dc01.hexworth.local
+<span class="command">B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1</span> CN=portal.hexworth.local
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Browse other common stores</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ChildItem Cert:\CurrentUser\My</span>           <span class="comment"># User personal certs</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ChildItem Cert:\LocalMachine\Root</span>        <span class="comment"># Trusted Root CAs</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ChildItem Cert:\LocalMachine\CA</span>          <span class="comment"># Intermediate CAs</span>
+            </div>
+
+            <p>Find certificates expiring within 30 days so you can renew them proactively.</p>
+
+            <div class="code-block">
+<span class="comment"># Find certificates expiring within 30 days</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.NotAfter -lt (Get-Date).AddDays(30) } | Select-Object Subject, NotAfter</span>
             </div>
         </div>
 
@@ -583,13 +678,23 @@
                 <li>Template must allow private key export</li>
                 <li>Archived keys stored encrypted in CA database</li>
             </ul>
-            <div class="code-block">
-<span class="comment"># Configure Key Recovery Agent</span>
-<span class="cmdlet">certutil</span> <span class="param">-setreg</span> CA\KRAFlags +KRAF_ENABLEFOREIGN
+            <p>Enable the Key Recovery Agent on the CA so archived keys can be retrieved.</p>
 
-<span class="comment"># Recover a key</span>
-<span class="cmdlet">certutil</span> <span class="param">-getkey</span> <span class="string">"SearchToken"</span> outputblob
-<span class="cmdlet">certutil</span> <span class="param">-recoverkey</span> outputblob recovered.pfx
+            <div class="code-block">
+<span class="comment"># Enable foreign KRA certificates on the CA</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -setreg CA\KRAFlags +KRAF_ENABLEFOREIGN</span>
+            </div>
+
+            <p>Recover an archived private key in two steps: extract the encrypted blob, then decrypt it.</p>
+
+            <div class="code-block">
+<span class="comment"># Extract the encrypted key blob from the CA database</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -getkey "SearchToken" outputblob</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Decrypt the blob into a usable PFX file</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -recoverkey outputblob recovered.pfx</span>
             </div>
             <div class="warning-box">
                 <strong>Important:</strong> Key archival should only be enabled for encryption certificates, never for signature-only certificates.
@@ -621,21 +726,37 @@
                     </ul>
                 </div>
             </div>
+            <p>Display the CA's configuration summary including name, type, and key info.</p>
+
             <div class="code-block">
-<span class="comment"># Display CA configuration</span>
-<span class="cmdlet">certutil</span> <span class="param">-ca</span>
+<span class="comment"># Display CA configuration and status</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -ca</span>
+            </div>
 
-<span class="comment"># Verify a certificate chain</span>
-<span class="cmdlet">certutil</span> <span class="param">-verify</span> <span class="param">-urlfetch</span> server.cer
+            <p>Verify a certificate's entire chain and fetch CRL/OCSP data to check revocation.</p>
 
-<span class="comment"># View certificates in a store</span>
-<span class="cmdlet">certutil</span> <span class="param">-store</span> My
+            <div class="code-block">
+<span class="comment"># Verify certificate chain with revocation checking</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -verify -urlfetch server.cer</span>
+            </div>
 
-<span class="comment"># Decode a Base64 certificate</span>
-<span class="cmdlet">certutil</span> <span class="param">-decode</span> encoded.b64 decoded.cer
+            <p>List all certificates stored in the local machine's Personal store.</p>
 
-<span class="comment"># Export certificate and private key</span>
-<span class="cmdlet">certutil</span> <span class="param">-exportPFX</span> My <span class="string">"SerialNumber"</span> export.pfx
+            <div class="code-block">
+<span class="comment"># View certificates in the Personal (My) store</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -store My</span>
+            </div>
+
+            <p>Convert a Base64-encoded certificate to DER binary format, or export a certificate with its private key.</p>
+
+            <div class="code-block">
+<span class="comment"># Decode a Base64-encoded certificate to DER format</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -decode encoded.b64 decoded.cer</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Export a certificate and private key as a PFX file</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -exportPFX My "SerialNumber" export.pfx</span>
             </div>
         </div>
 
@@ -663,15 +784,25 @@
                     </ul>
                 </div>
             </div>
+            <p>Publish the Root CA certificate to Active Directory so all domain machines trust it automatically.</p>
+
             <div class="code-block">
-<span class="comment"># Import root CA certificate to AD (Enterprise CA does this automatically)</span>
-<span class="cmdlet">certutil</span> <span class="param">-dspublish</span> <span class="param">-f</span> RootCA.cer RootCA
+<span class="comment"># Publish the Root CA certificate to AD (for Standalone Root CAs)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -dspublish -f RootCA.cer RootCA</span>
+            </div>
 
-<span class="comment"># Import subordinate CA cert to AD</span>
-<span class="cmdlet">certutil</span> <span class="param">-dspublish</span> <span class="param">-f</span> SubCA.cer SubCA
+            <p>Publish the Subordinate CA certificate so clients can build the full certificate chain.</p>
 
-<span class="comment"># Verify certificate is published in AD</span>
-<span class="cmdlet">certutil</span> <span class="param">-viewstore</span> <span class="string">"ldap:///CN=Public Key Services,CN=Services,CN=Configuration,DC=hexworth,DC=local"</span>
+            <div class="code-block">
+<span class="comment"># Publish the Subordinate CA certificate to AD</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -dspublish -f SubCA.cer SubCA</span>
+            </div>
+
+            <p>Verify that the CA certificates were successfully published to the AD configuration partition.</p>
+
+            <div class="code-block">
+<span class="comment"># View certificates published in the AD Public Key Services container</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -viewstore "ldap:///CN=Public Key Services,CN=Services,CN=Configuration,DC=hexworth,DC=local"</span>
             </div>
             <div class="info-box">
                 <strong>Note:</strong> Enterprise CAs automatically publish their CA certificate and CRL to Active Directory. Standalone CAs require manual publication using certutil -dspublish.
@@ -701,12 +832,18 @@
                     </ul>
                 </div>
             </div>
-            <div class="code-block">
-<span class="comment"># Backup CA database and key</span>
-<span class="cmdlet">Backup-CARoleService</span> <span class="param">-Path</span> <span class="string">"C:\CABackup"</span> <span class="param">-Password</span> (Read-Host -AsSecureString) <span class="param">-KeepLog</span>
+            <p>Back up the CA database, private key, and logs using the PowerShell cmdlet.</p>
 
-<span class="comment"># Using certutil</span>
-<span class="cmdlet">certutil</span> <span class="param">-backup</span> <span class="string">"C:\CABackup"</span>
+            <div class="code-block">
+<span class="comment"># Backup CA database and private key with password protection</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Backup-CARoleService -Path "C:\CABackup" -Password (Read-Host -AsSecureString) -KeepLog</span>
+            </div>
+
+            <p>Alternatively, use certutil for the same backup operation from the command line.</p>
+
+            <div class="code-block">
+<span class="comment"># Backup CA using the certutil command-line tool</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -backup "C:\CABackup"</span>
             </div>
         </div>
 
@@ -737,18 +874,40 @@
                     </ul>
                 </div>
             </div>
+            <p>Restore the CA database and private key from a backup on the new server.</p>
+
             <div class="code-block">
-<span class="comment"># Restore CA from backup</span>
-<span class="cmdlet">Restore-CARoleService</span> <span class="param">-Path</span> <span class="string">"C:\CABackup"</span> <span class="param">-Password</span> (Read-Host -AsSecureString) <span class="param">-Force</span>
+<span class="comment"># Restore CA from PowerShell backup</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Restore-CARoleService -Path "C:\CABackup" -Password (Read-Host -AsSecureString) -Force</span>
+            </div>
 
-<span class="comment"># Using certutil restore</span>
-<span class="cmdlet">certutil</span> <span class="param">-restore</span> <span class="string">"C:\CABackup"</span>
+            <p>Alternatively, restore using certutil if the backup was made with that tool.</p>
 
-<span class="comment"># After restore, publish CRL</span>
-<span class="cmdlet">certutil</span> <span class="param">-CRL</span>
+            <div class="code-block">
+<span class="comment"># Restore CA using certutil</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -restore "C:\CABackup"</span>
+            </div>
 
-<span class="comment"># Verify CA is operational</span>
-<span class="cmdlet">certutil</span> <span class="param">-ping</span>
+            <p>Immediately publish a new CRL after restore so clients stop using the expired one.</p>
+
+            <div class="code-block">
+<span class="comment"># Publish a new CRL immediately after restoration</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -CRL</span>
+            </div>
+
+            <p>Verify the CA is online and responding to requests after the restore completes.</p>
+
+            <div class="code-block">
+<span class="comment"># Ping the CA to verify it is operational</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">certutil -ping</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Expected output:</span>
+<span class="comment"># ─────────────────────────────────────────</span>
+Connecting to <span class="command">CA01.hexworth.local\Hexworth Issuing CA</span> ...
+Server "Hexworth Issuing CA" ICertRequest2 interface is alive
+CertUtil: -ping command completed successfully.
             </div>
             <div class="warning-box">
                 <strong>Critical:</strong> After CA restoration, immediately publish a new CRL. Clients may be caching an expired CRL which will cause all certificate validations to fail.
