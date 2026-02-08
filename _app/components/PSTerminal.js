@@ -3295,6 +3295,27 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'get-vmhost':
                 return _cmdGetVMHost();
 
+            case 'measure-vm':
+                return _cmdMeasureVM(args, params);
+
+            case 'set-vm':
+                return _cmdSetVM(args, params);
+
+            case 'set-vmmemory':
+                return _cmdSetVMMemory(args, params);
+
+            case 'new-vhd':
+                return _cmdNewVHD(args, params);
+
+            case 'add-vmharddiskdrive':
+                return _cmdAddVMHardDiskDrive(args, params);
+
+            case 'set-vmnetworkadapter':
+                return _cmdSetVMNetworkAdapter(args, params);
+
+            case 'export-vm':
+                return _cmdExportVM(args, params);
+
             // ─────────────────────────────────────────────────────────────────
             // Failover Cluster Commands
             // ─────────────────────────────────────────────────────────────────
@@ -3321,6 +3342,27 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
 
             case 'get-clusterresource':
                 return _cmdGetClusterResource(args, params);
+
+            case 'test-cluster':
+                return _cmdTestCluster(args, params);
+
+            case 'new-cluster':
+                return _cmdNewCluster(args, params);
+
+            case 'add-clusternode':
+                return _cmdAddClusterNode(args, params);
+
+            case 'set-clusterquorum':
+                return _cmdSetClusterQuorum(args, params);
+
+            case 'get-clustersharedvolume':
+                return _cmdGetClusterSharedVolume(args, params);
+
+            case 'suspend-clusternode':
+                return _cmdSuspendClusterNode(args, params);
+
+            case 'resume-clusternode':
+                return _cmdResumeClusterNode(args, params);
 
             // ─────────────────────────────────────────────────────────────────
             // Network Commands
@@ -3353,6 +3395,74 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
 
             case 'set-dnsclientserveraddress':
                 return _cmdSetDnsClientServerAddress(args, params);
+
+            case 'get-nettcpconnection':
+                return _cmdGetNetTCPConnection(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Monitoring & Diagnostics Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-winevent':
+                return _cmdGetWinEvent(args, params);
+
+            case 'get-counter':
+                return _cmdGetCounter(args, params);
+
+            case 'get-wmiobject':
+            case 'gwmi':
+                return _cmdGetWmiObject(args, params);
+
+            case 'start-transcript':
+                return _cmdStartTranscript(args, params);
+
+            case 'measure-command':
+                return _cmdMeasureCommand(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Automation & Remoting Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'export-csv':
+                return _cmdExportCsv(args, params, pipeInput);
+
+            case 'import-csv':
+                return _cmdImportCsv(args, params);
+
+            case 'register-scheduledtask':
+                return _cmdRegisterScheduledTask(args, params);
+
+            case 'get-scheduledtask':
+                return _cmdGetScheduledTask(args, params);
+
+            case 'invoke-command':
+                return _cmdInvokeCommand(args, params);
+
+            case 'new-pssession':
+                return _cmdNewPSSession(args, params);
+
+            case 'foreach-object':
+            case '%':
+                return _cmdForEachObject(args, params, pipeInput);
+
+            // ─────────────────────────────────────────────────────────────────
+            // System Diagnostic Utilities
+            // ─────────────────────────────────────────────────────────────────
+            case 'dcdiag':
+                return _cmdDcdiag(args, params);
+
+            case 'repadmin':
+                return _cmdRepadmin(args, params);
+
+            case 'sfc':
+                return _cmdSfc(args, params);
+
+            case 'dism':
+                return _cmdDism(args, params);
+
+            case 'export-windowsdriver':
+                return _cmdExportWindowsDriver(args, params);
+
+            case 'wbadmin':
+                return _cmdWbadmin(args, params);
 
             // ─────────────────────────────────────────────────────────────────
             // Pipeline / Formatting Commands
@@ -3390,6 +3500,9 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             // ─────────────────────────────────────────────────────────────────
             case 'docker':
                 return _cmdDocker(args);
+
+            case 'docker-compose':
+                return _cmdDockerCompose(args);
 
             // ─────────────────────────────────────────────────────────────────
             // Unrecognized Command
@@ -5374,6 +5487,134 @@ MacAddressMinimum                   : 00155D000000
 NumaSpanningEnabled                 : True`;
     }
 
+    /**
+     * Measure-VM - Measure VM resource usage
+     */
+    function _cmdMeasureVM(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Measure-VM : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        const vm = state.vms[name];
+        if (!vm) {
+            return `<span class="ps-error">Measure-VM : Cannot find virtual machine '${name}'.</span>`;
+        }
+        return `
+VMName               : ${name}
+AvgCPU(%)            : 12
+AvgRAM(M)            : 1842
+MaxRAM(M)            : 2048
+MinRAM(M)            : 1024
+TotalDisk(M)         : 40960
+AggregatedDiskDataRead  : 245 MB
+AggregatedDiskDataWritten: 128 MB
+NetworkInbound(M)    : 52
+NetworkOutbound(M)   : 38
+MeteringDuration     : 1.02:15:30`;
+    }
+
+    /**
+     * Set-VM - Configure VM settings
+     */
+    function _cmdSetVM(args, params) {
+        const name = params.Name || params.VMName || args[0];
+        if (!name) {
+            return `<span class="ps-error">Set-VM : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        const vm = state.vms[name];
+        if (!vm) {
+            return `<span class="ps-error">Set-VM : Cannot find virtual machine '${name}'.</span>`;
+        }
+        if (params.ProcessorCount) vm.ProcessorCount = parseInt(params.ProcessorCount);
+        if (params.DynamicMemoryEnabled) vm.DynamicMemoryEnabled = params.DynamicMemoryEnabled;
+        if (params.Notes) vm.Notes = params.Notes;
+        return '';
+    }
+
+    /**
+     * Set-VMMemory - Configure VM memory settings
+     */
+    function _cmdSetVMMemory(args, params) {
+        const name = params.VMName || args[0];
+        if (!name) {
+            return `<span class="ps-error">Set-VMMemory : Cannot bind argument to parameter 'VMName'.</span>`;
+        }
+        const vm = state.vms[name];
+        if (!vm) {
+            return `<span class="ps-error">Set-VMMemory : Cannot find virtual machine '${name}'.</span>`;
+        }
+        return '';
+    }
+
+    /**
+     * New-VHD - Create a virtual hard disk
+     */
+    function _cmdNewVHD(args, params) {
+        const path = params.Path || args[0];
+        const size = params.SizeBytes || params.Size || '60GB';
+        if (!path) {
+            return `<span class="ps-error">New-VHD : Cannot bind argument to parameter 'Path'.</span>`;
+        }
+        const isDynamic = args.some(a => a.toLowerCase() === '-dynamic') || params.Dynamic;
+        return `
+VhdFormat             : VHDX
+VhdType               : ${isDynamic ? 'Dynamic' : 'Fixed'}
+FileSize              : 4194304
+Path                  : ${path}
+MinimumSize           :
+ParentPath            :
+Size                  : ${size}`;
+    }
+
+    /**
+     * Add-VMHardDiskDrive - Attach VHD to VM
+     */
+    function _cmdAddVMHardDiskDrive(args, params) {
+        const vmName = params.VMName || args[0];
+        const path = params.Path;
+        if (!vmName) {
+            return `<span class="ps-error">Add-VMHardDiskDrive : Cannot bind argument to parameter 'VMName'.</span>`;
+        }
+        const vm = state.vms[vmName];
+        if (!vm) {
+            return `<span class="ps-error">Add-VMHardDiskDrive : Cannot find virtual machine '${vmName}'.</span>`;
+        }
+        return '';
+    }
+
+    /**
+     * Set-VMNetworkAdapter - Configure VM network adapter
+     */
+    function _cmdSetVMNetworkAdapter(args, params) {
+        const vmName = params.VMName || args[0];
+        const switchName = params.SwitchName;
+        if (!vmName) {
+            return `<span class="ps-error">Set-VMNetworkAdapter : Cannot bind argument to parameter 'VMName'.</span>`;
+        }
+        const vm = state.vms[vmName];
+        if (!vm) {
+            return `<span class="ps-error">Set-VMNetworkAdapter : Cannot find virtual machine '${vmName}'.</span>`;
+        }
+        if (switchName) vm.SwitchName = switchName;
+        return '';
+    }
+
+    /**
+     * Export-VM - Export a virtual machine
+     */
+    function _cmdExportVM(args, params) {
+        const name = params.Name || args[0];
+        const path = params.Path || 'D:\\Backups';
+        if (!name) {
+            return `<span class="ps-error">Export-VM : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        const vm = state.vms[name];
+        if (!vm) {
+            return `<span class="ps-error">Export-VM : Cannot find virtual machine '${name}'.</span>`;
+        }
+        return `<span class="ps-success">Virtual machine '${name}' exported to '${path}'.</span>`;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // FAILOVER CLUSTER COMMANDS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -5553,6 +5794,118 @@ Cluster Name                  Online  Cluster Group        Network Name
 File Share Witness            Online  Cluster Group        File Share Witness
 SQL Server (MSSQLSERVER)      Online  SQL-AG               SQL Server
 File Server                   Online  File Share           File Server`;
+    }
+
+    /**
+     * Test-Cluster - Validate cluster configuration
+     */
+    function _cmdTestCluster(args, params) {
+        const nodes = params.Node || args.join(',');
+        return `<span class="ps-success">Validating cluster configuration...
+
+Test                       Result  Description
+----                       ------  -----------
+Network                    Pass    Validate network communication
+Storage                    Pass    Validate disks
+System Configuration       Pass    Validate system configuration
+Hyper-V Configuration      Pass    Validate Hyper-V requirements
+Inventory                  Pass    Validate hardware and software inventory
+
+Validation report saved to: C:\\Windows\\Cluster\\Reports\\Validation Report ${new Date().toISOString().split('T')[0]}.htm
+
+All tests passed. The cluster is ready to be created.</span>`;
+    }
+
+    /**
+     * New-Cluster - Create a new failover cluster
+     */
+    function _cmdNewCluster(args, params) {
+        const name = params.Name || args[0];
+        const staticAddr = params.StaticAddress;
+        if (!name) {
+            return `<span class="ps-error">New-Cluster : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        clusterState.name = name;
+        return `<span class="ps-success">
+Name                        : ${name}
+Domain                      : ${config.domain}
+StaticAddress               : ${staticAddr || '10.0.1.100'}
+
+Cluster '${name}' created successfully.</span>`;
+    }
+
+    /**
+     * Add-ClusterNode - Add a node to the cluster
+     */
+    function _cmdAddClusterNode(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Add-ClusterNode : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        clusterState.nodes.push({ Name: name, State: 'Up', Cluster: clusterState.name });
+        return `<span class="ps-success">Node '${name}' added to cluster '${clusterState.name}'.</span>`;
+    }
+
+    /**
+     * Set-ClusterQuorum - Configure cluster quorum
+     */
+    function _cmdSetClusterQuorum(args, params) {
+        const witness = params.FileShareWitness || params.DiskWitness;
+        if (params.FileShareWitness) {
+            clusterState.quorum = 'NodeAndFileShareMajority';
+            return `<span class="ps-success">Quorum configured: NodeAndFileShareMajority
+File Share Witness: ${witness}</span>`;
+        }
+        if (params.DiskWitness) {
+            clusterState.quorum = 'NodeAndDiskMajority';
+            return `<span class="ps-success">Quorum configured: NodeAndDiskMajority
+Disk Witness: ${witness}</span>`;
+        }
+        return `<span class="ps-success">Quorum configuration updated.</span>`;
+    }
+
+    /**
+     * Get-ClusterSharedVolume - List cluster shared volumes
+     */
+    function _cmdGetClusterSharedVolume(args, params) {
+        return `
+Name                 State    Node
+----                 -----    ----
+Cluster Disk 1       Online   NODE01
+Cluster Disk 2       Online   NODE02
+
+SharedVolumeInfo:
+  FriendlyVolumeName : C:\\ClusterStorage\\Volume1
+  Maintenance        : False
+  FaultState         : NoFaults
+  RedirectedAccess   : False`;
+    }
+
+    /**
+     * Suspend-ClusterNode - Pause a cluster node for maintenance
+     */
+    function _cmdSuspendClusterNode(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Suspend-ClusterNode : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        const node = clusterState.nodes.find(n => n.Name === name);
+        if (node) node.State = 'Paused';
+        const drain = args.some(a => a.toLowerCase() === '-drain') || params.Drain;
+        return `<span class="ps-success">Node '${name}' paused.${drain ? ' Draining roles to other nodes...\nAll roles drained successfully.' : ''}</span>`;
+    }
+
+    /**
+     * Resume-ClusterNode - Resume a paused cluster node
+     */
+    function _cmdResumeClusterNode(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Resume-ClusterNode : Cannot bind argument to parameter 'Name'.</span>`;
+        }
+        const node = clusterState.nodes.find(n => n.Name === name);
+        if (node) node.State = 'Up';
+        return `<span class="ps-success">Node '${name}' resumed.</span>`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -5887,19 +6240,647 @@ Server: Docker Engine - Enterprise
  API version:       1.41
  OS/Arch:           windows/amd64`;
 
+            case 'info':
+                return `Client:
+ Context:    default
+ Debug Mode: false
+
+Server:
+ Containers: 3
+  Running: 1
+  Paused: 0
+  Stopped: 2
+ Images: 5
+ Server Version: 20.10.21
+ Storage Driver: windowsfilter
+ Kernel Version: 10.0 20348 (20348.1.amd64fre.fe_release.210507-1500)
+ Operating System: Windows Server 2022 Standard
+ OSType: windows
+ Architecture: x86_64
+ CPUs: 4
+ Total Memory: 16GiB`;
+
+            case 'build': {
+                const tagIdx = args.indexOf('-t');
+                const tag = tagIdx !== -1 && args[tagIdx + 1] ? args[tagIdx + 1] : 'myapp:latest';
+                return `<span class="ps-success">Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM mcr.microsoft.com/windows/servercore:ltsc2022
+ ---> f7c8d9e0a1b2
+Step 2/4 : COPY . /app
+ ---> Using cache
+ ---> a1b2c3d4e5f6
+Step 3/4 : WORKDIR /app
+ ---> Running in 7b8c9d0e1f2a
+ ---> b2c3d4e5f6a7
+Step 4/4 : CMD ["powershell", "Start-Process"]
+ ---> Running in 8c9d0e1f2a3b
+ ---> c3d4e5f6a7b8
+Successfully built c3d4e5f6a7b8
+Successfully tagged ${tag}</span>`;
+            }
+
+            case 'inspect': {
+                const container = args[1] || 'web01';
+                return `[
+    {
+        "Id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+        "Created": "2026-02-08T08:00:00.000Z",
+        "State": { "Status": "running", "Running": true, "Pid": 4128 },
+        "Name": "/${container}",
+        "Image": "mcr.microsoft.com/iis:latest",
+        "NetworkSettings": {
+            "IPAddress": "172.17.0.2",
+            "Ports": { "80/tcp": [{ "HostPort": "8080" }] }
+        }
+    }
+]`;
+            }
+
+            case 'network': {
+                const netSub = args[1];
+                if (netSub === 'create') {
+                    const netName = args[args.length - 1] || 'app-network';
+                    return `<span class="ps-success">${Math.random().toString(36).substr(2, 64)}
+Network '${netName}' created.</span>`;
+                }
+                if (netSub === 'ls') {
+                    return `NETWORK ID     NAME           DRIVER    SCOPE
+a1b2c3d4e5f6   nat            nat       local
+b2c3d4e5f6a7   none           null      local
+c3d4e5f6a7b8   app-network    nat       local`;
+                }
+                return `Usage: docker network [create|ls|rm|inspect]`;
+            }
+
+            case 'volume': {
+                const volSub = args[1];
+                if (volSub === 'create') {
+                    const volName = args[2] || 'data-volume';
+                    return `<span class="ps-success">${volName}</span>`;
+                }
+                if (volSub === 'ls') {
+                    return `DRIVER    VOLUME NAME
+local     sql-data
+local     app-config`;
+                }
+                return `Usage: docker volume [create|ls|rm|inspect]`;
+            }
+
             default:
                 return `Usage:  docker [OPTIONS] COMMAND
 
 Commands:
-  ps          List containers
+  build       Build an image from a Dockerfile
   images      List images
+  info        Display system information
+  inspect     Return container details
+  logs        Fetch container logs
+  network     Manage networks
+  ps          List containers
   pull        Pull an image
+  rm          Remove a container
   run         Run a container
   stop        Stop a container
-  rm          Remove a container
-  logs        Fetch container logs
-  version     Show version info`;
+  version     Show version info
+  volume      Manage volumes`;
         }
+    }
+
+    /**
+     * docker-compose - Docker Compose commands
+     */
+    function _cmdDockerCompose(args) {
+        const sub = args[0];
+        if (sub === 'up') {
+            return `<span class="ps-success">Creating network "app_default" with the default driver
+Creating app_web_1   ... done
+Creating app_db_1    ... done
+Creating app_cache_1 ... done</span>`;
+        }
+        if (sub === 'down') {
+            return `<span class="ps-success">Stopping app_web_1   ... done
+Stopping app_db_1    ... done
+Stopping app_cache_1 ... done
+Removing app_web_1   ... done
+Removing app_db_1    ... done
+Removing app_cache_1 ... done
+Removing network app_default</span>`;
+        }
+        if (sub === 'ps') {
+            return `     Name                   Command               State           Ports
+------------------------------------------------------------------------
+app_web_1     powershell -Command ...   Up      0.0.0.0:8080->80/tcp
+app_db_1      sqlservr                  Up      1433/tcp
+app_cache_1   redis-server              Up      6379/tcp`;
+        }
+        return `Usage: docker-compose [up|down|ps|logs|build]`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NETWORK ADDITIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get-NetTCPConnection - View active TCP connections
+     */
+    function _cmdGetNetTCPConnection(args, params) {
+        const stateFilter = params.State;
+        const rows = [
+            { LocalAddress: '192.168.1.10', LocalPort: '445', RemoteAddress: '192.168.1.20', RemotePort: '52341', State: 'Established', OwningProcess: '4' },
+            { LocalAddress: '192.168.1.10', LocalPort: '3389', RemoteAddress: '192.168.1.50', RemotePort: '49821', State: 'Established', OwningProcess: '1032' },
+            { LocalAddress: '192.168.1.10', LocalPort: '5985', RemoteAddress: '192.168.1.20', RemotePort: '50123', State: 'Established', OwningProcess: '4' },
+            { LocalAddress: '0.0.0.0', LocalPort: '80', RemoteAddress: '0.0.0.0', RemotePort: '0', State: 'Listen', OwningProcess: '2548' },
+            { LocalAddress: '0.0.0.0', LocalPort: '135', RemoteAddress: '0.0.0.0', RemotePort: '0', State: 'Listen', OwningProcess: '876' },
+            { LocalAddress: '192.168.1.10', LocalPort: '389', RemoteAddress: '192.168.1.11', RemotePort: '53124', State: 'Established', OwningProcess: '612' },
+            { LocalAddress: '192.168.1.10', LocalPort: '52400', RemoteAddress: '10.0.0.1', RemotePort: '443', State: 'TimeWait', OwningProcess: '0' },
+        ];
+        const filtered = stateFilter ? rows.filter(r => r.State.toLowerCase() === stateFilter.toLowerCase()) : rows;
+        let output = `\nLocalAddress    LocalPort  RemoteAddress   RemotePort  State         OwningProcess\n`;
+        output += `------------    ---------  -------------   ----------  -----         -------------\n`;
+        for (const r of filtered) {
+            output += `${r.LocalAddress.padEnd(16)}${r.LocalPort.padEnd(11)}${r.RemoteAddress.padEnd(16)}${r.RemotePort.padEnd(12)}${r.State.padEnd(14)}${r.OwningProcess}\n`;
+        }
+        return output;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MONITORING & DIAGNOSTICS COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get-WinEvent - Modern event log query
+     */
+    function _cmdGetWinEvent(args, params) {
+        const logName = params.LogName || 'System';
+        const maxEvents = parseInt(params.MaxEvents) || 20;
+        const filterHash = params.FilterHashtable;
+
+        const events = [
+            { TimeCreated: '2/8/2026 10:15:32 AM', Id: 7036, Level: 'Information', LevelDisplayName: 'Information', ProviderName: 'Service Control Manager', Message: 'The Windows Time service entered the running state.' },
+            { TimeCreated: '2/8/2026 10:12:01 AM', Id: 263, Level: 'Warning', LevelDisplayName: 'Warning', ProviderName: 'Win32k', Message: 'Display driver stopped responding and has recovered.' },
+            { TimeCreated: '2/8/2026 09:58:44 AM', Id: 6013, Level: 'Information', LevelDisplayName: 'Information', ProviderName: 'EventLog', Message: 'The system uptime is 259200 seconds.' },
+            { TimeCreated: '2/8/2026 08:30:15 AM', Id: 5719, Level: 'Error', LevelDisplayName: 'Error', ProviderName: 'NETLOGON', Message: 'No Windows NT Domain Controller is available for domain.' },
+            { TimeCreated: '2/7/2026 22:10:03 PM', Id: 11, Level: 'Error', LevelDisplayName: 'Error', ProviderName: 'Disk', Message: 'The driver detected a controller error on \\Device\\Harddisk1.' },
+            { TimeCreated: '2/7/2026 20:00:00 PM', Id: 4625, Level: 'Information', LevelDisplayName: 'Information', ProviderName: 'Microsoft-Windows-Security-Auditing', Message: 'An account failed to log on.' },
+            { TimeCreated: '2/7/2026 19:45:00 PM', Id: 4625, Level: 'Information', LevelDisplayName: 'Information', ProviderName: 'Microsoft-Windows-Security-Auditing', Message: 'An account failed to log on.' },
+            { TimeCreated: '2/7/2026 18:30:00 PM', Id: 1014, Level: 'Warning', LevelDisplayName: 'Warning', ProviderName: 'DNS Client Events', Message: 'Name resolution timed out after none of the DNS servers responded.' },
+        ];
+
+        let filtered = events;
+        // Simple filtering for -FilterHashtable or pipe patterns
+        const rawArgs = args.join(' ').toLowerCase();
+        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"')) {
+            filtered = events.filter(e => e.LevelDisplayName === 'Error');
+        }
+        if (rawArgs.includes('4625')) {
+            filtered = events.filter(e => e.Id === 4625);
+        }
+        if (rawArgs.includes('security')) {
+            filtered = events.filter(e => e.ProviderName.includes('Security'));
+        }
+
+        const limited = filtered.slice(0, maxEvents);
+        let output = `\nTimeCreated                  Id  LevelDisplayName  ProviderName                              Message\n`;
+        output += `-----------                  --  ----------------  ------------                              -------\n`;
+        for (const e of limited) {
+            output += `${e.TimeCreated.padEnd(29)}${String(e.Id).padEnd(4)}${e.LevelDisplayName.padEnd(18)}${e.ProviderName.substring(0, 42).padEnd(42)}${e.Message.substring(0, 50)}\n`;
+        }
+        return output;
+    }
+
+    /**
+     * Get-Counter - Performance counter monitoring
+     */
+    function _cmdGetCounter(args, params) {
+        const counter = args[0] || params.Counter || '';
+        const counterLower = counter.toLowerCase().replace(/['"]/g, '');
+
+        if (counterLower.includes('processor')) {
+            return `
+Timestamp                 CounterSamples
+---------                 --------------
+2/8/2026 10:15:32 AM      \\\\${config.hostname}\\Processor(_Total)\\% Processor Time :
+                          23.4521`;
+        }
+        if (counterLower.includes('memory')) {
+            return `
+Timestamp                 CounterSamples
+---------                 --------------
+2/8/2026 10:15:32 AM      \\\\${config.hostname}\\Memory\\Available MBytes :
+                          6842`;
+        }
+        if (counterLower.includes('disk')) {
+            return `
+Timestamp                 CounterSamples
+---------                 --------------
+2/8/2026 10:15:32 AM      \\\\${config.hostname}\\PhysicalDisk(_Total)\\Current Disk Queue Length :
+                          0`;
+        }
+
+        return `
+Timestamp                 CounterSamples
+---------                 --------------
+2/8/2026 10:15:32 AM      \\\\${config.hostname}\\${counter} :
+                          42.17`;
+    }
+
+    /**
+     * Get-WmiObject - WMI queries
+     */
+    function _cmdGetWmiObject(args, params) {
+        const className = params.Class || args[0] || '';
+        const classLower = className.toLowerCase();
+
+        if (classLower === 'win32_operatingsystem') {
+            return `
+Caption                  : Microsoft Windows Server 2022 Standard
+Version                  : 10.0.20348
+FreePhysicalMemory       : 6842368
+TotalVisibleMemorySize   : 16777216
+LastBootUpTime           : 20260205081532.500000-480
+SystemDirectory          : C:\\Windows\\system32`;
+        }
+        if (classLower === 'win32_logicaldisk') {
+            return `
+DeviceID     Size            FreeSpace
+--------     ----            ---------
+C:           107374182400    64424509440
+D:           214748364800    171798691840
+E:           53687091200     48318382080`;
+        }
+        if (classLower === 'win32_computersystem') {
+            return `
+Domain              : ${config.domain}
+Manufacturer        : Dell Inc.
+Model               : PowerEdge R740
+Name                : ${config.hostname}
+NumberOfProcessors  : 2
+TotalPhysicalMemory : 17179869184`;
+        }
+
+        return `<span class="ps-error">Get-WmiObject : Invalid class "${className}"</span>`;
+    }
+
+    /**
+     * Start-Transcript - Begin recording session
+     */
+    function _cmdStartTranscript(args, params) {
+        const path = params.Path || 'C:\\Users\\Administrator\\Documents\\PowerShell_transcript.txt';
+        return `<span class="ps-success">Transcript started, output file is ${path}</span>`;
+    }
+
+    /**
+     * Measure-Command - Benchmark command execution time
+     */
+    function _cmdMeasureCommand(args, params) {
+        const ms = Math.floor(Math.random() * 500) + 50;
+        return `
+Days              : 0
+Hours             : 0
+Minutes           : 0
+Seconds           : 0
+Milliseconds      : ${ms}
+Ticks             : ${ms * 10000}
+TotalDays         : ${(ms / 86400000).toFixed(10)}
+TotalHours        : ${(ms / 3600000).toFixed(8)}
+TotalMinutes      : ${(ms / 60000).toFixed(6)}
+TotalSeconds      : ${(ms / 1000).toFixed(4)}
+TotalMilliseconds : ${ms}`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUTOMATION & REMOTING COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Export-Csv - Export pipeline data to CSV
+     */
+    function _cmdExportCsv(args, params, pipeInput) {
+        const path = params.Path || args[0] || 'output.csv';
+        return `<span class="ps-success">Data exported to ${path}</span>`;
+    }
+
+    /**
+     * Import-Csv - Import data from CSV
+     */
+    function _cmdImportCsv(args, params) {
+        const path = params.Path || args[0] || 'data.csv';
+        return `
+Name          Id    CPU(s)    WorkingSet
+----          --    ------    ----------
+svchost       4012  184.33    301244
+ServerManager 2548  72.08     93180
+lsass         876   31.55     58432
+csrss         512   12.20     15360`;
+    }
+
+    /**
+     * Register-ScheduledTask - Create a scheduled task
+     */
+    function _cmdRegisterScheduledTask(args, params) {
+        const taskName = params.TaskName || 'NewTask';
+        return `<span class="ps-success">
+TaskPath    TaskName                          State
+--------    --------                          -----
+\\           ${taskName.padEnd(34)}Ready</span>`;
+    }
+
+    /**
+     * Get-ScheduledTask - List scheduled tasks
+     */
+    function _cmdGetScheduledTask(args, params) {
+        const taskName = params.TaskName;
+        if (taskName) {
+            return `
+TaskPath    TaskName                          State
+--------    --------                          -----
+\\           ${taskName.padEnd(34)}Ready`;
+        }
+        return `
+TaskPath    TaskName                          State
+--------    --------                          -----
+\\           DailyBackup                       Ready
+\\           WeeklyMaintenance                 Ready
+\\           SecurityScan                      Running
+\\Microsoft  .NET Framework NGEN v4.0.30319    Ready
+\\Microsoft  Consolidator                      Ready`;
+    }
+
+    /**
+     * Invoke-Command - Execute command on remote computer
+     */
+    function _cmdInvokeCommand(args, params) {
+        const computer = params.ComputerName || 'localhost';
+        return `
+Status   Name               DisplayName                    PSComputerName
+------   ----               -----------                    --------------
+Running  W32Time            Windows Time                   ${computer}
+Running  DNS                DNS Server                     ${computer}
+Running  Spooler            Print Spooler                  ${computer}
+Running  WinRM              Windows Remote Management      ${computer}`;
+    }
+
+    /**
+     * New-PSSession - Create persistent remote session
+     */
+    function _cmdNewPSSession(args, params) {
+        const computer = params.ComputerName || args[0] || 'SERVER01';
+        const computers = computer.split(',').map(c => c.trim());
+        let output = `\n Id  Name            ComputerName    ComputerType  State    ConfigurationName\n`;
+        output += ` --  ----            ------------    ------------  -----    -----------------\n`;
+        computers.forEach((c, i) => {
+            output += `  ${i + 1}  WinRM${i + 1}          ${c.padEnd(16)}RemoteMachine Running  Microsoft.PowerShell\n`;
+        });
+        return output;
+    }
+
+    /**
+     * ForEach-Object - Process each pipeline object
+     */
+    function _cmdForEachObject(args, params, pipeInput) {
+        if (pipeInput) {
+            return pipeInput;
+        }
+        return '';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SYSTEM DIAGNOSTIC UTILITIES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * dcdiag - Domain Controller diagnostics
+     */
+    function _cmdDcdiag(args, params) {
+        const verbose = args.some(a => a.toLowerCase() === '/v');
+        let output = `Directory Server Diagnosis
+
+Performing initial setup:
+   Trying to find home server...
+   Home Server = ${config.hostname}
+   * Identified AD Forest.
+   Done gathering initial info.
+
+Doing initial required tests
+
+   Testing server: Default-First-Site-Name\\${config.hostname}
+      Starting test: Connectivity
+         ......................... ${config.hostname} passed test Connectivity
+      Starting test: Advertising
+         ......................... ${config.hostname} passed test Advertising
+      Starting test: FrsEvent
+         ......................... ${config.hostname} passed test FrsEvent
+      Starting test: DFSREvent
+         ......................... ${config.hostname} passed test DFSREvent
+      Starting test: SysVolCheck
+         ......................... ${config.hostname} passed test SysVolCheck
+      Starting test: KccEvent
+         ......................... ${config.hostname} passed test KccEvent
+      Starting test: KnowsOfRoleHolders
+         ......................... ${config.hostname} passed test KnowsOfRoleHolders
+      Starting test: MachineAccount
+         ......................... ${config.hostname} passed test MachineAccount
+      Starting test: NCSecDesc
+         ......................... ${config.hostname} passed test NCSecDesc
+      Starting test: NetLogons
+         ......................... ${config.hostname} passed test NetLogons
+      Starting test: ObjectsReplicated
+         ......................... ${config.hostname} passed test ObjectsReplicated
+      Starting test: Replications
+         ......................... ${config.hostname} passed test Replications
+      Starting test: RidManager
+         ......................... ${config.hostname} passed test RidManager
+      Starting test: Services
+         ......................... ${config.hostname} passed test Services`;
+        return output;
+    }
+
+    /**
+     * repadmin - AD replication administration
+     */
+    function _cmdRepadmin(args, params) {
+        const sub = (args[0] || '').toLowerCase().replace('/', '');
+
+        if (sub === 'replsummary') {
+            return `
+Replication Summary Start Time: ${new Date().toISOString()}
+
+Beginning data collection for replication summary, this may take awhile:
+  Source DSA          largest delta    fails/total %%   error
+  ${config.hostname}        15m:12s          0 /   5    0
+  DC02                22m:45s          0 /   5    0
+
+Destination DSA     largest delta    fails/total %%   error
+  ${config.hostname}        15m:12s          0 /   5    0
+  DC02                22m:45s          0 /   5    0`;
+        }
+        if (sub === 'showrepl') {
+            return `
+Repadmin: running command /showrepl against full DC localhost
+Default-First-Site-Name\\${config.hostname}
+DSA Options: IS_GC
+Site Options: (none)
+DSA object GUID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+DSA invocationID: b2c3d4e5-f6a7-8901-bcde-f12345678901
+
+==== INBOUND NEIGHBORS ====================================
+
+DC=hexworth,DC=local
+    Default-First-Site-Name\\DC02 via RPC
+        DSA object GUID: c3d4e5f6-a7b8-9012-cdef-123456789012
+        Last attempt @ ${new Date().toISOString()} was successful.`;
+        }
+        if (sub === 'syncall') {
+            return `<span class="ps-success">Syncing all NC's held on ${config.hostname}.
+Syncing partition: DC=hexworth,DC=local
+CALLBACK MESSAGE: The following replication completed successfully:
+From: DC02
+To  : ${config.hostname}
+
+SyncAll terminated with no errors.</span>`;
+        }
+        if (sub === 'kcc') {
+            return `<span class="ps-success">Consistency check on ${config.hostname} successful.
+KCC has verified and if necessary updated the replication topology.</span>`;
+        }
+
+        return `Usage: repadmin /replsummary | /showrepl | /syncall | /kcc`;
+    }
+
+    /**
+     * sfc - System File Checker
+     */
+    function _cmdSfc(args, params) {
+        const sub = (args[0] || '').toLowerCase().replace('/', '');
+        if (sub === 'scannow') {
+            return `<span class="ps-success">
+Beginning system scan.  This process will take some time.
+
+Beginning verification phase of system scan.
+Verification 100% complete.
+
+Windows Resource Protection did not find any integrity violations.</span>`;
+        }
+        if (sub === 'verifyonly') {
+            return `<span class="ps-success">
+Beginning system scan.  This process will take some time.
+
+Verification 100% complete.
+
+Windows Resource Protection did not find any integrity violations.</span>`;
+        }
+        return `Usage: sfc /scannow | /verifyonly`;
+    }
+
+    /**
+     * DISM - Deployment Image Servicing and Management
+     */
+    function _cmdDism(args, params) {
+        const rawArgs = args.join(' ').toLowerCase();
+        if (rawArgs.includes('checkhealth')) {
+            return `<span class="ps-success">
+Deployment Image Servicing and Management tool
+Version: 10.0.20348.1
+
+Image Version: 10.0.20348.2849
+
+The component store is repairable.
+The operation completed successfully.</span>`;
+        }
+        if (rawArgs.includes('restorehealth')) {
+            return `<span class="ps-success">
+Deployment Image Servicing and Management tool
+Version: 10.0.20348.1
+
+Image Version: 10.0.20348.2849
+
+[==========================100.0%==========================]
+The restore operation completed successfully.
+The operation completed successfully.</span>`;
+        }
+        if (rawArgs.includes('scanhealth')) {
+            return `<span class="ps-success">
+Deployment Image Servicing and Management tool
+Version: 10.0.20348.1
+
+Image Version: 10.0.20348.2849
+
+No component store corruption detected.
+The operation completed successfully.</span>`;
+        }
+        return `Usage: DISM /Online /Cleanup-Image /CheckHealth | /ScanHealth | /RestoreHealth`;
+    }
+
+    /**
+     * Export-WindowsDriver - Export installed drivers
+     */
+    function _cmdExportWindowsDriver(args, params) {
+        const destination = params.Destination || args.find(a => !a.startsWith('-')) || 'D:\\DriverBackup';
+        const online = args.some(a => a.toLowerCase() === '-online') || params.Online;
+        return `<span class="ps-success">
+Exporting drivers from ${online ? 'running OS' : 'image'}...
+
+Driver: oem0.inf
+Original File Name: oem0.inf
+Provider Name: Intel Corporation
+Class Name: Net
+Date and Version: 02/01/2026
+
+Driver: oem1.inf
+Original File Name: oem1.inf
+Provider Name: Microsoft
+Class Name: Display
+Date and Version: 01/15/2026
+
+Driver: oem2.inf
+Original File Name: oem2.inf
+Provider Name: Realtek
+Class Name: Media
+Date and Version: 12/20/2025
+
+Exported 14 driver packages to: ${destination}</span>`;
+    }
+
+    /**
+     * wbadmin - Windows Server Backup command-line tool
+     */
+    function _cmdWbadmin(args, params) {
+        const rawArgs = args.join(' ').toLowerCase();
+        if (rawArgs.includes('start systemstatebackup')) {
+            const target = rawArgs.match(/-backuptarget:(\S+)/)?.[1] || 'D:';
+            return `<span class="ps-success">wbadmin 1.0 - Backup command-line tool
+(C) Copyright Microsoft Corporation.
+
+Starting system state backup...
+Creating VSS snapshot...
+Identifying component information...
+Starting backup of System State to ${target} ...
+Backup of system state completed successfully [${new Date().toISOString()}]</span>`;
+        }
+        if (rawArgs.includes('get versions')) {
+            return `
+wbadmin 1.0 - Backup command-line tool
+(C) Copyright Microsoft Corporation.
+
+Backup time: 2/8/2026 2:00 AM
+Backup location: D:
+Version identifier: 02/08/2026-10:00
+Can recover: Application(s), System State
+
+Backup time: 2/7/2026 2:00 AM
+Backup location: D:
+Version identifier: 02/07/2026-10:00
+Can recover: Application(s), System State`;
+        }
+        if (rawArgs.includes('get status')) {
+            return `
+wbadmin 1.0 - Backup command-line tool
+(C) Copyright Microsoft Corporation.
+
+No backup is currently running.
+Last backup: 2/8/2026 2:00 AM (Successful)`;
+        }
+        return `Usage: wbadmin start systemstatebackup -backupTarget:<volume> | get versions | get status`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -6086,6 +7067,11 @@ Commands:
             'Set-Service',
             'Get-EventLog',
             'Get-WinEvent',
+            'Get-Counter',
+            'Get-WmiObject',
+            'Start-Transcript',
+            'Stop-Transcript',
+            'Measure-Command',
             'Rename-Computer',
             'Restart-Computer',
             'Stop-Computer',
@@ -6246,6 +7232,7 @@ Commands:
             'Suspend-VM',
             'Resume-VM',
             'Save-VM',
+            'Measure-VM',
             'Get-VMHost',
             'Set-VMHost',
             'Get-VMSwitch',
@@ -6253,12 +7240,15 @@ Commands:
             'Remove-VMSwitch',
             'Set-VMSwitch',
             'Get-VMNetworkAdapter',
+            'Set-VMNetworkAdapter',
             'Add-VMNetworkAdapter',
+            'Set-VMMemory',
             'Get-VHD',
             'New-VHD',
             'Resize-VHD',
             'Mount-VHD',
             'Dismount-VHD',
+            'Add-VMHardDiskDrive',
             'Checkpoint-VM',
             'Get-VMCheckpoint',
             'Restore-VMCheckpoint',
@@ -6305,6 +7295,8 @@ Commands:
             'Set-ClusterQuorum',
             'Get-ClusterSharedVolume',
             'Test-Cluster',
+            'Suspend-ClusterNode',
+            'Resume-ClusterNode',
         ],
 
         // ─────────────────────────────────────────────────────────────────────
@@ -6317,6 +7309,7 @@ Commands:
             'Get-NetIPAddress',
             'Get-NetIPConfiguration',
             'Get-NetRoute',
+            'Get-NetTCPConnection',
             'New-NetIPAddress',
             'Remove-NetIPAddress',
             'Set-NetIPAddress',
@@ -6324,6 +7317,12 @@ Commands:
             'Set-DnsClientServerAddress',
             'Resolve-DnsName',
             'Clear-DnsClientCache',
+            'New-NetFirewallRule',
+            'Get-NetFirewallRule',
+            'Get-NetFirewallProfile',
+            'Set-NetFirewallProfile',
+            'New-NetLbfoTeam',
+            'New-NetNat',
         ],
 
         // ─────────────────────────────────────────────────────────────────────
@@ -6368,10 +7367,59 @@ Commands:
         ],
 
         // ─────────────────────────────────────────────────────────────────────
+        // Automation & Remoting Commands
+        // ─────────────────────────────────────────────────────────────────────
+        automation: [
+            'Export-Csv',
+            'Import-Csv',
+            'ConvertTo-Csv',
+            'Register-ScheduledTask',
+            'Get-ScheduledTask',
+            'Unregister-ScheduledTask',
+            'Invoke-Command',
+            'New-PSSession',
+            'Enter-PSSession',
+            'Exit-PSSession',
+            'Remove-PSSession',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // System Diagnostics & Migration
+        // ─────────────────────────────────────────────────────────────────────
+        diagnostics: [
+            'dcdiag',
+            'repadmin',
+            'sfc',
+            'DISM',
+            'wbadmin',
+            'Export-WindowsDriver',
+            'New-WBPolicy',
+            'Start-WBBackup',
+            'Get-WBBackupSet',
+            'Get-WBSummary',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // AD Replication Commands
+        // ─────────────────────────────────────────────────────────────────────
+        adReplication: [
+            'Get-ADReplicationSite',
+            'New-ADReplicationSite',
+            'Get-ADReplicationSubnet',
+            'New-ADReplicationSubnet',
+            'Get-ADReplicationSiteLink',
+            'New-ADReplicationSiteLink',
+            'Set-ADReplicationSiteLink',
+            'Get-ADReplicationConnection',
+            'Get-ADReplicationFailure',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
         // Docker Commands (not PowerShell native, but commonly used)
         // ─────────────────────────────────────────────────────────────────────
         docker: [
             'docker',
+            'docker-compose',
         ],
     };
 
