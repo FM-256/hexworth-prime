@@ -65,21 +65,34 @@ const WSAProgress = (function() {
     }
 
     /**
+     * Check if a stored component value counts as complete
+     * Handles both true and metadata objects like { passed: true, score: 80 }
+     */
+    function _isComplete(val) {
+        return val === true || (typeof val === 'object' && val !== null);
+    }
+
+    /**
      * Mark a component as complete
      * @param {string} moduleId - e.g., 'm01', 'm02'
      * @param {string} component - 'presentation', 'guiLab', 'psLab', 'quiz'
+     * @param {object} [metadata] - optional metadata to store (e.g., { passed: true, score: 80 })
      */
-    function markComplete(moduleId, component) {
+    function markComplete(moduleId, component, metadata) {
         const cp = _getCourseProgress();
         if (cp) {
-            cp.markComponentComplete(moduleId, component);
+            cp.markComponentComplete(moduleId, component, metadata);
         } else {
             // Fallback: direct localStorage (when CourseProgress.js not loaded)
             const all = getAll();
             if (!all[moduleId]) {
                 all[moduleId] = {};
             }
-            all[moduleId][component] = true;
+            if (metadata && typeof metadata === 'object') {
+                all[moduleId][component] = metadata;
+            } else {
+                all[moduleId][component] = true;
+            }
             all[moduleId].lastUpdated = Date.now();
             saveAll(all);
         }
@@ -109,9 +122,15 @@ const WSAProgress = (function() {
 
     /**
      * Mark quiz as passed
+     * @param {string} moduleId - e.g., 'm01'
+     * @param {number} [score] - quiz score percentage (e.g., 80)
      */
-    function markQuizPassed(moduleId) {
-        markComplete(moduleId, 'quiz');
+    function markQuizPassed(moduleId, score) {
+        if (score !== undefined && score !== null) {
+            markComplete(moduleId, 'quiz', { passed: true, score: score });
+        } else {
+            markComplete(moduleId, 'quiz');
+        }
     }
 
     /**
@@ -126,7 +145,7 @@ const WSAProgress = (function() {
             return 'not-started';
         }
 
-        const completed = COMPONENTS.filter(c => progress[c] === true).length;
+        const completed = COMPONENTS.filter(c => _isComplete(progress[c])).length;
 
         if (completed >= 4) {
             return 'complete';
@@ -144,7 +163,7 @@ const WSAProgress = (function() {
      */
     function getPercentage(moduleId) {
         const progress = getModule(moduleId);
-        const completed = COMPONENTS.filter(c => progress[c] === true).length;
+        const completed = COMPONENTS.filter(c => _isComplete(progress[c])).length;
         return Math.round((completed / 4) * 100);
     }
 
