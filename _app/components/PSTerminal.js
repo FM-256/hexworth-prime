@@ -3162,6 +3162,16 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'get-eventlog':
                 return _cmdGetEventLog(args, params);
 
+            case 'get-windowsfeature':
+                return _cmdGetWindowsFeature(args, params);
+
+            case 'install-windowsfeature':
+            case 'add-windowsfeature':
+                return _cmdInstallWindowsFeature(args, params);
+
+            case 'rename-computer':
+                return _cmdRenameComputer(args, params);
+
             // ─────────────────────────────────────────────────────────────────
             // Active Directory Commands
             // ─────────────────────────────────────────────────────────────────
@@ -3334,6 +3344,15 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'resolve-dnsname':
             case 'nslookup':
                 return _cmdResolveDnsName(args, params);
+
+            case 'new-netipaddress':
+                return _cmdNewNetIPAddress(args, params);
+
+            case 'set-netipaddress':
+                return _cmdSetNetIPAddress(args, params);
+
+            case 'set-dnsclientserveraddress':
+                return _cmdSetDnsClientServerAddress(args, params);
 
             // ─────────────────────────────────────────────────────────────────
             // Pipeline / Formatting Commands
@@ -3557,8 +3576,13 @@ ${mode}          1/30/2026  10:00 AM ${size.toString().padStart(14)} ${name}`;
 <span class="ps-warning">System Info:</span>
   Get-ComputerInfo                Server details and OS info
   hostname                        Show computer name
+  Rename-Computer -NewName        Rename the computer
   Get-Date                        Show current date/time
   Get-Host                        Show PowerShell host info
+
+<span class="ps-warning">Server Roles:</span>
+  Get-WindowsFeature              List roles and features
+  Install-WindowsFeature -Name    Install a role or feature
 
 <span class="ps-warning">Services:</span>
   Get-Service                     List Windows services
@@ -3578,6 +3602,14 @@ ${mode}          1/30/2026  10:00 AM ${size.toString().padStart(14)} ${name}`;
   Get-Volume                      List volumes
   Get-SmbShare                    List SMB shares
   New-SmbShare                    Create new share
+
+<span class="ps-warning">Network:</span>
+  Get-NetIPConfiguration          View IP config summary
+  Get-NetAdapter                  List network adapters
+  New-NetIPAddress                Set a static IP address
+  Set-DnsClientServerAddress      Set DNS servers
+  Test-Connection (ping)          Test network connectivity
+  Resolve-DnsName (nslookup)      DNS lookup
 
 <span class="ps-warning">Hyper-V:</span>
   Get-VM                          List virtual machines
@@ -4079,6 +4111,110 @@ Status   Name               DisplayName
         }
 
         return output;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SERVER MANAGER / ROLE COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get-WindowsFeature - List Windows Server roles and features
+     */
+    function _cmdGetWindowsFeature(args, params) {
+        const nameFilter = params.Name || args[0];
+
+        const features = [
+            { Name: 'AD-Domain-Services', DisplayName: 'Active Directory Domain Services', Installed: true, FeatureType: 'Role' },
+            { Name: 'ADCS-Cert-Authority', DisplayName: 'Certification Authority', Installed: false, FeatureType: 'Role Service' },
+            { Name: 'ADCS-Web-Enrollment', DisplayName: 'Certification Authority Web Enrollment', Installed: false, FeatureType: 'Role Service' },
+            { Name: 'DHCP', DisplayName: 'DHCP Server', Installed: false, FeatureType: 'Role' },
+            { Name: 'DNS', DisplayName: 'DNS Server', Installed: true, FeatureType: 'Role' },
+            { Name: 'FS-FileServer', DisplayName: 'File Server', Installed: true, FeatureType: 'Role Service' },
+            { Name: 'FS-DFS-Namespace', DisplayName: 'DFS Namespaces', Installed: false, FeatureType: 'Role Service' },
+            { Name: 'FS-DFS-Replication', DisplayName: 'DFS Replication', Installed: true, FeatureType: 'Role Service' },
+            { Name: 'Hyper-V', DisplayName: 'Hyper-V', Installed: true, FeatureType: 'Role' },
+            { Name: 'NET-Framework-45-Core', DisplayName: '.NET Framework 4.8', Installed: true, FeatureType: 'Feature' },
+            { Name: 'Print-Server', DisplayName: 'Print Server', Installed: false, FeatureType: 'Role Service' },
+            { Name: 'RSAT-AD-PowerShell', DisplayName: 'Active Directory module for PowerShell', Installed: true, FeatureType: 'Feature' },
+            { Name: 'RSAT-AD-Tools', DisplayName: 'AD DS and AD LDS Tools', Installed: true, FeatureType: 'Feature' },
+            { Name: 'RSAT-DNS-Server', DisplayName: 'DNS Server Tools', Installed: true, FeatureType: 'Feature' },
+            { Name: 'RSAT-DHCP', DisplayName: 'DHCP Server Tools', Installed: false, FeatureType: 'Feature' },
+            { Name: 'Web-Server', DisplayName: 'Web Server (IIS)', Installed: false, FeatureType: 'Role' },
+            { Name: 'WDS', DisplayName: 'Windows Deployment Services', Installed: false, FeatureType: 'Role' },
+            { Name: 'Windows-Server-Backup', DisplayName: 'Windows Server Backup', Installed: false, FeatureType: 'Feature' },
+            { Name: 'WSUS', DisplayName: 'Windows Server Update Services', Installed: false, FeatureType: 'Role' },
+        ];
+
+        let filtered = features;
+        if (nameFilter) {
+            const pattern = nameFilter.toLowerCase().replace(/\*/g, '');
+            filtered = features.filter(f =>
+                f.Name.toLowerCase().includes(pattern) ||
+                f.DisplayName.toLowerCase().includes(pattern)
+            );
+        }
+
+        let output = `\nDisplay Name                                            Name                       Install State\n------------                                            ----                       -------------\n`;
+        for (const f of filtered) {
+            const marker = f.Installed ? '[X]' : '[ ]';
+            const installState = f.Installed ? 'Installed' : 'Available';
+            output += `${marker} ${f.DisplayName.padEnd(52)}${f.Name.padEnd(27)}${installState}\n`;
+        }
+
+        return output;
+    }
+
+    /**
+     * Install-WindowsFeature - Install a Windows Server role or feature
+     */
+    function _cmdInstallWindowsFeature(args, params) {
+        const name = params.Name || args[0];
+
+        if (!name) {
+            return `<span class="ps-error">Install-WindowsFeature : The 'Name' parameter is required.</span>`;
+        }
+
+        const knownFeatures = {
+            'dhcp': 'DHCP Server',
+            'dns': 'DNS Server',
+            'ad-domain-services': 'Active Directory Domain Services',
+            'hyper-v': 'Hyper-V',
+            'web-server': 'Web Server (IIS)',
+            'rsat-ad-powershell': 'Active Directory module for PowerShell',
+            'rsat-ad-tools': 'AD DS and AD LDS Tools',
+            'rsat-dhcp': 'DHCP Server Tools',
+            'windows-server-backup': 'Windows Server Backup',
+            'fs-fileserver': 'File Server',
+            'wds': 'Windows Deployment Services',
+            'wsus': 'Windows Server Update Services',
+            'print-server': 'Print Server',
+        };
+
+        const displayName = knownFeatures[name.toLowerCase()];
+        if (!displayName) {
+            return `<span class="ps-error">Install-WindowsFeature : The role, role service, or feature named '${name}' was not found.</span>`;
+        }
+
+        return `\nSuccess Restart Needed Exit Code      Feature Result\n------- -------------- ---------      --------------\nTrue    No             Success        {${displayName}}`;
+    }
+
+    /**
+     * Rename-Computer - Rename the computer
+     */
+    function _cmdRenameComputer(args, params) {
+        const newName = params.NewName || args[0];
+
+        if (!newName) {
+            return `<span class="ps-error">Rename-Computer : The 'NewName' parameter is required.</span>`;
+        }
+
+        if (newName.length > 15) {
+            return `<span class="ps-error">Rename-Computer : The new computer name '${newName}' exceeds the maximum length of 15 characters.</span>`;
+        }
+
+        const oldName = config.hostname || state.env.COMPUTERNAME || 'WIN-SRVR2022';
+
+        return `<span class="ps-warning">WARNING: The changes will take effect after you restart the computer ${oldName}.</span>`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -5546,6 +5682,69 @@ Name                           Type   TTL   Section    IPAddress
 ${name.padEnd(31)}A      300   Answer     ${ip}`;
     }
 
+    /**
+     * New-NetIPAddress - Assign a new static IP address
+     */
+    function _cmdNewNetIPAddress(args, params) {
+        const ifAlias = params.InterfaceAlias || params.InterfaceIndex || args[0];
+        const ipAddr = params.IPAddress;
+        const prefixLen = params.PrefixLength || '24';
+        const gateway = params.DefaultGateway;
+
+        if (!ipAddr) {
+            return `<span class="ps-error">New-NetIPAddress : The 'IPAddress' parameter is required.</span>`;
+        }
+
+        let output = `
+IPAddress         : ${ipAddr}
+InterfaceIndex    : ${ifAlias ? '12' : '12'}
+InterfaceAlias    : ${ifAlias || 'Ethernet'}
+AddressFamily     : IPv4
+Type              : Unicast
+PrefixLength      : ${prefixLen}
+PrefixOrigin      : Manual
+SuffixOrigin      : Manual
+AddressState      : Preferred
+PolicyStore       : ActiveStore`;
+
+        if (gateway) {
+            output += `\nDefaultGateway    : ${gateway}`;
+        }
+
+        return output;
+    }
+
+    /**
+     * Set-NetIPAddress - Modify an existing IP address configuration
+     */
+    function _cmdSetNetIPAddress(args, params) {
+        const ipAddr = params.IPAddress;
+        const ifAlias = params.InterfaceAlias || args[0];
+        const prefixLen = params.PrefixLength;
+
+        if (!ipAddr && !ifAlias) {
+            return `<span class="ps-error">Set-NetIPAddress : Either 'IPAddress' or 'InterfaceAlias' parameter is required.</span>`;
+        }
+
+        // PowerShell Set- cmdlets typically return nothing on success
+        return '';
+    }
+
+    /**
+     * Set-DnsClientServerAddress - Set DNS server addresses for an interface
+     */
+    function _cmdSetDnsClientServerAddress(args, params) {
+        const ifAlias = params.InterfaceAlias || args[0];
+        const addresses = params.ServerAddresses;
+
+        if (!ifAlias) {
+            return `<span class="ps-error">Set-DnsClientServerAddress : The 'InterfaceAlias' parameter is required.</span>`;
+        }
+
+        // PowerShell Set- cmdlets typically return nothing on success
+        return '';
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // PIPELINE / FORMATTING COMMANDS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -5887,8 +6086,20 @@ Commands:
             'Set-Service',
             'Get-EventLog',
             'Get-WinEvent',
+            'Rename-Computer',
             'Restart-Computer',
             'Stop-Computer',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Server Manager Commands (Module: ServerManager)
+        // ─────────────────────────────────────────────────────────────────────
+        serverManager: [
+            'Get-WindowsFeature',
+            'Install-WindowsFeature',
+            'Add-WindowsFeature',
+            'Uninstall-WindowsFeature',
+            'Remove-WindowsFeature',
         ],
 
         // ─────────────────────────────────────────────────────────────────────
