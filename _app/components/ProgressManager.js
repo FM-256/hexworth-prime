@@ -478,9 +478,9 @@ class ProgressManager {
             level: progress.level,
             levelProgress: this.getLevelProgress(progress.xp, progress.level),
             xpToNextLevel: this.getXPForNextLevel(progress.level) - progress.xp,
-            totalModulesCompleted: progress.completedModules.length,
-            totalQuizzesPassed: progress.quizHistory.filter(q => q.score >= 70).length,
-            totalLabsCompleted: progress.labsCompleted.length,
+            totalModulesCompleted: Array.isArray(progress.completedModules) ? progress.completedModules.length : Object.keys(progress.completedModules || {}).length,
+            totalQuizzesPassed: Array.isArray(progress.quizHistory) ? progress.quizHistory.filter(q => q.score >= 70).length : 0,
+            totalLabsCompleted: Array.isArray(progress.labsCompleted) ? progress.labsCompleted.length : Object.keys(progress.labsCompleted || {}).length,
             achievementCount: achievements.length,
             houseProgress: Object.entries(progress.houses).map(([id, house]) => ({
                 id,

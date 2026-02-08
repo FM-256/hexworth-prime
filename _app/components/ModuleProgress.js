@@ -24,6 +24,78 @@ const ModuleProgress = (function() {
     const MODULES_COMPLETED_KEY = 'hexworth_modules_completed';
     const QUIZZES_PASSED_KEY = 'hexworth_quizzes_passed';
 
+    let firestoreSyncReady = null; // Promise that resolves when deps are loaded
+
+    /**
+     * Lazy-load Firebase/Firestore dependencies and sync to instructor dashboard.
+     * Loads scripts once, caches the result, fails silently if offline or unauthenticated.
+     */
+    async function ensureFirestoreDeps() {
+        if (typeof ProgressManager !== 'undefined' && ProgressManager.syncToFirestore) {
+            return true;
+        }
+
+        // Determine components path relative to this script
+        const scripts = document.querySelectorAll('script[src*="ModuleProgress"]');
+        let basePath = '';
+        if (scripts.length > 0) {
+            const src = scripts[0].getAttribute('src');
+            basePath = src.substring(0, src.lastIndexOf('/') + 1);
+        }
+
+        const deps = [
+            'FirebaseAuth.js',
+            'FirestoreManager.js',
+            'ClassManager.js',
+            'AssignmentManager.js',
+            'ProgressManager.js'
+        ];
+
+        for (const dep of deps) {
+            if (document.querySelector(`script[src*="${dep}"]`)) continue;
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = basePath + dep;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error(`Failed to load ${dep}`));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Give FirebaseAuth time to initialize (it dynamically imports SDKs)
+        if (typeof FirebaseAuth !== 'undefined') {
+            await FirebaseAuth.init();
+        }
+
+        return typeof ProgressManager !== 'undefined' && ProgressManager.syncToFirestore;
+    }
+
+    function tryFirestoreSync(moduleId, houseId, moduleType, metadata) {
+        if (!firestoreSyncReady) {
+            firestoreSyncReady = ensureFirestoreDeps().catch(() => false);
+        }
+
+        // Return a promise so callers can wait for sync before redirecting
+        return firestoreSyncReady.then(ready => {
+            if (!ready) {
+                console.warn('[ModuleProgress] Firestore deps not available, sync skipped');
+                return;
+            }
+            return ProgressManager.syncToFirestore(moduleId, houseId, moduleType, metadata);
+        }).catch(err => {
+            console.warn('[ModuleProgress] Firestore sync skipped:', err.message);
+        });
+    }
+
+    /**
+     * Navigate to dashboard with relative path detection
+     */
+    function navigateToDashboard() {
+        const depth = (window.location.pathname.match(/\//g) || []).length;
+        const prefix = '../'.repeat(Math.max(0, depth - 1));
+        window.location.href = prefix + 'dashboard.html';
+    }
+
     /**
      * Complete a module
      * @param {string} houseId - The house ID (forge, shield, web, etc.)
@@ -51,6 +123,9 @@ const ModuleProgress = (function() {
         };
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+
+        // Sync to Firestore for instructor dashboard
+        const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
 
         // Update completion counter
         const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
@@ -82,16 +157,14 @@ const ModuleProgress = (function() {
             ActivityFeed.moduleComplete(moduleId, moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
         }
 
-        // Return to dashboard
+        // Return to dashboard — wait for Firestore sync first (max 8s timeout)
         if (returnToDashboard) {
-            setTimeout(() => {
-                // Navigate relative to current location
-                // Count slashes to determine depth, then go up (depth - 1) levels to reach root
-                // e.g., /houses/forge/presentations/file.html has 4 slashes = 3 dirs deep = need ../../../
-                const depth = (window.location.pathname.match(/\//g) || []).length;
-                const prefix = '../'.repeat(Math.max(0, depth - 1));
-                window.location.href = prefix + 'dashboard.html';
-            }, silent ? 0 : 1500);
+            if (silent) {
+                navigateToDashboard();
+            } else {
+                const timeout = new Promise(r => setTimeout(r, 8000));
+                Promise.race([syncPromise, timeout]).then(() => navigateToDashboard());
+            }
         }
 
         return true;
@@ -126,6 +199,9 @@ const ModuleProgress = (function() {
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
+        // Sync to Firestore for instructor dashboard
+        const syncPromise = tryFirestoreSync(quizId, houseId, 'quiz', { score });
+
         // Update quiz counter if passed
         if (passed) {
             const passedCount = parseInt(localStorage.getItem(QUIZZES_PASSED_KEY) || '0', 10);
@@ -149,15 +225,14 @@ const ModuleProgress = (function() {
 
         console.log(`📝 Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
 
-        // Return to dashboard if passed
+        // Return to dashboard if passed — wait for Firestore sync first (max 8s timeout)
         if (returnToDashboard && passed) {
-            setTimeout(() => {
-                // Navigate relative to current location
-                // Count slashes to determine depth, then go up (depth - 1) levels to reach root
-                const depth = (window.location.pathname.match(/\//g) || []).length;
-                const prefix = '../'.repeat(Math.max(0, depth - 1));
-                window.location.href = prefix + 'dashboard.html';
-            }, silent ? 0 : 2000);
+            if (silent) {
+                navigateToDashboard();
+            } else {
+                const timeout = new Promise(r => setTimeout(r, 8000));
+                Promise.race([syncPromise, timeout]).then(() => navigateToDashboard());
+            }
         }
 
         return passed;

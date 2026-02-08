@@ -33,7 +33,7 @@ This directory is now protected by Git. Here's how to use it effectively:
 
 ```bash
 # Navigate to project directory
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 
 # Initialize Git repository (DONE)
 git init
@@ -432,7 +432,7 @@ Already created in this repo. Excludes:
 
 ```bash
 # 1. Start work session
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 git status  # See current state
 
 # 2. Make changes throughout the day
@@ -511,7 +511,7 @@ git push
 Create file: `backup.sh`
 ```bash
 #!/bin/bash
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 git add .
 git commit -m "Auto-backup $(date +%Y-%m-%d)"
 git push origin main
@@ -532,11 +532,11 @@ chmod +x backup.sh
 
 ```bash
 # If you have remote backup (GitHub)
-cd "/home/eq/Ai content creation"
+cd "/home/eq/ai-content"
 git clone https://github.com/YOUR-USERNAME/network-essentials.git
 
 # If only local Git repo was deleted but .git exists
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 git restore .
 ```
 
@@ -627,7 +627,7 @@ git branch -a
 ### Recommended First Commit
 
 ```bash
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 git add .
 git commit -m "Initial commit: Complete Network Essentials course package
 
@@ -669,7 +669,7 @@ Commit often. Commit with clear messages. Never worry about losing months of wor
 ---
 
 **Last Updated:** 2025-12-02
-**Git Repository:** `/home/eq/Ai content creation/network-essentials/.git`
+**Git Repository:** `/home/eq/ai-content/network-essentials/.git`
 **Status:** ✅ Protected and Ready
 
 **Prepared by:** EQ6

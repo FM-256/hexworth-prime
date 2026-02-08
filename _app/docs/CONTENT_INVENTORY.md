@@ -438,7 +438,7 @@ quizzes/
 
 ## FILE LOCATION REFERENCE
 
-All content is in: `/home/eq/Ai content creation/Hexworth Prime/_app/houses/`
+All content is in: `/home/eq/ai-content/hexworth-prime/_app/houses/`
 
 Structure per house:
 ```

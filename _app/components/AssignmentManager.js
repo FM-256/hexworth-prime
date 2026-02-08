@@ -277,10 +277,12 @@ const AssignmentManager = (function() {
         await setDoc(progressRef, {
             uid: user.uid,
             displayName: user.displayName || user.email || 'Unknown',
-            [`completions.${contentId}`]: {
-                completed: progressData.completed || false,
-                score: progressData.score || null,
-                completedAt: progressData.completedAt || new Date().toISOString()
+            completions: {
+                [contentId]: {
+                    completed: progressData.completed || false,
+                    score: progressData.score || null,
+                    completedAt: progressData.completedAt || new Date().toISOString()
+                }
             },
             updatedAt: serverTimestamp()
         }, { merge: true });

@@ -58,7 +58,7 @@ This is a **browser-based interactive network topology simulator** - a simplifie
 ### Method 2: Web Server (Recommended for Classes)
 ```bash
 # Simple Python web server
-cd "/home/eq/Ai content creation/network-essentials"
+cd "/home/eq/ai-content/network-essentials"
 python3 -m http.server 8000
 
 # Open browser to: http://localhost:8000/interactive-network-simulator.html
@@ -389,7 +389,7 @@ This project is now tracked in Git to prevent future loss:
 
 ```bash
 # Repository location
-/home/eq/Ai content creation/network-essentials/.git
+/home/eq/ai-content/network-essentials/.git
 
 # View history
 git log --oneline
@@ -399,7 +399,7 @@ git branch backup-$(date +%Y%m%d)
 ```
 
 ### Backup Locations
-1. **Primary:** `/home/eq/Ai content creation/network-essentials/interactive-network-simulator.html`
+1. **Primary:** `/home/eq/ai-content/network-essentials/interactive-network-simulator.html`
 2. **Original v1.0:** `/home/eq/Ai/Projects/coding_projects/Networking_Lab/networking_Lab.Html`
 3. **Evolved v2.0:** `/home/eq/Ai/learning/Network_Admin_Learning_Lab.html`
 4. **Git Repository:** Committed with full history

@@ -1,7 +1,7 @@
 # CompTIA A+ Core 1 (220-1101) Sprint Plan
 
 **Source:** Sybex CompTIA A+ Complete Study Guide slides
-**Location:** `/home/eq/Ai content creation/A+/Comptia A+ 1/`
+**Location:** `/home/eq/ai-content/A+/Comptia A+ 1/`
 **Target:** Hexworth Prime Forge House
 **Path:** `_app/houses/forge/applets/comptia-aplus/core-1/`
 
@@ -805,7 +805,7 @@ grep -r "Coming" chapters/ --include="*.html" | grep -i "future\|soon"
 ```
 Continue CompTIA A+ Core 1 maintenance/enhancement for Hexworth Prime.
 
-Read: /home/eq/Ai content creation/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
+Read: /home/eq/ai-content/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
 
 STATUS:
 - All 12 chapters DEPLOYED to https://hexworth-prime.web.app
@@ -875,7 +875,7 @@ AccessGuard path from labs: ../../../../../../components/AccessGuard.js
 ```
 Continue CompTIA A+ Core 1 Labs development for Hexworth Prime.
 
-Read: /home/eq/Ai content creation/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
+Read: /home/eq/ai-content/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
 
 STATUS:
 - All 12 chapters DEPLOYED to https://hexworth-prime.web.app
@@ -983,7 +983,7 @@ Final deployment: 6,680 files (2026-01-12 Session 15)
 ```
 Continue QA/QC for CompTIA A+ Core 1 curriculum (Hexworth Prime).
 
-Read: /home/eq/Ai content creation/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
+Read: /home/eq/ai-content/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
 
 STATUS: All 12 chapters DEPLOYED to https://hexworth-prime.web.app
 
@@ -1011,11 +1011,11 @@ What would you like to do?
 ### Key Paths Reference
 | Item | Path |
 |------|------|
-| Project Root | `/home/eq/Ai content creation/Hexworth Prime/` |
+| Project Root | `/home/eq/ai-content/Hexworth Prime/` |
 | Core 1 Dir | `_app/houses/forge/applets/comptia-aplus/core-1/` |
 | Chapters | `_app/houses/forge/applets/comptia-aplus/core-1/chapters/` |
 | Labs | `_app/houses/forge/applets/comptia-aplus/core-1/labs/` |
-| Slides | `/home/eq/Ai content creation/A+/Comptia A+ 1/` |
+| Slides | `/home/eq/ai-content/A+/Comptia A+ 1/` |
 | AccessGuard | `../../../../../../../components/AccessGuard.js` (7 levels from chapter) |
 
 ### Chapter Template Structure
@@ -1045,7 +1045,7 @@ Each chapter follows this structure:
 
 ```bash
 # View slides directory
-ls -la "/home/eq/Ai content creation/A+/Comptia A+ 1/"
+ls -la "/home/eq/ai-content/A+/Comptia A+ 1/"
 
 # Read a specific chapter slide
 # (Use Claude's Read tool with the PDF path)
@@ -1067,7 +1067,7 @@ firebase deploy --only hosting
 
 ### What Was Done This Session
 1. **Discovered misalignment**: Content I built was based on generic A+ objectives, NOT user's actual course slides
-2. **Located slides**: `/home/eq/Ai content creation/A+/Comptia A+ 1/` (12 PDF files)
+2. **Located slides**: `/home/eq/ai-content/A+/Comptia A+ 1/` (12 PDF files)
 3. **Created this SPRINT-PLAN.md**: Master reference document for cross-session work
 4. **Completed Sprint 0**:
    - Deleted all 12 misaligned chapter directories
@@ -1085,7 +1085,7 @@ firebase deploy --only hosting
 1. Read this file: SPRINT-PLAN.md
 2. Check "Current Status" section above
 3. Begin Sprint 1 → Chapter 1
-4. Read slide: "/home/eq/Ai content creation/A+/Comptia A+ 1/1101 Chap 1.pdf"
+4. Read slide: "/home/eq/ai-content/A+/Comptia A+ 1/1101 Chap 1.pdf"
 5. Create: chapters/ch01-motherboards/index.html
 6. Only read ONE slide PDF at a time (large files)
 ```
@@ -1093,9 +1093,9 @@ firebase deploy --only hosting
 ### Key Paths
 | Item | Path |
 |------|------|
-| Project Root | `/home/eq/Ai content creation/Hexworth Prime/` |
+| Project Root | `/home/eq/ai-content/Hexworth Prime/` |
 | Core 1 Directory | `_app/houses/forge/applets/comptia-aplus/core-1/` |
-| Slides Directory | `/home/eq/Ai content creation/A+/Comptia A+ 1/` |
+| Slides Directory | `/home/eq/ai-content/A+/Comptia A+ 1/` |
 | Forge Index | `_app/houses/forge/index.html` |
 
 ### Chapter 1 Content Preview (from slide review)
@@ -1126,10 +1126,10 @@ Copy this to start a fresh session:
 Continue A+ Core 1 curriculum work for Hexworth Prime.
 
 Read the sprint plan first:
-/home/eq/Ai content creation/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
+/home/eq/ai-content/Hexworth Prime/_app/houses/forge/applets/comptia-aplus/core-1/SPRINT-PLAN.md
 
 Sprint 0 is complete. Start Sprint 1 - build Chapter 1 (Motherboards, Processors, and Memory) using the actual course slide at:
-/home/eq/Ai content creation/A+/Comptia A+ 1/1101 Chap 1.pdf
+/home/eq/ai-content/A+/Comptia A+ 1/1101 Chap 1.pdf
 
 Key rules:
 - Only read ONE slide PDF at a time (context management)

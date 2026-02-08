@@ -377,7 +377,7 @@ objectives: [
 Additional content for labs is available at:
 
 ```
-/home/eq/Ai content creation/Linux/Linux/
+/home/eq/ai-content/Linux/Linux/
 ├── clh/Command Line Hacker Bundle/
 │   ├── Command Line Hacker - ORIGINAL eBook.pdf
 │   └── Free Bonuses/

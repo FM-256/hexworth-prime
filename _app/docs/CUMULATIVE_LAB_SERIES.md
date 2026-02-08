@@ -352,7 +352,7 @@ Edge-Router:
 ## 📁 **File Organization**
 
 ```
-/home/eq/Ai content creation/network-essentials/labs/
+/home/eq/ai-content/network-essentials/labs/
 ├── CUMULATIVE_LAB_SERIES.md (this file - overview)
 ├── lab01-static-routes.md (detailed instructions)
 ├── lab01-base-topology.pkt (Packet Tracer file)

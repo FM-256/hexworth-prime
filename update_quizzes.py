@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 # Base path
-BASE_PATH = Path("/home/eq/Ai content creation/Hexworth Prime/_app/houses")
+BASE_PATH = Path("/home/eq/ai-content/hexworth-prime/_app/houses")
 
 # Map quiz files to their module IDs and house IDs
 QUIZ_MAPPINGS = {

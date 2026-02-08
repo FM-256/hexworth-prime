@@ -453,6 +453,18 @@ const FirestoreManager = (function() {
      * Merge cloud and local progress (take higher/more complete values)
      */
     function mergeProgress(cloudData, localData) {
+        // Helper to safely convert a value to an array of unique strings.
+        // Handles arrays, objects (by taking keys), or null/undefined.
+        const normalizeToArray = (data) => {
+            if (Array.isArray(data)) {
+                return data;
+            }
+            if (typeof data === 'object' && data !== null) {
+                return Object.keys(data);
+            }
+            return [];
+        };
+
         return {
             // Keep existing profile data
             ...cloudData,
@@ -465,13 +477,13 @@ const FirestoreManager = (function() {
 
             // Merge arrays (union)
             modulesCompleted: [...new Set([
-                ...(cloudData.modulesCompleted || []),
-                ...(localData.modulesCompleted || [])
+                ...normalizeToArray(cloudData.modulesCompleted),
+                ...normalizeToArray(localData.modulesCompleted)
             ])],
 
             labsCompleted: [...new Set([
-                ...(cloudData.labsCompleted || []),
-                ...(localData.labsCompleted || [])
+                ...normalizeToArray(cloudData.labsCompleted),
+                ...normalizeToArray(localData.labsCompleted)
             ])],
 
             achievements: [...new Set([

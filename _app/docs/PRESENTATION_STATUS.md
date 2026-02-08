@@ -2,7 +2,7 @@
 
 **Prepared by:** EQ6 (CCode-Alpha)
 **Date:** 2025-12-01
-**Location:** `/home/eq/Ai content creation/network-essentials/`
+**Location:** `/home/eq/ai-content/network-essentials/`
 
 ---
 
@@ -235,7 +235,7 @@ All speaker notes include:
 ## 📁 File Organization
 
 ```
-/home/eq/Ai content creation/network-essentials/
+/home/eq/ai-content/network-essentials/
 ├── PRESENTATION_STATUS.md (this file - updated 2025-12-01)
 ├── CUMULATIVE_LAB_SERIES.md (architecture document)
 │

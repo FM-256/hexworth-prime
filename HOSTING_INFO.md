@@ -65,7 +65,7 @@
 
 ```bash
 # From project root
-cd "/home/eq/Ai content creation/Hexworth Prime"
+cd ~/ai-content/hexworth-prime
 firebase deploy --only hosting
 ```
 
