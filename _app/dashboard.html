@@ -2888,6 +2888,7 @@
     <script>AccessGuard.showContent();</script>
 
     <!-- Progress Tracking System -->
+    <script src="components/CourseProgress.js"></script>
     <script src="components/SkillTreeData.js"></script>
     <script src="components/LearningPaths.js"></script>
     <script src="components/AchievementSystem.js"></script>
@@ -5001,6 +5002,44 @@
                 return null;
             }
 
+            // WSA individual modules: wsa-m01-fundamentals, wsa-m02-active-directory, etc.
+            const wsaModMatch = contentId.match(/^wsa-(m\d{2})-/);
+            if (wsaModMatch) {
+                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const moduleId = wsaModMatch[1];
+                const moduleData = progress[moduleId];
+                if (moduleData) {
+                    const components = ['presentation', 'guiLab', 'psLab', 'quiz'];
+                    const allComplete = components.every(c => moduleData[c] === true);
+                    if (allComplete) {
+                        return {
+                            completed: true,
+                            score: null,
+                            completedAt: moduleData.lastUpdated
+                                ? new Date(moduleData.lastUpdated).toISOString()
+                                : new Date().toISOString()
+                        };
+                    }
+                }
+                return null;
+            }
+
+            // WSA whole course assignment
+            if (contentId === 'wsa') {
+                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const regularModules = ['m01','m02','m03','m04','m05','m06','m07','m08','m09','m10',
+                                        'm11','m12','m13','m14','m15','m16','m17','m18','m19','m20'];
+                const components = ['presentation', 'guiLab', 'psLab', 'quiz'];
+                const allComplete = regularModules.every(mId => {
+                    const mod = progress[mId];
+                    return mod && components.every(c => mod[c] === true);
+                });
+                if (allComplete) {
+                    return { completed: true, score: null, completedAt: new Date().toISOString() };
+                }
+                return null;
+            }
+
             // CLH modules: script-clh-001 through script-clh-031
             const clhMatch = contentId.match(/^script-(clh-\d{3})$/);
             if (clhMatch) {
@@ -5305,6 +5344,22 @@
                 const section = document.getElementById('myClassesSection');
                 if (section) section.style.display = 'none';
             }
+        });
+
+        // Bridge: Layer 1 course completions → Layer 2 platform profile
+        window.addEventListener('courseProgress:moduleComplete', (e) => {
+            const { courseId, moduleId } = e.detail;
+            if (typeof ProgressManager === 'undefined') return;
+
+            const COURSE_HOUSE_MAP = { wsa: 'cloud', clh: 'script', cse: 'cloud' };
+            const houseId = COURSE_HOUSE_MAP[courseId] || courseId;
+            const contentId = `${courseId}-${moduleId}`;
+
+            // Only propagate if not already tracked in Layer 2
+            const progress = ProgressManager.getProgress();
+            if (progress.completedModules && progress.completedModules.includes(contentId)) return;
+
+            ProgressManager.completeModule(contentId, houseId, 'module', {});
         });
 
         // Update callsign display throughout the UI

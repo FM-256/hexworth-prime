@@ -18,6 +18,7 @@
 | AD-007 | Member Profile Subcollection | Feb 5, 2026 | Efficient roster queries, small class docs |
 | AD-008 | Student Join via Firestore Rules (No Cloud Functions) | Feb 5, 2026 | Field-level security, no server infrastructure |
 | AD-009 | Centralized User Profile (`users/{uid}`) | Feb 5, 2026 | Single identity source, Blackboard export, profile gate |
+| AD-010 | Two-Layer Progress Architecture | Feb 8, 2026 | Separate academic tracking (Layer 1) from gamification (Layer 2) |
 
 ---
 
@@ -552,6 +553,46 @@ Export CSV ← "Last Name, First Name, Student ID, Email"
 
 ### Date
 February 5, 2026
+
+---
+
+## AD-010: Two-Layer Progress Architecture
+
+### The Problem
+Progress tracking fuses two fundamentally different concerns into one monolithic `hexworth_progress` object:
+- **Academic data** (completions, scores, timestamps) needed by instructors via the Handler Dashboard
+- **Gamification data** (XP, level, achievements, streaks) shown to students on the dashboard
+
+This fusion causes: labs writing to keys the dashboard never reads, granular component data trapped in isolated stores, no clean academic feed for Firestore sync, and multiple incompatible storage formats.
+
+### The Decision
+Split progress into two layers with a strict directional data flow:
+
+**Layer 1 — Course Progress (Specific/Academic):**
+- Per-course, per-module, per-component tracking
+- Storage: `{courseId}-progress` (one key per course)
+- Written by: labs, quizzes, presentations, applets
+- Read by: course index pages, Firestore sync, Handler Dashboard
+- WSAProgress is the prototype; generalized as `CourseProgress`
+
+**Layer 2 — Platform Profile (Overall/Gamification):**
+- XP, level, achievements, streaks, aggregate stats
+- Storage: `hexworth_progress` (gamification only)
+- Written by: Layer 2 reacting to Layer 1 events
+- Read by: student dashboard, profile tab, achievement system
+- NEVER stores per-module completion data
+
+### The Rule
+Data flows upward: Specific → Overall. Content writes to Layer 1. Layer 2 derives from Layer 1 events. No content writes to both layers. No reverse flow.
+
+### Generalization Principle
+Any pattern that works for one course must generalize to every course. Each course defines its own component schema (WSA: 4 components, A+: 1, Dark Arts: 5 gates), but the storage contract and event interface are uniform.
+
+### Full Design
+See: `_planning/TWO_LAYER_PROGRESS_ARCHITECTURE.md`
+
+### Date
+February 8, 2026
 
 ---
 

@@ -723,17 +723,14 @@
 
                 // Callback for lab objective validation
                 // Called after each command execution with parsed command info
-                onCommand: (command, args, params, output) => {
+                // 5th param (rawInput) is the full input text including pipes
+                onCommand: (command, args, params, output, rawInput) => {
                     if (command) {
-                        // Reconstruct params as array for validator compatibility
-                        const paramArray = [];
-                        for (const [key, value] of Object.entries(params)) {
-                            paramArray.push(`-${key}`);
-                            if (value !== true) {
-                                paramArray.push(value);
-                            }
-                        }
-                        validateCommand(command + ' ' + paramArray.join(' '));
+                        // Don't credit failed commands as completed objectives
+                        if (output && output.includes('ps-error')) return;
+
+                        // Use raw input for validation — handles piped commands correctly
+                        validateCommand(rawInput || command);
                     }
                 }
             });
@@ -868,15 +865,6 @@
                     timestamp: new Date().toISOString()
                 };
                 localStorage.setItem('wsaM01PsLab', JSON.stringify(data));
-
-                // Also save to main progress tracker
-                const progress = JSON.parse(localStorage.getItem('hexworthProgress') || '{}');
-                progress['wsa-m01-ps-lab'] = {
-                    completed: labState.completedLabs.size === 4,
-                    labsComplete: labState.completedLabs.size,
-                    date: new Date().toISOString()
-                };
-                localStorage.setItem('hexworthProgress', JSON.stringify(progress));
             } catch (e) {
                 console.warn('Could not save progress:', e);
             }
@@ -946,7 +934,13 @@
                 PSTerminal.destroy();
                 PSTerminal.init('WSA-M01', '#psTerminalContainer', {
                     hostname: 'WIN-SRVR2022',
-                    domain: 'WORKGROUP'
+                    domain: 'WORKGROUP',
+                    onCommand: (command, args, params, output, rawInput) => {
+                        if (command) {
+                            if (output && output.includes('ps-error')) return;
+                            validateCommand(rawInput || command);
+                        }
+                    }
                 });
 
                 // Clear storage

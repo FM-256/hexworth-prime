@@ -1,6 +1,7 @@
 /**
  * WSA Course Progress Tracker
  * Tracks module completion state across presentations, labs, and quizzes
+ * Delegates to CourseProgress when available for event emission + Layer 1→2 bridge
  */
 
 const WSAProgress = (function() {
@@ -15,6 +16,19 @@ const WSAProgress = (function() {
 
     // Component types
     const COMPONENTS = ['presentation', 'guiLab', 'psLab', 'quiz'];
+
+    // Lazy-init CourseProgress delegation
+    let _cp = null;
+    function _getCourseProgress() {
+        if (!_cp && typeof CourseProgress !== 'undefined') {
+            _cp = CourseProgress.create('wsa', {
+                modules: MODULES,
+                components: COMPONENTS,
+                storageKey: STORAGE_KEY
+            });
+        }
+        return _cp;
+    }
 
     /**
      * Get all progress data
@@ -56,13 +70,19 @@ const WSAProgress = (function() {
      * @param {string} component - 'presentation', 'guiLab', 'psLab', 'quiz'
      */
     function markComplete(moduleId, component) {
-        const all = getAll();
-        if (!all[moduleId]) {
-            all[moduleId] = {};
+        const cp = _getCourseProgress();
+        if (cp) {
+            cp.markComponentComplete(moduleId, component);
+        } else {
+            // Fallback: direct localStorage (when CourseProgress.js not loaded)
+            const all = getAll();
+            if (!all[moduleId]) {
+                all[moduleId] = {};
+            }
+            all[moduleId][component] = true;
+            all[moduleId].lastUpdated = Date.now();
+            saveAll(all);
         }
-        all[moduleId][component] = true;
-        all[moduleId].lastUpdated = Date.now();
-        saveAll(all);
         console.log(`WSAProgress: ${moduleId}/${component} marked complete`);
     }
 

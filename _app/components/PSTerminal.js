@@ -2901,7 +2901,10 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
 
         if (input) {
             // Parse the command for callback
-            if (!input.includes('|')) {
+            // For pipelines, parse just the first command so onCommand always gets a command name
+            if (input.includes('|')) {
+                parsedCmd = _parseCommand(input.split('|')[0].trim());
+            } else {
                 parsedCmd = _parseCommand(input);
             }
 
@@ -2912,9 +2915,10 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
         }
 
         // Call onCommand callback if registered (for lab integration)
+        // 5th parameter is the raw input text (useful for pipe-aware validation)
         if (config.onCommand && input) {
             try {
-                config.onCommand(parsedCmd.command, parsedCmd.args, parsedCmd.params, result);
+                config.onCommand(parsedCmd.command, parsedCmd.args, parsedCmd.params, result, input);
             } catch (e) {
                 console.error('PSTerminal onCommand callback error:', e);
             }
@@ -3124,6 +3128,9 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
 
             case 'get-host':
                 return _cmdGetHost();
+
+            case 'hostname':
+                return config.hostname || state.env.COMPUTERNAME || 'WIN-SRVR2022';
 
             case 'get-process':
             case 'gps':
@@ -3543,6 +3550,12 @@ ${mode}          1/30/2026  10:00 AM ${size.toString().padStart(14)} ${name}`;
   Get-Help <cmdlet>               Detailed help for a command
   Get-Command *keyword*           Find commands by name
   Get-Member                      Show object properties
+
+<span class="ps-warning">System Info:</span>
+  Get-ComputerInfo                Server details and OS info
+  hostname                        Show computer name
+  Get-Date                        Show current date/time
+  Get-Host                        Show PowerShell host info
 
 <span class="ps-warning">Services:</span>
   Get-Service                     List Windows services
