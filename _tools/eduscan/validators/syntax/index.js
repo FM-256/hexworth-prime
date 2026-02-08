@@ -12,6 +12,7 @@ const JSValidator = require('./js');
 const EngineValidator = require('./engine');
 const PathValidator = require('./paths');
 const LearningPathsValidator = require('./learning-paths');
+const AssignmentLinkValidator = require('./assignment-links');
 const NamingValidator = require('./naming');
 
 class SyntaxValidator {
@@ -43,6 +44,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.assignmentLinkValidator = new AssignmentLinkValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
         this.namingValidator = new NamingValidator({
             verbose: this.verbose,
             rootPath: this.rootPath
@@ -67,6 +72,7 @@ class SyntaxValidator {
                 engineErrors: 0,
                 pathErrors: 0,
                 learningPathErrors: 0,
+                assignmentLinkErrors: 0,
                 namingErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
@@ -85,6 +91,16 @@ class SyntaxValidator {
             results.summary.learningPathErrors = lpResults.issues.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] LearningPaths: ${lpResults.issues.length} issues`);
+            }
+        }
+
+        // Run Assignment Link validation (global, not per-file)
+        const alResults = this.assignmentLinkValidator.validate();
+        if (alResults.issues.length > 0) {
+            results.issues.push(...alResults.issues);
+            results.summary.assignmentLinkErrors = alResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] AssignmentLinks: ${alResults.issues.length} issues`);
             }
         }
 
