@@ -3132,6 +3132,9 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'hostname':
                 return config.hostname || state.env.COMPUTERNAME || 'WIN-SRVR2022';
 
+            case '$psversiontable':
+                return _cmdPSVersionTable();
+
             case 'get-process':
             case 'gps':
             case 'ps':
@@ -3848,6 +3851,20 @@ ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'lo
     /**
      * Get-Host - Get PowerShell host information
      */
+    function _cmdPSVersionTable() {
+        return `
+Name                           Value
+----                           -----
+PSVersion                      5.1.20348.2849
+PSEdition                      Desktop
+PSCompatibleVersions           {1.0, 2.0, 3.0, 4.0...}
+BuildVersion                   10.0.20348.2849
+CLRVersion                     4.0.30319.42000
+WSManStackVersion              3.0
+PSRemotingProtocolVersion      2.3
+SerializationVersion           1.1.0.1`;
+    }
+
     function _cmdGetHost() {
         return `
 Name             : ConsoleHost
