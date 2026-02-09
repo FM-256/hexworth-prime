@@ -1120,6 +1120,82 @@ class AchievementSystem {
         },
 
         // ═══════════════════════════════════════════════════════════════
+        // SURVIVAL GAMES
+        // ═══════════════════════════════════════════════════════════════
+        game_domain_win: {
+            id: 'game_domain_win',
+            name: 'Domain Defender',
+            description: "Neutralize the threat in Don't Lose Your Domain",
+            icon: '🛡️',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_domain_by_the_book: {
+            id: 'game_domain_by_the_book',
+            name: 'AD Incident Pro',
+            description: 'Disable + remove DA + reset password in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_domain_speed: {
+            id: 'game_domain_speed',
+            name: 'Rapid Response: AD',
+            description: "Speed run Don't Lose Your Domain",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_domain_all: {
+            id: 'game_domain_all',
+            name: 'Domain Master',
+            description: "Unlock all 12 achievements in Don't Lose Your Domain",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_brick_win: {
+            id: 'game_brick_win',
+            name: 'Endpoint Savior',
+            description: "Contain the threat in Don't Brick the PC",
+            icon: '💻',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_brick_by_the_book: {
+            id: 'game_brick_by_the_book',
+            name: 'CompTIA Methodologist',
+            description: 'Follow full troubleshooting methodology in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_brick_speed: {
+            id: 'game_brick_speed',
+            name: 'Rapid Response: IR',
+            description: "Speed run Don't Brick the PC",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_brick_all: {
+            id: 'game_brick_all',
+            name: 'Helpdesk Hero',
+            description: "Unlock all 12 achievements in Don't Brick the PC",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+
+        // ═══════════════════════════════════════════════════════════════
         // SEASONAL / LIMITED EDITION
         // ═══════════════════════════════════════════════════════════════
         // Halloween Season (October)
@@ -2117,6 +2193,16 @@ class AchievementSystem {
      */
     static unlockDarkArtsVault() {
         return this.unlock('dark_arts_vault');
+    }
+
+    /**
+     * Trigger survival game achievements
+     * @param {string} gameId - 'domain' or 'brick'
+     * @param {string} type - 'win', 'by_the_book', 'speed', 'all'
+     */
+    static unlockGameAchievement(gameId, type) {
+        const id = `game_${gameId}_${type}`;
+        return this.unlock(id);
     }
 
     /**
