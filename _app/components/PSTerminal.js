@@ -4534,6 +4534,7 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
             output += `${handles.toString().padStart(7)}  ${npm.toString().padStart(6)}    ${p.Memory.toString().padStart(5)}      ${p.Memory.toString().padStart(5)}     ${p.CPU.toFixed(2).padStart(6)}   ${p.PID.toString().padStart(4)}   0 ${p.Name}\n`;
         }
 
+        _checkObjective('get-process');
         return output;
     }
 
@@ -4582,6 +4583,10 @@ Status   Name               DisplayName
             output += `${svc.Status.padEnd(9)}${svc.Name.padEnd(19)}${svc.DisplayName}\n`;
         }
 
+        const rawServiceArgs = args.join(' ').toLowerCase();
+        if (params.Status && params.Status.toLowerCase() === 'stopped' || rawServiceArgs.includes('stopped')) {
+            _checkObjective('get-service-stopped');
+        }
         return output;
     }
 
@@ -4677,6 +4682,7 @@ Status   Name               DisplayName
             output += `   ${e.Index} ${e.Time} ${e.EntryType.padEnd(12)}${e.Source.padEnd(26)}${e.Message.substring(0, 40)}...\n`;
         }
 
+        _checkObjective('get-eventlog');
         return output;
     }
 
@@ -4728,6 +4734,7 @@ Status   Name               DisplayName
             output += `${marker} ${f.DisplayName.padEnd(52)}${f.Name.padEnd(27)}${installState}\n`;
         }
 
+        _checkObjective('get-windowsfeature');
         return output;
     }
 
@@ -4755,11 +4762,21 @@ Status   Name               DisplayName
             'wds': 'Windows Deployment Services',
             'wsus': 'Windows Server Update Services',
             'print-server': 'Print Server',
+            'failover-clustering': 'Failover Clustering',
+            'migration': 'Windows Server Migration Tools',
         };
 
         const displayName = knownFeatures[name.toLowerCase()];
         if (!displayName) {
             return `<span class="ps-error">Install-WindowsFeature : The role, role service, or feature named '${name}' was not found.</span>`;
+        }
+
+        const nameLower = name.toLowerCase();
+        if (nameLower === 'failover-clustering') {
+            _checkObjective('install-clustering');
+        }
+        if (nameLower === 'migration') {
+            _checkObjective('install-migration');
         }
 
         return `\nSuccess Restart Needed Exit Code      Feature Result\n------- -------------- ---------      --------------\nTrue    No             Success        {${displayName}}`;
@@ -5686,7 +5703,7 @@ Name        State   CPUUsage(%) MemoryAssigned(M) Uptime           Status       
             Checkpoints: [],
         };
 
-        _checkObjective('create-vm');
+        _checkObjective('new-vm');
 
         return `<span class="ps-success">Virtual machine '${name}' created.
 Generation: ${generation}
@@ -5799,6 +5816,7 @@ Memory: ${_formatBytes(memoryBytes)}</span>`;
                 return `<span class="ps-error">Get-VMSwitch : Cannot find virtual switch '${name}'.</span>`;
             }
 
+            _checkObjective('get-vmswitch');
             return `
 Name            : ${sw.Name}
 SwitchType      : ${sw.SwitchType}
@@ -5813,6 +5831,7 @@ Name                           SwitchType NetAdapterInterfaceDescription
             output += `${sw.Name.padEnd(31)}${sw.SwitchType.padEnd(11)}${sw.NetAdapterInterfaceDescription || ''}\n`;
         }
 
+        _checkObjective('get-vmswitch');
         return output;
     }
 
@@ -5838,6 +5857,7 @@ Name                           SwitchType NetAdapterInterfaceDescription
             NetAdapterInterfaceDescription: switchType === 'External' ? 'Intel(R) Ethernet' : '',
         };
 
+        _checkObjective('new-vmswitch');
         return `<span class="ps-success">Virtual switch '${name}' created (${switchType}).</span>`;
     }
 
@@ -5937,6 +5957,7 @@ CreationTime: ${cp.CreationTime}
      * Get-VMHost - Get Hyper-V host information
      */
     function _cmdGetVMHost() {
+        _checkObjective('get-vmhost');
         return `
 ComputerName                        : ${config.hostname}
 LogicalProcessorCount               : 4
@@ -5961,6 +5982,7 @@ NumaSpanningEnabled                 : True`;
         if (!vm) {
             return `<span class="ps-error">Measure-VM : Cannot find virtual machine '${name}'.</span>`;
         }
+        _checkObjective('measure-vm');
         return `
 VMName               : ${name}
 AvgCPU(%)            : 12
@@ -5990,6 +6012,7 @@ MeteringDuration     : 1.02:15:30`;
         if (params.ProcessorCount) vm.ProcessorCount = parseInt(params.ProcessorCount);
         if (params.DynamicMemoryEnabled) vm.DynamicMemoryEnabled = params.DynamicMemoryEnabled;
         if (params.Notes) vm.Notes = params.Notes;
+        _checkObjective('set-vm');
         return '';
     }
 
@@ -6005,6 +6028,7 @@ MeteringDuration     : 1.02:15:30`;
         if (!vm) {
             return `<span class="ps-error">Set-VMMemory : Cannot find virtual machine '${name}'.</span>`;
         }
+        _checkObjective('set-vmmemory');
         return '';
     }
 
@@ -6018,6 +6042,7 @@ MeteringDuration     : 1.02:15:30`;
             return `<span class="ps-error">New-VHD : Cannot bind argument to parameter 'Path'.</span>`;
         }
         const isDynamic = args.some(a => a.toLowerCase() === '-dynamic') || params.Dynamic;
+        _checkObjective('new-vhd');
         return `
 VhdFormat             : VHDX
 VhdType               : ${isDynamic ? 'Dynamic' : 'Fixed'}
@@ -6041,6 +6066,7 @@ Size                  : ${size}`;
         if (!vm) {
             return `<span class="ps-error">Add-VMHardDiskDrive : Cannot find virtual machine '${vmName}'.</span>`;
         }
+        _checkObjective('add-vmharddiskdrive');
         return '';
     }
 
@@ -6058,6 +6084,7 @@ Size                  : ${size}`;
             return `<span class="ps-error">Set-VMNetworkAdapter : Cannot find virtual machine '${vmName}'.</span>`;
         }
         if (switchName) vm.SwitchName = switchName;
+        _checkObjective('set-vmnetworkadapter');
         return '';
     }
 
@@ -6074,6 +6101,7 @@ Size                  : ${size}`;
         if (!vm) {
             return `<span class="ps-error">Export-VM : Cannot find virtual machine '${name}'.</span>`;
         }
+        _checkObjective('export-vm');
         return `<span class="ps-success">Virtual machine '${name}' exported to '${path}'.</span>`;
     }
 
@@ -6102,6 +6130,7 @@ Size                  : ${size}`;
      * Get-Cluster - Get cluster information
      */
     function _cmdGetCluster(args, params) {
+        _checkObjective('get-cluster');
         return `
 Name                        : ${clusterState.name}
 AddEvictDelay               : 60
@@ -6128,6 +6157,7 @@ SharedVolumesRoot           : C:\\ClusterStorage`;
                 return `<span class="ps-error">Get-ClusterNode : Cannot find node '${name}'.</span>`;
             }
 
+            _checkObjective('get-clusternode');
             return `
 Cluster : ${node.Cluster}
 Name    : ${node.Name}
@@ -6142,6 +6172,7 @@ Name                State
             output += `${node.Name.padEnd(20)}${node.State}\n`;
         }
 
+        _checkObjective('get-clusternode');
         return output;
     }
 
@@ -6157,6 +6188,7 @@ Name                State
                 return `<span class="ps-error">Get-ClusterGroup : Cannot find group '${name}'.</span>`;
             }
 
+            _checkObjective('get-clustergroup');
             return `
 Name      : ${group.Name}
 OwnerNode : ${group.OwnerNode}
@@ -6171,6 +6203,7 @@ Name                 OwnerNode   State
             output += `${group.Name.padEnd(21)}${group.OwnerNode.padEnd(12)}${group.State}\n`;
         }
 
+        _checkObjective('get-clustergroup');
         return output;
     }
 
@@ -6193,6 +6226,7 @@ Name                 OwnerNode   State
         const targetNode = node || (group.OwnerNode === 'NODE01' ? 'NODE02' : 'NODE01');
         group.OwnerNode = targetNode;
 
+        _checkObjective('move-clustergroup');
         return `<span class="ps-success">Group '${name}' moved to node '${targetNode}'.</span>`;
     }
 
@@ -6238,6 +6272,7 @@ Name                 OwnerNode   State
      * Get-ClusterQuorum - Get quorum configuration
      */
     function _cmdGetClusterQuorum() {
+        _checkObjective('get-clusterquorum');
         return `
 Cluster         : ${clusterState.name}
 QuorumResource  : File Share Witness
@@ -6248,6 +6283,7 @@ QuorumType      : ${clusterState.quorum}`;
      * Get-ClusterResource - List cluster resources
      */
     function _cmdGetClusterResource(args, params) {
+        _checkObjective('get-clusterresource');
         return `
 Name                          State   OwnerGroup           ResourceType
 ----                          -----   ----------           ------------
@@ -6263,6 +6299,7 @@ File Server                   Online  File Share           File Server`;
      */
     function _cmdTestCluster(args, params) {
         const nodes = params.Node || args.join(',');
+        _checkObjective('test-cluster');
         return `<span class="ps-success">Validating cluster configuration...
 
 Test                       Result  Description
@@ -6288,6 +6325,7 @@ All tests passed. The cluster is ready to be created.</span>`;
             return `<span class="ps-error">New-Cluster : Cannot bind argument to parameter 'Name'.</span>`;
         }
         clusterState.name = name;
+        _checkObjective('new-cluster');
         return `<span class="ps-success">
 Name                        : ${name}
 Domain                      : ${config.domain}
@@ -6305,6 +6343,7 @@ Cluster '${name}' created successfully.</span>`;
             return `<span class="ps-error">Add-ClusterNode : Cannot bind argument to parameter 'Name'.</span>`;
         }
         clusterState.nodes.push({ Name: name, State: 'Up', Cluster: clusterState.name });
+        _checkObjective('add-clusternode');
         return `<span class="ps-success">Node '${name}' added to cluster '${clusterState.name}'.</span>`;
     }
 
@@ -6315,14 +6354,17 @@ Cluster '${name}' created successfully.</span>`;
         const witness = params.FileShareWitness || params.DiskWitness;
         if (params.FileShareWitness) {
             clusterState.quorum = 'NodeAndFileShareMajority';
+            _checkObjective('set-clusterquorum');
             return `<span class="ps-success">Quorum configured: NodeAndFileShareMajority
 File Share Witness: ${witness}</span>`;
         }
         if (params.DiskWitness) {
             clusterState.quorum = 'NodeAndDiskMajority';
+            _checkObjective('set-clusterquorum');
             return `<span class="ps-success">Quorum configured: NodeAndDiskMajority
 Disk Witness: ${witness}</span>`;
         }
+        _checkObjective('set-clusterquorum');
         return `<span class="ps-success">Quorum configuration updated.</span>`;
     }
 
@@ -6330,6 +6372,7 @@ Disk Witness: ${witness}</span>`;
      * Get-ClusterSharedVolume - List cluster shared volumes
      */
     function _cmdGetClusterSharedVolume(args, params) {
+        _checkObjective('get-clustersharedvolume');
         return `
 Name                 State    Node
 ----                 -----    ----
@@ -6354,6 +6397,7 @@ SharedVolumeInfo:
         const node = clusterState.nodes.find(n => n.Name === name);
         if (node) node.State = 'Paused';
         const drain = args.some(a => a.toLowerCase() === '-drain') || params.Drain;
+        _checkObjective('suspend-clusternode');
         return `<span class="ps-success">Node '${name}' paused.${drain ? ' Draining roles to other nodes...\nAll roles drained successfully.' : ''}</span>`;
     }
 
@@ -6367,6 +6411,7 @@ SharedVolumeInfo:
         }
         const node = clusterState.nodes.find(n => n.Name === name);
         if (node) node.State = 'Up';
+        _checkObjective('resume-clusternode');
         return `<span class="ps-success">Node '${name}' resumed.</span>`;
     }
 
@@ -6394,6 +6439,7 @@ SharedVolumeInfo:
 
         output += `\n<span class="ps-success">Ping to ${target} successful.</span>`;
 
+        _checkObjective('test-connection');
         return output;
     }
 
@@ -6610,6 +6656,7 @@ PolicyStore       : ActiveStore`;
         }
         // In a real implementation, this would parse the filter script
         // For now, pass through
+        _checkObjective('where-object');
         return pipeInput;
     }
 
@@ -6620,6 +6667,7 @@ PolicyStore       : ActiveStore`;
         if (!pipeInput) {
             return `<span class="ps-dim">Select-Object requires pipeline input.</span>`;
         }
+        _checkObjective('select-object');
         return pipeInput;
     }
 
@@ -6683,9 +6731,11 @@ Property :`;
                 if (showAll) {
                     output += `b2c3d4e5f6a7   mcr.microsoft.com/sql    "sqlservr"               1 day ago      Exited (0)                sql01\n`;
                 }
+                _checkObjective('docker-ps');
                 return output;
 
             case 'images':
+                _checkObjective('docker-images');
                 return `REPOSITORY                     TAG       IMAGE ID       CREATED         SIZE
 mcr.microsoft.com/iis          latest    3b8b57c3e8a1   2 weeks ago     5.2GB
 mcr.microsoft.com/windows      ltsc2022  f7c8d9e0a1b2   3 weeks ago     4.8GB
@@ -6693,26 +6743,32 @@ mcr.microsoft.com/dotnet/sdk   6.0       c3d4e5f6a7b8   1 month ago     1.2GB`;
 
             case 'pull':
                 const image = args[1] || 'nginx';
+                _checkObjective('docker-pull');
                 return `<span class="ps-success">Using default tag: latest
 latest: Pulling from library/${image}
 Digest: sha256:${Math.random().toString(36).substr(2, 64)}
 Status: Downloaded newer image for ${image}:latest</span>`;
 
             case 'run':
+                _checkObjective('docker-run');
                 return `<span class="ps-success">Container started: ${Math.random().toString(36).substr(2, 12)}</span>`;
 
             case 'stop':
+                _checkObjective('docker-stop');
                 return `<span class="ps-success">Container stopped.</span>`;
 
             case 'rm':
+                _checkObjective('docker-rm');
                 return `<span class="ps-success">Container removed.</span>`;
 
             case 'logs':
+                _checkObjective('docker-logs');
                 return `[2026-01-30T10:00:00Z] Container started
 [2026-01-30T10:00:01Z] Service initialized
 [2026-01-30T10:00:02Z] Listening on port 80`;
 
             case 'version':
+                _checkObjective('docker-version');
                 return `Client: Docker Engine - Enterprise
  Version:           20.10.21
  API version:       1.41
@@ -6724,6 +6780,7 @@ Server: Docker Engine - Enterprise
  OS/Arch:           windows/amd64`;
 
             case 'info':
+                _checkObjective('docker-info');
                 return `Client:
  Context:    default
  Debug Mode: false
@@ -6746,6 +6803,7 @@ Server:
             case 'build': {
                 const tagIdx = args.indexOf('-t');
                 const tag = tagIdx !== -1 && args[tagIdx + 1] ? args[tagIdx + 1] : 'myapp:latest';
+                _checkObjective('docker-build');
                 return `<span class="ps-success">Sending build context to Docker daemon  2.048kB
 Step 1/4 : FROM mcr.microsoft.com/windows/servercore:ltsc2022
  ---> f7c8d9e0a1b2
@@ -6764,6 +6822,7 @@ Successfully tagged ${tag}</span>`;
 
             case 'inspect': {
                 const container = args[1] || 'web01';
+                _checkObjective('docker-inspect');
                 return `[
     {
         "Id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
@@ -6783,6 +6842,7 @@ Successfully tagged ${tag}</span>`;
                 const netSub = args[1];
                 if (netSub === 'create') {
                     const netName = args[args.length - 1] || 'app-network';
+                    _checkObjective('docker-network-create');
                     return `<span class="ps-success">${Math.random().toString(36).substr(2, 64)}
 Network '${netName}' created.</span>`;
                 }
@@ -6799,6 +6859,7 @@ c3d4e5f6a7b8   app-network    nat       local`;
                 const volSub = args[1];
                 if (volSub === 'create') {
                     const volName = args[2] || 'data-volume';
+                    _checkObjective('docker-volume-create');
                     return `<span class="ps-success">${volName}</span>`;
                 }
                 if (volSub === 'ls') {
@@ -6835,6 +6896,7 @@ Commands:
     function _cmdDockerCompose(args) {
         const sub = args[0];
         if (sub === 'up') {
+            _checkObjective('docker-compose-up');
             return `<span class="ps-success">Creating network "app_default" with the default driver
 Creating app_web_1   ... done
 Creating app_db_1    ... done
@@ -6883,6 +6945,7 @@ app_cache_1   redis-server              Up      6379/tcp`;
         for (const r of filtered) {
             output += `${r.LocalAddress.padEnd(16)}${r.LocalPort.padEnd(11)}${r.RemoteAddress.padEnd(16)}${r.RemotePort.padEnd(12)}${r.State.padEnd(14)}${r.OwningProcess}\n`;
         }
+        _checkObjective('get-nettcpconnection');
         return output;
     }
 
@@ -6928,6 +6991,15 @@ app_cache_1   redis-server              Up      6379/tcp`;
         for (const e of limited) {
             output += `${e.TimeCreated.padEnd(29)}${String(e.Id).padEnd(4)}${e.LevelDisplayName.padEnd(18)}${e.ProviderName.substring(0, 42).padEnd(42)}${e.Message.substring(0, 50)}\n`;
         }
+
+        _checkObjective('get-winevent');
+        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"') || filtered.some(e => e.LevelDisplayName === 'Error')) {
+            _checkObjective('get-winevent-error');
+        }
+        if (logName.toLowerCase() === 'security' || rawArgs.includes('security')) {
+            _checkObjective('get-winevent-security');
+        }
+
         return output;
     }
 
@@ -6939,6 +7011,7 @@ app_cache_1   redis-server              Up      6379/tcp`;
         const counterLower = counter.toLowerCase().replace(/['"]/g, '');
 
         if (counterLower.includes('processor')) {
+            _checkObjective('get-counter-cpu');
             return `
 Timestamp                 CounterSamples
 ---------                 --------------
@@ -6946,6 +7019,7 @@ Timestamp                 CounterSamples
                           23.4521`;
         }
         if (counterLower.includes('memory')) {
+            _checkObjective('get-counter-memory');
             return `
 Timestamp                 CounterSamples
 ---------                 --------------
@@ -6953,6 +7027,7 @@ Timestamp                 CounterSamples
                           6842`;
         }
         if (counterLower.includes('disk')) {
+            _checkObjective('get-counter-disk');
             return `
 Timestamp                 CounterSamples
 ---------                 --------------
@@ -6975,6 +7050,7 @@ Timestamp                 CounterSamples
         const classLower = className.toLowerCase();
 
         if (classLower === 'win32_operatingsystem') {
+            _checkObjective('get-wmiobject-os');
             return `
 Caption                  : Microsoft Windows Server 2022 Standard
 Version                  : 10.0.20348
@@ -6984,6 +7060,7 @@ LastBootUpTime           : 20260205081532.500000-480
 SystemDirectory          : C:\\Windows\\system32`;
         }
         if (classLower === 'win32_logicaldisk') {
+            _checkObjective('get-wmiobject-disk');
             return `
 DeviceID     Size            FreeSpace
 --------     ----            ---------
@@ -7009,6 +7086,7 @@ TotalPhysicalMemory : 17179869184`;
      */
     function _cmdStartTranscript(args, params) {
         const path = params.Path || 'C:\\Users\\Administrator\\Documents\\PowerShell_transcript.txt';
+        _checkObjective('start-transcript');
         return `<span class="ps-success">Transcript started, output file is ${path}</span>`;
     }
 
@@ -7017,6 +7095,7 @@ TotalPhysicalMemory : 17179869184`;
      */
     function _cmdMeasureCommand(args, params) {
         const ms = Math.floor(Math.random() * 500) + 50;
+        _checkObjective('measure-command');
         return `
 Days              : 0
 Hours             : 0
@@ -7040,6 +7119,7 @@ TotalMilliseconds : ${ms}`;
      */
     function _cmdExportCsv(args, params, pipeInput) {
         const path = params.Path || args[0] || 'output.csv';
+        _checkObjective('export-csv');
         return `<span class="ps-success">Data exported to ${path}</span>`;
     }
 
@@ -7048,6 +7128,7 @@ TotalMilliseconds : ${ms}`;
      */
     function _cmdImportCsv(args, params) {
         const path = params.Path || args[0] || 'data.csv';
+        _checkObjective('import-csv');
         return `
 Name          Id    CPU(s)    WorkingSet
 ----          --    ------    ----------
@@ -7062,6 +7143,7 @@ csrss         512   12.20     15360`;
      */
     function _cmdRegisterScheduledTask(args, params) {
         const taskName = params.TaskName || 'NewTask';
+        _checkObjective('register-scheduledtask');
         return `<span class="ps-success">
 TaskPath    TaskName                          State
 --------    --------                          -----
@@ -7074,11 +7156,13 @@ TaskPath    TaskName                          State
     function _cmdGetScheduledTask(args, params) {
         const taskName = params.TaskName;
         if (taskName) {
+            _checkObjective('get-scheduledtask');
             return `
 TaskPath    TaskName                          State
 --------    --------                          -----
 \\           ${taskName.padEnd(34)}Ready`;
         }
+        _checkObjective('get-scheduledtask');
         return `
 TaskPath    TaskName                          State
 --------    --------                          -----
@@ -7094,6 +7178,7 @@ TaskPath    TaskName                          State
      */
     function _cmdInvokeCommand(args, params) {
         const computer = params.ComputerName || 'localhost';
+        _checkObjective('invoke-command');
         return `
 Status   Name               DisplayName                    PSComputerName
 ------   ----               -----------                    --------------
@@ -7114,6 +7199,7 @@ Running  WinRM              Windows Remote Management      ${computer}`;
         computers.forEach((c, i) => {
             output += `  ${i + 1}  WinRM${i + 1}          ${c.padEnd(16)}RemoteMachine Running  Microsoft.PowerShell\n`;
         });
+        _checkObjective('new-pssession');
         return output;
     }
 
@@ -7122,6 +7208,7 @@ Running  WinRM              Windows Remote Management      ${computer}`;
      */
     function _cmdForEachObject(args, params, pipeInput) {
         if (pipeInput) {
+            _checkObjective('foreach-object');
             return pipeInput;
         }
         return '';
@@ -7175,6 +7262,7 @@ Doing initial required tests
          ......................... ${config.hostname} passed test RidManager
       Starting test: Services
          ......................... ${config.hostname} passed test Services`;
+        _checkObjective('dcdiag');
         return output;
     }
 
@@ -7185,6 +7273,7 @@ Doing initial required tests
         const sub = (args[0] || '').toLowerCase().replace('/', '');
 
         if (sub === 'replsummary') {
+            _checkObjective('repadmin');
             return `
 Replication Summary Start Time: ${new Date().toISOString()}
 
@@ -7198,6 +7287,7 @@ Destination DSA     largest delta    fails/total %%   error
   DC02                22m:45s          0 /   5    0`;
         }
         if (sub === 'showrepl') {
+            _checkObjective('repadmin');
             return `
 Repadmin: running command /showrepl against full DC localhost
 Default-First-Site-Name\\${config.hostname}
@@ -7214,6 +7304,7 @@ DC=hexworth,DC=local
         Last attempt @ ${new Date().toISOString()} was successful.`;
         }
         if (sub === 'syncall') {
+            _checkObjective('repadmin');
             return `<span class="ps-success">Syncing all NC's held on ${config.hostname}.
 Syncing partition: DC=hexworth,DC=local
 CALLBACK MESSAGE: The following replication completed successfully:
@@ -7223,6 +7314,7 @@ To  : ${config.hostname}
 SyncAll terminated with no errors.</span>`;
         }
         if (sub === 'kcc') {
+            _checkObjective('repadmin');
             return `<span class="ps-success">Consistency check on ${config.hostname} successful.
 KCC has verified and if necessary updated the replication topology.</span>`;
         }
@@ -7236,6 +7328,7 @@ KCC has verified and if necessary updated the replication topology.</span>`;
     function _cmdSfc(args, params) {
         const sub = (args[0] || '').toLowerCase().replace('/', '');
         if (sub === 'scannow') {
+            _checkObjective('sfc-scannow');
             return `<span class="ps-success">
 Beginning system scan.  This process will take some time.
 
@@ -7261,6 +7354,7 @@ Windows Resource Protection did not find any integrity violations.</span>`;
     function _cmdDism(args, params) {
         const rawArgs = args.join(' ').toLowerCase();
         if (rawArgs.includes('checkhealth')) {
+            _checkObjective('dism-checkhealth');
             return `<span class="ps-success">
 Deployment Image Servicing and Management tool
 Version: 10.0.20348.1
@@ -7271,6 +7365,7 @@ The component store is repairable.
 The operation completed successfully.</span>`;
         }
         if (rawArgs.includes('restorehealth')) {
+            _checkObjective('dism-restorehealth');
             return `<span class="ps-success">
 Deployment Image Servicing and Management tool
 Version: 10.0.20348.1
@@ -7300,6 +7395,7 @@ The operation completed successfully.</span>`;
     function _cmdExportWindowsDriver(args, params) {
         const destination = params.Destination || args.find(a => !a.startsWith('-')) || 'D:\\DriverBackup';
         const online = args.some(a => a.toLowerCase() === '-online') || params.Online;
+        _checkObjective('export-windowsdriver');
         return `<span class="ps-success">
 Exporting drivers from ${online ? 'running OS' : 'image'}...
 
@@ -7331,6 +7427,7 @@ Exported 14 driver packages to: ${destination}</span>`;
         const rawArgs = args.join(' ').toLowerCase();
         if (rawArgs.includes('start systemstatebackup')) {
             const target = rawArgs.match(/-backuptarget:(\S+)/)?.[1] || 'D:';
+            _checkObjective('wbadmin-backup');
             return `<span class="ps-success">wbadmin 1.0 - Backup command-line tool
 (C) Copyright Microsoft Corporation.
 
