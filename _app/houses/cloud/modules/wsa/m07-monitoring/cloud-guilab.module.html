@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M07 GUI Lab: Event Viewer & Performance Monitor - Hexworth Prime</title>
+    <link rel="stylesheet" href="../../../../../components/styles/gui-simulator.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-bg: #0a0a0f; --secondary-bg: #12141f; --panel-bg: #1a1c28;
+            --border-color: #2d3748; --accent-blue: #60a5fa; --accent-light: #93c5fd;
+            --text-primary: #e0e0e0; --text-secondary: #9ca3af;
+            --success-color: #22c55e; --warning-color: #f59e0b; --error-color: #ef4444;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--primary-bg); color: var(--text-primary); min-height: 100vh; }
+        .page-header { background: var(--secondary-bg); padding: 12px 20px; border-bottom: 2px solid var(--accent-blue); display: flex; justify-content: space-between; align-items: center; }
+        .page-header h1 { font-size: 1.2rem; color: var(--accent-blue); }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .progress-text { color: var(--accent-light); font-size: 0.9rem; }
+        .header-btn { padding: 8px 16px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 0.85rem; text-decoration: none; transition: all 0.3s; }
+        .header-btn:hover { background: var(--accent-blue); color: #000; }
+        .main-layout { display: flex; height: calc(100vh - 120px); }
+        .instructions-sidebar { width: 340px; background: var(--secondary-bg); border-right: 1px solid var(--border-color); padding: 20px; overflow-y: auto; flex-shrink: 0; }
+        .task-section { margin-bottom: 25px; }
+        .task-section h3 { color: var(--accent-blue); font-size: 1rem; margin-bottom: 15px; }
+        .task { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .task.completed { border-color: var(--success-color); background: rgba(34, 197, 94, 0.05); }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task.completed .task-title::after { content: " ✓"; color: var(--success-color); }
+        .task-description { font-size: 0.85rem; color: var(--text-secondary); }
+        .tip-box { background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning-color); padding: 10px; margin-top: 15px; font-size: 0.85rem; color: var(--warning-color); }
+        .info-box { background: rgba(96, 165, 250, 0.1); border-left: 3px solid var(--accent-blue); padding: 10px; margin-top: 15px; font-size: 0.85rem; color: var(--accent-light); }
+        .gui-container { flex: 1; background: #1b1b1b; overflow: hidden; display: flex; flex-direction: column; }
+        .completion-banner { display: none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #166534, #22c55e); color: #fff; padding: 20px; text-align: center; z-index: 2000; }
+        .completion-banner.show { display: block; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .completion-btn { padding: 10px 25px; border-radius: 6px; font-size: 0.95rem; cursor: pointer; border: none; text-decoration: none; }
+        .completion-btn.primary { background: #fff; color: #166534; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+        .nav-footer { background: var(--secondary-bg); padding: 12px 20px; display: flex; justify-content: center; gap: 15px; border-top: 1px solid var(--border-color); }
+        .nav-btn { padding: 10px 20px; background: transparent; border: 1px solid var(--accent-blue); color: var(--accent-blue); border-radius: 6px; font-size: 0.9rem; text-decoration: none; transition: all 0.3s; }
+        .nav-btn:hover { background: var(--accent-blue); color: #000; }
+
+        /* Tab Bar */
+        .tool-tabs { display: flex; background: #2d2d2d; border-bottom: 1px solid #404040; }
+        .tool-tab { padding: 10px 20px; background: transparent; border: none; color: #888; cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; }
+        .tool-tab:hover { color: #ccc; }
+        .tool-tab.active { color: #fff; border-bottom-color: var(--accent-blue); background: #1e1e1e; }
+
+        /* Event Viewer */
+        .ev-window { flex: 1; display: flex; background: #252526; }
+        .ev-tree { width: 250px; background: #1e1e1e; border-right: 1px solid #3c3c3c; padding: 10px; overflow-y: auto; }
+        .ev-tree-item { padding: 6px 10px; color: #ccc; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; font-size: 0.85rem; }
+        .ev-tree-item:hover { background: #2d2d2d; }
+        .ev-tree-item.active { background: #37373d; color: #fff; }
+        .ev-tree-item.indent { padding-left: 30px; }
+        .ev-tree-item .icon { width: 16px; text-align: center; }
+        .ev-content { flex: 1; display: flex; flex-direction: column; }
+        .ev-toolbar { padding: 8px 15px; background: #2d2d2d; border-bottom: 1px solid #404040; display: flex; gap: 10px; align-items: center; }
+        .ev-toolbar-btn { padding: 5px 10px; background: #3c3c3c; border: 1px solid #555; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .ev-toolbar-btn:hover { background: #4a4a4a; }
+        .ev-events { flex: 1; overflow-y: auto; }
+        .ev-table { width: 100%; border-collapse: collapse; }
+        .ev-table th { background: #2d2d2d; padding: 8px 10px; text-align: left; font-weight: 500; color: #888; border-bottom: 1px solid #3c3c3c; font-size: 0.8rem; position: sticky; top: 0; }
+        .ev-table td { padding: 6px 10px; border-bottom: 1px solid #2d2d2d; color: #ccc; font-size: 0.85rem; }
+        .ev-table tr:hover { background: #2a2d2e; cursor: pointer; }
+        .ev-table tr.selected { background: rgba(96, 165, 250, 0.2); }
+        .ev-level { display: inline-flex; align-items: center; gap: 5px; }
+        .ev-level-icon { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+        .ev-level-icon.error { background: var(--error-color); }
+        .ev-level-icon.warning { background: var(--warning-color); color: #000; }
+        .ev-level-icon.info { background: var(--accent-blue); }
+        .ev-detail { height: 200px; background: #1e1e1e; border-top: 1px solid #3c3c3c; padding: 15px; overflow-y: auto; }
+        .ev-detail h4 { color: #888; font-size: 0.8rem; margin-bottom: 10px; }
+        .ev-detail-row { display: flex; margin-bottom: 5px; font-size: 0.85rem; }
+        .ev-detail-label { width: 120px; color: #888; }
+        .ev-detail-value { color: #ccc; }
+
+        /* Performance Monitor */
+        .pm-window { flex: 1; display: none; flex-direction: column; background: #252526; }
+        .pm-window.active { display: flex; }
+        .pm-toolbar { padding: 10px 15px; background: #2d2d2d; border-bottom: 1px solid #404040; display: flex; gap: 10px; }
+        .pm-btn { padding: 6px 12px; background: #3c3c3c; border: 1px solid #555; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .pm-btn:hover { background: #4a4a4a; }
+        .pm-chart-area { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .pm-chart { flex: 1; background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 4px; position: relative; overflow: hidden; }
+        .pm-chart-grid { position: absolute; top: 0; left: 40px; right: 10px; bottom: 30px; }
+        .pm-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: #333; }
+        .pm-chart-line { position: absolute; bottom: 30px; left: 40px; right: 10px; height: calc(100% - 40px); }
+        .pm-y-axis { position: absolute; left: 0; top: 0; bottom: 30px; width: 40px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 5px; font-size: 0.7rem; color: #666; }
+        .pm-legend { display: flex; gap: 20px; padding: 10px; background: #2d2d2d; border-radius: 4px; margin-top: 10px; }
+        .pm-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #ccc; }
+        .pm-legend-color { width: 20px; height: 3px; border-radius: 2px; }
+        .pm-counters { padding: 15px; background: #1e1e1e; border-top: 1px solid #3c3c3c; }
+        .pm-counter-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.85rem; border-bottom: 1px solid #2d2d2d; }
+        .pm-counter-name { color: #888; }
+        .pm-counter-value { color: var(--success-color); font-family: monospace; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M07: Monitoring Tools Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 5 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>🎉 GUI Lab Complete!</h2>
+        <p>You've mastered Windows Server monitoring tools!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="cloud-quizquiz.module.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="cloud-pslab.module.html">PowerShell Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="instructions-sidebar">
+            <div class="task-section">
+                <h3>Lab Tasks</h3>
+                <div class="task" id="task1">
+                    <div class="task-title">1. View System Events</div>
+                    <div class="task-description">Click "System" in Event Viewer to view system log entries.</div>
+                </div>
+                <div class="task" id="task2">
+                    <div class="task-title">2. Find Error Events</div>
+                    <div class="task-description">Filter the System log to show only Error-level events.</div>
+                </div>
+                <div class="task" id="task3">
+                    <div class="task-title">3. View Event Details</div>
+                    <div class="task-description">Click on an event to view its detailed information.</div>
+                </div>
+                <div class="task" id="task4">
+                    <div class="task-title">4. Open Performance Monitor</div>
+                    <div class="task-description">Switch to the Performance Monitor tab.</div>
+                </div>
+                <div class="task" id="task5">
+                    <div class="task-title">5. Add a Counter</div>
+                    <div class="task-description">Click "Add Counter" to add a new performance metric.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Event Levels:</strong><br>
+                🔴 Error - Significant problem<br>
+                ⚠️ Warning - Potential issue<br>
+                ℹ️ Information - Normal operation
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Security events (Event ID 4624) indicate successful logons. Use filters to find specific events quickly.
+            </div>
+        </div>
+
+        <div class="gui-container" id="guiContainer">
+            <div class="tool-tabs">
+                <button class="tool-tab active" data-tool="eventviewer" onclick="switchTool('eventviewer')">📋 Event Viewer</button>
+                <button class="tool-tab" data-tool="perfmon" onclick="switchTool('perfmon')">📈 Performance Monitor</button>
+            </div>
+
+            <!-- Event Viewer -->
+            <div class="ev-window" id="eventViewerWindow">
+                <div class="ev-tree">
+                    <div class="ev-tree-item" data-log="custom"><span class="icon">📁</span> Custom Views</div>
+                    <div class="ev-tree-item" data-log="windows"><span class="icon">📂</span> Windows Logs</div>
+                    <div class="ev-tree-item indent" data-log="Application" onclick="selectLog('Application')"><span class="icon">📋</span> Application</div>
+                    <div class="ev-tree-item indent" data-log="Security" onclick="selectLog('Security')"><span class="icon">🔒</span> Security</div>
+                    <div class="ev-tree-item indent active" data-log="System" onclick="selectLog('System')"><span class="icon">⚙️</span> System</div>
+                    <div class="ev-tree-item indent" data-log="Setup" onclick="selectLog('Setup')"><span class="icon">📦</span> Setup</div>
+                </div>
+                <div class="ev-content">
+                    <div class="ev-toolbar">
+                        <button class="ev-toolbar-btn" onclick="filterEvents('all')">All Events</button>
+                        <button class="ev-toolbar-btn" onclick="filterEvents('Error')">🔴 Errors Only</button>
+                        <button class="ev-toolbar-btn" onclick="filterEvents('Warning')">⚠️ Warnings</button>
+                        <button class="ev-toolbar-btn" onclick="showFindDialog()">🔍 Find...</button>
+                        <button class="ev-toolbar-btn" onclick="clearLog()">📋 Clear Log</button>
+                        <button class="ev-toolbar-btn" onclick="refreshLog()">🔄 Refresh</button>
+                    </div>
+                    <div class="ev-events" id="eventsContainer">
+                        <table class="ev-table">
+                            <thead>
+                                <tr><th>Level</th><th>Date and Time</th><th>Source</th><th>Event ID</th><th>Task Category</th></tr>
+                            </thead>
+                            <tbody id="eventsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="ev-detail" id="eventDetail">
+                        <h4>Event Details</h4>
+                        <p style="color: #666;">Select an event to view details</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Monitor -->
+            <div class="pm-window" id="perfmonWindow">
+                <div class="pm-toolbar">
+                    <button class="pm-btn" onclick="addCounter()">➕ Add Counter</button>
+                    <button class="pm-btn" onclick="removeCounter()">❌ Remove Counter</button>
+                    <button class="pm-btn" onclick="startMonitor()" id="startBtn">▶️ Start</button>
+                    <button class="pm-btn" onclick="pauseMonitor()" id="pauseBtn">⏸️ Pause</button>
+                    <button class="pm-btn" onclick="changeGraphType()">📊 Change Graph Type</button>
+                    <button class="pm-btn" onclick="clearChart()">🗑️ Clear</button>
+                </div>
+                <div class="pm-chart-area">
+                    <div class="pm-chart">
+                        <div class="pm-y-axis">
+                            <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>
+                        </div>
+                        <div class="pm-chart-grid">
+                            <div class="pm-grid-line" style="top: 0%;"></div>
+                            <div class="pm-grid-line" style="top: 25%;"></div>
+                            <div class="pm-grid-line" style="top: 50%;"></div>
+                            <div class="pm-grid-line" style="top: 75%;"></div>
+                            <div class="pm-grid-line" style="top: 100%;"></div>
+                        </div>
+                        <canvas id="perfChart" style="position: absolute; left: 40px; right: 10px; top: 10px; bottom: 30px;"></canvas>
+                    </div>
+                    <div class="pm-legend">
+                        <div class="pm-legend-item"><div class="pm-legend-color" style="background: #22c55e;"></div>% Processor Time</div>
+                        <div class="pm-legend-item"><div class="pm-legend-color" style="background: #60a5fa;"></div>Available MBytes</div>
+                        <div class="pm-legend-item"><div class="pm-legend-color" style="background: #f59e0b;"></div>Disk Queue Length</div>
+                    </div>
+                </div>
+                <div class="pm-counters">
+                    <div class="pm-counter-row"><span class="pm-counter-name">\\Processor(_Total)\\% Processor Time</span><span class="pm-counter-value" id="cpuValue">23.4%</span></div>
+                    <div class="pm-counter-row"><span class="pm-counter-name">\\Memory\\Available MBytes</span><span class="pm-counter-value" id="memValue">8,432 MB</span></div>
+                    <div class="pm-counter-row"><span class="pm-counter-name">\\PhysicalDisk(_Total)\\Avg. Disk Queue Length</span><span class="pm-counter-value" id="diskValue">0.12</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="cloud-presentation.module.html" class="nav-btn">&larr; Presentation</a>
+        <a href="cloud-pslab.module.html" class="nav-btn">PS Lab &rarr;</a>
+        <a href="cloud-quizquiz.module.html" class="nav-btn">Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Home</a>
+    </div>
+
+    <script>
+        // Lab State
+        const labState = {
+            completedTasks: new Set(),
+            currentLog: 'System',
+            currentFilter: 'all',
+            selectedEvent: null,
+            events: {
+                System: [
+                    { level: 'Error', time: '2026-01-30 09:15:23', source: 'Service Control Manager', id: 7034, category: 'None', desc: 'The SQL Server service terminated unexpectedly. It has done this 1 time(s).' },
+                    { level: 'Warning', time: '2026-01-30 09:10:45', source: 'Disk', id: 11, category: 'None', desc: 'The driver detected a controller error on \\Device\\Harddisk1\\DR1.' },
+                    { level: 'Information', time: '2026-01-30 09:00:00', source: 'Microsoft-Windows-Kernel-General', id: 12, category: 'None', desc: 'The operating system started at system time 2026-01-30T09:00:00.' },
+                    { level: 'Error', time: '2026-01-30 08:45:12', source: 'DCOM', id: 10016, category: 'None', desc: 'The application-specific permission settings do not grant Local Activation permission.' },
+                    { level: 'Warning', time: '2026-01-30 08:30:00', source: 'Time-Service', id: 134, category: 'None', desc: 'NtpClient was unable to set a domain peer to use as a time source.' },
+                    { level: 'Information', time: '2026-01-30 08:15:00', source: 'EventLog', id: 6013, category: 'None', desc: 'The system uptime is 432000 seconds.' },
+                    { level: 'Information', time: '2026-01-30 08:00:00', source: 'Microsoft-Windows-WindowsUpdateClient', id: 19, category: 'None', desc: 'Installation Successful: Windows successfully installed the following update: KB5034441.' },
+                    { level: 'Error', time: '2026-01-29 23:45:00', source: 'volsnap', id: 36, category: 'None', desc: 'The shadow copies of volume C: were aborted because of an IO failure.' },
+                ],
+                Application: [
+                    { level: 'Error', time: '2026-01-30 09:20:00', source: 'Application Error', id: 1000, category: 'Application Crashing Events', desc: 'Faulting application name: notepad.exe' },
+                    { level: 'Information', time: '2026-01-30 09:00:00', source: 'Windows Error Reporting', id: 1001, category: 'None', desc: 'Fault bucket, type 0' },
+                    { level: 'Warning', time: '2026-01-30 08:00:00', source: 'MSSQLSERVER', id: 833, category: 'Server', desc: 'SQL Server has encountered 1 occurrence(s) of I/O requests taking longer than 15 seconds.' },
+                ],
+                Security: [
+                    { level: 'Information', time: '2026-01-30 09:15:00', source: 'Microsoft Windows security auditing.', id: 4624, category: 'Logon', desc: 'An account was successfully logged on. Account: Administrator' },
+                    { level: 'Information', time: '2026-01-30 09:00:00', source: 'Microsoft Windows security auditing.', id: 4624, category: 'Logon', desc: 'An account was successfully logged on. Account: SYSTEM' },
+                    { level: 'Information', time: '2026-01-30 08:45:00', source: 'Microsoft Windows security auditing.', id: 4625, category: 'Logon', desc: 'An account failed to log on. Account: test_user' },
+                ],
+                Setup: [
+                    { level: 'Information', time: '2026-01-30 08:00:00', source: 'Microsoft-Windows-Servicing', id: 4, category: 'None', desc: 'A package was successfully installed.' },
+                ]
+            }
+        };
+
+        // Event Viewer Functions
+        function selectLog(logName) {
+            labState.currentLog = logName;
+            labState.currentFilter = 'all';
+            labState.selectedEvent = null;
+            document.querySelectorAll('.ev-tree-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.log === logName);
+            });
+            renderEvents();
+            if (logName === 'System') completeTask(1);
+        }
+
+        function filterEvents(filter) {
+            labState.currentFilter = filter;
+            renderEvents();
+            if (filter === 'Error') completeTask(2);
+        }
+
+        function renderEvents() {
+            const events = labState.events[labState.currentLog] || [];
+            const filtered = labState.currentFilter === 'all' ? events : events.filter(e => e.level === labState.currentFilter);
+            const tbody = document.getElementById('eventsBody');
+            tbody.innerHTML = filtered.map((e, i) => `
+                <tr data-index="${i}" onclick="selectEvent(${i})" class="${labState.selectedEvent === i ? 'selected' : ''}">
+                    <td><span class="ev-level"><span class="ev-level-icon ${e.level.toLowerCase()}">${e.level === 'Error' ? '✕' : e.level === 'Warning' ? '!' : 'i'}</span>${e.level}</span></td>
+                    <td>${e.time}</td>
+                    <td>${e.source}</td>
+                    <td>${e.id}</td>
+                    <td>${e.category}</td>
+                </tr>
+            `).join('');
+            document.getElementById('eventDetail').innerHTML = '<h4>Event Details</h4><p style="color: #666;">Select an event to view details</p>';
+        }
+
+        function selectEvent(index) {
+            labState.selectedEvent = index;
+            const events = labState.currentFilter === 'all'
+                ? labState.events[labState.currentLog]
+                : labState.events[labState.currentLog].filter(e => e.level === labState.currentFilter);
+            const event = events[index];
+            if (!event) return;
+
+            document.querySelectorAll('.ev-table tr').forEach((row, i) => {
+                row.classList.toggle('selected', i === index);
+            });
+
+            document.getElementById('eventDetail').innerHTML = `
+                <h4>Event ${event.id}, ${event.source}</h4>
+                <div class="ev-detail-row"><span class="ev-detail-label">Log Name:</span><span class="ev-detail-value">${labState.currentLog}</span></div>
+                <div class="ev-detail-row"><span class="ev-detail-label">Source:</span><span class="ev-detail-value">${event.source}</span></div>
+                <div class="ev-detail-row"><span class="ev-detail-label">Event ID:</span><span class="ev-detail-value">${event.id}</span></div>
+                <div class="ev-detail-row"><span class="ev-detail-label">Level:</span><span class="ev-detail-value">${event.level}</span></div>
+                <div class="ev-detail-row"><span class="ev-detail-label">Date:</span><span class="ev-detail-value">${event.time}</span></div>
+                <div class="ev-detail-row"><span class="ev-detail-label">Description:</span><span class="ev-detail-value">${event.desc}</span></div>
+            `;
+            completeTask(3);
+        }
+
+        // Performance Monitor Functions
+        function switchTool(tool) {
+            document.querySelectorAll('.tool-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tool === tool);
+            });
+            document.getElementById('eventViewerWindow').style.display = tool === 'eventviewer' ? 'flex' : 'none';
+            document.getElementById('perfmonWindow').classList.toggle('active', tool === 'perfmon');
+            if (tool === 'perfmon') {
+                completeTask(4);
+                initPerfChart();
+            }
+        }
+
+        function addCounter() {
+            const counters = [
+                '\\Network Interface(*)\\Bytes Total/sec',
+                '\\Process(_Total)\\Thread Count',
+                '\\System\\Processes',
+                '\\LogicalDisk(C:)\\% Free Space',
+                '\\TCPv4\\Connections Established'
+            ];
+            const counter = counters[Math.floor(Math.random() * counters.length)];
+            showNotification(`Counter added: ${counter}`);
+            completeTask(5);
+        }
+
+        function removeCounter() {
+            showNotification('Counter removed from monitoring');
+        }
+
+        let isMonitorRunning = true;
+        let chartInterval = null;
+
+        function startMonitor() {
+            if (isMonitorRunning) return;
+            isMonitorRunning = true;
+            chartInterval = setInterval(updateChart, 1000);
+            document.getElementById('startBtn').style.opacity = '0.5';
+            document.getElementById('pauseBtn').style.opacity = '1';
+            showNotification('Monitoring started');
+        }
+
+        function pauseMonitor() {
+            if (!isMonitorRunning) return;
+            isMonitorRunning = false;
+            if (chartInterval) clearInterval(chartInterval);
+            document.getElementById('startBtn').style.opacity = '1';
+            document.getElementById('pauseBtn').style.opacity = '0.5';
+            showNotification('Monitoring paused');
+        }
+
+        let graphType = 'line';
+        function changeGraphType() {
+            const types = ['line', 'bar', 'area'];
+            const currentIndex = types.indexOf(graphType);
+            graphType = types[(currentIndex + 1) % types.length];
+            showNotification(`Graph type changed to: ${graphType.charAt(0).toUpperCase() + graphType.slice(1)}`);
+            drawChart();
+        }
+
+        function clearChart() {
+            chartData.cpu = chartData.cpu.map(() => 0);
+            chartData.mem = chartData.mem.map(() => 0);
+            chartData.disk = chartData.disk.map(() => 0);
+            drawChart();
+            showNotification('Chart data cleared');
+        }
+
+        function showFindDialog() {
+            const searchTerm = prompt('Find events containing:');
+            if (!searchTerm) return;
+
+            const events = labState.events[labState.currentLog] || [];
+            const found = events.filter(e =>
+                e.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                e.desc.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                e.id.toString().includes(searchTerm)
+            );
+
+            if (found.length > 0) {
+                showNotification(`Found ${found.length} matching event(s)`);
+                // Highlight first match
+                const index = events.indexOf(found[0]);
+                selectEvent(index);
+            } else {
+                showNotification('No matching events found');
+            }
+        }
+
+        function clearLog() {
+            if (!confirm(`Clear all events from ${labState.currentLog} log?\n\nNote: In a real environment, this would permanently delete all events from this log.`)) return;
+            labState.events[labState.currentLog] = [];
+            renderEvents();
+            showNotification(`${labState.currentLog} log cleared`);
+        }
+
+        function refreshLog() {
+            // Simulate adding a new event on refresh
+            const newEvent = {
+                level: ['Information', 'Warning', 'Error'][Math.floor(Math.random() * 3)],
+                time: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                source: 'EventLog',
+                id: 6005 + Math.floor(Math.random() * 10),
+                category: 'None',
+                desc: 'Log refreshed - new events loaded from event log service.'
+            };
+            labState.events[labState.currentLog].unshift(newEvent);
+            renderEvents();
+            showNotification('Event log refreshed');
+        }
+
+        function showNotification(message) {
+            const existing = document.querySelector('.ev-notification');
+            if (existing) existing.remove();
+
+            const notif = document.createElement('div');
+            notif.className = 'ev-notification';
+            notif.style.cssText = 'position: fixed; bottom: 80px; right: 20px; background: #2d2d2d; color: #ccc; padding: 12px 20px; border-radius: 6px; border: 1px solid #555; z-index: 1000; animation: fadeIn 0.3s;';
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        let perfChart = null;
+        let chartData = { cpu: [], mem: [], disk: [] };
+
+        function initPerfChart() {
+            const canvas = document.getElementById('perfChart');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            // Generate initial data
+            for (let i = 0; i < 60; i++) {
+                chartData.cpu.push(20 + Math.random() * 30);
+                chartData.mem.push(50 + Math.random() * 20);
+                chartData.disk.push(Math.random() * 2);
+            }
+
+            drawChart();
+            chartInterval = setInterval(updateChart, 1000);
+        }
+
+        function updateChart() {
+            chartData.cpu.shift();
+            chartData.cpu.push(15 + Math.random() * 40);
+            chartData.mem.shift();
+            chartData.mem.push(45 + Math.random() * 25);
+            chartData.disk.shift();
+            chartData.disk.push(Math.random() * 3);
+
+            document.getElementById('cpuValue').textContent = chartData.cpu[chartData.cpu.length - 1].toFixed(1) + '%';
+            document.getElementById('memValue').textContent = Math.floor(8000 + Math.random() * 1000) + ' MB';
+            document.getElementById('diskValue').textContent = chartData.disk[chartData.disk.length - 1].toFixed(2);
+
+            drawChart();
+        }
+
+        function drawChart() {
+            const canvas = document.getElementById('perfChart');
+            if (!canvas.getContext) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (graphType === 'bar') {
+                // Bar chart
+                const barWidth = w / 60 / 3;
+                chartData.cpu.forEach((v, i) => {
+                    const x = (i / 59) * w;
+                    ctx.fillStyle = '#22c55e';
+                    ctx.fillRect(x, h - (v / 100) * h, barWidth, (v / 100) * h);
+                    ctx.fillStyle = '#60a5fa';
+                    ctx.fillRect(x + barWidth, h - (chartData.mem[i] / 100) * h, barWidth, (chartData.mem[i] / 100) * h);
+                });
+            } else if (graphType === 'area') {
+                // Area chart - CPU
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                chartData.cpu.forEach((v, i) => {
+                    const x = (i / 59) * w;
+                    const y = h - (v / 100) * h;
+                    ctx.lineTo(x, y);
+                });
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fill();
+
+                // Area chart - Memory
+                ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                chartData.mem.forEach((v, i) => {
+                    const x = (i / 59) * w;
+                    const y = h - (v / 100) * h;
+                    ctx.lineTo(x, y);
+                });
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Line chart (default)
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                chartData.cpu.forEach((v, i) => {
+                    const x = (i / 59) * w;
+                    const y = h - (v / 100) * h;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                ctx.strokeStyle = '#60a5fa';
+                ctx.beginPath();
+                chartData.mem.forEach((v, i) => {
+                    const x = (i / 59) * w;
+                    const y = h - (v / 100) * h;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+        }
+
+        // Task Completion
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+            if (labState.completedTasks.size === 5) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markGuiLabComplete('m07');
+                }, 500);
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('progressText').textContent = `${labState.completedTasks.size} / 5 Tasks Complete`;
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        function resetLab() {
+            if (!confirm('Reset lab progress?')) return;
+            labState.completedTasks.clear();
+            labState.currentLog = 'System';
+            labState.currentFilter = 'all';
+            labState.selectedEvent = null;
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            document.getElementById('completionBanner').classList.remove('show');
+            updateProgress();
+            selectLog('System');
+            switchTool('eventviewer');
+        }
+
+        // Initialize
+        renderEvents();
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

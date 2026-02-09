@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M18 PS Lab: PowerShell Automation - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #12141f;
+            --panel-bg: #1a1c28;
+            --border-color: #2d3748;
+            --accent-blue: #60a5fa;
+            --accent-light: #93c5fd;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --ps-blue: #012456;
+            --auto-purple: #a78bfa;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.2rem;
+            color: var(--accent-blue);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .progress-text {
+            color: var(--accent-light);
+            font-size: 0.9rem;
+        }
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .header-btn:hover { background: var(--accent-blue); color: #000; }
+        .main-layout { display: flex; height: calc(100vh - 120px); }
+        .instructions-sidebar {
+            width: 380px;
+            background: var(--secondary-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .task-section { margin-bottom: 25px; }
+        .task-section h3 {
+            color: var(--auto-purple);
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .task {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .task.completed {
+            border-color: var(--success-color);
+            background: rgba(34, 197, 94, 0.05);
+        }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task.completed .task-title::after { content: " ✓"; color: var(--success-color); }
+        .task-description { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+        .task-hint {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            background: rgba(167, 139, 250, 0.15);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #fff;
+            border-left: 3px solid var(--auto-purple);
+        }
+        .tip-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--warning-color);
+        }
+        .info-box {
+            background: rgba(167, 139, 250, 0.1);
+            border-left: 3px solid var(--auto-purple);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--accent-light);
+        }
+        .terminal-container {
+            flex: 1;
+            background: var(--ps-blue);
+            overflow: hidden;
+        }
+
+        .completion-banner {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(135deg, #166534, #22c55e);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            z-index: 2000;
+        }
+        .completion-banner.show { display: block; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .completion-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .completion-btn.primary { background: #fff; color: #166534; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+        .nav-footer {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { background: var(--accent-blue); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M18: PowerShell Automation Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 14 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>PowerShell Lab Complete!</h2>
+        <p>You've mastered PowerShell automation and scripting techniques!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="cloud-quizquiz.module.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="cloud-guilab.module.html">Try GUI Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="instructions-sidebar">
+
+            <!-- ═══════════ Section 1: Functions & Parameters ═══════════ -->
+            <div class="task-section">
+                <h3>Functions &amp; Parameters</h3>
+
+                <div class="task" id="task1">
+                    <div class="task-title">1. Create a Reusable Function</div>
+                    <div class="task-description">Define a function with a param block for server health checks.</div>
+                    <div class="task-hint">function Get-ServerHealth { param([string]$ComputerName) Get-Service -ComputerName $ComputerName }</div>
+                </div>
+
+                <div class="task" id="task2">
+                    <div class="task-title">2. Use Parameter Validation</div>
+                    <div class="task-description">Create a function with ValidateSet to restrict input values.</div>
+                    <div class="task-hint">function Set-Environment { param([ValidateSet('Dev','Test','Prod')]$Env) Write-Output "Setting $Env" }</div>
+                </div>
+
+                <div class="task" id="task3">
+                    <div class="task-title">3. Create an Advanced Function</div>
+                    <div class="task-description">Build a function with CmdletBinding for -Verbose and -WhatIf support.</div>
+                    <div class="task-hint">function Restart-AppPool { [CmdletBinding(SupportsShouldProcess)] param([string]$Name) }</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 2: Pipeline & Filtering ═══════════ -->
+            <div class="task-section">
+                <h3>Pipeline &amp; Filtering</h3>
+
+                <div class="task" id="task4">
+                    <div class="task-title">4. Filter with Where-Object</div>
+                    <div class="task-description">Use Where-Object to filter services by their start type.</div>
+                    <div class="task-hint">Get-Service | Where-Object { $_.StartType -eq 'Automatic' -and $_.Status -eq 'Stopped' }</div>
+                </div>
+
+                <div class="task" id="task5">
+                    <div class="task-title">5. Transform with ForEach-Object</div>
+                    <div class="task-description">Use ForEach-Object to process each item in a pipeline.</div>
+                    <div class="task-hint">Get-Process | ForEach-Object { "$($_.Name): $([math]::Round($_.WorkingSet64/1MB, 2)) MB" }</div>
+                </div>
+
+                <div class="task" id="task6">
+                    <div class="task-title">6. Select Specific Properties</div>
+                    <div class="task-description">Use Select-Object to choose and rename output properties.</div>
+                    <div class="task-hint">Get-Process | Select-Object Name, Id, @{N='MemMB';E={[math]::Round($_.WorkingSet64/1MB)}}</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 3: Error Handling ═══════════ -->
+            <div class="task-section">
+                <h3>Error Handling</h3>
+
+                <div class="task" id="task7">
+                    <div class="task-title">7. Try/Catch Error Handling</div>
+                    <div class="task-description">Wrap a command in try/catch to handle errors gracefully.</div>
+                    <div class="task-hint">try { Get-Service -Name "FakeService" -ErrorAction Stop } catch { Write-Warning $_.Exception.Message }</div>
+                </div>
+
+                <div class="task" id="task8">
+                    <div class="task-title">8. Set Error Action Preference</div>
+                    <div class="task-description">Configure the global error action to stop on any error.</div>
+                    <div class="task-hint">$ErrorActionPreference = "Stop"</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 4: Data Import/Export ═══════════ -->
+            <div class="task-section">
+                <h3>Data Import &amp; Export</h3>
+
+                <div class="task" id="task9">
+                    <div class="task-title">9. Export Data to CSV</div>
+                    <div class="task-description">Export process data to a CSV file for reporting.</div>
+                    <div class="task-hint">Get-Process | Select-Object Name, Id, CPU | Export-Csv -Path "C:\Reports\processes.csv" -NoTypeInformation</div>
+                </div>
+
+                <div class="task" id="task10">
+                    <div class="task-title">10. Import Data from CSV</div>
+                    <div class="task-description">Read data from a CSV file back into PowerShell objects.</div>
+                    <div class="task-hint">Import-Csv -Path "C:\Reports\processes.csv"</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 5: Task Scheduling & Remoting ═══════════ -->
+            <div class="task-section">
+                <h3>Scheduling &amp; Remote Management</h3>
+
+                <div class="task" id="task11">
+                    <div class="task-title">11. Create a Scheduled Task</div>
+                    <div class="task-description">Register a scheduled task to run a PowerShell script daily at 2 AM.</div>
+                    <div class="task-hint">Register-ScheduledTask -TaskName "DailyBackup" -Trigger (New-ScheduledTaskTrigger -Daily -At 2am) -Action (New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\Scripts\Backup.ps1")</div>
+                </div>
+
+                <div class="task" id="task12">
+                    <div class="task-title">12. View Scheduled Tasks</div>
+                    <div class="task-description">List all registered scheduled tasks on the system.</div>
+                    <div class="task-hint">Get-ScheduledTask</div>
+                </div>
+
+                <div class="task" id="task13">
+                    <div class="task-title">13. Remote Command Execution</div>
+                    <div class="task-description">Run a command on a remote server using Invoke-Command.</div>
+                    <div class="task-hint">Invoke-Command -ComputerName DC02 -ScriptBlock { Get-Service | Where-Object Status -eq 'Running' }</div>
+                </div>
+
+                <div class="task" id="task14">
+                    <div class="task-title">14. Create a Persistent Remote Session</div>
+                    <div class="task-description">Establish a reusable PSSession for multiple remote commands.</div>
+                    <div class="task-hint">$session = New-PSSession -ComputerName DC02, FS01</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Key Automation Cmdlets:</strong><br>
+                <code>ForEach-Object</code> - Process pipeline items<br>
+                <code>Where-Object</code> - Filter pipeline items<br>
+                <code>Select-Object</code> - Choose properties<br>
+                <code>Export-Csv / Import-Csv</code> - Data files<br>
+                <code>Invoke-Command</code> - Remote execution<br>
+                <code>Register-ScheduledTask</code> - Automation
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Use <code>-WhatIf</code> and <code>-Confirm</code> parameters to safely test automation scripts before running them in production. Add <code>[CmdletBinding(SupportsShouldProcess)]</code> to your functions.
+            </div>
+
+            <div class="info-box">
+                <strong>Script Signing:</strong><br>
+                Production environments should use <code>Set-ExecutionPolicy AllSigned</code>.
+                Sign scripts with <code>Set-AuthenticodeSignature</code> and a code signing certificate.
+                This prevents unauthorized script modifications.
+            </div>
+
+            <div class="tip-box">
+                <strong>Pipeline Efficiency:</strong>
+                The pipeline streams objects one at a time, keeping memory usage low.
+                Use <code>ForEach-Object</code> for pipeline streaming, and <code>foreach</code>
+                (the statement) when you need all objects loaded into memory first.
+            </div>
+
+            <div class="info-box">
+                <strong>Execution Policies:</strong><br>
+                <strong>Restricted</strong> - No scripts allowed (default on desktops)<br>
+                <strong>AllSigned</strong> - Only signed scripts run<br>
+                <strong>RemoteSigned</strong> - Downloaded scripts must be signed<br>
+                <strong>Unrestricted</strong> - All scripts run (warns on downloaded)<br>
+                <strong>Bypass</strong> - Nothing is blocked, no warnings
+            </div>
+
+            <div class="info-box">
+                <strong>Creating a Module:</strong><br>
+                1. Create a folder matching the module name<br>
+                2. Place your .psm1 file inside with exported functions<br>
+                3. Create a .psd1 manifest with <code>New-ModuleManifest</code><br>
+                4. Place in <code>$env:PSModulePath</code> for auto-discovery<br>
+                5. Use <code>Import-Module</code> to load manually
+            </div>
+
+            <div class="tip-box">
+                <strong>Remoting Security:</strong>
+                PowerShell Remoting uses WinRM (WS-Management) over port 5985 (HTTP)
+                or 5986 (HTTPS). Always use HTTPS in production.
+                Enable remoting with <code>Enable-PSRemoting -Force</code>.
+                Use <code>TrustedHosts</code> for workgroup environments.
+            </div>
+
+            <div class="info-box">
+                <strong>Common Parameter Validation Attributes:</strong><br>
+                <code>[ValidateSet()]</code> - Restrict to specific values<br>
+                <code>[ValidateRange()]</code> - Numeric range limits<br>
+                <code>[ValidateLength()]</code> - String length limits<br>
+                <code>[ValidatePattern()]</code> - Regex pattern match<br>
+                <code>[ValidateNotNullOrEmpty()]</code> - Require a value<br>
+                <code>[ValidateScript()]</code> - Custom validation logic
+            </div>
+        </div>
+
+        <div class="terminal-container" id="terminalContainer"></div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="cloud-presentation.module.html" class="nav-btn">&larr; Presentation</a>
+        <a href="cloud-guilab.module.html" class="nav-btn">GUI Lab</a>
+        <a href="cloud-quizquiz.module.html" class="nav-btn">Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Home</a>
+    </div>
+
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/PSTerminal.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // Lab State Management
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const TOTAL_TASKS = 14;
+        const labState = { completedTasks: new Set() };
+        let terminal = null;
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Objective-to-Task Mapping
+        //
+        // INSIGHT: PowerShell Automation Maturity Model
+        // ─────────────────────────────────────────────
+        // Tasks progress through the automation skill ladder:
+        // 1. Functions & Parameters - Reusable building blocks
+        // 2. Pipeline operations - Data transformation
+        // 3. Error handling - Resilient scripts
+        // 4. Data import/export - Reporting workflows
+        // 5. Scheduling & Remoting - Enterprise automation
+        // This mirrors the real journey from ad-hoc commands to
+        // production-grade automation scripts.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function handleObjectiveComplete(objectiveId) {
+            const taskMap = {
+                'create-function': 1,
+                'param-validation': 2,
+                'advanced-function': 3,
+                'where-object': 4,
+                'foreach-object': 5,
+                'select-object': 6,
+                'try-catch': 7,
+                'error-action': 8,
+                'export-csv': 9,
+                'import-csv': 10,
+                'register-scheduledtask': 11,
+                'get-scheduledtask': 12,
+                'invoke-command': 13,
+                'new-pssession': 14,
+            };
+            if (taskMap[objectiveId]) completeTask(taskMap[objectiveId]);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Task Completion
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+            if (labState.completedTasks.size === TOTAL_TASKS) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m18');
+                }, 500);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Progress Display
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateProgress() {
+            document.getElementById('progressText').textContent =
+                `${labState.completedTasks.size} / ${TOTAL_TASKS} Tasks Complete`;
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Reset Lab
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function resetLab() {
+            if (!confirm('Reset lab progress?')) return;
+            labState.completedTasks.clear();
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            dismissBanner();
+            updateProgress();
+            if (terminal) terminal.destroy();
+            initializeTerminal();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Terminal Initialization
+        //
+        // INSIGHT: Simulated Automation Environment
+        // ─────────────────────────────────────────
+        // The initialState provides a multi-server environment with
+        // services, scheduled tasks, and remote session targets.
+        // Students can practice building functions, pipelines,
+        // error handling, and remote management against realistic
+        // simulated infrastructure.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function initializeTerminal() {
+            terminal = PSTerminal.init('WSA-M18', '#terminalContainer', {
+                hostname: 'DC01',
+                domain: 'hexworth.local',
+                objectives: [
+                    // Functions & Parameters
+                    { id: 'create-function', desc: 'Create a reusable function' },
+                    { id: 'param-validation', desc: 'Use parameter validation' },
+                    { id: 'advanced-function', desc: 'Create an advanced function' },
+                    // Pipeline & Filtering
+                    { id: 'where-object', desc: 'Filter with Where-Object' },
+                    { id: 'foreach-object', desc: 'Transform with ForEach-Object' },
+                    { id: 'select-object', desc: 'Select specific properties' },
+                    // Error Handling
+                    { id: 'try-catch', desc: 'Implement try/catch handling' },
+                    { id: 'error-action', desc: 'Set error action preference' },
+                    // Data Import/Export
+                    { id: 'export-csv', desc: 'Export data to CSV' },
+                    { id: 'import-csv', desc: 'Import data from CSV' },
+                    // Scheduling & Remoting
+                    { id: 'register-scheduledtask', desc: 'Create a scheduled task' },
+                    { id: 'get-scheduledtask', desc: 'List scheduled tasks' },
+                    { id: 'invoke-command', desc: 'Execute remote command' },
+                    { id: 'new-pssession', desc: 'Create persistent remote session' },
+                ],
+                onObjectiveComplete: handleObjectiveComplete,
+                initialState: {
+                    scheduledTasks: {
+                        'DailyBackup': { state: 'Ready', nextRunTime: '2024-01-16 02:00', lastRunResult: 'Success', author: 'HEXWORTH\\admin' },
+                        'WeeklyReport': { state: 'Ready', nextRunTime: '2024-01-20 06:00', lastRunResult: 'Success', author: 'HEXWORTH\\admin' },
+                        'LogCleanup': { state: 'Disabled', nextRunTime: 'N/A', lastRunResult: 'N/A', author: 'HEXWORTH\\sysadmin' },
+                    },
+                    remoteTargets: ['DC02', 'FS01', 'WEB01', 'SQL01'],
+                    csvFiles: {
+                        'C:\\Reports\\servers.csv': [
+                            { Name: 'DC01', Role: 'Domain Controller', OS: 'Server 2022', IP: '10.0.1.10' },
+                            { Name: 'DC02', Role: 'Domain Controller', OS: 'Server 2022', IP: '10.0.1.11' },
+                            { Name: 'FS01', Role: 'File Server', OS: 'Server 2022', IP: '10.0.1.20' },
+                            { Name: 'WEB01', Role: 'Web Server', OS: 'Server 2022', IP: '10.0.1.30' },
+                            { Name: 'SQL01', Role: 'Database Server', OS: 'Server 2022', IP: '10.0.1.40' },
+                        ]
+                    },
+                    executionPolicy: 'RemoteSigned',
+                },
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeTerminal);
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

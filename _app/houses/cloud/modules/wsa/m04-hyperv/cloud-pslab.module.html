@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M04 PS Lab: Hyper-V PowerShell - Hexworth Prime</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #12141f;
+            --panel-bg: #1a1c28;
+            --border-color: #2d3748;
+            --accent-blue: #60a5fa;
+            --accent-light: #93c5fd;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --ps-blue: #012456;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        .page-header {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header h1 { font-size: 1.2rem; color: var(--accent-blue); }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .progress-text { color: var(--accent-light); font-size: 0.9rem; }
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .header-btn:hover { background: var(--accent-blue); color: #000; }
+        .main-layout { display: flex; height: calc(100vh - 120px); }
+        .instructions-sidebar {
+            width: 380px;
+            background: var(--secondary-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .task-section { margin-bottom: 25px; }
+        .task-section h3 {
+            color: var(--accent-blue);
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .task {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .task.completed {
+            border-color: var(--success-color);
+            background: rgba(34, 197, 94, 0.05);
+        }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task.completed .task-title::after { content: " ✓"; color: var(--success-color); }
+        .task-description { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+        .task-hint {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            background: rgba(1, 36, 86, 0.5);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #fff;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .tip-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--warning-color);
+        }
+        .info-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid var(--accent-blue);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--accent-light);
+        }
+        .terminal-container {
+            flex: 1;
+            background: var(--ps-blue);
+            overflow: hidden;
+        }
+
+        .completion-banner {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(135deg, #166534, #22c55e);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            z-index: 2000;
+        }
+        .completion-banner.show { display: block; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; margin-top: 15px; }
+        .completion-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .completion-btn.primary { background: #fff; color: #166534; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5); }
+        .nav-footer {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { background: var(--accent-blue); color: #000; }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M04: Hyper-V PowerShell Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 14 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>PowerShell Lab Complete!</h2>
+        <p>You've mastered Hyper-V management with PowerShell!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="cloud-quizquiz.module.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="cloud-guilab.module.html">Try GUI Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="instructions-sidebar">
+
+            <!-- ═══════════ Section 1: VM Discovery & Information ═══════════ -->
+            <div class="task-section">
+                <h3>VM Discovery &amp; Information</h3>
+
+                <div class="task" id="task1">
+                    <div class="task-title">1. List Virtual Machines</div>
+                    <div class="task-description">View all VMs on the Hyper-V host and their current state.</div>
+                    <div class="task-hint">Get-VM</div>
+                </div>
+
+                <div class="task" id="task2">
+                    <div class="task-title">2. Get Host Information</div>
+                    <div class="task-description">View the Hyper-V host configuration, including default paths and settings.</div>
+                    <div class="task-hint">Get-VMHost</div>
+                </div>
+
+                <div class="task" id="task3">
+                    <div class="task-title">3. Measure VM Resource Usage</div>
+                    <div class="task-description">View resource metering data for a running VM (CPU, memory, network).</div>
+                    <div class="task-hint">Measure-VM -Name "DC02"</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 2: VM Creation & Configuration ═══════════ -->
+            <div class="task-section">
+                <h3>VM Creation &amp; Configuration</h3>
+
+                <div class="task" id="task4">
+                    <div class="task-title">4. Create a New VM</div>
+                    <div class="task-description">Create a new Generation 2 VM with 2 GB startup RAM.</div>
+                    <div class="task-hint">New-VM -Name "TEST01" -Generation 2 -MemoryStartupBytes 2GB</div>
+                </div>
+
+                <div class="task" id="task5">
+                    <div class="task-title">5. Configure VM Settings</div>
+                    <div class="task-description">Modify processor count for an existing VM.</div>
+                    <div class="task-hint">Set-VM -Name "TEST01" -ProcessorCount 4</div>
+                </div>
+
+                <div class="task" id="task6">
+                    <div class="task-title">6. Configure Dynamic Memory</div>
+                    <div class="task-description">Enable dynamic memory and set minimum/maximum thresholds.</div>
+                    <div class="task-hint">Set-VMMemory -VMName "TEST01" -DynamicMemoryEnabled $true -MinimumBytes 512MB -MaximumBytes 4GB</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 3: Storage Management ═══════════ -->
+            <div class="task-section">
+                <h3>Storage Management</h3>
+
+                <div class="task" id="task7">
+                    <div class="task-title">7. Create a Virtual Hard Disk</div>
+                    <div class="task-description">Create a new dynamically expanding VHDX file (60 GB max).</div>
+                    <div class="task-hint">New-VHD -Path "C:\VMs\TEST01\Disk1.vhdx" -SizeBytes 60GB -Dynamic</div>
+                </div>
+
+                <div class="task" id="task8">
+                    <div class="task-title">8. Attach a VHD to a VM</div>
+                    <div class="task-description">Add the newly created disk to the VM's SCSI controller.</div>
+                    <div class="task-hint">Add-VMHardDiskDrive -VMName "TEST01" -Path "C:\VMs\TEST01\Disk1.vhdx"</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 4: Networking ═══════════ -->
+            <div class="task-section">
+                <h3>Virtual Networking</h3>
+
+                <div class="task" id="task9">
+                    <div class="task-title">9. View Virtual Switches</div>
+                    <div class="task-description">List all virtual switches configured on the host.</div>
+                    <div class="task-hint">Get-VMSwitch</div>
+                </div>
+
+                <div class="task" id="task10">
+                    <div class="task-title">10. Create a Virtual Switch</div>
+                    <div class="task-description">Create a new internal virtual switch for lab use.</div>
+                    <div class="task-hint">New-VMSwitch -Name "LabSwitch" -SwitchType Internal</div>
+                </div>
+
+                <div class="task" id="task11">
+                    <div class="task-title">11. Connect VM to Switch</div>
+                    <div class="task-description">Attach a VM's network adapter to a specific virtual switch.</div>
+                    <div class="task-hint">Set-VMNetworkAdapter -VMName "TEST01" -SwitchName "LabSwitch"</div>
+                </div>
+            </div>
+
+            <!-- ═══════════ Section 5: VM Operations ═══════════ -->
+            <div class="task-section">
+                <h3>VM Operations &amp; Protection</h3>
+
+                <div class="task" id="task12">
+                    <div class="task-title">12. Start a VM</div>
+                    <div class="task-description">Power on an existing virtual machine.</div>
+                    <div class="task-hint">Start-VM -Name "WEB01"</div>
+                </div>
+
+                <div class="task" id="task13">
+                    <div class="task-title">13. Create a Checkpoint</div>
+                    <div class="task-description">Create a checkpoint (snapshot) before applying updates.</div>
+                    <div class="task-hint">Checkpoint-VM -Name "DC02" -SnapshotName "Before Update"</div>
+                </div>
+
+                <div class="task" id="task14">
+                    <div class="task-title">14. Export a VM</div>
+                    <div class="task-description">Export a VM for backup or migration to another host.</div>
+                    <div class="task-hint">Export-VM -Name "DC02" -Path "D:\Backups"</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Hyper-V Cmdlet Module:</strong><br>
+                Use <code>Get-Command -Module Hyper-V</code> to see all available cmdlets.
+                Common verbs: Get, Set, New, Add, Remove, Start, Stop, Checkpoint, Export, Import.
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Always use <code>-WhatIf</code> with destructive commands like <code>Remove-VM</code> to preview the action before executing.
+            </div>
+
+            <div class="info-box">
+                <strong>Generation 1 vs 2:</strong><br>
+                Gen 2 VMs support UEFI firmware, Secure Boot, and VHDX boot disks.
+                Gen 1 VMs use legacy BIOS and are needed for older OS versions.
+            </div>
+
+            <div class="tip-box">
+                <strong>Virtual Switch Types:</strong><br>
+                <strong>External</strong> - Connects VMs to the physical network<br>
+                <strong>Internal</strong> - Connects VMs and the host (no physical access)<br>
+                <strong>Private</strong> - Connects VMs only (host is isolated)
+            </div>
+
+            <div class="info-box">
+                <strong>Checkpoint Types:</strong><br>
+                <strong>Standard</strong> - Captures VM state, memory, and disk (default).<br>
+                <strong>Production</strong> - Uses VSS inside the guest for application-consistent snapshots.
+                Use <code>Set-VM -CheckpointType</code> to configure.
+            </div>
+
+            <div class="info-box">
+                <strong>Live Migration Requirements:</strong><br>
+                - Shared storage (CSV or SMB 3.0) or live storage migration<br>
+                - Compatible processor versions between hosts<br>
+                - Same virtual switch names on source and destination<br>
+                - Both hosts must be domain-joined or trust each other<br>
+                - Use <code>Move-VM</code> to initiate a live migration
+            </div>
+
+            <div class="tip-box">
+                <strong>VHD vs VHDX:</strong>
+                VHDX supports up to 64 TB disks, has 4 KB sector alignment,
+                and includes corruption protection via metadata logging.
+                VHD is limited to 2 TB and lacks these modern features.
+                Always prefer VHDX for new deployments.
+            </div>
+        </div>
+
+        <div class="terminal-container" id="terminalContainer"></div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="cloud-presentation.module.html" class="nav-btn">&larr; Presentation</a>
+        <a href="cloud-guilab.module.html" class="nav-btn">GUI Lab</a>
+        <a href="cloud-quizquiz.module.html" class="nav-btn">Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Home</a>
+    </div>
+
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/PSTerminal.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // Lab State Management
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const TOTAL_TASKS = 14;
+        const labState = { completedTasks: new Set() };
+        let terminal = null;
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Objective-to-Task Mapping
+        //
+        // INSIGHT: Hyper-V Administration Skill Progression
+        // ─────────────────────────────────────────────────
+        // Tasks are ordered from discovery (read-only) through creation,
+        // configuration, networking, and finally operations/protection.
+        // This mirrors how a real admin provisions a new VM from scratch.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function handleObjectiveComplete(objectiveId) {
+            const taskMap = {
+                'get-vm': 1,
+                'get-vmhost': 2,
+                'measure-vm': 3,
+                'new-vm': 4,
+                'set-vm': 5,
+                'set-vmmemory': 6,
+                'new-vhd': 7,
+                'add-vmharddiskdrive': 8,
+                'get-vmswitch': 9,
+                'new-vmswitch': 10,
+                'set-vmnetworkadapter': 11,
+                'start-vm': 12,
+                'checkpoint': 13,
+                'export-vm': 14,
+            };
+            if (taskMap[objectiveId]) completeTask(taskMap[objectiveId]);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Task Completion
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+            if (labState.completedTasks.size === TOTAL_TASKS) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m04');
+                }, 500);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Progress Display
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateProgress() {
+            document.getElementById('progressText').textContent =
+                `${labState.completedTasks.size} / ${TOTAL_TASKS} Tasks Complete`;
+        }
+
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Reset Lab
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function resetLab() {
+            if (!confirm('Reset lab progress?')) return;
+            labState.completedTasks.clear();
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            dismissBanner();
+            updateProgress();
+            if (terminal) terminal.destroy();
+            initializeTerminal();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Terminal Initialization
+        //
+        // INSIGHT: Simulated Hyper-V Environment
+        // ──────────────────────────────────────
+        // The initialState provides a realistic lab environment with
+        // multiple VMs in different states, various virtual switch types,
+        // and pre-existing storage. This mirrors a production Hyper-V host
+        // where students must navigate existing infrastructure.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function initializeTerminal() {
+            terminal = PSTerminal.init('WSA-M04', '#terminalContainer', {
+                hostname: 'HV01',
+                domain: 'hexworth.local',
+                objectives: [
+                    // Discovery & Information
+                    { id: 'get-vm', desc: 'List all virtual machines' },
+                    { id: 'get-vmhost', desc: 'View Hyper-V host configuration' },
+                    { id: 'measure-vm', desc: 'Measure VM resource usage' },
+                    // Creation & Configuration
+                    { id: 'new-vm', desc: 'Create a new virtual machine' },
+                    { id: 'set-vm', desc: 'Configure VM processor settings' },
+                    { id: 'set-vmmemory', desc: 'Configure dynamic memory' },
+                    // Storage
+                    { id: 'new-vhd', desc: 'Create a virtual hard disk' },
+                    { id: 'add-vmharddiskdrive', desc: 'Attach VHD to a VM' },
+                    // Networking
+                    { id: 'get-vmswitch', desc: 'List virtual switches' },
+                    { id: 'new-vmswitch', desc: 'Create a virtual switch' },
+                    { id: 'set-vmnetworkadapter', desc: 'Connect VM to switch' },
+                    // Operations
+                    { id: 'start-vm', desc: 'Start a virtual machine' },
+                    { id: 'checkpoint', desc: 'Create a VM checkpoint' },
+                    { id: 'export-vm', desc: 'Export a VM for backup' },
+                ],
+                onObjectiveComplete: handleObjectiveComplete,
+                initialState: {
+                    vms: {
+                        'DC02': {
+                            Name: 'DC02', State: 'Running', CPUUsage: 12,
+                            MemoryAssigned: 4294967296, MemoryDemand: 3221225472,
+                            Uptime: '2.14:32:05', Version: '9.0', Generation: 2,
+                            ProcessorCount: 4, DynamicMemoryEnabled: true,
+                            Status: 'Operating normally',
+                            HardDrives: ['C:\\VMs\\DC02\\DC02.vhdx'],
+                            NetworkAdapters: ['External Network']
+                        },
+                        'FS01': {
+                            Name: 'FS01', State: 'Running', CPUUsage: 3,
+                            MemoryAssigned: 2147483648, MemoryDemand: 1610612736,
+                            Uptime: '5.08:15:22', Version: '9.0', Generation: 2,
+                            ProcessorCount: 2, DynamicMemoryEnabled: true,
+                            Status: 'Operating normally',
+                            HardDrives: ['C:\\VMs\\FS01\\FS01.vhdx', 'C:\\VMs\\FS01\\Data.vhdx'],
+                            NetworkAdapters: ['External Network']
+                        },
+                        'WEB01': {
+                            Name: 'WEB01', State: 'Off', CPUUsage: 0,
+                            MemoryAssigned: 0, MemoryDemand: 0,
+                            Uptime: '0:00:00', Version: '9.0', Generation: 2,
+                            ProcessorCount: 2, DynamicMemoryEnabled: false,
+                            Status: 'Off',
+                            HardDrives: ['C:\\VMs\\WEB01\\WEB01.vhdx'],
+                            NetworkAdapters: ['Internal Network']
+                        },
+                        'SQL01': {
+                            Name: 'SQL01', State: 'Running', CPUUsage: 28,
+                            MemoryAssigned: 8589934592, MemoryDemand: 6442450944,
+                            Uptime: '1.22:45:10', Version: '9.0', Generation: 2,
+                            ProcessorCount: 8, DynamicMemoryEnabled: true,
+                            Status: 'Operating normally',
+                            HardDrives: ['C:\\VMs\\SQL01\\SQL01.vhdx', 'C:\\VMs\\SQL01\\SQLData.vhdx', 'C:\\VMs\\SQL01\\SQLLogs.vhdx'],
+                            NetworkAdapters: ['External Network']
+                        },
+                    },
+                    vmSwitches: {
+                        'External Network': { Name: 'External Network', SwitchType: 'External', NetAdapterInterfaceDescription: 'Intel(R) I350 Gigabit' },
+                        'Internal Network': { Name: 'Internal Network', SwitchType: 'Internal', NetAdapterInterfaceDescription: '' },
+                        'Private Lab': { Name: 'Private Lab', SwitchType: 'Private', NetAdapterInterfaceDescription: '' },
+                    },
+                    vmHost: {
+                        Name: 'HV01',
+                        LogicalProcessorCount: 16,
+                        MemoryCapacity: '64 GB',
+                        VirtualHardDiskPath: 'C:\\VMs',
+                        VirtualMachinePath: 'C:\\VMs',
+                        MacAddressMinimum: '00155D4B0100',
+                        MacAddressMaximum: '00155D4B01FF',
+                        EnableEnhancedSessionMode: true,
+                    },
+                },
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeTerminal);
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

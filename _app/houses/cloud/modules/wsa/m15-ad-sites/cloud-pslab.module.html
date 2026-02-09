@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSA M15 PS Lab: AD Sites & Replication - Hexworth Prime</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #12141f;
+            --panel-bg: #1a1c28;
+            --border-color: #2d3748;
+            --accent-blue: #60a5fa;
+            --accent-light: #93c5fd;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --ps-blue: #012456;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .page-header {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            border-bottom: 2px solid var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.2rem;
+            color: var(--accent-blue);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .progress-text {
+            color: var(--accent-light);
+            font-size: 0.9rem;
+        }
+
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .header-btn:hover {
+            background: var(--accent-blue);
+            color: #000;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 120px);
+        }
+
+        /* Instructions Sidebar */
+        .instructions-sidebar {
+            width: 380px;
+            background: var(--secondary-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section h3 {
+            color: var(--accent-blue);
+            font-size: 1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .task:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .task.completed {
+            border-color: var(--success-color);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task.completed .task-title::after {
+            content: "\2713";
+            color: var(--success-color);
+        }
+
+        .task-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .task-hint {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            background: rgba(1, 36, 86, 0.5);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #fff;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .tip-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--warning-color);
+        }
+
+        .info-box {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 3px solid var(--accent-blue);
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--accent-light);
+        }
+
+        .info-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        /* Terminal Container */
+        .terminal-container {
+            flex: 1;
+            background: var(--ps-blue);
+            overflow: hidden;
+        }
+
+        /* Completion Banner */
+        .completion-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #166534, #22c55e);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            z-index: 2000;
+            animation: slideDown 0.5s ease;
+        }
+
+        .completion-banner.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .completion-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .completion-btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+
+        .completion-btn.primary {
+            background: #fff;
+            color: #166534;
+        }
+
+        .completion-btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Navigation Footer */
+        .nav-footer {
+            background: var(--secondary-bg);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--accent-blue);
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <script src="../progress.js"></script>
+    <div class="page-header">
+        <h1>WSA M15: AD Sites & Replication PowerShell Lab</h1>
+        <div class="header-controls">
+            <span class="progress-text" id="progressText">0 / 5 Tasks Complete</span>
+            <button class="header-btn" onclick="resetLab()">Reset Lab</button>
+            <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="completion-banner" id="completionBanner">
+        <h2>PowerShell Lab Complete!</h2>
+        <p>You've mastered AD Sites & Replication with PowerShell!</p>
+        <div class="completion-actions">
+            <a class="completion-btn primary" href="cloud-quizquiz.module.html">Take the Quiz &rarr;</a>
+            <a class="completion-btn secondary" href="cloud-guilab.module.html">Try GUI Lab</a>
+            <button class="completion-btn secondary" onclick="dismissBanner()">Continue Exploring</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <!-- Instructions Sidebar -->
+        <div class="instructions-sidebar">
+            <div class="task-section">
+                <h3>Lab Tasks</h3>
+
+                <div class="task" id="task1" data-task="1">
+                    <div class="task-title">1. List AD Sites</div>
+                    <div class="task-description">View all Active Directory sites in the forest.</div>
+                    <div class="task-hint">Get-ADReplicationSite -Filter *</div>
+                </div>
+
+                <div class="task" id="task2" data-task="2">
+                    <div class="task-title">2. Create New Site</div>
+                    <div class="task-description">Create a new AD replication site.</div>
+                    <div class="task-hint">New-ADReplicationSite -Name "Branch-Office"</div>
+                </div>
+
+                <div class="task" id="task3" data-task="3">
+                    <div class="task-title">3. Add Subnet</div>
+                    <div class="task-description">Create and associate a subnet with a site.</div>
+                    <div class="task-hint">New-ADReplicationSubnet -Name "192.168.1.0/24" -Site "Branch-Office"</div>
+                </div>
+
+                <div class="task" id="task4" data-task="4">
+                    <div class="task-title">4. Configure Site Link</div>
+                    <div class="task-description">Create or modify a site link for replication.</div>
+                    <div class="task-hint">New-ADReplicationSiteLink -Name "HQ-Branch" -SitesIncluded "Default-First-Site-Name","Branch-Office"</div>
+                </div>
+
+                <div class="task" id="task5" data-task="5">
+                    <div class="task-title">5. Check Replication Status</div>
+                    <div class="task-description">Verify replication health with repadmin.</div>
+                    <div class="task-hint">repadmin /replsummary</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>AD Replication:</strong><br>
+                Use <code>Get-Command *ADReplication*</code> to discover all AD replication cmdlets in PowerShell.
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Sites must exist before you can create subnets. Use <code>Get-ADReplicationSite -Filter *</code> to verify.
+            </div>
+        </div>
+
+        <!-- Terminal Container -->
+        <div class="terminal-container" id="terminalContainer"></div>
+    </div>
+
+    <div class="nav-footer">
+        <a href="cloud-presentation.module.html" class="nav-btn">&larr; Review Presentation</a>
+        <a href="cloud-guilab.module.html" class="nav-btn">GUI Lab &rarr;</a>
+        <a href="cloud-quizquiz.module.html" class="nav-btn">Take Quiz &rarr;</a>
+        <a href="../index.html" class="nav-btn">Course Overview</a>
+    </div>
+
+    <!-- Load components -->
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/PSTerminal.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Lab State & Progress Tracking
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        const labState = {
+            completedTasks: new Set(),
+        };
+
+        let terminal = null;
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Objective Validation
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Handle objective completion from PSTerminal
+         */
+        function handleObjectiveComplete(objectiveId) {
+            console.log('PS Objective completed:', objectiveId);
+
+            switch (objectiveId) {
+                case 'get-adreplicationsite':
+                    completeTask(1);
+                    break;
+                case 'new-adreplicationsite':
+                    completeTask(2);
+                    break;
+                case 'new-adreplicationsubnet':
+                    completeTask(3);
+                    break;
+                case 'configure-sitelink':
+                    completeTask(4);
+                    break;
+                case 'check-replication':
+                    completeTask(5);
+                    break;
+            }
+        }
+
+        /**
+         * Complete a task
+         */
+        function completeTask(taskNum) {
+            if (labState.completedTasks.has(taskNum)) return;
+
+            labState.completedTasks.add(taskNum);
+            document.getElementById(`task${taskNum}`).classList.add('completed');
+            updateProgress();
+
+            // Check if all complete
+            if (labState.completedTasks.size === 5) {
+                setTimeout(() => {
+                    document.getElementById('completionBanner').classList.add('show');
+                    WSAProgress.markPsLabComplete('m15');
+                }, 500);
+            }
+        }
+
+        /**
+         * Update progress display
+         */
+        function updateProgress() {
+            document.getElementById('progressText').textContent =
+                `${labState.completedTasks.size} / 5 Tasks Complete`;
+        }
+
+        /**
+         * Dismiss the completion banner
+         */
+        function dismissBanner() {
+            document.getElementById('completionBanner').classList.remove('show');
+        }
+
+        /**
+         * Reset the lab
+         */
+        function resetLab() {
+            if (!confirm('Reset lab progress? This will clear all your work.')) return;
+
+            // Reset lab state
+            labState.completedTasks.clear();
+
+            // Reset UI
+            document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
+            dismissBanner();
+            updateProgress();
+
+            // Reinitialize terminal
+            if (terminal) {
+                terminal.destroy();
+            }
+            initializeTerminal();
+
+            localStorage.removeItem('wsaM15PsLab');
+        }
+
+        /**
+         * Initialize the terminal
+         */
+        function initializeTerminal() {
+            // AD Sites & Replication objectives
+            const objectives = [
+                { id: 'get-adreplicationsite', desc: 'View AD sites with Get-ADReplicationSite' },
+                { id: 'new-adreplicationsite', desc: 'Create site with New-ADReplicationSite' },
+                { id: 'new-adreplicationsubnet', desc: 'Create subnet with New-ADReplicationSubnet' },
+                { id: 'configure-sitelink', desc: 'Configure site link' },
+                { id: 'check-replication', desc: 'Check replication status' },
+            ];
+
+            // Initial AD state with default site, subnet, and site link
+            const initialState = {
+                adSites: [
+                    {
+                        Name: 'Default-First-Site-Name',
+                        Description: 'Default AD site',
+                        Location: '',
+                        Created: '1/15/2024 10:00:00 AM',
+                    },
+                ],
+                adSubnets: [
+                    {
+                        Name: '10.0.1.0/24',
+                        Site: 'Default-First-Site-Name',
+                        Location: 'Headquarters',
+                        Description: 'HQ subnet',
+                    },
+                ],
+                adSiteLinks: [
+                    {
+                        Name: 'DEFAULTIPSITELINK',
+                        SitesIncluded: ['Default-First-Site-Name'],
+                        Cost: 100,
+                        ReplicationFrequencyInMinutes: 180,
+                        Description: 'Default site link',
+                    },
+                ],
+            };
+
+            // Initialize PSTerminal
+            terminal = PSTerminal.init('WSA-M15', '#terminalContainer', {
+                hostname: 'DC01',
+                domain: 'hexworth.local',
+                objectives: objectives,
+                onObjectiveComplete: handleObjectiveComplete,
+                initialState: initialState,
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Initialize Lab
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTerminal();
+        });
+    </script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
