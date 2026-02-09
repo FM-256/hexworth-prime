@@ -2388,6 +2388,35 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
     }
 
     // =========================================================================
+    // PUBLIC API - print / clear (for lab integration)
+    // =========================================================================
+
+    /**
+     * Print styled text to the terminal output
+     * @param {string} text - Text or HTML to display
+     * @param {string} [className] - Optional CSS class (lt-success, lt-error, lt-highlight, lt-cmd)
+     */
+    function print(text, className) {
+        const line = document.createElement('div');
+        line.className = 'lt-line' + (className ? ' ' + className : '');
+        line.innerHTML = text;
+        const target = state.outputEl || state.containerEl;
+        if (target) {
+            target.appendChild(line);
+            target.scrollTop = target.scrollHeight;
+        }
+    }
+
+    /**
+     * Clear all terminal output
+     */
+    function clear() {
+        if (state.outputEl) {
+            state.outputEl.innerHTML = '';
+        }
+    }
+
+    // =========================================================================
     // RETURN PUBLIC API
     // =========================================================================
 
@@ -2402,6 +2431,13 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         addFilesystem: (overlay) => Object.assign(state.fs, overlay),
         addPackages: (pkgs) => Object.assign(state.packages, pkgs),
         addServices: (svcs) => Object.assign(state.services, svcs),
+
+        // Lab integration convenience methods
+        print,
+        clear,
+        getCwd: () => state.currentDir,
+        getFs: () => state.fs,
+        getHistory: () => [...state.commandHistory],
     };
 
 })();

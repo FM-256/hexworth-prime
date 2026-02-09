@@ -363,9 +363,31 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 |------|--------|
 | Completion trend chart (line graph over time) | ✅ Chart.js cumulative line chart |
 | Module difficulty heatmap (where students struggle) | ✅ Horizontal bar chart sorted by completion % |
-| Time-on-task analysis (average time per module/lab) | ⏸️ Deferred (needs start time tracking) |
+| Time-on-task analysis (average time per module/lab) | ✅ HD-7: start time recording in 4 components, duration computation in ProgressSync, Firestore storage, horizontal bar chart with color coding |
 | Gamified leaderboard per class (opt-in) | ✅ Top 10 with medals, toggle visibility |
 | Comparative analytics (cohort vs cohort) | ⏸️ Deferred (multi-class feature) |
+
+### Sprint HD-7: Time-on-Task Analytics
+**Status:** ✅ Complete (February 9, 2026)
+**Depends on:** HD-6
+**Sales impact:** Answers "How long does Module X take students?" — helps handlers plan schedules and identify struggle points.
+
+| Task | Status |
+|------|--------|
+| Record start times in PSTerminal.js `init()` | ✅ `hexworth_start_times` localStorage, first-write-wins |
+| Record start times in GUISimulator.js `init()` | ✅ Same pattern |
+| Record start times in QuizEngine.js `start()` | ✅ Same pattern, guarded by `moduleId` check |
+| Record start times in WSAProgress `markPresentationViewed()` | ✅ Key format: `wsa-{moduleId}` |
+| Compute duration in ProgressSync.js `sync()` | ✅ Seconds from start to completedAt, sanity check for negative |
+| Store duration in AssignmentManager.js `submitProgress()` | ✅ `duration` field in Firestore progress doc (merge: true) |
+| Time-on-task chart in handler-dashboard.html | ✅ Horizontal bar chart, color-coded (green < 30m, yellow 30-60m, red > 60m), tooltip shows sample size |
+
+**Implementation Notes:**
+- Start times stored in `localStorage['hexworth_start_times']` as `{ "wsa-m01": timestamp, ... }`
+- First-write-wins: reopening content doesn't overwrite the original start time
+- Duration computed as `Math.round((completedAt - startedAt) / 1000)` seconds
+- Graceful degradation: pre-existing completions without duration show as `null`, chart shows "No time data yet" until new data arrives
+- No new files created — 7 existing files modified
 
 ---
 
@@ -809,22 +831,29 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 > See `COURSE_DESIGN_PRINCIPLES.md` for full framework and classroom management practices.
 
 ### Sprint L-0: Linux Infrastructure & Scaffolding
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 9, 2026)
 **Priority:** Do first — enables all subsequent L-sprints
 **Destination:** Platform-wide
 
 | Task | Status |
 |------|--------|
-| Linux Quick Reference page template (commands, flags, patterns) | ⬜ |
-| Concept Visualizer: interactive directory tree explorer | ⬜ |
-| Concept Visualizer: permission matrix (rwx calculator) | ⬜ |
-| Concept Visualizer: process lifecycle diagram | ⬜ |
-| Concept Visualizer: service dependency map | ⬜ |
-| Warmup micro-lab template (5-10 min, low-stakes, timed optional) | ⬜ |
-| Progressive hint system component (Hint 1 → Hint 2 → Solution) | ⬜ |
-| Checkpoint save system (localStorage state snapshots) | ⬜ |
-| Context callout component (`.context-callout` styled block) | ⬜ |
-| "Are you stuck?" idle detection prompt | ⬜ |
+| Linux Quick Reference page template (commands, flags, patterns) | ✅ Pre-existing (1886 lines, 58 commands, 8 categories) |
+| Concept Visualizer: interactive directory tree explorer | ✅ Pre-existing (1441 lines, full FHS tree) |
+| Concept Visualizer: permission matrix (rwx calculator) | ✅ Pre-existing (967 lines, presets + octal calc) |
+| Concept Visualizer: process lifecycle diagram | ✅ NEW — `script-process.tool.html` (1280 lines, SVG state machine, 6 states, 8 transitions, signal + command reference) |
+| Concept Visualizer: service dependency map | ✅ NEW — `script-service.tool.html` (16 services, SVG graph, start/stop simulation, cascade warnings) |
+| Warmup micro-lab template (5-10 min, low-stakes, timed optional) | ✅ Pre-existing (1278 lines, standalone quiz) |
+| Progressive hint system component (Hint 1 → Hint 2 → Solution) | ✅ Pre-existing — `ProgressiveHints.js` (UMD, 4-level hints) |
+| Checkpoint save system (localStorage state snapshots) | ✅ NEW — `CheckpointSave.js` (IIFE, save/load/clear/hasSave/promptResume) |
+| Context callout component (`.context-callout` styled block) | ✅ CSS-only pattern added to all mission labs + both new visualizers |
+| "Are you stuck?" idle detection prompt | ✅ NEW — `IdleDetector.js` (IIFE, 2-min timeout, ProgressiveHints integration) |
+
+**Also completed (not in original backlog):**
+- Extended `LinuxTerminal.js` public API with `print()`, `clear()`, `getCwd()`, `getFs()`, `getHistory()`
+- Fixed 5 broken labs: rewrote from `new LinuxTerminal()` constructor to `LinuxTerminal.init()` IIFE API
+- Added `ProgressiveHints.js` + 4-level hints to 3 mission labs (file-search, permissions, text-viewing)
+- Added `FluxCapacitor.js` to all 5 labs
+- Added context callouts to 4 mission labs
 
 ### Sprint L-1: Linux Fundamentals
 **Status:** ⬜ Backlog
@@ -1165,8 +1194,10 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 | HD-5 | 8 | 8 | Export / Reports — grades CSV, progress CSV, class summary (Feb 5, 2026) |
 | CLH | 5 | 5 | CLH action modal + course home + 31-module registry (Feb 5, 2026) |
 | Content Audit | 28 | 28 | Core 2 midterm + 11 enhanced presentations + 12 enhanced labs + 3 new WSA M01 files + WSA 404 fix (Feb 8, 2026) |
+| HD-7 | 7 | 7 | Time-on-task analytics: start recording, duration compute, Firestore storage, chart (Feb 9, 2026) |
+| L-0 | 10 | 10 | Linux infrastructure: 2 new visualizers, 2 new components, 5 lab fixes, LinuxTerminal API extension, context callouts (Feb 9, 2026) |
 
-**Total: ~214 tasks completed**
+**Total: ~231 tasks completed**
 
 ---
 
@@ -1329,4 +1360,4 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ---
 
-*Last Updated: February 8, 2026*
+*Last Updated: February 9, 2026*

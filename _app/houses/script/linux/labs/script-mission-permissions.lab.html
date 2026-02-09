@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mission: Server Permissions - House of Script</title>
     <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -241,6 +243,11 @@
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
 
+        .context-callout { background: rgba(167, 139, 250, 0.08); border-left: 3px solid #a78bfa; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #a78bfa; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .hint-container { margin-top: 10px; }
+
         @media (max-width: 1024px) {
             .container { grid-template-columns: 1fr; }
             .intel-panel { height: auto; max-height: 40vh; border-top: 2px solid #a78bfa; }
@@ -332,6 +339,13 @@
                 <strong>MISSION BRIEFING</strong>
                 <p>You've been tasked with securing a web server's file permissions before deployment. Each file and directory must have precise permissions for security and functionality.</p>
             </div>
+
+            <div class="context-callout">
+                <div class="context-callout-label">Why This Matters</div>
+                <div class="context-callout-text">Incorrect file permissions are one of the top causes of security breaches in Linux systems. Understanding chmod, chown, and the rwx model isn't optional &mdash; it's a core competency for any security professional.</div>
+            </div>
+
+            <div class="hint-container" id="hintContainer"></div>
         </div>
     </div>
 
@@ -358,20 +372,20 @@
         </div>
     </div>
 
-    <script src="../../../../components/LinuxTerminal.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════════════
         // MISSION: SERVER PERMISSIONS LAB
-        // Uses LinuxTerminal.js with real permission tracking
+        // Uses LinuxTerminal.js IIFE singleton API with permission tracking
         // ═══════════════════════════════════════════════════════════════════
 
         const state = {
-            terminal: null,
             completed: new Set(),
             commandCount: 0,
             startTime: Date.now(),
             lsExecuted: false,
-            lastInspectedFile: null
+            lastInspectedFile: null,
+            currentObjective: 0,
+            hintsRevealed: 0
         };
 
         // Mission objectives with filesystem-based validation
@@ -379,86 +393,131 @@
             {
                 id: 'audit',
                 task: 'Check current permissions on /var/www/html',
-                hint: 'ls -la',
-                validate: (cmd) => /^ls\s+(-la|-al|-l)\s*$/.test(cmd.trim())
+                validate: (cmd) => /^ls\s+(-la|-al|-l)\s*$/.test(cmd.trim()),
+                hints: [
+                    { level: 1, text: 'You need to list files in long format to see permissions.' },
+                    { level: 2, text: 'The ls command has a flag for "long" output.' },
+                    { level: 3, text: 'Use ls with -la to see all files including hidden ones.' },
+                    { level: 4, text: 'ls -la', isSolution: true }
+                ]
             },
             {
                 id: 'index-perms',
                 task: 'Make index.html readable by all (644)',
-                hint: 'chmod 644 index.html',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/index.html'];
+                    const node = LinuxTerminal.getFs()['/var/www/html/index.html'];
                     return node && node.perms === '-rw-r--r--';
-                }
+                },
+                hints: [
+                    { level: 1, text: '644 means owner can read/write, group and others can only read.' },
+                    { level: 2, text: 'Use chmod with the octal notation: 644.' },
+                    { level: 3, text: 'The command is: chmod followed by the octal and filename.' },
+                    { level: 4, text: 'chmod 644 index.html', isSolution: true }
+                ]
             },
             {
                 id: 'scripts-perms',
                 task: 'Make scripts directory executable (755)',
-                hint: 'chmod 755 scripts',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/scripts'];
+                    const node = LinuxTerminal.getFs()['/var/www/html/scripts'];
                     return node && node.perms === 'drwxr-xr-x';
-                }
+                },
+                hints: [
+                    { level: 1, text: 'Directories need execute permission for users to enter them.' },
+                    { level: 2, text: '755 gives owner full access, group/others read and execute.' },
+                    { level: 3, text: 'Use chmod 755 on the scripts directory.' },
+                    { level: 4, text: 'chmod 755 scripts', isSolution: true }
+                ]
             },
             {
                 id: 'config-owner',
                 task: 'Set owner of config.php to www-data',
-                hint: 'chown www-data config.php',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/config.php'];
+                    const node = LinuxTerminal.getFs()['/var/www/html/config.php'];
                     return node && node.owner === 'www-data';
-                }
+                },
+                hints: [
+                    { level: 1, text: 'The web server process usually runs as www-data.' },
+                    { level: 2, text: 'Use the chown command to change file ownership.' },
+                    { level: 3, text: 'Syntax: chown new_owner filename' },
+                    { level: 4, text: 'chown www-data config.php', isSolution: true }
+                ]
             },
             {
                 id: 'uploads-group',
                 task: 'Set group ownership of uploads to webadmins',
-                hint: 'chgrp webadmins uploads',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/uploads'];
+                    const node = LinuxTerminal.getFs()['/var/www/html/uploads'];
                     return node && node.group === 'webadmins';
-                }
+                },
+                hints: [
+                    { level: 1, text: 'Group ownership controls access for team members.' },
+                    { level: 2, text: 'Use chgrp to change group ownership.' },
+                    { level: 3, text: 'Syntax: chgrp group_name directory' },
+                    { level: 4, text: 'chgrp webadmins uploads', isSolution: true }
+                ]
             },
             {
                 id: 'config-no-other-write',
                 task: 'Remove write permission from others on config.php',
-                hint: 'chmod o-w config.php',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/config.php'];
-                    // Check that others don't have write (position 8 in perms string)
+                    const node = LinuxTerminal.getFs()['/var/www/html/config.php'];
                     return node && node.perms && node.perms[8] !== 'w';
-                }
+                },
+                hints: [
+                    { level: 1, text: 'You can remove specific permissions using symbolic notation.' },
+                    { level: 2, text: 'Use o-w to remove write permission from others.' },
+                    { level: 3, text: 'Syntax: chmod o-w filename' },
+                    { level: 4, text: 'chmod o-w config.php', isSolution: true }
+                ]
             },
             {
                 id: 'umask-set',
                 task: 'Set default permissions for new files (umask 027)',
-                hint: 'umask 027',
-                validateState: () => state.terminal?.umask === '0027'
+                validateState: () => {
+                    const s = LinuxTerminal.getState();
+                    return s && s.umask === '0027';
+                },
+                hints: [
+                    { level: 1, text: 'umask controls the default permissions for new files.' },
+                    { level: 2, text: '027 means new files deny all access to others.' },
+                    { level: 3, text: 'Simply type umask followed by the value.' },
+                    { level: 4, text: 'umask 027', isSolution: true }
+                ]
             },
             {
                 id: 'backup-perms',
                 task: 'Make backup.sh executable only by owner (700)',
-                hint: 'chmod 700 backup.sh',
                 validateState: () => {
-                    const node = state.terminal?.fs['/var/www/html/backup.sh'];
+                    const node = LinuxTerminal.getFs()['/var/www/html/backup.sh'];
                     return node && node.perms === '-rwx------';
-                }
+                },
+                hints: [
+                    { level: 1, text: '700 means only the owner has any access at all.' },
+                    { level: 2, text: 'This is important for scripts containing sensitive operations.' },
+                    { level: 3, text: 'Use chmod 700 on the backup script.' },
+                    { level: 4, text: 'chmod 700 backup.sh', isSolution: true }
+                ]
             },
             {
                 id: 'verify',
                 task: 'Verify all permissions are correctly set',
-                hint: 'ls -la',
                 validate: (cmd) => {
-                    // Only complete if all other objectives are done and user runs ls -l
                     const allOthersComplete = OBJECTIVES.slice(0, 8).every(o => state.completed.has(o.id));
                     return allOthersComplete && /^ls\s+(-la|-al|-l)\s*$/.test(cmd.trim());
-                }
+                },
+                hints: [
+                    { level: 1, text: 'List the directory again to confirm your changes.' },
+                    { level: 2, text: 'All previous objectives must be completed first.' },
+                    { level: 3, text: 'Use ls -la to see the final state of all permissions.' },
+                    { level: 4, text: 'ls -la', isSolution: true }
+                ]
             }
         ];
 
         // Initialize terminal with mission filesystem
         function init() {
-            state.terminal = new LinuxTerminal({
-                container: '#terminal',
+            LinuxTerminal.init('LIN-MISSION-PERMISSIONS', '#terminal', {
                 user: 'sysadmin',
                 hostname: 'webserver',
                 startDir: '/var/www/html',
@@ -467,10 +526,10 @@
             });
 
             // Set up mission filesystem with insecure permissions
-            state.terminal.addFiles({
+            LinuxTerminal.addFilesystem({
                 '/var/www/html/index.html': {
                     type: 'file',
-                    perms: '-rw-rw-rw-',  // 666 - too permissive
+                    perms: '-rw-rw-rw-',
                     owner: 'sysadmin',
                     group: 'sysadmin',
                     size: 4096,
@@ -478,7 +537,7 @@
                 },
                 '/var/www/html/config.php': {
                     type: 'file',
-                    perms: '-rw-rw-rw-',  // 666 - dangerous for config!
+                    perms: '-rw-rw-rw-',
                     owner: 'sysadmin',
                     group: 'sysadmin',
                     size: 1024,
@@ -494,7 +553,7 @@
                 },
                 '/var/www/html/scripts': {
                     type: 'dir',
-                    perms: 'drwxrwxr-x',  // 775 - needs to be 755
+                    perms: 'drwxrwxr-x',
                     owner: 'sysadmin',
                     group: 'sysadmin',
                     children: ['app.js', 'utils.js']
@@ -517,14 +576,14 @@
                 },
                 '/var/www/html/uploads': {
                     type: 'dir',
-                    perms: 'drwxrwxrwx',  // 777 - very dangerous!
+                    perms: 'drwxrwxrwx',
                     owner: 'sysadmin',
                     group: 'sysadmin',
                     children: []
                 },
                 '/var/www/html/backup.sh': {
                     type: 'file',
-                    perms: '-rwxr-xr-x',  // 755 - needs to be 700
+                    perms: '-rwxr-xr-x',
                     owner: 'sysadmin',
                     group: 'sysadmin',
                     size: 512,
@@ -558,32 +617,32 @@
             printBriefing();
             updateObjectiveList();
             updateProgress();
+            updateHintPanel();
         }
 
         // Handle command execution for objective tracking
-        function handleCommand(cmd, output, cmdName, args) {
+        function handleCommand(cmdLine, output, cmd, args) {
             state.commandCount++;
 
             // Track ls -l usage for audit objective
-            if (cmdName === 'ls' && (args.includes('-l') || args.includes('-la') || args.includes('-al'))) {
+            if (cmd === 'ls' && (args.includes('-l') || args.includes('-la') || args.includes('-al'))) {
                 state.lsExecuted = true;
             }
 
             // Track stat/ls usage to update permission matrix
-            if (cmdName === 'stat' && args.length > 0) {
+            if (cmd === 'stat' && args.length > 0) {
                 updatePermMatrix(args[args.length - 1]);
-            } else if (cmdName === 'chmod' || cmdName === 'chown' || cmdName === 'chgrp') {
-                // Update matrix for the file that was just modified
+            } else if (cmd === 'chmod' || cmd === 'chown' || cmd === 'chgrp') {
                 const target = args[args.length - 1];
                 if (target) updatePermMatrix(target);
             }
 
             // Check all objectives
-            checkObjectives(cmd);
+            checkObjectives(cmdLine);
         }
 
         // Check all objectives against current state
-        function checkObjectives(cmd) {
+        function checkObjectives(cmdLine) {
             let newlyCompleted = false;
 
             for (const obj of OBJECTIVES) {
@@ -591,52 +650,66 @@
 
                 let completed = false;
 
-                // Command-based validation
-                if (obj.validate && obj.validate(cmd)) {
+                if (obj.validate && obj.validate(cmdLine)) {
                     completed = true;
-                }
-                // State-based validation (check filesystem)
-                else if (obj.validateState && obj.validateState()) {
+                } else if (obj.validateState && obj.validateState()) {
                     completed = true;
                 }
 
                 if (completed) {
                     state.completed.add(obj.id);
                     newlyCompleted = true;
-                    state.terminal.print(`<span class="success">[OBJECTIVE] ${obj.task} - COMPLETE</span>`);
+                    LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success');
                 }
             }
 
             if (newlyCompleted) {
+                // Advance current objective
+                for (let i = 0; i < OBJECTIVES.length; i++) {
+                    if (!state.completed.has(OBJECTIVES[i].id)) {
+                        state.currentObjective = i;
+                        break;
+                    }
+                }
+
                 updateObjectiveList();
                 updateProgress();
+                updateHintPanel();
 
-                // Check for mission complete
                 if (state.completed.size === OBJECTIVES.length) {
                     setTimeout(showCompletionModal, 1000);
                 }
             }
         }
 
+        function updateHintPanel() {
+            const obj = OBJECTIVES[state.currentObjective];
+            if (!obj || !obj.hints) return;
+
+            ProgressiveHints.init('hintContainer', obj.hints, {
+                labId: `permissions-obj-${obj.id}`,
+                onReveal: () => { state.hintsRevealed++; }
+            });
+        }
+
         // Update permission matrix display
         function updatePermMatrix(filename) {
-            // Resolve path
             let fullPath;
             if (filename.startsWith('/')) {
                 fullPath = filename;
             } else {
-                fullPath = state.terminal.cwd + '/' + filename;
+                fullPath = LinuxTerminal.getCwd() + '/' + filename;
             }
             fullPath = fullPath.replace(/\/+/g, '/');
 
-            const node = state.terminal.fs[fullPath];
+            const node = LinuxTerminal.getFs()[fullPath];
             if (!node) return;
 
             state.lastInspectedFile = filename;
             document.getElementById('selectedFile').textContent = filename;
 
             const perms = node.perms || '----------';
-            const permStr = perms.substring(1); // Remove type char
+            const permStr = perms.substring(1);
 
             const mapping = [
                 ['perm-ur', permStr[0]], ['perm-uw', permStr[1]], ['perm-ux', permStr[2]],
@@ -730,10 +803,10 @@
             state.startTime = Date.now();
             state.lsExecuted = false;
             state.lastInspectedFile = null;
+            state.currentObjective = 0;
+            state.hintsRevealed = 0;
 
-            // Destroy and recreate terminal
-            const container = document.getElementById('terminal');
-            container.innerHTML = '';
+            LinuxTerminal.destroy();
             init();
         }
 
@@ -752,27 +825,25 @@
 
         // Print mission briefing
         function printBriefing() {
-            state.terminal.print('<span style="color:#ffa657;">╔══════════════════════════════════════════════════════════════╗</span>');
-            state.terminal.print('<span style="color:#ffa657;">║</span>     <span style="color:#a78bfa;font-weight:bold;">MISSION: SECURE WEB SERVER DEPLOYMENT</span>                  <span style="color:#ffa657;">║</span>');
-            state.terminal.print('<span style="color:#ffa657;">╚══════════════════════════════════════════════════════════════╝</span>');
-            state.terminal.print('');
-            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] You are sysadmin at Nexus Corp.</span>');
-            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] The new web server needs permissions secured before launch.</span>');
-            state.terminal.print('<span style="color:#8b949e;">[BRIEFING] Current permissions are TOO PERMISSIVE and pose security risks.</span>');
-            state.terminal.print('');
-            state.terminal.print('<span style="color:#8b949e;">Your objectives:</span>');
-            state.terminal.print('<span style="color:#8b949e;">  1. Audit current permissions (ls -la)</span>');
-            state.terminal.print('<span style="color:#8b949e;">  2. Set proper file permissions (chmod)</span>');
-            state.terminal.print('<span style="color:#8b949e;">  3. Configure correct ownership (chown/chgrp)</span>');
-            state.terminal.print('<span style="color:#8b949e;">  4. Set secure default umask</span>');
-            state.terminal.print('');
-            state.terminal.print('Type <span style="color:#ffa657;">help</span> for available commands.');
-            state.terminal.print('<span style="color:#484f58;">────────────────────────────────────────────────────────────────</span>');
-            state.terminal.print('');
+            LinuxTerminal.print('<span style="color:#ffa657;">MISSION: SECURE WEB SERVER DEPLOYMENT</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] You are sysadmin at Nexus Corp.</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] The new web server needs permissions secured before launch.</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] Current permissions are TOO PERMISSIVE and pose security risks.</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('<span style="color:#8b949e;">Your objectives:</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">  1. Audit current permissions (ls -la)</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">  2. Set proper file permissions (chmod)</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">  3. Configure correct ownership (chown/chgrp)</span>');
+            LinuxTerminal.print('<span style="color:#8b949e;">  4. Set secure default umask</span>');
+            LinuxTerminal.print('');
+            LinuxTerminal.print('Type <span style="color:#ffa657;">help</span> for available commands.');
+            LinuxTerminal.print('');
         }
 
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', init);
     </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

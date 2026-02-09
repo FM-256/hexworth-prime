@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Lifecycle - Linux Tools - Hexworth Prime</title>
+    <style>
+        :root {
+            --house-primary: #a78bfa;
+            --house-secondary: #7c3aed;
+            --house-glow: rgba(167, 139, 250, 0.3);
+            --house-bg: rgba(167, 139, 250, 0.05);
+            --house-border: rgba(167, 139, 250, 0.2);
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(15, 15, 20, 0.8);
+            --text-primary: #e0e0e0;
+            --text-secondary: #9ca3af;
+            --text-muted: #888;
+            --state-created: #38bdf8;
+            --state-running: #22c55e;
+            --state-sleeping: #60a5fa;
+            --state-stopped: #f59e0b;
+            --state-zombie: #ef4444;
+            --state-terminated: #6b7280;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, var(--house-bg) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(124, 58, 237, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            padding: 16px 40px;
+            border-bottom: 1px solid var(--house-border);
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title-text {
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            color: var(--house-primary);
+        }
+
+        .header-badge {
+            padding: 4px 12px;
+            background: rgba(167, 139, 250, 0.15);
+            border: 1px solid var(--house-border);
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--house-primary);
+            text-transform: uppercase;
+        }
+
+        /* Main content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 30px 20px 20px;
+            margin-bottom: 10px;
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .hero h1 span {
+            color: var(--house-primary);
+            font-weight: 600;
+        }
+
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        /* Section panels */
+        .section-panel {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--house-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--house-primary);
+            border-radius: 2px;
+        }
+
+        /* SVG Diagram Container */
+        .diagram-container {
+            position: relative;
+            width: 100%;
+            overflow: visible;
+            display: flex;
+            justify-content: center;
+        }
+
+        .diagram-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* SVG element styles */
+        .state-node {
+            cursor: pointer;
+            transition: filter 0.3s ease;
+        }
+
+        .state-node:hover .state-bg {
+            filter: brightness(1.3);
+        }
+
+        .state-bg {
+            transition: all 0.3s ease;
+        }
+
+        .state-label {
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 600;
+            fill: #fff;
+            text-anchor: middle;
+            pointer-events: none;
+            font-size: 13px;
+        }
+
+        .state-symbol {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            fill: rgba(255, 255, 255, 0.7);
+            text-anchor: middle;
+            pointer-events: none;
+            font-size: 11px;
+        }
+
+        .transition-arrow {
+            fill: none;
+            stroke-width: 1.8;
+            transition: stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease;
+            opacity: 0.5;
+        }
+
+        .transition-arrow.highlighted {
+            stroke-width: 3;
+            opacity: 1;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+
+        .transition-label {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 9.5px;
+            fill: var(--text-secondary);
+            text-anchor: middle;
+            pointer-events: none;
+            transition: fill 0.3s ease;
+        }
+
+        .transition-label.highlighted {
+            fill: #fff;
+            font-weight: 600;
+        }
+
+        .arrowhead {
+            transition: fill 0.3s ease, opacity 0.3s ease;
+            opacity: 0.6;
+        }
+
+        .arrowhead.highlighted {
+            opacity: 1;
+        }
+
+        /* Pulse animation on selected state */
+        @keyframes statePulse {
+            0%, 100% { r: 42; opacity: 0; }
+            50% { r: 54; opacity: 0.3; }
+        }
+
+        .pulse-ring {
+            animation: statePulse 2s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        /* State Detail Panel */
+        .detail-panel {
+            background: rgba(15, 15, 25, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 0;
+            margin-top: 20px;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+        }
+
+        .detail-panel.visible {
+            max-height: 600px;
+            opacity: 1;
+            padding: 24px;
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .detail-state-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .detail-title h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .detail-title .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .detail-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .detail-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .detail-card-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--house-primary);
+            margin-bottom: 8px;
+        }
+
+        .detail-card-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .detail-card code {
+            font-family: 'Courier New', monospace;
+            background: rgba(167, 139, 250, 0.12);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: var(--house-primary);
+            font-size: 0.8rem;
+        }
+
+        .signal-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px 3px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        /* Signal Reference Grid */
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .signal-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .signal-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--house-primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .signal-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .signal-card:hover::before {
+            opacity: 1;
+        }
+
+        .signal-card.active {
+            border-color: var(--house-primary);
+            background: rgba(167, 139, 250, 0.08);
+        }
+
+        .signal-card.active::before {
+            opacity: 1;
+        }
+
+        .signal-name {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .signal-number {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: var(--house-primary);
+            margin-bottom: 8px;
+        }
+
+        .signal-action {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .signal-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Command Reference Bar */
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .command-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .command-item:hover {
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+
+        .command-name {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--house-primary);
+            margin-bottom: 4px;
+        }
+
+        .command-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        /* Context callout */
+        .context-callout {
+            background: rgba(167, 139, 250, 0.08);
+            border-left: 3px solid #a78bfa;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .context-callout-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a78bfa;
+            margin-bottom: 4px;
+        }
+
+        .context-callout-text {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            line-height: 1.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-content {
+                padding: 20px;
+            }
+            .header {
+                padding: 14px 20px;
+            }
+            .signal-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .command-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.4rem;
+            }
+            .signal-grid {
+                grid-template-columns: 1fr;
+            }
+            .command-grid {
+                grid-template-columns: 1fr;
+            }
+            .header-badge {
+                display: none;
+            }
+            .section-panel {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <a href="../script-quick.reference.html" class="back-btn">&#8592; Back</a>
+            <div class="page-title">
+                <span class="page-title-text">Process Lifecycle Explorer</span>
+            </div>
+        </div>
+        <span class="header-badge">Linux Tools</span>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Process <span>Lifecycle</span> Explorer</h1>
+            <p>Visualize how Linux processes transition between states and how signals control their behavior.</p>
+        </div>
+
+        <!-- State Machine Diagram -->
+        <div class="section-panel">
+            <div class="section-title">State Machine Diagram</div>
+            <div class="diagram-container" id="diagramContainer">
+                <svg id="stateDiagram" viewBox="0 0 820 480" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Arrowhead markers for each transition color -->
+                        <marker id="arrow-default" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#6b7280"/>
+                        </marker>
+                        <marker id="arrow-created" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#38bdf8"/>
+                        </marker>
+                        <marker id="arrow-running" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#22c55e"/>
+                        </marker>
+                        <marker id="arrow-sleeping" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#60a5fa"/>
+                        </marker>
+                        <marker id="arrow-stopped" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#f59e0b"/>
+                        </marker>
+                        <marker id="arrow-zombie" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#ef4444"/>
+                        </marker>
+                        <marker id="arrow-terminated" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                            <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" fill="#6b7280"/>
+                        </marker>
+
+                        <!-- Highlighted arrowhead markers -->
+                        <marker id="arrow-created-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#38bdf8"/>
+                        </marker>
+                        <marker id="arrow-running-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#22c55e"/>
+                        </marker>
+                        <marker id="arrow-sleeping-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#60a5fa"/>
+                        </marker>
+                        <marker id="arrow-stopped-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#f59e0b"/>
+                        </marker>
+                        <marker id="arrow-zombie-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#ef4444"/>
+                        </marker>
+                        <marker id="arrow-terminated-hl" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+                            <path d="M0,0 L10,4 L0,8 Z" class="arrowhead highlighted" fill="#6b7280"/>
+                        </marker>
+
+                        <!-- Glow filters -->
+                        <filter id="glow-created"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#38bdf8" flood-opacity="0.5"/></filter>
+                        <filter id="glow-running"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#22c55e" flood-opacity="0.5"/></filter>
+                        <filter id="glow-sleeping"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#60a5fa" flood-opacity="0.5"/></filter>
+                        <filter id="glow-stopped"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f59e0b" flood-opacity="0.5"/></filter>
+                        <filter id="glow-zombie"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#ef4444" flood-opacity="0.5"/></filter>
+                        <filter id="glow-terminated"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#6b7280" flood-opacity="0.5"/></filter>
+                    </defs>
+
+                    <!-- Background grid (subtle) -->
+                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/>
+                    </pattern>
+                    <rect width="820" height="480" fill="url(#grid)"/>
+
+                    <!-- ==================== TRANSITION ARROWS ==================== -->
+
+                    <!-- Created -> Running: "scheduled" -->
+                    <path id="trans-created-running"
+                          d="M 180 190 L 340 190"
+                          class="transition-arrow"
+                          stroke="#38bdf8"
+                          marker-end="url(#arrow-created)"
+                          data-from="created" data-to="running"
+                          data-signals="schedule"/>
+                    <text class="transition-label" data-trans="trans-created-running">
+                        <textPath href="#trans-created-running" startOffset="50%" text-anchor="middle" dy="-10">scheduled</textPath>
+                    </text>
+
+                    <!-- Running -> Sleeping: "I/O wait / sleep()" -->
+                    <path id="trans-running-sleeping"
+                          d="M 410 145 Q 410 60, 540 60 Q 670 60, 670 145"
+                          class="transition-arrow"
+                          stroke="#60a5fa"
+                          marker-end="url(#arrow-sleeping)"
+                          data-from="running" data-to="sleeping"
+                          data-signals=""/>
+                    <text class="transition-label" x="540" y="47" data-trans="trans-running-sleeping">I/O wait / sleep()</text>
+
+                    <!-- Sleeping -> Running: "I/O complete / signal" -->
+                    <path id="trans-sleeping-running"
+                          d="M 630 145 Q 630 100, 540 100 Q 450 100, 450 145"
+                          class="transition-arrow"
+                          stroke="#22c55e"
+                          marker-end="url(#arrow-running)"
+                          data-from="sleeping" data-to="running"
+                          data-signals=""/>
+                    <text class="transition-label" x="540" y="113" data-trans="trans-sleeping-running">I/O complete / signal</text>
+
+                    <!-- Running -> Stopped: "SIGSTOP / SIGTSTP (Ctrl+Z)" -->
+                    <path id="trans-running-stopped"
+                          d="M 380 235 Q 320 320, 240 350"
+                          class="transition-arrow"
+                          stroke="#f59e0b"
+                          marker-end="url(#arrow-stopped)"
+                          data-from="running" data-to="stopped"
+                          data-signals="SIGSTOP,SIGTSTP"/>
+                    <text class="transition-label" data-trans="trans-running-stopped">
+                        <textPath href="#trans-running-stopped" startOffset="40%" text-anchor="middle" dy="-10">SIGSTOP / Ctrl+Z</textPath>
+                    </text>
+
+                    <!-- Stopped -> Running: "SIGCONT (fg/bg)" -->
+                    <path id="trans-stopped-running"
+                          d="M 250 330 Q 340 280, 380 235"
+                          class="transition-arrow"
+                          stroke="#22c55e"
+                          marker-end="url(#arrow-running)"
+                          data-from="stopped" data-to="running"
+                          data-signals="SIGCONT"/>
+                    <text class="transition-label" data-trans="trans-stopped-running">
+                        <textPath href="#trans-stopped-running" startOffset="45%" text-anchor="middle" dy="16">SIGCONT (fg/bg)</textPath>
+                    </text>
+
+                    <!-- Running -> Zombie: "exit() / return" -->
+                    <path id="trans-running-zombie"
+                          d="M 440 210 Q 500 290, 560 340"
+                          class="transition-arrow"
+                          stroke="#ef4444"
+                          marker-end="url(#arrow-zombie)"
+                          data-from="running" data-to="zombie"
+                          data-signals=""/>
+                    <text class="transition-label" data-trans="trans-running-zombie">
+                        <textPath href="#trans-running-zombie" startOffset="50%" text-anchor="middle" dy="-10">exit() / return</textPath>
+                    </text>
+
+                    <!-- Zombie -> Terminated: "parent wait()" -->
+                    <path id="trans-zombie-terminated"
+                          d="M 630 370 L 730 430"
+                          class="transition-arrow"
+                          stroke="#6b7280"
+                          marker-end="url(#arrow-terminated)"
+                          data-from="zombie" data-to="terminated"
+                          data-signals=""/>
+                    <text class="transition-label" data-trans="trans-zombie-terminated">
+                        <textPath href="#trans-zombie-terminated" startOffset="50%" text-anchor="middle" dy="-10">parent wait()</textPath>
+                    </text>
+
+                    <!-- Running -> Terminated: "SIGKILL" -->
+                    <path id="trans-running-terminated"
+                          d="M 440 220 Q 600 350, 740 410"
+                          class="transition-arrow"
+                          stroke="#6b7280"
+                          marker-end="url(#arrow-terminated)"
+                          data-from="running" data-to="terminated"
+                          data-signals="SIGKILL,SIGTERM,SIGINT"/>
+                    <text class="transition-label" data-trans="trans-running-terminated">
+                        <textPath href="#trans-running-terminated" startOffset="55%" text-anchor="middle" dy="16">SIGKILL / SIGTERM</textPath>
+                    </text>
+
+
+                    <!-- ==================== STATE NODES ==================== -->
+
+                    <!-- Created -->
+                    <g class="state-node" data-state="created" onclick="selectState('created')">
+                        <circle class="pulse-ring" cx="130" cy="190" r="42" fill="none" stroke="#38bdf8" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="130" cy="190" r="42" fill="rgba(56,189,248,0.12)" stroke="#38bdf8" stroke-width="2"/>
+                        <text class="state-label" x="130" y="186">Created</text>
+                        <text class="state-symbol" x="130" y="204">fork()</text>
+                    </g>
+
+                    <!-- Running -->
+                    <g class="state-node" data-state="running" onclick="selectState('running')">
+                        <circle class="pulse-ring" cx="400" cy="190" r="46" fill="none" stroke="#22c55e" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="400" cy="190" r="46" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="2"/>
+                        <text class="state-label" x="400" y="186">Running</text>
+                        <text class="state-symbol" x="400" y="204">R</text>
+                    </g>
+
+                    <!-- Sleeping -->
+                    <g class="state-node" data-state="sleeping" onclick="selectState('sleeping')">
+                        <circle class="pulse-ring" cx="670" cy="190" r="44" fill="none" stroke="#60a5fa" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="670" cy="190" r="44" fill="rgba(96,165,250,0.12)" stroke="#60a5fa" stroke-width="2"/>
+                        <text class="state-label" x="670" y="186">Sleeping</text>
+                        <text class="state-symbol" x="670" y="204">S</text>
+                    </g>
+
+                    <!-- Stopped -->
+                    <g class="state-node" data-state="stopped" onclick="selectState('stopped')">
+                        <circle class="pulse-ring" cx="200" cy="370" r="42" fill="none" stroke="#f59e0b" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="200" cy="370" r="42" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="2"/>
+                        <text class="state-label" x="200" y="366">Stopped</text>
+                        <text class="state-symbol" x="200" y="384">T</text>
+                    </g>
+
+                    <!-- Zombie -->
+                    <g class="state-node" data-state="zombie" onclick="selectState('zombie')">
+                        <circle class="pulse-ring" cx="590" cy="370" r="42" fill="none" stroke="#ef4444" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="590" cy="370" r="42" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2"/>
+                        <text class="state-label" x="590" y="366">Zombie</text>
+                        <text class="state-symbol" x="590" y="384">Z</text>
+                    </g>
+
+                    <!-- Terminated -->
+                    <g class="state-node" data-state="terminated" onclick="selectState('terminated')">
+                        <circle class="pulse-ring" cx="770" cy="440" r="36" fill="none" stroke="#6b7280" stroke-width="2" style="display:none"/>
+                        <circle class="state-bg" cx="770" cy="440" r="36" fill="rgba(107,114,128,0.12)" stroke="#6b7280" stroke-width="2"/>
+                        <text class="state-label" x="770" y="437">Terminated</text>
+                        <text class="state-symbol" x="770" y="453">exit</text>
+                    </g>
+
+                    <!-- Instruction text (only shown initially) -->
+                    <text id="svgInstruction" x="410" y="465" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="12" font-family="Segoe UI, sans-serif">Click a state to explore its details</text>
+                </svg>
+            </div>
+
+            <!-- State Detail Panel -->
+            <div class="detail-panel" id="detailPanel">
+                <div class="detail-header" id="detailHeader">
+                    <div class="detail-state-badge" id="detailBadge">R</div>
+                    <div class="detail-title">
+                        <h2 id="detailName">Running</h2>
+                        <div class="subtitle" id="detailSubtitle">State symbol: R</div>
+                    </div>
+                </div>
+                <div class="detail-grid" id="detailGrid"></div>
+            </div>
+        </div>
+
+        <!-- Context Callout -->
+        <div class="context-callout">
+            <div class="context-callout-label">Why This Matters</div>
+            <div class="context-callout-text">Understanding process states is essential for debugging hung applications, managing system resources, and writing reliable services. When a production server becomes unresponsive, knowing the difference between a sleeping and zombie process can mean the difference between a quick fix and hours of downtime.</div>
+        </div>
+
+        <!-- Signal Reference -->
+        <div class="section-panel">
+            <div class="section-title">Signal Reference</div>
+            <div class="signal-grid" id="signalGrid"></div>
+        </div>
+
+        <!-- Command Reference -->
+        <div class="section-panel">
+            <div class="section-title">Command Reference</div>
+            <div class="command-grid" id="commandGrid"></div>
+        </div>
+
+    </div>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        /* ===================================================================
+         * DATA: Process states, signals, and commands
+         * =================================================================== */
+
+        var stateData = {
+            created: {
+                name: 'Created',
+                symbol: 'fork()',
+                color: '#38bdf8',
+                description: 'A new process has been created via the fork() system call, which duplicates the calling process. The child process receives a copy of the parent\'s address space but has its own unique PID. At this point, the process exists but has not yet been scheduled by the CPU.',
+                psOutput: 'Rarely observed in ps output because the kernel schedules newly forked processes almost immediately. The process will appear as R (running/runnable) within microseconds of creation.',
+                signals: ['No signals cause entry to this state. A process enters Created when a parent calls fork() or clone().'],
+                example: 'When you type a command in bash, the shell forks itself to create a child process, then the child calls exec() to replace itself with the requested program. This fork-exec pattern is fundamental to Unix process creation.'
+            },
+            running: {
+                name: 'Running',
+                symbol: 'R',
+                color: '#22c55e',
+                description: 'The process is either currently executing on a CPU core (running) or is ready to execute and waiting in the run queue (runnable). The kernel scheduler determines which runnable processes get CPU time using the Completely Fair Scheduler (CFS).',
+                psOutput: 'Shows as R in the STAT column of ps aux. A process actively consuming CPU will also show high values in the %CPU column. Use top or htop to see real-time CPU usage.',
+                signals: ['SIGCONT resumes a stopped process back to running.', 'SIGSTOP and SIGTSTP move a running process to stopped.', 'SIGKILL and SIGTERM can terminate a running process.'],
+                example: 'A compilation job (gcc compiling a large project) actively using CPU cycles is in the Running state. Similarly, a video encoder or a database query executing a complex join operation will be in R state while consuming CPU.'
+            },
+            sleeping: {
+                name: 'Sleeping',
+                symbol: 'S',
+                color: '#60a5fa',
+                description: 'The process is waiting for an event to complete, such as I/O operations, timer expiration, or resource availability. Interruptible sleep (S) means the process can be woken by signals, while uninterruptible sleep (D) means it cannot be interrupted, typically during critical disk I/O.',
+                psOutput: 'Shows as S (interruptible sleep) or D (uninterruptible sleep) in the STAT column. The vast majority of processes on a typical system are in sleep state. The D state is notable because even SIGKILL cannot interrupt it.',
+                signals: ['Any signal can wake a process from interruptible sleep (S).', 'No signal can wake a process from uninterruptible sleep (D).', 'Processes return to Running when their I/O completes.'],
+                example: 'A web server like nginx waiting for incoming HTTP connections is in Sleep state. It has called accept() on a socket and is blocked until a client connects. Similarly, a program calling read() on a pipe with no data available will sleep until data arrives.'
+            },
+            stopped: {
+                name: 'Stopped',
+                symbol: 'T',
+                color: '#f59e0b',
+                description: 'The process has been paused and is not executing any code. This typically happens when a user presses Ctrl+Z in a terminal (SIGTSTP), when a debugger attaches to it (SIGSTOP via ptrace), or when a process explicitly receives SIGSTOP. The process retains all its memory and state.',
+                psOutput: 'Shows as T in the STAT column. Use the jobs command to see stopped jobs in the current shell session. Stopped processes consume memory but zero CPU. They remain in this state indefinitely until explicitly resumed or killed.',
+                signals: ['SIGSTOP (19) forcibly stops the process; cannot be caught or ignored.', 'SIGTSTP (20) requests the process to stop; can be caught.', 'SIGCONT (18) resumes a stopped process to running.'],
+                example: 'Running vim to edit a file, then pressing Ctrl+Z suspends vim (sends SIGTSTP). The terminal shows "[1]+ Stopped vim file.txt". You can resume it with fg (foreground) or bg (background). Debuggers like gdb also stop processes with SIGSTOP to inspect their state.'
+            },
+            zombie: {
+                name: 'Zombie',
+                symbol: 'Z',
+                color: '#ef4444',
+                description: 'The process has finished executing but its entry remains in the process table because the parent has not yet read its exit status via the wait() system call. The zombie holds no memory or CPU resources -- only a process table entry containing the exit code. A few zombies are normal; many indicate a buggy parent.',
+                psOutput: 'Shows as Z in the STAT column and often displays <defunct> after the process name. The process takes no resources except a PID and a slot in the process table. You cannot kill a zombie with SIGKILL since it is already dead.',
+                signals: ['No signal can affect a zombie process directly.', 'Sending SIGCHLD to the parent may prompt it to call wait().', 'Killing the parent makes init/systemd (PID 1) adopt and reap the zombies.'],
+                example: 'A poorly written server that forks child processes to handle requests but never calls wait() or waitpid() will accumulate zombies over time. Each completed request leaves a zombie behind. The fix is to install a SIGCHLD handler in the parent that calls waitpid(-1, &status, WNOHANG) in a loop.'
+            },
+            terminated: {
+                name: 'Terminated',
+                symbol: 'exit',
+                color: '#6b7280',
+                description: 'The process has been fully cleaned up and removed from the process table. Its PID is released and can be reused. All resources (memory, file descriptors, network sockets) have been reclaimed by the kernel. This is the final state; the process no longer exists in any form.',
+                psOutput: 'A terminated process does not appear in ps output at all. If you are looking for a PID and it has disappeared from the process list, the process has been terminated and reaped. Use dmesg or /var/log/syslog to check for OOM kills or other kernel-initiated terminations.',
+                signals: ['SIGKILL (9) forces immediate termination; cannot be caught.', 'SIGTERM (15) requests graceful termination; can be caught for cleanup.', 'SIGINT (2) from Ctrl+C requests termination; can be caught.'],
+                example: 'When you run "kill -9 1234", the kernel immediately destroys process 1234 without giving it any chance to clean up. By contrast, "kill 1234" sends SIGTERM, allowing the process to save state, close files, and exit gracefully. Always try SIGTERM before SIGKILL.'
+            }
+        };
+
+        var signalData = [
+            {
+                name: 'SIGTERM',
+                number: 15,
+                action: 'Terminate',
+                description: 'Politely requests process termination. The process can catch this signal to perform cleanup before exiting.',
+                transitions: ['trans-running-terminated']
+            },
+            {
+                name: 'SIGKILL',
+                number: 9,
+                action: 'Kill (forced)',
+                description: 'Immediately destroys the process. Cannot be caught, blocked, or ignored. Use as last resort.',
+                transitions: ['trans-running-terminated']
+            },
+            {
+                name: 'SIGSTOP',
+                number: 19,
+                action: 'Stop',
+                description: 'Pauses process execution. Cannot be caught or ignored. Used by debuggers and job control.',
+                transitions: ['trans-running-stopped']
+            },
+            {
+                name: 'SIGCONT',
+                number: 18,
+                action: 'Continue',
+                description: 'Resumes a stopped process. Used with fg and bg shell builtins for job control.',
+                transitions: ['trans-stopped-running']
+            },
+            {
+                name: 'SIGHUP',
+                number: 1,
+                action: 'Hangup',
+                description: 'Sent when a terminal disconnects. Many daemons use it to reload configuration files.',
+                transitions: ['trans-running-terminated']
+            },
+            {
+                name: 'SIGINT',
+                number: 2,
+                action: 'Interrupt',
+                description: 'Sent by pressing Ctrl+C. Requests process interruption. Can be caught for graceful shutdown.',
+                transitions: ['trans-running-terminated']
+            }
+        ];
+
+        var commandData = [
+            { name: 'ps aux', desc: 'List all processes with state column (STAT shows R, S, T, Z, D)' },
+            { name: 'top / htop', desc: 'Real-time process monitoring with CPU, memory, and state info' },
+            { name: 'kill -SIGNAL PID', desc: 'Send a signal to a process (e.g., kill -9 1234, kill -STOP 1234)' },
+            { name: 'bg / fg', desc: 'Resume a stopped job in background or foreground' },
+            { name: 'jobs', desc: 'List stopped and background jobs in the current shell session' },
+            { name: 'nohup', desc: 'Run a command immune to SIGHUP, persists after terminal close' }
+        ];
+
+
+        /* ===================================================================
+         * STATE: Application state tracking
+         * =================================================================== */
+
+        var selectedState = null;
+        var selectedSignal = null;
+
+
+        /* ===================================================================
+         * INIT: Build the UI on page load
+         * =================================================================== */
+
+        document.addEventListener('DOMContentLoaded', function() {
+            buildSignalGrid();
+            buildCommandGrid();
+        });
+
+
+        /* ===================================================================
+         * STATE SELECTION: Handle clicking on diagram states
+         * =================================================================== */
+
+        /**
+         * Selects a process state in the diagram and shows its detail panel.
+         * Called from onclick handlers on the SVG state node groups.
+         */
+        function selectState(stateId) {
+            var data = stateData[stateId];
+            if (!data) return;
+
+            /* Clear previous signal selection */
+            clearSignalSelection();
+
+            /* Update SVG node highlighting */
+            var stateNodes = document.querySelectorAll('.state-node');
+            for (var i = 0; i < stateNodes.length; i++) {
+                var node = stateNodes[i];
+                var isSelected = node.getAttribute('data-state') === stateId;
+                var bg = node.querySelector('.state-bg');
+                var pulse = node.querySelector('.pulse-ring');
+
+                if (isSelected) {
+                    bg.setAttribute('filter', 'url(#glow-' + stateId + ')');
+                    bg.setAttribute('stroke-width', '3');
+                    pulse.style.display = 'block';
+                    pulse.setAttribute('stroke', data.color);
+                } else {
+                    bg.removeAttribute('filter');
+                    bg.setAttribute('stroke-width', '2');
+                    pulse.style.display = 'none';
+                }
+            }
+
+            /* Highlight transitions connected to this state */
+            var arrows = document.querySelectorAll('.transition-arrow');
+            for (var j = 0; j < arrows.length; j++) {
+                var arrow = arrows[j];
+                var from = arrow.getAttribute('data-from');
+                var to = arrow.getAttribute('data-to');
+                var isConnected = (from === stateId || to === stateId);
+
+                if (isConnected) {
+                    arrow.classList.add('highlighted');
+                    /* Determine color key for marker */
+                    var colorKey = from === stateId ? to : from;
+                    if (arrow.getAttribute('stroke') === '#6b7280') colorKey = 'terminated';
+                    else if (arrow.getAttribute('stroke') === '#22c55e') colorKey = 'running';
+                    else if (arrow.getAttribute('stroke') === '#60a5fa') colorKey = 'sleeping';
+                    else if (arrow.getAttribute('stroke') === '#ef4444') colorKey = 'zombie';
+                    else if (arrow.getAttribute('stroke') === '#f59e0b') colorKey = 'stopped';
+                    else if (arrow.getAttribute('stroke') === '#38bdf8') colorKey = 'created';
+                    var baseColor = arrow.getAttribute('stroke');
+                    /* Try to find matching highlighted marker */
+                    var markerId = arrow.id.replace('trans-', '');
+                    var parts = markerId.split('-');
+                    var markerColor = parts[0];
+                    if (baseColor === '#38bdf8') markerColor = 'created';
+                    else if (baseColor === '#22c55e') markerColor = 'running';
+                    else if (baseColor === '#60a5fa') markerColor = 'sleeping';
+                    else if (baseColor === '#f59e0b') markerColor = 'stopped';
+                    else if (baseColor === '#ef4444') markerColor = 'zombie';
+                    else if (baseColor === '#6b7280') markerColor = 'terminated';
+                    arrow.setAttribute('marker-end', 'url(#arrow-' + markerColor + '-hl)');
+                } else {
+                    arrow.classList.remove('highlighted');
+                    /* Restore default marker */
+                    var defaultColor = arrow.getAttribute('stroke');
+                    var defMarker = 'default';
+                    if (defaultColor === '#38bdf8') defMarker = 'created';
+                    else if (defaultColor === '#22c55e') defMarker = 'running';
+                    else if (defaultColor === '#60a5fa') defMarker = 'sleeping';
+                    else if (defaultColor === '#f59e0b') defMarker = 'stopped';
+                    else if (defaultColor === '#ef4444') defMarker = 'zombie';
+                    else if (defaultColor === '#6b7280') defMarker = 'terminated';
+                    arrow.setAttribute('marker-end', 'url(#arrow-' + defMarker + ')');
+                }
+            }
+
+            /* Highlight transition labels */
+            var labels = document.querySelectorAll('.transition-label');
+            for (var k = 0; k < labels.length; k++) {
+                var label = labels[k];
+                var transId = label.getAttribute('data-trans');
+                if (transId) {
+                    var transEl = document.getElementById(transId);
+                    if (transEl) {
+                        var tFrom = transEl.getAttribute('data-from');
+                        var tTo = transEl.getAttribute('data-to');
+                        if (tFrom === stateId || tTo === stateId) {
+                            label.classList.add('highlighted');
+                        } else {
+                            label.classList.remove('highlighted');
+                        }
+                    }
+                }
+            }
+
+            /* Hide instruction text */
+            var instruction = document.getElementById('svgInstruction');
+            if (instruction) instruction.style.display = 'none';
+
+            /* Populate detail panel */
+            populateDetailPanel(stateId, data);
+
+            selectedState = stateId;
+        }
+
+        /**
+         * Fills the state detail panel with the information for the given state.
+         */
+        function populateDetailPanel(stateId, data) {
+            var panel = document.getElementById('detailPanel');
+            var badge = document.getElementById('detailBadge');
+            var name = document.getElementById('detailName');
+            var subtitle = document.getElementById('detailSubtitle');
+            var grid = document.getElementById('detailGrid');
+
+            badge.textContent = data.symbol;
+            badge.style.background = data.color;
+            name.textContent = data.name;
+            subtitle.textContent = 'Process state symbol: ' + data.symbol;
+
+            /* Build signal tags HTML */
+            var signalTagsHtml = '';
+            for (var i = 0; i < data.signals.length; i++) {
+                signalTagsHtml += '<div style="margin-bottom:4px;">' + escapeHtml(data.signals[i]) + '</div>';
+            }
+
+            grid.innerHTML =
+                '<div class="detail-card full-width">' +
+                    '<div class="detail-card-label">Description</div>' +
+                    '<div class="detail-card-text">' + escapeHtml(data.description) + '</div>' +
+                '</div>' +
+                '<div class="detail-card">' +
+                    '<div class="detail-card-label">How to Detect</div>' +
+                    '<div class="detail-card-text">' + escapeHtml(data.psOutput) + '</div>' +
+                '</div>' +
+                '<div class="detail-card">' +
+                    '<div class="detail-card-label">Related Signals</div>' +
+                    '<div class="detail-card-text">' + signalTagsHtml + '</div>' +
+                '</div>' +
+                '<div class="detail-card full-width">' +
+                    '<div class="detail-card-label">Real-World Example</div>' +
+                    '<div class="detail-card-text">' + escapeHtml(data.example) + '</div>' +
+                '</div>';
+
+            panel.classList.add('visible');
+        }
+
+
+        /* ===================================================================
+         * SIGNAL SELECTION: Handle clicking on signal cards
+         * =================================================================== */
+
+        /**
+         * Highlights the transition arrows associated with a clicked signal.
+         */
+        function selectSignal(index) {
+            var sig = signalData[index];
+            if (!sig) return;
+
+            /* Clear state selection pulse effects */
+            var pulses = document.querySelectorAll('.pulse-ring');
+            for (var p = 0; p < pulses.length; p++) {
+                pulses[p].style.display = 'none';
+            }
+            var bgs = document.querySelectorAll('.state-bg');
+            for (var b = 0; b < bgs.length; b++) {
+                bgs[b].removeAttribute('filter');
+                bgs[b].setAttribute('stroke-width', '2');
+            }
+
+            /* Toggle signal card active state */
+            var cards = document.querySelectorAll('.signal-card');
+            var wasActive = cards[index].classList.contains('active');
+
+            for (var c = 0; c < cards.length; c++) {
+                cards[c].classList.remove('active');
+            }
+
+            if (wasActive) {
+                /* Deselect: reset all arrows */
+                clearSignalSelection();
+                selectedSignal = null;
+                return;
+            }
+
+            cards[index].classList.add('active');
+            selectedSignal = index;
+
+            /* Dim all arrows, then highlight matching ones */
+            var arrows = document.querySelectorAll('.transition-arrow');
+            for (var j = 0; j < arrows.length; j++) {
+                arrows[j].classList.remove('highlighted');
+                /* Restore default marker */
+                var defColor = arrows[j].getAttribute('stroke');
+                var defKey = 'default';
+                if (defColor === '#38bdf8') defKey = 'created';
+                else if (defColor === '#22c55e') defKey = 'running';
+                else if (defColor === '#60a5fa') defKey = 'sleeping';
+                else if (defColor === '#f59e0b') defKey = 'stopped';
+                else if (defColor === '#ef4444') defKey = 'zombie';
+                else if (defColor === '#6b7280') defKey = 'terminated';
+                arrows[j].setAttribute('marker-end', 'url(#arrow-' + defKey + ')');
+            }
+
+            var labels = document.querySelectorAll('.transition-label');
+            for (var l = 0; l < labels.length; l++) {
+                labels[l].classList.remove('highlighted');
+            }
+
+            /* Highlight the specific transitions this signal affects */
+            for (var t = 0; t < sig.transitions.length; t++) {
+                var transEl = document.getElementById(sig.transitions[t]);
+                if (transEl) {
+                    transEl.classList.add('highlighted');
+                    /* Set highlighted marker */
+                    var sc = transEl.getAttribute('stroke');
+                    var mk = 'default';
+                    if (sc === '#38bdf8') mk = 'created';
+                    else if (sc === '#22c55e') mk = 'running';
+                    else if (sc === '#60a5fa') mk = 'sleeping';
+                    else if (sc === '#f59e0b') mk = 'stopped';
+                    else if (sc === '#ef4444') mk = 'zombie';
+                    else if (sc === '#6b7280') mk = 'terminated';
+                    transEl.setAttribute('marker-end', 'url(#arrow-' + mk + '-hl)');
+                }
+
+                /* Highlight the corresponding label */
+                for (var m = 0; m < labels.length; m++) {
+                    if (labels[m].getAttribute('data-trans') === sig.transitions[t]) {
+                        labels[m].classList.add('highlighted');
+                    }
+                }
+            }
+        }
+
+        /**
+         * Clears all signal-related highlighting from the diagram.
+         */
+        function clearSignalSelection() {
+            selectedSignal = null;
+            var cards = document.querySelectorAll('.signal-card');
+            for (var i = 0; i < cards.length; i++) {
+                cards[i].classList.remove('active');
+            }
+        }
+
+
+        /* ===================================================================
+         * BUILD: Construct signal and command reference grids
+         * =================================================================== */
+
+        /**
+         * Builds the signal reference grid from signalData.
+         */
+        function buildSignalGrid() {
+            var container = document.getElementById('signalGrid');
+            var html = '';
+
+            for (var i = 0; i < signalData.length; i++) {
+                var sig = signalData[i];
+                html +=
+                    '<div class="signal-card" onclick="selectSignal(' + i + ')">' +
+                        '<div class="signal-name">' + escapeHtml(sig.name) + '</div>' +
+                        '<div class="signal-number">Signal ' + sig.number + '</div>' +
+                        '<div class="signal-action">' + escapeHtml(sig.action) + '</div>' +
+                        '<div class="signal-desc">' + escapeHtml(sig.description) + '</div>' +
+                    '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * Builds the command reference grid from commandData.
+         */
+        function buildCommandGrid() {
+            var container = document.getElementById('commandGrid');
+            var html = '';
+
+            for (var i = 0; i < commandData.length; i++) {
+                var cmd = commandData[i];
+                html +=
+                    '<div class="command-item">' +
+                        '<div class="command-name">' + escapeHtml(cmd.name) + '</div>' +
+                        '<div class="command-desc">' + escapeHtml(cmd.desc) + '</div>' +
+                    '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+
+        /* ===================================================================
+         * UTILITY: HTML escaping for safe text insertion
+         * =================================================================== */
+
+        /**
+         * Escapes HTML special characters to prevent XSS in dynamic content.
+         */
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+
+        /* ===================================================================
+         * EXPOSE: Make event handler functions accessible from HTML onclick
+         * =================================================================== */
+
+        window.selectState = selectState;
+        window.selectSignal = selectSignal;
+
+    })();
+    </script>
+</body>
+</html>
