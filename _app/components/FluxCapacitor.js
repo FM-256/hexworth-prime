@@ -23,7 +23,7 @@
         { id: 'key', name: 'Key', icon: '🔑', color: '#f472b6', path: 'houses/key/index.html' },
         { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
         { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'dark-arts/vault/index.html', gatePath: 'dark-arts/gate-1.html', gated: true },
-        { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html' }
+        { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html', themeSwitch: 'matrix' }
     ];
 
     // ═══════════════════════════════════════════════════════════════
@@ -361,6 +361,17 @@
             const afterDarkArts = path.split('/dark-arts/')[1] || '';
             depth = (afterDarkArts.match(/\//g) || []).length;
             return '../'.repeat(depth + 1); // +1 for dark-arts
+        } else if (path.includes('/components/')) {
+            // Component-level pages
+            return '../';
+        }
+
+        // Pages directly in _app/ (terminal.html, dashboard.html, etc.)
+        // Check if we're at the _app root by looking for known root-level pages
+        const filename = path.split('/').pop();
+        const appRootPages = ['terminal.html', 'dashboard.html', 'index.html', 'sorting.html', 'connect.html'];
+        if (appRootPages.includes(filename)) {
+            return './';
         }
 
         // Fallback - assume we're at house index level
@@ -453,7 +464,12 @@
             const dashBtn = document.createElement('button');
             dashBtn.className = 'flux-dashboard-btn';
             dashBtn.textContent = '🏠 Return to Dashboard';
-            dashBtn.addEventListener('click', () => this.navigateTo('dashboard.html'));
+            dashBtn.addEventListener('click', () => {
+                if (this.currentHouse === 'matrix') {
+                    localStorage.removeItem('hexworth_theme');
+                }
+                this.navigateTo('dashboard.html');
+            });
             dashSection.appendChild(dashBtn);
             modal.appendChild(dashSection);
 
@@ -503,6 +519,13 @@
                         // Navigate to gates for gated houses
                         this.navigateTo(house.gatePath);
                     } else if (!isLocked) {
+                        // Theme switch (e.g., entering the Matrix sets theme)
+                        if (house.themeSwitch) {
+                            localStorage.setItem('hexworth_theme', house.themeSwitch);
+                        } else if (this.currentHouse === 'matrix') {
+                            // Leaving the Matrix — restore standard theme
+                            localStorage.removeItem('hexworth_theme');
+                        }
                         // Navigate to house/vault
                         this.navigateTo(house.path);
                     }
