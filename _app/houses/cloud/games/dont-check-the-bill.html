@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don't Check the Bill</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @font-face {
+            font-family: 'Terminal';
+            src: local('Cascadia Mono'), local('Consolas'), local('Courier New');
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #c0c0c0;
+            font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header Bar ── */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            color: #22d3ee;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .bill-counter {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ef4444;
+            min-width: 120px;
+            text-align: center;
+            animation: pulse-bill 1s infinite;
+        }
+
+        @keyframes pulse-bill {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2ecc71;
+            min-width: 60px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .timer.warning { color: #f39c12; }
+        .timer.critical { color: #e74c3c; animation: pulse 0.5s infinite alternate; }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.4; }
+        }
+
+        /* ── Achievements Counter ── */
+        .achievement-counter {
+            font-size: 12px;
+            color: #f1c40f;
+            cursor: pointer;
+            padding: 2px 8px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .achievement-counter:hover {
+            background: #1a1a1a;
+            border-color: #f1c40f;
+        }
+
+        /* ── Output Area ── */
+        .output-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .output-area::-webkit-scrollbar { width: 8px; }
+        .output-area::-webkit-scrollbar-track { background: #111; }
+        .output-area::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .line-input { color: #22d3ee; }
+        .line-system { color: #7f8c8d; font-style: italic; }
+        .line-success { color: #2ecc71; }
+        .line-error { color: #e74c3c; }
+        .line-warning { color: #f39c12; }
+        .line-critical { color: #e74c3c; font-weight: bold; }
+        .line-alert { color: #e67e22; }
+        .line-info { color: #22d3ee; }
+        .line-dim { color: #555; }
+        .line-achievement { color: #f1c40f; }
+        .line-narrative { color: #bdc3c7; }
+        .line-title { color: #22d3ee; }
+        .line-hint { color: #9b59b6; }
+        .line-output { color: #ddd; }
+        .line-money { color: #ef4444; font-weight: bold; }
+        .line-funny { color: #10b981; }
+
+        /* ── Input Area ── */
+        .input-area {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .prompt {
+            color: #22d3ee;
+            margin-right: 8px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .input-field {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #eee;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            caret-color: #22d3ee;
+        }
+
+        .input-field::placeholder {
+            color: #444;
+        }
+
+        .input-field:disabled {
+            color: #555;
+        }
+
+        /* ── Achievement Toast ── */
+        .achievement-toast {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #1a1a0a;
+            border: 1px solid #f1c40f;
+            border-left: 4px solid #f1c40f;
+            padding: 12px 16px;
+            border-radius: 4px;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.4s ease;
+            z-index: 100;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        .achievement-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .achievement-toast-label {
+            color: #f1c40f;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .achievement-toast-name {
+            color: #f1c40f;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .achievement-toast-desc {
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* ── Achievement Gallery Overlay ── */
+        .gallery-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .gallery-overlay.show {
+            display: flex;
+        }
+
+        .gallery {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .gallery h2 {
+            color: #f1c40f;
+            margin-bottom: 16px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .gallery-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .gallery-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .gallery-icon.unlocked {
+            background: #2c2a0a;
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .gallery-icon.locked {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #333;
+        }
+
+        .gallery-text { flex: 1; }
+
+        .gallery-name {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .gallery-name.unlocked { color: #f1c40f; }
+        .gallery-name.locked { color: #555; }
+
+        .gallery-desc {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .gallery-close {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .gallery-close button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px 20px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .gallery-close button:hover {
+            border-color: #f1c40f;
+            color: #f1c40f;
+        }
+
+        /* ── Title Screen ── */
+        .title-art {
+            color: #22d3ee;
+            font-size: 13px;
+            line-height: 1.3;
+            margin: 20px 0;
+        }
+
+        /* ── Ending Screen ── */
+        .ending-options {
+            margin-top: 16px;
+        }
+
+        .ending-options span {
+            color: #22d3ee;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-right: 20px;
+        }
+
+        .ending-options span:hover {
+            color: #5dade2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="header-title">DON'T CHECK THE BILL</span>
+        <div class="header-center">
+            <span class="bill-counter" id="billCounter">$847,000</span>
+            <span class="achievement-counter" id="achCounter" onclick="Game.showGallery()" title="View Achievements">&#9733; 0/12</span>
+        </div>
+        <span class="timer" id="timer">3:00</span>
+    </div>
+
+    <div class="output-area" id="output"></div>
+
+    <div class="input-area">
+        <span class="prompt" id="prompt">aws&gt;</span>
+        <input type="text" class="input-field" id="input" placeholder="Type a command..." autofocus autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="achievement-toast" id="toast">
+        <div class="achievement-toast-label">ACHIEVEMENT UNLOCKED</div>
+        <div class="achievement-toast-name" id="toastName"></div>
+        <div class="achievement-toast-desc" id="toastDesc"></div>
+    </div>
+
+    <div class="gallery-overlay" id="galleryOverlay">
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <script>
+    const Game = (function() {
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENT DEFINITIONS
+           ═══════════════════════════════════════ */
+        const ACHIEVEMENTS = {
+            bill_checker:       { name: 'Bill Checker',       icon: '💰', desc: 'Checked Cost Explorer first (brave)' },
+            instance_killer:    { name: 'Instance Killer',    icon: '⚡', desc: 'Stopped all 200 GPU instances' },
+            by_the_book:        { name: 'Cloud Professional', icon: '📋', desc: 'Followed full remediation methodology' },
+            speed_run:          { name: 'Speed Run',          icon: '⏱', desc: 'Contained in under 20 seconds' },
+            full_cleanup:       { name: 'Full Cleanup',       icon: '🧹', desc: 'Fixed instances, Lambda, S3, IAM, and budget' },
+            blame_intern:       { name: 'Blame the Intern',   icon: '👨', desc: 'Talked to the intern' },
+            frozen:             { name: 'Frozen',             icon: '❄', desc: 'Did nothing until time ran out' },
+            coffee_cloud:       { name: 'Cloud Coffee',       icon: '☕', desc: 'Drank coffee while billing climbed' },
+            bitcoin_check:      { name: 'Crypto Curious',     icon: '₿', desc: 'Checked the Bitcoin mining earnings' },
+            calculator_moment:  { name: 'Calculator Moment',  icon: '🧮', desc: 'Calculated years of salary' },
+            aws_support:        { name: 'Called AWS Support', icon: '📞', desc: 'Contacted AWS support (smart)' },
+            budget_hero:        { name: 'Budget Hero',        icon: '🛡', desc: 'Set budget alerts and billing alarms' },
+        };
+
+        const STORAGE_KEY = 'hexworth_dontcheckbill_achievements';
+
+        /* ═══════════════════════════════════════
+           GAME STATE
+           ═══════════════════════════════════════ */
+        let state = {};
+
+        function resetState() {
+            state = {
+                phase: 'title',        // title | playing | ended
+                timeRemaining: 180,
+                timeElapsed: 0,
+                timerInterval: null,
+                billInterval: null,
+                currentBill: 847000,
+                instancesStopped: false,
+                instancesTerminated: false,
+                autoscalingFixed: false,
+                s3Secured: false,
+                lambdaFixed: false,
+                budgetAlertSet: false,
+                billingAlarmSet: false,
+                iamFixed: false,
+                costExplorerChecked: false,
+                internTalkedTo: false,
+                advisorRan: false,
+                awsSupportCalled: false,
+                commandsRun: [],
+                commandCount: 0,
+                eventsTriggered: [],
+                ending: null,
+                toastTimeout: null,
+                billClimbing: true,
+            };
+        }
+
+        /* ═══════════════════════════════════════
+           INITIALIZATION
+           ═══════════════════════════════════════ */
+        function init() {
+            resetState();
+            const inputEl = document.getElementById('input');
+
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const raw = inputEl.value.trim();
+                    inputEl.value = '';
+                    if (raw) handleInput(raw);
+                }
+            });
+
+            updateAchievementCounter();
+            showTitle();
+        }
+
+        /* ═══════════════════════════════════════
+           DISPLAY FUNCTIONS
+           ═══════════════════════════════════════ */
+        function print(text, className) {
+            const outputEl = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'line' + (className ? ' line-' + className : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function printBlank() {
+            print('');
+        }
+
+        function updateBillDisplay() {
+            const el = document.getElementById('billCounter');
+            el.textContent = '$' + state.currentBill.toLocaleString();
+        }
+
+        /* ═══════════════════════════════════════
+           TITLE SCREEN
+           ═══════════════════════════════════════ */
+        function showTitle() {
+            document.getElementById('timer').textContent = '3:00';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('billCounter').textContent = '$847,000';
+            document.getElementById('prompt').style.display = 'none';
+            document.getElementById('input').placeholder = 'Press Enter to start...';
+
+            const lines = [
+                '',
+                '  ╔══════════════════════════════════════════════════╗',
+                '  ║                                                  ║',
+                "  ║         DON'T CHECK THE BILL                     ║",
+                '  ║                                                  ║',
+                '  ║         A Cloud Architect Horror Story           ║',
+                '  ║                                                  ║',
+                '  ╚══════════════════════════════════════════════════╝',
+                '',
+            ];
+
+            for (const line of lines) print(line, 'title');
+
+            printBlank();
+            print('  Monday morning. 8:47 AM. You just got back from a 3-day weekend.', 'dim');
+            print('  You have 47 unread emails. Most are from AWS billing.', 'dim');
+            print('  Subject: "Unusual activity detected."', 'dim');
+            print('  Subject: "Billing alert: Budget exceeded."', 'dim');
+            print('  Subject: "URGENT: Review your usage immediately."', 'dim');
+            printBlank();
+            print('  Your AWS bill is $847,000. It was $2,000/month last week.', 'dim');
+            print('  It\'s climbing at $200 per minute. The intern did something.', 'dim');
+            printBlank();
+            print('  Press ENTER to start.', 'info');
+            printBlank();
+
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            if (count > 0) {
+                print(`  [${count}/12 achievements unlocked]`, 'achievement');
+                printBlank();
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME START
+           ═══════════════════════════════════════ */
+        function startGame() {
+            state.phase = 'playing';
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+
+            const intro = [
+                'MONDAY, 8:47 AM',
+                '',
+                'You take a sip of coffee and open the AWS Console.',
+                '',
+                '[COST EXPLORER]',
+                '  Current month-to-date: $847,000',
+                '  Previous month total: $2,100',
+                '  % change: +40,233%',
+                '',
+                '[EC2 INSTANCES RUNNING]',
+                '  Region us-east-1: 50 x p3.16xlarge ($24.48/hr each)',
+                '  Region us-west-2: 50 x p3.16xlarge ($24.48/hr each)',
+                '  Region eu-west-1: 50 x p3.16xlarge ($27.41/hr each)',
+                '  Region ap-southeast-1: 50 x p3.16xlarge ($28.15/hr each)',
+                '  Instance names: totally_not_mining_bitcoin_001 through',
+                '                  totally_not_mining_bitcoin_200',
+                '  Launched by: intern-test-key',
+                '',
+                '[AUTO-SCALING GROUP]',
+                '  Name: intern-test-asg',
+                '  Min: 0, Max: unlimited, Desired: 200',
+                '  Status: Scaling up (15 new instances launching in ap-northeast-1)',
+                '',
+                '[S3 BUCKETS]',
+                '  47 buckets detected',
+                '  23 buckets have public access enabled',
+                '  Bot traffic detected downloading from company-backups-prod',
+                '',
+                '[LAMBDA FUNCTION]',
+                '  Name: process-data',
+                '  Invocations last hour: 340,000',
+                '  Status: Recursively calling itself',
+                '',
+                'Your phone rings. It\'s the CFO.',
+                '"Why is our AWS bill EIGHT HUNDRED THOUSAND DOLLARS?"',
+                '',
+                'You have 3 minutes before the credit card maxes out.',
+                '',
+            ];
+
+            for (const line of intro) {
+                print(line, line.startsWith('  ') ? 'output' : 'narrative');
+            }
+
+            print('Type HELP for available commands.', 'info');
+            printBlank();
+
+            // Start the countdown and billing climb
+            state.timerInterval = setInterval(tick, 1000);
+            state.billInterval = setInterval(billTick, 60000); // Every 60 seconds
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           TIMER & EVENTS
+           ═══════════════════════════════════════ */
+        function tick() {
+            state.timeRemaining--;
+            state.timeElapsed++;
+            updateTimerDisplay();
+
+            checkTimedEvents();
+
+            if (state.timeRemaining <= 0) {
+                timeUp();
+            }
+        }
+
+        function billTick() {
+            if (state.billClimbing) {
+                state.currentBill += 200;
+                updateBillDisplay();
+            }
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer');
+            const mins = Math.floor(state.timeRemaining / 60);
+            const secs = state.timeRemaining % 60;
+            el.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            if (state.timeRemaining <= 30) {
+                el.className = 'timer critical';
+            } else if (state.timeRemaining <= 60) {
+                el.className = 'timer warning';
+            } else {
+                el.className = 'timer';
+            }
+        }
+
+        function checkTimedEvents() {
+            const events = [
+                { at: 10, id: 'bill1', level: 'alert', text: '[BILLING] Current spend: $847,200 (+$200). GPU instances still running across us-east-1, us-west-2, eu-west-1, ap-southeast-1.' },
+                { at: 30, id: 's3', level: 'alert', text: '[ALERT] S3 bucket \'company-backups-prod\' is PUBLIC. Bot traffic detected downloading files.' },
+                { at: 50, id: 'scale', level: 'warning', text: '[BILLING] Current spend: $851,000. Auto-scaling just launched 15 MORE instances in ap-northeast-1.' },
+                { at: 75, id: 'lambda', level: 'critical', text: '[CRITICAL] Lambda function \'process-data\' invoking itself. 340,000 invocations in the last hour.' },
+                { at: 100, id: 'card', level: 'critical', text: '[CRITICAL] Credit card company called: "Unusual activity detected. Card frozen in 60 seconds."' },
+                { at: 130, id: 'frozen', level: 'critical', text: '[CRITICAL] Card frozen. AWS services beginning graceful shutdown. Production workloads affected.' },
+                { at: 155, id: 'prod', level: 'critical', text: '[CRITICAL] Production API returning 503. Customer complaints flooding in. CFO calling.' },
+                { at: 170, id: 'cfo', level: 'critical', text: '[CRITICAL] CFO on phone: "EIGHT HUNDRED THOUSAND DOLLARS?!"' },
+            ];
+
+            // Skip some events if actions taken
+            const skipEvents = [];
+            if (state.instancesStopped && state.timeElapsed < 50) skipEvents.push('scale');
+            if (state.lambdaFixed && state.timeElapsed < 75) skipEvents.push('lambda');
+            if (state.s3Secured && state.timeElapsed < 30) skipEvents.push('s3');
+
+            for (const ev of events) {
+                if (state.timeElapsed >= ev.at && !state.eventsTriggered.includes(ev.id) && !skipEvents.includes(ev.id)) {
+                    state.eventsTriggered.push(ev.id);
+                    printBlank();
+                    print(ev.text, ev.level);
+                    printBlank();
+                }
+            }
+        }
+
+        function timeUp() {
+            clearInterval(state.timerInterval);
+            clearInterval(state.billInterval);
+
+            printBlank();
+            print('════════════════════════════════════════', 'critical');
+            print('GAME OVER', 'critical');
+            print('════════════════════════════════════════', 'critical');
+            printBlank();
+
+            if (!state.instancesStopped && !state.lambdaFixed && !state.autoscalingFixed) {
+                print('Time\'s up. The credit card maxed out. AWS shut down', 'error');
+                print('all services. Production is down. Customers are angry.', 'error');
+                print('The CFO is furious. Your resume is on LinkedIn.', 'error');
+                printBlank();
+                print(`Final bill: $${state.currentBill.toLocaleString()}`, 'money');
+                print('Estimated recovery time: 1-2 weeks.', 'dim');
+
+                if (state.commandCount === 0) {
+                    unlock('frozen');
+                }
+
+                state.ending = 'timeout';
+            } else {
+                print('Time\'s up, but you contained the crisis before the', 'success');
+                print('card maxed out. Production is stable.', 'success');
+                printBlank();
+                print(`Final bill: $${state.currentBill.toLocaleString()}`, 'money');
+                print('(Still absurdly expensive, but at least it stopped climbing.)', 'dim');
+            }
+
+            endGame();
+        }
+
+        /* ═══════════════════════════════════════
+           INPUT HANDLING
+           ═══════════════════════════════════════ */
+        function handleInput(raw) {
+            if (state.phase === 'title') {
+                startGame();
+                return;
+            }
+
+            if (state.phase === 'ended') {
+                const lower = raw.toLowerCase();
+                if (lower === 'r' || lower === 'restart' || lower === 'play again' || lower === 'again') {
+                    restart();
+                } else if (lower === 'a' || lower === 'achievements') {
+                    showGallery();
+                }
+                return;
+            }
+
+            // Echo the input
+            print('aws> ' + raw, 'input');
+
+            state.commandCount++;
+            state.commandsRun.push(raw);
+
+            const result = processCommand(raw);
+            if (result) {
+                for (const line of result.split('\n')) {
+                    print(line, result._className || 'output');
+                }
+            }
+
+            printBlank();
+
+            // Check win conditions after each command
+            if (state.phase === 'playing') {
+                checkWinCondition();
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           COMMAND PROCESSING
+           ═══════════════════════════════════════ */
+        function processCommand(raw) {
+            const trimmed = raw.trim();
+            const lower = trimmed.toLowerCase();
+
+            // ── Adventure / fun commands ──
+            if (['look', 'examine', 'look around'].includes(lower)) {
+                return adventureLook();
+            }
+            if (['inventory', 'i', 'inv'].includes(lower)) {
+                return styledLine('You have: AWS root credentials (yes, root, we\'ll deal with that later), a corporate credit card with a $1M limit (terrifyingly close), and a resignation letter template on your desktop that you update weekly.', 'funny');
+            }
+            if (['help', '?', 'help me', 'commands'].includes(lower)) {
+                return showHelp();
+            }
+            if (['hint', 'hints'].includes(lower)) {
+                return showHint();
+            }
+            if (['panic', 'freak out', 'scream'].includes(lower)) {
+                state.timeRemaining = Math.max(0, state.timeRemaining - 10);
+                state.currentBill += 33;
+                updateTimerDisplay();
+                updateBillDisplay();
+                return styledLine('You refresh the billing page. It went up $33 while you were panicking. (-10 seconds)', 'warning');
+            }
+            if (['coffee', 'drink coffee', 'get coffee'].includes(lower)) {
+                unlock('coffee_cloud');
+                return styledLine('You drink coffee. It costs $4. The cheapest thing associated with your AWS account today.', 'funny');
+            }
+            if (['blame intern', 'talk to intern', 'call intern', 'intern'].includes(lower)) {
+                unlock('blame_intern');
+                state.internTalkedTo = true;
+                return styledLine('The intern says: "I just wanted to train a GPT model! I didn\'t know\np3.16xlarge costs $24/hour! I thought AWS was free tier!"\n\nYou die a little inside.', 'funny');
+            }
+            if (['cry', 'weep', 'sob'].includes(lower)) {
+                return styledLine('Valid. AWS billing has that effect.', 'dim');
+            }
+            if (['check bitcoin', 'bitcoin', 'check mining', 'mining'].includes(lower)) {
+                unlock('bitcoin_check');
+                return styledLine('The mining rig has earned $47 in Bitcoin. Against $847,000 in compute costs.\nROI: -99.99%. Outstanding work.', 'funny');
+            }
+            if (['delete account', 'close account', 'cancel aws'].includes(lower)) {
+                return styledLine('You briefly consider it. But there are 3 production workloads on here.\nAnd HR\'s payroll. And the CEO\'s blog.', 'dim');
+            }
+            if (['call bezos', 'call jassy', 'call andy jassy', 'email bezos'].includes(lower)) {
+                return styledLine('Andy Jassy is unavailable. He\'s busy counting your money.', 'funny');
+            }
+            if (['switch to azure', 'switch to gcp', 'migrate to azure', 'use azure'].includes(lower)) {
+                return styledLine('Running from your problems isn\'t a solution. Also, the migration\nwould cost even more. And you\'d have to explain to the CFO why\nyou\'re switching cloud providers mid-disaster.', 'funny');
+            }
+            if (['check free tier', 'free tier', 'am i in free tier'].includes(lower)) {
+                return styledLine('You\'re approximately $846,950 over the free tier limit.\nThe free tier is a distant memory. A simpler time.', 'funny');
+            }
+            if (['calculator', 'calculate', 'do math'].includes(lower)) {
+                unlock('calculator_moment');
+                return styledLine('$847,000 divided by your salary ($70,000)... you\'d have to work for\n12 years to pay this off. Good thing you have insurance. Wait, does\ninsurance cover "intern clicked the wrong button"?', 'funny');
+            }
+            if (['quit', 'exit', 'logout', 'resign'].includes(lower)) {
+                return styledLine('You can\'t quit. The bill is still climbing. Also, HR requires\n2 weeks notice and you don\'t have 2 weeks.', 'warning');
+            }
+
+            // ── AWS commands ──
+            return processAWSCommand(trimmed);
+        }
+
+        function processAWSCommand(raw) {
+            const lower = raw.toLowerCase();
+
+            // Describe instances
+            if (lower.includes('describe-instances') || lower === 'list instances' || lower === 'ec2 list') {
+                return cmdDescribeInstances();
+            }
+
+            // Stop instances
+            if (lower.includes('stop-instances') || lower === 'stop instances' || lower === 'stop all' || lower === 'stop ec2') {
+                return cmdStopInstances();
+            }
+
+            // Terminate instances
+            if (lower.includes('terminate-instances') || lower === 'terminate' || lower === 'terminate all') {
+                return cmdTerminateInstances();
+            }
+
+            // Auto-scaling
+            if (lower.includes('autoscaling') && (lower.includes('update') || lower.includes('fix') || lower.includes('set max'))) {
+                return cmdFixAutoScaling();
+            }
+
+            // List S3
+            if ((lower.includes('s3') && lower.includes('ls')) || lower === 'list buckets') {
+                return cmdListBuckets();
+            }
+
+            // Secure S3
+            if ((lower.includes('s3') && (lower.includes('put-public-access-block') || lower.includes('block public'))) || lower === 'secure buckets') {
+                return cmdSecureBuckets();
+            }
+
+            // List Lambda
+            if ((lower.includes('lambda') && lower.includes('list')) || lower === 'list lambda') {
+                return cmdListLambda();
+            }
+
+            // Delete Lambda
+            if ((lower.includes('lambda') && (lower.includes('delete') || lower.includes('kill') || lower.includes('stop')))) {
+                return cmdDeleteLambda();
+            }
+
+            // IAM
+            if (lower.includes('iam') && lower.includes('list')) {
+                return cmdListIAM();
+            }
+
+            if ((lower.includes('iam') && (lower.includes('remove') || lower.includes('fix') || lower.includes('revoke'))) || lower.includes('revoke intern')) {
+                return cmdFixIAM();
+            }
+
+            // Cost Explorer
+            if (lower.includes('cost') || lower === 'check bill' || lower === 'how much' || lower.includes('get-cost')) {
+                if (!state.costExplorerChecked) unlock('bill_checker');
+                state.costExplorerChecked = true;
+                return cmdCostExplorer();
+            }
+
+            // Budget
+            if (lower.includes('budget') || lower.includes('create-budget') || lower === 'set budget') {
+                return cmdCreateBudget();
+            }
+
+            // CloudWatch alarm
+            if (lower.includes('cloudwatch') || lower.includes('billing alarm') || lower.includes('put-metric-alarm')) {
+                return cmdBillingAlarm();
+            }
+
+            // CloudTrail
+            if (lower.includes('cloudtrail') || lower.includes('lookup-events') || lower === 'audit log') {
+                return styledLine('[CLOUDTRAIL EVENTS]\n  2025-12-09 05:23:11 RunInstances (mchen) - 50 instances launched\n  2025-12-09 05:23:54 RunInstances (mchen) - 50 instances launched\n  2025-12-09 05:24:32 RunInstances (mchen) - 50 instances launched\n  2025-12-09 05:25:01 RunInstances (mchen) - 50 instances launched\n  2025-12-09 06:12:44 CreateFunction (mchen) - Lambda process-data\n  2025-12-09 06:15:33 PutBucketAcl (mchen) - 23 buckets made public\n\nThe intern was BUSY.', 'output');
+            }
+
+            // Organizations
+            if (lower.includes('organizations') || lower === 'check org') {
+                return styledLine('[AWS ORGANIZATIONS]\n  Status: Single account (no organization)\n  SCPs: Not applicable\n  Billing: Consolidated billing not enabled\n\nYou\'re not using AWS Organizations. That would have helped prevent\nthis with Service Control Policies. Hindsight is 20/20.', 'output');
+            }
+
+            // Trusted Advisor
+            if (lower.includes('trusted-advisor') || lower === 'advisor') {
+                state.advisorRan = true;
+                return styledLine('[TRUSTED ADVISOR]\n  Security: 🔴 72 warnings\n  Cost Optimization: 🔴 45 warnings\n  Performance: 🟡 12 warnings\n  Fault Tolerance: 🔴 31 warnings\n  Service Limits: 🔴 8 warnings\n\nTop issue: "200 GPU instances running with no monitoring"\nSecond: "S3 buckets publicly accessible"\nThird: "IAM user with AdministratorAccess and no MFA"\n\nWhere do we even begin?', 'output');
+            }
+
+            // AWS Config
+            if (lower.includes('config') || lower === 'check compliance') {
+                return styledLine('[AWS CONFIG]\n  Compliant resources: 3\n  Non-compliant resources: 247\n  Compliance rate: 1.2%\n\nEverything is on fire. This is fine.', 'output');
+            }
+
+            // Tag resources
+            if (lower.includes('tag')) {
+                return styledLine('You start tagging resources for cost allocation. The instances are\nnamed "totally_not_mining_bitcoin_001" through "200". At least\nthe intern was honest?', 'funny');
+            }
+
+            // AWS Support
+            if (lower.includes('support') || lower.includes('create-case') || lower.includes('contact aws') || lower === 'call aws') {
+                unlock('aws_support');
+                state.awsSupportCalled = true;
+                return styledLine('[AWS SUPPORT CASE CREATED]\n  Case ID: 12784-OHNO-99999\n  Subject: "Emergency: Bill went from $2K to $847K in 3 days"\n  Severity: Urgent\n  Response time: 1 hour (Business support)\n\nAWS Support: "We see the issue. Your intern launched 200 p3.16xlarge\ninstances. We can\'t stop them for you - you need to do that. But we\ncan help review your bill for any errors after you stop the bleeding.\nAlso, consider Reserved Instances for the future."\n\nThanks, AWS. Super helpful right now.', 'output');
+            }
+
+            // Reserved Instances / Savings Plan
+            if (lower.includes('reserved') || lower.includes('savings')) {
+                return styledLine('A bit late for savings plans when the bill is $847K and climbing.\nThat\'s like buying life insurance after the accident.', 'funny');
+            }
+
+            // Generic AWS command not implemented
+            if (lower.startsWith('aws ')) {
+                return styledLine(`aws: command not fully implemented. Try these:\n  aws ec2 describe-instances\n  aws ec2 stop-instances\n  aws autoscaling update\n  aws s3 ls\n  aws lambda list-functions\n  aws ce get-cost\n  aws budgets create-budget\n\nOr type HELP for all commands.`, 'error');
+            }
+
+            return styledLine(`Command not recognized: '${raw}'\nType HELP for available commands.`, 'error');
+        }
+
+        /* ═══════════════════════════════════════
+           AWS COMMAND IMPLEMENTATIONS
+           ═══════════════════════════════════════ */
+
+        function cmdDescribeInstances() {
+            return styledLine(`[EC2 INSTANCES]
+
+REGION: us-east-1
+  Instance ID          Type          State     Name
+  i-0a1b2c3d4e5f6g7h   p3.16xlarge   running   totally_not_mining_bitcoin_001
+  i-0b2c3d4e5f6g7h8i   p3.16xlarge   running   totally_not_mining_bitcoin_002
+  ... (48 more)
+
+REGION: us-west-2
+  Instance ID          Type          State     Name
+  i-0c3d4e5f6g7h8i9j   p3.16xlarge   running   totally_not_mining_bitcoin_051
+  i-0d4e5f6g7h8i9j0k   p3.16xlarge   running   totally_not_mining_bitcoin_052
+  ... (48 more)
+
+REGION: eu-west-1
+  Instance ID          Type          State     Name
+  i-0e5f6g7h8i9j0k1l   p3.16xlarge   running   totally_not_mining_bitcoin_101
+  ... (49 more)
+
+REGION: ap-southeast-1
+  Instance ID          Type          State     Name
+  i-0f6g7h8i9j0k1l2m   p3.16xlarge   running   totally_not_mining_bitcoin_151
+  ... (49 more)
+
+TOTAL: 200 instances running
+COST: ~$5,000/hour ($120,000/day)
+
+The intern really committed to the bit with those names.`, 'output');
+        }
+
+        function cmdStopInstances() {
+            if (state.instancesStopped) {
+                return styledLine('The instances are already stopped. The bleeding has stopped.', 'success');
+            }
+
+            state.instancesStopped = true;
+            state.billClimbing = false;
+            unlock('instance_killer');
+
+            if (state.timeElapsed <= 20) {
+                unlock('speed_run');
+            }
+
+            return styledLine('[SUCCESS] Stopping 200 instances across all regions...\n\n  us-east-1: 50 instances stopping\n  us-west-2: 50 instances stopping\n  eu-west-1: 50 instances stopping\n  ap-southeast-1: 50 instances stopping\n\nAll instances will be stopped within 60 seconds.\nThe billing rate has dropped to near-zero.\n\nYou can breathe now. Barely.', 'success');
+        }
+
+        function cmdTerminateInstances() {
+            if (state.instancesTerminated) {
+                return styledLine('The instances are already terminated. They\'re gone.', 'success');
+            }
+
+            state.instancesStopped = true;
+            state.instancesTerminated = true;
+            state.billClimbing = false;
+            unlock('instance_killer');
+
+            if (state.timeElapsed <= 20) {
+                unlock('speed_run');
+            }
+
+            return styledLine('[SUCCESS] Terminating 200 instances across all regions...\n\n  us-east-1: 50 instances terminated\n  us-west-2: 50 instances terminated\n  eu-west-1: 50 instances terminated\n  ap-southeast-1: 50 instances terminated\n\nAll instances terminated. They\'re gone forever.\nThe intern\'s Bitcoin mining dreams are dead.\nSo is $847,000 of compute budget.', 'success');
+        }
+
+        function cmdFixAutoScaling() {
+            if (state.autoscalingFixed) {
+                return styledLine('Auto-scaling is already fixed. Max capacity: 5.', 'success');
+            }
+
+            state.autoscalingFixed = true;
+
+            return styledLine('[SUCCESS] Updated auto-scaling group:\n\n  Name: intern-test-asg\n  Min: 0\n  Max: 5 (was: unlimited)\n  Desired: 0\n\nAuto-scaling can no longer launch infinite instances.\nWhoever set "Max: unlimited" should be banned from AWS.', 'success');
+        }
+
+        function cmdListBuckets() {
+            return styledLine(`[S3 BUCKETS]
+
+  company-backups-prod          PUBLIC   ⚠️
+  internal-docs                 PUBLIC   ⚠️
+  customer-data-archive         PUBLIC   ⚠️
+  intern-test-bucket-1          PUBLIC   ⚠️
+  intern-test-bucket-2          PUBLIC   ⚠️
+  ... (18 more public buckets)
+  production-logs               PRIVATE  ✓
+  billing-reports               PRIVATE  ✓
+  ... (24 more private buckets)
+
+TOTAL: 47 buckets
+PUBLIC: 23 buckets (BAD)
+
+Bot traffic detected on company-backups-prod. Someone is downloading\nyour backups. That's not ideal.`, 'output');
+        }
+
+        function cmdSecureBuckets() {
+            if (state.s3Secured) {
+                return styledLine('S3 buckets are already secured. Public access blocked.', 'success');
+            }
+
+            state.s3Secured = true;
+
+            return styledLine('[SUCCESS] Applied public access block to all 47 buckets.\n\n  Block public ACLs: ✓\n  Ignore public ACLs: ✓\n  Block public policy: ✓\n  Restrict public buckets: ✓\n\nAll buckets are now private. The bot downloads have stopped.\nYour backups are safe. For now.', 'success');
+        }
+
+        function cmdListLambda() {
+            return styledLine(`[LAMBDA FUNCTIONS]
+
+  Function Name    Runtime      Invocations (1h)    Status
+  process-data     python3.9    340,000             🔴 RECURSIVE
+  send-emails      nodejs18.x   47                  ✓ Normal
+  resize-images    python3.11   122                 ✓ Normal
+  audit-logs       python3.9    8                   ✓ Normal
+
+The "process-data" function is calling itself in an infinite loop.
+It's like a digital Ouroboros, eating its own tail. Except it costs\nmoney. About $200/hour in Lambda invocations.`, 'output');
+        }
+
+        function cmdDeleteLambda() {
+            if (state.lambdaFixed) {
+                return styledLine('The Lambda function is already deleted. The recursion is over.', 'success');
+            }
+
+            state.lambdaFixed = true;
+
+            return styledLine('[SUCCESS] Deleted Lambda function "process-data".\n\n  Final invocation count: 340,000\n  Cost: ~$680 (just for Lambda)\n  Recursion depth: ∞ (it was trying)\n\nThe infinite loop is broken. Silence at last.', 'success');
+        }
+
+        function cmdListIAM() {
+            return styledLine(`[IAM USERS]
+
+  Username     Access Level           MFA    Last Activity
+  root         AdministratorAccess    ✓      2025-11-15
+  admin        AdministratorAccess    ✓      2025-12-09 (you)
+  mchen        AdministratorAccess    ✗      2025-12-09 08:47 AM
+  jsmith       ReadOnlyAccess         ✓      2025-12-08
+  deploy-bot   PowerUserAccess        N/A    2025-12-09
+
+The intern has AdministratorAccess. No MFA. This is why we can't have\nnice things.`, 'output');
+        }
+
+        function cmdFixIAM() {
+            if (state.iamFixed) {
+                return styledLine('IAM permissions are already fixed. The intern is restricted.', 'success');
+            }
+
+            state.iamFixed = true;
+
+            return styledLine('[SUCCESS] Revoked AdministratorAccess from user "mchen".\n\n  Old policy: AdministratorAccess\n  New policy: ReadOnlyAccess\n  MFA enforced: Yes (going forward)\n\nThe intern can now read things but not break them.\nProgress.', 'success');
+        }
+
+        function cmdCostExplorer() {
+            return styledLine(`[AWS COST EXPLORER]
+
+  Current month-to-date: $${state.currentBill.toLocaleString()}
+  Previous month total: $2,100
+  % change: +${Math.round((state.currentBill / 2100 - 1) * 100).toLocaleString()}%
+
+BREAKDOWN:
+  EC2 instances: $${(state.currentBill * 0.92).toFixed(0).toLocaleString()}
+  Lambda: $680
+  S3 storage: $120
+  Data transfer: $1,200
+  NAT Gateway: $85
+  CloudWatch: $42
+  Other: $${(state.currentBill * 0.08 - 2127).toFixed(0).toLocaleString()}
+
+The graph looks like a rocket launch. A very expensive rocket.`, 'output');
+        }
+
+        function cmdCreateBudget() {
+            if (state.budgetAlertSet) {
+                return styledLine('Budget alert is already set. You\'ll be notified at $3,000.', 'success');
+            }
+
+            state.budgetAlertSet = true;
+
+            return styledLine('[SUCCESS] Created budget alert.\n\n  Budget name: Monthly-AWS-Limit\n  Amount: $3,000/month\n  Alert threshold: 80% ($2,400)\n  Notification: your-email@company.com\n\nYou\'ll get an email if spending exceeds $2,400. This should have\nbeen set up 3 days ago. Live and learn.', 'success');
+        }
+
+        function cmdBillingAlarm() {
+            if (state.billingAlarmSet) {
+                return styledLine('CloudWatch billing alarm is already set.', 'success');
+            }
+
+            state.billingAlarmSet = true;
+
+            return styledLine('[SUCCESS] Created CloudWatch billing alarm.\n\n  Alarm name: Billing-Alert-Critical\n  Metric: EstimatedCharges\n  Threshold: > $2,500\n  Action: SNS notification to on-call\n\nNext time the bill goes crazy, you\'ll know within 15 minutes.\nInstead of 3 days later.', 'success');
+        }
+
+        function adventureLook() {
+            let desc = 'Your CloudWatch dashboard looks like a stock market crash. Every\n';
+            desc += 'graph is vertical. The billing graph has left the chart area entirely\n';
+            desc += 'and is just a line going up into the header.\n\n';
+
+            if (state.instancesStopped) {
+                desc += 'The EC2 instances are stopped. The main fire is out.\n';
+            } else {
+                desc += 'GPU instances named "totally_not_mining_bitcoin_01" through "200"\n';
+                desc += 'are running across 4 regions. Your laptop fan is working harder\n';
+                desc += 'than those GPUs. You\'re sweating.\n';
+            }
+
+            if (state.lambdaFixed) {
+                desc += 'The recursive Lambda is deleted. One less problem.\n';
+            }
+
+            if (state.s3Secured) {
+                desc += 'The S3 buckets are secured. No more public backups.\n';
+            }
+
+            if (!state.instancesStopped && !state.lambdaFixed) {
+                desc += '\nThe bill is still climbing. Your coffee is getting cold.';
+            }
+
+            return styledLine(desc, 'dim');
+        }
+
+        /* ═══════════════════════════════════════
+           HELP & HINTS
+           ═══════════════════════════════════════ */
+
+        function showHelp() {
+            return styledLine(`AWS COMMANDS:
+  aws ec2 describe-instances      List all running instances
+  aws ec2 stop-instances          Stop GPU instances
+  aws ec2 terminate-instances     Terminate instances (permanent)
+  aws autoscaling update          Fix auto-scaling limits
+  aws s3 ls                       List S3 buckets
+  aws s3api put-public-access-block   Secure public buckets
+  aws lambda list-functions       List Lambda functions
+  aws lambda delete-function      Delete recursive Lambda
+  aws iam list-users              Check IAM permissions
+  aws iam remove-policy           Fix intern's permissions
+  aws ce get-cost                 Check Cost Explorer (brave)
+  aws budgets create-budget       Set budget alerts
+  aws cloudwatch put-metric-alarm Set billing alarm
+  aws cloudtrail lookup-events    Check audit logs
+  aws trusted-advisor             Run Trusted Advisor
+  aws support create-case         Contact AWS Support
+
+SHORTCUTS:
+  list instances    stop instances    list buckets
+  secure buckets    list lambda       check bill
+  fix autoscaling   fix iam           set budget
+
+OTHER:
+  look, inventory, hint, panic, coffee, blame intern
+
+There are 12 achievements. Some require... creativity.`, 'info');
+        }
+
+        function showHint() {
+            if (state.instancesStopped && state.lambdaFixed && state.s3Secured) {
+                return styledLine('[HINT] You\'ve handled the main fires. Consider fixing IAM permissions\nand setting up budget alerts to prevent this from happening again.', 'hint');
+            }
+
+            if (state.instancesStopped) {
+                return styledLine('[HINT] Good - instances are stopped. But there\'s still a recursive\nLambda function and public S3 buckets. Multiple fires burning.', 'hint');
+            }
+
+            if (state.commandCount === 0) {
+                return styledLine('[HINT] 200 GPU instances are running at $5,000/hour. Priority one:\nstop them. Try: aws ec2 stop-instances', 'hint');
+            }
+
+            if (state.commandCount < 3) {
+                return styledLine('[HINT] Focus on the biggest cost: EC2 instances. Stop them first,\nthen fix auto-scaling so they can\'t spin up again.', 'hint');
+            }
+
+            return styledLine('[HINT] The bill is climbing at $200/minute. Stop instances, fix\nauto-scaling, secure S3, kill the Lambda. Triage the fires.', 'hint');
+        }
+
+        /* ═══════════════════════════════════════
+           WIN CONDITION CHECK
+           ═══════════════════════════════════════ */
+
+        function checkWinCondition() {
+            // "By The Book" - full methodology
+            if (state.instancesStopped && state.lambdaFixed && state.s3Secured && state.iamFixed && state.budgetAlertSet) {
+                unlock('by_the_book');
+            }
+
+            // "Full Cleanup" - all major issues fixed
+            if (state.instancesStopped && state.lambdaFixed && state.s3Secured && state.iamFixed && state.budgetAlertSet) {
+                unlock('full_cleanup');
+            }
+
+            // "Budget Hero" - set both budget and alarm
+            if (state.budgetAlertSet && state.billingAlarmSet) {
+                unlock('budget_hero');
+            }
+
+            // Win condition: Stopped instances AND (fixed Lambda OR fixed auto-scaling)
+            if ((state.instancesStopped || state.instancesTerminated) && (state.lambdaFixed || state.autoscalingFixed)) {
+                if (state.ending === null) {
+                    state.ending = 'success';
+                    clearInterval(state.timerInterval);
+                    clearInterval(state.billInterval);
+
+                    setTimeout(function() {
+                        if (state.phase !== 'playing') return;
+                        printBlank();
+                        print('════════════════════════════════════════', 'success');
+                        print('CRISIS CONTAINED', 'success');
+                        print('════════════════════════════════════════', 'success');
+                        printBlank();
+
+                        const elapsed = state.timeElapsed;
+                        const mins = Math.floor(elapsed / 60);
+                        const secs = elapsed % 60;
+                        print(`Time: ${mins}m ${secs}s`, 'info');
+                        print(`Final bill: $${state.currentBill.toLocaleString()}`, 'money');
+                        printBlank();
+
+                        // Determine what they did
+                        const actions = [];
+                        if (state.instancesStopped) actions.push('Stopped GPU instances');
+                        if (state.instancesTerminated) actions.push('Terminated instances');
+                        if (state.autoscalingFixed) actions.push('Fixed auto-scaling');
+                        if (state.lambdaFixed) actions.push('Killed recursive Lambda');
+                        if (state.s3Secured) actions.push('Secured S3 buckets');
+                        if (state.iamFixed) actions.push('Fixed IAM permissions');
+                        if (state.budgetAlertSet) actions.push('Set budget alerts');
+
+                        print('Actions taken:', 'dim');
+                        for (const action of actions) {
+                            print('  • ' + action, 'dim');
+                        }
+                        printBlank();
+
+                        if (state.instancesStopped && state.lambdaFixed && state.s3Secured && state.iamFixed && state.budgetAlertSet) {
+                            print('Textbook cloud incident response. Stopped the bleeding,', 'narrative');
+                            print('fixed the vulnerabilities, set up monitoring. The CFO is', 'narrative');
+                            print('still angry about the $847K bill, but at least it stopped', 'narrative');
+                            print('climbing. Your job is probably safe. Probably.', 'narrative');
+                        } else if (state.instancesStopped && state.autoscalingFixed) {
+                            print('Quick and decisive. Stopped the instances, prevented them', 'narrative');
+                            print('from auto-scaling back up. The bill stopped climbing.', 'narrative');
+                            print('There\'s still cleanup to do (Lambda, S3, IAM), but the', 'narrative');
+                            print('main fire is out. You can breathe now.', 'narrative');
+                        } else {
+                            print('You stopped the runaway costs. Not the cleanest approach,', 'narrative');
+                            print('but effective. The bill stopped climbing. Now comes the fun', 'narrative');
+                            print('part: explaining to the CFO why AWS charged $847,000 for', 'narrative');
+                            print('a "test environment."', 'narrative');
+                        }
+
+                        printBlank();
+                        print('The intern has been moved to a role with "no production access."', 'dim');
+                        print('You\'ve learned that "auto_scaling_max: unlimited" is a dangerous string.', 'dim');
+                        print('And you\'ll never skip setting up billing alerts again.', 'dim');
+
+                        endGame();
+                    }, 1500);
+                }
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME END
+           ═══════════════════════════════════════ */
+
+        function endGame() {
+            state.phase = 'ended';
+            clearInterval(state.timerInterval);
+            clearInterval(state.billInterval);
+
+            // Award platform achievements via AchievementSystem
+            if (typeof AchievementSystem !== 'undefined') {
+                if (state.ending === 'success') {
+                    AchievementSystem.unlockGameAchievement('bill', 'win');
+                }
+                const saved = loadAchievements();
+                if (saved.by_the_book) {
+                    AchievementSystem.unlockGameAchievement('bill', 'by_the_book');
+                }
+                if (saved.speed_run) {
+                    AchievementSystem.unlockGameAchievement('bill', 'speed');
+                }
+                if (Object.keys(saved).length >= 12) {
+                    AchievementSystem.unlockGameAchievement('bill', 'all');
+                }
+            }
+
+            // Track game stats
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('bill', {
+                    result: state.ending || 'unknown',
+                    timeElapsed: state.timeElapsed,
+                    commandsUsed: state.commandCount,
+                    achievementsEarned: Object.keys(loadAchievements()).length,
+                    achievementsTotal: Object.keys(loadAchievements()).length
+                });
+            }
+
+            document.getElementById('input').placeholder = 'Type R to restart or A for achievements...';
+
+            printBlank();
+            print('────────────────────────────────────────', 'dim');
+
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            print(`Achievements: ${count}/12`, 'achievement');
+
+            printBlank();
+            print('[R] Play Again    [A] View Achievements', 'info');
+        }
+
+        function restart() {
+            document.getElementById('output').innerHTML = '';
+            resetState();
+            document.getElementById('timer').textContent = '3:00';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('billCounter').textContent = '$847,000';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+            updateAchievementCounter();
+            startGame();
+        }
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENTS
+           ═══════════════════════════════════════ */
+
+        function loadAchievements() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            } catch { return {}; }
+        }
+
+        function saveAchievements(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function unlock(id) {
+            const saved = loadAchievements();
+            if (saved[id]) return; // already unlocked
+
+            const ach = ACHIEVEMENTS[id];
+            if (!ach) return;
+
+            saved[id] = { unlockedAt: Date.now() };
+            saveAchievements(saved);
+
+            // Show toast
+            showToast(ach.name, ach.desc);
+
+            // Update counter
+            updateAchievementCounter();
+
+            // Print in terminal
+            print(`[ACHIEVEMENT] ${ach.icon} ${ach.name} — ${ach.desc}`, 'achievement');
+        }
+
+        function showToast(name, desc) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastName').textContent = name;
+            document.getElementById('toastDesc').textContent = desc;
+            toast.classList.add('show');
+
+            if (state.toastTimeout) clearTimeout(state.toastTimeout);
+            state.toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        function updateAchievementCounter() {
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            document.getElementById('achCounter').textContent = `\u2605 ${count}/12`;
+        }
+
+        function showGallery() {
+            const saved = loadAchievements();
+            const overlay = document.getElementById('galleryOverlay');
+            const gallery = document.getElementById('gallery');
+
+            let html = '<h2>ACHIEVEMENTS</h2>';
+
+            for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+                const unlocked = !!saved[id];
+                html += `
+                    <div class="gallery-item">
+                        <div class="gallery-icon ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? ach.icon : '?'}</div>
+                        <div class="gallery-text">
+                            <div class="gallery-name ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? ach.name : '???'}</div>
+                            <div class="gallery-desc">${unlocked ? ach.desc : 'Not yet unlocked'}</div>
+                        </div>
+                    </div>`;
+            }
+
+            html += `<div class="gallery-close"><button onclick="Game.hideGallery()">Close</button></div>`;
+
+            gallery.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function hideGallery() {
+            document.getElementById('galleryOverlay').classList.remove('show');
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           UTILITIES
+           ═══════════════════════════════════════ */
+
+        function styledLine(text, className) {
+            // Tag the string with a class for the printer
+            const s = new String(text);
+            s._className = className;
+            return s;
+        }
+
+        /* ═══════════════════════════════════════
+           GALLERY CLOSE ON CLICK OUTSIDE
+           ═══════════════════════════════════════ */
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'galleryOverlay') {
+                hideGallery();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideGallery();
+            }
+        });
+
+        /* ═══════════════════════════════════════
+           PUBLIC API
+           ═══════════════════════════════════════ */
+        return { init, showGallery, hideGallery };
+
+    })();
+
+    // Boot
+    document.addEventListener('DOMContentLoaded', Game.init);
+    </script>
+    <script src="../../../components/GameTracker.js"></script>
+    <script src="../../../components/AchievementSystem.js"></script>
+</body>
+</html>

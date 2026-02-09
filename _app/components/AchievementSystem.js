@@ -1194,6 +1194,305 @@ class AchievementSystem {
             points: 500,
             secret: true
         },
+        game_phished_win: {
+            id: 'game_phished_win',
+            name: 'Phishing Defender',
+            description: "Contain the phishing campaign in Don't Get Phished",
+            icon: '🎣',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_phished_by_the_book: {
+            id: 'game_phished_by_the_book',
+            name: 'NIST IR Pro',
+            description: 'Complete the full NIST IR lifecycle in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_phished_speed: {
+            id: 'game_phished_speed',
+            name: 'Rapid Response: SOC',
+            description: "Speed run Don't Get Phished",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_phished_all: {
+            id: 'game_phished_all',
+            name: 'SOC Master',
+            description: "Unlock all 12 achievements in Don't Get Phished",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_server_win: {
+            id: 'game_server_win',
+            name: 'Server Savior',
+            description: "Fix the server in Don't Kill the Server",
+            icon: '🐧',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_server_by_the_book: {
+            id: 'game_server_by_the_book',
+            name: 'Methodical Sysadmin',
+            description: 'Follow full sysadmin methodology in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_server_speed: {
+            id: 'game_server_speed',
+            name: 'Rapid Response: Linux',
+            description: "Speed run Don't Kill the Server",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_server_all: {
+            id: 'game_server_all',
+            name: 'Sysadmin Legend',
+            description: "Unlock all 12 achievements in Don't Kill the Server",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_packet_win: {
+            id: 'game_packet_win',
+            name: 'Network Savior',
+            description: "Fix the network in Don't Drop the Packet",
+            icon: '🌐',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_packet_by_the_book: {
+            id: 'game_packet_by_the_book',
+            name: 'Network Methodologist',
+            description: 'Follow full Network+ troubleshooting methodology',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_packet_speed: {
+            id: 'game_packet_speed',
+            name: 'Rapid Response: Network',
+            description: "Speed run Don't Drop the Packet",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_packet_all: {
+            id: 'game_packet_all',
+            name: 'Network Legend',
+            description: "Unlock all 12 achievements in Don't Drop the Packet",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_deploy_win: {
+            id: 'game_deploy_win',
+            name: 'Friday Survivor',
+            description: "Fix the deploy in Don't Deploy on Friday",
+            icon: '🚀',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_deploy_by_the_book: {
+            id: 'game_deploy_by_the_book',
+            name: 'CI/CD Professional',
+            description: 'Follow full DevOps methodology in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_deploy_speed: {
+            id: 'game_deploy_speed',
+            name: 'Rapid Response: DevOps',
+            description: "Speed run Don't Deploy on Friday",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_deploy_all: {
+            id: 'game_deploy_all',
+            name: 'DevOps Legend',
+            description: "Unlock all 12 achievements in Don't Deploy on Friday",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_troll_win: {
+            id: 'game_troll_win',
+            name: 'Troll Tamer',
+            description: "Contain the threat in Don't Feed the Troll",
+            icon: '👁️',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_troll_by_the_book: {
+            id: 'game_troll_by_the_book',
+            name: 'OSINT Professional',
+            description: 'Follow full intelligence cycle in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_troll_speed: {
+            id: 'game_troll_speed',
+            name: 'Rapid Response: OSINT',
+            description: "Speed run Don't Feed the Troll",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_troll_all: {
+            id: 'game_troll_all',
+            name: 'Intelligence Legend',
+            description: "Unlock all 12 achievements in Don't Feed the Troll",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_key_win: {
+            id: 'game_key_win',
+            name: 'Key Keeper',
+            description: "Contain the leak in Don't Leak the Key",
+            icon: '🔑',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_key_by_the_book: {
+            id: 'game_key_by_the_book',
+            name: 'Crypto Professional',
+            description: 'Follow full crypto IR methodology in one run',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_key_speed: {
+            id: 'game_key_speed',
+            name: 'Rapid Response: Crypto',
+            description: "Speed run Don't Leak the Key",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_key_all: {
+            id: 'game_key_all',
+            name: 'Crypto Legend',
+            description: "Unlock all 12 achievements in Don't Leak the Key",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_bill_win: {
+            id: 'game_bill_win',
+            name: 'Budget Saver',
+            description: "Stop the bleeding in Don't Check the Bill",
+            icon: '💰',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_bill_by_the_book: {
+            id: 'game_bill_by_the_book',
+            name: 'Cloud Professional',
+            description: 'Follow full cloud remediation methodology',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_bill_speed: {
+            id: 'game_bill_speed',
+            name: 'Rapid Response: Cloud',
+            description: "Speed run Don't Check the Bill",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_bill_all: {
+            id: 'game_bill_all',
+            name: 'Cloud Legend',
+            description: "Unlock all 12 achievements in Don't Check the Bill",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+        game_printer_win: {
+            id: 'game_printer_win',
+            name: 'Printer Tamer',
+            description: "Fix the printer in Don't Anger the Printer",
+            icon: '🖨️',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_printer_by_the_book: {
+            id: 'game_printer_by_the_book',
+            name: 'A+ Methodologist',
+            description: 'Follow full CompTIA A+ troubleshooting methodology',
+            icon: '📘',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+        game_printer_speed: {
+            id: 'game_printer_speed',
+            name: 'Rapid Response: Printer',
+            description: "Speed run Don't Anger the Printer",
+            icon: '⚡',
+            category: 'games',
+            points: 200,
+            secret: true
+        },
+        game_printer_all: {
+            id: 'game_printer_all',
+            name: 'Printer Legend',
+            description: "Unlock all 12 achievements in Don't Anger the Printer",
+            icon: '👑',
+            category: 'games',
+            points: 500,
+            secret: true
+        },
+
+        // Master badge - win all 10 survival games
+        game_master_survivor: {
+            id: 'game_master_survivor',
+            name: "Don't Panic",
+            description: 'Win all 10 survival games. You have stared into the abyss of every IT disaster and lived.',
+            icon: '🏆',
+            category: 'games',
+            points: 2000,
+            secret: true
+        },
 
         // ═══════════════════════════════════════════════════════════════
         // SEASONAL / LIMITED EDITION
@@ -2197,12 +2496,23 @@ class AchievementSystem {
 
     /**
      * Trigger survival game achievements
-     * @param {string} gameId - 'domain' or 'brick'
+     * @param {string} gameId - 'domain', 'brick', 'phished', 'server', 'packet', 'deploy', 'troll', 'key', 'bill', or 'printer'
      * @param {string} type - 'win', 'by_the_book', 'speed', 'all'
      */
     static unlockGameAchievement(gameId, type) {
         const id = `game_${gameId}_${type}`;
-        return this.unlock(id);
+        const result = this.unlock(id);
+
+        // Check for master badge after any game win
+        if (type === 'win') {
+            const allGameIds = ['domain', 'brick', 'phished', 'server', 'packet', 'deploy', 'troll', 'key', 'bill', 'printer'];
+            const allWon = allGameIds.every(gid => this.isUnlocked(`game_${gid}_win`));
+            if (allWon) {
+                this.unlock('game_master_survivor');
+            }
+        }
+
+        return result;
     }
 
     /**

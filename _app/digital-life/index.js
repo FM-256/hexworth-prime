@@ -3049,6 +3049,56 @@ DigitalLife.THEMES = {
             PRISMATIC: { color: '#66ff99', glow: 'rgba(102, 255, 153, 0.6)' },
             ASCENDED: { color: '#99ffbb', glow: 'rgba(153, 255, 187, 0.8)' }
         }
+    },
+    web: {
+        name: 'Web',
+        accent: '#60a5fa',
+        glow: 'rgba(96, 165, 250, 0.3)'
+    },
+    shield: {
+        name: 'Shield',
+        accent: '#f87171',
+        glow: 'rgba(248, 113, 113, 0.3)'
+    },
+    cloud: {
+        name: 'Cloud',
+        accent: '#38bdf8',
+        glow: 'rgba(56, 189, 248, 0.3)'
+    },
+    forge: {
+        name: 'Forge',
+        accent: '#fbbf24',
+        glow: 'rgba(251, 191, 36, 0.3)'
+    },
+    script: {
+        name: 'Script',
+        accent: '#a78bfa',
+        glow: 'rgba(167, 139, 250, 0.3)'
+    },
+    code: {
+        name: 'Code',
+        accent: '#4ade80',
+        glow: 'rgba(74, 222, 128, 0.3)'
+    },
+    key: {
+        name: 'Key',
+        accent: '#f472b6',
+        glow: 'rgba(244, 114, 182, 0.3)'
+    },
+    eye: {
+        name: 'Eye',
+        accent: '#c084fc',
+        glow: 'rgba(192, 132, 252, 0.3)'
+    },
+    'dark-arts': {
+        name: 'Dark Arts',
+        accent: '#6b21a8',
+        glow: 'rgba(107, 33, 168, 0.3)'
+    },
+    divergent: {
+        name: 'Divergent',
+        accent: '#ff00ff',
+        glow: 'rgba(255, 0, 255, 0.4)'
     }
 };
 

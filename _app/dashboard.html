@@ -3762,40 +3762,134 @@
         // DIGITAL LIFE
         // ─────────────────────────────────────────────────────────────
 
-        function initDigitalLife() {
-            const colors = houseFireflyColors[userHouse];
+        async function initDigitalLife() {
+            // Determine the DigitalLife theme based on user's house (Phase 2)
+            const userHouseFromStorage = localStorage.getItem('hexworth_house');
+            const userDigitalLifeTheme = userHouseFromStorage && DigitalLife.THEMES[userHouseFromStorage] ? userHouseFromStorage : 'magic';
+            localStorage.setItem('hexworth_theme', userDigitalLifeTheme); // Ensure createAmbient picks it up
 
-            const digitalLife = DigitalLife.createAmbient({
-                population: {
-                    initial: 20,
-                    min: 15,
-                    max: 35
+            let digitalLifeConfig = DigitalLife.AMBIENT_CONFIG; // Start with base ambient config
+            let digitalLifeHouseBias = null;
+
+            // Fetch user profile for progress-driven evolution (Phase 3)
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn() && typeof FirestoreManager !== 'undefined') {
+                const user = FirebaseAuth.getUser();
+                const profile = await FirestoreManager.getUserProfile(user.uid);
+
+                if (profile && profile.xp !== undefined) {
+                    const userXP = profile.xp;
+
+                    // XP thresholds and corresponding configurations
+                    const XP_THRESHOLDS = {
+                        BEGINNER: 0,    // Base values
+                        NOVICE: 500,    // Slightly more active
+                        APPRENTICE: 1500, // Moderate activity
+                        JOURNEYMAN: 5000, // Increased activity, more predators
+                        EXPERT: 10000, // High activity, frequent events, rare spawns
+                        MASTER: 25000   // Peak activity, challenging ecosystem
+                    };
+
+                    if (userXP >= XP_THRESHOLDS.MASTER) {
+                        digitalLifeConfig = {
+                            ...DigitalLife.FULL_CONFIG, // Use full config as base
+                            population: { initial: 40, min: 25, max: 70 },
+                            cosmicEvents: { baseEventChance: 0.15, maxConcurrentEvents: 3, announceEvents: true },
+                            predators: {
+                                shadows: { enabled: true, maxPopulation: 5 },
+                                serpent: { enabled: true, spawnCooldown: 60000 },
+                                parasites: { enabled: true, maxPopulation: 15 }
+                            },
+                            blackHole: { gravityStrength: 0.15 }
+                        };
+                    } else if (userXP >= XP_THRESHOLDS.EXPERT) {
+                        digitalLifeConfig = {
+                            ...DigitalLife.AMBIENT_CONFIG,
+                            population: { initial: 30, min: 20, max: 60 },
+                            cosmicEvents: { baseEventChance: 0.10, maxConcurrentEvents: 2, announceEvents: true },
+                            predators: {
+                                shadows: { enabled: true, maxPopulation: 3 },
+                                serpent: { enabled: true, spawnCooldown: 120000 },
+                                parasites: { enabled: true, maxPopulation: 10 }
+                            },
+                            blackHole: { gravityStrength: 0.1 }
+                        };
+                    } else if (userXP >= XP_THRESHOLDS.JOURNEYMAN) {
+                        digitalLifeConfig = {
+                            ...DigitalLife.AMBIENT_CONFIG,
+                            population: { initial: 25, min: 18, max: 50 },
+                            cosmicEvents: { baseEventChance: 0.08, maxConcurrentEvents: 1, announceEvents: true },
+                            predators: {
+                                shadows: { enabled: true, maxPopulation: 2 },
+                                serpent: { enabled: false }, // No serpent yet
+                                parasites: { enabled: true, maxPopulation: 5 }
+                            },
+                            blackHole: { gravityStrength: 0.08 }
+                        };
+                    } else if (userXP >= XP_THRESHOLDS.APPRENTICE) {
+                        digitalLifeConfig = {
+                            ...DigitalLife.AMBIENT_CONFIG,
+                            population: { initial: 20, min: 15, max: 40 },
+                            cosmicEvents: { baseEventChance: 0.04, maxConcurrentEvents: 1, announceEvents: false },
+                            predators: { enabled: true, shadows: { enabled: true, maxPopulation: 1 } },
+                            blackHole: { gravityStrength: 0.07 }
+                        };
+                    } else if (userXP >= XP_THRESHOLDS.NOVICE) {
+                         digitalLifeConfig = {
+                            ...DigitalLife.AMBIENT_CONFIG,
+                            population: { initial: 18, min: 12, max: 35 },
+                            cosmicEvents: { baseEventChance: 0.03, maxConcurrentEvents: 1, announceEvents: false },
+                            blackHole: { gravityStrength: 0.06 }
+                        };
+                    }
+                    // For BEGINNER (0 XP), AMBIENT_CONFIG remains unchanged
+                    console.log(`[DigitalLife] Configured for XP level: ${userXP}`);
+
+                    // Trigger Glitch Firefly for MASTER tier (Phase 4)
+                    if (userXP >= XP_THRESHOLDS.MASTER && !localStorage.getItem('glitch_firefly_spawned')) {
+                        // Spawn after a short delay to allow ecosystem to stabilize
+                        setTimeout(() => {
+                            if (window.digitalLife) {
+                                window.digitalLife.spawnRare('glitch');
+                                console.log('%c⚡ GLITCH FIREFLY MANIFESTED! ⚡', 'color: #ff00ff; font-size: 16px; font-weight: bold; text-shadow: 0 0 10px #ff00ff;');
+                                // Mark as spawned to avoid re-spawning on every load
+                                localStorage.setItem('glitch_firefly_spawned', 'true');
+
+                                // Temporary visual disruption for glitch effect
+                                document.body.style.transition = 'filter 0.5s ease-out';
+                                document.body.style.filter = 'hue-rotate(90deg) saturate(200%)';
+                                setTimeout(() => {
+                                    document.body.style.filter = 'none';
+                                    document.body.style.transition = '';
+                                }, 500);
+                            }
+                        }, 5000); // 5-second delay
+                    }
                 }
-            });
-
-            digitalLife.init(document.body);
-
-            // Map Hexworth houses to Digital Life personality system
-            // Digital Life supports: web, shield, forge, script, cloud, darkarts
-            const houseToDigitalLife = {
-                'web': 'web',
-                'shield': 'shield',
-                'forge': 'forge',
-                'script': 'script',
-                'cloud': 'cloud',
-                'code': 'script',      // Code house → Script personality (pattern-based)
-                'key': 'cloud',        // Key house → Cloud personality (ethereal, mysterious)
-                'eye': 'darkarts',     // Eye house → Dark Arts personality (stealth, observation)
-                'dark-arts': 'darkarts',
-                'divergent': null      // Divergent → no dominant house (all personalities random)
-            };
-
-            const digitalLifeHouse = houseToDigitalLife[userHouse];
-            if (digitalLifeHouse) {
-                digitalLife.setDominantHouse(digitalLifeHouse, 0.5); // 50% bias toward user's house
+                
+                // Map Hexworth houses to Digital Life personality system
+                const houseToDigitalLife = {
+                    'web': 'web',
+                    'shield': 'shield',
+                    'forge': 'forge',
+                    'script': 'script',
+                    'cloud': 'cloud',
+                    'code': 'script',      // Code house → Script personality (pattern-based)
+                    'key': 'cloud',        // Key house → Cloud personality (ethereal, mysterious)
+                    'eye': 'darkarts',     // Eye house → Dark Arts personality (stealth, observation)
+                    'dark-arts': 'darkarts',
+                    'divergent': null      // Divergent → no dominant house (all personalities random)
+                };
+                digitalLifeHouseBias = houseToDigitalLife[profile?.house || userHouseFromStorage];
             }
 
-            console.log(`✨ Digital Life initialized for ${house?.name || 'Divergent'}${digitalLifeHouse ? ` (${digitalLifeHouse} personality bias)` : ' (all personalities)'}`);
+            const digitalLife = DigitalLife.createAmbient(digitalLifeConfig);
+            digitalLife.init(document.body);
+
+            if (digitalLifeHouseBias) {
+                digitalLife.setDominantHouse(digitalLifeHouseBias, 0.5); // 50% bias toward user's house
+            }
+
+            console.log(`✨ Digital Life initialized for ${house?.name || 'Divergent'}${digitalLifeHouseBias ? ` (${digitalLifeHouseBias} personality bias)` : ' (all personalities)'}`);
 
             // Store reference for other features
             window.digitalLife = digitalLife;
@@ -5636,5 +5730,62 @@
             setTimeout(initLeaderboard, 1000);
         });
     </script>
+    <!-- Digital Life - Ambient Integration (Phase 1) -->
+    <script src="digital-life/core/Firefly.js"></script>
+    <script src="digital-life/core/Ecosystem.js"></script>
+    <script src="digital-life/effects/Particles.js"></script>
+    <script src="digital-life/effects/ShootingStar.js"></script>
+    <script src="digital-life/effects/AmbientEffects.js"></script>
+    <script src="digital-life/effects/Trails.js"></script>
+    <script src="digital-life/entities/BlackHole.js"></script>
+    <script src="digital-life/entities/Planet.js"></script>
+    <script src="digital-life/entities/Moon.js"></script>
+    <script src="digital-life/entities/EnergyWell.js"></script>
+    <script src="digital-life/entities/PredatorStar.js"></script>
+    <script src="digital-life/entities/ShadowFirefly.js"></script>
+    <script src="digital-life/entities/VoidSerpent.js"></script>
+    <script src="digital-life/entities/Parasite.js"></script>
+    <script src="digital-life/entities/Portal.js"></script>
+    <script src="digital-life/entities/Sanctuary.js"></script>
+    <script src="digital-life/entities/GodParticle.js"></script>
+    <script src="digital-life/behaviors/Hunting.js"></script>
+    <script src="digital-life/behaviors/Swarming.js"></script>
+    <script src="digital-life/behaviors/Constellation.js"></script>
+    <script src="digital-life/behaviors/Reproduction.js"></script>
+    <script src="digital-life/behaviors/HousePersonality.js"></script>
+    <script src="digital-life/behaviors/RareFireflies.js"></script>
+    <script src="digital-life/behaviors/InteractionSystem.js"></script>
+    <script src="digital-life/behaviors/EnvironmentalSystem.js"></script>
+    <script src="digital-life/behaviors/Genetics.js"></script>
+    <script src="digital-life/behaviors/Pheromones.js"></script>
+    <script src="digital-life/behaviors/PredatorManager.js"></script>
+    <script src="digital-life/behaviors/GodParticleReaction.js"></script>
+    <script src="digital-life/events/CosmicEventManager.js"></script>
+    <script src="digital-life/events/SolarFlare.js"></script>
+    <script src="digital-life/events/MeteorShower.js"></script>
+    <script src="digital-life/events/VoidStorm.js"></script>
+    <script src="digital-life/events/Eclipse.js"></script>
+    <script src="digital-life/events/NebulaDrift.js"></script>
+    <script src="digital-life/interactions/PlayerTools.js"></script>
+    <script src="digital-life/meta/Achievements.js"></script>
+    <script src="digital-life/meta/Statistics.js"></script>
+    <script src="digital-life/meta/EventLog.js"></script>
+    <script src="digital-life/audio/SoundManager.js"></script>
+    <script src="digital-life/audio/EventSounds.js"></script>
+    <script src="digital-life/audio/AmbientLayer.js"></script>
+    <script src="digital-life/index.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Use the factory for a clean ambient setup
+                const digitalLife = DigitalLife.createAmbient();
+                digitalLife.init(document.body);
+                console.log('Digital Life (Ambient Mode) Initialized.');
+            } catch (e) {
+                console.error('Failed to initialize Digital Life:', e);
+            }
+        });
+    </script>
+
 </body>
 </html>

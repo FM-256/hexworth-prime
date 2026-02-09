@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don't Leak the Key - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            line-height: 1.6;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #000000;
+            border: 2px solid #f472b6;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(244, 114, 182, 0.3);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a0a14 0%, #2d1420 100%);
+            padding: 20px;
+            border-bottom: 2px solid #f472b6;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #f472b6;
+            font-size: 2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #ff6b9d;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .status-bar {
+            background: #1a1a1a;
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 10px;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .timer-normal { color: #00ff00; }
+        .timer-warning { color: #fbbf24; animation: pulse-warning 1s infinite; }
+        .timer-critical { color: #ff0000; animation: pulse-critical 0.5s infinite; }
+
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes pulse-critical {
+            0%, 100% { opacity: 1; text-shadow: 0 0 10px #ff0000; }
+            50% { opacity: 0.7; text-shadow: 0 0 20px #ff0000; }
+        }
+
+        .game-screen {
+            padding: 20px;
+            min-height: 500px;
+            max-height: 600px;
+            overflow-y: auto;
+            background: #000000;
+        }
+
+        .game-screen::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .game-screen::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .game-screen::-webkit-scrollbar-thumb {
+            background: #f472b6;
+            border-radius: 5px;
+        }
+
+        .output-line {
+            margin: 8px 0;
+            padding: 5px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .command-line {
+            color: #00ff00;
+        }
+
+        .error {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .success {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .info {
+            color: #6ee7b7;
+        }
+
+        .critical {
+            color: #ff0000;
+            font-weight: bold;
+            background: rgba(255, 0, 0, 0.1);
+            padding: 10px;
+            border-left: 4px solid #ff0000;
+            margin: 10px 0;
+            animation: flashCritical 1s infinite;
+        }
+
+        @keyframes flashCritical {
+            0%, 100% { background: rgba(255, 0, 0, 0.1); }
+            50% { background: rgba(255, 0, 0, 0.2); }
+        }
+
+        .alert {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            padding: 10px;
+            border-left: 4px solid #fbbf24;
+            margin: 10px 0;
+        }
+
+        .gitguardian {
+            color: #a78bfa;
+            background: rgba(167, 139, 250, 0.1);
+            padding: 10px;
+            border-left: 4px solid #a78bfa;
+            margin: 10px 0;
+        }
+
+        .prompt {
+            color: #f472b6;
+            font-weight: bold;
+        }
+
+        .input-area {
+            padding: 15px;
+            background: #0a0a0a;
+            border-top: 2px solid #f472b6;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #000000;
+            border: 2px solid #f472b6;
+            color: #00ff00;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            box-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+        }
+
+        button {
+            background: #f472b6;
+            color: #000000;
+            border: none;
+            padding: 12px 24px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #ff6b9d;
+            box-shadow: 0 0 15px rgba(244, 114, 182, 0.5);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .achievements {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border: 1px solid #f472b6;
+        }
+
+        .achievements h3 {
+            color: #f472b6;
+            margin-bottom: 10px;
+        }
+
+        .achievement {
+            padding: 8px;
+            margin: 5px 0;
+            background: #0a0a0a;
+            border-left: 3px solid #444;
+            color: #666;
+        }
+
+        .achievement.unlocked {
+            border-left-color: #f472b6;
+            color: #00ff00;
+        }
+
+        .achievement-icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+            margin-right: 10px;
+        }
+
+        .game-over {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #1a0a14 0%, #2d1420 100%);
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .game-over h2 {
+            color: #f472b6;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(244, 114, 182, 0.5);
+        }
+
+        .game-over p {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #6ee7b7;
+        }
+
+        .restart-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2em;
+        }
+
+        .code-block {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+
+        .key-data {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .commit-hash {
+            color: #fbbf24;
+        }
+
+        .methodology-step {
+            color: #a78bfa;
+            font-weight: bold;
+        }
+
+        .hint {
+            color: #6ee7b7;
+            font-style: italic;
+            padding: 10px;
+            background: rgba(110, 231, 183, 0.1);
+            border-left: 3px solid #6ee7b7;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Don't Leak the Key</h1>
+            <div class="subtitle">A Cryptographic Nightmare Survival Simulator</div>
+        </div>
+
+        <div class="status-bar">
+            <div class="stat">
+                <div class="stat-label">Time Remaining</div>
+                <div class="stat-value" id="timer">180s</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Threat Level</div>
+                <div class="stat-value" id="threat">CRITICAL</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Actions Taken</div>
+                <div class="stat-value" id="actions">0</div>
+            </div>
+        </div>
+
+        <div class="game-screen" id="gameScreen"></div>
+
+        <div class="input-area">
+            <div class="input-container">
+                <span class="prompt">CRYPTO$</span>
+                <input type="text" id="commandInput" placeholder="Type 'help' for commands..." autocomplete="off">
+                <button onclick="game.submitCommand()">Execute</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // IIFE Game Engine Pattern
+        const game = (function() {
+            'use strict';
+
+            // Game state
+            const state = {
+                // Core flags
+                keyRevoked: false,
+                repoFixed: false,
+                newKeyGenerated: false,
+                certsReissued: false,
+                gitGuardianNotified: false,
+                customersNotified: false,
+                vpnRotated: false,
+                codeSigningFixed: false,
+                githubContacted: false,
+
+                // Event flags
+                botsScraping: false,
+                mitMDetected: false,
+                gitLogChecked: false,
+                ctLogsChecked: false,
+                githubApiChecked: false,
+                blamedDeveloper: false,
+                drankCoffee: false,
+                calledNSA: false,
+                triedToEncrypt: false,
+                panicked: false,
+
+                // Methodology tracking
+                methodologySteps: [],
+
+                // Game meta
+                timeRemaining: 180,
+                timerInterval: null,
+                gameOver: false,
+                ending: null,
+                actionCount: 0,
+
+                // Event tracking
+                eventsTriggered: {
+                    gitguardian: false,
+                    githubIndexed: false,
+                    ctMonitor: false,
+                    shodan: false,
+                    mitm: false,
+                    customerReports: false,
+                    regulatorCall: false,
+                    wireFraud: false
+                }
+            };
+
+            // Achievement tracking
+            const achievements = {
+                first_check: false,
+                clean_history: false,
+                by_the_book: false,
+                speed_run: false,
+                full_rotation: false,
+                blame_junior: false,
+                frozen: false,
+                coffee_crypto: false,
+                nsa_call: false,
+                wrong_approach: false,
+                ct_detective: false,
+                regulator_ready: false
+            };
+
+            // DOM elements
+            const elements = {
+                gameScreen: null,
+                commandInput: null,
+                timer: null,
+                threat: null,
+                actions: null
+            };
+
+            // Initialize game
+            function init() {
+                elements.gameScreen = document.getElementById('gameScreen');
+                elements.commandInput = document.getElementById('commandInput');
+                elements.timer = document.getElementById('timer');
+                elements.threat = document.getElementById('threat');
+                elements.actions = document.getElementById('actions');
+
+                // Enter key handler
+                elements.commandInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        submitCommand();
+                    }
+                });
+
+                // Load saved achievements
+                loadAchievements();
+
+                // Start game
+                displayIntro();
+                startTimer();
+
+                // Focus input
+                elements.commandInput.focus();
+            }
+
+            // Display intro story
+            function displayIntro() {
+                const intro = [
+                    { text: "=== INCIDENT ALERT ===", class: "critical" },
+                    { text: "", class: "" },
+                    { text: "Monday, 9:47 AM. You just sat down with your coffee.", class: "info" },
+                    { text: "Your phone explodes with Slack notifications.", class: "info" },
+                    { text: "", class: "" },
+                    { text: "Someone committed the ROOT PRIVATE KEY to the PUBLIC GitHub repository.", class: "error" },
+                    { text: "The commit has been public for 6 minutes.", class: "error" },
+                    { text: "", class: "" },
+                    { text: "This key secures:", class: "warning" },
+                    { text: "  • All HTTPS certificates for banking.example.com", class: "warning" },
+                    { text: "  • VPN authentication (4,000 employees)", class: "warning" },
+                    { text: "  • Code signing for mobile banking apps", class: "warning" },
+                    { text: "  • Internal PKI infrastructure", class: "warning" },
+                    { text: "", class: "" },
+                    { text: "The key was in a MERGE COMMIT that touched 200 files.", class: "error" },
+                    { text: "Someone FORCE-PUSHED on top of it (it's in the reflog).", class: "error" },
+                    { text: "GitHub bots are scraping commits 24/7.", class: "error" },
+                    { text: "", class: "" },
+                    { text: "You have 3 minutes before this appears on exploit databases.", class: "critical" },
+                    { text: "Then the MitM attacks begin.", class: "critical" },
+                    { text: "", class: "" },
+                    { text: "Your move, crypto engineer.", class: "success" },
+                    { text: "", class: "" },
+                    { text: "Type 'help' for available commands.", class: "hint" }
+                ];
+
+                intro.forEach(line => output(line.text, line.class));
+            }
+
+            // Timer management
+            function startTimer() {
+                state.timerInterval = setInterval(function() {
+                    if (state.gameOver) {
+                        clearInterval(state.timerInterval);
+                        return;
+                    }
+
+                    state.timeRemaining--;
+                    updateTimerDisplay();
+                    checkTimedEvents();
+
+                    if (state.timeRemaining <= 0) {
+                        endGame('timeout');
+                    }
+                }, 1000);
+            }
+
+            function updateTimerDisplay() {
+                const minutes = Math.floor(state.timeRemaining / 60);
+                const seconds = state.timeRemaining % 60;
+                const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                elements.timer.textContent = timeStr;
+
+                // Update timer color
+                if (state.timeRemaining > 60) {
+                    elements.timer.className = 'stat-value timer-normal';
+                } else if (state.timeRemaining > 30) {
+                    elements.timer.className = 'stat-value timer-warning';
+                } else {
+                    elements.timer.className = 'stat-value timer-critical';
+                }
+
+                // Update threat level
+                updateThreatLevel();
+            }
+
+            function updateThreatLevel() {
+                let threat = 'CRITICAL';
+                let color = '#ff0000';
+
+                if (state.keyRevoked && state.repoFixed) {
+                    threat = 'CONTAINED';
+                    color = '#fbbf24';
+                } else if (state.keyRevoked || state.repoFixed) {
+                    threat = 'HIGH';
+                    color = '#ff6b00';
+                }
+
+                if (state.mitMDetected) {
+                    threat = 'CATASTROPHIC';
+                    color = '#ff0000';
+                }
+
+                elements.threat.textContent = threat;
+                elements.threat.style.color = color;
+            }
+
+            // Timed events
+            function checkTimedEvents() {
+                const elapsed = 180 - state.timeRemaining;
+
+                // 12s: GitGuardian alert
+                if (elapsed === 12 && !state.eventsTriggered.gitguardian) {
+                    state.eventsTriggered.gitguardian = true;
+                    output("[GITGUARDIAN] Secret detected: RSA Private Key in hexworth/bank-infrastructure", "gitguardian");
+                    output("[GITGUARDIAN] Severity: CRITICAL | Confidence: 100% | File: config/production.yaml", "gitguardian");
+                    output("[GITGUARDIAN] Key fingerprint: SHA256:7d4e2f...a93c (RSA-4096)", "gitguardian");
+                }
+
+                // 30s: GitHub secret scanning (unless repo fixed early)
+                if (elapsed === 30 && !state.eventsTriggered.githubIndexed) {
+                    if (!state.repoFixed) {
+                        state.eventsTriggered.githubIndexed = true;
+                        output("[ALERT] GitHub Secret Scanning alert triggered", "alert");
+                        output("[ALERT] Key fingerprint indexed by GitHub. Cache propagating to CDN...", "alert");
+                    }
+                }
+
+                // 50s: CT logs monitor
+                if (elapsed === 50 && !state.eventsTriggered.ctMonitor) {
+                    state.eventsTriggered.ctMonitor = true;
+                    output("[ALERT] Certificate Transparency monitor: Anomalous certificate usage detected", "alert");
+                    output("[ALERT] Your banking cert observed from 14 suspicious IP addresses", "alert");
+                }
+
+                // 75s: Shodan indexing (unless key revoked)
+                if (elapsed === 75 && !state.eventsTriggered.shodan) {
+                    if (!state.keyRevoked) {
+                        state.eventsTriggered.shodan = true;
+                        state.botsScraping = true;
+                        output("[CRITICAL] Shodan indexed 847 services using the compromised certificate", "critical");
+                        output("[CRITICAL] Exploit databases updating. Key appearing in automated attack tools.", "critical");
+                    }
+                }
+
+                // 100s: First MitM attempt (unless key revoked)
+                if (elapsed === 100 && !state.eventsTriggered.mitm) {
+                    if (!state.keyRevoked) {
+                        state.eventsTriggered.mitm = true;
+                        state.mitMDetected = true;
+                        output("[CRITICAL] FIRST MitM ATTACK DETECTED!", "critical");
+                        output("[CRITICAL] Attacker impersonating banking.example.com from IP 185.220.101.x", "critical");
+                        output("[CRITICAL] They're using YOUR private key. Perfect certificate. No browser warnings.", "critical");
+                    }
+                }
+
+                // 130s: Customer reports (if MitM detected)
+                if (elapsed === 130 && !state.eventsTriggered.customerReports) {
+                    if (state.mitMDetected) {
+                        state.eventsTriggered.customerReports = true;
+                        output("[CRITICAL] Customer reports flooding in: 'My banking app won't connect'", "critical");
+                        output("[CRITICAL] Twitter hashtag #BankingDown trending. Your PR team is panicking.", "critical");
+                    }
+                }
+
+                // 155s: Regulator calling
+                if (elapsed === 155 && !state.eventsTriggered.regulatorCall) {
+                    state.eventsTriggered.regulatorCall = true;
+                    output("[CRITICAL] FDIC on line 1. They want to discuss the 'certificate incident'.", "critical");
+                    output("[CRITICAL] SEC on line 2. Something about 'material security event disclosure'.", "critical");
+
+                    // Check if properly documented
+                    if (state.methodologySteps.length >= 3 && state.customersNotified) {
+                        unlockAchievement('regulator_ready');
+                    }
+                }
+
+                // 170s: Wire fraud (if MitM active)
+                if (elapsed === 170 && !state.eventsTriggered.wireFraud) {
+                    if (state.mitMDetected && !state.keyRevoked) {
+                        state.eventsTriggered.wireFraud = true;
+                        output("[CRITICAL] WIRE FRAUD DETECTED!", "critical");
+                        output("[CRITICAL] $2.3M wire transfer intercepted and modified via MitM", "critical");
+                        output("[CRITICAL] Money routed to attacker's account. FBI has been notified.", "critical");
+                    }
+                }
+            }
+
+            // Command processing
+            function submitCommand() {
+                if (state.gameOver) return;
+
+                const input = elements.commandInput.value.trim();
+                if (!input) return;
+
+                // Display command
+                output(`CRYPTO$ ${input}`, 'command-line');
+                elements.commandInput.value = '';
+
+                // Process command
+                processCommand(input.toLowerCase());
+
+                // Increment action counter
+                state.actionCount++;
+                elements.actions.textContent = state.actionCount;
+
+                // Scroll to bottom
+                elements.gameScreen.scrollTop = elements.gameScreen.scrollHeight;
+
+                // Check win condition
+                checkWinCondition();
+            }
+
+            // Command processor
+            function processCommand(cmd) {
+                // Help commands
+                if (cmd === 'help' || cmd === '?') {
+                    showHelp();
+                }
+                // Hint command
+                else if (cmd === 'hint' || cmd === 'hints') {
+                    showHint();
+                }
+                // Investigation commands
+                else if (cmd === 'git log --all' || cmd === 'git log') {
+                    checkGitLog();
+                }
+                else if (cmd.startsWith('git show') || cmd === 'git diff') {
+                    showCommitDetails();
+                }
+                else if (cmd === 'check-ct-logs' || cmd === 'ct-logs') {
+                    checkCTLogs();
+                }
+                else if (cmd === 'check-github' || cmd === 'github-api') {
+                    checkGitHub();
+                }
+                // Remediation commands
+                else if (cmd === 'git filter-branch' || cmd.includes('bfg')) {
+                    filterBranch();
+                }
+                else if (cmd === 'git push --force') {
+                    forcePush();
+                }
+                else if (cmd.includes('openssl genrsa') || cmd === 'generate-key' || cmd === 'keygen') {
+                    generateKey();
+                }
+                else if (cmd.includes('openssl req') || cmd === 'create-csr') {
+                    createCSR();
+                }
+                else if (cmd.includes('openssl x509') || cmd === 'issue-cert') {
+                    issueCert();
+                }
+                else if (cmd === 'revoke-cert' || cmd === 'revoke' || cmd === 'crl-update') {
+                    revokeCert();
+                }
+                else if (cmd === 'rotate-vpn' || cmd === 'vpn-rekey') {
+                    rotateVPN();
+                }
+                else if (cmd === 'rotate-signing' || cmd === 'codesign-rekey') {
+                    rotateCodeSigning();
+                }
+                else if (cmd === 'contact-github' || cmd === 'github-support') {
+                    contactGitHub();
+                }
+                else if (cmd === 'contact-ca' || cmd === 'call-ca') {
+                    contactCA();
+                }
+                else if (cmd === 'notify-customers' || cmd === 'customer-alert') {
+                    notifyCustomers();
+                }
+                else if (cmd === 'check-shodan') {
+                    checkShodan();
+                }
+                else if (cmd === 'scan-network' || cmd === 'nmap') {
+                    scanNetwork();
+                }
+                else if (cmd === 'check-ocsp' || cmd === 'ocsp-check') {
+                    checkOCSP();
+                }
+                else if (cmd === 'hsts-check' || cmd === 'check-hsts') {
+                    checkHSTS();
+                }
+                else if (cmd === 'vault-rotate' || cmd === 'hashicorp-vault') {
+                    rotateVault();
+                }
+                else if (cmd === 'pin-certificate' || cmd === 'hpkp') {
+                    pinCertificate();
+                }
+                // Fun/flavor commands
+                else if (cmd === 'look' || cmd === 'examine') {
+                    look();
+                }
+                else if (cmd === 'inventory' || cmd === 'i') {
+                    inventory();
+                }
+                else if (cmd === 'panic') {
+                    panic();
+                }
+                else if (cmd === 'coffee') {
+                    coffee();
+                }
+                else if (cmd === 'blame developer' || cmd === 'who committed this' || cmd === 'git blame') {
+                    blameDeveloper();
+                }
+                else if (cmd === 'encrypt') {
+                    tryEncrypt();
+                }
+                else if (cmd === 'delete github' || cmd === 'delete repo') {
+                    deleteGitHub();
+                }
+                else if (cmd === 'pray') {
+                    pray();
+                }
+                else if (cmd === 'call nsa') {
+                    callNSA();
+                }
+                else if (cmd === 'sudo make me a sandwich') {
+                    sudo();
+                }
+                else if (cmd === 'base64 decode') {
+                    base64Decode();
+                }
+                else if (cmd === 'shred') {
+                    shred();
+                }
+                else {
+                    output(`Command not recognized: ${cmd}`, 'error');
+                    output("Type 'help' for available commands", 'info');
+                }
+            }
+
+            // Command implementations
+            function showHelp() {
+                output("=== INCIDENT RESPONSE COMMANDS ===", "success");
+                output("");
+                output("INVESTIGATION:", "info");
+                output("  git log [--all]       - View git history and locate the commit", "");
+                output("  git show <hash>       - View commit details and key content", "");
+                output("  check-ct-logs         - Check Certificate Transparency logs", "");
+                output("  check-github          - Check GitHub API status", "");
+                output("  check-shodan          - Check Shodan for compromised services", "");
+                output("  scan-network          - Scan for MitM indicators", "");
+                output("");
+                output("CONTAINMENT:", "info");
+                output("  revoke-cert           - Revoke compromised certificate (CRITICAL!)", "");
+                output("  git filter-branch     - Remove key from entire git history", "");
+                output("  bfg --delete-files    - Alternative: BFG repo cleaner", "");
+                output("  git push --force      - Force push cleaned history", "");
+                output("  contact-github        - Request GitHub cache purge", "");
+                output("");
+                output("RECOVERY:", "info");
+                output("  generate-key          - Generate new RSA key pair", "");
+                output("  create-csr            - Create new certificate signing request", "");
+                output("  issue-cert            - Issue new certificate", "");
+                output("  rotate-vpn            - Rotate VPN certificates", "");
+                output("  rotate-signing        - Rotate code signing keys", "");
+                output("  notify-customers      - Send customer security advisory", "");
+                output("");
+                output("UTILITY:", "info");
+                output("  hint                  - Get contextual hint", "");
+                output("  look                  - Examine your surroundings", "");
+                output("  inventory             - Check what you have", "");
+            }
+
+            function showHint() {
+                const hints = [];
+
+                if (!state.gitLogChecked) {
+                    hints.push("Start with 'git log' to identify the compromised commit");
+                }
+                if (!state.keyRevoked && state.gitLogChecked) {
+                    hints.push("PRIORITY: Use 'revoke-cert' to revoke the compromised certificate immediately!");
+                }
+                if (!state.repoFixed && state.gitLogChecked) {
+                    hints.push("Use 'git filter-branch' or 'bfg --delete-files' to purge the key from history");
+                }
+                if (state.repoFixed && !state.newKeyGenerated) {
+                    hints.push("Generate a new key pair with 'generate-key'");
+                }
+                if (state.newKeyGenerated && !state.certsReissued) {
+                    hints.push("Create a CSR and issue new certificates");
+                }
+                if (!state.customersNotified && state.mitMDetected) {
+                    hints.push("Customers are being attacked! Use 'notify-customers'");
+                }
+                if (!state.vpnRotated || !state.codeSigningFixed) {
+                    hints.push("Don't forget VPN and code signing keys are also compromised");
+                }
+
+                if (hints.length === 0) {
+                    output("You're handling this pretty well, actually. Keep going.", "hint");
+                } else {
+                    output("HINT: " + hints[0], "hint");
+                }
+            }
+
+            function checkGitLog() {
+                if (!state.gitLogChecked) {
+                    state.gitLogChecked = true;
+                    unlockAchievement('first_check');
+                    addMethodologyStep('identify_scope');
+                }
+
+                output("", "");
+                output("commit a7f3e2c9b4d1f8e6a5c3b2d1e9f8a7b6c5d4e3f2 (HEAD -> main, origin/main)", "commit-hash");
+                output("Author: senior_dev_anna <anna@example.com>", "");
+                output("Date:   Mon Feb 9 09:41:33 2026 -0500", "");
+                output("", "");
+                output("    Force push to fix CI config issue", "");
+                output("", "");
+                output("commit 3e8f2a1c7b9d4e6f5a8c2b1d9e7f3a6c5b4d8e2f", "commit-hash");
+                output("Merge: 9d7f3a2 6e4f1b8", "");
+                output("Author: junior_dev_42 <junior@example.com>", "");
+                output("Date:   Mon Feb 9 09:35:12 2026 -0500", "");
+                output("", "");
+                output("    Merge pull request #847 from junior_dev_42/update-dependencies", "");
+                output("    ", "");
+                output("    Update production config and dependencies", "");
+                output("    ", "");
+                output("    Modified files: 203 files changed, 18472 insertions(+), 9384 deletions(-)", "");
+                output("    ", "");
+                output("    !!! File: config/production.yaml contains PRIVATE KEY DATA !!!", "key-data");
+                output("", "");
+                output("The key has been PUBLIC for " + Math.floor((180 - state.timeRemaining) / 60) + " minutes.", "error");
+            }
+
+            function showCommitDetails() {
+                output("", "");
+                output("=== config/production.yaml (excerpt) ===", "warning");
+                output("", "");
+
+                const keySnippet = `
+production:
+  database:
+    host: prod-db-01.internal
+    port: 5432
+
+  pki:
+    root_ca_key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIJKQIBAAKCAgEAy8vLxMzNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err
+      7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRob
+      HB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpL
+      TE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7
+      ... [3,247 characters of your worst nightmare] ...
+      -----END RSA PRIVATE KEY-----
+`.trim();
+
+                output(keySnippet, "code-block");
+                output("", "");
+                output("RSA-4096 private key. The crown jewel. Your entire PKI. Right there.", "error");
+                output("In a public GitHub repo. For 6+ minutes. Being scraped by bots worldwide.", "error");
+                output("", "");
+                output("The horse isn't just out of the barn.", "warning");
+                output("The horse is in another country, using a fake passport, teaching other horses to escape.", "warning");
+            }
+
+            function checkCTLogs() {
+                if (!state.ctLogsChecked) {
+                    state.ctLogsChecked = true;
+                    unlockAchievement('ct_detective');
+                }
+
+                output("Querying Certificate Transparency logs...", "info");
+                output("", "");
+                output("Certificate: CN=*.banking.example.com", "");
+                output("Serial: 7D:4E:2F:A9:3C:B1:8E:6F", "");
+                output("Issuer: GlobalSign RSA OV SSL CA 2018", "");
+                output("Valid: 2025-01-15 to 2026-01-15", "");
+                output("", "");
+                output("Recent observations:", "warning");
+                output("  • 2026-02-09 09:48 - Seen from 185.220.101.42 (TOR exit node)", "warning");
+                output("  • 2026-02-09 09:49 - Seen from 198.50.xxx.xxx (known botnet)", "warning");
+                output("  • 2026-02-09 09:51 - Seen from 14 unique IPs in last 60 seconds", "warning");
+                output("", "");
+                output("This certificate is being actively used by attackers.", "error");
+            }
+
+            function checkGitHub() {
+                state.githubApiChecked = true;
+                output("Querying GitHub API...", "info");
+                output("", "");
+                output("Repository: hexworth/bank-infrastructure", "");
+                output("Visibility: PUBLIC", "error");
+                output("Stars: 0 (nobody uses this repo... except attackers)", "");
+                output("Last commit: 6 minutes ago", "");
+                output("", "");
+
+                if (state.repoFixed) {
+                    output("Status: History has been rewritten", "success");
+                    output("Key no longer in HEAD or recent commits", "success");
+                    output("However: GitHub caches may still serve old content for 24-48 hours", "warning");
+                } else {
+                    output("Status: KEY STILL IN REPOSITORY HISTORY", "error");
+                    output("Git reflog contains the compromised commit", "error");
+                    output("GitHub's CDN has cached this commit globally", "error");
+                }
+            }
+
+            function filterBranch() {
+                if (state.repoFixed) {
+                    output("Repository history already cleaned.", "info");
+                    return;
+                }
+
+                output("Executing: git filter-branch --force --index-filter \\", "");
+                output("  'git rm --cached --ignore-unmatch config/production.yaml' \\", "");
+                output("  --prune-empty --tag-name-filter cat -- --all", "");
+                output("", "");
+                output("Rewriting commits...", "info");
+
+                setTimeout(() => {
+                    output("Rewrite 3e8f2a1c7b9d4e6f5a8c2b1d9e7f3a6c5b4d8e2f (203/203)", "");
+                    output("Ref 'refs/heads/main' was rewritten", "success");
+                    output("Ref 'refs/remotes/origin/main' was rewritten", "success");
+                    output("", "");
+                    output("Private key REMOVED from git history.", "success");
+                    output("The barn door is now closed. The horse is still gone.", "warning");
+                    output("", "");
+                    output("Next: Use 'git push --force' to update the remote repository", "hint");
+
+                    state.repoFixed = true;
+                    unlockAchievement('clean_history');
+                    addMethodologyStep('eradicate');
+                }, 100);
+            }
+
+            function forcePush() {
+                if (!state.repoFixed) {
+                    output("ERROR: Repository history not cleaned yet", "error");
+                    output("Use 'git filter-branch' first to remove the key from history", "error");
+                    return;
+                }
+
+                output("Executing: git push --force --all", "warning");
+                output("", "");
+                output("Force-pushing cleaned history to origin...", "info");
+                output("", "");
+                output("remote: Resolving deltas: 100% (8472/8472), done.", "");
+                output("To github.com:hexworth/bank-infrastructure.git", "");
+                output(" + 3e8f2a1...b9c4d7e main -> main (forced update)", "success");
+                output("", "");
+                output("Repository updated. Key removed from visible history.", "success");
+                output("", "");
+                output("WARNING: GitHub caches may still serve old content.", "warning");
+                output("Consider using 'contact-github' to request cache purge.", "hint");
+            }
+
+            function generateKey() {
+                if (state.newKeyGenerated) {
+                    output("New key pair already generated.", "info");
+                    return;
+                }
+
+                output("Generating new RSA-4096 key pair...", "info");
+                output("", "");
+                output("Generating RSA private key, 4096 bit long modulus", "");
+                output("..................................++", "");
+                output(".............++", "");
+                output("e is 65537 (0x10001)", "");
+                output("", "");
+                output("New key pair generated successfully:", "success");
+                output("  Private key: /secure/keys/new-root-ca.key", "success");
+                output("  Public key: /secure/keys/new-root-ca.pub", "success");
+                output("", "");
+                output("This key has never seen the light of day. Guard it with your life.", "warning");
+                output("(This time, maybe DON'T commit it to GitHub?)", "warning");
+
+                state.newKeyGenerated = true;
+                addMethodologyStep('recover');
+            }
+
+            function createCSR() {
+                if (!state.newKeyGenerated) {
+                    output("ERROR: No private key available", "error");
+                    output("Generate a new key first with 'generate-key'", "error");
+                    return;
+                }
+
+                output("Creating certificate signing request...", "info");
+                output("", "");
+                output("Country Name (2 letter code) [US]: US", "");
+                output("State or Province Name [New York]: New York", "");
+                output("Organization Name [Example Bank]: Example Bank", "");
+                output("Common Name []: *.banking.example.com", "");
+                output("", "");
+                output("CSR created: /secure/certs/new-banking.csr", "success");
+                output("Ready to submit to Certificate Authority", "success");
+            }
+
+            function issueCert() {
+                if (!state.newKeyGenerated) {
+                    output("ERROR: No private key available", "error");
+                    output("Generate a new key first with 'generate-key'", "error");
+                    return;
+                }
+
+                if (state.certsReissued) {
+                    output("Certificates already reissued.", "info");
+                    return;
+                }
+
+                output("Contacting Certificate Authority...", "info");
+                output("Submitting CSR for expedited processing...", "");
+                output("", "");
+                output("Certificate issued:", "success");
+                output("  Subject: CN=*.banking.example.com, O=Example Bank", "success");
+                output("  Serial: 3A:7F:2E:9B:4C:1D:8A:6F", "success");
+                output("  Valid: 2026-02-09 to 2027-02-09", "success");
+                output("  Key: RSA 4096-bit (NEW KEY)", "success");
+                output("", "");
+                output("New certificate deployed to production servers.", "success");
+                output("Banking services resuming with secure certificates.", "success");
+
+                state.certsReissued = true;
+                addMethodologyStep('recover');
+            }
+
+            function revokeCert() {
+                if (state.keyRevoked) {
+                    output("Certificate already revoked.", "info");
+                    return;
+                }
+
+                output("Initiating emergency certificate revocation...", "warning");
+                output("", "");
+                output("Contacting Certificate Authority emergency hotline...", "");
+                output("CA: 'Emergency revocation request received'", "");
+                output("CA: 'Certificate 7D:4E:2F:A9:3C:B1:8E:6F marked for immediate revocation'", "");
+                output("", "");
+                output("Publishing to Certificate Revocation List (CRL)...", "");
+                output("Updating OCSP responders...", "");
+                output("", "");
+                output("CERTIFICATE REVOKED", "success");
+                output("Revocation reason: KEY_COMPROMISE", "success");
+                output("OCSP responders updated globally", "success");
+                output("CRL distribution points updated", "success");
+                output("", "");
+                output("The compromised certificate is now UNTRUSTED.", "success");
+                output("Browsers will reject connections using the old cert.", "success");
+                output("", "");
+
+                if (!state.certsReissued && !state.newKeyGenerated) {
+                    output("WARNING: Your services are now OFFLINE until you issue new certificates!", "warning");
+                    output("Generate a new key and reissue certificates immediately.", "hint");
+                }
+
+                state.keyRevoked = true;
+                addMethodologyStep('contain');
+
+                // Check for speed run
+                if ((180 - state.timeRemaining) < 20) {
+                    unlockAchievement('speed_run');
+                }
+            }
+
+            function rotateVPN() {
+                if (!state.newKeyGenerated) {
+                    output("ERROR: No new key available", "error");
+                    output("Generate new keys first", "error");
+                    return;
+                }
+
+                if (state.vpnRotated) {
+                    output("VPN certificates already rotated.", "info");
+                    return;
+                }
+
+                output("Rotating VPN infrastructure certificates...", "info");
+                output("", "");
+                output("Generating new VPN CA certificate...", "");
+                output("Issuing new certificates for 4,000 employees...", "");
+                output("Updating VPN concentrators...", "");
+                output("", "");
+                output("VPN certificates rotated successfully", "success");
+                output("All employees will need to reinstall VPN profiles", "warning");
+                output("IT support tickets: +4,000 (sorry, help desk)", "warning");
+
+                state.vpnRotated = true;
+            }
+
+            function rotateCodeSigning() {
+                if (!state.newKeyGenerated) {
+                    output("ERROR: No new key available", "error");
+                    output("Generate new keys first", "error");
+                    return;
+                }
+
+                if (state.codeSigningFixed) {
+                    output("Code signing certificates already rotated.", "info");
+                    return;
+                }
+
+                output("Rotating code signing infrastructure...", "info");
+                output("", "");
+                output("Generating new code signing certificates...", "");
+                output("Re-signing mobile banking apps (iOS, Android)...", "");
+                output("Submitting to app stores for emergency review...", "");
+                output("", "");
+                output("Code signing certificates rotated", "success");
+                output("App store review: 24-48 hours (expedited)", "warning");
+                output("Until then, app updates may be flagged as 'untrusted developer'", "warning");
+
+                state.codeSigningFixed = true;
+            }
+
+            function contactGitHub() {
+                if (state.githubContacted) {
+                    output("GitHub support already contacted.", "info");
+                    return;
+                }
+
+                output("Opening GitHub Support ticket...", "info");
+                output("", "");
+                output("Subject: EMERGENCY - Private key exposed in public repository", "");
+                output("Priority: P0 - Critical Security Incident", "");
+                output("", "");
+                output("GitHub Support: 'Ticket #8472847 created'", "");
+                output("GitHub Support: 'Emergency cache purge requested'", "");
+                output("GitHub Support: 'CDN cache invalidation in progress'", "");
+                output("GitHub Support: 'ETA: 30-60 minutes for global propagation'", "");
+                output("", "");
+                output("GitHub caches will be purged within the hour.", "success");
+                output("Historical commits may still be accessible via third-party archives.", "warning");
+
+                state.githubContacted = true;
+            }
+
+            function contactCA() {
+                output("Calling Certificate Authority emergency hotline...", "info");
+                output("", "");
+                output("You: 'We have a private key compromise situation'", "");
+                output("CA: 'How bad?'", "");
+                output("You: 'Public GitHub repository. RSA-4096 root key. 8 minutes public.'", "");
+                output("CA: '...transferring you to incident response.'", "");
+                output("", "");
+
+                if (!state.keyRevoked) {
+                    output("IR Team: 'Revoking all certificates under this key immediately'", "");
+                    output("Use 'revoke-cert' to complete the revocation process", "hint");
+                } else {
+                    output("IR Team: 'Revocation confirmed. Need anything else?'", "");
+                    output("You: 'A time machine?'", "");
+                    output("IR Team: 'Fresh out. Good luck.'", "");
+                }
+            }
+
+            function notifyCustomers() {
+                if (state.customersNotified) {
+                    output("Customer notification already sent.", "info");
+                    return;
+                }
+
+                output("Drafting customer security advisory...", "info");
+                output("", "");
+                output("Subject: Important Security Update - Banking Services", "");
+                output("", "");
+                output("Dear Valued Customer,", "");
+                output("", "");
+                output("We are writing to inform you of a security incident affecting our", "");
+                output("certificate infrastructure. Out of an abundance of caution, we have", "");
+                output("rotated our security certificates. You may notice:", "");
+                output("", "");
+                output("- A new security certificate when accessing online banking", "");
+                output("- Possible brief service interruption", "");
+                output("", "");
+                output("Your funds remain secure. No customer data was compromised.", "");
+                output("", "");
+                output("(We're not mentioning the 'committed root key to GitHub' part)", "warning");
+                output("", "");
+                output("Customer notification sent to 2.4 million customers", "success");
+
+                state.customersNotified = true;
+                addMethodologyStep('communicate');
+            }
+
+            function checkShodan() {
+                output("Querying Shodan for certificate fingerprint...", "info");
+                output("", "");
+
+                if (state.botsScraping) {
+                    output("Services found using certificate 7D:4E:2F:A9:3C:B1:8E:6F:", "warning");
+                    output("", "");
+                    output("  • 185.220.101.42:443 - 'Example Banking Portal' (FAKE)", "error");
+                    output("  • 198.50.128.15:443 - 'Secure Banking Login' (FAKE)", "error");
+                    output("  • 103.85.24.112:443 - 'Bank Customer Portal' (FAKE)", "error");
+                    output("  ... 844 more results", "error");
+                    output("", "");
+                    output("Attackers have set up phishing sites using your VALID certificate.", "error");
+                    output("Perfect cert, no browser warnings. Customers can't tell the difference.", "error");
+                } else {
+                    output("No suspicious services detected... yet.", "warning");
+                    output("Give the bots time. They're working 24/7.", "warning");
+                }
+            }
+
+            function scanNetwork() {
+                output("Scanning network for man-in-the-middle indicators...", "info");
+                output("", "");
+
+                if (state.mitMDetected) {
+                    output("ACTIVE MitM ATTACKS DETECTED:", "error");
+                    output("", "");
+                    output("  • Anomalous ARP traffic from gateway", "error");
+                    output("  • SSL interception detected on banking.example.com", "error");
+                    output("  • Certificate presented matches yours EXACTLY (they have the key!)", "error");
+                    output("  • 47 active customer sessions being intercepted", "error");
+                    output("", "");
+                    output("This is BAD. They're using YOUR key to decrypt YOUR customers' traffic.", "error");
+                } else {
+                    output("No active MitM attacks detected yet", "success");
+                    output("Network traffic appears normal", "success");
+                    output("(For now)", "warning");
+                }
+            }
+
+            function checkOCSP() {
+                output("Querying OCSP responder...", "info");
+                output("", "");
+
+                if (state.keyRevoked) {
+                    output("OCSP Response:", "");
+                    output("  Certificate Status: REVOKED", "success");
+                    output("  Revocation Time: 2026-02-09 09:5" + Math.floor((180 - state.timeRemaining) / 60) + ":00", "");
+                    output("  Revocation Reason: keyCompromise", "");
+                    output("", "");
+                    output("OCSP responders are correctly reporting revocation", "success");
+                } else {
+                    output("OCSP Response:", "");
+                    output("  Certificate Status: GOOD", "error");
+                    output("", "");
+                    output("The certificate is still marked as valid!", "error");
+                    output("Use 'revoke-cert' to revoke it immediately!", "error");
+                }
+            }
+
+            function checkHSTS() {
+                output("Checking HSTS preload status...", "info");
+                output("", "");
+                output("Domain: banking.example.com", "");
+                output("HSTS Status: Preloaded", "success");
+                output("Max-Age: 31536000 (1 year)", "");
+                output("IncludeSubDomains: true", "");
+                output("", "");
+                output("Good news: HSTS is enabled. Browsers will reject HTTP connections.", "success");
+                output("Bad news: Attackers with your key don't NEED HTTP. They have valid HTTPS.", "error");
+            }
+
+            function rotateVault() {
+                output("Connecting to HashiCorp Vault...", "info");
+                output("", "");
+                output("Rotating all secrets in vault://secrets/production/*", "");
+                output("", "");
+                output("  ✓ Database credentials rotated", "success");
+                output("  ✓ API keys rotated", "success");
+                output("  ✓ JWT signing keys rotated", "success");
+                output("  ✓ Encryption keys rotated", "success");
+                output("", "");
+                output("All secrets rotated. Applications restarting with new credentials.", "success");
+            }
+
+            function pinCertificate() {
+                output("Updating certificate pinning configuration...", "info");
+                output("", "");
+
+                if (!state.newKeyGenerated) {
+                    output("ERROR: No new certificate available to pin", "error");
+                    return;
+                }
+
+                output("New certificate pin: sha256/3A7F2E9B4C1D8A6F...", "");
+                output("Deploying pinning updates to mobile apps...", "");
+                output("", "");
+                output("Certificate pinning updated", "success");
+                output("Apps will reject any certificate not matching the new pin", "success");
+                output("(Including the compromised old certificate)", "success");
+            }
+
+            // Fun/flavor commands
+            function look() {
+                output("You're at your desk in the SecOps war room.", "");
+                output("", "");
+                output("Your desk contains:", "");
+                output("  • Multiple HSM tokens (one of which is now useless)", "");
+                output("  • A 'Keep Calm and Encrypt' mug (ironic, today)", "");
+                output("  • A copy of 'Applied Cryptography' bookmarked to the chapter on key management", "");
+                output("  • The chapter everyone clearly skipped", "");
+                output("  • A resignation letter template (just in case)", "");
+                output("  • 6 empty coffee cups", "");
+                output("", "");
+                output("The whiteboard says: 'Days since last security incident: 0'", "");
+                output("It always says 0.", "");
+            }
+
+            function inventory() {
+                output("You have:", "");
+                output("  • A hardware security module (mocking you)", "");
+                output("  • Root CA access (to issue certificates nobody will trust)", "");
+                output("  • A growing sense of dread", "");
+                output("  • A LinkedIn profile about to get a LOT more active", "");
+                output("  • The phone number of a very good lawyer", "");
+                output("  • A backup of the backup of the backup", "");
+                output("  • Still doesn't help when the key is on GitHub", "");
+            }
+
+            function panic() {
+                state.panicked = true;
+                state.timeRemaining -= 10;
+
+                output("You PANIC!", "error");
+                output("", "");
+                output("You stare at the private key in the git log.", "");
+                output("All 3,247 characters.", "");
+                output("Each one a tiny knife.", "");
+                output("", "");
+                output("-----BEGIN RSA PRIVATE KEY-----", "error");
+                output("MIIJKQIBAAKCAgEAy8vLxMzNzs/Q0dLT1NXW19jZ2tvc3d7f...", "error");
+                output("", "");
+                output("You lose 10 seconds staring into the abyss.", "warning");
+                output("The abyss stares back.", "warning");
+                output("The abyss has a GitHub account.", "warning");
+            }
+
+            function coffee() {
+                state.drankCoffee = true;
+                unlockAchievement('coffee_crypto');
+
+                output("You chug the cold coffee from this morning.", "");
+                output("It tastes like regret and legacy infrastructure.", "");
+                output("", "");
+                output("The caffeine hits differently when your PKI is on fire.", "");
+                output("", "");
+                output("Your hands shake slightly less.", "");
+                output("Your existential dread remains constant.", "");
+            }
+
+            function blameDeveloper() {
+                state.blamedDeveloper = true;
+                unlockAchievement('blame_junior');
+
+                output("$ git blame config/production.yaml", "");
+                output("", "");
+                output("3e8f2a1c (junior_dev_42 2026-02-09 09:35:12 -0500  42) root_ca_key: |", "");
+                output("3e8f2a1c (junior_dev_42 2026-02-09 09:35:12 -0500  43)   -----BEGIN RSA PRIVATE KEY-----", "");
+                output("", "");
+                output("Author: junior_dev_42 <junior@example.com>", "");
+                output("Commit message: 'Update production config for CI fix'", "");
+                output("", "");
+                output("Their Slack status: '🏖️ OOO until Monday'", "");
+                output("Their last message: 'Fixed the CI! Have a great weekend everyone!'", "");
+                output("", "");
+                output("Narrator: They did not fix the CI.", "warning");
+                output("Narrator: They fixed it so, so wrong.", "warning");
+                output("", "");
+                output("But blaming them doesn't fix YOUR problem right now, does it?", "error");
+            }
+
+            function tryEncrypt() {
+                state.triedToEncrypt = true;
+                unlockAchievement('wrong_approach');
+
+                output("$ openssl enc -aes-256-cbc -in already-public-key.pem", "");
+                output("", "");
+                output("...", "");
+                output("", "");
+                output("Encrypt WHAT?", "error");
+                output("", "");
+                output("The horse has left the barn.", "error");
+                output("The barn is on fire.", "error");
+                output("The horse is posting your private key on Reddit.", "error");
+                output("", "");
+                output("You can't encrypt something that's already public.", "error");
+                output("This is crypto incident response, not a magic show.", "error");
+            }
+
+            function deleteGitHub() {
+                output("$ gh repo delete hexworth/bank-infrastructure --confirm", "");
+                output("", "");
+                output("Error: You don't have admin permissions on this repository", "error");
+                output("", "");
+                output("Also, even if you COULD delete it:", "warning");
+                output("  • Git scrapers have already cloned it", "warning");
+                output("  • Archive.org has a snapshot", "warning");
+                output("  • GitHub's caches have it", "warning");
+                output("  • Someone's CI/CD pipeline has it", "warning");
+                output("  • The Internet Archive never forgets", "warning");
+                output("", "");
+                output("The Internet Never Forgets™", "error");
+                output("This is why we have certificate revocation.", "hint");
+            }
+
+            function pray() {
+                output("You pray to the ghost of Alan Turing.", "");
+                output("", "");
+                output("...", "");
+                output("", "");
+                output("No response.", "");
+                output("", "");
+                output("He's busy being disappointed in all of us.", "");
+                output("Probably writing a paper: 'On the Impossibility of Securing Keys Against Developer Commits'", "");
+            }
+
+            function callNSA() {
+                state.calledNSA = true;
+                unlockAchievement('nsa_call');
+
+                output("You call the NSA.", "");
+                output("", "");
+                output("Operator: 'National Security Agency, how may I direct your call?'", "");
+                output("You: 'Hi, I committed a private key to GitHub...'", "");
+                output("Operator: 'Sir, we already have the key.'", "");
+                output("You: 'Can you help me—'", "");
+                output("Operator: 'We've had it for 4 minutes. We also have your database backups. Have a nice day.'", "");
+                output("", "");
+                output("*click*", "");
+                output("", "");
+                output("The NSA has your key. Different problem.", "error");
+            }
+
+            function sudo() {
+                output("$ sudo make me a sandwich", "");
+                output("", "");
+                output("sudo: make: command not found", "error");
+                output("", "");
+                output("This is a cryptographic emergency, not a Unix joke.", "error");
+                output("", "");
+                output("Although at this point, maybe humor is all we have left.", "warning");
+            }
+
+            function base64Decode() {
+                output("$ echo 'LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVkt...' | base64 -d", "");
+                output("", "");
+                output("-----BEGIN RSA PRIVATE KEY-----", "key-data");
+                output("MIIJKQIBAAKCAgEAy8vLxMzNzs/Q0dLT1NXW19jZ...", "key-data");
+                output("", "");
+                output("You decode the key again.", "");
+                output("Still bad.", "");
+                output("Still in the repo.", "");
+                output("Still your problem.", "");
+                output("", "");
+                output("Decoding it more times doesn't make it less compromised.", "error");
+            }
+
+            function shred() {
+                output("$ shred -vfz -n 10 root-ca-private.key", "");
+                output("", "");
+                output("shred: root-ca-private.key: pass 1/10 (random)...", "");
+                output("shred: root-ca-private.key: pass 10/10 (000000)...", "");
+                output("shred: root-ca-private.key: removing", "");
+                output("shred: root-ca-private.key: renamed to 00000000", "");
+                output("shred: root-ca-private.key: removed", "");
+                output("", "");
+                output("You shred the local file.", "success");
+                output("", "");
+                output("The local file that nobody cares about.", "warning");
+                output("Because the ENTIRE INTERNET has a copy.", "error");
+                output("", "");
+                output("You can shred the evidence on YOUR machine.", "error");
+                output("You can't shred GitHub.", "error");
+            }
+
+            // Methodology tracking
+            function addMethodologyStep(step) {
+                if (!state.methodologySteps.includes(step)) {
+                    state.methodologySteps.push(step);
+
+                    const stepNames = {
+                        identify_scope: 'IDENTIFY - Scope assessment',
+                        contain: 'CONTAIN - Revoke compromised certificates',
+                        eradicate: 'ERADICATE - Remove key from repository',
+                        recover: 'RECOVER - Generate new keys and certificates',
+                        verify: 'VERIFY - Confirm revocation and deployment',
+                        communicate: 'COMMUNICATE - Notify stakeholders'
+                    };
+
+                    output("", "");
+                    output("=== METHODOLOGY: " + stepNames[step] + " ===", "methodology-step");
+
+                    // Check if following proper methodology
+                    if (state.methodologySteps.length === 6) {
+                        unlockAchievement('by_the_book');
+                    }
+                }
+            }
+
+            // Win condition check
+            function checkWinCondition() {
+                // Win: Key revoked AND (new key generated OR certs reissued)
+                if (state.keyRevoked && (state.newKeyGenerated || state.certsReissued)) {
+                    endGame('success');
+                }
+            }
+
+            // Game over handling
+            function endGame(ending) {
+                if (state.gameOver) return;
+
+                state.gameOver = true;
+                state.ending = ending;
+                clearInterval(state.timerInterval);
+
+                output("", "");
+                output("=".repeat(60), "");
+                output("", "");
+
+                if (ending === 'success') {
+                    handleSuccess();
+                } else if (ending === 'timeout') {
+                    handleTimeout();
+                }
+
+                // Check for "frozen" achievement
+                if (state.actionCount <= 2 && ending === 'timeout') {
+                    unlockAchievement('frozen');
+                }
+
+                // Check for full rotation
+                if (state.keyRevoked && state.newKeyGenerated && state.certsReissued &&
+                    state.vpnRotated && state.codeSigningFixed) {
+                    unlockAchievement('full_rotation');
+                }
+
+                // Save achievements
+                saveAchievements();
+
+                // Platform integration
+                if (typeof AchievementSystem !== 'undefined') {
+                    if (ending === 'success') {
+                        AchievementSystem.unlockGameAchievement('key', 'win');
+                    }
+                    if (achievements.by_the_book) {
+                        AchievementSystem.unlockGameAchievement('key', 'by_the_book');
+                    }
+                    if (achievements.speed_run) {
+                        AchievementSystem.unlockGameAchievement('key', 'speed');
+                    }
+
+                    // Check if all achievements unlocked
+                    const allUnlocked = Object.values(achievements).every(a => a === true);
+                    if (allUnlocked) {
+                        AchievementSystem.unlockGameAchievement('key', 'all');
+                    }
+                }
+
+                // Track game stats
+                if (typeof GameTracker !== 'undefined') {
+                    GameTracker.record('key', {
+                        result: state.ending || 'unknown',
+                        timeElapsed: 180 - state.timeRemaining,
+                        commandsUsed: state.actionCount,
+                        achievementsEarned: Object.values(achievements).filter(a => a === true).length,
+                        achievementsTotal: Object.values(achievements).filter(a => a === true).length
+                    });
+                }
+
+                // Show achievements
+                showAchievements();
+
+                // Show restart button
+                showRestartButton();
+            }
+
+            function handleSuccess() {
+                output("🎉 INCIDENT CONTAINED 🎉", "success");
+                output("", "");
+                output("Final status:", "");
+                output("  ✓ Compromised certificate REVOKED", "success");
+                output("  " + (state.repoFixed ? "✓" : "✗") + " Key removed from git history", state.repoFixed ? "success" : "error");
+                output("  " + (state.newKeyGenerated ? "✓" : "✗") + " New key pair generated", state.newKeyGenerated ? "success" : "error");
+                output("  " + (state.certsReissued ? "✓" : "✗") + " New certificates issued", state.certsReissued ? "success" : "error");
+                output("  " + (state.vpnRotated ? "✓" : "✗") + " VPN certificates rotated", state.vpnRotated ? "success" : "info");
+                output("  " + (state.codeSigningFixed ? "✓" : "✗") + " Code signing certificates rotated", state.codeSigningFixed ? "success" : "info");
+                output("", "");
+                output("Time remaining: " + state.timeRemaining + " seconds", "success");
+                output("Actions taken: " + state.actionCount, "info");
+                output("", "");
+
+                if (state.mitMDetected) {
+                    output("There were MitM attacks, but you stopped them.", "warning");
+                } else {
+                    output("You contained the breach before MitM attacks began!", "success");
+                }
+
+                output("", "");
+                output("The horse may have escaped the barn,", "");
+                output("but you built a new barn, got a new horse,", "");
+                output("and convinced everyone the old horse never existed.", "");
+                output("", "");
+                output("Crisis averted. Resume breathing.", "success");
+                output("", "");
+                output("(And maybe add pre-commit hooks to check for private keys?)", "hint");
+            }
+
+            function handleTimeout() {
+                output("⏰ TIME'S UP ⏰", "error");
+                output("", "");
+                output("The incident spiraled out of control.", "error");
+                output("", "");
+
+                if (!state.keyRevoked) {
+                    output("You never revoked the compromised certificate.", "error");
+                    output("Attackers are using it to impersonate your banking services.", "error");
+                    output("Customer funds are being stolen via MitM attacks.", "error");
+                    output("", "");
+                }
+
+                if (!state.repoFixed) {
+                    output("The private key is still in the git repository.", "error");
+                    output("It's been indexed by every bot, scraper, and archive service.", "error");
+                    output("This key will haunt you for years.", "error");
+                    output("", "");
+                }
+
+                output("Final damage report:", "");
+                output("  • Certificate revoked: " + (state.keyRevoked ? "YES" : "NO"), "");
+                output("  • Repository cleaned: " + (state.repoFixed ? "YES" : "NO"), "");
+                output("  • New keys generated: " + (state.newKeyGenerated ? "YES" : "NO"), "");
+                output("  • MitM attacks: " + (state.mitMDetected ? "ACTIVE" : "NONE"), "");
+                output("", "");
+                output("Actions taken: " + state.actionCount, "");
+                output("", "");
+
+                if (state.actionCount === 0) {
+                    output("You did... nothing?", "error");
+                    output("Bold strategy. Didn't pay off.", "error");
+                } else {
+                    output("You tried. The crypto gods were not with you today.", "");
+                }
+
+                output("", "");
+                output("The CFO wants to see you.", "error");
+                output("HR is on line 2.", "error");
+                output("LinkedIn is on line 3 (they heard you might be available).", "error");
+            }
+
+            // Achievement system
+            function unlockAchievement(id) {
+                if (!achievements[id]) {
+                    achievements[id] = true;
+
+                    const achievementNames = {
+                        first_check: "🔍 Damage Assessment - Checked git log first",
+                        clean_history: "🧹 History Eraser - Removed key from git history",
+                        by_the_book: "📖 Crypto Professional - Followed full incident methodology",
+                        speed_run: "⚡ Speed Run - Contained in under 20 seconds",
+                        full_rotation: "🔄 Full Rotation - Rotated everything",
+                        blame_junior: "👉 Blame the Junior - Tried to blame the developer",
+                        frozen: "❄️ Frozen - Did nothing until time ran out",
+                        coffee_crypto: "☕ Caffeinated Crypto - Drank coffee during PKI collapse",
+                        nsa_call: "📞 Called the NSA - Asked the NSA for help",
+                        wrong_approach: "🔐 Wrong Approach - Tried to encrypt the already-public key",
+                        ct_detective: "🔎 CT Detective - Checked Certificate Transparency logs",
+                        regulator_ready: "📋 Regulator Ready - Documented everything before FDIC called"
+                    };
+
+                    if (achievementNames[id]) {
+                        output("", "");
+                        output("🏆 ACHIEVEMENT UNLOCKED: " + achievementNames[id], "success");
+                        output("", "");
+                    }
+                }
+            }
+
+            function showAchievements() {
+                output("", "");
+                output("=== ACHIEVEMENTS ===", "info");
+                output("", "");
+
+                const achievementList = [
+                    { id: 'first_check', name: '🔍 Damage Assessment', desc: 'Checked git log first' },
+                    { id: 'clean_history', name: '🧹 History Eraser', desc: 'Removed key from git history' },
+                    { id: 'by_the_book', name: '📖 Crypto Professional', desc: 'Followed full incident methodology' },
+                    { id: 'speed_run', name: '⚡ Speed Run', desc: 'Contained in under 20 seconds' },
+                    { id: 'full_rotation', name: '🔄 Full Rotation', desc: 'Rotated all certificates' },
+                    { id: 'blame_junior', name: '👉 Blame the Junior', desc: 'Tried to blame the developer' },
+                    { id: 'frozen', name: '❄️ Frozen', desc: 'Did nothing until timeout' },
+                    { id: 'coffee_crypto', name: '☕ Caffeinated Crypto', desc: 'Drank coffee during crisis' },
+                    { id: 'nsa_call', name: '📞 Called the NSA', desc: 'Asked NSA for help' },
+                    { id: 'wrong_approach', name: '🔐 Wrong Approach', desc: 'Tried to encrypt public key' },
+                    { id: 'ct_detective', name: '🔎 CT Detective', desc: 'Checked CT logs' },
+                    { id: 'regulator_ready', name: '📋 Regulator Ready', desc: 'Ready for regulators' }
+                ];
+
+                let unlocked = 0;
+                achievementList.forEach(ach => {
+                    const status = achievements[ach.id] ? '✓' : '✗';
+                    const color = achievements[ach.id] ? 'success' : 'info';
+                    output(`  ${status} ${ach.name} - ${ach.desc}`, color);
+                    if (achievements[ach.id]) unlocked++;
+                });
+
+                output("", "");
+                output(`Unlocked: ${unlocked}/12`, "info");
+            }
+
+            function saveAchievements() {
+                try {
+                    localStorage.setItem('hexworth_dontleakkey_achievements', JSON.stringify(achievements));
+                } catch (e) {
+                    console.error('Failed to save achievements:', e);
+                }
+            }
+
+            function loadAchievements() {
+                try {
+                    const saved = localStorage.getItem('hexworth_dontleakkey_achievements');
+                    if (saved) {
+                        const loaded = JSON.parse(saved);
+                        Object.keys(loaded).forEach(key => {
+                            if (achievements.hasOwnProperty(key)) {
+                                achievements[key] = loaded[key];
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to load achievements:', e);
+                }
+            }
+
+            function showRestartButton() {
+                const btn = document.createElement('button');
+                btn.className = 'restart-btn';
+                btn.textContent = 'Start New Incident';
+                btn.onclick = function() {
+                    location.reload();
+                };
+
+                const container = document.createElement('div');
+                container.style.textAlign = 'center';
+                container.style.marginTop = '20px';
+                container.appendChild(btn);
+
+                elements.gameScreen.appendChild(container);
+            }
+
+            // Output helper
+            function output(text, className = '') {
+                const line = document.createElement('div');
+                line.className = 'output-line ' + className;
+                line.textContent = text;
+                elements.gameScreen.appendChild(line);
+                elements.gameScreen.scrollTop = elements.gameScreen.scrollHeight;
+            }
+
+            // Public API
+            return {
+                init: init,
+                submitCommand: submitCommand
+            };
+        })();
+
+        // Initialize game when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            game.init();
+        });
+    </script>
+
+    <script src="../../../components/GameTracker.js"></script>
+    <script src="../../../components/AchievementSystem.js"></script>
+</body>
+</html>
