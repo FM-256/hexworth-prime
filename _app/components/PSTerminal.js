@@ -3092,6 +3092,37 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
         let parsedCmd = { command: '', args: [], params: {} };
 
         if (input) {
+            // ── M18 Script Block Objective Detection ──────────────────────────
+            // These objectives require detecting script block patterns in raw
+            // input rather than simple command names. Safe to call on any lab;
+            // _checkObjective no-ops if the ID doesn't exist.
+
+            // create-function: function FunctionName { ... }
+            if (/^function\s+\w+/i.test(input)) {
+                _checkObjective('create-function');
+            }
+
+            // param-validation: [Parameter()], [ValidateSet()], etc.
+            if (/\[(Parameter|ValidateSet|ValidateRange|ValidatePattern|ValidateLength|ValidateScript|ValidateNotNull)\s*\(/i.test(input)) {
+                _checkObjective('param-validation');
+            }
+
+            // advanced-function: [CmdletBinding()] attribute
+            if (/\[CmdletBinding\s*\(/i.test(input)) {
+                _checkObjective('advanced-function');
+            }
+
+            // try-catch: try { } catch { } block
+            if (/\btry\b/i.test(input) && /\bcatch\b/i.test(input)) {
+                _checkObjective('try-catch');
+            }
+
+            // error-action: -ErrorAction parameter
+            if (/-ErrorAction\b/i.test(input)) {
+                _checkObjective('error-action');
+            }
+            // ── End M18 Script Block Detection ────────────────────────────────
+
             // Parse the command for callback
             // For pipelines, parse just the first command so onCommand always gets a command name
             if (input.includes('|')) {
