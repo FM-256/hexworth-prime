@@ -103,26 +103,30 @@
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
         .lab-tabs {
-            padding: 15px;
+            padding: 12px;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
 
         .lab-tab {
-            padding: 15px;
-            margin-bottom: 10px;
+            padding: 10px;
             background: var(--primary-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .lab-tab:hover {
             border-color: var(--accent-blue);
-            transform: translateX(5px);
         }
 
         .lab-tab.active {
@@ -134,28 +138,38 @@
             border-color: var(--success-color);
         }
 
-        .lab-tab.completed::after {
-            content: " ✓";
-            color: var(--success-color);
-            font-weight: bold;
-        }
-
         .lab-tab-title {
-            font-size: 0.95rem;
+            font-size: 0.82rem;
             font-weight: bold;
             color: var(--accent-blue);
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .lab-tab-desc {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .lab-tab-progress {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 8px;
+            margin-top: 4px;
+            background: rgba(96, 165, 250, 0.15);
+            color: var(--accent-light);
+        }
+
+        .lab-tab.completed .lab-tab-progress {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success-color);
         }
 
         /* Instructions Panel */
         .instructions-panel {
             padding: 15px;
-            border-top: 1px solid var(--border-color);
             flex: 1;
             overflow-y: auto;
         }
@@ -185,6 +199,21 @@
         .step.completed {
             border-color: var(--success-color);
             background: rgba(34, 197, 94, 0.05);
+        }
+
+        .step.current {
+            border-color: var(--accent-blue);
+            background: rgba(96, 165, 250, 0.08);
+            animation: stepPulse 2s ease-in-out infinite;
+        }
+
+        .step.current .step-number {
+            box-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+        }
+
+        @keyframes stepPulse {
+            0%, 100% { border-color: var(--accent-blue); }
+            50% { border-color: var(--accent-light); box-shadow: 0 0 12px rgba(96, 165, 250, 0.15); }
         }
 
         .step-header {
@@ -357,20 +386,24 @@
             <div class="sidebar">
                 <div class="lab-tabs">
                     <div class="lab-tab active" data-lab="1" onclick="switchLab(1)">
-                        <div class="lab-tab-title">Lab 1: Querying Users</div>
-                        <div class="lab-tab-desc">Get-ADUser basics and properties</div>
+                        <div class="lab-tab-title">Lab 1: Query Users</div>
+                        <div class="lab-tab-desc">Get-ADUser, properties</div>
+                        <span class="lab-tab-progress" data-progress="1">0 / 3</span>
                     </div>
                     <div class="lab-tab" data-lab="2" onclick="switchLab(2)">
-                        <div class="lab-tab-title">Lab 2: Managing Users</div>
-                        <div class="lab-tab-desc">Create and modify user accounts</div>
+                        <div class="lab-tab-title">Lab 2: Manage Users</div>
+                        <div class="lab-tab-desc">Create, modify accounts</div>
+                        <span class="lab-tab-progress" data-progress="2">0 / 3</span>
                     </div>
                     <div class="lab-tab" data-lab="3" onclick="switchLab(3)">
-                        <div class="lab-tab-title">Lab 3: Group Management</div>
+                        <div class="lab-tab-title">Lab 3: Groups</div>
                         <div class="lab-tab-desc">Groups and membership</div>
+                        <span class="lab-tab-progress" data-progress="3">0 / 3</span>
                     </div>
                     <div class="lab-tab" data-lab="4" onclick="switchLab(4)">
-                        <div class="lab-tab-title">Lab 4: Searching AD</div>
-                        <div class="lab-tab-desc">Filters and advanced queries</div>
+                        <div class="lab-tab-title">Lab 4: Search AD</div>
+                        <div class="lab-tab-desc">Filters, advanced queries</div>
+                        <span class="lab-tab-progress" data-progress="4">0 / 3</span>
                     </div>
                 </div>
 
@@ -788,10 +821,17 @@
                 const stepEl = document.querySelector(`[data-step="${stepId}"]`);
                 if (stepEl) {
                     stepEl.classList.add('completed');
+                    stepEl.classList.remove('current');
                 }
 
-                // Check if lab is complete
+                // Update tab progress badge
                 const labNum = parseInt(stepId.split('-')[0]);
+                updateTabProgress(labNum);
+
+                // Highlight and scroll to the next incomplete step
+                highlightCurrentStep(labNum);
+
+                // Check if lab is complete
                 checkLabComplete(labNum);
 
                 // Save progress
@@ -852,6 +892,53 @@
             // Update instructions
             document.querySelectorAll('.instruction-section').forEach(s => s.classList.remove('active'));
             document.querySelector(`[data-instructions="${labNum}"]`).classList.add('active');
+
+            // Highlight current step in the newly visible lab
+            highlightCurrentStep(labNum);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Step Highlighting & Auto-Scroll
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function highlightCurrentStep(labNum) {
+            // Clear all current highlights
+            document.querySelectorAll('.step.current').forEach(s => s.classList.remove('current'));
+
+            // Find the first incomplete step in this lab
+            const labSteps = [`${labNum}-1`, `${labNum}-2`, `${labNum}-3`];
+            for (const stepId of labSteps) {
+                if (!labState.completedSteps.has(stepId)) {
+                    const stepEl = document.querySelector(`[data-step="${stepId}"]`);
+                    if (stepEl) {
+                        stepEl.classList.add('current');
+                        // Auto-scroll the instructions panel to bring the step into view
+                        setTimeout(() => {
+                            stepEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 150);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Tab Progress Badges
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateTabProgress(labNum) {
+            const labSteps = [`${labNum}-1`, `${labNum}-2`, `${labNum}-3`];
+            const done = labSteps.filter(s => labState.completedSteps.has(s)).length;
+            const badge = document.querySelector(`[data-progress="${labNum}"]`);
+            if (badge) {
+                badge.textContent = done === 3 ? '3 / 3 \u2713' : `${done} / 3`;
+            }
+        }
+
+        function updateAllTabProgress() {
+            for (let i = 1; i <= 4; i++) {
+                updateTabProgress(i);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -897,6 +984,7 @@
                     }
 
                     updateProgress();
+                    updateAllTabProgress();
 
                     // Show completion banner if all done
                     if (labState.completedLabs.size === 4) {
@@ -906,6 +994,9 @@
             } catch (e) {
                 console.warn('Could not load progress:', e);
             }
+
+            // Highlight the first incomplete step in the active lab
+            highlightCurrentStep(labState.currentLab);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -928,7 +1019,10 @@
                 labState.currentLab = 1;
 
                 // Reset UI
-                document.querySelectorAll('.step').forEach(s => s.classList.remove('completed'));
+                document.querySelectorAll('.step').forEach(s => {
+                    s.classList.remove('completed');
+                    s.classList.remove('current');
+                });
                 document.querySelectorAll('.lab-tab').forEach(t => t.classList.remove('completed'));
                 dismissBanner();
 
@@ -949,6 +1043,7 @@
                 localStorage.removeItem('wsaM02PsLab');
 
                 updateProgress();
+                updateAllTabProgress();
                 switchLab(1);
 
                 // Refocus terminal
