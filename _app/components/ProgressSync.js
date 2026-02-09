@@ -134,7 +134,24 @@
                 for (const assignment of assignments) {
                     const result = checkLocalCompletion(assignment.contentId);
                     if (result && result.completed) {
-                        await AssignmentManager.submitProgress(cls.id, assignment.contentId, result);
+                        // Compute duration from start time if available
+                        let duration = null;
+                        try {
+                            const starts = JSON.parse(localStorage.getItem('hexworth_start_times') || '{}');
+                            const wsaMatch = assignment.contentId.match(/^wsa-(m\d{2})/);
+                            const startKey = wsaMatch ? 'wsa-' + wsaMatch[1] : assignment.contentId;
+                            const startedAt = starts[startKey];
+                            if (startedAt && result.completedAt) {
+                                const completedMs = new Date(result.completedAt).getTime();
+                                duration = Math.round((completedMs - startedAt) / 1000);
+                                if (duration < 0) duration = null;
+                            }
+                        } catch(e) { /* non-critical */ }
+
+                        await AssignmentManager.submitProgress(cls.id, assignment.contentId, {
+                            ...result,
+                            duration
+                        });
                         synced++;
 
                         const activityKey = `${cls.id}:${assignment.contentId}`;

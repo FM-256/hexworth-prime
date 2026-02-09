@@ -2250,6 +2250,12 @@
                                 <canvas id="difficultyChart"></canvas>
                             </div>
                         </div>
+                        <div class="hd-analytics-card">
+                            <div class="hd-analytics-card-title">Avg. Time on Task</div>
+                            <div class="hd-analytics-chart-wrap">
+                                <canvas id="timeOnTaskChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                     <div class="hd-leaderboard-section">
                         <div class="hd-leaderboard-header">
@@ -3147,10 +3153,12 @@
 
         let completionTrendChart = null;
         let difficultyChart = null;
+        let timeOnTaskChart = null;
 
         function renderAnalytics() {
             renderCompletionTrendChart();
             renderDifficultyChart();
+            renderTimeOnTaskChart();
             renderLeaderboard();
         }
 
@@ -3290,6 +3298,100 @@
                             beginAtZero: true,
                             max: 100,
                             ticks: { color: '#888', font: { size: 10 }, callback: v => v + '%' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            ticks: { color: '#888', font: { size: 9 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTimeOnTaskChart() {
+            const canvas = document.getElementById('timeOnTaskChart');
+            if (!canvas) return;
+
+            if (timeOnTaskChart) {
+                timeOnTaskChart.destroy();
+            }
+
+            if (classAssignments.length === 0) {
+                canvas.parentElement.innerHTML = '<div class="hd-analytics-empty">No assignments yet</div>';
+                return;
+            }
+
+            // Calculate average duration per assignment
+            const assignmentTimes = classAssignments.map(a => {
+                const durations = [];
+                for (const sp of classProgressData) {
+                    const completion = sp.completions?.[a.contentId];
+                    if (completion?.completed && completion?.duration > 0) {
+                        durations.push(completion.duration);
+                    }
+                }
+                const avg = durations.length > 0
+                    ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length)
+                    : 0;
+                return {
+                    title: a.title.length > 20 ? a.title.substring(0, 18) + '...' : a.title,
+                    avgSeconds: avg,
+                    sampleSize: durations.length
+                };
+            }).filter(a => a.avgSeconds > 0);
+
+            if (assignmentTimes.length === 0) {
+                canvas.parentElement.innerHTML = '<div class="hd-analytics-empty">No time data yet</div>';
+                return;
+            }
+
+            // Sort by duration (longest first)
+            assignmentTimes.sort((a, b) => b.avgSeconds - a.avgSeconds);
+
+            // Convert to minutes for display
+            const labels = assignmentTimes.map(a => a.title);
+            const values = assignmentTimes.map(a => Math.round(a.avgSeconds / 60));
+            const colors = values.map(v => v > 60 ? '#f87171' : v > 30 ? '#fbbf24' : '#4ade80');
+
+            timeOnTaskChart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Avg. Minutes',
+                        data: values,
+                        backgroundColor: colors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const mins = ctx.raw;
+                                    const item = assignmentTimes[ctx.dataIndex];
+                                    const time = mins >= 60
+                                        ? `${Math.floor(mins/60)}h ${mins%60}m`
+                                        : `${mins}m`;
+                                    return `${time} avg (${item.sampleSize} students)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#888',
+                                font: { size: 10 },
+                                callback: v => v >= 60 ? `${Math.floor(v/60)}h` : `${v}m`
+                            },
                             grid: { color: 'rgba(255,255,255,0.05)' }
                         },
                         y: {

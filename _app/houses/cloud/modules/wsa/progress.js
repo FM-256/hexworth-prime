@@ -103,6 +103,17 @@ const WSAProgress = (function() {
      * Mark presentation as viewed (called when presentation page loads)
      */
     function markPresentationViewed(moduleId) {
+        // Record content start time for time-on-task analytics
+        try {
+            const startKey = 'hexworth_start_times';
+            const starts = JSON.parse(localStorage.getItem(startKey) || '{}');
+            const contentKey = 'wsa-' + moduleId;
+            if (!starts[contentKey]) {
+                starts[contentKey] = Date.now();
+                localStorage.setItem(startKey, JSON.stringify(starts));
+            }
+        } catch(e) { /* non-critical */ }
+
         markComplete(moduleId, 'presentation');
     }
 

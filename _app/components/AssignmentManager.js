@@ -281,7 +281,8 @@ const AssignmentManager = (function() {
                 [contentId]: {
                     completed: progressData.completed || false,
                     score: progressData.score || null,
-                    completedAt: progressData.completedAt || new Date().toISOString()
+                    completedAt: progressData.completedAt || new Date().toISOString(),
+                    duration: progressData.duration || null
                 }
             },
             updatedAt: serverTimestamp()
