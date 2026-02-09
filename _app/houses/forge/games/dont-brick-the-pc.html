@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don't Brick the PC</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a0a;
+            color: #c0c0c0;
+            font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* -- Header -- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            color: #e67e22;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2ecc71;
+            min-width: 60px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .timer.warning { color: #f39c12; }
+        .timer.critical { color: #e74c3c; animation: pulse 0.5s infinite alternate; }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.4; }
+        }
+
+        .achievement-counter {
+            font-size: 12px;
+            color: #f1c40f;
+            cursor: pointer;
+            padding: 2px 8px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .achievement-counter:hover {
+            background: #1a1a1a;
+            border-color: #f1c40f;
+        }
+
+        /* -- Output -- */
+        .output-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .output-area::-webkit-scrollbar { width: 8px; }
+        .output-area::-webkit-scrollbar-track { background: #111; }
+        .output-area::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .line-input { color: #e67e22; }
+        .line-system { color: #7f8c8d; font-style: italic; }
+        .line-success { color: #2ecc71; }
+        .line-error { color: #e74c3c; }
+        .line-warning { color: #f39c12; }
+        .line-critical { color: #e74c3c; font-weight: bold; }
+        .line-alert { color: #e67e22; }
+        .line-info { color: #3498db; }
+        .line-dim { color: #555; }
+        .line-achievement { color: #f1c40f; }
+        .line-narrative { color: #bdc3c7; }
+        .line-title { color: #e67e22; }
+        .line-hint { color: #9b59b6; }
+        .line-ps-output { color: #ddd; }
+
+        /* -- Input -- */
+        .input-area {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .prompt {
+            color: #e67e22;
+            margin-right: 8px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .input-field {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #eee;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            caret-color: #e67e22;
+        }
+
+        .input-field::placeholder { color: #444; }
+        .input-field:disabled { color: #555; }
+
+        /* -- Toast -- */
+        .achievement-toast {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #1a1a0a;
+            border: 1px solid #f1c40f;
+            border-left: 4px solid #f1c40f;
+            padding: 12px 16px;
+            border-radius: 4px;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.4s ease;
+            z-index: 100;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        .achievement-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .achievement-toast-label {
+            color: #f1c40f;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .achievement-toast-name {
+            color: #f1c40f;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .achievement-toast-desc {
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* -- Gallery -- */
+        .gallery-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .gallery-overlay.show { display: flex; }
+
+        .gallery {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .gallery h2 {
+            color: #f1c40f;
+            margin-bottom: 16px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .gallery-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .gallery-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .gallery-icon.unlocked {
+            background: #2c2a0a;
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .gallery-icon.locked {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #333;
+        }
+
+        .gallery-text { flex: 1; }
+        .gallery-name { font-size: 13px; font-weight: bold; }
+        .gallery-name.unlocked { color: #f1c40f; }
+        .gallery-name.locked { color: #555; }
+        .gallery-desc { font-size: 11px; color: #666; margin-top: 2px; }
+
+        .gallery-close { margin-top: 16px; text-align: center; }
+
+        .gallery-close button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px 20px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .gallery-close button:hover {
+            border-color: #f1c40f;
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="header-title">DON'T BRICK THE PC</span>
+        <span class="achievement-counter" id="achCounter" onclick="Game.showGallery()" title="View Achievements">&#9733; 0/12</span>
+        <span class="timer" id="timer">3:30</span>
+    </div>
+
+    <div class="output-area" id="output"></div>
+
+    <div class="input-area">
+        <span class="prompt" id="prompt">C:\&gt;</span>
+        <input type="text" class="input-field" id="input" placeholder="Type a command..." autofocus autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="achievement-toast" id="toast">
+        <div class="achievement-toast-label">ACHIEVEMENT UNLOCKED</div>
+        <div class="achievement-toast-name" id="toastName"></div>
+        <div class="achievement-toast-desc" id="toastDesc"></div>
+    </div>
+
+    <div class="gallery-overlay" id="galleryOverlay">
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <script>
+    const Game = (function() {
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENTS
+           ═══════════════════════════════════════ */
+        const ACHIEVEMENTS = {
+            first_responder: { name: 'First Responder',   icon: '!', desc: 'Disconnect from the network first' },
+            process_hunter:  { name: 'Process Hunter',    icon: 'X', desc: 'Find and kill the malicious process' },
+            by_the_book:     { name: 'By The Book',       icon: '★', desc: 'Isolate, identify, kill, scan, document' },
+            safe_mode_hero:  { name: 'Safe Mode Hero',    icon: 'S', desc: 'Boot to Safe Mode for cleaning' },
+            nuke_from_orbit: { name: 'Nuke From Orbit',   icon: '☢', desc: 'Reimage the machine' },
+            scanner_savant:  { name: 'Scanner Savant',    icon: '◎', desc: 'Run a full antivirus scan' },
+            have_you_tried:  { name: 'Have You Tried...?',icon: '↻', desc: 'Restart without fixing anything' },
+            blame_user:      { name: 'Blame the User',    icon: '☞', desc: 'Tell the user it\'s their fault' },
+            frozen:          { name: 'Frozen',            icon: '❄', desc: 'Do nothing until time runs out' },
+            wrong_os:        { name: 'Wrong OS',          icon: '#', desc: 'Try Linux commands on Windows' },
+            coffee_break:    { name: 'Coffee Break',      icon: '♨', desc: 'Get coffee during a malware incident' },
+            speed_run:       { name: 'Speed Run',         icon: '»', desc: 'Contain the threat in under 20 seconds' },
+        };
+
+        const STORAGE_KEY = 'hexworth_dontbrick_achievements';
+
+        /* ═══════════════════════════════════════
+           STATE
+           ═══════════════════════════════════════ */
+        let state = {};
+
+        function resetState() {
+            state = {
+                phase: 'title',
+                timeRemaining: 210,      // 3:30
+                timeElapsed: 0,
+                timerInterval: null,
+                malwareActive: true,
+                networkDisconnected: false,
+                processKilled: false,
+                avScanRun: false,
+                safeModeBoot: false,
+                reimaged: false,
+                restarted: false,
+                documented: false,
+                commandsRun: [],
+                commandCount: 0,
+                eventsTriggered: [],
+                ending: null,
+                toastTimeout: null,
+                // CompTIA methodology tracking
+                methodology: {
+                    identified: false,    // Ran diagnostic commands
+                    theorized: false,     // Checked processes or connections
+                    tested: false,        // Confirmed malware (netstat + taskmgr)
+                    planned: false,       // Disconnected network (containment)
+                    implemented: false,   // Killed process or scanned
+                    verified: false,      // Ran verification command after fix
+                    documented: false,    // Wrote documentation
+                },
+            };
+        }
+
+        /* ═══════════════════════════════════════
+           INIT
+           ═══════════════════════════════════════ */
+        function init() {
+            resetState();
+            document.getElementById('input').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const raw = this.value.trim();
+                    this.value = '';
+                    if (raw) handleInput(raw);
+                }
+            });
+            updateAchievementCounter();
+            showTitle();
+        }
+
+        /* ═══════════════════════════════════════
+           DISPLAY
+           ═══════════════════════════════════════ */
+        function print(text, className) {
+            const el = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'line' + (className ? ' line-' + className : '');
+            div.textContent = text;
+            el.appendChild(div);
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function printBlank() { print(''); }
+
+        /* ═══════════════════════════════════════
+           TITLE
+           ═══════════════════════════════════════ */
+        function showTitle() {
+            document.getElementById('timer').textContent = '3:30';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('prompt').style.display = 'none';
+            document.getElementById('input').placeholder = 'Press Enter to start...';
+
+            const lines = [
+                '',
+                '  ╔══════════════════════════════════════════════════╗',
+                '  ║                                                  ║',
+                "  ║         DON'T BRICK THE PC                      ║",
+                '  ║                                                  ║',
+                '  ║         A Helpdesk Survival Game                 ║',
+                '  ║                                                  ║',
+                '  ╚══════════════════════════════════════════════════╝',
+                '',
+            ];
+            for (const l of lines) print(l, 'title');
+
+            printBlank();
+            print('  You have 3 minutes 30 seconds. One infected endpoint.', 'dim');
+            print('  And the malware is already phoning home.', 'dim');
+            printBlank();
+            print('  Type Windows commands. Follow the methodology.', 'dim');
+            print('  Or wing it. There are 12 achievements either way.', 'dim');
+            printBlank();
+            print('  Press ENTER to start.', 'info');
+            printBlank();
+
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            if (count > 0) {
+                print(`  [${count}/12 achievements unlocked]`, 'achievement');
+                printBlank();
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME START
+           ═══════════════════════════════════════ */
+        function startGame() {
+            state.phase = 'playing';
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+
+            const intro = [
+                'FRIDAY, 4:45 PM',
+                '',
+                'Your phone rings. You were about to leave.',
+                '',
+                '"Hi, this is Jen from Accounting. My computer is being',
+                'really weird. There are popups everywhere, my browser',
+                'keeps going to random sites, and I think something is',
+                'downloading files by itself. Can you help?"',
+                '',
+                'You remote in. This is what you see:',
+                '',
+                '  Machine:    ACCT-PC07 (Windows 11 Pro)',
+                '  User:       jdoe (Jennifer Doe)',
+                '  Symptoms:   Browser redirects, popups, high CPU',
+                '  Network:    Connected to CORP-LAN (10.0.1.0/24)',
+                '  Antivirus:  Windows Defender (last scan: 3 days ago)',
+                '',
+                'Something is definitely wrong with this machine.',
+                'And whatever it is, it\'s on the corporate network.',
+                '',
+            ];
+
+            for (const l of intro) {
+                print(l, l.startsWith('  ') ? 'ps-output' : 'narrative');
+            }
+
+            print('Type HELP for available commands.', 'info');
+            printBlank();
+
+            state.timerInterval = setInterval(tick, 1000);
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           TIMER & EVENTS
+           ═══════════════════════════════════════ */
+        function tick() {
+            state.timeRemaining--;
+            state.timeElapsed++;
+            updateTimerDisplay();
+
+            if (state.malwareActive) checkTimedEvents();
+            if (state.timeRemaining <= 0) timeUp();
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer');
+            const mins = Math.floor(state.timeRemaining / 60);
+            const secs = state.timeRemaining % 60;
+            el.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            if (state.timeRemaining <= 30) el.className = 'timer critical';
+            else if (state.timeRemaining <= 60) el.className = 'timer warning';
+            else el.className = 'timer';
+        }
+
+        function checkTimedEvents() {
+            const events = [
+                { at: 15,  id: 'wallpaper', level: 'alert',    text: '[USER] "Oh no, my wallpaper just changed to a skull and crossbones!"' },
+                { at: 40,  id: 'av_off',    level: 'warning',  text: '[ALERT] Windows Defender was disabled by an external process.' },
+                { at: 70,  id: 'c2',        level: 'warning',  text: '[ALERT] Suspicious outbound traffic detected to 185.234.xx.xx on port 4444.' },
+                { at: 100, id: 'creds',     level: 'critical', text: '[CRITICAL] Credential harvesting detected - lsass.exe memory being dumped.' },
+                { at: 135, id: 'lateral',   level: 'critical', text: '[CRITICAL] Lateral movement attempt detected toward FILE-SERVER01.' },
+                { at: 170, id: 'encrypt',   level: 'critical', text: '[CRITICAL] File encryption beginning on mapped drives. Ransomware deploying.' },
+                { at: 195, id: 'ransom',    level: 'critical', text: '[CRITICAL] Ransom note dropped: "YOUR FILES ARE ENCRYPTED. PAY 5 BTC."' },
+            ];
+
+            for (const ev of events) {
+                if (state.timeElapsed >= ev.at && !state.eventsTriggered.includes(ev.id)) {
+                    state.eventsTriggered.push(ev.id);
+                    // If network is disconnected, skip network-dependent events
+                    if (state.networkDisconnected && ['c2', 'lateral'].includes(ev.id)) continue;
+                    printBlank();
+                    print(ev.text, ev.level);
+                    printBlank();
+                }
+            }
+        }
+
+        function timeUp() {
+            clearInterval(state.timerInterval);
+
+            if (state.malwareActive) {
+                printBlank();
+                print('════════════════════════════════════════', 'critical');
+                print('GAME OVER', 'critical');
+                print('════════════════════════════════════════', 'critical');
+                printBlank();
+                print('The ransomware deployed across the network.', 'error');
+                print('FILE-SERVER01, SQL-PROD02, and 47 workstations encrypted.', 'error');
+                print('Estimated recovery cost: $340,000.', 'error');
+                printBlank();
+                print('The company\'s cyber insurance just went up.', 'dim');
+                print('Your Monday morning meeting is going to be rough.', 'dim');
+
+                if (state.commandCount === 0) unlock('frozen');
+                state.ending = 'timeout';
+            } else {
+                printBlank();
+                print('Time\'s up, but the threat was already contained.', 'success');
+            }
+
+            endGame();
+        }
+
+        /* ═══════════════════════════════════════
+           INPUT
+           ═══════════════════════════════════════ */
+        function handleInput(raw) {
+            if (state.phase === 'title') { startGame(); return; }
+
+            if (state.phase === 'ended') {
+                const lower = raw.toLowerCase();
+                if (['r', 'restart', 'play again', 'again'].includes(lower)) restart();
+                else if (['a', 'achievements'].includes(lower)) showGallery();
+                return;
+            }
+
+            print('C:\\> ' + raw, 'input');
+            state.commandCount++;
+            state.commandsRun.push(raw);
+
+            const result = processCommand(raw);
+            if (result) {
+                for (const line of result.split('\n')) {
+                    print(line, result._className || 'ps-output');
+                }
+            }
+            printBlank();
+
+            if (state.phase === 'playing') checkWinCondition();
+        }
+
+        /* ═══════════════════════════════════════
+           COMMAND PROCESSING
+           ═══════════════════════════════════════ */
+        function processCommand(raw) {
+            const lower = raw.trim().toLowerCase();
+
+            // -- Adventure / fun --
+            if (['look', 'examine', 'look around'].includes(lower))
+                return adventureLook();
+            if (['inventory', 'i', 'inv'].includes(lower))
+                return styled('You have: a phone (Jen still on hold), a bootable USB, your CompTIA A+ cert, and cold sweat.', 'dim');
+            if (['help', '?'].includes(lower))
+                return showHelp();
+            if (['hint', 'hints'].includes(lower))
+                return showHint();
+            if (['time', 'clock'].includes(lower)) {
+                const m = Math.floor(state.timeRemaining / 60);
+                const s = state.timeRemaining % 60;
+                return styled(`${m}m ${s}s remaining.`, 'info');
+            }
+            if (['panic', 'freak out', 'scream'].includes(lower)) {
+                unlock('coffee_break'); // reuse timing for panic
+                state.timeRemaining = Math.max(0, state.timeRemaining - 10);
+                updateTimerDisplay();
+                return styled('You hyperventilate. Jen asks if YOU need help. (-10 seconds)', 'warning');
+            }
+            if (['coffee', 'drink coffee', 'get coffee'].includes(lower)) {
+                unlock('coffee_break');
+                return styled('You walk to the break room while a machine is actively being ransomwared.\nBold. The coffee is burnt. Just like your incident response.', 'dim');
+            }
+            if (['pray', 'hope'].includes(lower))
+                return styled('The IT gods require CompTIA methodology, not prayers.', 'dim');
+            if (['cry', 'weep'].includes(lower))
+                return styled('There\'s no crying in IT support.', 'dim');
+            if (['quit', 'exit', 'q'].includes(lower))
+                return styled('You can\'t quit. The malware certainly isn\'t.', 'warning');
+            if (['call manager', 'call boss', 'escalate'].includes(lower))
+                return styled('Your manager is at happy hour. "Handle it, you\'ve got this!"\nClick.', 'dim');
+            if (['blame user', 'blame the user', 'blame jen', "it's your fault", "its your fault", 'user error'].includes(lower)) {
+                unlock('blame_user');
+                return styled('"Jen, did you click on something you shouldn\'t have?"\n"I mean... there was this email about a free iPad..."\nThere it is. But blaming her won\'t stop the malware.', 'dim');
+            }
+            if (['google', 'google it', 'search', 'bing', 'bing it'].includes(lower))
+                return styled('You google "how to remove malware." 47 million results.\nThe first link is a malware-laden "free antivirus" download.\nMaybe trust your training instead.', 'dim');
+            if (['turn off monitor', 'monitor off'].includes(lower))
+                return styled('You turn off the monitor. The malware doesn\'t care. It doesn\'t need a screen.', 'dim');
+            if (['document', 'take notes', 'ticket', 'write ticket', 'notes', 'log'].includes(lower)) {
+                state.documented = true;
+                state.methodology.documented = true;
+                return styled('[DOCUMENTED] Incident notes saved:\n- Ticket #4481 created\n- Timeline, symptoms, actions taken recorded\n- Screenshots attached\n- User notified\nGood. CompTIA step 7: Document findings.', 'success');
+            }
+
+            // -- Linux commands --
+            if (/^(sudo|rm\s|chmod|chown|ls\b|cat\s|grep|apt|yum|systemctl|nano|vi\s|vim|kill\s+-9|ps\s+aux)/.test(lower)) {
+                unlock('wrong_os');
+                return styled('This is Windows, not Linux. But the instinct is right.\nTry the Windows equivalent.', 'warning');
+            }
+
+            // -- Windows commands --
+            return processWindows(raw, lower);
+        }
+
+        function processWindows(raw, lower) {
+
+            // === DIAGNOSTIC COMMANDS ===
+
+            // Task Manager
+            if (['taskmgr', 'task manager', 'tasklist', 'tasklist /v'].includes(lower) || lower === 'get-process') {
+                state.methodology.identified = true;
+                state.methodology.theorized = true;
+                return `
+  PID   CPU   Memory    Process Name
+  ───   ───   ──────    ────────────
+  4     0%    140 KB    System
+  892   1%    42 MB     svchost.exe
+  1204  0%    18 MB     explorer.exe
+  2340  3%    88 MB     chrome.exe
+  2788  0%    12 MB     SecurityHealthService.exe
+  3104  2%    34 MB     OneDrive.exe
+  6648  87%   312 MB    svchost32.exe      ← !! HIGH CPU !!
+  7012  1%    22 MB     dwm.exe
+  8844  2%    56 MB     MsMpEng.exe
+
+[NOTE] PID 6648 "svchost32.exe" is NOT a real Windows process.
+Real svchost.exe runs from C:\\Windows\\System32.
+This one runs from C:\\Users\\jdoe\\AppData\\Local\\Temp\\svchost32.exe`;
+            }
+
+            // Netstat
+            if (lower.startsWith('netstat')) {
+                state.methodology.identified = true;
+                state.methodology.tested = true;
+                const output = `
+  Proto  Local Address         Foreign Address        State        PID
+  ─────  ─────────────         ───────────────        ─────        ───
+  TCP    10.0.1.47:49721       185.234.72.19:4444     ESTABLISHED  6648
+  TCP    10.0.1.47:49834       40.97.120.55:443       ESTABLISHED  2340
+  TCP    10.0.1.47:49901       13.107.42.14:443       ESTABLISHED  3104
+  TCP    10.0.1.47:50012       10.0.1.5:445           SYN_SENT     6648`;
+
+                if (state.networkDisconnected) {
+                    return styled('Network adapter is disabled. No active connections.', 'dim');
+                }
+                return output + '\n\n[NOTE] PID 6648 has a connection to 185.234.72.19:4444 (known C2 server)\nand is attempting SMB connection to 10.0.1.5 (FILE-SERVER01).';
+            }
+
+            // Event Viewer
+            if (['eventvwr', 'event viewer', 'eventvwr.msc', 'get-eventlog', 'get-winevent'].includes(lower)) {
+                state.methodology.identified = true;
+                return `
+  Security Log - Recent Events:
+  ─────────────────────────────
+  4:42 PM  Warning   Defender real-time protection was disabled
+  4:38 PM  Error     New service installed: "Windows Update Helper"
+  4:35 PM  Warning   PowerShell execution policy changed to Bypass
+  4:31 PM  Info      User jdoe opened email attachment: invoice_Q4.pdf.exe
+  4:30 PM  Info      Logon success: jdoe
+
+[NOTE] The attack chain: email attachment → PowerShell bypass → service install → Defender disabled.`;
+            }
+
+            // MSConfig
+            if (['msconfig', 'startup', 'msconfig.exe'].includes(lower)) {
+                state.methodology.theorized = true;
+                return `
+  Startup Items:
+  ──────────────
+  [Enabled]   OneDrive              Microsoft Corporation
+  [Enabled]   SecurityHealth         Microsoft Corporation
+  [Enabled]   Windows Update Helper  Unknown Publisher     ← SUSPICIOUS
+  [Enabled]   Chrome Updater         Google LLC
+
+[NOTE] "Windows Update Helper" has no digital signature and was added today.
+Location: HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run`;
+            }
+
+            // Services
+            if (['services.msc', 'services', 'sc query'].includes(lower)) {
+                state.methodology.theorized = true;
+                return `
+  Service Name             Status     Startup    Publisher
+  ────────────             ──────     ───────    ─────────
+  Windows Update           Running    Auto       Microsoft
+  Windows Update Helper    Running    Auto       (Unknown)   ← SUSPICIOUS
+  DHCP Client              Running    Auto       Microsoft
+  DNS Client               Running    Auto       Microsoft
+  Windows Defender         Stopped    Disabled   Microsoft   ← DISABLED!
+
+[NOTE] "Windows Update Helper" is NOT a real Windows service.
+Windows Defender has been forcibly disabled.`;
+            }
+
+            // Registry
+            if (['regedit', 'registry', 'regedit.exe', 'reg query'].includes(lower) || lower.startsWith('reg query')) {
+                state.methodology.theorized = true;
+                return `
+  HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run:
+  ──────────────────────────────────────────────────────
+  OneDriveSetup    REG_SZ    C:\\Program Files\\OneDrive\\OneDrive.exe
+  SecurityHealth   REG_SZ    C:\\Windows\\System32\\SecurityHealthSystray.exe
+  WinUpdateHelper  REG_SZ    C:\\Users\\jdoe\\AppData\\Local\\Temp\\svchost32.exe  ← MALWARE
+
+[NOTE] Persistence mechanism found. The malware auto-starts via Run key.`;
+            }
+
+            // Dir check
+            if (lower.startsWith('dir') && (lower.includes('appdata') || lower.includes('temp'))) {
+                state.methodology.identified = true;
+                return `
+  Directory of C:\\Users\\jdoe\\AppData\\Local\\Temp
+
+  02/08/2026  04:30 PM         3,847,168  svchost32.exe
+  02/08/2026  04:31 PM            12,288  payload.dll
+  02/08/2026  04:35 PM             4,096  config.dat
+  02/08/2026  04:38 PM           286,720  mimikatz.exe
+  02/08/2026  04:42 PM             1,024  ransom_note.hta
+
+[NOTE] Full malware toolkit: backdoor, credential dumper, and ransomware payload.`;
+            }
+
+            // IPConfig
+            if (['ipconfig', 'ipconfig /all'].includes(lower)) {
+                if (state.networkDisconnected) {
+                    return `
+  Ethernet adapter CORP-LAN:
+     Media State:          Media disconnected
+     Connection-specific DNS Suffix: corp.local`;
+                }
+                return `
+  Ethernet adapter CORP-LAN:
+     IPv4 Address:      10.0.1.47
+     Subnet Mask:       255.255.255.0
+     Default Gateway:   10.0.1.1
+     DNS Server:        10.0.1.5
+     DHCP Enabled:      Yes
+     Connection Status: Connected`;
+            }
+
+            // System info
+            if (['systeminfo', 'hostname'].includes(lower)) {
+                return `
+  Host Name:         ACCT-PC07
+  OS Name:           Microsoft Windows 11 Pro
+  OS Version:        10.0.22631
+  System Type:       x64-based PC
+  Domain:            CORP.LOCAL
+  Logon Server:      \\\\DC01
+  Total Physical Memory: 16,384 MB
+  Available Memory:      4,210 MB     ← LOW (malware consuming resources)`;
+            }
+
+            // SFC
+            if (lower === 'sfc /scannow' || lower === 'sfc') {
+                state.methodology.verified = true;
+                if (state.processKilled) {
+                    return styled('[RUNNING] System File Checker scanning...\n\nWindows Resource Protection found corrupt files and successfully repaired them.\nDetails in CBS.log.', 'success');
+                }
+                return styled('[RUNNING] System File Checker scanning...\n\n[WARNING] Cannot complete scan - system files are being actively modified\nby another process (PID 6648). Kill the process first.', 'warning');
+            }
+
+            // === ACTION COMMANDS ===
+
+            // Disconnect network
+            if (['disconnect', 'disable network', 'unplug network', 'disable wifi',
+                 'disconnect network', 'ncpa.cpl', 'disable adapter',
+                 'netsh interface set interface "corp-lan" disable',
+                 'unplug', 'pull the cable', 'disable ethernet'].includes(lower) ||
+                lower.includes('disable') && lower.includes('network') ||
+                lower.includes('disconnect') && lower.includes('network')) {
+
+                if (state.networkDisconnected) {
+                    return styled('Network is already disconnected.', 'dim');
+                }
+
+                state.networkDisconnected = true;
+                state.methodology.planned = true;
+
+                if (state.timeElapsed <= 20) unlock('speed_run');
+                if (state.commandCount <= 2) unlock('first_responder');
+                // Also unlock first_responder if it's the first action command
+                if (!state.processKilled && !state.avScanRun && !state.safeModeBoot) {
+                    unlock('first_responder');
+                }
+
+                return styled('[SUCCESS] Network adapter CORP-LAN disabled.\nACCT-PC07 is now isolated from the corporate network.\nNo more lateral movement. No more data exfiltration.\nC2 channel severed.\n\nGood instinct. Containment first.', 'success');
+            }
+
+            // Kill process
+            if (lower.startsWith('taskkill') || lower === 'kill 6648' || lower === 'kill svchost32' ||
+                lower === 'end task svchost32.exe' || lower === 'stop-process 6648' ||
+                lower === 'stop-process -name svchost32' || lower === 'kill process') {
+
+                if (state.processKilled) {
+                    return styled('Process svchost32.exe (PID 6648) is already terminated.', 'dim');
+                }
+
+                state.processKilled = true;
+                state.methodology.implemented = true;
+                unlock('process_hunter');
+
+                return styled('[SUCCESS] Process svchost32.exe (PID 6648) terminated.\nCPU usage dropped from 87% to 3%.\nThe machine is responsive again.\n\n[NOTE] The malware\'s persistence mechanism (Run key + service) is still intact.\nIt will restart on next boot unless you clean the registry and remove the files.', 'success');
+            }
+
+            // Antivirus scan
+            if (['scan', 'antivirus', 'windows defender', 'defender', 'full scan',
+                 'malwarebytes', 'virus scan', 'run scan',
+                 'start-mpscan', 'start-mpscan -scantype fullscan',
+                 'mpcmdrun', 'mpcmdrun.exe -scan'].includes(lower) ||
+                lower.includes('scan') && (lower.includes('virus') || lower.includes('malware') || lower.includes('defender'))) {
+
+                if (state.avScanRun) {
+                    return styled('Scan already completed.', 'dim');
+                }
+
+                state.avScanRun = true;
+                state.methodology.implemented = true;
+                unlock('scanner_savant');
+
+                if (state.processKilled) {
+                    return styled('[SCANNING] Full system scan in progress...\n\nThreats found and quarantined:\n  Trojan:Win32/Backdoor.Agent    svchost32.exe     Quarantined\n  HackTool:Win32/Mimikatz        mimikatz.exe      Quarantined\n  Trojan:Win32/Ransom.Generic     ransom_note.hta   Quarantined\n  Trojan:Win32/PayloadDLL         payload.dll       Quarantined\n\n4 threats removed. System clean.', 'success');
+                }
+
+                return styled('[SCANNING] Attempting full system scan...\n\n[WARNING] Windows Defender is currently disabled.\nRe-enabling... blocked by svchost32.exe (PID 6648).\nThe malware is preventing the scan from running.\n\nYou need to kill PID 6648 first, or boot to Safe Mode.', 'warning');
+            }
+
+            // Safe Mode
+            if (['safe mode', 'bcdedit /set safeboot', 'bcdedit /set safeboot minimal',
+                 'bcdedit /set {current} safeboot minimal', 'msconfig safe mode',
+                 'boot safe mode', 'safeboot'].includes(lower) || lower.includes('safe mode')) {
+
+                state.safeModeBoot = true;
+                state.processKilled = true; // malware doesn't run in safe mode
+                state.methodology.implemented = true;
+                unlock('safe_mode_hero');
+
+                return styled('[SUCCESS] Safe boot flag set. Rebooting to Safe Mode...\n\n[REBOOTING...]\n\nWindows is starting in Safe Mode.\nMinimal drivers loaded. Networking disabled.\nsvchost32.exe did NOT start (not a signed driver/service).\n\nThe machine is clean enough to run a full scan now.\nRun an antivirus scan to quarantine the malware files.', 'success');
+            }
+
+            // Restart / Reboot (without fixing)
+            if (['restart', 'reboot', 'shutdown /r', 'restart-computer'].includes(lower)) {
+                if (!state.processKilled && !state.networkDisconnected) {
+                    unlock('have_you_tried');
+                    state.timeRemaining = Math.max(0, state.timeRemaining - 30);
+                    updateTimerDisplay();
+                    return styled('[REBOOTING...]\n\nThe machine restarts. svchost32.exe launches immediately\nfrom the Run key. All symptoms return. Nothing changed.\nYou just lost 30 seconds. (-30 seconds)\n\n"Have you tried turning it off and on again?" doesn\'t\nwork when malware has persistence.', 'warning');
+                }
+                return styled('[REBOOTING...]\n\nMachine restarts normally.', 'dim');
+            }
+
+            // Format / Reimage
+            if (['format', 'reimage', 'nuke', 'wipe', 'reinstall', 'format c:',
+                 'clean install', 'factory reset', 'reset this pc'].includes(lower)) {
+
+                state.reimaged = true;
+                state.malwareActive = false;
+                unlock('nuke_from_orbit');
+
+                clearInterval(state.timerInterval);
+                printBlank();
+                print('════════════════════════════════════════', 'warning');
+                print('NUCLEAR OPTION', 'warning');
+                print('════════════════════════════════════════', 'warning');
+                printBlank();
+                print('You wipe the drive and reimage from the golden image.', 'narrative');
+                print('The malware is gone. So is everything else.', 'narrative');
+                printBlank();
+                print('Jen\'s 3 years of local files: gone.', 'error');
+                print('Her browser bookmarks: gone.', 'error');
+                print('That spreadsheet she spent all week on: gone.', 'error');
+                printBlank();
+                print('"Did you... back up my files first?"', 'narrative');
+                print('You did not.', 'dim');
+                printBlank();
+                print('The malware is dead. But so is your user satisfaction score.', 'dim');
+
+                state.ending = 'nuclear';
+                endGame();
+                return null;
+            }
+
+            // Backup
+            if (['backup', 'backup files', 'copy files', 'robocopy', 'xcopy'].includes(lower)) {
+                if (state.processKilled || state.safeModeBoot) {
+                    return styled('[BACKING UP] Copying jdoe\'s Documents, Desktop, and Downloads...\nBacked up to USB drive E:\\\nTotal: 4.2 GB copied.\n\nSmart. Always preserve user data before reimaging.', 'success');
+                }
+                return styled('[WARNING] Backing up while malware is active risks copying\ninfected files. Kill the malicious process first.', 'warning');
+            }
+
+            // Delete malware files
+            if (lower.startsWith('del ') || lower.startsWith('delete ') || lower.startsWith('remove ')) {
+                if (lower.includes('svchost32') || lower.includes('mimikatz') || lower.includes('payload') || lower.includes('temp')) {
+                    if (state.processKilled) {
+                        return styled('[DELETED] Malware files removed from AppData\\Local\\Temp.\nRegistry Run key entry should also be cleaned.', 'success');
+                    }
+                    return styled('[ERROR] Cannot delete svchost32.exe - file is in use by PID 6648.\nKill the process first.', 'error');
+                }
+                return styled('Specify what to delete.', 'dim');
+            }
+
+            // Registry cleanup
+            if (lower.includes('reg delete') || (lower.includes('remove') && lower.includes('registry')) ||
+                (lower.includes('clean') && lower.includes('registry')) || lower.includes('remove startup')) {
+                if (state.processKilled || state.safeModeBoot) {
+                    return styled('[SUCCESS] Registry key removed:\nHKLM\\...\\Run\\WinUpdateHelper deleted.\nMalware persistence mechanism eliminated.', 'success');
+                }
+                return styled('[ERROR] Cannot modify registry while malware is actively running.\nKill PID 6648 first.', 'error');
+            }
+
+            // Stop service
+            if (lower.includes('stop') && lower.includes('service') || lower === 'sc stop "windows update helper"' ||
+                lower.includes('stop-service') && lower.includes('update helper')) {
+                return styled('[SUCCESS] Service "Windows Update Helper" stopped.\n\n[NOTE] The service is stopped but the process (PID 6648) may still be running.\nUse taskkill to terminate it completely.', 'success');
+            }
+
+            // Programs and Features
+            if (['appwiz.cpl', 'programs and features', 'add remove programs', 'uninstall'].includes(lower)) {
+                return `
+  Installed Programs (sorted by date):
+  ────────────────────────────────────
+  02/08/2026  Windows Update Helper v2.1    Unknown Publisher  ← TODAY
+  02/05/2026  Google Chrome 120.0           Google LLC
+  01/28/2026  Microsoft Office 365          Microsoft Corp
+  01/15/2026  Adobe Reader DC               Adobe Inc
+
+[NOTE] "Windows Update Helper" was installed today. It's not from Microsoft.`;
+            }
+
+            // Ping
+            if (lower.startsWith('ping')) {
+                if (state.networkDisconnected) {
+                    return styled('PING: transmit failed. General failure.\nNetwork adapter is disabled.', 'error');
+                }
+                return 'Reply from 10.0.1.1: bytes=32 time<1ms TTL=128\nReply from 10.0.1.1: bytes=32 time<1ms TTL=128';
+            }
+
+            // cls / clear
+            if (['cls', 'clear', 'clear-host'].includes(lower)) {
+                document.getElementById('output').innerHTML = '';
+                return null;
+            }
+
+            // Unknown
+            return styled(`'${raw}' is not recognized as a command.\nType HELP for available commands.`, 'error');
+        }
+
+        /* ═══════════════════════════════════════
+           HELP & HINTS
+           ═══════════════════════════════════════ */
+        function showHelp() {
+            return `
+DIAGNOSTIC COMMANDS:
+  taskmgr / tasklist            View running processes
+  netstat -ano                  View network connections
+  eventvwr                      View event logs
+  msconfig                      Check startup items
+  services.msc                  View Windows services
+  regedit                       View registry entries
+  ipconfig                      View network configuration
+  systeminfo                    View system information
+  dir C:\\Users\\jdoe\\AppData     Check user AppData folder
+  appwiz.cpl                    View installed programs
+
+ACTION COMMANDS:
+  disconnect network            Isolate machine from network
+  taskkill /pid 6648            Kill a process by PID
+  safe mode                     Reboot to Safe Mode
+  scan                          Run antivirus scan
+  sfc /scannow                  System File Checker
+  backup                        Backup user files
+  restart                       Restart the computer
+  format                        Wipe and reimage (nuclear)
+  document                      Write incident notes
+
+OTHER:
+  look          Examine surroundings
+  inventory     Check your tools
+  hint          Get a contextual hint
+  time          Check remaining time
+  help          Show this help
+
+CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify → Document
+12 achievements. Multiple endings.`;
+        }
+
+        function showHint() {
+            if (!state.networkDisconnected && !state.processKilled) {
+                return styled('[HINT] CompTIA step 1: Identify the problem. Run taskmgr or netstat.\nThen CONTAIN — disconnect the network before doing anything else.\nContainment prevents lateral movement.', 'hint');
+            }
+            if (state.networkDisconnected && !state.processKilled) {
+                return styled('[HINT] Good — machine is isolated. Now identify and kill the malicious process.\nCheck taskmgr for suspicious processes. Use taskkill to terminate them.', 'hint');
+            }
+            if (state.processKilled && !state.avScanRun) {
+                return styled('[HINT] Process is dead but malware files are still on disk.\nRun an antivirus scan to quarantine them.\nOr boot to Safe Mode for a thorough clean.', 'hint');
+            }
+            if (state.processKilled && state.avScanRun && !state.documented) {
+                return styled('[HINT] Almost done! CompTIA step 7: Document your findings.\nType "document" to create an incident ticket.', 'hint');
+            }
+            return styled('[HINT] You\'re in good shape. Try different approaches for more achievements.', 'hint');
+        }
+
+        /* ═══════════════════════════════════════
+           WIN CONDITION
+           ═══════════════════════════════════════ */
+        function checkWinCondition() {
+            // "By The Book" — full CompTIA methodology
+            if (state.networkDisconnected && state.processKilled && state.avScanRun && state.documented) {
+                unlock('by_the_book');
+            }
+
+            // Threat contained: network down + process killed, OR safe mode + scan
+            const contained = (state.networkDisconnected && state.processKilled) ||
+                              (state.safeModeBoot && state.avScanRun);
+
+            if (contained && state.malwareActive && state.ending === null) {
+                state.malwareActive = false;
+                state.ending = 'success';
+                clearInterval(state.timerInterval);
+
+                setTimeout(function() {
+                    if (state.phase !== 'playing') return;
+                    printBlank();
+                    print('════════════════════════════════════════', 'success');
+                    print('THREAT CONTAINED', 'success');
+                    print('════════════════════════════════════════', 'success');
+                    printBlank();
+
+                    const elapsed = state.timeElapsed;
+                    const m = Math.floor(elapsed / 60);
+                    const s = elapsed % 60;
+                    print(`Time: ${m}m ${s}s`, 'info');
+                    printBlank();
+
+                    const actions = [];
+                    if (state.networkDisconnected) actions.push('Network isolated');
+                    if (state.processKilled) actions.push('Malicious process killed');
+                    if (state.safeModeBoot) actions.push('Booted to Safe Mode');
+                    if (state.avScanRun) actions.push('AV scan completed');
+                    if (state.documented) actions.push('Incident documented');
+                    print('Actions: ' + actions.join(', '), 'dim');
+                    printBlank();
+
+                    if (state.networkDisconnected && state.processKilled && state.avScanRun && state.documented) {
+                        print('Textbook incident response. You followed the CompTIA', 'narrative');
+                        print('troubleshooting methodology to the letter.', 'narrative');
+                        print('Identify, theorize, test, plan, implement, verify, document.', 'narrative');
+                        print('Your instructor would be proud.', 'narrative');
+                    } else if (state.safeModeBoot) {
+                        print('Safe Mode boot neutralized the malware. Smart move.', 'narrative');
+                        print('The persistence mechanisms couldn\'t load in Safe Mode,', 'narrative');
+                        print('giving you a clean environment to work from.', 'narrative');
+                    } else {
+                        print('Network isolated, process terminated. The machine is safe.', 'narrative');
+                        print('Next steps: full AV scan, registry cleanup, and', 'narrative');
+                        print('verify the machine before reconnecting to the network.', 'narrative');
+                    }
+
+                    printBlank();
+                    print('Jen\'s machine is saved. The network is safe.', 'dim');
+                    print('"Thank you SO much. Can I go home now?"', 'dim');
+                    print('You too, Jen. You too.', 'dim');
+
+                    endGame();
+                }, 1500);
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME END
+           ═══════════════════════════════════════ */
+        function endGame() {
+            state.phase = 'ended';
+            clearInterval(state.timerInterval);
+            document.getElementById('input').placeholder = 'Type R to restart or A for achievements...';
+            printBlank();
+            print('────────────────────────────────────────', 'dim');
+            const saved = loadAchievements();
+            print(`Achievements: ${Object.keys(saved).length}/12`, 'achievement');
+            printBlank();
+            print('[R] Play Again    [A] View Achievements', 'info');
+        }
+
+        function restart() {
+            document.getElementById('output').innerHTML = '';
+            resetState();
+            document.getElementById('timer').textContent = '3:30';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+            updateAchievementCounter();
+            startGame();
+        }
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENTS
+           ═══════════════════════════════════════ */
+        function loadAchievements() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+            catch { return {}; }
+        }
+
+        function saveAchievements(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function unlock(id) {
+            const saved = loadAchievements();
+            if (saved[id]) return;
+            const ach = ACHIEVEMENTS[id];
+            if (!ach) return;
+            saved[id] = { unlockedAt: Date.now() };
+            saveAchievements(saved);
+            showToast(ach.name, ach.desc);
+            updateAchievementCounter();
+            print(`[ACHIEVEMENT] ${ach.icon} ${ach.name} -- ${ach.desc}`, 'achievement');
+        }
+
+        function showToast(name, desc) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastName').textContent = name;
+            document.getElementById('toastDesc').textContent = desc;
+            toast.classList.add('show');
+            if (state.toastTimeout) clearTimeout(state.toastTimeout);
+            state.toastTimeout = setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        function updateAchievementCounter() {
+            const saved = loadAchievements();
+            document.getElementById('achCounter').textContent = `\u2605 ${Object.keys(saved).length}/12`;
+        }
+
+        function showGallery() {
+            const saved = loadAchievements();
+            const overlay = document.getElementById('galleryOverlay');
+            const gallery = document.getElementById('gallery');
+            let html = '<h2>ACHIEVEMENTS</h2>';
+            for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+                const u = !!saved[id];
+                html += `<div class="gallery-item">
+                    <div class="gallery-icon ${u ? 'unlocked' : 'locked'}">${u ? ach.icon : '?'}</div>
+                    <div class="gallery-text">
+                        <div class="gallery-name ${u ? 'unlocked' : 'locked'}">${u ? ach.name : '???'}</div>
+                        <div class="gallery-desc">${u ? ach.desc : 'Not yet unlocked'}</div>
+                    </div></div>`;
+            }
+            html += '<div class="gallery-close"><button onclick="Game.hideGallery()">Close</button></div>';
+            gallery.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function hideGallery() {
+            document.getElementById('galleryOverlay').classList.remove('show');
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           UTILITIES
+           ═══════════════════════════════════════ */
+        function styled(text, className) {
+            const s = new String(text);
+            s._className = className;
+            return s;
+        }
+
+        function adventureLook() {
+            let d = 'You\'re at your desk in the IT office. Dual monitors, a headset, and a half-eaten sandwich.\n';
+            d += 'Left monitor: Remote desktop to ACCT-PC07.\n';
+            d += 'Right monitor: Ticket queue (14 unresolved... make that 15).\n\n';
+
+            if (state.processKilled && state.avScanRun) {
+                d += 'ACCT-PC07 looks clean. CPU is normal. No suspicious processes.\nJen is happy. Your sandwich is cold.';
+            } else if (state.processKilled) {
+                d += 'ACCT-PC07 is responsive again. svchost32.exe is dead.\nBut the malware files are still on disk. Run a scan.';
+            } else if (state.networkDisconnected) {
+                d += 'ACCT-PC07 is isolated. No network. The C2 channel is cut.\nBut svchost32.exe is still eating 87% CPU.';
+            } else {
+                d += 'ACCT-PC07 is running hot. Popups everywhere.\nsvchost32.exe is chewing through CPU.\nThe network connection is still live.';
+            }
+            return styled(d, 'dim');
+        }
+
+        /* ═══════════════════════════════════════
+           EVENTS
+           ═══════════════════════════════════════ */
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'galleryOverlay') hideGallery();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideGallery();
+        });
+
+        return { init, showGallery, hideGallery };
+    })();
+
+    document.addEventListener('DOMContentLoaded', Game.init);
+    </script>
+</body>
+</html>
