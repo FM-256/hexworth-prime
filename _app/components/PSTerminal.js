@@ -103,6 +103,7 @@ const PSTerminal = (function() {
 
         // Callbacks for lab integration
         onCommand: null,          // Called after command execution: (cmd, args, params, output)
+        onObjectiveComplete: null, // Called when an objective is completed: (objectiveId)
     };
 
     /**
@@ -165,6 +166,44 @@ const PSTerminal = (function() {
         vmSwitches: {},    // Virtual switches
         clusterNodes: {},  // Failover cluster nodes
         containers: {},    // Docker containers
+
+        // DNS Server state
+        dnsZones: {},      // DNS zones
+        dnsForwarders: [], // DNS forwarders
+
+        // DHCP Server state
+        dhcpScopes: [],    // DHCP scopes
+
+        // Group Policy state
+        gpos: [],          // Group Policy Objects
+        gpLinks: [],       // GPO links
+
+        // IIS/Web Server state
+        iisSites: [],      // IIS websites
+        iisAppPools: [],   // Application pools
+
+        // Remote Desktop Services state
+        rdsCollections: [],  // Session collections
+        rdsSessions: [],     // Active sessions
+        rdsLicensing: {},    // Licensing config
+
+        // Certificate Services state
+        caTemplates: [],     // CA templates
+        localCerts: [],      // Local certificate store
+
+        // AD Replication state
+        adSites: [],         // AD sites
+        adSubnets: [],       // AD subnets
+        adSiteLinks: [],     // AD site links
+
+        // Windows Backup state
+        backupPolicy: null,  // Current backup policy
+        backupTarget: null,  // Backup target
+        backups: [],         // Backup history
+
+        // Windows Firewall state
+        firewallRules: [],     // Firewall rules
+        firewallProfiles: {},  // Firewall profiles
 
         // Lab/objective tracking
         objectives: [],
@@ -2226,6 +2265,7 @@ This is why we never run out of black budget money.
         if (options.startDir) config.startDir = options.startDir;
         if (options.prompt) config.prompt = options.prompt;
         if (options.onCommand) config.onCommand = options.onCommand;
+        if (options.onObjectiveComplete) config.onObjectiveComplete = options.onObjectiveComplete;
 
         // Update environment to match config
         state.env.COMPUTERNAME = config.hostname;
@@ -2253,8 +2293,49 @@ This is why we never run out of black budget money.
         state.vms = JSON.parse(JSON.stringify(BASE_VMS));
         state.vmSwitches = JSON.parse(JSON.stringify(BASE_VM_SWITCHES));
 
+        // Reset domain-specific state
+        state.dnsZones = {};
+        state.dnsForwarders = [];
+        state.dhcpScopes = [];
+        state.gpos = [];
+        state.gpLinks = [];
+        state.iisSites = [];
+        state.iisAppPools = [];
+        state.rdsCollections = [];
+        state.rdsSessions = [];
+        state.rdsLicensing = {};
+        state.caTemplates = [];
+        state.localCerts = [];
+        state.adSites = [];
+        state.adSubnets = [];
+        state.adSiteLinks = [];
+        state.backupPolicy = null;
+        state.backupTarget = null;
+        state.backups = [];
+        state.firewallRules = [];
+        state.firewallProfiles = {};
+
         // Apply module-specific overlays if available
         _applyModuleOverlay(moduleId);
+
+        // Apply options-based overrides (takes precedence over MODULE_OVERLAYS)
+        if (options.objectives) {
+            state.objectives = options.objectives;
+            state.objectivesCompleted = {};
+        }
+        if (options.initialState) {
+            for (const [key, value] of Object.entries(options.initialState)) {
+                if (state.hasOwnProperty(key)) {
+                    if (Array.isArray(value)) {
+                        state[key] = JSON.parse(JSON.stringify(value));
+                    } else if (typeof value === 'object' && value !== null) {
+                        Object.assign(state[key], JSON.parse(JSON.stringify(value)));
+                    } else {
+                        state[key] = value;
+                    }
+                }
+            }
+        }
 
         // Initialize WSAState if available (for GUISimulator integration)
         _initWSAState();
@@ -2349,6 +2430,106 @@ This is why we never run out of black budget money.
                 { id: 'get-vm', desc: 'List VMs with Get-VM' },
                 { id: 'start-vm', desc: 'Start a VM with Start-VM' },
                 { id: 'checkpoint', desc: 'Create checkpoint with Checkpoint-VM' },
+            ],
+        },
+        'WSA-M08': {
+            // Module 08: DNS
+            objectives: [
+                { id: 'get-dnsserverzone', desc: 'List DNS zones with Get-DnsServerZone' },
+                { id: 'get-dnsserverresourcerecord', desc: 'View zone records with Get-DnsServerResourceRecord' },
+                { id: 'add-dnsserverrecord', desc: 'Create A record with Add-DnsServerResourceRecordA' },
+                { id: 'resolve-dnsname', desc: 'Test DNS with Resolve-DnsName' },
+                { id: 'set-dnsserverforwarder', desc: 'Configure forwarder with Set-DnsServerForwarder' },
+            ],
+        },
+        'WSA-M09': {
+            // Module 09: DHCP
+            objectives: [
+                { id: 'get-dhcpserverv4scope', desc: 'View DHCP scopes' },
+                { id: 'add-dhcpserverv4scope', desc: 'Create new DHCP scope' },
+                { id: 'add-dhcpserverv4reservation', desc: 'Add DHCP reservation' },
+                { id: 'get-dhcpserverv4lease', desc: 'View active leases' },
+                { id: 'set-dhcpserverv4optionvalue', desc: 'Configure scope options' },
+            ],
+        },
+        'WSA-M10': {
+            // Module 10: Group Policy
+            objectives: [
+                { id: 'get-gpo', desc: 'List GPOs with Get-GPO -All' },
+                { id: 'new-gpo', desc: 'Create GPO with New-GPO' },
+                { id: 'new-gplink', desc: 'Link GPO with New-GPLink' },
+                { id: 'get-gporeport', desc: 'Generate report with Get-GPOReport' },
+                { id: 'backup-gpo', desc: 'Backup GPO with Backup-GPO' },
+            ],
+        },
+        'WSA-M11': {
+            // Module 11: IIS
+            objectives: [
+                { id: 'get-website', desc: 'List websites with Get-Website' },
+                { id: 'new-website', desc: 'Create website with New-Website' },
+                { id: 'new-webapppool', desc: 'Create app pool with New-WebAppPool' },
+                { id: 'new-webbinding-https', desc: 'Add HTTPS binding with New-WebBinding' },
+                { id: 'set-webconfigurationproperty', desc: 'Configure authentication' },
+            ],
+        },
+        'WSA-M12': {
+            // Module 12: Remote Desktop Services
+            objectives: [
+                { id: 'get-rdsessioncollection', desc: 'List session collections' },
+                { id: 'new-rdsessioncollection', desc: 'Create session collection' },
+                { id: 'new-rdremoteapp', desc: 'Publish RemoteApp' },
+                { id: 'get-rdusersession', desc: 'View active sessions' },
+                { id: 'set-rdlicenseconfiguration', desc: 'Configure RD licensing' },
+            ],
+        },
+        'WSA-M13': {
+            // Module 13: Certificate Services
+            objectives: [
+                { id: 'get-catemplate', desc: 'List CA templates' },
+                { id: 'get-certificate', desc: 'Request certificate' },
+                { id: 'get-childitem-cert', desc: 'View local certificates' },
+                { id: 'publish-crl', desc: 'Publish CRL' },
+                { id: 'backup-caroleservice', desc: 'Backup CA' },
+            ],
+        },
+        'WSA-M14': {
+            // Module 14: Advanced Networking
+            objectives: [
+                { id: 'get-netadapter', desc: 'List network adapters' },
+                { id: 'new-netlbfoteam', desc: 'Create NIC team' },
+                { id: 'new-netfirewallrule', desc: 'Add firewall rule' },
+                { id: 'test-netconnection', desc: 'Test connectivity' },
+                { id: 'new-netnat', desc: 'Create NAT configuration' },
+            ],
+        },
+        'WSA-M15': {
+            // Module 15: AD Sites & Replication
+            objectives: [
+                { id: 'get-adreplicationsite', desc: 'List AD sites' },
+                { id: 'new-adreplicationsite', desc: 'Create AD site' },
+                { id: 'new-adreplicationsubnet', desc: 'Add subnet' },
+                { id: 'configure-sitelink', desc: 'Configure site link' },
+                { id: 'check-replication', desc: 'Check replication status' },
+            ],
+        },
+        'WSA-M16': {
+            // Module 16: Backup & Recovery
+            objectives: [
+                { id: 'new-wbpolicy', desc: 'Create backup policy' },
+                { id: 'add-wbbackuptarget', desc: 'Add backup target' },
+                { id: 'start-wbbackup', desc: 'Execute backup' },
+                { id: 'get-wbbackupset', desc: 'View backup history' },
+                { id: 'vssadmin-list-writers', desc: 'List VSS writers' },
+            ],
+        },
+        'WSA-M17': {
+            // Module 17: Firewall & Security
+            objectives: [
+                { id: 'get-netfirewallprofile', desc: 'View firewall profiles' },
+                { id: 'create-firewallrule', desc: 'Create firewall rule' },
+                { id: 'get-netfirewallrule', desc: 'List firewall rules' },
+                { id: 'configure-logging', desc: 'Configure firewall logging' },
+                { id: 'test-netconnection', desc: 'Test connectivity' },
             ],
         },
     };
@@ -3465,6 +3646,264 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
                 return _cmdWbadmin(args, params);
 
             // ─────────────────────────────────────────────────────────────────
+            // DNS Server Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-dnsserverzone':
+                return _cmdGetDnsServerZone(args, params);
+
+            case 'get-dnsserverresourcerecord':
+                return _cmdGetDnsServerResourceRecord(args, params);
+
+            case 'add-dnsserverresourcerecorda':
+                return _cmdAddDnsServerResourceRecordA(args, params);
+
+            case 'set-dnsserverforwarder':
+                return _cmdSetDnsServerForwarder(args, params);
+
+            case 'get-dnsserverforwarder':
+                return _cmdGetDnsServerForwarder(args, params);
+
+            case 'clear-dnsservercache':
+                return _cmdClearDnsServerCache(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // DHCP Server Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-dhcpserverv4scope':
+                return _cmdGetDhcpServerv4Scope(args, params);
+
+            case 'add-dhcpserverv4scope':
+                return _cmdAddDhcpServerv4Scope(args, params);
+
+            case 'get-dhcpserverv4lease':
+                return _cmdGetDhcpServerv4Lease(args, params);
+
+            case 'add-dhcpserverv4reservation':
+                return _cmdAddDhcpServerv4Reservation(args, params);
+
+            case 'get-dhcpserverv4reservation':
+                return _cmdGetDhcpServerv4Reservation(args, params);
+
+            case 'set-dhcpserverv4optionvalue':
+                return _cmdSetDhcpServerv4OptionValue(args, params);
+
+            case 'get-dhcpserverv4optionvalue':
+                return _cmdGetDhcpServerv4OptionValue(args, params);
+
+            case 'get-dhcpserverv4scopestatistics':
+                return _cmdGetDhcpServerv4ScopeStatistics(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Group Policy Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-gpo':
+                return _cmdGetGPO(args, params);
+
+            case 'new-gpo':
+                return _cmdNewGPO(args, params);
+
+            case 'new-gplink':
+                return _cmdNewGPLink(args, params);
+
+            case 'get-gporeport':
+                return _cmdGetGPOReport(args, params);
+
+            case 'backup-gpo':
+                return _cmdBackupGPO(args, params);
+
+            case 'gpupdate':
+                return _cmdGpupdate(args, params);
+
+            case 'gpresult':
+                return _cmdGpresult(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // IIS / Web Server Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-website':
+                return _cmdGetWebsite(args, params);
+
+            case 'new-website':
+                return _cmdNewWebsite(args, params);
+
+            case 'get-webapppool':
+                return _cmdGetWebAppPool(args, params);
+
+            case 'new-webapppool':
+                return _cmdNewWebAppPool(args, params);
+
+            case 'get-webbinding':
+                return _cmdGetWebBinding(args, params);
+
+            case 'new-webbinding':
+                return _cmdNewWebBinding(args, params);
+
+            case 'set-webconfigurationproperty':
+                return _cmdSetWebConfigurationProperty(args, params);
+
+            case 'start-website':
+                return _cmdStartWebsite(args, params);
+
+            case 'stop-website':
+                return _cmdStopWebsite(args, params);
+
+            case 'remove-website':
+                return _cmdRemoveWebsite(args, params);
+
+            case 'import-module':
+                return _cmdImportModule(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Remote Desktop Services Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-rdsessioncollection':
+                return _cmdGetRDSessionCollection(args, params);
+
+            case 'new-rdsessioncollection':
+                return _cmdNewRDSessionCollection(args, params);
+
+            case 'get-rdremoteapp':
+                return _cmdGetRDRemoteApp(args, params);
+
+            case 'new-rdremoteapp':
+                return _cmdNewRDRemoteApp(args, params);
+
+            case 'get-rdusersession':
+                return _cmdGetRDUserSession(args, params);
+
+            case 'get-rdsessionhost':
+                return _cmdGetRDSessionHost(args, params);
+
+            case 'set-rdlicenseconfiguration':
+                return _cmdSetRDLicenseConfiguration(args, params);
+
+            case 'get-rdlicenseconfiguration':
+                return _cmdGetRDLicenseConfiguration(args, params);
+
+            case 'disconnect-rdusersession':
+                return _cmdDisconnectRDUserSession(args, params);
+
+            case 'invoke-rdusersessionlogoff':
+                return _cmdInvokeRDUserSessionLogoff(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Certificate Services Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-catemplate':
+                return _cmdGetCATemplate(args, params);
+
+            case 'get-certificate':
+                return _cmdGetCertificate(args, params);
+
+            case 'publish-crl':
+                return _cmdPublishCRL(args, params);
+
+            case 'backup-caroleservice':
+                return _cmdBackupCARoleService(args, params);
+
+            case 'certutil':
+                return _cmdCertutil(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // AD Replication / Sites Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-adreplicationsite':
+                return _cmdGetADReplicationSite(args, params);
+
+            case 'new-adreplicationsite':
+                return _cmdNewADReplicationSite(args, params);
+
+            case 'get-adreplicationsubnet':
+                return _cmdGetADReplicationSubnet(args, params);
+
+            case 'new-adreplicationsubnet':
+                return _cmdNewADReplicationSubnet(args, params);
+
+            case 'get-adreplicationsitelink':
+                return _cmdGetADReplicationSiteLink(args, params);
+
+            case 'new-adreplicationsitelink':
+                return _cmdNewADReplicationSiteLink(args, params);
+
+            case 'set-adreplicationsitelink':
+                return _cmdSetADReplicationSiteLink(args, params);
+
+            case 'get-adreplicationfailure':
+                return _cmdGetADReplicationFailure(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Windows Backup Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'new-wbpolicy':
+                return _cmdNewWBPolicy(args, params);
+
+            case 'new-wbbackuptarget':
+                return _cmdNewWBBackupTarget(args, params);
+
+            case 'add-wbbackuptarget':
+                return _cmdAddWBBackupTarget(args, params);
+
+            case 'add-wbbaremetalrecovery':
+                return _cmdAddWBBareMetalRecovery(args, params);
+
+            case 'add-wbsystemstate':
+                return _cmdAddWBSystemState(args, params);
+
+            case 'start-wbbackup':
+                return _cmdStartWBBackup(args, params);
+
+            case 'get-wbbackupset':
+                return _cmdGetWBBackupSet(args, params);
+
+            case 'get-wbsummary':
+                return _cmdGetWBSummary(args, params);
+
+            case 'vssadmin':
+                return _cmdVssadmin(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Windows Firewall Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'get-netfirewallprofile':
+                return _cmdGetNetFirewallProfile(args, params);
+
+            case 'set-netfirewallprofile':
+                return _cmdSetNetFirewallProfile(args, params);
+
+            case 'new-netfirewallrule':
+                return _cmdNewNetFirewallRule(args, params);
+
+            case 'get-netfirewallrule':
+                return _cmdGetNetFirewallRule(args, params);
+
+            case 'enable-netfirewallrule':
+                return _cmdEnableNetFirewallRule(args, params);
+
+            case 'disable-netfirewallrule':
+                return _cmdDisableNetFirewallRule(args, params);
+
+            case 'remove-netfirewallrule':
+                return _cmdRemoveNetFirewallRule(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
+            // Advanced Networking Commands
+            // ─────────────────────────────────────────────────────────────────
+            case 'new-netlbfoteam':
+                return _cmdNewNetLbfoTeam(args, params);
+
+            case 'get-netlbfoteam':
+                return _cmdGetNetLbfoTeam(args, params);
+
+            case 'new-netnat':
+                return _cmdNewNetNat(args, params);
+
+            case 'get-netnat':
+                return _cmdGetNetNat(args, params);
+
+            case 'get-netroute':
+                return _cmdGetNetRoute(args, params);
+
+            // ─────────────────────────────────────────────────────────────────
             // Pipeline / Formatting Commands
             // ─────────────────────────────────────────────────────────────────
             case 'where-object':
@@ -3591,6 +4030,20 @@ At line:1 char:1
      */
     function _cmdGetChildItem(args, params) {
         const targetPath = params.Path || args[0] || state.currentDir;
+
+        // Handle cert:\ paths for certificate store browsing
+        if (targetPath.toLowerCase().startsWith('cert:')) {
+            _checkObjective('get-childitem-cert');
+            if (state.localCerts && state.localCerts.length > 0) {
+                let output = `\n    Directory: ${targetPath}\n\nThumbprint                               Subject\n----------                               -------\n`;
+                state.localCerts.forEach(c => {
+                    output += `${(c.thumbprint || '').padEnd(41)}${c.subject || ''}\n`;
+                });
+                return output;
+            }
+            return `\n    Directory: ${targetPath}\n\n(empty)`;
+        }
+
         const resolved = _resolvePath(targetPath);
         const showHidden = params.Force || params.Hidden;
 
@@ -5941,6 +6394,7 @@ SharedVolumeInfo:
     function _cmdTestNetConnection(args, params) {
         const computer = params.ComputerName || args[0] || 'internetbeacon.msedge.net';
         const port = params.Port;
+        _checkObjective('test-netconnection');
 
         let output = `
 ComputerName           : ${computer}
@@ -5966,6 +6420,7 @@ PingReplyDetails (RTT) : 5 ms
      * Get-NetAdapter - List network adapters
      */
     function _cmdGetNetAdapter(args, params) {
+        _checkObjective('get-netadapter');
         return `
 Name                      InterfaceDescription                    ifIndex Status       MacAddress             LinkSpeed
 ----                      --------------------                    ------- ------       ----------             ---------
@@ -6020,7 +6475,26 @@ DNSServer            : 192.168.1.10, 192.168.1.11`;
             return `<span class="ps-error">Resolve-DnsName : Cannot bind argument to parameter 'Name'.</span>`;
         }
 
-        // Simulate DNS response
+        _checkObjective('resolve-dnsname');
+
+        // Simulate DNS response - check DNS zones first
+        if (state.dnsZones) {
+            for (const [zoneName, zone] of Object.entries(state.dnsZones)) {
+                const records = zone.records || [];
+                const match = records.find(r => {
+                    const fqdn = r.name === '@' ? zoneName : `${r.name}.${zoneName}`;
+                    return fqdn.toLowerCase() === name.toLowerCase();
+                });
+                if (match) {
+                    return `
+Name                           Type   TTL   Section    IPAddress
+----                           ----   ---   -------    ---------
+${name.padEnd(31)}${(match.type || 'A').padEnd(7)}300   Answer     ${match.data}`;
+                }
+            }
+        }
+
+        // Fallback to hardcoded records
         const records = {
             'dc01.hexworth.local': '192.168.1.10',
             'hexworth.local': '192.168.1.10',
@@ -6884,6 +7358,1188 @@ Last backup: 2/8/2026 2:00 AM (Successful)`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // DNS SERVER COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetDnsServerZone(args, params) {
+        const zones = Object.entries(state.dnsZones);
+        if (zones.length === 0) {
+            return `<span class="ps-warning">No DNS zones configured.</span>`;
+        }
+        _checkObjective('get-dnsserverzone');
+        let output = `\nZoneName                      ZoneType      IsAutoCreated  IsDsIntegrated  IsReverseLookupZone\n--------                      --------      -------------  --------------  -------------------\n`;
+        zones.forEach(([name, zone]) => {
+            output += `${name.padEnd(30)}${(zone.type || 'Primary').padEnd(14)}${(zone.autoCreated ? 'True' : 'False').padEnd(15)}${(zone.dsIntegrated ? 'True' : 'False').padEnd(16)}${zone.reverse ? 'True' : 'False'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdGetDnsServerResourceRecord(args, params) {
+        const zoneName = params.ZoneName || args[0];
+        if (!zoneName) {
+            return `<span class="ps-error">Get-DnsServerResourceRecord : -ZoneName parameter is required.</span>`;
+        }
+        const zone = state.dnsZones[zoneName];
+        if (!zone) {
+            return `<span class="ps-error">Get-DnsServerResourceRecord : Zone '${zoneName}' not found.</span>`;
+        }
+        _checkObjective('get-dnsserverresourcerecord');
+        const records = zone.records || [];
+        if (records.length === 0) {
+            return `No records found in zone '${zoneName}'.`;
+        }
+        let output = `\nHostName                  RecordType  RecordData\n--------                  ----------  ----------\n`;
+        records.forEach(r => {
+            output += `${(r.name || '@').padEnd(26)}${(r.type || 'A').padEnd(12)}${r.data || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdAddDnsServerResourceRecordA(args, params) {
+        const zoneName = params.ZoneName || '';
+        const name = params.Name || '';
+        const ip = params.IPv4Address || '';
+        if (!zoneName || !name || !ip) {
+            return `<span class="ps-error">Add-DnsServerResourceRecordA : -ZoneName, -Name, and -IPv4Address parameters are required.</span>`;
+        }
+        if (!state.dnsZones[zoneName]) {
+            return `<span class="ps-error">Add-DnsServerResourceRecordA : Zone '${zoneName}' not found.</span>`;
+        }
+        if (!state.dnsZones[zoneName].records) {
+            state.dnsZones[zoneName].records = [];
+        }
+        state.dnsZones[zoneName].records.push({ name: name, type: 'A', data: ip });
+        _checkObjective('add-dnsserverrecord');
+        return `<span class="ps-success">DNS A record created: ${name}.${zoneName} -> ${ip}</span>`;
+    }
+
+    function _cmdSetDnsServerForwarder(args, params) {
+        const ip = params.IPAddress || args[0];
+        if (!ip) {
+            return `<span class="ps-error">Set-DnsServerForwarder : -IPAddress parameter is required.</span>`;
+        }
+        state.dnsForwarders = [ip];
+        _checkObjective('set-dnsserverforwarder');
+        return `<span class="ps-success">DNS forwarder configured: ${ip}</span>`;
+    }
+
+    function _cmdGetDnsServerForwarder(args, params) {
+        if (state.dnsForwarders.length === 0) {
+            return `No forwarders configured.`;
+        }
+        let output = `\nIPAddress        UseRootHint\n---------        -----------\n`;
+        state.dnsForwarders.forEach(ip => {
+            output += `${ip.padEnd(17)}True\n`;
+        });
+        return output;
+    }
+
+    function _cmdClearDnsServerCache(args, params) {
+        _checkObjective('clear-dnsservercache');
+        return `<span class="ps-success">DNS server cache cleared successfully.</span>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DHCP SERVER COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetDhcpServerv4Scope(args, params) {
+        if (state.dhcpScopes.length === 0) {
+            return `<span class="ps-warning">No DHCP scopes configured.</span>`;
+        }
+        _checkObjective('get-dhcpserverv4scope');
+        let output = `\nScopeId          SubnetMask        Name                          State    StartRange        EndRange          LeaseDuration\n-------          ----------        ----                          -----    ----------        --------          -------------\n`;
+        state.dhcpScopes.forEach(s => {
+            output += `${(s.scopeId || '').padEnd(17)}${(s.subnetMask || '255.255.255.0').padEnd(18)}${(s.name || '').padEnd(30)}${(s.state || 'Active').padEnd(9)}${(s.startRange || '').padEnd(18)}${(s.endRange || '').padEnd(18)}${s.leaseDuration || '8.00:00:00'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdAddDhcpServerv4Scope(args, params) {
+        const name = params.Name || '';
+        const startRange = params.StartRange || '';
+        const endRange = params.EndRange || '';
+        const subnetMask = params.SubnetMask || '255.255.255.0';
+        if (!name || !startRange || !endRange) {
+            return `<span class="ps-error">Add-DhcpServerv4Scope : -Name, -StartRange, and -EndRange parameters are required.</span>`;
+        }
+        const scopeId = startRange.split('.').slice(0, 3).join('.') + '.0';
+        const existing = state.dhcpScopes.find(s => s.scopeId === scopeId);
+        if (existing) {
+            return `<span class="ps-error">Add-DhcpServerv4Scope : Scope '${scopeId}' already exists.</span>`;
+        }
+        state.dhcpScopes.push({
+            scopeId, subnetMask, name, state: 'Active', startRange, endRange,
+            leaseDuration: '8.00:00:00', options: {}, leases: [], reservations: []
+        });
+        _checkObjective('add-dhcpserverv4scope');
+        return `<span class="ps-success">DHCP scope '${name}' (${scopeId}) created successfully.</span>`;
+    }
+
+    function _cmdGetDhcpServerv4Lease(args, params) {
+        const scopeId = params.ScopeId || '';
+        _checkObjective('get-dhcpserverv4lease');
+        const scopes = scopeId ? state.dhcpScopes.filter(s => s.scopeId === scopeId) : state.dhcpScopes;
+        let allLeases = [];
+        scopes.forEach(s => { if (s.leases) allLeases = allLeases.concat(s.leases); });
+        if (allLeases.length === 0) {
+            return `No active leases found.`;
+        }
+        let output = `\nIPAddress          ClientId               HostName            LeaseExpiryTime\n---------          --------               --------            ---------------\n`;
+        allLeases.forEach(l => {
+            output += `${(l.ip || '').padEnd(19)}${(l.clientId || '').padEnd(23)}${(l.hostname || '').padEnd(20)}${l.expiry || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdAddDhcpServerv4Reservation(args, params) {
+        const scopeId = params.ScopeId || '';
+        const ip = params.IPAddress || '';
+        const clientId = params.ClientId || '';
+        const name = params.Name || params.Description || '';
+        if (!scopeId || !ip || !clientId) {
+            return `<span class="ps-error">Add-DhcpServerv4Reservation : -ScopeId, -IPAddress, and -ClientId parameters are required.</span>`;
+        }
+        const scope = state.dhcpScopes.find(s => s.scopeId === scopeId);
+        if (!scope) {
+            return `<span class="ps-error">Add-DhcpServerv4Reservation : Scope '${scopeId}' not found.</span>`;
+        }
+        if (!scope.reservations) scope.reservations = [];
+        scope.reservations.push({ ip, clientId, name, scopeId });
+        _checkObjective('add-dhcpserverv4reservation');
+        return `<span class="ps-success">DHCP reservation created: ${ip} -> ${clientId} (${name || 'N/A'})</span>`;
+    }
+
+    function _cmdGetDhcpServerv4Reservation(args, params) {
+        const scopeId = params.ScopeId || '';
+        const scopes = scopeId ? state.dhcpScopes.filter(s => s.scopeId === scopeId) : state.dhcpScopes;
+        let allRes = [];
+        scopes.forEach(s => { if (s.reservations) allRes = allRes.concat(s.reservations); });
+        if (allRes.length === 0) {
+            return `No reservations found.`;
+        }
+        let output = `\nIPAddress          ClientId               Name                ScopeId\n---------          --------               ----                -------\n`;
+        allRes.forEach(r => {
+            output += `${(r.ip || '').padEnd(19)}${(r.clientId || '').padEnd(23)}${(r.name || '').padEnd(20)}${r.scopeId || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdSetDhcpServerv4OptionValue(args, params) {
+        const scopeId = params.ScopeId || '';
+        if (!scopeId) {
+            return `<span class="ps-error">Set-DhcpServerv4OptionValue : -ScopeId parameter is required.</span>`;
+        }
+        const scope = state.dhcpScopes.find(s => s.scopeId === scopeId);
+        if (!scope) {
+            return `<span class="ps-error">Set-DhcpServerv4OptionValue : Scope '${scopeId}' not found.</span>`;
+        }
+        if (!scope.options) scope.options = {};
+        let changes = [];
+        if (params.Router) { scope.options.router = params.Router; changes.push(`Router: ${params.Router}`); }
+        if (params.DnsServer) { scope.options.dnsServer = params.DnsServer; changes.push(`DNS Server: ${params.DnsServer}`); }
+        if (params.DnsDomain) { scope.options.dnsDomain = params.DnsDomain; changes.push(`DNS Domain: ${params.DnsDomain}`); }
+        if (changes.length === 0) {
+            return `<span class="ps-error">Set-DhcpServerv4OptionValue : Specify -Router, -DnsServer, or -DnsDomain.</span>`;
+        }
+        _checkObjective('set-dhcpserverv4optionvalue');
+        return `<span class="ps-success">DHCP scope options updated for ${scopeId}:\n${changes.join('\n')}</span>`;
+    }
+
+    function _cmdGetDhcpServerv4OptionValue(args, params) {
+        const scopeId = params.ScopeId || '';
+        if (!scopeId) {
+            return `<span class="ps-error">Get-DhcpServerv4OptionValue : -ScopeId parameter is required.</span>`;
+        }
+        const scope = state.dhcpScopes.find(s => s.scopeId === scopeId);
+        if (!scope) {
+            return `<span class="ps-error">Get-DhcpServerv4OptionValue : Scope '${scopeId}' not found.</span>`;
+        }
+        const opts = scope.options || {};
+        let output = `\nOptionId  Name                Value                  VendorClass\n--------  ----                -----                  -----------\n`;
+        if (opts.router) output += `003       Router              {${opts.router}}          Standard\n`;
+        if (opts.dnsServer) output += `006       DNS Servers         {${opts.dnsServer}}     Standard\n`;
+        if (opts.dnsDomain) output += `015       DNS Domain Name     ${opts.dnsDomain}        Standard\n`;
+        if (!opts.router && !opts.dnsServer && !opts.dnsDomain) {
+            return `No options configured for scope '${scopeId}'.`;
+        }
+        return output;
+    }
+
+    function _cmdGetDhcpServerv4ScopeStatistics(args, params) {
+        const scopeId = params.ScopeId || '';
+        const scopes = scopeId ? state.dhcpScopes.filter(s => s.scopeId === scopeId) : state.dhcpScopes;
+        if (scopes.length === 0) {
+            return `No DHCP scopes found.`;
+        }
+        let output = `\nScopeId          AddressesFree  AddressesInUse  PercentageInUse\n-------          -------------  --------------  ---------------\n`;
+        scopes.forEach(s => {
+            const inUse = (s.leases || []).length;
+            const total = 254;
+            const free = total - inUse;
+            const pct = ((inUse / total) * 100).toFixed(1);
+            output += `${(s.scopeId || '').padEnd(17)}${String(free).padEnd(15)}${String(inUse).padEnd(16)}${pct}%\n`;
+        });
+        return output;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP POLICY COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetGPO(args, params) {
+        const all = params.All !== undefined || args.includes('-all');
+        const name = params.Name || '';
+        if (!all && !name) {
+            return `Usage: Get-GPO -All  or  Get-GPO -Name "<name>"`;
+        }
+        if (all) {
+            _checkObjective('get-gpo');
+            if (state.gpos.length === 0) {
+                return `No GPOs found in domain.`;
+            }
+            let output = `\nDisplayName                              DomainName          Owner                         Id\n-----------                              ----------          -----                         --\n`;
+            state.gpos.forEach(g => {
+                output += `${(g.name || '').padEnd(41)}${(config.domain).padEnd(20)}${('HEXWORTH\\Domain Admins').padEnd(30)}${g.id || ''}\n`;
+            });
+            return output;
+        }
+        const gpo = state.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
+        if (!gpo) {
+            return `<span class="ps-error">Get-GPO : A GPO with the name '${name}' was not found.</span>`;
+        }
+        return `\nDisplayName      : ${gpo.name}\nDomainName       : ${config.domain}\nOwner            : HEXWORTH\\Domain Admins\nId               : ${gpo.id}\nGpoStatus        : ${gpo.status || 'AllSettingsEnabled'}\nCreationTime     : ${gpo.created || new Date().toISOString()}\nModificationTime : ${gpo.modified || new Date().toISOString()}`;
+    }
+
+    function _cmdNewGPO(args, params) {
+        const name = params.Name || '';
+        if (!name) {
+            return `<span class="ps-error">New-GPO : -Name parameter is required.</span>`;
+        }
+        const existing = state.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            return `<span class="ps-error">New-GPO : A GPO with the name '${name}' already exists.</span>`;
+        }
+        const id = _generateGUID();
+        const now = new Date().toISOString();
+        state.gpos.push({ name, id, status: 'AllSettingsEnabled', created: now, modified: now, links: [] });
+        _checkObjective('new-gpo');
+        return `<span class="ps-success">\nDisplayName      : ${name}\nDomainName       : ${config.domain}\nOwner            : HEXWORTH\\Domain Admins\nId               : ${id}\nGpoStatus        : AllSettingsEnabled\nCreationTime     : ${now}\nModificationTime : ${now}</span>`;
+    }
+
+    function _cmdNewGPLink(args, params) {
+        const name = params.Name || '';
+        const target = params.Target || '';
+        if (!name || !target) {
+            return `<span class="ps-error">New-GPLink : -Name and -Target parameters are required.</span>`;
+        }
+        const gpo = state.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
+        if (!gpo) {
+            return `<span class="ps-error">New-GPLink : GPO '${name}' not found.</span>`;
+        }
+        if (!gpo.links) gpo.links = [];
+        gpo.links.push(target);
+        _checkObjective('new-gplink');
+        return `<span class="ps-success">\nGpoId       : ${gpo.id}\nDisplayName : ${gpo.name}\nEnabled     : True\nEnforced    : False\nTarget      : ${target}</span>`;
+    }
+
+    function _cmdGetGPOReport(args, params) {
+        const name = params.Name || '';
+        if (!name) {
+            return `<span class="ps-error">Get-GPOReport : -Name parameter is required.</span>`;
+        }
+        const gpo = state.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
+        if (!gpo) {
+            return `<span class="ps-error">Get-GPOReport : GPO '${name}' not found.</span>`;
+        }
+        _checkObjective('get-gporeport');
+        return `
+═══════════════════════════════════════════════
+GPO Report: ${gpo.name}
+═══════════════════════════════════════════════
+Created     : ${gpo.created || new Date().toISOString()}
+Modified    : ${gpo.modified || new Date().toISOString()}
+Owner       : HEXWORTH\\Domain Admins
+Status      : ${gpo.status || 'AllSettingsEnabled'}
+Links       : ${(gpo.links || []).join(', ') || 'None'}
+
+── COMPUTER CONFIGURATION ──────────────────────
+  Policies
+    Administrative Templates
+      System > Group Policy
+        Configure Group Policy Caching .... Enabled
+      Windows Components > Windows Update
+        Configure Automatic Updates ....... Enabled (4 - Auto download and schedule)
+
+── USER CONFIGURATION ──────────────────────────
+  Policies
+    Administrative Templates
+      Desktop
+        Remove Recycle Bin icon ........... Not configured
+      Start Menu and Taskbar
+        Remove Run menu .................. Not configured`;
+    }
+
+    function _cmdBackupGPO(args, params) {
+        const name = params.Name || '';
+        const path = params.Path || 'C:\\GPOBackups';
+        if (!name) {
+            return `<span class="ps-error">Backup-GPO : -Name parameter is required.</span>`;
+        }
+        const gpo = state.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
+        if (!gpo) {
+            return `<span class="ps-error">Backup-GPO : GPO '${name}' not found.</span>`;
+        }
+        _checkObjective('backup-gpo');
+        const backupId = _generateGUID();
+        return `<span class="ps-success">\nDisplayName     : ${gpo.name}\nGpoId           : ${gpo.id}\nId              : ${backupId}\nBackupDirectory : ${path}\nCreationTime    : ${new Date().toISOString()}\nDomainName      : ${config.domain}
+
+GPO '${gpo.name}' backed up successfully.</span>`;
+    }
+
+    function _cmdGpupdate(args, params) {
+        _checkObjective('gpupdate');
+        return `<span class="ps-success">Updating policy...
+
+Computer Policy update has completed successfully.
+User Policy update has completed successfully.</span>`;
+    }
+
+    function _cmdGpresult(args, params) {
+        _checkObjective('gpresult');
+        return `
+Microsoft (R) Windows (R) Operating System Group Policy Result tool v2.0
+(C) Microsoft Corporation.
+
+Created on ${new Date().toISOString()} for ${config.hostname}
+
+RSOP data for HEXWORTH\\Administrator on ${config.hostname}:
+
+── COMPUTER SETTINGS ───────────────────────────
+  Last time Group Policy was applied: ${new Date().toISOString()}
+  Applied Group Policy Objects:
+    ${state.gpos.map(g => g.name).join('\n    ') || 'Default Domain Policy'}
+    Default Domain Controllers Policy
+
+── USER SETTINGS ───────────────────────────────
+  Last time Group Policy was applied: ${new Date().toISOString()}
+  Applied Group Policy Objects:
+    Default Domain Policy`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // IIS / WEB SERVER COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetWebsite(args, params) {
+        _checkObjective('get-website');
+        if (state.iisSites.length === 0) {
+            return `<span class="ps-warning">No websites configured.</span>`;
+        }
+        let output = `\nName                      ID   State     Physical Path                              Bindings\n----                      --   -----     -------------                              --------\n`;
+        state.iisSites.forEach(s => {
+            const bindings = (s.bindings || []).map(b => `${b.protocol}/*:${b.port}:${b.hostHeader || ''}`).join(', ');
+            output += `${(s.name || '').padEnd(26)}${String(s.id || 1).padEnd(5)}${(s.state || 'Started').padEnd(10)}${(s.physicalPath || '').padEnd(43)}${bindings}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewWebsite(args, params) {
+        const name = params.Name || '';
+        if (!name) {
+            return `<span class="ps-error">New-Website : -Name parameter is required.</span>`;
+        }
+        const existing = state.iisSites.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            return `<span class="ps-error">New-Website : Website '${name}' already exists.</span>`;
+        }
+        const port = parseInt(params.Port) || 80;
+        const physicalPath = params.PhysicalPath || `C:\\inetpub\\${name}`;
+        const hostHeader = params.HostHeader || '';
+        const id = state.iisSites.length + 1;
+        state.iisSites.push({
+            name, id, state: 'Started', physicalPath, bindings: [{ protocol: 'http', port, hostHeader }]
+        });
+        _checkObjective('new-website');
+        return `<span class="ps-success">\nName            : ${name}\nID              : ${id}\nState           : Started\nPhysical Path   : ${physicalPath}\nBindings        : http/*:${port}:${hostHeader}</span>`;
+    }
+
+    function _cmdGetWebAppPool(args, params) {
+        if (state.iisAppPools.length === 0) {
+            return `<span class="ps-warning">No application pools configured.</span>`;
+        }
+        let output = `\nName                        State     ManagedRuntimeVersion\n----                        -----     ---------------------\n`;
+        state.iisAppPools.forEach(p => {
+            output += `${(p.name || '').padEnd(28)}${(p.state || 'Started').padEnd(10)}${p.runtime || 'v4.0'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewWebAppPool(args, params) {
+        const name = params.Name || '';
+        if (!name) {
+            return `<span class="ps-error">New-WebAppPool : -Name parameter is required.</span>`;
+        }
+        const existing = state.iisAppPools.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            return `<span class="ps-error">New-WebAppPool : Application pool '${name}' already exists.</span>`;
+        }
+        state.iisAppPools.push({ name, state: 'Started', runtime: 'v4.0' });
+        _checkObjective('new-webapppool');
+        return `<span class="ps-success">\nName                    : ${name}\nState                   : Started\nManagedRuntimeVersion   : v4.0</span>`;
+    }
+
+    function _cmdGetWebBinding(args, params) {
+        const siteName = params.Name || '';
+        const sites = siteName ? state.iisSites.filter(s => s.name.toLowerCase() === siteName.toLowerCase()) : state.iisSites;
+        let allBindings = [];
+        sites.forEach(s => {
+            (s.bindings || []).forEach(b => allBindings.push({ ...b, site: s.name }));
+        });
+        if (allBindings.length === 0) {
+            return `No bindings found.`;
+        }
+        let output = `\nprotocol  bindingInformation        sslFlags\n--------  ------------------        --------\n`;
+        allBindings.forEach(b => {
+            output += `${(b.protocol || 'http').padEnd(10)}${(`*:${b.port}:${b.hostHeader || ''}`).padEnd(26)}${b.sslFlags || '0'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewWebBinding(args, params) {
+        const name = params.Name || '';
+        if (!name) {
+            return `<span class="ps-error">New-WebBinding : -Name parameter is required.</span>`;
+        }
+        const site = state.iisSites.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (!site) {
+            return `<span class="ps-error">New-WebBinding : Website '${name}' not found.</span>`;
+        }
+        const protocol = params.Protocol || 'http';
+        const port = parseInt(params.Port) || (protocol === 'https' ? 443 : 80);
+        const hostHeader = params.HostHeader || '';
+        if (!site.bindings) site.bindings = [];
+        site.bindings.push({ protocol, port, hostHeader, sslFlags: protocol === 'https' ? '1' : '0' });
+        if (protocol.toLowerCase() === 'https') {
+            _checkObjective('new-webbinding-https');
+        }
+        _checkObjective('new-webbinding');
+        return `<span class="ps-success">Binding added: ${protocol}/*:${port}:${hostHeader}</span>`;
+    }
+
+    function _cmdSetWebConfigurationProperty(args, params) {
+        const value = params.Value || '';
+        const rawArgs = (args || []).join(' ').toLowerCase();
+        if (rawArgs.includes('windowsauthentication') || rawArgs.includes('authentication')) {
+            if (value.toLowerCase() === 'true') {
+                _checkObjective('set-webconfigurationproperty');
+                return `<span class="ps-success">Windows Authentication enabled successfully.</span>`;
+            } else {
+                return `Windows Authentication disabled.`;
+            }
+        }
+        _checkObjective('set-webconfigurationproperty');
+        return `<span class="ps-success">Web configuration property updated.</span>`;
+    }
+
+    function _cmdStartWebsite(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Start-Website : -Name parameter is required.</span>`;
+        }
+        const site = state.iisSites.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (!site) {
+            return `<span class="ps-error">Start-Website : Website '${name}' not found.</span>`;
+        }
+        site.state = 'Started';
+        return `<span class="ps-success">Website '${name}' started successfully.</span>`;
+    }
+
+    function _cmdStopWebsite(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Stop-Website : -Name parameter is required.</span>`;
+        }
+        const site = state.iisSites.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (!site) {
+            return `<span class="ps-error">Stop-Website : Website '${name}' not found.</span>`;
+        }
+        site.state = 'Stopped';
+        return `<span class="ps-success">Website '${name}' stopped successfully.</span>`;
+    }
+
+    function _cmdRemoveWebsite(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">Remove-Website : -Name parameter is required.</span>`;
+        }
+        const idx = state.iisSites.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+        if (idx === -1) {
+            return `<span class="ps-error">Remove-Website : Website '${name}' not found.</span>`;
+        }
+        state.iisSites.splice(idx, 1);
+        return `<span class="ps-success">Website '${name}' removed successfully.</span>`;
+    }
+
+    function _cmdImportModule(args, params) {
+        const moduleName = params.Name || args[0] || '';
+        return `<span class="ps-success">${moduleName || 'Module'} loaded successfully.</span>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REMOTE DESKTOP SERVICES COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetRDSessionCollection(args, params) {
+        _checkObjective('get-rdsessioncollection');
+        if (state.rdsCollections.length === 0) {
+            return `<span class="ps-warning">No session collections configured.</span>`;
+        }
+        let output = `\nCollectionName                ResourceType         CollectionType\n--------------                ------------         --------------\n`;
+        state.rdsCollections.forEach(c => {
+            output += `${(c.name || '').padEnd(30)}${(c.resourceType || 'RemoteDesktop').padEnd(21)}${c.type || 'PooledUnmanaged'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewRDSessionCollection(args, params) {
+        const name = params.CollectionName || '';
+        const host = params.SessionHost || config.hostname;
+        if (!name) {
+            return `<span class="ps-error">New-RDSessionCollection : -CollectionName parameter is required.</span>`;
+        }
+        state.rdsCollections.push({
+            name, sessionHost: host, resourceType: 'RemoteDesktop', type: 'PooledUnmanaged', remoteApps: []
+        });
+        _checkObjective('new-rdsessioncollection');
+        return `<span class="ps-success">\nCollectionName : ${name}\nSessionHost    : ${host}\nResourceType   : RemoteDesktop\nCollectionType : PooledUnmanaged\n\nSession collection '${name}' created successfully.</span>`;
+    }
+
+    function _cmdGetRDRemoteApp(args, params) {
+        const collName = params.CollectionName || '';
+        let apps = [];
+        const collections = collName ? state.rdsCollections.filter(c => c.name.toLowerCase() === collName.toLowerCase()) : state.rdsCollections;
+        collections.forEach(c => { if (c.remoteApps) apps = apps.concat(c.remoteApps); });
+        if (apps.length === 0) {
+            return `No RemoteApp programs found.`;
+        }
+        let output = `\nAlias             DisplayName                CollectionName\n-----             -----------                --------------\n`;
+        apps.forEach(a => {
+            output += `${(a.alias || '').padEnd(18)}${(a.displayName || '').padEnd(27)}${a.collection || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewRDRemoteApp(args, params) {
+        const collName = params.CollectionName || '';
+        const displayName = params.DisplayName || '';
+        const alias = params.Alias || displayName.replace(/\s+/g, '');
+        const filePath = params.FilePath || '';
+        if (!collName || !displayName) {
+            return `<span class="ps-error">New-RDRemoteApp : -CollectionName and -DisplayName parameters are required.</span>`;
+        }
+        const coll = state.rdsCollections.find(c => c.name.toLowerCase() === collName.toLowerCase());
+        if (!coll) {
+            return `<span class="ps-error">New-RDRemoteApp : Collection '${collName}' not found.</span>`;
+        }
+        if (!coll.remoteApps) coll.remoteApps = [];
+        coll.remoteApps.push({ alias, displayName, collection: collName, filePath });
+        _checkObjective('new-rdremoteapp');
+        return `<span class="ps-success">\nAlias          : ${alias}\nDisplayName    : ${displayName}\nCollectionName : ${collName}\nFilePath       : ${filePath || 'N/A'}\n\nRemoteApp '${displayName}' published successfully.</span>`;
+    }
+
+    function _cmdGetRDUserSession(args, params) {
+        _checkObjective('get-rdusersession');
+        if (state.rdsSessions.length === 0) {
+            return `No active RD sessions found.`;
+        }
+        let output = `\nUserName              HostServer       SessionId  SessionState   IdleTime\n--------              ----------       ---------  ------------   --------\n`;
+        state.rdsSessions.forEach(s => {
+            output += `${(s.userName || '').padEnd(22)}${(s.hostServer || config.hostname).padEnd(17)}${String(s.sessionId || 1).padEnd(11)}${(s.state || 'Active').padEnd(15)}${s.idleTime || '00:00:00'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdGetRDSessionHost(args, params) {
+        let output = `\nSessionHost          SessionsCount  NewConnectionsAllowed\n-----------          -------------  ---------------------\n`;
+        output += `${config.hostname.padEnd(21)}${String(state.rdsSessions.length).padEnd(15)}Yes\n`;
+        return output;
+    }
+
+    function _cmdSetRDLicenseConfiguration(args, params) {
+        const server = params.LicenseServer || '';
+        const mode = params.Mode || 'PerUser';
+        if (!server) {
+            return `<span class="ps-error">Set-RDLicenseConfiguration : -LicenseServer parameter is required.</span>`;
+        }
+        state.rdsLicensing = { server, mode };
+        _checkObjective('set-rdlicenseconfiguration');
+        return `<span class="ps-success">\nLicenseServer : ${server}\nMode          : ${mode}\n\nRD Licensing configuration updated successfully.</span>`;
+    }
+
+    function _cmdGetRDLicenseConfiguration(args, params) {
+        if (!state.rdsLicensing.server) {
+            return `LicenseServer : Not configured\nMode          : Not configured`;
+        }
+        return `\nLicenseServer : ${state.rdsLicensing.server}\nMode          : ${state.rdsLicensing.mode || 'PerUser'}`;
+    }
+
+    function _cmdDisconnectRDUserSession(args, params) {
+        const sessionId = parseInt(params.UnifiedSessionId || args[0]);
+        if (isNaN(sessionId)) {
+            return `<span class="ps-error">Disconnect-RDUserSession : -UnifiedSessionId parameter is required.</span>`;
+        }
+        const session = state.rdsSessions.find(s => s.sessionId === sessionId);
+        if (!session) {
+            return `<span class="ps-error">Disconnect-RDUserSession : Session ${sessionId} not found.</span>`;
+        }
+        session.state = 'Disconnected';
+        return `<span class="ps-success">Session ${sessionId} disconnected.</span>`;
+    }
+
+    function _cmdInvokeRDUserSessionLogoff(args, params) {
+        const sessionId = parseInt(params.UnifiedSessionId || args[0]);
+        if (isNaN(sessionId)) {
+            return `<span class="ps-error">Invoke-RDUserSessionLogoff : -UnifiedSessionId parameter is required.</span>`;
+        }
+        const idx = state.rdsSessions.findIndex(s => s.sessionId === sessionId);
+        if (idx === -1) {
+            return `<span class="ps-error">Invoke-RDUserSessionLogoff : Session ${sessionId} not found.</span>`;
+        }
+        state.rdsSessions.splice(idx, 1);
+        return `<span class="ps-success">Session ${sessionId} logged off.</span>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CERTIFICATE SERVICES COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetCATemplate(args, params) {
+        _checkObjective('get-catemplate');
+        if (state.caTemplates.length === 0) {
+            return `<span class="ps-warning">No CA templates available.</span>`;
+        }
+        let output = `\nName                   Oid\n----                   ---\n`;
+        state.caTemplates.forEach(t => {
+            output += `${(t.name || '').padEnd(23)}${t.oid || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdGetCertificate(args, params) {
+        const template = params.Template || '';
+        const subject = params.SubjectName || params.DnsName || 'CN=hexworth.local';
+        if (!template) {
+            // List local certs
+            if (state.localCerts.length === 0) {
+                return `No certificates found in local store.`;
+            }
+            let output = `\nThumbprint                               Subject\n----------                               -------\n`;
+            state.localCerts.forEach(c => {
+                output += `${(c.thumbprint || '').padEnd(41)}${c.subject || ''}\n`;
+            });
+            return output;
+        }
+        const thumbprint = _generateHexString(40);
+        const now = new Date();
+        const expiry = new Date(now.getTime() + 730 * 24 * 60 * 60 * 1000);
+        state.localCerts.push({
+            thumbprint, subject, template, notBefore: now.toISOString(),
+            notAfter: expiry.toISOString()
+        });
+        _checkObjective('get-certificate');
+        return `<span class="ps-success">\nStatus       : Issued\nThumbprint   : ${thumbprint}\nSubject      : ${subject}\nTemplate     : ${template}\nNotBefore    : ${now.toISOString()}\nNotAfter     : ${expiry.toISOString()}\n\nCertificate request completed successfully.</span>`;
+    }
+
+    function _cmdPublishCRL(args, params) {
+        _checkObjective('publish-crl');
+        const now = new Date();
+        const next = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        return `<span class="ps-success">\nCRL Information:\n  CA Name          : hexworth-${config.hostname}-CA\n  Publication Time  : ${now.toISOString()}\n  Next Update       : ${next.toISOString()}\n  CRL Number        : 42\n\nCRL published successfully.</span>`;
+    }
+
+    function _cmdBackupCARoleService(args, params) {
+        const path = params.Path || args.find(a => !a.startsWith('-')) || 'C:\\CABackup';
+        _checkObjective('backup-caroleservice');
+        return `<span class="ps-success">\nBacking up CA role service to: ${path}\n  CA private key .......... Done\n  CA database ............. Done\n  CA database logs ........ Done\n\nCA backup completed successfully.\nBackup location: ${path}</span>`;
+    }
+
+    function _cmdCertutil(args, params) {
+        const rawArgs = (args || []).join(' ').toLowerCase();
+        if (rawArgs.includes('-crl')) {
+            _checkObjective('publish-crl');
+            return `<span class="ps-success">CertUtil: -CRL command completed successfully.</span>`;
+        }
+        if (rawArgs.includes('-backup')) {
+            const path = rawArgs.match(/-backup\s+(\S+)/)?.[1] || 'C:\\CABackup';
+            _checkObjective('backup-caroleservice');
+            return `<span class="ps-success">CertUtil: -backup command completed successfully.\nBackup to: ${path}</span>`;
+        }
+        if (rawArgs.includes('-ca')) {
+            return `\nCA Name              : hexworth-${config.hostname}-CA\nCA Type              : Enterprise Subordinate\nServer               : ${config.hostname}.${config.domain}\nKey Length           : 4096\nHash Algorithm       : sha256\nStatus               : Running`;
+        }
+        if (rawArgs.includes('-view')) {
+            let output = `\nRow 1:\n  Serial Number: "6100000002"\n  Common Name: "${config.hostname}.${config.domain}"\n  Certificate Expiration Date: 2/8/2028 12:00 AM\n  Certificate Template: "DomainController"\n`;
+            output += `\nRow 2:\n  Serial Number: "6100000003"\n  Common Name: "hexworth.local"\n  Certificate Expiration Date: 2/8/2028 12:00 AM\n  Certificate Template: "WebServer"\n`;
+            return output;
+        }
+        return `Usage: certutil -CRL | -backup <path> | -CA | -view`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AD REPLICATION / SITES COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetADReplicationSite(args, params) {
+        _checkObjective('get-adreplicationsite');
+        if (state.adSites.length === 0) {
+            return `<span class="ps-warning">No AD sites found.</span>`;
+        }
+        let output = `\nName                                Description\n----                                -----------\n`;
+        state.adSites.forEach(s => {
+            output += `${(s.name || '').padEnd(36)}${s.description || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewADReplicationSite(args, params) {
+        const name = params.Name || args[0];
+        if (!name) {
+            return `<span class="ps-error">New-ADReplicationSite : -Name parameter is required.</span>`;
+        }
+        const existing = state.adSites.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            return `<span class="ps-error">New-ADReplicationSite : Site '${name}' already exists.</span>`;
+        }
+        state.adSites.push({ name, description: '', location: '', created: new Date().toISOString() });
+        _checkObjective('new-adreplicationsite');
+        return `<span class="ps-success">AD site '${name}' created successfully.</span>`;
+    }
+
+    function _cmdGetADReplicationSubnet(args, params) {
+        if (state.adSubnets.length === 0) {
+            return `No AD subnets found.`;
+        }
+        let output = `\nName                    Site                         Location\n----                    ----                         --------\n`;
+        state.adSubnets.forEach(s => {
+            output += `${(s.name || '').padEnd(24)}${(s.site || '').padEnd(29)}${s.location || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewADReplicationSubnet(args, params) {
+        const name = params.Name || '';
+        const site = params.Site || '';
+        if (!name || !site) {
+            return `<span class="ps-error">New-ADReplicationSubnet : -Name and -Site parameters are required.</span>`;
+        }
+        const siteExists = state.adSites.find(s => s.name.toLowerCase() === site.toLowerCase());
+        if (!siteExists) {
+            return `<span class="ps-error">New-ADReplicationSubnet : Site '${site}' not found.</span>`;
+        }
+        state.adSubnets.push({ name, site, location: '' });
+        _checkObjective('new-adreplicationsubnet');
+        return `<span class="ps-success">AD subnet '${name}' created and associated with site '${site}'.</span>`;
+    }
+
+    function _cmdGetADReplicationSiteLink(args, params) {
+        if (state.adSiteLinks.length === 0) {
+            return `No AD site links found.`;
+        }
+        let output = `\nName                    Cost   ReplicationFrequencyInMinutes   SitesIncluded\n----                    ----   ----------------------------   -------------\n`;
+        state.adSiteLinks.forEach(l => {
+            output += `${(l.name || '').padEnd(24)}${String(l.cost || 100).padEnd(7)}${String(l.frequency || 180).padEnd(31)}${(l.sites || []).join(', ')}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewADReplicationSiteLink(args, params) {
+        const name = params.Name || '';
+        const sitesStr = params.SitesIncluded || '';
+        const cost = parseInt(params.Cost) || 100;
+        const frequency = parseInt(params.ReplicationFrequencyInMinutes) || 180;
+        if (!name || !sitesStr) {
+            return `<span class="ps-error">New-ADReplicationSiteLink : -Name and -SitesIncluded parameters are required.</span>`;
+        }
+        const sites = sitesStr.split(',').map(s => s.trim());
+        state.adSiteLinks.push({ name, sites, cost, frequency });
+        _checkObjective('new-adreplicationsitelink');
+        _checkObjective('configure-sitelink');
+        return `<span class="ps-success">\nName                         : ${name}\nCost                         : ${cost}\nReplicationFrequencyInMinutes: ${frequency}\nSitesIncluded                : ${sites.join(', ')}\n\nSite link '${name}' created successfully.</span>`;
+    }
+
+    function _cmdSetADReplicationSiteLink(args, params) {
+        const identity = params.Identity || args[0] || '';
+        if (!identity) {
+            return `<span class="ps-error">Set-ADReplicationSiteLink : -Identity parameter is required.</span>`;
+        }
+        const link = state.adSiteLinks.find(l => l.name.toLowerCase() === identity.toLowerCase());
+        if (!link) {
+            return `<span class="ps-error">Set-ADReplicationSiteLink : Site link '${identity}' not found.</span>`;
+        }
+        if (params.Cost) link.cost = parseInt(params.Cost);
+        if (params.ReplicationFrequencyInMinutes) link.frequency = parseInt(params.ReplicationFrequencyInMinutes);
+        _checkObjective('configure-sitelink');
+        _checkObjective('set-adreplicationsitelink');
+        return `<span class="ps-success">Site link '${identity}' updated successfully.</span>`;
+    }
+
+    function _cmdGetADReplicationFailure(args, params) {
+        _checkObjective('check-replication');
+        _checkObjective('get-adreplicationfailure');
+        return `
+Server          : ${config.hostname}
+FailureCount    : 0
+FailureType     : None
+FirstFailureTime: N/A
+LastError        : 0 (operation completed successfully)
+
+<span class="ps-success">No replication failures detected.</span>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WINDOWS BACKUP COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdNewWBPolicy(args, params) {
+        state.backupPolicy = { created: new Date().toISOString(), bmr: false, systemState: false, target: null };
+        _checkObjective('new-wbpolicy');
+        return `<span class="ps-success">New Windows Backup policy created.</span>`;
+    }
+
+    function _cmdNewWBBackupTarget(args, params) {
+        const volumePath = params.VolumePath || params.NetworkPath || 'E:';
+        const type = params.NetworkPath ? 'Network' : 'Local';
+        state.backupTarget = { path: volumePath, type };
+        _checkObjective('new-wbbackuptarget');
+        return `<span class="ps-success">\nTarget Path : ${volumePath}\nTarget Type : ${type} Disk</span>`;
+    }
+
+    function _cmdAddWBBackupTarget(args, params) {
+        if (!state.backupPolicy) {
+            return `<span class="ps-error">Add-WBBackupTarget : No backup policy exists. Run New-WBPolicy first.</span>`;
+        }
+        if (!state.backupTarget) {
+            return `<span class="ps-error">Add-WBBackupTarget : No backup target exists. Run New-WBBackupTarget first.</span>`;
+        }
+        state.backupPolicy.target = state.backupTarget;
+        _checkObjective('add-wbbackuptarget');
+        return `<span class="ps-success">Backup target added to policy: ${state.backupTarget.path}</span>`;
+    }
+
+    function _cmdAddWBBareMetalRecovery(args, params) {
+        if (!state.backupPolicy) {
+            return `<span class="ps-error">Add-WBBareMetalRecovery : No backup policy exists. Run New-WBPolicy first.</span>`;
+        }
+        state.backupPolicy.bmr = true;
+        return `<span class="ps-success">Bare Metal Recovery option enabled.</span>`;
+    }
+
+    function _cmdAddWBSystemState(args, params) {
+        if (!state.backupPolicy) {
+            return `<span class="ps-error">Add-WBSystemState : No backup policy exists. Run New-WBPolicy first.</span>`;
+        }
+        state.backupPolicy.systemState = true;
+        return `<span class="ps-success">System State backup option enabled.</span>`;
+    }
+
+    function _cmdStartWBBackup(args, params) {
+        _checkObjective('start-wbbackup');
+        const version = `02/08/2026-${String(10 + state.backups.length).padStart(2, '0')}:00`;
+        state.backups.unshift({
+            version, time: new Date().toISOString(), type: 'Full Server', size: '12.5 GB'
+        });
+        return `<span class="ps-success">Starting backup...
+Creating VSS snapshot...
+Backing up volume C: (System)...
+Backing up system state...
+Verifying backup integrity...
+
+Backup of volume C: completed successfully.
+Backup completed [${new Date().toISOString()}]</span>`;
+    }
+
+    function _cmdGetWBBackupSet(args, params) {
+        _checkObjective('get-wbbackupset');
+        if (state.backups.length === 0) {
+            return `No backups found.`;
+        }
+        let output = `\nVersion Id              Backup Time                 Type\n----------              -----------                 ----\n`;
+        state.backups.forEach(b => {
+            output += `${(b.version || '').padEnd(24)}${(b.time || '').padEnd(28)}${b.type || 'Full Server'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdGetWBSummary(args, params) {
+        _checkObjective('get-wbsummary');
+        const lastBackup = state.backups[0];
+        return `
+Last Backup Time    : ${lastBackup ? lastBackup.time : 'Never'}
+Backup Target       : ${state.backupPolicy?.target?.path || 'Not configured'}
+Last Backup Status  : ${lastBackup ? 'Successful' : 'No backups'}
+Next Backup Time    : Scheduled (2:00 AM daily)
+Policy Status       : ${state.backupPolicy ? 'Configured' : 'Not configured'}`;
+    }
+
+    function _cmdVssadmin(args, params) {
+        const rawArgs = (args || []).join(' ').toLowerCase();
+        if (rawArgs.includes('list writers')) {
+            _checkObjective('vssadmin-list-writers');
+            return `
+vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool
+
+Writer name: 'System Writer'
+   Writer Id:   {${_generateGUID()}}
+   Writer Instance Id: {${_generateGUID()}}
+   State: [1] Stable
+   Last error: No error
+
+Writer name: 'Registry Writer'
+   Writer Id:   {${_generateGUID()}}
+   Writer Instance Id: {${_generateGUID()}}
+   State: [1] Stable
+   Last error: No error
+
+Writer name: 'NTDS'
+   Writer Id:   {${_generateGUID()}}
+   Writer Instance Id: {${_generateGUID()}}
+   State: [1] Stable
+   Last error: No error
+
+Writer name: 'DFS Replication service writer'
+   Writer Id:   {${_generateGUID()}}
+   Writer Instance Id: {${_generateGUID()}}
+   State: [1] Stable
+   Last error: No error`;
+        }
+        if (rawArgs.includes('list shadows')) {
+            return `
+vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool
+
+Contents of shadow copy set ID: {${_generateGUID()}}
+   Contained 1 shadow copies at creation time: ${new Date().toISOString()}
+      Shadow Copy ID: {${_generateGUID()}}
+         Original Volume: (C:)\\\\?\\Volume{${_generateGUID()}}\\
+         Shadow Copy Volume: \\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy1
+         Originating Machine: ${config.hostname}.${config.domain}
+         Service Machine: ${config.hostname}.${config.domain}
+         Provider: 'Microsoft Software Shadow Copy provider 1.0'`;
+        }
+        return `Usage: vssadmin list writers | list shadows`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WINDOWS FIREWALL COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdGetNetFirewallProfile(args, params) {
+        _checkObjective('get-netfirewallprofile');
+        const profiles = state.firewallProfiles;
+        const names = ['Domain', 'Private', 'Public'];
+        let output = '';
+        names.forEach(name => {
+            const p = profiles[name] || { enabled: true, defaultInbound: 'Block', defaultOutbound: 'Allow', logBlocked: false, logAllowed: false };
+            output += `\nName                  : ${name}\nEnabled               : ${p.enabled !== false ? 'True' : 'False'}\nDefaultInboundAction  : ${p.defaultInbound || 'Block'}\nDefaultOutboundAction : ${p.defaultOutbound || 'Allow'}\nLogBlocked            : ${p.logBlocked ? 'True' : 'False'}\nLogAllowed            : ${p.logAllowed ? 'True' : 'False'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdSetNetFirewallProfile(args, params) {
+        const profileStr = params.Profile || '';
+        if (!profileStr) {
+            return `<span class="ps-error">Set-NetFirewallProfile : -Profile parameter is required.</span>`;
+        }
+        const profiles = profileStr.split(',').map(p => p.trim());
+        let hasLogging = false;
+        profiles.forEach(name => {
+            if (!state.firewallProfiles[name]) {
+                state.firewallProfiles[name] = { enabled: true, defaultInbound: 'Block', defaultOutbound: 'Allow', logBlocked: false, logAllowed: false };
+            }
+            if (params.LogBlocked !== undefined) {
+                state.firewallProfiles[name].logBlocked = params.LogBlocked.toLowerCase() === 'true';
+                hasLogging = true;
+            }
+            if (params.LogAllowed !== undefined) {
+                state.firewallProfiles[name].logAllowed = params.LogAllowed.toLowerCase() === 'true';
+                hasLogging = true;
+            }
+            if (params.Enabled !== undefined) {
+                state.firewallProfiles[name].enabled = params.Enabled.toLowerCase() === 'true';
+            }
+        });
+        if (hasLogging) {
+            _checkObjective('configure-logging');
+            _checkObjective('set-netfirewallprofile');
+        }
+        return `<span class="ps-success">Firewall profile(s) '${profiles.join(', ')}' updated successfully.</span>`;
+    }
+
+    function _cmdNewNetFirewallRule(args, params) {
+        const displayName = params.DisplayName || '';
+        if (!displayName) {
+            return `<span class="ps-error">New-NetFirewallRule : -DisplayName parameter is required.</span>`;
+        }
+        const rule = {
+            name: displayName.replace(/\s+/g, '-'),
+            displayName,
+            direction: params.Direction || 'Inbound',
+            action: params.Action || 'Allow',
+            protocol: params.Protocol || 'Any',
+            localPort: params.LocalPort || 'Any',
+            profile: params.Profile || 'Any',
+            enabled: 'True'
+        };
+        state.firewallRules.unshift(rule);
+        _checkObjective('new-netfirewallrule');
+        _checkObjective('create-firewallrule');
+        return `<span class="ps-success">\nName          : ${rule.name}\nDisplayName   : ${rule.displayName}\nDirection     : ${rule.direction}\nAction        : ${rule.action}\nProtocol      : ${rule.protocol}\nLocalPort     : ${rule.localPort}\nProfile       : ${rule.profile}\nEnabled       : True\n\nFirewall rule created successfully.</span>`;
+    }
+
+    function _cmdGetNetFirewallRule(args, params) {
+        _checkObjective('get-netfirewallrule');
+        let rules = [...state.firewallRules];
+        if (params.Direction) {
+            rules = rules.filter(r => r.direction.toLowerCase() === params.Direction.toLowerCase());
+        }
+        if (params.Enabled) {
+            rules = rules.filter(r => r.enabled === params.Enabled);
+        }
+        if (params.DisplayName) {
+            const search = params.DisplayName.toLowerCase();
+            rules = rules.filter(r => (r.displayName || '').toLowerCase().includes(search));
+        }
+        if (rules.length === 0) {
+            return `No matching firewall rules found.`;
+        }
+        let output = `\nDisplayName                        Direction  Action   Enabled\n-----------                        ---------  ------   -------\n`;
+        rules.forEach(r => {
+            output += `${(r.displayName || '').padEnd(35)}${(r.direction || '').padEnd(11)}${(r.action || '').padEnd(9)}${r.enabled || 'True'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdEnableNetFirewallRule(args, params) {
+        const displayName = params.DisplayName || '';
+        if (!displayName) {
+            return `<span class="ps-error">Enable-NetFirewallRule : -DisplayName parameter is required.</span>`;
+        }
+        const rule = state.firewallRules.find(r => (r.displayName || '').toLowerCase() === displayName.toLowerCase());
+        if (!rule) {
+            return `<span class="ps-error">Enable-NetFirewallRule : Rule '${displayName}' not found.</span>`;
+        }
+        rule.enabled = 'True';
+        return `<span class="ps-success">Firewall rule '${displayName}' enabled.</span>`;
+    }
+
+    function _cmdDisableNetFirewallRule(args, params) {
+        const displayName = params.DisplayName || '';
+        if (!displayName) {
+            return `<span class="ps-error">Disable-NetFirewallRule : -DisplayName parameter is required.</span>`;
+        }
+        const rule = state.firewallRules.find(r => (r.displayName || '').toLowerCase() === displayName.toLowerCase());
+        if (!rule) {
+            return `<span class="ps-error">Disable-NetFirewallRule : Rule '${displayName}' not found.</span>`;
+        }
+        rule.enabled = 'False';
+        return `<span class="ps-success">Firewall rule '${displayName}' disabled.</span>`;
+    }
+
+    function _cmdRemoveNetFirewallRule(args, params) {
+        const displayName = params.DisplayName || '';
+        if (!displayName) {
+            return `<span class="ps-error">Remove-NetFirewallRule : -DisplayName parameter is required.</span>`;
+        }
+        const idx = state.firewallRules.findIndex(r => (r.displayName || '').toLowerCase() === displayName.toLowerCase());
+        if (idx === -1) {
+            return `<span class="ps-error">Remove-NetFirewallRule : Rule '${displayName}' not found.</span>`;
+        }
+        state.firewallRules.splice(idx, 1);
+        return `<span class="ps-success">Firewall rule '${displayName}' removed.</span>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADVANCED NETWORKING COMMANDS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _cmdNewNetLbfoTeam(args, params) {
+        const name = params.Name || '';
+        const members = params.TeamMembers || '';
+        if (!name) {
+            return `<span class="ps-error">New-NetLbfoTeam : -Name parameter is required.</span>`;
+        }
+        if (!state.nicTeams) state.nicTeams = [];
+        const memberList = members ? members.split(',').map(m => m.trim()) : ['Ethernet1', 'Ethernet2'];
+        state.nicTeams.push({ name, members: memberList, status: 'Up' });
+        _checkObjective('new-netlbfoteam');
+        return `<span class="ps-success">\nName         : ${name}\nTeamMembers  : {${memberList.join(', ')}}\nStatus       : Up\n\nNIC team '${name}' created successfully.</span>`;
+    }
+
+    function _cmdGetNetLbfoTeam(args, params) {
+        if (!state.nicTeams || state.nicTeams.length === 0) {
+            return `No NIC teams configured.`;
+        }
+        let output = `\nName                    TeamMembers              Status\n----                    -----------              ------\n`;
+        state.nicTeams.forEach(t => {
+            output += `${(t.name || '').padEnd(24)}${('{' + t.members.join(', ') + '}').padEnd(25)}${t.status || 'Up'}\n`;
+        });
+        return output;
+    }
+
+    function _cmdNewNetNat(args, params) {
+        const name = params.Name || '';
+        const prefix = params.InternalIPInterfaceAddressPrefix || '';
+        if (!name || !prefix) {
+            return `<span class="ps-error">New-NetNat : -Name and -InternalIPInterfaceAddressPrefix parameters are required.</span>`;
+        }
+        if (!state.natConfigs) state.natConfigs = [];
+        state.natConfigs.push({ name, prefix });
+        _checkObjective('new-netnat');
+        return `<span class="ps-success">\nName                             : ${name}\nInternalIPInterfaceAddressPrefix : ${prefix}\nIcmpQueryTimeout                 : 30\nTcpEstablishedConnectionTimeout  : 1800\n\nNAT '${name}' created successfully.</span>`;
+    }
+
+    function _cmdGetNetNat(args, params) {
+        if (!state.natConfigs || state.natConfigs.length === 0) {
+            return `No NAT configurations found.`;
+        }
+        let output = `\nName                             InternalIPInterfaceAddressPrefix\n----                             --------------------------------\n`;
+        state.natConfigs.forEach(n => {
+            output += `${(n.name || '').padEnd(33)}${n.prefix || ''}\n`;
+        });
+        return output;
+    }
+
+    function _cmdGetNetRoute(args, params) {
+        return `
+ifIndex  DestinationPrefix    NextHop          RouteMetric
+-------  -----------------    -------          -----------
+4        0.0.0.0/0            10.0.1.1         256
+4        10.0.1.0/24          0.0.0.0          256
+1        127.0.0.0/8          0.0.0.0          256
+4        10.0.1.255/32        0.0.0.0          256
+1        255.255.255.255/32   0.0.0.0          256`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HELPER: GUID / HEX generation
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _generateGUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function _generateHexString(length) {
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += Math.floor(Math.random() * 16).toString(16).toUpperCase();
+        }
+        return result;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // UTILITY FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -6906,6 +8562,11 @@ Last backup: 2/8/2026 2:00 AM (Successful)`;
             state.objectivesCompleted[id] = true;
             const obj = state.objectives.find(o => o.id === id);
             _printOutput(`\n<span class="ps-success">✓ Objective: ${obj.desc}</span>`);
+
+            // Notify lab via callback
+            if (config.onObjectiveComplete) {
+                config.onObjectiveComplete(id);
+            }
 
             // Check if all complete
             const allComplete = state.objectives.every(o => state.objectivesCompleted[o.id]);
@@ -7391,12 +9052,7 @@ Last backup: 2/8/2026 2:00 AM (Successful)`;
             'repadmin',
             'sfc',
             'DISM',
-            'wbadmin',
             'Export-WindowsDriver',
-            'New-WBPolicy',
-            'Start-WBBackup',
-            'Get-WBBackupSet',
-            'Get-WBSummary',
         ],
 
         // ─────────────────────────────────────────────────────────────────────
@@ -7412,6 +9068,146 @@ Last backup: 2/8/2026 2:00 AM (Successful)`;
             'Set-ADReplicationSiteLink',
             'Get-ADReplicationConnection',
             'Get-ADReplicationFailure',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // DNS Server Commands
+        // ─────────────────────────────────────────────────────────────────────
+        dnsServer: [
+            'Get-DnsServerZone',
+            'Add-DnsServerResourceRecordA',
+            'Get-DnsServerResourceRecord',
+            'Set-DnsServerForwarder',
+            'Get-DnsServerForwarder',
+            'Clear-DnsServerCache',
+            'Add-DnsServerPrimaryZone',
+            'Remove-DnsServerZone',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // DHCP Server Commands
+        // ─────────────────────────────────────────────────────────────────────
+        dhcpServer: [
+            'Get-DhcpServerv4Scope',
+            'Add-DhcpServerv4Scope',
+            'Set-DhcpServerv4Scope',
+            'Remove-DhcpServerv4Scope',
+            'Get-DhcpServerv4Lease',
+            'Add-DhcpServerv4Reservation',
+            'Get-DhcpServerv4Reservation',
+            'Remove-DhcpServerv4Reservation',
+            'Set-DhcpServerv4OptionValue',
+            'Get-DhcpServerv4OptionValue',
+            'Get-DhcpServerv4ScopeStatistics',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Group Policy Commands
+        // ─────────────────────────────────────────────────────────────────────
+        groupPolicy: [
+            'Get-GPO',
+            'New-GPO',
+            'Remove-GPO',
+            'Backup-GPO',
+            'Restore-GPO',
+            'New-GPLink',
+            'Remove-GPLink',
+            'Set-GPLink',
+            'Get-GPOReport',
+            'Get-GPPermission',
+            'gpupdate',
+            'gpresult',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // IIS / Web Server Commands
+        // ─────────────────────────────────────────────────────────────────────
+        webServer: [
+            'Get-Website',
+            'New-Website',
+            'Remove-Website',
+            'Start-Website',
+            'Stop-Website',
+            'Get-WebAppPool',
+            'New-WebAppPool',
+            'Remove-WebAppPool',
+            'Start-WebAppPool',
+            'Stop-WebAppPool',
+            'Get-WebBinding',
+            'New-WebBinding',
+            'Remove-WebBinding',
+            'Set-WebConfigurationProperty',
+            'Get-WebConfigurationProperty',
+            'Import-Module',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Remote Desktop Services Commands
+        // ─────────────────────────────────────────────────────────────────────
+        remoteDesktop: [
+            'Get-RDSessionCollection',
+            'New-RDSessionCollection',
+            'Get-RDRemoteApp',
+            'New-RDRemoteApp',
+            'Get-RDUserSession',
+            'Get-RDSessionHost',
+            'Set-RDLicenseConfiguration',
+            'Get-RDLicenseConfiguration',
+            'Disconnect-RDUserSession',
+            'Invoke-RDUserSessionLogoff',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Certificate Services Commands
+        // ─────────────────────────────────────────────────────────────────────
+        certificateServices: [
+            'Get-CATemplate',
+            'Get-Certificate',
+            'Publish-CRL',
+            'Backup-CARoleService',
+            'certutil',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Windows Backup Commands
+        // ─────────────────────────────────────────────────────────────────────
+        backup: [
+            'New-WBPolicy',
+            'Get-WBPolicy',
+            'Set-WBPolicy',
+            'New-WBBackupTarget',
+            'Add-WBBackupTarget',
+            'Add-WBBareMetalRecovery',
+            'Add-WBSystemState',
+            'Start-WBBackup',
+            'Get-WBBackupSet',
+            'Get-WBSummary',
+            'vssadmin',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Windows Firewall Commands
+        // ─────────────────────────────────────────────────────────────────────
+        firewall: [
+            'Get-NetFirewallProfile',
+            'Set-NetFirewallProfile',
+            'New-NetFirewallRule',
+            'Get-NetFirewallRule',
+            'Enable-NetFirewallRule',
+            'Disable-NetFirewallRule',
+            'Remove-NetFirewallRule',
+            'Set-NetFirewallRule',
+        ],
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Advanced Networking Commands
+        // ─────────────────────────────────────────────────────────────────────
+        advancedNetworking: [
+            'New-NetLbfoTeam',
+            'Get-NetLbfoTeam',
+            'New-NetNat',
+            'Get-NetNat',
+            'Get-NetRoute',
         ],
 
         // ─────────────────────────────────────────────────────────────────────
