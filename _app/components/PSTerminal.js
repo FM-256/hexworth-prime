@@ -3410,7 +3410,7 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
                 return _cmdGetDisk(args, params);
 
             case 'initialize-disk':
-                return _cmdInitializeDisk(args, params);
+                return _cmdInitializeDisk(args, params, pipeInput);
 
             case 'get-partition':
                 return _cmdGetPartition(args, params);
@@ -5345,8 +5345,14 @@ Number Friendly Name              Serial Number        HealthStatus OperationalS
     /**
      * Initialize-Disk - Initialize a new disk
      */
-    function _cmdInitializeDisk(args, params) {
-        const number = params.Number ?? args[0];
+    function _cmdInitializeDisk(args, params, pipeInput) {
+        // Accept disk number from -Number param, positional arg, or pipeline input
+        let number = params.Number ?? args[0];
+        if (number === undefined && pipeInput) {
+            // Extract disk number from piped Get-Disk output
+            const match = pipeInput.match(/^(\d+)\s/m);
+            if (match) number = match[1];
+        }
         const partitionStyle = params.PartitionStyle || 'GPT';
 
         if (number === undefined) {
@@ -5456,6 +5462,7 @@ Partition created successfully on disk ${diskNumber}.</span>`;
                 return `<span class="ps-error">Get-Volume : No volume found with drive letter '${driveLetter}'.</span>`;
             }
 
+            _checkObjective('get-volume');
             return `
 DriveLetter      : ${volume.DriveLetter}
 DriveType        : ${volume.DriveType}
@@ -5474,6 +5481,7 @@ DriveLetter FriendlyName FileSystemType DriveType HealthStatus SizeRemaining    
             output += `${(vol.DriveLetter || '').padEnd(12)}${(vol.FileSystemLabel || '').padEnd(13)}${(vol.FileSystem || 'Unknown').padEnd(15)}${(vol.DriveType || 'Fixed').padEnd(10)}${vol.HealthStatus.padEnd(13)}${_formatBytes(vol.SizeRemaining).padEnd(18)}${_formatBytes(vol.Size)}\n`;
         }
 
+        _checkObjective('get-volume');
         return output;
     }
 

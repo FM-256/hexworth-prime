@@ -2257,6 +2257,10 @@ const GUISimulator = (function() {
                 WSAState.actions.unlockUser(user.SamAccountName, 'gui');
             }
             aducState.statusBar.setMessage(`Account unlocked: ${user.SamAccountName}`, 'success');
+
+            if (options.onObjectiveComplete) {
+                options.onObjectiveComplete('unlock-user-account');
+            }
         }
 
         function enableAccount(user) {
@@ -2264,6 +2268,10 @@ const GUISimulator = (function() {
                 WSAState.actions.enableUser(user.SamAccountName, 'gui');
             }
             aducState.statusBar.setMessage(`Account enabled: ${user.SamAccountName}`, 'success');
+
+            if (options.onObjectiveComplete) {
+                options.onObjectiveComplete('enable-user-account');
+            }
         }
 
         function disableAccount(user) {
@@ -2271,6 +2279,10 @@ const GUISimulator = (function() {
                 WSAState.actions.disableUser(user.SamAccountName, 'gui');
             }
             aducState.statusBar.setMessage(`Account disabled: ${user.SamAccountName}`, 'warning');
+
+            if (options.onObjectiveComplete) {
+                options.onObjectiveComplete('disable-user-account');
+            }
         }
 
         // Select Users by default
