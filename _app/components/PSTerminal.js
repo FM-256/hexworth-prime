@@ -4918,7 +4918,7 @@ Status   Name               DisplayName
 
         // Single user lookup
         if (identity) {
-            const user = state.adUsers[identity] || state.adUsers[identity.toLowerCase()];
+            const user = state.adUsers[identity] || Object.values(state.adUsers).find(u => u.SamAccountName.toLowerCase() === identity.toLowerCase());
             if (!user) {
                 return `<span class="ps-error">Get-ADUser : Cannot find an object with identity: '${identity}'.</span>`;
             }
@@ -5016,7 +5016,7 @@ UserPrincipalName : ${user.UserPrincipalName}
             return `<span class="ps-error">Set-ADUser : Cannot bind argument to parameter 'Identity'.</span>`;
         }
 
-        const user = state.adUsers[identity];
+        const user = state.adUsers[identity] || Object.values(state.adUsers).find(u => u.SamAccountName.toLowerCase() === identity.toLowerCase());
         if (!user) {
             return `<span class="ps-error">Set-ADUser : Cannot find an object with identity: '${identity}'.</span>`;
         }
@@ -5042,15 +5042,16 @@ UserPrincipalName : ${user.UserPrincipalName}
             return `<span class="ps-error">Remove-ADUser : Cannot bind argument to parameter 'Identity'.</span>`;
         }
 
-        if (!state.adUsers[identity]) {
+        const resolvedKey = state.adUsers[identity] ? identity : Object.keys(state.adUsers).find(k => k.toLowerCase() === identity.toLowerCase());
+        if (!resolvedKey) {
             return `<span class="ps-error">Remove-ADUser : Cannot find an object with identity: '${identity}'.</span>`;
         }
 
-        if (['Administrator', 'krbtgt'].includes(identity)) {
-            return `<span class="ps-error">Remove-ADUser : Cannot remove built-in account '${identity}'.</span>`;
+        if (['Administrator', 'krbtgt'].includes(resolvedKey)) {
+            return `<span class="ps-error">Remove-ADUser : Cannot remove built-in account '${resolvedKey}'.</span>`;
         }
 
-        delete state.adUsers[identity];
+        delete state.adUsers[resolvedKey];
 
         // Dispatch to WSAState for GUI sync
         _dispatchToWSAState('AD_DELETE_USER', identity);
@@ -5067,7 +5068,8 @@ UserPrincipalName : ${user.UserPrincipalName}
             return `<span class="ps-error">Unlock-ADAccount : Cannot bind argument to parameter 'Identity'.</span>`;
         }
 
-        const user = state.adUsers[identity];
+        const resolvedKey = state.adUsers[identity] ? identity : Object.keys(state.adUsers).find(k => k.toLowerCase() === identity.toLowerCase());
+        const user = resolvedKey ? state.adUsers[resolvedKey] : null;
         if (!user) {
             return `<span class="ps-error">Unlock-ADAccount : Cannot find an object with identity: '${identity}'.</span>`;
         }
@@ -5076,7 +5078,7 @@ UserPrincipalName : ${user.UserPrincipalName}
             return `<span class="ps-warning">WARNING: Account '${identity}' is not locked.</span>`;
         }
 
-        state.adUsers[identity].LockedOut = false;
+        state.adUsers[resolvedKey].LockedOut = false;
 
         // Dispatch to WSAState for GUI sync
         _dispatchToWSAState('AD_UNLOCK_USER', identity);
@@ -5094,7 +5096,7 @@ UserPrincipalName : ${user.UserPrincipalName}
         const filter = params.Filter;
 
         if (identity) {
-            const group = state.adGroups[identity];
+            const group = state.adGroups[identity] || Object.values(state.adGroups).find(g => g.Name.toLowerCase() === identity.toLowerCase());
             if (!group) {
                 return `<span class="ps-error">Get-ADGroup : Cannot find an object with identity: '${identity}'.</span>`;
             }
@@ -5133,7 +5135,8 @@ SamAccountName    : ${group.SamAccountName}
             return `<span class="ps-error">New-ADGroup : Cannot bind argument to parameter 'Name'.</span>`;
         }
 
-        if (state.adGroups[name]) {
+        const existingKey = state.adGroups[name] ? name : Object.keys(state.adGroups).find(k => k.toLowerCase() === name.toLowerCase());
+        if (existingKey) {
             return `<span class="ps-error">New-ADGroup : The specified group already exists.</span>`;
         }
 
@@ -5169,7 +5172,7 @@ SamAccountName    : ${group.SamAccountName}
             return `<span class="ps-error">Get-ADGroupMember : Cannot bind argument to parameter 'Identity'.</span>`;
         }
 
-        const group = state.adGroups[identity];
+        const group = state.adGroups[identity] || Object.values(state.adGroups).find(g => g.Name.toLowerCase() === identity.toLowerCase());
         if (!group) {
             return `<span class="ps-error">Get-ADGroupMember : Cannot find an object with identity: '${identity}'.</span>`;
         }
@@ -5180,7 +5183,7 @@ SamAccountName    : ${group.SamAccountName}
 
         let output = '\n';
         for (const memberName of group.Members) {
-            const user = state.adUsers[memberName];
+            const user = state.adUsers[memberName] || Object.values(state.adUsers).find(u => u.SamAccountName.toLowerCase() === memberName.toLowerCase());
             if (user) {
                 output += `distinguishedName : ${user.DistinguishedName}
 name              : ${user.Name}
@@ -5205,18 +5208,19 @@ SamAccountName    : ${user.SamAccountName}
             return `<span class="ps-error">Add-ADGroupMember : Cannot bind argument to required parameters.</span>`;
         }
 
-        const group = state.adGroups[identity];
+        const group = state.adGroups[identity] || Object.values(state.adGroups).find(g => g.Name.toLowerCase() === identity.toLowerCase());
         if (!group) {
             return `<span class="ps-error">Add-ADGroupMember : Cannot find an object with identity: '${identity}'.</span>`;
         }
 
         const memberList = Array.isArray(members) ? members : [members];
         for (const member of memberList) {
-            if (!state.adUsers[member]) {
+            const resolvedUserKey = state.adUsers[member] ? member : Object.keys(state.adUsers).find(k => k.toLowerCase() === member.toLowerCase());
+            if (!resolvedUserKey) {
                 return `<span class="ps-error">Add-ADGroupMember : Cannot find user '${member}'.</span>`;
             }
-            if (!group.Members.includes(member)) {
-                group.Members.push(member);
+            if (!group.Members.includes(resolvedUserKey)) {
+                group.Members.push(resolvedUserKey);
             }
         }
 
@@ -5239,14 +5243,14 @@ SamAccountName    : ${user.SamAccountName}
             return `<span class="ps-error">Remove-ADGroupMember : Cannot bind argument to required parameters.</span>`;
         }
 
-        const group = state.adGroups[identity];
+        const group = state.adGroups[identity] || Object.values(state.adGroups).find(g => g.Name.toLowerCase() === identity.toLowerCase());
         if (!group) {
             return `<span class="ps-error">Remove-ADGroupMember : Cannot find an object with identity: '${identity}'.</span>`;
         }
 
         const memberList = Array.isArray(members) ? members : [members];
         for (const member of memberList) {
-            const idx = group.Members.indexOf(member);
+            const idx = group.Members.findIndex(m => m.toLowerCase() === member.toLowerCase());
             if (idx > -1) {
                 group.Members.splice(idx, 1);
             }
@@ -5263,7 +5267,7 @@ SamAccountName    : ${user.SamAccountName}
         const filter = params.Filter;
 
         if (identity) {
-            const computer = state.adComputers[identity];
+            const computer = state.adComputers[identity] || Object.values(state.adComputers).find(c => c.Name.toLowerCase() === identity.toLowerCase());
             if (!computer) {
                 return `<span class="ps-error">Get-ADComputer : Cannot find an object with identity: '${identity}'.</span>`;
             }
