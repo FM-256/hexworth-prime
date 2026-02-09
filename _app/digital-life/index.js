@@ -3110,12 +3110,20 @@ DigitalLife.applyTheme = function(themeName) {
     const theme = DigitalLife.THEMES[themeName];
     if (!theme) return;
 
-    // Update Firefly tier colors
-    if (typeof Firefly !== 'undefined') {
+    // Update Firefly tier colors if theme has tier definitions
+    if (typeof Firefly !== 'undefined' && theme.tiers) {
         Object.keys(theme.tiers).forEach(tierName => {
             if (Firefly.TIERS[tierName]) {
                 Firefly.TIERS[tierName].color = theme.tiers[tierName].color;
                 Firefly.TIERS[tierName].glowColor = theme.tiers[tierName].glow;
+            }
+        });
+    } else if (typeof Firefly !== 'undefined' && theme.accent) {
+        // House themes: apply accent color uniformly across all tiers
+        Object.keys(Firefly.TIERS).forEach(tierName => {
+            if (Firefly.TIERS[tierName]) {
+                Firefly.TIERS[tierName].color = theme.accent;
+                Firefly.TIERS[tierName].glowColor = theme.glow;
             }
         });
     }
