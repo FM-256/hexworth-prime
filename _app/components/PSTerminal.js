@@ -3150,8 +3150,9 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             const token = tokens[i];
 
             if (token.startsWith('-')) {
-                // Named parameter
-                const paramName = token.substring(1);
+                // Named parameter — strip all leading dashes, capitalize first letter for PascalCase
+                const rawName = token.replace(/^-+/, '');
+                const paramName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
                 // Check if next token is a value or another parameter
                 if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {

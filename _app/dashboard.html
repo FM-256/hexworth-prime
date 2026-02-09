@@ -5039,7 +5039,10 @@
                 const components = ['presentation', 'guiLab', 'psLab', 'quiz'];
                 const allComplete = regularModules.every(mId => {
                     const mod = progress[mId];
-                    return mod && components.every(c => mod[c] === true);
+                    return mod && components.every(c => {
+                        const val = mod[c];
+                        return val === true || (typeof val === 'object' && val !== null);
+                    });
                 });
                 if (allComplete) {
                     return { completed: true, score: null, completedAt: new Date().toISOString() };
@@ -5176,31 +5179,30 @@
             if (assignment.assignmentType === 'item' && typeof LearningPaths !== 'undefined') {
                 const mod = LearningPaths.getModule(assignment.contentId);
                 if (mod && mod.href) {
-                    // If href already starts with 'houses/' it's a full path (e.g., A+ chapters)
+                    // If href already starts with 'houses/', it's a full path from the _app root.
                     if (mod.href.startsWith('houses/')) {
                         return mod.href;
                     }
-                    // Otherwise prepend house path for relative hrefs
+                    // Otherwise, for relative paths, prepend the house directory.
                     return 'houses/' + (mod.houseId || assignment.house) + '/' + mod.href;
                 }
             }
             if (assignment.assignmentType === 'path' && assignment.contentId) {
-                // Look up the path in LearningPaths to get the correct base URL
+                // Attempt to derive the index.html from the first module in the path.
                 if (typeof LearningPaths !== 'undefined') {
                     const pathData = LearningPaths.PATHS[assignment.contentId];
                     if (pathData && pathData.modules && pathData.modules.length > 0) {
                         const firstHref = pathData.modules[0].href;
-                        // Derive index.html from first module's href directory parent
-                        // e.g. "houses/cloud/modules/wsa/m01-.../file.html" → "houses/cloud/modules/wsa/index.html"
+                        // Example: "houses/script/modules/linux-mastery/script-lm-01-welcome.module.html"
+                        // should resolve to "houses/script/modules/linux-mastery/index.html"
                         const parts = firstHref.split('/');
-                        // Find the contentId segment and build path up to it
-                        const cidIndex = parts.indexOf(assignment.contentId);
-                        if (cidIndex !== -1) {
-                            return parts.slice(0, cidIndex + 1).join('/') + '/index.html';
+                        if (parts.length > 2) {
+                            // Go up one level from the file to the directory
+                            return parts.slice(0, -1).join('/') + '/index.html';
                         }
                     }
                 }
-                // Fallback: direct house path
+                // Fallback for paths without defined modules or simple structures.
                 return 'houses/' + assignment.contentId + '/index.html';
             }
             return null;
@@ -5352,6 +5354,15 @@
                 if (section) section.style.display = 'none';
             }
         });
+
+        // Re-sync to Firestore when course progress updates (without requiring page reload)
+        let _syncDebounce = null;
+        function debouncedSync() {
+            if (_syncDebounce) clearTimeout(_syncDebounce);
+            _syncDebounce = setTimeout(() => syncProgressToFirestore(), 2000);
+        }
+        window.addEventListener('courseProgress:componentComplete', debouncedSync);
+        window.addEventListener('wsa-progress-updated', debouncedSync);
 
         // Bridge: Layer 1 course completions → Layer 2 platform profile
         window.addEventListener('courseProgress:moduleComplete', (e) => {
