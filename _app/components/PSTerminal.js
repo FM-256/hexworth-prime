@@ -3341,6 +3341,9 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'rmdir':
                 return _cmdRemoveItem(args, params);
 
+            case 'get-psdrive':
+                return _cmdGetPSDrive(args, params);
+
             // ─────────────────────────────────────────────────────────────────
             // System Commands
             // ─────────────────────────────────────────────────────────────────
@@ -4430,6 +4433,47 @@ ${itemType.toLowerCase() === 'directory' ? 'd----' : '-a---'}          ${new Dat
 
         delete state.fs[resolved];
         return '';
+    }
+
+    /**
+     * Get-PSDrive - List PowerShell drives
+     */
+    function _cmdGetPSDrive(args, params) {
+        const name = params.Name || args[0];
+
+        const drives = [
+            { Name: 'C',        Used: '42.17 GB', Free: '57.83 GB', Provider: 'FileSystem',   Root: 'C:\\',                              Description: 'OS' },
+            { Name: 'D',        Used: '12.50 GB', Free: '87.50 GB', Provider: 'FileSystem',   Root: 'D:\\',                              Description: 'Data' },
+            { Name: 'Env',      Used: '',          Free: '',          Provider: 'Environment',  Root: '',                                  Description: '' },
+            { Name: 'Function', Used: '',          Free: '',          Provider: 'Function',     Root: '',                                  Description: '' },
+            { Name: 'HKCU',     Used: '',          Free: '',          Provider: 'Registry',     Root: 'HKEY_CURRENT_USER',                 Description: '' },
+            { Name: 'HKLM',     Used: '',          Free: '',          Provider: 'Registry',     Root: 'HKEY_LOCAL_MACHINE',                Description: '' },
+            { Name: 'Variable', Used: '',          Free: '',          Provider: 'Variable',     Root: '',                                  Description: '' },
+            { Name: 'WSMan',    Used: '',          Free: '',          Provider: 'WSMan',        Root: '',                                  Description: '' },
+            { Name: 'Alias',    Used: '',          Free: '',          Provider: 'Alias',        Root: '',                                  Description: '' },
+            { Name: 'Cert',     Used: '',          Free: '',          Provider: 'Certificate',  Root: '\\CurrentUser\\My',                 Description: '' },
+        ];
+
+        let filtered = drives;
+        if (name) {
+            filtered = drives.filter(d => d.Name.toLowerCase() === name.toLowerCase());
+            if (filtered.length === 0) {
+                return `<span class="ps-error">Get-PSDrive : Cannot find drive. A drive with the name '${name}' does not exist.</span>`;
+            }
+        }
+
+        const header = `Name           Used (GB)     Free (GB) Provider      Root                                                                              CurrentLocation\n----           ---------     --------- --------      ----                                                                              ---------------`;
+        const rows = filtered.map(d => {
+            const n = d.Name.padEnd(15);
+            const u = d.Used.padStart(9).padEnd(14);
+            const f = d.Free.padStart(9).padEnd(10);
+            const p = d.Provider.padEnd(14);
+            const r = d.Root.padEnd(82);
+            const loc = d.Name === 'C' ? state.currentDir.replace('C:\\', '') : '';
+            return `${n}${u}${f}${p}${r}${loc}`;
+        }).join('\n');
+
+        return header + '\n' + rows;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

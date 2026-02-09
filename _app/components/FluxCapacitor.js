@@ -22,7 +22,8 @@
         { id: 'code', name: 'Code', icon: '💻', color: '#4ade80', path: 'houses/code/index.html' },
         { id: 'key', name: 'Key', icon: '🔑', color: '#f472b6', path: 'houses/key/index.html' },
         { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
-        { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'dark-arts/vault/index.html', gatePath: 'dark-arts/gate-1.html', gated: true }
+        { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'dark-arts/vault/index.html', gatePath: 'dark-arts/gate-1.html', gated: true },
+        { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html' }
     ];
 
     // ═══════════════════════════════════════════════════════════════
@@ -330,6 +331,11 @@
         // Check for Dark Arts
         if (path.includes('dark-arts')) {
             return 'dark-arts';
+        }
+
+        // Check for Matrix terminal
+        if (path.includes('terminal.html')) {
+            return 'matrix';
         }
 
         // Check for regular houses
