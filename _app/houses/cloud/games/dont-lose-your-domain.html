@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don't Lose Your Domain</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @font-face {
+            font-family: 'Terminal';
+            src: local('Cascadia Mono'), local('Consolas'), local('Courier New');
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #c0c0c0;
+            font-family: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header Bar ── */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .timer {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2ecc71;
+            min-width: 60px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .timer.warning { color: #f39c12; }
+        .timer.critical { color: #e74c3c; animation: pulse 0.5s infinite alternate; }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.4; }
+        }
+
+        /* ── Achievements Counter ── */
+        .achievement-counter {
+            font-size: 12px;
+            color: #f1c40f;
+            cursor: pointer;
+            padding: 2px 8px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .achievement-counter:hover {
+            background: #1a1a1a;
+            border-color: #f1c40f;
+        }
+
+        /* ── Output Area ── */
+        .output-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .output-area::-webkit-scrollbar { width: 8px; }
+        .output-area::-webkit-scrollbar-track { background: #111; }
+        .output-area::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .line { margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word; }
+        .line-input { color: #3498db; }
+        .line-system { color: #7f8c8d; font-style: italic; }
+        .line-success { color: #2ecc71; }
+        .line-error { color: #e74c3c; }
+        .line-warning { color: #f39c12; }
+        .line-critical { color: #e74c3c; font-weight: bold; }
+        .line-alert { color: #e67e22; }
+        .line-info { color: #3498db; }
+        .line-dim { color: #555; }
+        .line-achievement { color: #f1c40f; }
+        .line-narrative { color: #bdc3c7; }
+        .line-title { color: #e74c3c; }
+        .line-hint { color: #9b59b6; }
+        .line-ps-output { color: #ddd; }
+
+        /* ── Input Area ── */
+        .input-area {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #111;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .prompt {
+            color: #3498db;
+            margin-right: 8px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .input-field {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #eee;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            caret-color: #3498db;
+        }
+
+        .input-field::placeholder {
+            color: #444;
+        }
+
+        .input-field:disabled {
+            color: #555;
+        }
+
+        /* ── Achievement Toast ── */
+        .achievement-toast {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #1a1a0a;
+            border: 1px solid #f1c40f;
+            border-left: 4px solid #f1c40f;
+            padding: 12px 16px;
+            border-radius: 4px;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.4s ease;
+            z-index: 100;
+            max-width: 320px;
+            pointer-events: none;
+        }
+
+        .achievement-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .achievement-toast-label {
+            color: #f1c40f;
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .achievement-toast-name {
+            color: #f1c40f;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .achievement-toast-desc {
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* ── Achievement Gallery Overlay ── */
+        .gallery-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .gallery-overlay.show {
+            display: flex;
+        }
+
+        .gallery {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .gallery h2 {
+            color: #f1c40f;
+            margin-bottom: 16px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .gallery-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .gallery-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .gallery-icon.unlocked {
+            background: #2c2a0a;
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .gallery-icon.locked {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #333;
+        }
+
+        .gallery-text { flex: 1; }
+
+        .gallery-name {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .gallery-name.unlocked { color: #f1c40f; }
+        .gallery-name.locked { color: #555; }
+
+        .gallery-desc {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .gallery-close {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .gallery-close button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px 20px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .gallery-close button:hover {
+            border-color: #f1c40f;
+            color: #f1c40f;
+        }
+
+        /* ── Title Screen ── */
+        .title-art {
+            color: #e74c3c;
+            font-size: 13px;
+            line-height: 1.3;
+            margin: 20px 0;
+        }
+
+        /* ── Ending Screen ── */
+        .ending-options {
+            margin-top: 16px;
+        }
+
+        .ending-options span {
+            color: #3498db;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-right: 20px;
+        }
+
+        .ending-options span:hover {
+            color: #5dade2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="header-title">DON'T LOSE YOUR DOMAIN</span>
+        <span class="achievement-counter" id="achCounter" onclick="Game.showGallery()" title="View Achievements">&#9733; 0/12</span>
+        <span class="timer" id="timer">3:00</span>
+    </div>
+
+    <div class="output-area" id="output"></div>
+
+    <div class="input-area">
+        <span class="prompt" id="prompt">PS C:\&gt;</span>
+        <input type="text" class="input-field" id="input" placeholder="Type a command..." autofocus autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="achievement-toast" id="toast">
+        <div class="achievement-toast-label">ACHIEVEMENT UNLOCKED</div>
+        <div class="achievement-toast-name" id="toastName"></div>
+        <div class="achievement-toast-desc" id="toastDesc"></div>
+    </div>
+
+    <div class="gallery-overlay" id="galleryOverlay">
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <script>
+    const Game = (function() {
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENT DEFINITIONS
+           ═══════════════════════════════════════ */
+        const ACHIEVEMENTS = {
+            clean_kill:     { name: 'Clean Kill',       icon: '⊘', desc: 'Disable the account' },
+            identity_crisis:{ name: 'Identity Crisis',  icon: '⚿', desc: 'Reset the password' },
+            privilege_revoked:{ name: 'Privilege Revoked', icon: '↓', desc: 'Remove from Domain Admins' },
+            by_the_book:    { name: 'By The Book',      icon: '★', desc: 'Disable + remove DA + reset password' },
+            nuclear_option: { name: 'The Nuclear Option',icon: '☢', desc: 'Shut down the domain controller' },
+            friendly_fire:  { name: 'Friendly Fire',    icon: '☠', desc: 'Disable the wrong account' },
+            frozen:         { name: 'Frozen',           icon: '❄', desc: 'Do nothing until time runs out' },
+            panic:          { name: 'Panic!',           icon: '!', desc: 'Panic during an incident' },
+            wrong_os:       { name: 'Wrong OS',         icon: '#', desc: 'Try a Linux command on Windows' },
+            coffee_break:   { name: 'Coffee Break',     icon: '♨', desc: 'Drink coffee during an incident' },
+            spectator:      { name: 'Spectator',        icon: '◉', desc: 'Only run Get-* commands' },
+            speed_run:      { name: 'Speed Run',        icon: '»', desc: 'Neutralize the threat in under 15 seconds' },
+        };
+
+        const STORAGE_KEY = 'hexworth_dontlose_achievements';
+
+        /* ═══════════════════════════════════════
+           GAME STATE
+           ═══════════════════════════════════════ */
+        let state = {};
+
+        function resetState() {
+            state = {
+                phase: 'title',        // title | playing | ended
+                timeRemaining: 180,
+                timeElapsed: 0,
+                timerInterval: null,
+                marcusActive: true,
+                accountDisabled: false,
+                passwordReset: false,
+                removedFromDA: false,
+                dcShutdown: false,
+                selfDisabled: false,
+                commandsRun: [],
+                onlyGetCommands: true,  // tracks if player only used Get-* commands
+                commandCount: 0,
+                eventsTriggered: [],
+                threatLevel: 0,
+                ending: null,
+                toastTimeout: null,
+            };
+        }
+
+        /* ═══════════════════════════════════════
+           INITIALIZATION
+           ═══════════════════════════════════════ */
+        function init() {
+            resetState();
+            const outputEl = document.getElementById('output');
+            const inputEl = document.getElementById('input');
+            const timerEl = document.getElementById('timer');
+
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const raw = inputEl.value.trim();
+                    inputEl.value = '';
+                    if (raw) handleInput(raw);
+                }
+            });
+
+            updateAchievementCounter();
+            showTitle();
+        }
+
+        /* ═══════════════════════════════════════
+           DISPLAY FUNCTIONS
+           ═══════════════════════════════════════ */
+        function print(text, className) {
+            const outputEl = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'line' + (className ? ' line-' + className : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function printBlank() {
+            print('');
+        }
+
+        function printSlow(lines, className, delay, callback) {
+            let i = 0;
+            function next() {
+                if (i < lines.length) {
+                    print(lines[i], className);
+                    i++;
+                    setTimeout(next, delay || 80);
+                } else if (callback) {
+                    callback();
+                }
+            }
+            next();
+        }
+
+        /* ═══════════════════════════════════════
+           TITLE SCREEN
+           ═══════════════════════════════════════ */
+        function showTitle() {
+            document.getElementById('timer').textContent = '3:00';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('prompt').style.display = 'none';
+            document.getElementById('input').placeholder = 'Press Enter to start...';
+
+            const lines = [
+                '',
+                '  ╔══════════════════════════════════════════════════╗',
+                '  ║                                                  ║',
+                "  ║         DON'T LOSE YOUR DOMAIN                  ║",
+                '  ║                                                  ║',
+                '  ║         A Sysadmin Survival Game                 ║',
+                '  ║                                                  ║',
+                '  ╚══════════════════════════════════════════════════╝',
+                '',
+            ];
+
+            for (const line of lines) print(line, 'title');
+
+            printBlank();
+            print('  You have 3 minutes. One disgruntled ex-employee.', 'dim');
+            print('  And the keys to the kingdom are in the wrong hands.', 'dim');
+            printBlank();
+            print('  Type PowerShell commands. Make the right calls.', 'dim');
+            print('  Or don\'t. There are 12 achievements either way.', 'dim');
+            printBlank();
+            print('  Press ENTER to start.', 'info');
+            printBlank();
+
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            if (count > 0) {
+                print(`  [${count}/12 achievements unlocked]`, 'achievement');
+                printBlank();
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME START
+           ═══════════════════════════════════════ */
+        function startGame() {
+            state.phase = 'playing';
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+
+            const intro = [
+                'FRIDAY, 4:47 PM',
+                '',
+                'You\'re about to leave for the weekend when your phone rings.',
+                '',
+                '"This is Janet from HR. We terminated Marcus Chen about',
+                '30 minutes ago. He... didn\'t take it well. Could you',
+                'disable his access?"',
+                '',
+                'You pull up Active Directory.',
+                '',
+                '  Name:    Marcus Chen',
+                '  Login:   mchen',
+                '  Title:   Senior Developer',
+                '  Groups:  Domain Admins, Developers, VPN-Users',
+                '  Status:  Enabled',
+                '  VPN:     Connected (since 3:52 PM)',
+                '',
+                'He was fired 30 minutes ago.',
+                'He\'s still connected via VPN.',
+                'He has Domain Admin privileges.',
+                '',
+                'The clock is ticking.',
+                '',
+            ];
+
+            for (const line of intro) {
+                print(line, line.startsWith('  ') ? 'ps-output' : 'narrative');
+            }
+
+            print('Type HELP for available commands.', 'info');
+            printBlank();
+
+            // Start the countdown
+            state.timerInterval = setInterval(tick, 1000);
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           TIMER & EVENTS
+           ═══════════════════════════════════════ */
+        function tick() {
+            state.timeRemaining--;
+            state.timeElapsed++;
+            updateTimerDisplay();
+
+            if (state.marcusActive) {
+                checkTimedEvents();
+            }
+
+            if (state.timeRemaining <= 0) {
+                timeUp();
+            }
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer');
+            const mins = Math.floor(state.timeRemaining / 60);
+            const secs = state.timeRemaining % 60;
+            el.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            if (state.timeRemaining <= 30) {
+                el.className = 'timer critical';
+            } else if (state.timeRemaining <= 60) {
+                el.className = 'timer warning';
+            } else {
+                el.className = 'timer';
+            }
+        }
+
+        function checkTimedEvents() {
+            const events = [
+                { at: 20,  id: 'rdp',    level: 'alert',    text: '[WARNING] Unusual RDP connections detected from mchen\'s session.' },
+                { at: 45,  id: 'backup', level: 'warning',  text: '[ALERT] Backup schedule \'NightlyFull\' was just deleted by mchen.' },
+                { at: 75,  id: 'gpo',    level: 'warning',  text: '[ALERT] Group Policy \'Default Domain Policy\' was modified by mchen.' },
+                { at: 105, id: 'files',  level: 'critical', text: '[CRITICAL] Mass file deletion detected on \\\\FS01\\shared$.' },
+                { at: 135, id: 'dns',    level: 'critical', text: '[CRITICAL] DNS zone records for hexworth.local are being purged.' },
+                { at: 165, id: 'schema', level: 'critical', text: '[CRITICAL] Schema modification attempt detected. This is NOT a drill.' },
+            ];
+
+            for (const ev of events) {
+                if (state.timeElapsed >= ev.at && !state.eventsTriggered.includes(ev.id)) {
+                    state.eventsTriggered.push(ev.id);
+                    state.threatLevel++;
+                    printBlank();
+                    print(ev.text, ev.level);
+                    printBlank();
+                }
+            }
+        }
+
+        function timeUp() {
+            clearInterval(state.timerInterval);
+
+            if (state.marcusActive) {
+                // Total failure
+                printBlank();
+                print('════════════════════════════════════════', 'critical');
+                print('GAME OVER', 'critical');
+                print('════════════════════════════════════════', 'critical');
+                printBlank();
+                print('Time\'s up. Marcus deleted the AD Schema,', 'error');
+                print('wiped the backups, and posted your domain', 'error');
+                print('credentials on Pastebin.', 'error');
+                printBlank();
+                print('Estimated recovery time: 2-3 weeks.', 'dim');
+                print('Your boss is calling. HR is calling.', 'dim');
+                print('Your boss\'s boss is calling.', 'dim');
+
+                if (state.commandCount === 0) {
+                    unlock('frozen');
+                }
+
+                if (state.onlyGetCommands && state.commandCount > 0) {
+                    unlock('spectator');
+                }
+
+                state.ending = 'timeout';
+            } else {
+                // Time ran out but threat was already neutralized
+                printBlank();
+                print('Time\'s up, but the threat was already neutralized.', 'success');
+            }
+
+            endGame();
+        }
+
+        /* ═══════════════════════════════════════
+           INPUT HANDLING
+           ═══════════════════════════════════════ */
+        function handleInput(raw) {
+            if (state.phase === 'title') {
+                startGame();
+                return;
+            }
+
+            if (state.phase === 'ended') {
+                const lower = raw.toLowerCase();
+                if (lower === 'r' || lower === 'restart' || lower === 'play again' || lower === 'again') {
+                    restart();
+                } else if (lower === 'a' || lower === 'achievements') {
+                    showGallery();
+                }
+                return;
+            }
+
+            // Echo the input
+            print('PS C:\\> ' + raw, 'input');
+
+            state.commandCount++;
+            state.commandsRun.push(raw);
+
+            const result = processCommand(raw);
+            if (result) {
+                for (const line of result.split('\n')) {
+                    print(line, result._className || 'ps-output');
+                }
+            }
+
+            printBlank();
+
+            // Check win conditions after each command
+            if (state.phase === 'playing') {
+                checkWinCondition();
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           COMMAND PROCESSING
+           ═══════════════════════════════════════ */
+        function processCommand(raw) {
+            const trimmed = raw.trim();
+            const lower = trimmed.toLowerCase();
+
+            // ── Adventure / fun commands ──
+            if (['look', 'examine', 'look around'].includes(lower)) {
+                return adventureLook();
+            }
+            if (['inventory', 'i', 'inv'].includes(lower)) {
+                return styledLine('You have: coffee (cold), a keyboard, admin credentials, and mounting dread.', 'dim');
+            }
+            if (['help', '?', 'help me'].includes(lower)) {
+                return showHelp();
+            }
+            if (['hint', 'hints'].includes(lower)) {
+                return showHint();
+            }
+            if (['time', 'clock', 'timer'].includes(lower)) {
+                const mins = Math.floor(state.timeRemaining / 60);
+                const secs = state.timeRemaining % 60;
+                return styledLine(`${mins} minute${mins !== 1 ? 's' : ''} and ${secs} second${secs !== 1 ? 's' : ''} remaining.`, 'info');
+            }
+            if (['panic', 'freak out', 'scream'].includes(lower)) {
+                unlock('panic');
+                state.timeRemaining = Math.max(0, state.timeRemaining - 10);
+                updateTimerDisplay();
+                return styledLine('You hyperventilate into a paper bag. This doesn\'t help. (-10 seconds)', 'warning');
+            }
+            if (['coffee', 'drink coffee', 'get coffee', 'sip coffee'].includes(lower)) {
+                unlock('coffee_break');
+                return styledLine('You take a sip. It\'s cold and bitter, like your current situation.', 'dim');
+            }
+            if (['pray', 'hope'].includes(lower)) {
+                return styledLine('The IT gods are silent. They demand PowerShell, not prayers.', 'dim');
+            }
+            if (['cry', 'weep'].includes(lower)) {
+                return styledLine('There\'s no crying in system administration.', 'dim');
+            }
+            if (['quit', 'exit', 'q', 'logout'].includes(lower)) {
+                return styledLine('You can\'t quit. Marcus certainly isn\'t.', 'warning');
+            }
+            if (['call security', 'security', 'phone security'].includes(lower)) {
+                return styledLine('Security is on their way to escort Marcus from the building.\nBut he\'s on VPN. From home. Security can\'t unplug a VPN.', 'dim');
+            }
+            if (['call police', 'call 911', 'police', '911'].includes(lower)) {
+                return styledLine('"911, what\'s your emergency?"\n"Someone has Domain Admin!"\n"...Sir, is anyone in physical danger?"\nThey hung up.', 'dim');
+            }
+            if (['call hr', 'blame hr', 'call janet'].includes(lower)) {
+                return styledLine('"Hi, this is Janet. I\'m in a meeting right now--"\nYou hang up. Valid instinct, but not helpful right now.', 'dim');
+            }
+            if (['unplug', 'unplug it', 'pull the plug'].includes(lower)) {
+                return styledLine('Unplug what? He\'s on VPN from his house. You\'d have to unplug the internet.', 'dim');
+            }
+            if (['google it', 'search', 'bing it', 'stackoverflow'].includes(lower)) {
+                return styledLine('Stack Overflow says: "Disable-ADAccount -Identity mchen"\nPosted 3 years ago. 47 upvotes. Marked as duplicate.', 'dim');
+            }
+            if (['wait', 'do nothing', 'think'].includes(lower)) {
+                return styledLine('Every second you wait, Marcus gets another second with Domain Admin.\nThat\'s not a good trade.', 'warning');
+            }
+
+            // ── Linux commands (easter egg) ──
+            if (/^(sudo|rm\s|chmod|chown|ls|cat|grep|apt|yum|systemctl|nano|vi\s|vim)/.test(lower)) {
+                unlock('wrong_os');
+                return styledLine('This is PowerShell, not Bash. But we admire your instincts.', 'warning');
+            }
+
+            // ── PowerShell commands ──
+            return processPowerShell(trimmed);
+        }
+
+        function processPowerShell(raw) {
+            // Parse: CommandName -Param Value -Param "Value With Spaces"
+            const parts = [];
+            let current = '';
+            let inQuotes = false;
+            let quoteChar = '';
+
+            for (let i = 0; i < raw.length; i++) {
+                const ch = raw[i];
+                if (inQuotes) {
+                    if (ch === quoteChar) { inQuotes = false; }
+                    else { current += ch; }
+                } else if (ch === '"' || ch === "'") {
+                    inQuotes = true;
+                    quoteChar = ch;
+                } else if (ch === ' ') {
+                    if (current) { parts.push(current); current = ''; }
+                } else {
+                    current += ch;
+                }
+            }
+            if (current) parts.push(current);
+
+            if (parts.length === 0) return null;
+
+            const cmdlet = parts[0];
+            const cmdLower = cmdlet.toLowerCase();
+
+            // Parse named parameters
+            const params = {};
+            const positionalArgs = [];
+            for (let i = 1; i < parts.length; i++) {
+                if (parts[i].startsWith('-')) {
+                    const paramName = parts[i].substring(1);
+                    if (i + 1 < parts.length && !parts[i + 1].startsWith('-')) {
+                        params[paramName.toLowerCase()] = parts[i + 1];
+                        i++;
+                    } else {
+                        params[paramName.toLowerCase()] = true;
+                    }
+                } else {
+                    positionalArgs.push(parts[i]);
+                }
+            }
+
+            const identity = params.identity || positionalArgs[0] || null;
+
+            // Track if only Get-* commands
+            if (!cmdLower.startsWith('get-')) {
+                state.onlyGetCommands = false;
+            }
+
+            // ── Command dispatch ──
+            switch (cmdLower) {
+                case 'disable-adaccount':   return cmdDisableAccount(identity);
+                case 'enable-adaccount':    return cmdEnableAccount(identity);
+                case 'get-aduser':          return cmdGetADUser(identity, params);
+                case 'set-adaccountpassword': return cmdResetPassword(identity);
+                case 'remove-adgroupmember': return cmdRemoveGroupMember(params, positionalArgs);
+                case 'get-adgroupmember':   return cmdGetGroupMember(identity);
+                case 'get-adgroup':         return cmdGetGroup(identity, params);
+                case 'remove-aduser':       return cmdRemoveUser(identity);
+                case 'restart-computer':    return cmdRestartComputer(params);
+                case 'stop-computer':       return cmdStopComputer();
+                case 'get-eventlog':        return cmdGetEventLog();
+                case 'get-winevent':        return cmdGetEventLog();
+                case 'get-adcomputer':      return cmdGetComputer(identity, params);
+                case 'search-adaccount':    return cmdSearchAccount(params);
+                case 'new-aduser':          return styledLine(`New-ADUser : Now is really not the time to be creating accounts.`, 'warning');
+                case 'get-process':         return cmdGetProcess();
+                case 'clear-host':
+                case 'cls':
+                case 'clear':
+                    document.getElementById('output').innerHTML = '';
+                    return null;
+                default:
+                    return styledLine(`'${cmdlet}' is not recognized as a cmdlet, function, or operable program.\nType HELP for available commands.`, 'error');
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           POWERSHELL COMMANDS
+           ═══════════════════════════════════════ */
+
+        function cmdDisableAccount(identity) {
+            if (!identity) {
+                return styledLine("Disable-ADAccount : Cannot bind argument to parameter 'Identity'. Specify a username.", 'error');
+            }
+
+            const lower = identity.toLowerCase();
+
+            // Disabling yourself or the built-in admin
+            if (['administrator', 'admin', 'sysadmin', 'you', 'me', 'myself'].includes(lower)) {
+                state.selfDisabled = true;
+                unlock('friendly_fire');
+                state.marcusActive = true; // even if somehow neutralized, this ruins it
+                clearInterval(state.timerInterval);
+                printBlank();
+                print('════════════════════════════════════════', 'critical');
+                print('GAME OVER', 'critical');
+                print('════════════════════════════════════════', 'critical');
+                printBlank();
+                print('You just disabled the Administrator account.', 'error');
+                print('You\'re locked out of the domain controller.', 'error');
+                print('Marcus is still connected. And you can\'t do anything about it.', 'error');
+                printBlank();
+                print('The help desk is going to have a GREAT Monday.', 'dim');
+                state.ending = 'friendly_fire';
+                endGame();
+                return null;
+            }
+
+            // Disabling Marcus
+            if (['mchen', 'marcus', 'marcus.chen', 'marcuschen', 'chen'].includes(lower)) {
+                state.accountDisabled = true;
+                state.marcusActive = false;
+
+                // Speed run check
+                if (state.timeElapsed <= 15) {
+                    unlock('speed_run');
+                }
+
+                unlock('clean_kill');
+
+                return styledLine('[SUCCESS] Account \'mchen\' has been disabled.\nMarcus Chen can no longer authenticate. Existing sessions will expire shortly.\nVPN will disconnect on next re-auth cycle.', 'success');
+            }
+
+            return styledLine(`Disable-ADAccount : Cannot find an object with identity: '${identity}'.`, 'error');
+        }
+
+        function cmdEnableAccount(identity) {
+            if (!identity) {
+                return styledLine("Enable-ADAccount : Cannot bind argument to parameter 'Identity'.", 'error');
+            }
+            return styledLine(`Enable-ADAccount : Account '${identity}' is already enabled. That's... the problem.`, 'warning');
+        }
+
+        function cmdGetADUser(identity, params) {
+            if (params.filter === '*' || (!identity && params.filter)) {
+                return `
+SamAccountName  Name               Enabled  Title
+--------------  ----               -------  -----
+Administrator   Administrator      True     Built-in
+sysadmin        You (Sysadmin)     True     Systems Administrator
+mchen           Marcus Chen        ${state.accountDisabled ? 'False' : 'True'}     Senior Developer
+jsmith          Jane Smith         True     Help Desk Analyst
+agarcia         Ana Garcia         True     Network Engineer
+bwilson         Brian Wilson       True     Database Admin`;
+            }
+
+            if (!identity) {
+                return styledLine("Get-ADUser : Cannot bind argument to parameter 'Identity'. Specify a username or -Filter *.", 'error');
+            }
+
+            const lower = identity.toLowerCase();
+
+            if (['mchen', 'marcus', 'marcus.chen'].includes(lower)) {
+                return `
+DistinguishedName : CN=Marcus Chen,OU=Developers,DC=hexworth,DC=local
+Enabled           : ${state.accountDisabled ? 'False' : 'True'}
+GivenName         : Marcus
+Name              : Marcus Chen
+SamAccountName    : mchen
+Title             : Senior Developer
+LastLogon         : ${new Date().toLocaleDateString()} 3:52 PM
+MemberOf          : ${state.removedFromDA ? 'Developers, VPN-Users' : 'Domain Admins, Developers, VPN-Users'}
+PasswordLastSet   : ${state.passwordReset ? 'Just now' : '2025-11-03 9:14 AM'}`;
+            }
+
+            if (['administrator', 'admin'].includes(lower)) {
+                return `
+DistinguishedName : CN=Administrator,CN=Users,DC=hexworth,DC=local
+Enabled           : True
+Name              : Administrator
+SamAccountName    : Administrator
+MemberOf          : Domain Admins, Enterprise Admins, Schema Admins`;
+            }
+
+            if (['sysadmin', 'me', 'you', 'myself'].includes(lower)) {
+                return `
+DistinguishedName : CN=Sysadmin,OU=IT,DC=hexworth,DC=local
+Enabled           : ${state.selfDisabled ? 'False' : 'True'}
+Name              : You (Sysadmin)
+SamAccountName    : sysadmin
+Title             : Systems Administrator
+MemberOf          : Domain Admins, Server Operators`;
+            }
+
+            return styledLine(`Get-ADUser : Cannot find an object with identity: '${identity}'.`, 'error');
+        }
+
+        function cmdResetPassword(identity) {
+            if (!identity) {
+                return styledLine("Set-ADAccountPassword : Cannot bind argument to parameter 'Identity'.", 'error');
+            }
+
+            const lower = identity.toLowerCase();
+
+            if (['mchen', 'marcus', 'marcus.chen'].includes(lower)) {
+                state.passwordReset = true;
+                state.marcusActive = false;
+                unlock('identity_crisis');
+
+                if (state.timeElapsed <= 15) {
+                    unlock('speed_run');
+                }
+
+                return styledLine('[SUCCESS] Password for \'mchen\' has been reset.\nMarcus\'s cached credentials will stop working within minutes.\nHe\'ll be unable to authenticate with the old password.', 'success');
+            }
+
+            if (['administrator', 'admin'].includes(lower)) {
+                return styledLine("Changing the Administrator password now? Bold move.\nLet's focus on mchen first.", 'warning');
+            }
+
+            return styledLine(`Set-ADAccountPassword : Cannot find an object with identity: '${identity}'.`, 'error');
+        }
+
+        function cmdRemoveGroupMember(params, positionalArgs) {
+            const identity = params.identity || positionalArgs[0];
+            const members = params.members || positionalArgs[1];
+
+            if (!identity || !members) {
+                return styledLine("Remove-ADGroupMember : Requires -Identity <GroupName> -Members <UserName>.\nExample: Remove-ADGroupMember -Identity \"Domain Admins\" -Members mchen", 'error');
+            }
+
+            const groupLower = identity.toLowerCase();
+            const memberLower = (members || '').toLowerCase();
+
+            if (groupLower === 'domain admins' || groupLower === 'domainadmins') {
+                if (['mchen', 'marcus', 'marcus.chen'].includes(memberLower)) {
+                    state.removedFromDA = true;
+                    unlock('privilege_revoked');
+
+                    return styledLine("[SUCCESS] Removed 'mchen' from 'Domain Admins'.\nMarcus no longer has domain admin privileges.\n\n[NOTE] His account is still active. He retains standard user access\nand cached Kerberos tokens may linger until they expire.", 'success');
+                }
+
+                if (['administrator', 'admin', 'sysadmin'].includes(memberLower)) {
+                    unlock('friendly_fire');
+                    return styledLine("[WARNING] Removing yourself from Domain Admins? That's a bold strategy.\nLet's not do that during an active incident.", 'warning');
+                }
+            }
+
+            return styledLine(`Remove-ADGroupMember : Cannot find group '${identity}' or member '${members}'.`, 'error');
+        }
+
+        function cmdGetGroupMember(identity) {
+            if (!identity) {
+                return styledLine("Get-ADGroupMember : Cannot bind argument to parameter 'Identity'.", 'error');
+            }
+
+            const lower = identity.toLowerCase();
+
+            if (lower === 'domain admins' || lower === 'domainadmins') {
+                let output = '\nName              SamAccountName    ObjectClass\n----              ---------------   -----------\nAdministrator     Administrator     user\nYou (Sysadmin)    sysadmin          user';
+
+                if (!state.removedFromDA) {
+                    output += '\nMarcus Chen       mchen             user';
+                }
+                return output;
+            }
+
+            if (lower === 'developers' || lower === 'dev') {
+                return '\nName              SamAccountName    ObjectClass\n----              ---------------   -----------\nMarcus Chen       mchen             user\nJane Smith        jsmith            user';
+            }
+
+            return styledLine(`Get-ADGroupMember : Cannot find group '${identity}'.`, 'error');
+        }
+
+        function cmdGetGroup(identity, params) {
+            if (params.filter === '*' || (!identity && params.filter)) {
+                return `
+Name                SamAccountName      GroupScope  GroupCategory
+----                ---------------     ----------  -------------
+Domain Admins       Domain Admins       Global      Security
+Domain Users        Domain Users        Global      Security
+Developers          Developers          Global      Security
+VPN-Users           VPN-Users           Global      Security
+Server Operators    Server Operators    BuiltIn     Security`;
+            }
+
+            if (!identity) {
+                return styledLine("Get-ADGroup : Specify -Identity <name> or -Filter *.", 'error');
+            }
+
+            return styledLine(`Get-ADGroup : Cannot find group '${identity}'.`, 'error');
+        }
+
+        function cmdRemoveUser(identity) {
+            if (!identity) {
+                return styledLine("Remove-ADUser : Cannot bind argument to parameter 'Identity'.", 'error');
+            }
+
+            const lower = identity.toLowerCase();
+
+            if (['mchen', 'marcus', 'marcus.chen'].includes(lower)) {
+                state.onlyGetCommands = false;
+                return styledLine("[WARNING] Deleting the account destroys the audit trail.\nForensics needs that account intact to investigate what Marcus did.\nUse Disable-ADAccount instead. Disable, don't delete.", 'warning');
+            }
+
+            if (['administrator', 'admin'].includes(lower)) {
+                return styledLine("Remove-ADUser : Cannot remove built-in account 'Administrator'. Nice try.", 'error');
+            }
+
+            return styledLine(`Remove-ADUser : Cannot find an object with identity: '${identity}'.`, 'error');
+        }
+
+        function cmdRestartComputer(params) {
+            state.dcShutdown = true;
+            state.marcusActive = false;
+            unlock('nuclear_option');
+
+            clearInterval(state.timerInterval);
+            printBlank();
+            print('════════════════════════════════════════', 'warning');
+            print('YOU SHUT DOWN THE DOMAIN CONTROLLER', 'warning');
+            print('════════════════════════════════════════', 'warning');
+            printBlank();
+            print('All Active Directory services are offline.', 'error');
+            print('DNS resolution has stopped. DHCP leases can\'t renew.', 'error');
+            print('150 users just lost access to everything.', 'error');
+            print('File shares, email, printers -- all down.', 'error');
+            printBlank();
+            print('Marcus is disconnected. So is everyone else.', 'dim');
+            print('Your phone is already ringing. It won\'t stop for hours.', 'dim');
+            printBlank();
+            print('Technically, you stopped the threat.', 'dim');
+            print('Your career may not survive the solution.', 'dim');
+
+            state.ending = 'nuclear';
+            endGame();
+            return null;
+        }
+
+        function cmdStopComputer() {
+            return cmdRestartComputer({});
+        }
+
+        function cmdGetEventLog() {
+            return `
+TimeCreated          EventId  Message
+-----------          -------  -------
+${timeAgo(5)}    4624     Logon success: mchen (VPN)
+${timeAgo(12)}    4670     Permissions changed on NightlyFull backup job
+${timeAgo(18)}    4738     User account modified: mchen changed GPO
+${timeAgo(22)}    4624     Logon success: mchen (RDP to FS01)
+${timeAgo(30)}    4624     Logon success: mchen (VPN)`;
+        }
+
+        function cmdGetComputer(identity, params) {
+            if (params.filter === '*' || (!identity && params.filter)) {
+                return `
+Name    DNSHostName             Enabled  OperatingSystem
+----    -----------             -------  ---------------
+DC01    DC01.hexworth.local     True     Windows Server 2022 Datacenter
+FS01    FS01.hexworth.local     True     Windows Server 2022 Standard
+WEB01   WEB01.hexworth.local    True     Windows Server 2022 Standard
+SQL01   SQL01.hexworth.local    True     Windows Server 2022 Standard`;
+            }
+
+            if (!identity) {
+                return styledLine("Get-ADComputer : Specify -Identity <name> or -Filter *.", 'error');
+            }
+
+            return styledLine(`Get-ADComputer : Cannot find computer '${identity}'.`, 'error');
+        }
+
+        function cmdSearchAccount(params) {
+            if (params.lockedout) {
+                return styledLine('No locked out accounts found. Accounts are unlocked -- that\'s the problem.', 'dim');
+            }
+            return styledLine("Search-ADAccount : Specify -LockedOut, -PasswordExpired, or -AccountDisabled.", 'error');
+        }
+
+        function cmdGetProcess() {
+            return `
+Handles  NPM(K)  PM(K)    CPU(s)   ProcessName
+-------  ------  -----    ------   -----------
+    847      42  98,432     12.41   lsass
+    312      18  45,120      3.22   svchost
+    156      11  12,288      0.88   csrss
+    534      28  67,890      8.14   dns
+    421      22  53,400      5.67   ntds`;
+        }
+
+        /* ═══════════════════════════════════════
+           HELP & HINTS
+           ═══════════════════════════════════════ */
+
+        function showHelp() {
+            return `
+POWERSHELL COMMANDS:
+  Get-ADUser -Identity <name>        Look up a user account
+  Get-ADUser -Filter *               List all user accounts
+  Disable-ADAccount -Identity <name> Disable a user account
+  Set-ADAccountPassword -Identity <name> -Reset
+                                     Reset a user's password
+  Remove-ADGroupMember -Identity <group> -Members <user>
+                                     Remove user from a group
+  Get-ADGroupMember -Identity <group>
+                                     List members of a group
+  Get-ADGroup -Filter *              List all groups
+  Get-ADComputer -Filter *           List all computers
+  Get-EventLog -LogName Security     View security events
+  Restart-Computer                   Restart this machine
+
+OTHER COMMANDS:
+  look          Examine your surroundings
+  inventory     Check what you have
+  hint          Get a contextual hint
+  time          Check remaining time
+  help          Show this help
+
+There are 12 achievements. Some require creative thinking.`;
+        }
+
+        function showHint() {
+            if (state.accountDisabled || state.passwordReset) {
+                return styledLine('[HINT] The threat is neutralized. But have you tried all the approaches?\nThere are 12 achievements total. Try different strategies on your next run.', 'hint');
+            }
+
+            if (state.removedFromDA) {
+                return styledLine('[HINT] Good -- you removed his admin privileges. But his account is still active.\nCached tokens might linger. Consider disabling the account entirely.', 'hint');
+            }
+
+            if (state.commandCount === 0) {
+                return styledLine('[HINT] Marcus Chen (mchen) has Domain Admin and is connected via VPN.\nWhat PowerShell command would you use to disable an Active Directory account?', 'hint');
+            }
+
+            if (state.commandCount < 3) {
+                return styledLine('[HINT] The fastest way to stop Marcus: Disable-ADAccount -Identity mchen\nOr try other approaches for different achievements.', 'hint');
+            }
+
+            return styledLine('[HINT] The clock is ticking. Disable-ADAccount, Set-ADAccountPassword,\nor Remove-ADGroupMember are all valid approaches. Each earns a different achievement.', 'hint');
+        }
+
+        /* ═══════════════════════════════════════
+           WIN CONDITION CHECK
+           ═══════════════════════════════════════ */
+
+        function checkWinCondition() {
+            // "By The Book" - all three measures taken
+            if (state.accountDisabled && state.removedFromDA && state.passwordReset) {
+                unlock('by_the_book');
+            }
+
+            // If threat neutralized, show victory after a short delay
+            if (!state.marcusActive && state.ending === null) {
+                state.ending = 'success';
+                clearInterval(state.timerInterval);
+
+                setTimeout(function() {
+                    if (state.phase !== 'playing') return;
+                    printBlank();
+                    print('════════════════════════════════════════', 'success');
+                    print('THREAT NEUTRALIZED', 'success');
+                    print('════════════════════════════════════════', 'success');
+                    printBlank();
+
+                    const elapsed = state.timeElapsed;
+                    const mins = Math.floor(elapsed / 60);
+                    const secs = elapsed % 60;
+                    print(`Time: ${mins}m ${secs}s`, 'info');
+                    printBlank();
+
+                    // Determine what they did
+                    const actions = [];
+                    if (state.accountDisabled) actions.push('Account disabled');
+                    if (state.passwordReset) actions.push('Password reset');
+                    if (state.removedFromDA) actions.push('Removed from Domain Admins');
+                    print('Actions taken: ' + actions.join(', '), 'dim');
+                    printBlank();
+
+                    if (state.accountDisabled && state.passwordReset && state.removedFromDA) {
+                        print('Textbook incident response. Account disabled, privileges', 'narrative');
+                        print('revoked, credentials rotated. The forensics team will', 'narrative');
+                        print('love you. Audit trail intact. Well done.', 'narrative');
+                    } else if (state.accountDisabled) {
+                        print('Quick and decisive. Account disabled, threat over.', 'narrative');
+                        print('Next step: review what Marcus accessed during his', 'narrative');
+                        print('30-minute window. Check those event logs.', 'narrative');
+                    } else if (state.passwordReset) {
+                        print('Password reset -- effective but temporary. His cached', 'narrative');
+                        print('Kerberos tokens might linger for a few minutes.', 'narrative');
+                        print('Consider also disabling the account for a cleaner kill.', 'narrative');
+                    }
+
+                    printBlank();
+                    print('Marcus is locked out. Your weekend is saved.', 'dim');
+                    print('(Mostly. You should probably document this incident.)', 'dim');
+
+                    endGame();
+                }, 1500);
+            }
+        }
+
+        /* ═══════════════════════════════════════
+           GAME END
+           ═══════════════════════════════════════ */
+
+        function endGame() {
+            state.phase = 'ended';
+            clearInterval(state.timerInterval);
+
+            document.getElementById('input').placeholder = 'Type R to restart or A for achievements...';
+
+            printBlank();
+            print('────────────────────────────────────────', 'dim');
+
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            print(`Achievements: ${count}/12`, 'achievement');
+
+            printBlank();
+            print('[R] Play Again    [A] View Achievements', 'info');
+        }
+
+        function restart() {
+            document.getElementById('output').innerHTML = '';
+            resetState();
+            document.getElementById('timer').textContent = '3:00';
+            document.getElementById('timer').className = 'timer';
+            document.getElementById('prompt').style.display = '';
+            document.getElementById('input').placeholder = 'Type a command...';
+            updateAchievementCounter();
+            startGame();
+        }
+
+        /* ═══════════════════════════════════════
+           ACHIEVEMENTS
+           ═══════════════════════════════════════ */
+
+        function loadAchievements() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            } catch { return {}; }
+        }
+
+        function saveAchievements(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function unlock(id) {
+            const saved = loadAchievements();
+            if (saved[id]) return; // already unlocked
+
+            const ach = ACHIEVEMENTS[id];
+            if (!ach) return;
+
+            saved[id] = { unlockedAt: Date.now() };
+            saveAchievements(saved);
+
+            // Show toast
+            showToast(ach.name, ach.desc);
+
+            // Update counter
+            updateAchievementCounter();
+
+            // Print in terminal
+            print(`[ACHIEVEMENT] ${ach.icon} ${ach.name} — ${ach.desc}`, 'achievement');
+        }
+
+        function showToast(name, desc) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastName').textContent = name;
+            document.getElementById('toastDesc').textContent = desc;
+            toast.classList.add('show');
+
+            if (state.toastTimeout) clearTimeout(state.toastTimeout);
+            state.toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        function updateAchievementCounter() {
+            const saved = loadAchievements();
+            const count = Object.keys(saved).length;
+            document.getElementById('achCounter').textContent = `\u2605 ${count}/12`;
+        }
+
+        function showGallery() {
+            const saved = loadAchievements();
+            const overlay = document.getElementById('galleryOverlay');
+            const gallery = document.getElementById('gallery');
+
+            let html = '<h2>ACHIEVEMENTS</h2>';
+
+            for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+                const unlocked = !!saved[id];
+                html += `
+                    <div class="gallery-item">
+                        <div class="gallery-icon ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? ach.icon : '?'}</div>
+                        <div class="gallery-text">
+                            <div class="gallery-name ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? ach.name : '???'}</div>
+                            <div class="gallery-desc">${unlocked ? ach.desc : 'Not yet unlocked'}</div>
+                        </div>
+                    </div>`;
+            }
+
+            html += `<div class="gallery-close"><button onclick="Game.hideGallery()">Close</button></div>`;
+
+            gallery.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function hideGallery() {
+            document.getElementById('galleryOverlay').classList.remove('show');
+            document.getElementById('input').focus();
+        }
+
+        /* ═══════════════════════════════════════
+           UTILITIES
+           ═══════════════════════════════════════ */
+
+        function styledLine(text, className) {
+            // Tag the string with a class for the printer
+            const s = new String(text);
+            s._className = className;
+            return s;
+        }
+
+        function adventureLook() {
+            let desc = 'You\'re at your desk in the server room. Two monitors glow in the dim light.\n';
+            desc += 'Left monitor: Active Directory Users and Computers.\n';
+            desc += 'Right monitor: VPN dashboard.\n\n';
+
+            if (state.accountDisabled) {
+                desc += 'VPN Dashboard shows: mchen — Disconnected.\n';
+                desc += 'The immediate threat is over. You can breathe.';
+            } else if (state.passwordReset) {
+                desc += 'VPN Dashboard shows: mchen — Connected (credentials expiring).\n';
+                desc += 'His session is winding down. The new password locked him out.';
+            } else if (state.removedFromDA) {
+                desc += 'VPN Dashboard shows: mchen — Connected.\n';
+                desc += 'He\'s still connected but no longer has admin privileges.\n';
+                desc += 'He can still access things a normal user can. Is that enough?';
+            } else {
+                desc += 'VPN Dashboard shows: mchen — Connected (since 3:52 PM).\n';
+                desc += 'Active. Authenticated. Domain Admin.\n';
+                desc += 'Your coffee is cold. Your palms are not.';
+            }
+
+            return styledLine(desc, 'dim');
+        }
+
+        function timeAgo(minutes) {
+            const d = new Date();
+            d.setMinutes(d.getMinutes() - minutes);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        /* ═══════════════════════════════════════
+           GALLERY CLOSE ON CLICK OUTSIDE
+           ═══════════════════════════════════════ */
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'galleryOverlay') {
+                hideGallery();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideGallery();
+            }
+        });
+
+        /* ═══════════════════════════════════════
+           PUBLIC API
+           ═══════════════════════════════════════ */
+        return { init, showGallery, hideGallery };
+
+    })();
+
+    // Boot
+    document.addEventListener('DOMContentLoaded', Game.init);
+    </script>
+</body>
+</html>
