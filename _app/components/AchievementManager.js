@@ -505,9 +505,10 @@ const AchievementManager = (function() {
             setTimeout(() => unlock('secret_hunter'), 1500);
         }
 
-        // Completionist: All achievements (except completionist itself)
-        const totalAchievements = achievements.filter(a => a.id !== 'completionist').length;
-        if (unlocked.length >= totalAchievements && !unlocked.includes('completionist')) {
+        // Completionist: All AchievementManager achievements (except completionist itself)
+        const requiredIds = achievements.filter(a => a.id !== 'completionist').map(a => a.id);
+        const allUnlocked = requiredIds.every(id => unlocked.includes(id));
+        if (allUnlocked && !unlocked.includes('completionist')) {
             setTimeout(() => unlock('completionist'), 2000);
         }
     }
