@@ -3123,15 +3123,23 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             }
             // ── End M18 Script Block Detection ────────────────────────────────
 
-            // ── Pipe-Aware Objective Detection ────────────────────────────────
-            // Some objectives require detecting patterns across pipe segments.
+            // ── Full-Input Objective Detection ───────────────────────────────
+            // Some objectives need to see the full raw input because the
+            // relevant keywords span pipe segments or live inside @{} blocks
+            // that the param parser doesn't expose to rawArgs.
             // _checkObjective no-ops if the ID doesn't exist in the current lab.
 
             // get-service-stopped: Get-Service | Where-Object ... Stopped
-            if (/get-service\b.*\|.*(?:where-object|where)\b.*stopped/i.test(input)) {
+            //   OR: Get-Service -Status Stopped (handled in handler too)
+            if (/get-service\b.*stopped/i.test(input)) {
                 _checkObjective('get-service-stopped');
             }
-            // ── End Pipe-Aware Detection ──────────────────────────────────────
+
+            // get-winevent-security: any Get-WinEvent mentioning Security log
+            if (/get-winevent\b.*security/i.test(input)) {
+                _checkObjective('get-winevent-security');
+            }
+            // ── End Full-Input Detection ─────────────────────────────────────
 
             // Parse the command for callback
             // For pipelines, parse just the first command so onCommand always gets a command name
