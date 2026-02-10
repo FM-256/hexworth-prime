@@ -3762,6 +3762,7 @@ const GUISimulator = (function() {
             checkpoints: {},
             uptimeTimer: null,
             vmStartTimes: {}, // Track when each VM was started
+            currentView: 'vms', // Track active tree view for timer guard
         };
 
         // Parse uptime string to seconds (e.g., "2.14:32:05" -> seconds)
@@ -3811,7 +3812,7 @@ const GUISimulator = (function() {
                     }
                 });
 
-                if (needsUpdate) {
+                if (needsUpdate && hvState.currentView === 'vms') {
                     renderVMList();
                 }
             }, 1000);
@@ -4026,12 +4027,15 @@ const GUISimulator = (function() {
                 switch (nodeId) {
                     case 'host':
                     case 'vms':
+                        hvState.currentView = 'vms';
                         renderVMList();
                         break;
                     case 'switches':
+                        hvState.currentView = 'switches';
                         renderSwitchList();
                         break;
                     case 'checkpoints':
+                        hvState.currentView = 'checkpoints';
                         renderCheckpointList();
                         break;
                 }
