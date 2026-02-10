@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAVE THE POD | Docker Container Rescue</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --lap-primary: #00d4ff;
+            --lap-secondary: #ff6b35;
+            --lap-bg: #0a0a1a;
+            --lap-accent: #00d4ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, var(--lap-bg) 0%, #0d1525 50%, #0a0a1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.8s ease;
+        }
+
+        .game-wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 10px 15px;
+            min-height: 100vh;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 8px rgba(255, 60, 60, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(255, 60, 60, 0.7); }
+        }
+
+        @keyframes pulseWarn {
+            0%, 100% { box-shadow: 0 0 8px rgba(255, 180, 0, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(255, 180, 0, 0.6); }
+        }
+
+        @keyframes saved {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); box-shadow: 0 0 30px rgba(0, 255, 100, 0.6); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes crash {
+            0% { transform: scale(1) rotate(0); opacity: 1; }
+            25% { transform: scale(1.1) rotate(-3deg); }
+            50% { transform: scale(0.9) rotate(3deg); }
+            100% { transform: scale(0) rotate(-10deg); opacity: 0; }
+        }
+
+        @keyframes lapFlash {
+            0% { filter: brightness(1); }
+            30% { filter: brightness(2.5); }
+            100% { filter: brightness(1); }
+        }
+
+        @keyframes bossGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.3), inset 0 0 20px rgba(255, 0, 0, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(255, 0, 0, 0.6), inset 0 0 30px rgba(255, 0, 0, 0.2); }
+        }
+
+        @keyframes shakeScreen {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { color: #ff4444; }
+            50% { color: #ff8888; text-shadow: 0 0 10px #ff4444; }
+        }
+
+        /* ===== TITLE SCREEN ===== */
+        .title-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .title-screen.hidden { display: none; }
+
+        .game-logo {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 2.8rem;
+            color: var(--lap-primary);
+            text-shadow:
+                0 0 10px var(--lap-primary),
+                0 0 30px var(--lap-primary),
+                4px 4px 0 rgba(0, 0, 0, 0.5);
+            margin-bottom: 8px;
+            letter-spacing: 3px;
+        }
+
+        .game-subtitle {
+            font-size: 0.95rem;
+            color: var(--lap-secondary);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .title-icon {
+            font-size: 5rem;
+            margin-bottom: 25px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .title-desc {
+            max-width: 500px;
+            font-size: 0.75rem;
+            color: #8892a4;
+            line-height: 1.8;
+            margin-bottom: 35px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 30px;
+        }
+
+        .menu-btn {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.85rem;
+            padding: 18px 45px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn.primary {
+            background: linear-gradient(180deg, var(--lap-primary), color-mix(in srgb, var(--lap-primary) 70%, black));
+            color: #000;
+            box-shadow: 0 6px 0 color-mix(in srgb, var(--lap-primary) 40%, black), 0 8px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .menu-btn.primary:hover { transform: translateY(-2px); }
+        .menu-btn.primary:active { transform: translateY(4px); box-shadow: 0 2px 0 color-mix(in srgb, var(--lap-primary) 40%, black); }
+
+        .menu-btn.secondary {
+            background: linear-gradient(180deg, var(--lap-secondary), color-mix(in srgb, var(--lap-secondary) 70%, black));
+            color: #fff;
+            box-shadow: 0 6px 0 color-mix(in srgb, var(--lap-secondary) 40%, black), 0 8px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .menu-btn.secondary:hover { transform: translateY(-2px); }
+        .menu-btn.secondary:active { transform: translateY(4px); box-shadow: 0 2px 0 color-mix(in srgb, var(--lap-secondary) 40%, black); }
+
+        .title-scores {
+            display: flex;
+            gap: 25px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #222;
+            border-radius: 10px;
+            padding: 16px 30px;
+        }
+
+        .title-scores div { text-align: center; }
+        .title-scores label { font-size: 0.55rem; color: #666; display: block; margin-bottom: 5px; font-family: 'Press Start 2P', monospace; }
+        .title-scores .val { font-family: 'Press Start 2P', monospace; font-size: 1.2rem; color: #ffcc00; }
+
+        /* ===== HUD ===== */
+        .game-screen { display: none; animation: fadeIn 0.3s ease; }
+        .game-screen.active { display: block; }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .hud-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hud-label {
+            font-size: 0.55rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hud-value {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.8rem;
+        }
+
+        .hud-level { color: var(--lap-primary); }
+        .hud-lap { color: #ff00ff; }
+        .hud-score { color: #ffcc00; }
+        .hud-lives { font-size: 1rem; }
+        .hud-combo { color: #00ff88; }
+
+        .level-banner {
+            text-align: center;
+            padding: 14px;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.08), transparent);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .level-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.75rem;
+            color: var(--lap-primary);
+            margin-bottom: 6px;
+        }
+
+        .level-objective {
+            font-size: 0.7rem;
+            color: #8892a4;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .boss-indicator {
+            display: none;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.6rem;
+            color: #ff4444;
+            margin-top: 6px;
+            letter-spacing: 2px;
+            animation: timerPulse 1s infinite;
+        }
+
+        .boss-indicator.active { display: block; }
+
+        /* ===== CONTAINER DOCK ===== */
+        .dock {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+            min-height: 200px;
+        }
+
+        .pod {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 14px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            animation: slideUp 0.4s ease;
+        }
+
+        .pod:hover { border-color: rgba(255, 255, 255, 0.25); }
+
+        .pod-icon { font-size: 1.8rem; margin-bottom: 6px; }
+
+        .pod-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #e0e0e0;
+            margin-bottom: 3px;
+        }
+
+        .pod-port {
+            font-size: 0.6rem;
+            color: #555;
+            font-family: monospace;
+        }
+
+        .pod-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .pod-timer-bar {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .pod-timer-fill {
+            height: 100%;
+            background: var(--lap-primary);
+            border-radius: 2px;
+            transition: width 0.2s linear;
+        }
+
+        /* Pod states */
+        .pod.healthy { border-color: rgba(0, 200, 100, 0.3); }
+        .pod.healthy .pod-status { background: #00c864; box-shadow: 0 0 6px #00c864; }
+
+        .pod.warning { border-color: rgba(255, 180, 0, 0.4); animation: pulseWarn 1.5s infinite; }
+        .pod.warning .pod-status { background: #ffb400; box-shadow: 0 0 6px #ffb400; }
+        .pod.warning .pod-timer-fill { background: #ffb400; }
+
+        .pod.critical { border-color: rgba(255, 50, 50, 0.5); animation: pulse 1s infinite; }
+        .pod.critical .pod-status { background: #ff3232; box-shadow: 0 0 8px #ff3232; }
+        .pod.critical .pod-timer-fill { background: #ff3232; }
+
+        .pod.selected { border-color: var(--lap-primary); box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
+
+        .pod.saving { animation: saved 0.6s ease; border-color: #00ff64; }
+        .pod.saving .pod-status { background: #00ff64; }
+
+        .pod.crashing { animation: crash 0.5s ease forwards; }
+
+        .pod.boss-pod { border-width: 2px; border-style: dashed; animation: bossGlow 2s infinite; }
+        .pod.boss-pod.warning { animation: bossGlow 2s infinite, pulseWarn 1.5s infinite; }
+        .pod.boss-pod.critical { animation: bossGlow 2s infinite, pulse 1s infinite; }
+
+        /* ===== COMMAND PANEL ===== */
+        .cmd-panel {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 140px;
+        }
+
+        .cmd-panel-empty {
+            text-align: center;
+            color: #444;
+            font-size: 0.7rem;
+            padding: 40px 0;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .cmd-issue {
+            margin-bottom: 14px;
+        }
+
+        .cmd-issue-pod {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.6rem;
+            color: var(--lap-primary);
+            margin-bottom: 6px;
+        }
+
+        .cmd-issue-text {
+            font-size: 0.82rem;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            line-height: 1.5;
+        }
+
+        .cmd-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .cmd-btn {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .cmd-btn:hover:not(:disabled) {
+            background: rgba(0, 212, 255, 0.12);
+            border-color: var(--lap-primary);
+            color: var(--lap-primary);
+        }
+
+        .cmd-btn.correct {
+            background: rgba(0, 255, 100, 0.15);
+            border-color: #00ff64;
+            color: #00ff64;
+        }
+
+        .cmd-btn.wrong {
+            background: rgba(255, 50, 50, 0.15);
+            border-color: #ff3232;
+            color: #ff3232;
+        }
+
+        .cmd-btn:disabled { cursor: default; opacity: 0.6; }
+
+        /* Boss multi-step */
+        .cmd-step-indicator {
+            display: none;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.5rem;
+            color: #ff6b35;
+            margin-bottom: 8px;
+        }
+
+        .cmd-step-indicator.active { display: block; }
+
+        /* ===== WAVE COMPLETE / GAME OVER ===== */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay.active { display: flex; }
+
+        .overlay-box {
+            background: rgba(10, 10, 30, 0.95);
+            border: 2px solid var(--lap-primary);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            animation: fadeIn 0.4s ease;
+            max-width: 450px;
+            width: 90%;
+        }
+
+        .overlay-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 1.2rem;
+            color: var(--lap-primary);
+            margin-bottom: 8px;
+        }
+
+        .overlay-sub {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 25px;
+        }
+
+        .overlay-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 25px;
+        }
+
+        .overlay-stat { text-align: center; }
+        .overlay-stat label { font-size: 0.55rem; color: #666; display: block; margin-bottom: 5px; font-family: 'Press Start 2P', monospace; }
+        .overlay-stat .val { font-family: 'Press Start 2P', monospace; font-size: 1.3rem; color: #ffcc00; }
+
+        .overlay-btn {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.7rem;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 8px;
+            transition: all 0.15s;
+        }
+
+        .overlay-btn.go {
+            background: linear-gradient(180deg, var(--lap-primary), color-mix(in srgb, var(--lap-primary) 60%, black));
+            color: #000;
+            box-shadow: 0 4px 0 color-mix(in srgb, var(--lap-primary) 30%, black);
+        }
+
+        .overlay-btn.go:hover { transform: translateY(-2px); }
+        .overlay-btn.go:active { transform: translateY(3px); box-shadow: none; }
+
+        .overlay-btn.quit {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+            border: 1px solid #333;
+        }
+
+        .overlay-btn.quit:hover { color: #fff; border-color: #666; }
+
+        .new-lap-msg {
+            display: none;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.6rem;
+            color: #ff00ff;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        /* ===== BACK LINK ===== */
+        .back-bar {
+            padding: 10px 0;
+            margin-bottom: 5px;
+        }
+
+        .back-link {
+            color: #555;
+            text-decoration: none;
+            font-size: 0.75rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: var(--lap-primary); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 700px) {
+            .game-logo { font-size: 1.6rem; }
+            .dock { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+            .cmd-options { grid-template-columns: 1fr; }
+            .hud { padding: 8px 12px; }
+            .hud-value { font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="back-bar">
+            <a href="../index.html" class="back-link">&larr; Back to WSA Course</a>
+        </div>
+
+        <!-- ===== TITLE SCREEN ===== -->
+        <div class="title-screen" id="titleScreen">
+            <div class="title-icon">&#x1F433;</div>
+            <div class="game-logo">SAVE THE POD</div>
+            <div class="game-subtitle">Docker Container Rescue</div>
+            <div class="title-desc">
+                Your container cluster is under siege. Pods are failing, networks are dropping, and images are corrupted.
+                Issue the right Docker commands to keep your infrastructure alive. Every 10th level is a boss fight with multi-step recovery.
+                Clear all 10 levels and the game laps with new themes and harder challenges.
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn primary" onclick="startGame()">START RESCUE</button>
+            </div>
+            <div class="title-scores">
+                <div>
+                    <label>HIGH SCORE</label>
+                    <div class="val" id="titleHighScore">0</div>
+                </div>
+                <div>
+                    <label>BEST LAP</label>
+                    <div class="val" id="titleBestLap">0</div>
+                </div>
+                <div>
+                    <label>PODS SAVED</label>
+                    <div class="val" id="titleTotalSaved">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== GAME SCREEN ===== -->
+        <div class="game-screen" id="gameScreen">
+            <div class="hud">
+                <div class="hud-group">
+                    <span class="hud-label">LVL</span>
+                    <span class="hud-value hud-level" id="hudLevel">1</span>
+                </div>
+                <div class="hud-group">
+                    <span class="hud-label">LAP</span>
+                    <span class="hud-value hud-lap" id="hudLap">1</span>
+                </div>
+                <div class="hud-group">
+                    <span class="hud-label">SCORE</span>
+                    <span class="hud-value hud-score" id="hudScore">0</span>
+                </div>
+                <div class="hud-group">
+                    <span class="hud-value hud-lives" id="hudLives">&#x2764;&#x2764;&#x2764;</span>
+                </div>
+                <div class="hud-group">
+                    <span class="hud-label">COMBO</span>
+                    <span class="hud-value hud-combo" id="hudCombo">x1</span>
+                </div>
+            </div>
+
+            <div class="level-banner">
+                <div class="level-title" id="levelTitle">LEVEL 1: COLD START</div>
+                <div class="level-objective" id="levelObjective">Get these containers running again.</div>
+                <div class="boss-indicator" id="bossIndicator">&#x1F480; BOSS LEVEL &#x1F480;</div>
+            </div>
+
+            <div class="dock" id="dock"></div>
+
+            <div class="cmd-panel" id="cmdPanel">
+                <div class="cmd-panel-empty" id="cmdEmpty">SELECT A TROUBLED POD</div>
+                <div id="cmdContent" style="display:none;">
+                    <div class="cmd-step-indicator" id="cmdStep"></div>
+                    <div class="cmd-issue">
+                        <div class="cmd-issue-pod" id="cmdPod"></div>
+                        <div class="cmd-issue-text" id="cmdIssue"></div>
+                    </div>
+                    <div class="cmd-options" id="cmdOptions"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== LEVEL COMPLETE OVERLAY ===== -->
+        <div class="overlay" id="levelOverlay">
+            <div class="overlay-box">
+                <div class="overlay-title" id="overlayTitle">LEVEL COMPLETE</div>
+                <div class="overlay-sub" id="overlaySub"></div>
+                <div class="new-lap-msg" id="newLapMsg"></div>
+                <div class="overlay-stats">
+                    <div class="overlay-stat">
+                        <label>SCORE</label>
+                        <div class="val" id="overlayScore">0</div>
+                    </div>
+                    <div class="overlay-stat">
+                        <label>SAVED</label>
+                        <div class="val" id="overlaySaved">0</div>
+                    </div>
+                    <div class="overlay-stat">
+                        <label>COMBO</label>
+                        <div class="val" id="overlayCombo">0</div>
+                    </div>
+                </div>
+                <button class="overlay-btn go" id="overlayNext" onclick="nextLevel()">NEXT LEVEL</button>
+                <button class="overlay-btn quit" onclick="quitToTitle()">QUIT</button>
+            </div>
+        </div>
+
+        <!-- ===== GAME OVER OVERLAY ===== -->
+        <div class="overlay" id="gameOverOverlay">
+            <div class="overlay-box">
+                <div class="overlay-title" style="color:#ff4444;">CLUSTER DOWN</div>
+                <div class="overlay-sub">All lives lost. Your pods have crashed.</div>
+                <div class="overlay-stats">
+                    <div class="overlay-stat">
+                        <label>FINAL SCORE</label>
+                        <div class="val" id="goScore">0</div>
+                    </div>
+                    <div class="overlay-stat">
+                        <label>LEVEL</label>
+                        <div class="val" id="goLevel">0</div>
+                    </div>
+                    <div class="overlay-stat">
+                        <label>LAP</label>
+                        <div class="val" id="goLap">0</div>
+                    </div>
+                </div>
+                <button class="overlay-btn go" onclick="startGame()">RETRY</button>
+                <button class="overlay-btn quit" onclick="quitToTitle()">QUIT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* =================================================================
+       SAVE THE POD - Docker Container Rescue Game
+       10 levels, infinite laps, boss every 10th level
+       ================================================================= */
+
+    const STORAGE_KEY = 'wsa-save-the-pod';
+
+    // ===== LAP THEMES =====
+    const LAP_THEMES = [
+        { name: 'Docker Blue',  primary: '#00d4ff', secondary: '#ff6b35', accent: '#00d4ff', bg: '#0a0a1a' },
+        { name: 'Cyber',        primary: '#00ffff', secondary: '#ff00ff', accent: '#00ffff', bg: '#0a0a2e' },
+        { name: 'Solar',        primary: '#ffcc00', secondary: '#ff4400', accent: '#ffcc00', bg: '#1a0a0a' },
+        { name: 'Matrix',       primary: '#00ff00', secondary: '#00cc00', accent: '#00ff00', bg: '#000a00' },
+        { name: 'Neon',         primary: '#ff00ff', secondary: '#00ffff', accent: '#ff00ff', bg: '#1a001a' },
+        { name: 'Rust',         primary: '#ff8c42', secondary: '#ff3c5a', accent: '#ff8c42', bg: '#1a0a05' },
+        { name: 'Ice',          primary: '#88ddff', secondary: '#4488ff', accent: '#88ddff', bg: '#050a1a' },
+        { name: 'Toxic',        primary: '#aaff00', secondary: '#ff6600', accent: '#aaff00', bg: '#0a0a00' },
+    ];
+
+    // ===== CONTAINER DEFINITIONS =====
+    const CONTAINERS = [
+        { name: 'nginx',    icon: '\u{1F310}', port: ':80' },
+        { name: 'redis',    icon: '\u{1F534}', port: ':6379' },
+        { name: 'mysql',    icon: '\u{1F5C3}', port: ':3306' },
+        { name: 'node-api', icon: '\u{1F7E2}', port: ':3000' },
+        { name: 'postgres', icon: '\u{1F418}', port: ':5432' },
+        { name: 'mongo',    icon: '\u{1F343}', port: ':27017' },
+        { name: 'rabbitmq', icon: '\u{1F407}', port: ':5672' },
+        { name: 'grafana',  icon: '\u{1F4CA}', port: ':3000' },
+        { name: 'jenkins',  icon: '\u{1F477}', port: ':8080' },
+        { name: 'vault',    icon: '\u{1F512}', port: ':8200' },
+        { name: 'elastic',  icon: '\u{1F50D}', port: ':9200' },
+        { name: 'kafka',    icon: '\u{1F4E8}', port: ':9092' },
+        { name: 'traefik',  icon: '\u{1F6E3}', port: ':443' },
+        { name: 'consul',   icon: '\u{1F3DB}', port: ':8500' },
+        { name: 'prometheus', icon: '\u{1F525}', port: ':9090' },
+        { name: 'minio',    icon: '\u{1F4E6}', port: ':9000' },
+    ];
+
+    // ===== ISSUE POOLS BY CATEGORY =====
+    const ISSUES = {
+        basics: [
+            { text: 'Container has exited unexpectedly.', answer: 'docker start {name}', distractors: ['docker rm {name}', 'docker pull {name}', 'docker build {name}'] },
+            { text: 'Container is unresponsive and needs a restart.', answer: 'docker restart {name}', distractors: ['docker pause {name}', 'docker kill {name}', 'docker rm -f {name}'] },
+            { text: 'Container is running a stale image version.', answer: 'docker pull {name}:latest', distractors: ['docker build {name}', 'docker commit {name}', 'docker save {name}'] },
+            { text: 'Zombie container consuming resources but not working.', answer: 'docker kill {name}', distractors: ['docker pause {name}', 'docker wait {name}', 'docker top {name}'] },
+            { text: 'Container needs to be stopped gracefully.', answer: 'docker stop {name}', distractors: ['docker kill {name}', 'docker rm {name}', 'docker pause {name}'] },
+        ],
+        inspection: [
+            { text: 'Container is crashing on startup. Need to check logs.', answer: 'docker logs {name}', distractors: ['docker inspect {name}', 'docker top {name}', 'docker diff {name}'] },
+            { text: 'Unknown config causing failures. Need container details.', answer: 'docker inspect {name}', distractors: ['docker logs {name}', 'docker stats {name}', 'docker history {name}'] },
+            { text: 'Container running but high CPU usage. Need to investigate.', answer: 'docker exec -it {name} sh', distractors: ['docker restart {name}', 'docker stats {name}', 'docker top {name}'] },
+            { text: 'Need to check which processes are running inside.', answer: 'docker top {name}', distractors: ['docker exec {name} ps', 'docker inspect {name}', 'docker logs {name}'] },
+            { text: 'Container resource usage is spiking. Need live stats.', answer: 'docker stats {name}', distractors: ['docker top {name}', 'docker inspect {name}', 'docker logs --tail 50 {name}'] },
+        ],
+        networking: [
+            { text: 'Container can\'t reach other containers on the network.', answer: 'docker network connect bridge {name}', distractors: ['docker restart {name}', 'docker network create {name}', 'docker network inspect bridge'] },
+            { text: 'Port conflict! Another service is using the mapped port.', answer: 'docker run -p 8081:80 {name}', distractors: ['docker restart {name}', 'docker port {name}', 'docker network ls'] },
+            { text: 'DNS resolution failing inside the container.', answer: 'docker run --dns 8.8.8.8 {name}', distractors: ['docker restart {name}', 'docker network connect {name}', 'docker exec {name} ping dns'] },
+            { text: 'Container is exposed to public but should be internal only.', answer: 'docker network disconnect bridge {name}', distractors: ['docker stop {name}', 'docker kill {name}', 'docker pause {name}'] },
+            { text: 'Inter-container communication failing. Need custom network.', answer: 'docker network create app-net', distractors: ['docker network inspect bridge', 'docker restart {name}', 'docker network rm bridge'] },
+        ],
+        storage: [
+            { text: 'Container lost all data after restart. Need persistent volume.', answer: 'docker run -v data:/var/lib {name}', distractors: ['docker restart {name}', 'docker cp {name}:/data .', 'docker commit {name}'] },
+            { text: 'Config file not mounting into the container.', answer: 'docker run -v ./config:/etc/app {name}', distractors: ['docker cp config {name}:/etc/', 'docker exec {name} cat /etc/app', 'docker restart {name}'] },
+            { text: 'Volume is full. Container write operations failing.', answer: 'docker system prune --volumes', distractors: ['docker restart {name}', 'docker rm -v {name}', 'docker volume ls'] },
+            { text: 'Need to backup container data before migration.', answer: 'docker cp {name}:/data ./backup', distractors: ['docker export {name}', 'docker commit {name}', 'docker save {name}'] },
+            { text: 'Orphaned volumes wasting disk space.', answer: 'docker volume prune', distractors: ['docker system df', 'docker volume ls', 'docker rm {name}'] },
+        ],
+        compose: [
+            { text: 'Multi-container stack won\'t start. Need to rebuild.', answer: 'docker compose up --build', distractors: ['docker compose start', 'docker compose restart', 'docker compose pull'] },
+            { text: 'Service dependencies not resolving. Stack is stale.', answer: 'docker compose down && docker compose up -d', distractors: ['docker compose restart', 'docker compose stop', 'docker compose pull'] },
+            { text: 'Need to scale the API containers to handle load.', answer: 'docker compose up --scale api=3', distractors: ['docker compose restart api', 'docker compose exec api top', 'docker compose logs api'] },
+            { text: 'Compose file changed but containers not updated.', answer: 'docker compose up -d --force-recreate', distractors: ['docker compose restart', 'docker compose pull', 'docker compose build'] },
+            { text: 'Database migration failed. Need to check compose logs.', answer: 'docker compose logs db', distractors: ['docker compose exec db sh', 'docker compose restart db', 'docker compose stop db'] },
+        ],
+        security: [
+            { text: 'Container running as root. Security risk detected.', answer: 'docker run --user 1000:1000 {name}', distractors: ['docker restart {name}', 'docker stop {name}', 'docker inspect {name}'] },
+            { text: 'Container has full host access. Need to restrict.', answer: 'docker run --read-only {name}', distractors: ['docker stop {name}', 'docker kill {name}', 'docker rm {name}'] },
+            { text: 'Secrets exposed in environment variables.', answer: 'docker secret create app-key secret.txt', distractors: ['docker inspect {name}', 'docker logs {name}', 'docker restart {name}'] },
+            { text: 'Image has known vulnerabilities. Need to scan.', answer: 'docker scout quickview {name}', distractors: ['docker inspect {name}', 'docker history {name}', 'docker pull {name}'] },
+            { text: 'Container can escalate privileges. Need to restrict.', answer: 'docker run --security-opt no-new-privileges {name}', distractors: ['docker stop {name}', 'docker run --read-only {name}', 'docker restart {name}'] },
+        ],
+        advanced: [
+            { text: 'Container health check is failing repeatedly.', answer: 'docker inspect --format="{{.State.Health}}" {name}', distractors: ['docker restart {name}', 'docker logs {name}', 'docker stats {name}'] },
+            { text: 'Need to limit container memory to prevent OOM.', answer: 'docker update --memory 512m {name}', distractors: ['docker restart {name}', 'docker stats {name}', 'docker top {name}'] },
+            { text: 'Container taking too much CPU from the host.', answer: 'docker update --cpus 0.5 {name}', distractors: ['docker kill {name}', 'docker stats {name}', 'docker restart {name}'] },
+            { text: 'Need to export this container as an image for backup.', answer: 'docker commit {name} backup-image', distractors: ['docker save {name}', 'docker export {name}', 'docker cp {name}:/data .'] },
+            { text: 'Swarm node is draining. Container needs rescheduling.', answer: 'docker service update --force {name}', distractors: ['docker restart {name}', 'docker service rm {name}', 'docker node update {name}'] },
+        ],
+    };
+
+    // ===== BOSS SCENARIOS (multi-step) =====
+    const BOSS_SCENARIOS = [
+        {
+            title: 'CASCADE FAILURE',
+            desc: 'The entire stack is down. Recover services in the correct order.',
+            steps: [
+                { text: 'Step 1: Database container is crashed. Bring it back.', answer: 'docker start {name}', distractors: ['docker rm {name}', 'docker pull {name}', 'docker build {name}'] },
+                { text: 'Step 2: Check the DB logs for corruption errors.', answer: 'docker logs {name}', distractors: ['docker inspect {name}', 'docker top {name}', 'docker stats {name}'] },
+                { text: 'Step 3: API can\'t reach the DB. Fix the network.', answer: 'docker network connect bridge {name}', distractors: ['docker restart {name}', 'docker kill {name}', 'docker network create net'] },
+            ]
+        },
+        {
+            title: 'MEMORY BOMB',
+            desc: 'A memory leak is crashing pods one by one. Contain the damage.',
+            steps: [
+                { text: 'Step 1: Identify the runaway container.', answer: 'docker stats {name}', distractors: ['docker logs {name}', 'docker restart {name}', 'docker inspect {name}'] },
+                { text: 'Step 2: Limit its memory before it kills the host.', answer: 'docker update --memory 256m {name}', distractors: ['docker kill {name}', 'docker restart {name}', 'docker stop {name}'] },
+                { text: 'Step 3: Restart with the memory limit applied.', answer: 'docker restart {name}', distractors: ['docker start {name}', 'docker run {name}', 'docker kill {name}'] },
+            ]
+        },
+        {
+            title: 'SUPPLY CHAIN BREACH',
+            desc: 'Compromised images detected. Secure the cluster.',
+            steps: [
+                { text: 'Step 1: Scan the suspicious image for vulnerabilities.', answer: 'docker scout quickview {name}', distractors: ['docker inspect {name}', 'docker history {name}', 'docker logs {name}'] },
+                { text: 'Step 2: Stop the compromised container immediately.', answer: 'docker kill {name}', distractors: ['docker stop {name}', 'docker pause {name}', 'docker restart {name}'] },
+                { text: 'Step 3: Pull the verified clean image and redeploy.', answer: 'docker pull {name}:latest', distractors: ['docker build {name}', 'docker commit {name}', 'docker run {name}'] },
+            ]
+        },
+        {
+            title: 'NETWORK PARTITION',
+            desc: 'A network split has isolated half your services.',
+            steps: [
+                { text: 'Step 1: Check which networks exist.', answer: 'docker network ls', distractors: ['docker network inspect bridge', 'docker ps --filter network=bridge', 'docker info'] },
+                { text: 'Step 2: Create a new bridge to reconnect services.', answer: 'docker network create app-net', distractors: ['docker network connect bridge {name}', 'docker network rm bridge', 'docker restart {name}'] },
+                { text: 'Step 3: Attach the isolated container to the new network.', answer: 'docker network connect app-net {name}', distractors: ['docker restart {name}', 'docker network disconnect bridge {name}', 'docker start {name}'] },
+            ]
+        },
+        {
+            title: 'STORAGE MELTDOWN',
+            desc: 'Disk full. Volumes corrupted. Data at risk.',
+            steps: [
+                { text: 'Step 1: Check disk usage across Docker.', answer: 'docker system df', distractors: ['docker stats', 'docker volume ls', 'docker info'] },
+                { text: 'Step 2: Clean up stopped containers and unused images.', answer: 'docker system prune', distractors: ['docker rm -f $(docker ps -aq)', 'docker rmi $(docker images -q)', 'docker volume prune'] },
+                { text: 'Step 3: Backup critical data before the volume fails.', answer: 'docker cp {name}:/data ./backup', distractors: ['docker export {name}', 'docker commit {name}', 'docker save {name}'] },
+            ]
+        },
+    ];
+
+    // ===== LEVEL DEFINITIONS =====
+    const LEVELS = [
+        { title: 'COLD START',           objective: 'Containers have stopped. Get them running again.',                     pods: 3, categories: ['basics'],               issueRate: 6000,  podTimer: 18 },
+        { title: 'LOG DIVE',             objective: 'Containers are crashing. Investigate and fix.',                        pods: 4, categories: ['basics', 'inspection'],  issueRate: 5500,  podTimer: 16 },
+        { title: 'NETWORK TANGLE',       objective: 'Connectivity issues across the cluster.',                             pods: 4, categories: ['basics', 'networking'],  issueRate: 5000,  podTimer: 15 },
+        { title: 'DATA DRAIN',           objective: 'Data loss and volume issues threatening services.',                   pods: 5, categories: ['basics', 'storage'],     issueRate: 4800,  podTimer: 15 },
+        { title: 'FULL STACK',           objective: 'Multiple issue types. Stay sharp.',                                   pods: 5, categories: ['basics', 'inspection', 'networking'], issueRate: 4500, podTimer: 14 },
+        { title: 'COMPOSE CHAOS',        objective: 'Multi-container stacks falling apart.',                               pods: 6, categories: ['compose', 'networking', 'storage'],   issueRate: 4200, podTimer: 13 },
+        { title: 'LOCKDOWN',             objective: 'Security vulnerabilities found. Harden everything.',                  pods: 5, categories: ['security', 'inspection'],             issueRate: 4000, podTimer: 13 },
+        { title: 'RESOURCE WARS',        objective: 'Containers fighting for CPU and memory.',                             pods: 6, categories: ['advanced', 'inspection', 'basics'],   issueRate: 3800, podTimer: 12 },
+        { title: 'EVERYTHING EVERYWHERE', objective: 'All issue types. No mercy.',                                         pods: 7, categories: ['basics', 'inspection', 'networking', 'storage', 'compose', 'security', 'advanced'], issueRate: 3500, podTimer: 11 },
+        { title: 'BOSS: MELTDOWN',       objective: 'Critical infrastructure failure. Multi-step recovery required.',      pods: 8, categories: [], isBoss: true,          issueRate: 3000,  podTimer: 20 },
+    ];
+
+    // ===== GAME STATE =====
+    const GS = {
+        currentLevel: 1,
+        currentLap: 1,
+        score: 0,
+        lives: 3,
+        maxLives: 3,
+        combo: 0,
+        maxCombo: 0,
+        podsSaved: 0,
+        podsLost: 0,
+        pods: [],
+        selectedPod: null,
+        issueTimer: null,
+        podTimers: {},
+        answered: false,
+        bossStep: 0,
+        bossScenario: null,
+        // Persistent
+        highScore: 0,
+        bestLap: 0,
+        totalSaved: 0,
+    };
+
+    // ===== PERSISTENCE =====
+    function loadSave() {
+        try {
+            const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+            if (d) {
+                GS.highScore = d.highScore || 0;
+                GS.bestLap = d.bestLap || 0;
+                GS.totalSaved = d.totalSaved || 0;
+            }
+        } catch {}
+    }
+
+    function savePersist() {
+        if (GS.score > GS.highScore) GS.highScore = GS.score;
+        if (GS.currentLap > GS.bestLap) GS.bestLap = GS.currentLap;
+        GS.totalSaved += GS.podsSaved;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            highScore: GS.highScore,
+            bestLap: GS.bestLap,
+            totalSaved: GS.totalSaved,
+        }));
+    }
+
+    // ===== THEME SYSTEM =====
+    function applyTheme() {
+        const theme = LAP_THEMES[(GS.currentLap - 1) % LAP_THEMES.length];
+        document.documentElement.style.setProperty('--lap-primary', theme.primary);
+        document.documentElement.style.setProperty('--lap-secondary', theme.secondary);
+        document.documentElement.style.setProperty('--lap-accent', theme.accent);
+        document.documentElement.style.setProperty('--lap-bg', theme.bg);
+        document.body.style.background = `linear-gradient(180deg, ${theme.bg} 0%, #0d1525 50%, #0a0a1a 100%)`;
+
+        if (GS.currentLap > 1) {
+            document.body.style.animation = 'lapFlash 0.5s ease';
+            setTimeout(() => document.body.style.animation = '', 500);
+        }
+    }
+
+    // ===== INIT =====
+    loadSave();
+    document.getElementById('titleHighScore').textContent = GS.highScore;
+    document.getElementById('titleBestLap').textContent = GS.bestLap;
+    document.getElementById('titleTotalSaved').textContent = GS.totalSaved;
+    applyTheme();
+
+    // ===== GAME FLOW =====
+    function startGame() {
+        GS.currentLevel = 1;
+        GS.currentLap = 1;
+        GS.score = 0;
+        GS.lives = 3;
+        GS.combo = 0;
+        GS.maxCombo = 0;
+        GS.podsSaved = 0;
+        GS.podsLost = 0;
+        applyTheme();
+
+        document.getElementById('titleScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.add('active');
+        document.getElementById('gameOverOverlay').classList.remove('active');
+        document.getElementById('levelOverlay').classList.remove('active');
+
+        loadLevel();
+    }
+
+    function loadLevel() {
+        clearAllTimers();
+        GS.pods = [];
+        GS.selectedPod = null;
+        GS.answered = false;
+        GS.bossStep = 0;
+        GS.bossScenario = null;
+
+        const levelIdx = (GS.currentLevel - 1) % LEVELS.length;
+        const level = LEVELS[levelIdx];
+
+        // Lap scaling
+        const lapBonus = GS.currentLap - 1;
+        const podCount = Math.min(level.pods + lapBonus, 12);
+        const issueRate = Math.max(level.issueRate - (lapBonus * 400), 1500);
+        const podTimer = Math.max(level.podTimer - lapBonus, 6);
+
+        // Update HUD
+        document.getElementById('hudLevel').textContent = GS.currentLevel;
+        document.getElementById('hudLap').textContent = GS.currentLap;
+        document.getElementById('hudScore').textContent = GS.score;
+        updateLives();
+        updateCombo();
+
+        const isBoss = level.isBoss;
+        document.getElementById('levelTitle').textContent = `LEVEL ${GS.currentLevel}: ${level.title}`;
+        document.getElementById('levelObjective').textContent = level.objective;
+        document.getElementById('bossIndicator').classList.toggle('active', isBoss);
+
+        // Spawn pods
+        const shuffled = shuffle([...CONTAINERS]);
+        for (let i = 0; i < podCount; i++) {
+            const c = shuffled[i % shuffled.length];
+            GS.pods.push({
+                id: i,
+                name: c.name + (i >= CONTAINERS.length ? '-' + (i - CONTAINERS.length + 2) : ''),
+                icon: c.icon,
+                port: c.port,
+                state: 'healthy',
+                issue: null,
+                timer: podTimer,
+                maxTimer: podTimer,
+                isBoss: isBoss,
+            });
+        }
+
+        renderDock();
+        showCmdEmpty();
+
+        // Start issue spawner
+        if (isBoss) {
+            // Boss: all pods get issues in sequence with a boss scenario
+            GS.bossScenario = shuffle([...BOSS_SCENARIOS])[0];
+            document.getElementById('levelObjective').textContent = GS.bossScenario.desc;
+            setTimeout(() => triggerBossWave(), 1500);
+        } else {
+            // Normal: random issues on a timer
+            setTimeout(() => triggerRandomIssue(level, issueRate), 1500);
+        }
+    }
+
+    function clearAllTimers() {
+        if (GS.issueTimer) { clearTimeout(GS.issueTimer); GS.issueTimer = null; }
+        for (const id in GS.podTimers) {
+            clearInterval(GS.podTimers[id]);
+        }
+        GS.podTimers = {};
+    }
+
+    // ===== POD RENDERING =====
+    function renderDock() {
+        const dock = document.getElementById('dock');
+        dock.innerHTML = GS.pods.map(p => {
+            const cls = ['pod', p.state];
+            if (GS.selectedPod === p.id) cls.push('selected');
+            if (p.isBoss) cls.push('boss-pod');
+            const timerPct = p.issue ? ((p.timer / p.maxTimer) * 100) : 100;
+            const timerVis = p.issue ? '' : 'visibility:hidden;';
+            return `<div class="${cls.join(' ')}" id="pod-${p.id}" onclick="selectPod(${p.id})">
+                <div class="pod-status"></div>
+                <div class="pod-icon">${p.icon}</div>
+                <div class="pod-name">${p.name}</div>
+                <div class="pod-port">${p.port}</div>
+                <div class="pod-timer-bar" style="${timerVis}"><div class="pod-timer-fill" id="pod-timer-${p.id}" style="width:${timerPct}%"></div></div>
+            </div>`;
+        }).join('');
+    }
+
+    function updatePodEl(pod) {
+        const el = document.getElementById('pod-' + pod.id);
+        if (!el) return;
+        el.className = 'pod ' + pod.state;
+        if (GS.selectedPod === pod.id) el.classList.add('selected');
+        if (pod.isBoss) el.classList.add('boss-pod');
+        const bar = document.getElementById('pod-timer-' + pod.id);
+        if (bar) {
+            bar.parentElement.style.visibility = pod.issue ? '' : 'hidden';
+            bar.style.width = ((pod.timer / pod.maxTimer) * 100) + '%';
+        }
+    }
+
+    // ===== ISSUE SYSTEM =====
+    function triggerRandomIssue(level, issueRate) {
+        const healthyPods = GS.pods.filter(p => p.state === 'healthy');
+        if (healthyPods.length > 0) {
+            const pod = healthyPods[Math.floor(Math.random() * healthyPods.length)];
+            const cats = level.categories;
+            // Lap 2+ adds more categories
+            const lapExtra = ['security', 'advanced', 'compose'];
+            const activeCats = [...cats];
+            for (let i = 0; i < GS.currentLap - 1 && i < lapExtra.length; i++) {
+                if (!activeCats.includes(lapExtra[i])) activeCats.push(lapExtra[i]);
+            }
+            const cat = activeCats[Math.floor(Math.random() * activeCats.length)];
+            const pool = ISSUES[cat] || ISSUES.basics;
+            const issue = { ...pool[Math.floor(Math.random() * pool.length)] };
+            issue.text = issue.text.replace(/\{name\}/g, pod.name);
+            issue.answer = issue.answer.replace(/\{name\}/g, pod.name);
+            issue.distractors = issue.distractors.map(d => d.replace(/\{name\}/g, pod.name));
+
+            pod.issue = issue;
+            pod.state = 'warning';
+            pod.timer = pod.maxTimer;
+            updatePodEl(pod);
+
+            // Start pod countdown
+            startPodTimer(pod);
+
+            // Escalate to critical at 40%
+            setTimeout(() => {
+                if (pod.state === 'warning') {
+                    pod.state = 'critical';
+                    updatePodEl(pod);
+                }
+            }, pod.maxTimer * 400);
+        }
+
+        // Check if level complete
+        const allResolved = GS.pods.every(p => p.state === 'healthy' || p.state === 'dead');
+        const anyIssues = GS.pods.some(p => p.issue);
+        if (!allResolved || anyIssues || healthyPods.length > 0) {
+            GS.issueTimer = setTimeout(() => triggerRandomIssue(level, issueRate), issueRate + Math.random() * 1000);
+        }
+    }
+
+    function startPodTimer(pod) {
+        if (GS.podTimers[pod.id]) clearInterval(GS.podTimers[pod.id]);
+        GS.podTimers[pod.id] = setInterval(() => {
+            pod.timer -= 0.2;
+            if (pod.timer <= pod.maxTimer * 0.4 && pod.state === 'warning') {
+                pod.state = 'critical';
+                updatePodEl(pod);
+            }
+            const bar = document.getElementById('pod-timer-' + pod.id);
+            if (bar) bar.style.width = Math.max(0, (pod.timer / pod.maxTimer) * 100) + '%';
+            if (pod.timer <= 0) {
+                crashPod(pod);
+            }
+        }, 200);
+    }
+
+    function crashPod(pod) {
+        clearInterval(GS.podTimers[pod.id]);
+        delete GS.podTimers[pod.id];
+        pod.state = 'dead';
+        pod.issue = null;
+        GS.combo = 0;
+        GS.podsLost++;
+        GS.lives--;
+        updateCombo();
+        updateLives();
+
+        // If this was selected, deselect
+        if (GS.selectedPod === pod.id) {
+            GS.selectedPod = null;
+            showCmdEmpty();
+        }
+
+        const el = document.getElementById('pod-' + pod.id);
+        if (el) {
+            el.classList.add('crashing');
+            setTimeout(() => { el.style.display = 'none'; }, 500);
+        }
+
+        // Screen shake
+        document.querySelector('.game-wrapper').style.animation = 'shakeScreen 0.3s ease';
+        setTimeout(() => document.querySelector('.game-wrapper').style.animation = '', 300);
+
+        document.getElementById('hudScore').textContent = GS.score;
+
+        if (GS.lives <= 0) {
+            gameOver();
+        } else {
+            checkLevelComplete();
+        }
+    }
+
+    function savePod(pod) {
+        clearInterval(GS.podTimers[pod.id]);
+        delete GS.podTimers[pod.id];
+
+        pod.state = 'saving';
+        pod.issue = null;
+        updatePodEl(pod);
+
+        GS.combo++;
+        if (GS.combo > GS.maxCombo) GS.maxCombo = GS.combo;
+        const points = 100 * GS.combo + Math.round(pod.timer * 10);
+        GS.score += points;
+        GS.podsSaved++;
+
+        updateCombo();
+        document.getElementById('hudScore').textContent = GS.score;
+
+        setTimeout(() => {
+            pod.state = 'healthy';
+            updatePodEl(pod);
+            if (GS.selectedPod === pod.id) {
+                GS.selectedPod = null;
+                showCmdEmpty();
+            }
+            checkLevelComplete();
+        }, 600);
+    }
+
+    // ===== BOSS WAVE =====
+    function triggerBossWave() {
+        // Give all pods issues simultaneously
+        GS.bossStep = 0;
+        const scenario = GS.bossScenario;
+        let delay = 0;
+        GS.pods.forEach((pod, i) => {
+            setTimeout(() => {
+                if (pod.state === 'dead') return;
+                // Cycle through boss steps for variety
+                const stepIdx = i % scenario.steps.length;
+                const step = scenario.steps[stepIdx];
+                const issue = {
+                    text: step.text.replace(/\{name\}/g, pod.name),
+                    answer: step.answer.replace(/\{name\}/g, pod.name),
+                    distractors: step.distractors.map(d => d.replace(/\{name\}/g, pod.name)),
+                    bossStep: stepIdx,
+                };
+                pod.issue = issue;
+                pod.state = 'warning';
+                pod.timer = pod.maxTimer;
+                updatePodEl(pod);
+                startPodTimer(pod);
+
+                setTimeout(() => {
+                    if (pod.state === 'warning') {
+                        pod.state = 'critical';
+                        updatePodEl(pod);
+                    }
+                }, pod.maxTimer * 400);
+            }, delay);
+            delay += 800;
+        });
+    }
+
+    // ===== POD SELECTION & COMMANDS =====
+    function selectPod(id) {
+        const pod = GS.pods.find(p => p.id === id);
+        if (!pod || !pod.issue || pod.state === 'dead' || pod.state === 'saving') return;
+
+        GS.selectedPod = id;
+        GS.answered = false;
+        renderDock();
+        showCmdForPod(pod);
+    }
+
+    function showCmdEmpty() {
+        document.getElementById('cmdEmpty').style.display = '';
+        document.getElementById('cmdContent').style.display = 'none';
+    }
+
+    function showCmdForPod(pod) {
+        document.getElementById('cmdEmpty').style.display = 'none';
+        document.getElementById('cmdContent').style.display = '';
+        document.getElementById('cmdPod').textContent = pod.name + ' ' + pod.port;
+        document.getElementById('cmdIssue').textContent = pod.issue.text;
+
+        const stepEl = document.getElementById('cmdStep');
+        if (pod.issue.bossStep !== undefined) {
+            stepEl.classList.add('active');
+            stepEl.textContent = `BOSS STEP ${pod.issue.bossStep + 1}/${GS.bossScenario.steps.length}`;
+        } else {
+            stepEl.classList.remove('active');
+        }
+
+        const options = shuffle([pod.issue.answer, ...pod.issue.distractors]);
+        document.getElementById('cmdOptions').innerHTML = options.map(o =>
+            `<button class="cmd-btn" onclick="submitCmd(this, ${pod.id}, '${escapeAttr(o)}', '${escapeAttr(pod.issue.answer)}')">${o}</button>`
+        ).join('');
+    }
+
+    function escapeAttr(s) {
+        return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function submitCmd(btn, podId, picked, correct) {
+        if (GS.answered) return;
+        GS.answered = true;
+
+        const pod = GS.pods.find(p => p.id === podId);
+        if (!pod) return;
+
+        const btns = document.querySelectorAll('#cmdOptions .cmd-btn');
+        btns.forEach(b => {
+            b.disabled = true;
+            if (b.textContent === correct) b.classList.add('correct');
+        });
+
+        if (picked === correct) {
+            savePod(pod);
+        } else {
+            btn.classList.add('wrong');
+            GS.combo = 0;
+            updateCombo();
+            // Pod still has its timer running — don't crash it, just deselect
+            setTimeout(() => {
+                GS.selectedPod = null;
+                GS.answered = false;
+                showCmdEmpty();
+                renderDock();
+            }, 600);
+        }
+    }
+
+    // ===== LEVEL COMPLETION =====
+    function checkLevelComplete() {
+        const alive = GS.pods.filter(p => p.state !== 'dead');
+        const withIssues = alive.filter(p => p.issue);
+        const healthy = alive.filter(p => p.state === 'healthy' || p.state === 'saving');
+
+        // Level complete when all alive pods are healthy and enough pods have been resolved
+        // We need at least half the pods saved, and no active issues
+        if (withIssues.length === 0 && GS.podsSaved > 0) {
+            // Check if we've had enough issue cycles (at least pods count worth of saves+losses)
+            const levelIdx = (GS.currentLevel - 1) % LEVELS.length;
+            const level = LEVELS[levelIdx];
+            const target = level.pods + (GS.currentLap - 1);
+            if (GS.podsSaved + GS.podsLost >= target) {
+                levelComplete();
+            }
+        }
+    }
+
+    function levelComplete() {
+        clearAllTimers();
+
+        const isLapComplete = GS.currentLevel % 10 === 0;
+
+        document.getElementById('overlayTitle').textContent = isLapComplete ? 'LAP COMPLETE!' : 'LEVEL COMPLETE';
+        document.getElementById('overlaySub').textContent = `Level ${GS.currentLevel} cleared`;
+        document.getElementById('overlayScore').textContent = GS.score;
+        document.getElementById('overlaySaved').textContent = GS.podsSaved;
+        document.getElementById('overlayCombo').textContent = 'x' + GS.maxCombo;
+
+        const lapMsg = document.getElementById('newLapMsg');
+        if (isLapComplete) {
+            const nextTheme = LAP_THEMES[GS.currentLap % LAP_THEMES.length];
+            lapMsg.style.display = 'block';
+            lapMsg.innerHTML = `ENTERING LAP ${GS.currentLap + 1}: ${nextTheme.name.toUpperCase()}`;
+        } else {
+            lapMsg.style.display = 'none';
+        }
+
+        document.getElementById('overlayNext').textContent = isLapComplete ? 'NEXT LAP' : 'NEXT LEVEL';
+        document.getElementById('levelOverlay').classList.add('active');
+    }
+
+    function nextLevel() {
+        document.getElementById('levelOverlay').classList.remove('active');
+        GS.currentLevel++;
+        GS.podsSaved = 0;
+        GS.podsLost = 0;
+        GS.maxCombo = 0;
+
+        // Check for lap transition
+        if ((GS.currentLevel - 1) % 10 === 0 && GS.currentLevel > 1) {
+            GS.currentLap++;
+            // Bonus life every lap (up to max 5)
+            GS.maxLives = Math.min(GS.maxLives + 1, 5);
+            GS.lives = GS.maxLives;
+            applyTheme();
+        }
+
+        loadLevel();
+    }
+
+    function gameOver() {
+        clearAllTimers();
+        savePersist();
+
+        document.getElementById('goScore').textContent = GS.score;
+        document.getElementById('goLevel').textContent = GS.currentLevel;
+        document.getElementById('goLap').textContent = GS.currentLap;
+        document.getElementById('gameOverOverlay').classList.add('active');
+    }
+
+    function quitToTitle() {
+        clearAllTimers();
+        savePersist();
+
+        document.getElementById('gameScreen').classList.remove('active');
+        document.getElementById('levelOverlay').classList.remove('active');
+        document.getElementById('gameOverOverlay').classList.remove('active');
+        document.getElementById('titleScreen').classList.remove('hidden');
+
+        GS.currentLap = 1;
+        applyTheme();
+
+        document.getElementById('titleHighScore').textContent = GS.highScore;
+        document.getElementById('titleBestLap').textContent = GS.bestLap;
+        document.getElementById('titleTotalSaved').textContent = GS.totalSaved;
+    }
+
+    // ===== HUD HELPERS =====
+    function updateLives() {
+        const h = '\u2764\uFE0F';
+        const e = '\u{1F5A4}';
+        let s = '';
+        for (let i = 0; i < GS.maxLives; i++) s += i < GS.lives ? h : e;
+        document.getElementById('hudLives').innerHTML = s;
+    }
+
+    function updateCombo() {
+        const el = document.getElementById('hudCombo');
+        el.textContent = 'x' + Math.max(1, GS.combo);
+        el.style.color = GS.combo >= 5 ? '#ffcc00' : GS.combo >= 3 ? '#00ffaa' : '#00ff88';
+    }
+
+    // ===== UTILITY =====
+    function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+    </script>
+</body>
+</html>
