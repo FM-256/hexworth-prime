@@ -398,7 +398,18 @@ class CLHCompletionModal {
         if (modal) {
             modal.classList.add('show');
 
+            // Award XP to hexworth_xp (once per module)
+            const xpKey = 'clh_xp_awarded_' + this.moduleId;
+            if (!localStorage.getItem(xpKey)) {
+                const current = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (current + this.xpEarned).toString());
+                localStorage.setItem(xpKey, 'true');
 
+                if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, this.xpEarned, this.moduleId + ' completed');
+                }
+            }
         }
     }
 
