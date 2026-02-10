@@ -169,6 +169,41 @@
             border-left-color: var(--success);
         }
 
+        .chapter-item.completed,
+        .lab-item.completed {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-item.completed::after,
+        .lab-item.completed::after {
+            content: 'COMPLETE';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-12deg);
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: rgba(22, 163, 74, 0.25);
+            border: 2px solid rgba(22, 163, 74, 0.2);
+            padding: 2px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .lab-item.completed {
+            border-left: 3px solid var(--success);
+        }
+
+        .lab-item.completed .lab-icon::after {
+            content: ' ✓';
+            color: var(--success);
+            font-size: 0.7rem;
+        }
+
         .chapter-item.coming-soon {
             opacity: 0.6;
             cursor: default;
@@ -846,7 +881,10 @@
         // Load saved progress
         function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+            const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const forge = (hp && hp.forge) || {};
 
+            // Chapter completion
             document.querySelectorAll('.chapter-item[data-chapter]').forEach(item => {
                 const chapter = item.dataset.chapter;
                 if (progress[chapter]) {
@@ -854,6 +892,69 @@
                     item.classList.remove('coming-soon');
                     const number = item.querySelector('.chapter-number');
                     number.textContent = '✓';
+                }
+            });
+
+            // Lab & quiz completion lookup: href-filename → check function
+            const completionMap = {
+                // Labs - hexworth_progress.forge pattern
+                'forge-windows-editions.lab.html': () => forge.windowsEditionsLab && forge.windowsEditionsLab.completed,
+                'forge-windows-settings.lab.html': () => forge.windowsSettingsLab && forge.windowsSettingsLab.completed,
+                'forge-control-panel.lab.html': () => forge.controlPanelLab && forge.controlPanelLab.completed,
+                'forge-admin-tools.lab.html': () => forge.adminToolsLab && forge.adminToolsLab.completed,
+                'forge-system-tools.lab.html': () => forge.systemToolsLab && forge.systemToolsLab.completed,
+                'forge-core2-roleplay.lab.html': () => forge['core2-roleplay-lab'] && forge['core2-roleplay-lab'].completed,
+                'forge-documentation.lab.html': () => forge['core2-documentation-lab'] && forge['core2-documentation-lab'].completed,
+                // Labs - direct localStorage key
+                'forge-users-groups.lab.html': () => checkKey('core2-ch18-lab'),
+                'forge-security-fundamentals.lab.html': () => checkKey('core2-ch19-lab'),
+                'forge-malware.lab.html': () => checkKey('core2-ch20-lab'),
+                'forge-physical-security.lab.html': () => checkKey('core2-ch21-lab'),
+                'forge-incident-response.lab.html': () => checkKey('core2-ch22-lab'),
+                'forge-change-management.lab.html': () => checkKey('core2-ch23-lab'),
+                // Labs - custom storage
+                'forge-lab-macos-linux.lab.html': () => {
+                    try {
+                        const d = JSON.parse(localStorage.getItem('aplus-lab-macos-linux') || '{}');
+                        return d.tasks && Object.keys(d.tasks).length >= 21;
+                    } catch(e) { return false; }
+                },
+                // Quizzes - direct localStorage key
+                'forge-ch18.quiz.html': () => checkKey('core2-ch18-quiz'),
+                'forge-ch19.quiz.html': () => checkKey('core2-ch19-quiz'),
+                // Quizzes - hexworth_progress.forge pattern
+                'forge-ch20.quiz.html': () => forge['core2-ch20-quiz'] && forge['core2-ch20-quiz'].completed,
+                'forge-ch21.quiz.html': () => forge['core2-ch21-quiz'] && forge['core2-ch21-quiz'].completed,
+                'forge-ch22.quiz.html': () => forge['core2-ch22-quiz'] && forge['core2-ch22-quiz'].completed,
+                'forge-ch23.quiz.html': () => forge['core2-ch23-quiz'] && forge['core2-ch23-quiz'].completed,
+                'forge-ch24.quiz.html': () => forge['core2-ch24-quiz'] && forge['core2-ch24-quiz'].completed,
+                // Quizzes - submitted flag
+                'forge-aplus-core2.quiz.html': () => checkSubmitted('aplus_quiz_ch19_22_v1'),
+                'forge-core2-quiz-ch19-22.quiz.html': () => checkSubmitted('aplus_quiz_ch19_22_v1'),
+                // Midterm
+                'forge-core2-midterm.quiz.html': () => forge['core2-midterm'] && forge['core2-midterm'].completed,
+            };
+
+            function checkKey(key) {
+                try {
+                    const d = JSON.parse(localStorage.getItem(key) || '{}');
+                    return d.completed === true;
+                } catch(e) { return false; }
+            }
+
+            function checkSubmitted(key) {
+                try {
+                    const d = JSON.parse(localStorage.getItem(key) || '{}');
+                    return d.submitted === true;
+                } catch(e) { return false; }
+            }
+
+            // Apply completion stamps to labs, quizzes, and midterm
+            document.querySelectorAll('.lab-item').forEach(item => {
+                const href = item.getAttribute('href') || '';
+                const filename = href.split('/').pop();
+                if (completionMap[filename] && completionMap[filename]()) {
+                    item.classList.add('completed');
                 }
             });
 
