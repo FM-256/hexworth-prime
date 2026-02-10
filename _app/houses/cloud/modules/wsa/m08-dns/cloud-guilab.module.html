@@ -449,7 +449,7 @@
     <div class="page-header">
         <h1>WSA M08: DNS Manager Lab</h1>
         <div class="header-controls">
-            <span class="progress-text" id="progressText">0 / 5 Tasks Complete</span>
+            <span class="progress-text" id="progressText">0 / 9 Tasks Complete</span>
             <button class="header-btn" onclick="resetLab()">Reset Lab</button>
             <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
         </div>
@@ -494,6 +494,26 @@
                     <div class="task-title">5. Configure Forwarders</div>
                     <div class="task-description">Right-click the DNS server and configure forwarders to use 8.8.8.8.</div>
                 </div>
+
+                <div class="task" id="task6">
+                    <div class="task-title">6. Create Reverse Lookup Zone</div>
+                    <div class="task-description">Create a new reverse lookup zone using the "New Reverse Zone" button. Enter network ID 10.0.0.</div>
+                </div>
+
+                <div class="task" id="task7">
+                    <div class="task-title">7. Add a CNAME Record</div>
+                    <div class="task-description">Create a CNAME record "mail" pointing to mail.hexworth.local in the forward zone.</div>
+                </div>
+
+                <div class="task" id="task8">
+                    <div class="task-title">8. Configure an Additional Forwarder</div>
+                    <div class="task-description">Add a secondary forwarder IP address 1.1.1.1 to the DNS server configuration.</div>
+                </div>
+
+                <div class="task" id="task9">
+                    <div class="task-title">9. Delete a DNS Record</div>
+                    <div class="task-description">Select and delete a record from a forward lookup zone.</div>
+                </div>
             </div>
 
             <div class="info-box">
@@ -519,6 +539,7 @@
                 <button class="dns-toolbar-btn" onclick="showNewRecordModal('A')" id="btnNewA">New Host (A)</button>
                 <button class="dns-toolbar-btn" onclick="showNewRecordModal('CNAME')" id="btnNewCNAME">New Alias (CNAME)</button>
                 <button class="dns-toolbar-btn" onclick="showNewRecordModal('MX')" id="btnNewMX">New MX</button>
+                <button class="dns-toolbar-btn" onclick="showNewReverseZoneModal()">New Reverse Zone</button>
                 <button class="dns-toolbar-btn" onclick="refreshZone()">Refresh</button>
                 <button class="dns-toolbar-btn" onclick="deleteRecord()" id="btnDelete" disabled>Delete</button>
             </div>
@@ -585,6 +606,22 @@
             <div class="modal-footer">
                 <button class="modal-btn" onclick="closeModal('modalForwarders')">Cancel</button>
                 <button class="modal-btn primary" onclick="saveForwarders()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Reverse Lookup Zone Modal -->
+    <div class="modal-overlay" id="modalNewReverseZone">
+        <div class="modal">
+            <div class="modal-header">New Reverse Lookup Zone</div>
+            <div class="modal-body">
+                <label>Network ID (first 3 octets):</label>
+                <input type="text" id="reverseNetworkId" placeholder="e.g., 10.0.0">
+                <p style="margin-top: 5px; color: #666; font-size: 0.85rem;">The reverse zone name will be derived automatically (e.g., 0.0.10.in-addr.arpa).</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn" onclick="closeModal('modalNewReverseZone')">Cancel</button>
+                <button class="modal-btn primary" onclick="createReverseZone()">Create Zone</button>
             </div>
         </div>
     </div>
@@ -840,6 +877,11 @@
             if (alias.toLowerCase() === 'www' && target.toLowerCase().includes('webserver')) {
                 completeTask(3);
             }
+
+            // Task 7: Create a CNAME record "mail" pointing to mail.hexworth.local
+            if (alias.toLowerCase() === 'mail' && target.toLowerCase().includes('mail.hexworth.local')) {
+                completeTask(7);
+            }
         }
 
         function showServerContext(event) {
@@ -897,19 +939,77 @@
             if (labState.forwarders.includes('8.8.8.8')) {
                 completeTask(5);
             }
+            // Task 8: Configure an additional forwarder 1.1.1.1
+            if (labState.forwarders.includes('1.1.1.1')) {
+                completeTask(8);
+            }
             setStatus(`Forwarders configured: ${labState.forwarders.join(', ') || 'None'}`);
         }
 
+        // Task 6: Create Reverse Lookup Zone
+        function showNewReverseZoneModal() {
+            document.getElementById('reverseNetworkId').value = '';
+            document.getElementById('modalNewReverseZone').classList.add('show');
+        }
+
+        function createReverseZone() {
+            const networkId = document.getElementById('reverseNetworkId').value.trim();
+            if (!networkId) {
+                alert('Please enter a network ID.');
+                return;
+            }
+
+            const parts = networkId.split('.');
+            if (parts.length !== 3 || parts.some(p => isNaN(p) || parseInt(p) < 0 || parseInt(p) > 255)) {
+                alert('Please enter a valid network ID (e.g., 10.0.0).');
+                return;
+            }
+
+            const reverseName = parts.reverse().join('.') + '.in-addr.arpa';
+
+            if (labState.zones.reverse[reverseName]) {
+                alert('This reverse zone already exists.');
+                return;
+            }
+
+            labState.zones.reverse[reverseName] = {
+                type: 'Primary',
+                adIntegrated: true,
+                records: [
+                    { name: '(same as parent folder)', type: 'SOA', data: 'dc01.hexworth.local., hostmaster.' },
+                    { name: '(same as parent folder)', type: 'NS', data: 'dc01.hexworth.local.' }
+                ]
+            };
+
+            closeModal('modalNewReverseZone');
+            labState.treeState.reverseExpanded = true;
+            renderTree();
+            setStatus(`Created reverse lookup zone: ${reverseName}`);
+
+            if (networkId === '10.0.0' || parts.join('.') === '0.0.10') {
+                completeTask(6);
+            } else {
+                completeTask(6);
+            }
+        }
+
+        // Task 9: Delete a DNS Record
         function deleteRecord() {
             if (labState.selectedRecord === null || !labState.selectedZone) return;
             if (!confirm('Delete this record?')) return;
 
             const [type, zoneName] = labState.selectedZone.split(':');
+            const record = labState.zones[type][zoneName].records[labState.selectedRecord];
+
             labState.zones[type][zoneName].records.splice(labState.selectedRecord, 1);
             labState.selectedRecord = null;
             document.getElementById('btnDelete').disabled = true;
             renderRecords(type, zoneName);
             setStatus('Record deleted');
+
+            if (type === 'forward') {
+                completeTask(9);
+            }
         }
 
         function refreshZone() {
@@ -931,7 +1031,7 @@
             document.getElementById(`task${num}`).classList.add('completed');
             updateProgress();
 
-            if (labState.completedTasks.size === 5) {
+            if (labState.completedTasks.size === 9) {
                 setTimeout(() => {
                     document.getElementById('completionBanner').classList.add('show');
                     WSAProgress.markGuiLabComplete('m08');
@@ -940,7 +1040,7 @@
         }
 
         function updateProgress() {
-            document.getElementById('progressText').textContent = `${labState.completedTasks.size} / 5 Tasks Complete`;
+            document.getElementById('progressText').textContent = `${labState.completedTasks.size} / 9 Tasks Complete`;
         }
 
         function dismissBanner() {

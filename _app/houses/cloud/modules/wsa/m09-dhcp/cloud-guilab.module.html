@@ -519,6 +519,38 @@
                     <p>View active address leases in the scope.</p>
                 </div>
             </div>
+
+            <div class="objective" id="obj6">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>6. Activate a Scope</h4>
+                    <p>Create a new scope and then activate it using the Activate button.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj7">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>7. Add Exclusion Range</h4>
+                    <p>Add an IP exclusion range to a scope.</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj8">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>8. Configure Server Options</h4>
+                    <p>Set server-level DNS options (separate from scope options).</p>
+                </div>
+            </div>
+
+            <div class="objective" id="obj9">
+                <div class="objective-check"><span class="check-icon"></span></div>
+                <div class="objective-text">
+                    <h4>9. Delete a Reservation</h4>
+                    <p>Select and delete an existing reservation from a scope.</p>
+                </div>
+            </div>
         </div>
 
         <div class="sim-area">
@@ -654,6 +686,57 @@
         </div>
     </div>
 
+    <!-- Exclusion Range Modal -->
+    <div class="modal-overlay" id="exclusionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Exclusion Range</h3>
+                <button class="modal-close" onclick="closeModal('exclusionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start IP Address:</label>
+                        <input type="text" id="exclStartIP" placeholder="192.168.10.1">
+                    </div>
+                    <div class="form-group">
+                        <label>End IP Address:</label>
+                        <input type="text" id="exclEndIP" placeholder="192.168.10.10">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('exclusionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addExclusion()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Options Modal -->
+    <div class="modal-overlay" id="serverOptionsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Configure Server Options</h3>
+                <button class="modal-close" onclick="closeModal('serverOptionsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #9ca3af; margin-bottom: 15px;">Server-wide options apply to all scopes unless overridden at the scope level.</p>
+                <div class="form-group">
+                    <label>006 DNS Servers (comma-separated):</label>
+                    <input type="text" id="serverOptDNS" placeholder="192.168.1.10, 192.168.1.11">
+                </div>
+                <div class="form-group">
+                    <label>015 DNS Domain Name:</label>
+                    <input type="text" id="serverOptDomain" placeholder="hexworth.local">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('serverOptionsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveServerOptions()">Save Options</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Completion Banner -->
     <div class="completion-banner" id="completionBanner">
         <h3>Lab Complete!</h3>
@@ -669,6 +752,10 @@
         const dhcpState = {
             server: 'DC1.hexworth.local',
             authorized: true,
+            serverOptions: {
+                dns: [],
+                domain: ''
+            },
             scopes: [
                 {
                     id: '192.168.1.0',
@@ -683,6 +770,7 @@
                         dns: ['192.168.1.10'],
                         domain: 'hexworth.local'
                     },
+                    exclusions: [],
                     reservations: [
                         { name: 'SRV-Print01', ip: '192.168.1.150', mac: '00-1A-2B-3C-4D-5E', desc: 'Main printer' }
                     ],
@@ -701,7 +789,11 @@
             obj2: false,
             obj3: false,
             obj4: false,
-            obj5: false
+            obj5: false,
+            obj6: false,
+            obj7: false,
+            obj8: false,
+            obj9: false
         };
 
         function buildTree() {
@@ -736,6 +828,11 @@
                             <span class="tree-icon">&#128203;</span>
                             <span>Address Pool</span>
                         </div>
+                        <div class="tree-node" onclick="selectNode('${scopeId}-exclusions')" data-node="${scopeId}-exclusions">
+                            <span class="tree-expand"></span>
+                            <span class="tree-icon">&#128683;</span>
+                            <span>Exclusions</span>
+                        </div>
                         <div class="tree-node" onclick="selectNode('${scopeId}-leases')" data-node="${scopeId}-leases">
                             <span class="tree-expand"></span>
                             <span class="tree-icon">&#128196;</span>
@@ -756,6 +853,11 @@
             });
 
             html += `
+                    </div>
+                    <div class="tree-node" onclick="selectNode('server-options')" data-node="server-options">
+                        <span class="tree-expand"></span>
+                        <span class="tree-icon">&#9881;</span>
+                        <span>Server Options</span>
                     </div>
                     <div class="tree-node" onclick="selectNode('ipv6')" data-node="ipv6">
                         <span class="tree-expand"></span>
@@ -835,6 +937,24 @@
                 listView.innerHTML = html;
                 statusBar.textContent = `${dhcpState.scopes.length} scope(s)`;
             }
+            else if (nodeId.match(/^scope-\d+$/)) {
+                const scopeIdx = parseInt(nodeId.split('-')[1]);
+                const scope = dhcpState.scopes[scopeIdx];
+                listView.innerHTML = `
+                    <table class="list-table">
+                        <tr><th>Property</th><th>Value</th></tr>
+                        <tr><td>Scope Name</td><td>${scope.name}</td></tr>
+                        <tr><td>Address Range</td><td>${scope.startIP} - ${scope.endIP}</td></tr>
+                        <tr><td>Subnet Mask</td><td>${scope.subnet}</td></tr>
+                        <tr><td>Lease Duration</td><td>${scope.leaseDays} days</td></tr>
+                        <tr><td>State</td><td class="${scope.active ? 'scope-active' : 'scope-inactive'}">${scope.active ? 'Active' : 'Inactive'}</td></tr>
+                        <tr><td>Exclusions</td><td>${(scope.exclusions || []).length}</td></tr>
+                        <tr><td>Reservations</td><td>${scope.reservations.length}</td></tr>
+                        <tr><td>Active Leases</td><td>${scope.leases.length}</td></tr>
+                    </table>
+                `;
+                statusBar.textContent = `Scope [${scope.id}] ${scope.name}`;
+            }
             else if (nodeId.includes('-pool')) {
                 const scopeIdx = parseInt(nodeId.split('-')[1]);
                 const scope = dhcpState.scopes[scopeIdx];
@@ -872,20 +992,44 @@
                 statusBar.textContent = `${scope.leases.length} lease(s)`;
                 completeObjective('obj5');
             }
+            else if (nodeId.includes('-exclusions')) {
+                const scopeIdx = parseInt(nodeId.split('-')[1]);
+                const scope = dhcpState.scopes[scopeIdx];
+                const exclusions = scope.exclusions || [];
+                let html = `
+                    <table class="list-table">
+                        <tr><th>Start IP Address</th><th>End IP Address</th></tr>
+                `;
+                exclusions.forEach(excl => {
+                    html += `
+                        <tr>
+                            <td>${excl.startIP}</td>
+                            <td>${excl.endIP}</td>
+                        </tr>
+                    `;
+                });
+                if (exclusions.length === 0) {
+                    html += '<tr><td colspan="2" style="color: #b0b8c4;">No exclusion ranges configured</td></tr>';
+                }
+                html += '</table>';
+                listView.innerHTML = html;
+                statusBar.textContent = `${exclusions.length} exclusion range(s)`;
+            }
             else if (nodeId.includes('-reservations')) {
                 const scopeIdx = parseInt(nodeId.split('-')[1]);
                 const scope = dhcpState.scopes[scopeIdx];
                 let html = `
                     <table class="list-table">
-                        <tr><th>Reservation Name</th><th>IP Address</th><th>MAC Address</th><th>Description</th></tr>
+                        <tr><th>Reservation Name</th><th>IP Address</th><th>MAC Address</th><th>Description</th><th>Action</th></tr>
                 `;
-                scope.reservations.forEach(res => {
+                scope.reservations.forEach((res, resIdx) => {
                     html += `
                         <tr>
                             <td>${res.name}</td>
                             <td>${res.ip}</td>
                             <td>${res.mac}</td>
                             <td>${res.desc}</td>
+                            <td><button class="toolbar-btn" onclick="deleteReservation(${scopeIdx}, ${resIdx})" style="padding: 3px 8px; font-size: 0.8rem; color: #ef4444; border-color: #ef4444;">Delete</button></td>
                         </tr>
                     `;
                 });
@@ -918,6 +1062,24 @@
                 `;
                 statusBar.textContent = 'Scope Options';
             }
+            else if (nodeId === 'server-options') {
+                listView.innerHTML = `
+                    <table class="list-table">
+                        <tr><th>Option</th><th>Vendor</th><th>Value</th></tr>
+                        <tr>
+                            <td>006 DNS Servers</td>
+                            <td>Standard</td>
+                            <td>${dhcpState.serverOptions.dns?.length > 0 ? dhcpState.serverOptions.dns.join(', ') : 'Not configured'}</td>
+                        </tr>
+                        <tr>
+                            <td>015 DNS Domain Name</td>
+                            <td>Standard</td>
+                            <td>${dhcpState.serverOptions.domain || 'Not configured'}</td>
+                        </tr>
+                    </table>
+                `;
+                statusBar.textContent = 'Server Options';
+            }
             else {
                 listView.innerHTML = '<p style="padding: 20px; color: #b0b8c4;">Select an item to view details</p>';
                 statusBar.textContent = 'Ready';
@@ -935,6 +1097,22 @@
                     <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
                 `;
             }
+            else if (nodeId.match(/^scope-\d+$/)) {
+                const scopeIdx = parseInt(nodeId.split('-')[1]);
+                const scope = dhcpState.scopes[scopeIdx];
+                html = `
+                    <button class="toolbar-btn" onclick="toggleScopeActive(${scopeIdx})">${scope.active ? 'Deactivate' : 'Activate'}</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
+                `;
+            }
+            else if (nodeId.includes('-exclusions')) {
+                html = `
+                    <button class="toolbar-btn" onclick="showExclusionModal()">New Exclusion Range</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
+                `;
+            }
             else if (nodeId.includes('-reservations')) {
                 html = `
                     <button class="toolbar-btn" onclick="showNewReservationModal()">New Reservation</button>
@@ -945,6 +1123,13 @@
             else if (nodeId.includes('-options')) {
                 html = `
                     <button class="toolbar-btn" onclick="showOptionsModal()">Configure Options</button>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
+                `;
+            }
+            else if (nodeId === 'server-options') {
+                html = `
+                    <button class="toolbar-btn" onclick="showServerOptionsModal()">Configure Server Options</button>
                     <div class="toolbar-separator"></div>
                     <button class="toolbar-btn" onclick="refreshView()">Refresh</button>
                 `;
@@ -1005,8 +1190,9 @@
                 endIP: endIP,
                 subnet: subnet,
                 leaseDays: leaseDays,
-                active: true,
+                active: false,
                 options: {},
+                exclusions: [],
                 reservations: [],
                 leases: []
             };
@@ -1085,6 +1271,86 @@
 
             completeObjective('obj4');
             document.getElementById('statusBar').textContent = 'Scope options updated successfully';
+        }
+
+        // Task 6: Activate/Deactivate a scope
+        function toggleScopeActive(scopeIdx) {
+            const scope = dhcpState.scopes[scopeIdx];
+            scope.active = !scope.active;
+            buildTree();
+            selectNode(dhcpState.selectedNode);
+            document.getElementById('statusBar').textContent = `Scope [${scope.id}] ${scope.active ? 'activated' : 'deactivated'}`;
+            if (scope.active) {
+                completeObjective('obj6');
+            }
+        }
+
+        // Task 7: Add exclusion range
+        function showExclusionModal() {
+            document.getElementById('exclStartIP').value = '';
+            document.getElementById('exclEndIP').value = '';
+            document.getElementById('exclusionModal').classList.add('show');
+        }
+
+        function addExclusion() {
+            const startIP = document.getElementById('exclStartIP').value.trim();
+            const endIP = document.getElementById('exclEndIP').value.trim();
+
+            if (!startIP || !endIP) {
+                alert('Please fill in both start and end IP addresses.');
+                return;
+            }
+
+            const nodeId = dhcpState.selectedNode;
+            if (nodeId && nodeId.includes('-exclusions')) {
+                const scopeIdx = parseInt(nodeId.split('-')[1]);
+                if (!dhcpState.scopes[scopeIdx].exclusions) {
+                    dhcpState.scopes[scopeIdx].exclusions = [];
+                }
+                dhcpState.scopes[scopeIdx].exclusions.push({
+                    startIP: startIP,
+                    endIP: endIP
+                });
+            }
+
+            closeModal('exclusionModal');
+            selectNode(nodeId);
+            completeObjective('obj7');
+            document.getElementById('statusBar').textContent = `Exclusion range ${startIP} - ${endIP} added`;
+        }
+
+        // Task 8: Configure server options
+        function showServerOptionsModal() {
+            document.getElementById('serverOptDNS').value = dhcpState.serverOptions.dns?.join(', ') || '';
+            document.getElementById('serverOptDomain').value = dhcpState.serverOptions.domain || '';
+            document.getElementById('serverOptionsModal').classList.add('show');
+        }
+
+        function saveServerOptions() {
+            const dns = document.getElementById('serverOptDNS').value.split(',').map(s => s.trim()).filter(s => s);
+            const domain = document.getElementById('serverOptDomain').value.trim();
+
+            dhcpState.serverOptions = {
+                dns: dns,
+                domain: domain
+            };
+
+            closeModal('serverOptionsModal');
+            selectNode('server-options');
+            completeObjective('obj8');
+            document.getElementById('statusBar').textContent = 'Server options updated successfully';
+        }
+
+        // Task 9: Delete a reservation
+        function deleteReservation(scopeIdx, resIdx) {
+            const scope = dhcpState.scopes[scopeIdx];
+            const resName = scope.reservations[resIdx].name;
+            if (!confirm(`Delete reservation "${resName}"?`)) return;
+
+            scope.reservations.splice(resIdx, 1);
+            selectNode(dhcpState.selectedNode);
+            completeObjective('obj9');
+            document.getElementById('statusBar').textContent = `Reservation "${resName}" deleted`;
         }
 
         function refreshView() {

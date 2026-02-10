@@ -296,7 +296,7 @@
     <div class="page-header">
         <h1>WSA M04: Hyper-V Manager Lab</h1>
         <div class="header-controls">
-            <span class="progress-text" id="progressText">0 / 5 Tasks Complete</span>
+            <span class="progress-text" id="progressText">0 / 9 Tasks Complete</span>
             <div id="themeToggleContainer"></div>
             <button class="header-btn" onclick="resetLab()">Reset Lab</button>
             <a class="header-btn" href="cloud-presentation.module.html">&larr; Back</a>
@@ -343,6 +343,26 @@
                     <div class="task-title">5. Connect to a VM</div>
                     <div class="task-description">Double-click a VM or click "Connect" to open the VM console.</div>
                 </div>
+
+                <div class="task" id="task6" data-task="6">
+                    <div class="task-title">6. Create a Second VM</div>
+                    <div class="task-description">Create another VM named "SQL01" using the New button. Organizations typically run many VMs on a single host.</div>
+                </div>
+
+                <div class="task" id="task7" data-task="7">
+                    <div class="task-title">7. Explore VM Settings</div>
+                    <div class="task-description">Right-click a VM or use the Settings button to view its configuration (memory, CPU, network adapter).</div>
+                </div>
+
+                <div class="task" id="task8" data-task="8">
+                    <div class="task-title">8. Delete a Virtual Machine</div>
+                    <div class="task-description">Select a VM and delete it using the right-click context menu or toolbar. Remove a VM you no longer need.</div>
+                </div>
+
+                <div class="task" id="task9" data-task="9">
+                    <div class="task-title">9. Create a Virtual Switch</div>
+                    <div class="task-description">Open the Virtual Switch Manager from the toolbar or Actions panel and create a new virtual switch for VM networking.</div>
+                </div>
             </div>
 
             <div class="info-box">
@@ -380,6 +400,9 @@
 
         const labState = {
             completedTasks: new Set(),
+            vmCreateCount: 0,
+            initialVmCount: 0,
+            switchCreated: false,
         };
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -391,7 +414,12 @@
 
             switch (objectiveId) {
                 case 'create-vm':
-                    completeTask(1);
+                    labState.vmCreateCount++;
+                    if (labState.vmCreateCount === 1) {
+                        completeTask(1);
+                    } else if (labState.vmCreateCount >= 2) {
+                        completeTask(6);
+                    }
                     break;
                 case 'start-vm':
                     completeTask(2);
@@ -415,7 +443,7 @@
             document.getElementById(`task${taskNum}`).classList.add('completed');
             updateProgress();
 
-            if (labState.completedTasks.size === 5) {
+            if (labState.completedTasks.size === 9) {
                 setTimeout(() => {
                     document.getElementById('completionBanner').classList.add('show');
                     WSAProgress.markGuiLabComplete('m04');
@@ -425,7 +453,7 @@
 
         function updateProgress() {
             document.getElementById('progressText').textContent =
-                `${labState.completedTasks.size} / 5 Tasks Complete`;
+                `${labState.completedTasks.size} / 9 Tasks Complete`;
         }
 
         function dismissBanner() {
@@ -436,6 +464,9 @@
             if (!confirm('Reset lab progress? This will clear all your work.')) return;
 
             labState.completedTasks.clear();
+            labState.vmCreateCount = 0;
+            labState.switchCreated = false;
+            labState.switchManagerOpen = false;
 
             document.querySelectorAll('.task').forEach(t => t.classList.remove('completed'));
             document.getElementById('completionBanner').classList.remove('show');
@@ -517,6 +548,168 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
+        // Tasks 7-9: DOM Observation & Event Delegation
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        function setupAdvancedObjectives() {
+            const container = document.getElementById('guiContainer');
+            if (!container) return;
+
+            // Track initial VM count for delete detection
+            labState.initialVmCount = countVMsInDOM();
+
+            // --- Task 7: Explore VM Settings ---
+            // Use event delegation to detect clicks on settings-related elements
+            container.addEventListener('click', function(e) {
+                const target = e.target;
+                const settingsEl = target.closest('[data-action="settings"], .gui-vm-settings, .gui-settings-btn');
+                if (settingsEl) {
+                    completeTask(7);
+                    return;
+                }
+                // Also check if user clicked any element whose text contains "Settings"
+                if (target.textContent && target.textContent.trim() === 'Settings') {
+                    completeTask(7);
+                }
+            });
+
+            // Also detect settings via context menu items
+            container.addEventListener('contextmenu', function(e) {
+                // The context menu appearance itself counts for settings exploration
+                // We use a short delay to let the context menu render, then check for Settings item
+                setTimeout(() => {
+                    const ctxItems = document.querySelectorAll('.gui-context-menu-item, .ctx-item, [data-action="settings"]');
+                    ctxItems.forEach(item => {
+                        if (!item._settingsListenerAdded) {
+                            item._settingsListenerAdded = true;
+                            item.addEventListener('click', function() {
+                                if (this.textContent && this.textContent.includes('Settings')) {
+                                    completeTask(7);
+                                }
+                            });
+                        }
+                    });
+                }, 100);
+            });
+
+            // --- Task 8: Delete a VM & Task 9: Virtual Switch ---
+            // Use MutationObserver on the GUI container to detect DOM changes
+            const observer = new MutationObserver(function(mutations) {
+                // Task 8: Detect VM deletion by counting VM rows
+                const currentVMCount = countVMsInDOM();
+                if (labState.initialVmCount > 0 && currentVMCount < labState.initialVmCount) {
+                    completeTask(8);
+                }
+                // Update the count for next comparison (VMs may also be added)
+                labState.initialVmCount = Math.max(labState.initialVmCount, currentVMCount);
+
+                // Task 9: Detect Virtual Switch creation
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                            const text = node.textContent || '';
+                            // Detect switch manager dialog completion or switch-related elements
+                            if (text.includes('Virtual Switch') && text.includes('Created') ||
+                                node.classList && node.classList.contains('gui-switch-item') ||
+                                node.querySelector && node.querySelector('[data-switch-name]')) {
+                                completeTask(9);
+                            }
+                        }
+                    });
+                });
+            });
+
+            observer.observe(container, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+
+            // --- Task 7 fallback: Also detect settings panel appearance via MutationObserver ---
+            const bodyObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                            // Detect settings/properties dialogs that may appear as overlays
+                            if (node.classList && (
+                                node.classList.contains('gui-settings-panel') ||
+                                node.classList.contains('gui-properties-dialog') ||
+                                node.classList.contains('gui-vm-settings-window')
+                            )) {
+                                completeTask(7);
+                            }
+                            // Check for modal/dialog with "Settings" in title
+                            const titleEl = node.querySelector && node.querySelector('.gui-window-title, .gui-dialog-title, h3, h2');
+                            if (titleEl && titleEl.textContent && titleEl.textContent.includes('Settings')) {
+                                completeTask(7);
+                            }
+                        }
+                    });
+                });
+            });
+
+            bodyObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // --- Task 8 fallback: Detect delete via event delegation on body ---
+            document.body.addEventListener('click', function(e) {
+                const target = e.target;
+                // Detect clicks on delete/remove buttons in context menus or toolbars
+                if (target.textContent && (target.textContent.includes('Delete') || target.textContent.includes('Remove'))) {
+                    const isVMAction = target.closest('.gui-context-menu, .gui-toolbar, .gui-action-panel, [data-action="delete"]');
+                    if (isVMAction) {
+                        // Wait for the deletion to actually happen
+                        setTimeout(() => {
+                            const newCount = countVMsInDOM();
+                            if (newCount < labState.initialVmCount) {
+                                completeTask(8);
+                                labState.initialVmCount = newCount;
+                            }
+                        }, 500);
+                    }
+                }
+            });
+
+            // --- Task 9 fallback: Detect Virtual Switch Manager interaction ---
+            document.body.addEventListener('click', function(e) {
+                const target = e.target;
+                if (target.textContent && target.textContent.includes('Virtual Switch Manager')) {
+                    // User opened the switch manager - listen for the create action
+                    setTimeout(() => {
+                        const createBtns = document.querySelectorAll('button, .gui-btn, .gui-modal-btn');
+                        createBtns.forEach(btn => {
+                            if (!btn._switchListenerAdded && btn.textContent &&
+                                (btn.textContent.includes('Create') || btn.textContent.includes('Apply') || btn.textContent.includes('OK'))) {
+                                btn._switchListenerAdded = true;
+                                btn.addEventListener('click', function() {
+                                    // Check if we're in the switch manager context
+                                    const switchDialog = document.querySelector('.gui-switch-manager, [data-dialog="switch-manager"]');
+                                    if (switchDialog || labState.switchManagerOpen) {
+                                        completeTask(9);
+                                    }
+                                });
+                            }
+                        });
+                        labState.switchManagerOpen = true;
+                    }, 300);
+                }
+            });
+        }
+
+        function countVMsInDOM() {
+            const container = document.getElementById('guiContainer');
+            if (!container) return 0;
+            // Count VM rows in the Hyper-V Manager VM list
+            const vmRows = container.querySelectorAll('.gui-vm-row, .gui-table-row, tr[data-vm], [data-vm-name]');
+            if (vmRows.length > 0) return vmRows.length;
+            // Fallback: count rows in the main table body
+            const tableRows = container.querySelectorAll('tbody tr');
+            return tableRows.length;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
         // Initialize Lab
         // ═══════════════════════════════════════════════════════════════════════════
 
@@ -539,6 +732,9 @@
             });
 
             initializeHyperV();
+
+            // Set up observers for tasks 7-9 after GUISimulator has rendered
+            setTimeout(setupAdvancedObjectives, 500);
         });
     </script>
 <script src="../../../../../components/FluxCapacitor.js"></script>
