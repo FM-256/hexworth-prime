@@ -103,10 +103,11 @@ const ModuleProgress = (function() {
      * @param {object} options - Additional options
      * @param {boolean} options.silent - Don't show notification
      * @param {boolean} options.returnToDashboard - Navigate to dashboard after
+     * @param {string} options.returnUrl - Custom URL to navigate to instead of dashboard
      * @param {number} options.timeSpent - Time spent in minutes
      */
     function complete(houseId, moduleId, options = {}) {
-        const { silent = false, returnToDashboard = true, timeSpent = 0 } = options;
+        const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0 } = options;
 
         // Load current progress
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
@@ -157,13 +158,16 @@ const ModuleProgress = (function() {
             ActivityFeed.moduleComplete(moduleId, moduleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
         }
 
-        // Return to dashboard — wait for Firestore sync first (max 8s timeout)
-        if (returnToDashboard) {
+        // Return to destination — wait for Firestore sync first (max 8s timeout)
+        if (returnToDashboard || returnUrl) {
+            const navigateFn = returnUrl
+                ? () => { window.location.href = returnUrl; }
+                : navigateToDashboard;
             if (silent) {
-                navigateToDashboard();
+                navigateFn();
             } else {
                 const timeout = new Promise(r => setTimeout(r, 8000));
-                Promise.race([syncPromise, timeout]).then(() => navigateToDashboard());
+                Promise.race([syncPromise, timeout]).then(() => navigateFn());
             }
         }
 
@@ -178,7 +182,7 @@ const ModuleProgress = (function() {
      * @param {object} options - Additional options
      */
     function completeQuiz(houseId, quizId, score, options = {}) {
-        const { silent = false, returnToDashboard = true, passingScore = 70 } = options;
+        const { silent = false, returnToDashboard = true, returnUrl = null, passingScore = 70 } = options;
 
         const passed = score >= passingScore;
 
@@ -225,13 +229,16 @@ const ModuleProgress = (function() {
 
         console.log(`📝 Quiz completed: ${houseId}/${quizId} - Score: ${score}% (${passed ? 'PASS' : 'FAIL'})`);
 
-        // Return to dashboard if passed — wait for Firestore sync first (max 8s timeout)
-        if (returnToDashboard && passed) {
+        // Return to destination if passed — wait for Firestore sync first (max 8s timeout)
+        if ((returnToDashboard || returnUrl) && passed) {
+            const navigateFn = returnUrl
+                ? () => { window.location.href = returnUrl; }
+                : navigateToDashboard;
             if (silent) {
-                navigateToDashboard();
+                navigateFn();
             } else {
                 const timeout = new Promise(r => setTimeout(r, 8000));
-                Promise.race([syncPromise, timeout]).then(() => navigateToDashboard());
+                Promise.race([syncPromise, timeout]).then(() => navigateFn());
             }
         }
 

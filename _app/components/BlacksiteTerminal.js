@@ -59,6 +59,7 @@ const BlacksiteTerminal = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     function init(options) {
+        if (state.initialized) return true;
         console.log('[BlacksiteTerminal] Initializing...');
 
         const container = typeof options.container === 'string'
