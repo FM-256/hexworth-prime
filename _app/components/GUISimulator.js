@@ -1101,7 +1101,8 @@ const GUISimulator = (function() {
         closeContextMenu();
 
         const menuEl = document.createElement('div');
-        menuEl.className = 'gui-context-menu';
+        const ctxTheme = document.documentElement.dataset.guiTheme || 'hexworth';
+        menuEl.className = `gui-context-menu gui-theme-${ctxTheme}`;
 
         let html = '';
         options.items.forEach(item => {
@@ -1203,7 +1204,8 @@ const GUISimulator = (function() {
         }
 
         const overlayEl = document.createElement('div');
-        overlayEl.className = 'gui-modal-overlay';
+        const currentTheme = document.documentElement.dataset.guiTheme || 'hexworth';
+        overlayEl.className = `gui-modal-overlay gui-theme-${currentTheme}`;
         overlayEl.id = `${id}-overlay`;
 
         const width = options.width || 480;
