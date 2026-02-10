@@ -131,7 +131,8 @@ const BlacksiteAudio = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     // Fuse sizzle - continuous crackling sound
-
+    function createFuseSizzle() {
+        if (!isInitialized || isMuted) return null;
 
         const now = audioContext.currentTime;
 
@@ -178,7 +179,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Tick sound - clock ticking
-
+    function createTick() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -198,7 +200,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Heartbeat - low thump
-
+    function createHeartbeat(intensity = 1) {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -224,7 +227,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Explosion - big boom with rumble
-
+    function createExplosion() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -262,7 +266,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Success chime - ascending tones
-
+    function createSuccessChime() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
         const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
@@ -285,7 +290,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Wire cut sound - snip
-
+    function createWireCut() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -303,7 +309,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Wrong answer buzzer
-
+    function createBuzzer() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -321,7 +328,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Ambient hum - low electronic drone
-
+    function createAmbientHum() {
+        if (!isInitialized || isMuted) return null;
 
         const now = audioContext.currentTime;
 
@@ -359,7 +367,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Radio static burst
-
+    function createRadioStatic(duration = 0.3) {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -379,7 +388,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Roger beep - classic walkie-talkie end-of-transmission beep
-
+    function createRogerBeep() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -405,7 +415,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Radio click - beginning of transmission sound
-
+    function createRadioClick() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -436,7 +447,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Incoming transmission tone - alert for urgent messages
-
+    function createIncomingTransmission() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -465,7 +477,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Urgent transmission alert - more aggressive alert tone
-
+    function createUrgentAlert() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 
@@ -491,7 +504,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Ambient radio hum with occasional crackle
-
+    function createRadioAmbient() {
+        if (!isInitialized || isMuted) return null;
 
         const now = audioContext.currentTime;
 
@@ -558,7 +572,8 @@ const BlacksiteAudio = (function() {
     }
 
     // Full radio message sound sequence (click -> static -> message plays -> roger beep)
-
+    function playRadioMessageSound(type = 'normal') {
+        if (!isInitialized || isMuted) return;
 
         // Initial click
         createRadioClick();
@@ -577,12 +592,14 @@ const BlacksiteAudio = (function() {
     }
 
     // Roger beep at end of message (call separately after message displays)
-
+    function playRogerBeep() {
+        if (!isInitialized || isMuted) return;
         createRogerBeep();
     }
 
     // Keypress sound (terminal input)
-
+    function createKeypress() {
+        if (!isInitialized || isMuted) return;
 
         const now = audioContext.currentTime;
 

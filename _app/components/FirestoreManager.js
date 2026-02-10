@@ -33,7 +33,17 @@ const FirestoreManager = (function() {
         ENTERPRISE: 'enterprise'              // Institutional
     };
 
-
+    // XP values for actions (aligned with ProgressManager.XP_REWARDS)
+    const XP_VALUES = {
+        MODULE_COMPLETE: 100,
+        QUIZ_PASS: 150,
+        QUIZ_PERFECT: 300,
+        LAB_COMPLETE: 200,
+        PRESENTATION_VIEW: 50,
+        TOOL_EXPLORE: 75,
+        DAILY_LOGIN: 25,
+        FIRST_IN_HOUSE: 100
+    };
 
     // localStorage keys to migrate
     const LOCALSTORAGE_KEYS = {
@@ -254,7 +264,7 @@ const FirestoreManager = (function() {
 
             await updateDoc(userRef, {
                 modulesCompleted: arrayUnion(moduleId),
-                xp: increment(window.ProgressManager?.XP_REWARDS?.MODULE_COMPLETE || 100),
+                xp: increment(XP_VALUES.MODULE_COMPLETE),
                 [`houseProgress.${house}.completed`]: increment(1),
                 updatedAt: serverTimestamp()
             });
@@ -279,7 +289,7 @@ const FirestoreManager = (function() {
             const userRef = doc(db, COLLECTIONS.USERS, uid);
 
             // Award more XP for perfect scores
-            const xpReward = score === 100 ? (window.ProgressManager?.XP_REWARDS?.QUIZ_PERFECT || 300) : (window.ProgressManager?.XP_REWARDS?.QUIZ_PASS || 150);
+            const xpReward = score === 100 ? XP_VALUES.QUIZ_PERFECT : XP_VALUES.QUIZ_PASS;
 
             await updateDoc(userRef, {
                 [`quizzes.${quizId}`]: {
@@ -311,7 +321,7 @@ const FirestoreManager = (function() {
 
             await updateDoc(userRef, {
                 labsCompleted: arrayUnion(labId),
-                xp: increment(window.ProgressManager?.XP_REWARDS?.LAB_COMPLETE || 200),
+                xp: increment(XP_VALUES.LAB_COMPLETE),
                 [`houseProgress.${house}.labsCompleted`]: increment(1),
                 updatedAt: serverTimestamp()
             });
@@ -364,21 +374,17 @@ const FirestoreManager = (function() {
             totalXP += discoveryPoints;
 
             // If XP is still 0, calculate from progress data
-            if (totalXP === 0 && typeof window.ProgressManager !== 'undefined') {
-                const XP_REWARDS = window.ProgressManager.XP_REWARDS;
-
-                // MODULE_COMPLETE XP per completed module
+            if (totalXP === 0) {
+                // 75 XP per completed module
                 if (Array.isArray(data.modulesCompleted)) {
-                    totalXP += data.modulesCompleted.length * (XP_REWARDS?.MODULE_COMPLETE || 100);
+                    totalXP += data.modulesCompleted.length * 75;
                 }
-                // Achievement points are added separately by AchievementSystem.js
-                // XP_REWARDS.ACHIEVEMENT is not directly a constant here.
-                // For migration, we'll assume a conservative 15 XP per achievement if no specific points.
+                // 15 XP per achievement
                 if (Array.isArray(data.achievements)) {
                     totalXP += data.achievements.length * 15;
                 }
                 // Streak bonus
-                totalXP += data.streak * (XP_REWARDS?.DAILY_LOGIN || 25) / 2; // Roughly half a daily login
+                totalXP += data.streak * 10;
             }
 
             data.xp = totalXP;
@@ -856,51 +862,39 @@ const FirestoreManager = (function() {
      * Call this to fix users with 0 XP after initial migration
      */
     async function recalculateXP(uid) {
-        const localData = getLocalStorageProgress(); // This already uses the new XP calculation from local storage
+        const localData = getLocalStorageProgress();
         if (!localData) {
             console.log('[FirestoreManager] No localStorage data to calculate XP from');
             return { success: false, xp: 0 };
         }
 
         let totalXP = 0;
-        if (typeof window.ProgressManager !== 'undefined') {
-            const XP_REWARDS = window.ProgressManager.XP_REWARDS;
-            const AchievementSystem = window.AchievementSystem; // Access AchievementSystem for points
 
-            // Calculate XP from module types, quizzes, labs, and achievements
-            // We need to fetch details for each completed module to determine its type
-            // For now, use basic counts with default rewards. A more precise calc would need module types.
+        // 75 XP per completed module
+        if (Array.isArray(localData.modulesCompleted)) {
+            totalXP += localData.modulesCompleted.length * 75;
+        }
 
-            // Assume base MODULE_COMPLETE for all completed modules
-            if (Array.isArray(localData.modulesCompleted)) {
-                totalXP += localData.modulesCompleted.length * (XP_REWARDS?.MODULE_COMPLETE || 100);
-            }
+        // 15 XP per achievement
+        if (Array.isArray(localData.achievements)) {
+            totalXP += localData.achievements.length * 15;
+        }
 
-            // Quiz completions (approximate, as individual scores/types are not in localData directly)
-            if (localData.quizzes) {
-                totalXP += Object.keys(localData.quizzes).length * (XP_REWARDS?.QUIZ_PASS || 150); // Assume pass
-            }
+        // Discovery points
+        const discoveryPoints = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.discoveryPoints) || '0');
+        totalXP += discoveryPoints;
 
-            // Lab completions
-            if (Array.isArray(localData.labsCompleted)) {
-                totalXP += localData.labsCompleted.length * (XP_REWARDS?.LAB_COMPLETE || 200);
-            }
+        // Streak bonus
+        totalXP += (localData.streak || 0) * 10;
 
-            // Achievements points
-            if (Array.isArray(localData.achievements) && AchievementSystem) {
-                localData.achievements.forEach(achId => {
-                    const achievement = AchievementSystem.ACHIEVEMENTS[achId];
-                    if (achievement) {
-                        totalXP += achievement.points;
-                    }
-                });
-            }
+        // Quiz completions (25 XP each)
+        if (localData.quizzes) {
+            totalXP += Object.keys(localData.quizzes).length * 25;
+        }
 
-            // Streak bonus
-            totalXP += (localData.streak || 0) * (XP_REWARDS?.DAILY_LOGIN || 25) / 2; // Roughly half a daily login
-        } else {
-            // Fallback if ProgressManager is not available (shouldn't happen if dependencies are correct)
-            totalXP = localData.xp || 0;
+        // Lab completions (50 XP each)
+        if (Array.isArray(localData.labsCompleted)) {
+            totalXP += localData.labsCompleted.length * 50;
         }
 
         console.log('[FirestoreManager] Recalculated XP:', totalXP, {

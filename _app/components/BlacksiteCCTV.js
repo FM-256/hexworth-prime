@@ -398,7 +398,7 @@ const BlacksiteCCTV = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     function init(options = {}) {
-        if (state.initialized) return true;
+        if (state.initialized) destroy();
 
         state.container = typeof options.container === 'string'
             ? document.querySelector(options.container)

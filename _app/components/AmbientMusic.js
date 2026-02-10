@@ -64,7 +64,7 @@ const AmbientMusic = (function() {
         key: { root: 233.08, notes: [0, 3, 5, 7, 10] },        // Bb minor pentatonic
         eye: { root: 155.56, notes: [0, 3, 5, 7, 10] },        // Eb minor pentatonic
         'dark-arts': { root: 246.94, notes: [0, 3, 5, 7, 10] },// B minor pentatonic
-        divergent: { root: 146.83, notes: [0, 3, 5, 7, 10] }   // Fixed D minor pentatonic
+        divergent: { root: 146.83, notes: [0, 3, 5, 7, 10] }   // Starts D minor, changes randomly
     };
 
     // ============================================================================
