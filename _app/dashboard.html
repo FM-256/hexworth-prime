@@ -5512,8 +5512,15 @@
         // Listen for auth state changes
         window.addEventListener('firebaseAuthStateChanged', (e) => {
             updateAuthLink();
-            // Re-render header avatar now that Firebase user (photoURL) is available
+            // Update header avatar now that Firebase user (photoURL) is available
             updateGitHubUI();
+
+            // Patch profile tab large avatar if it was already rendered
+            const profileImg = document.querySelector('.profile-avatar-large');
+            if (profileImg) {
+                const url = getProfileAvatarUrl();
+                if (profileImg.src !== url && !profileImg.src.endsWith(url)) profileImg.src = url;
+            }
 
             // Handle callsign selection for new users
             if (e.detail.user && e.detail.needsCallsign) {
@@ -5660,7 +5667,7 @@
             document.head.appendChild(syncStyles);
         }
 
-        let _lastAvatarSrc = null;
+        let _avatarBuilt = false;
 
         function updateGitHubUI() {
             const profileContainer = document.getElementById('userProfile');
@@ -5668,63 +5675,100 @@
             const connectBtn = document.getElementById('githubConnectBtn');
             const cloudSyncRow = document.getElementById('cloudSyncRow');
 
-            // Only rebuild avatar if the source data changed (prevents image flicker)
-            const nextSrc = _computeAvatarSrc();
-            if (nextSrc !== _lastAvatarSrc || !profileContainer.hasChildNodes()) {
-                _lastAvatarSrc = nextSrc;
-                profileContainer.innerHTML = '';
-                const headerAvatar = createHeaderAvatar();
-                profileContainer.appendChild(headerAvatar);
+            // Resolve avatar data from all sources
+            const firebaseUser = (typeof FirebaseAuth !== 'undefined') ? FirebaseAuth.getUser() : null;
+            const cachedFirebase = !firebaseUser ? JSON.parse(localStorage.getItem('hexworth_firebase_user') || 'null') : null;
+            const githubProfile = (githubAuth && githubAuth.isAuthenticated) ? githubAuth.getProfile() : null;
 
-                // Wrap avatar with AccountFrame
-                const avatarEl = headerAvatar.querySelector('.header-avatar');
+            const photoURL = firebaseUser?.photoURL || cachedFirebase?.photoURL || githubProfile?.avatar || localStorage.getItem('hexworth_avatar') || '';
+            const displayName = firebaseUser?.displayName || cachedFirebase?.displayName || githubProfile?.displayName || localStorage.getItem('hexworth_display_name') || '';
+
+            if (!_avatarBuilt) {
+                // First call: build the avatar DOM once
+                _avatarBuilt = true;
+                profileContainer.innerHTML = '';
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'display:inline-flex;';
+                wrapper.id = '_avatarWrapper';
+
+                if (photoURL) {
+                    const img = document.createElement('img');
+                    img.className = 'header-avatar';
+                    img.alt = displayName;
+                    img.src = photoURL;
+                    wrapper.appendChild(img);
+                } else {
+                    const div = document.createElement('div');
+                    div.className = 'header-avatar header-avatar-initials';
+                    div.innerHTML = `<span>${getHeaderInitials(displayName)}</span>`;
+                    wrapper.appendChild(div);
+                }
+
+                profileContainer.appendChild(wrapper);
+
+                // Wrap avatar with AccountFrame once
+                const avatarEl = wrapper.querySelector('.header-avatar');
                 if (avatarEl) AccountFrame.wrap(avatarEl, { size: 'header', showTitle: true });
+            } else {
+                // Subsequent calls: patch the existing DOM in place (no destruction)
+                const wrapper = document.getElementById('_avatarWrapper');
+                if (wrapper) {
+                    const existingImg = wrapper.querySelector('img.header-avatar');
+                    const existingInitials = wrapper.querySelector('.header-avatar-initials');
+
+                    if (photoURL) {
+                        if (existingImg) {
+                            // Just update src if it changed — browser keeps old image visible until new loads
+                            if (existingImg.src !== photoURL) existingImg.src = photoURL;
+                            if (existingImg.alt !== displayName) existingImg.alt = displayName;
+                        } else {
+                            // Switch from initials to image
+                            if (existingInitials) existingInitials.remove();
+                            const img = document.createElement('img');
+                            img.className = 'header-avatar';
+                            img.alt = displayName;
+                            img.src = photoURL;
+                            // Insert before any AccountFrame wrapper or at start
+                            const frameWrap = wrapper.querySelector('.account-frame');
+                            if (frameWrap) {
+                                frameWrap.insertBefore(img, frameWrap.firstChild);
+                            } else {
+                                wrapper.prepend(img);
+                            }
+                        }
+                    } else {
+                        if (existingInitials) {
+                            // Update initials text
+                            const span = existingInitials.querySelector('span');
+                            if (span) span.textContent = getHeaderInitials(displayName);
+                        } else if (existingImg) {
+                            // Switch from image to initials (user signed out)
+                            existingImg.remove();
+                            const div = document.createElement('div');
+                            div.className = 'header-avatar header-avatar-initials';
+                            div.innerHTML = `<span>${getHeaderInitials(displayName)}</span>`;
+                            const frameWrap = wrapper.querySelector('.account-frame');
+                            if (frameWrap) {
+                                frameWrap.insertBefore(div, frameWrap.firstChild);
+                            } else {
+                                wrapper.prepend(div);
+                            }
+                        }
+                    }
+                }
             }
 
             if (githubAuth && githubAuth.isAuthenticated && githubAuth.profile) {
-                // Update settings for connected state
                 githubStatus.textContent = `Connected as @${githubAuth.profile.username}`;
                 connectBtn.textContent = 'Disconnect';
                 connectBtn.classList.add('danger');
                 cloudSyncRow.style.display = 'flex';
             } else {
-                // Update settings for disconnected state
                 githubStatus.textContent = 'Not connected';
                 connectBtn.textContent = 'Connect';
                 connectBtn.classList.remove('danger');
                 cloudSyncRow.style.display = 'none';
             }
-        }
-
-        function _computeAvatarSrc() {
-            const firebaseUser = (typeof FirebaseAuth !== 'undefined') ? FirebaseAuth.getUser() : null;
-            const cachedFirebase = !firebaseUser ? JSON.parse(localStorage.getItem('hexworth_firebase_user') || 'null') : null;
-            const githubProfile = (githubAuth && githubAuth.isAuthenticated) ? githubAuth.getProfile() : null;
-            const photoURL = firebaseUser?.photoURL || cachedFirebase?.photoURL || githubProfile?.avatar || localStorage.getItem('hexworth_avatar') || '';
-            const displayName = firebaseUser?.displayName || cachedFirebase?.displayName || githubProfile?.displayName || localStorage.getItem('hexworth_display_name') || '';
-            return photoURL + '|' + displayName;
-        }
-
-        function createHeaderAvatar() {
-            // Pull from Firebase auth first, then cached Firebase, then GitHub, then localStorage
-            const firebaseUser = (typeof FirebaseAuth !== 'undefined') ? FirebaseAuth.getUser() : null;
-            const cachedFirebase = !firebaseUser ? JSON.parse(localStorage.getItem('hexworth_firebase_user') || 'null') : null;
-            const githubProfile = (githubAuth && githubAuth.isAuthenticated) ? githubAuth.getProfile() : null;
-
-            const photoURL = firebaseUser?.photoURL || cachedFirebase?.photoURL || githubProfile?.avatar || localStorage.getItem('hexworth_avatar');
-            const displayName = firebaseUser?.displayName || cachedFirebase?.displayName || githubProfile?.displayName || localStorage.getItem('hexworth_display_name') || '';
-            const initials = getHeaderInitials(displayName);
-
-            const container = document.createElement('div');
-            container.style.cssText = 'display:inline-flex;';
-
-            if (photoURL) {
-                container.innerHTML = `<img class="header-avatar" src="${photoURL}" alt="${displayName}">`;
-            } else {
-                container.innerHTML = `<div class="header-avatar header-avatar-initials"><span>${initials}</span></div>`;
-            }
-
-            return container;
         }
 
         function getHeaderInitials(name) {
