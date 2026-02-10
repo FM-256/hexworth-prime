@@ -328,6 +328,110 @@ const AchievementManager = (function() {
         },
 
         // ─────────────────────────────────────────────────────────────
+        // GAME ACHIEVEMENTS
+        // ─────────────────────────────────────────────────────────────
+        {
+            id: 'game_brick',
+            icon: '🖥️',
+            name: 'Incident Commander',
+            desc: 'Successfully contain a malware incident in Don\'t Brick the PC',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_printer',
+            icon: '🖨️',
+            name: 'Printer Whisperer',
+            desc: 'Tame the beast in Don\'t Anger the Printer',
+            points: 50,
+            category: 'regular',
+            title: 'the Printer Whisperer'
+        },
+        {
+            id: 'game_pod',
+            icon: '🐳',
+            name: 'Pod Saver',
+            desc: 'Rescue containers in Save the Pod',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_jeopardy',
+            icon: '🎯',
+            name: 'Jeopardy Champion',
+            desc: 'Complete a round of A+ Jeopardy',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_scramble',
+            icon: '🔤',
+            name: 'Unscrambled',
+            desc: 'Complete Cyber Scramble',
+            points: 30,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_hangman',
+            icon: '💀',
+            name: 'Hack the Hangman',
+            desc: 'Complete Hacker Hangman',
+            points: 30,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_hatmatch',
+            icon: '🎩',
+            name: 'Hat Trick',
+            desc: 'Complete Cyber Hat Match',
+            points: 30,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_crime',
+            icon: '🔍',
+            name: 'Cyber Detective',
+            desc: 'Complete What\'s My Crime',
+            points: 30,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cookies',
+            icon: '🍪',
+            name: 'Cookie Monster',
+            desc: 'Complete Cookie Caper',
+            points: 30,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_ethcase',
+            icon: '🕵️',
+            name: 'Case Closed',
+            desc: 'Complete the Ethical Hacking Case',
+            points: 40,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_master',
+            icon: '🏆',
+            name: 'Game Master',
+            desc: 'Complete all 10 games across the platform',
+            points: 200,
+            category: 'legendary',
+            title: 'the Game Master',
+            style: 'legendary'
+        },
+
+        // ─────────────────────────────────────────────────────────────
         // CLI MASTERY ACHIEVEMENTS (House of Script)
         // ─────────────────────────────────────────────────────────────
         {
@@ -503,6 +607,12 @@ const AchievementManager = (function() {
 
         if (secretCount >= 5 && !unlocked.includes('secret_hunter')) {
             setTimeout(() => unlock('secret_hunter'), 1500);
+        }
+
+        // Game Master: All 10 game achievements
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase'];
+        if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
+            setTimeout(() => unlock('game_master'), 1500);
         }
 
         // Completionist: All AchievementManager achievements (except completionist itself)
