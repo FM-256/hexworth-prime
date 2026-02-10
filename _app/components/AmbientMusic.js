@@ -513,6 +513,20 @@ const AmbientMusic = (function() {
     // RETURN PUBLIC API
     // ============================================================================
 
+    /**
+     * Get the AudioContext (for external AnalyserNode connections)
+     */
+    function getAudioContext() {
+        return audioContext;
+    }
+
+    /**
+     * Get the master output node (connect an AnalyserNode here to read frequency data)
+     */
+    function getOutputNode() {
+        return masterGain;
+    }
+
     return {
         start,
         stop,
@@ -522,7 +536,9 @@ const AmbientMusic = (function() {
         isPlaying,
         toggle,
         fadeIn,
-        fadeOut
+        fadeOut,
+        getAudioContext,
+        getOutputNode
     };
 
 })();

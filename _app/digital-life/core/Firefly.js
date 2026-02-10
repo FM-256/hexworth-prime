@@ -182,8 +182,8 @@ class Firefly {
         this.element.style.left = (this.x + glitchX) + 'px';
         this.element.style.top = (this.y + glitchY) + 'px';
 
-        // Apply size multiplier for rare fireflies
-        const sizeMultiplier = this.sizeMultiplier ?? 1;
+        // Apply size multiplier for rare fireflies and audio reactivity
+        const sizeMultiplier = (this.sizeMultiplier ?? 1) * (this._reactiveScale ?? 1);
         this.element.style.fontSize = (this.size * sizeMultiplier) + 'px';
 
         this.element.style.opacity = this.opacity;
