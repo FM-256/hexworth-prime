@@ -414,7 +414,7 @@ const ClassManager = (function() {
 
         // Create member profile in subcollection (pull from user profile)
         const memberRef = doc(db, COLLECTION, cls.id, 'members', user.uid);
-        const profile = await _getUserProfile();
+        const profile = await FirestoreManager.getUserProfile(user.uid);
 
         const firstName = profile?.firstName || '';
         const lastName = profile?.lastName || '';
@@ -594,23 +594,7 @@ const ClassManager = (function() {
         return true;
     }
 
-    /**
-     * Helper: get user's Firestore profile (callsign, etc.)
-     * @private
-     */
-    async function _getUserProfile() {
-        try {
-            const user = FirebaseAuth.getUser();
-            if (!user) return null;
 
-            const { doc, getDoc } = window.firebaseFirestore;
-            const profileRef = doc(db, 'users', user.uid);
-            const snap = await getDoc(profileRef);
-            return snap.exists() ? snap.data() : null;
-        } catch {
-            return null;
-        }
-    }
 
     // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
