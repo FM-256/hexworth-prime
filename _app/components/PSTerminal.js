@@ -3123,6 +3123,16 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             }
             // ── End M18 Script Block Detection ────────────────────────────────
 
+            // ── Pipe-Aware Objective Detection ────────────────────────────────
+            // Some objectives require detecting patterns across pipe segments.
+            // _checkObjective no-ops if the ID doesn't exist in the current lab.
+
+            // get-service-stopped: Get-Service | Where-Object ... Stopped
+            if (/get-service\b.*\|.*(?:where-object|where)\b.*stopped/i.test(input)) {
+                _checkObjective('get-service-stopped');
+            }
+            // ── End Pipe-Aware Detection ──────────────────────────────────────
+
             // Parse the command for callback
             // For pipelines, parse just the first command so onCommand always gets a command name
             if (input.includes('|')) {
@@ -7065,13 +7075,15 @@ app_cache_1   redis-server              Up      6379/tcp`;
         let filtered = events;
         // Simple filtering for -FilterHashtable or pipe patterns
         const rawArgs = args.join(' ').toLowerCase();
-        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"')) {
+        const filterHashStr = (filterHash || '').toLowerCase();
+        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"') ||
+            filterHashStr.includes('level=2') || filterHashStr.includes("'error'") || filterHashStr.includes('"error"')) {
             filtered = events.filter(e => e.LevelDisplayName === 'Error');
         }
-        if (rawArgs.includes('4625')) {
+        if (rawArgs.includes('4625') || filterHashStr.includes('4625')) {
             filtered = events.filter(e => e.Id === 4625);
         }
-        if (rawArgs.includes('security')) {
+        if (rawArgs.includes('security') || filterHashStr.includes('security')) {
             filtered = events.filter(e => e.ProviderName.includes('Security'));
         }
 
@@ -7083,10 +7095,12 @@ app_cache_1   redis-server              Up      6379/tcp`;
         }
 
         _checkObjective('get-winevent');
-        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"') || filtered.some(e => e.LevelDisplayName === 'Error')) {
+        if (rawArgs.includes('level=2') || rawArgs.includes("'error'") || rawArgs.includes('"error"') ||
+            filterHashStr.includes('level=2') || filterHashStr.includes("'error'") ||
+            filtered.some(e => e.LevelDisplayName === 'Error')) {
             _checkObjective('get-winevent-error');
         }
-        if (logName.toLowerCase() === 'security' || rawArgs.includes('security')) {
+        if (logName.toLowerCase() === 'security' || rawArgs.includes('security') || filterHashStr.includes('security')) {
             _checkObjective('get-winevent-security');
         }
 
