@@ -1482,6 +1482,7 @@ class LearningPaths {
             description: 'Hardware, networking, mobile devices, virtualization, and troubleshooting',
             icon: '🔧',
             color: '#f97316',
+            courseHref: 'houses/forge/applets/comptia-aplus/core-1/index.html',
             modules: [
                 {
                     id: 'aplus-core1-ch01',
@@ -1564,6 +1565,7 @@ class LearningPaths {
             description: 'Operating systems, security, software troubleshooting, and operational procedures',
             icon: '🖥️',
             color: '#ea580c',
+            courseHref: 'houses/forge/applets/comptia-aplus/core-2/index.html',
             modules: [
                 {
                     id: 'aplus-core2-ch13',
