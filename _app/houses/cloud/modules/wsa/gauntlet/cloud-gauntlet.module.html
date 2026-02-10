@@ -439,7 +439,10 @@
     </style>
 </head>
 <body>
+    <link rel="stylesheet" href="../../../../../components/styles/gui-simulator.css">
     <script src="../progress.js"></script>
+    <script src="../../../../../components/WSAState.js"></script>
+    <script src="../../../../../components/GUISimulator.js"></script>
 
     <!-- Header -->
     <div class="g-header">
@@ -470,6 +473,7 @@
         <div class="g-workspace">
             <div class="g-toolbar" id="toolbar"></div>
             <div class="g-panel" id="guiPanel"></div>
+            <div class="g-panel" id="guiSimPanel" style="display:none;padding:0;position:relative;"></div>
             <div class="g-statusbar">
                 <span id="statusLeft">Ready</span>
                 <span id="statusRight">Hexworth Corp — Branch Office Alpha</span>
@@ -1008,6 +1012,11 @@
         ).join('');
     }
 
+    // GUISimulator consoles use a separate panel
+    const guiSimTools = ['ad', 'disk', 'hyperv'];
+    let guiSimReady = false;
+    let guiSimInstances = {};
+
     function openTool(id) {
         currentTool = id;
         renderToolbar();
@@ -1016,21 +1025,226 @@
 
     function renderCurrentTool() {
         const panel = document.getElementById('guiPanel');
-        const renderers = {
-            server: renderServerManager,
-            ad: renderADConsole,
-            disk: renderDiskConsole,
-            hyperv: renderHyperVConsole,
-            container: renderContainerConsole,
-            cluster: renderClusterConsole,
-            monitor: renderMonitorConsole,
-            dns: renderDNSConsole,
-            dhcp: renderDHCPConsole,
-            gpo: renderGPOConsole,
-            iis: renderIISConsole
-        };
-        panel.innerHTML = (renderers[currentTool] || renderServerManager)();
+        const simPanel = document.getElementById('guiSimPanel');
+        const isGuiSim = guiSimTools.includes(currentTool) && guiSimReady;
+
+        // Toggle panel visibility
+        panel.style.display = isGuiSim ? 'none' : '';
+        simPanel.style.display = isGuiSim ? '' : 'none';
+
+        if (isGuiSim) {
+            showGuiSimConsole(currentTool);
+        } else {
+            const renderers = {
+                server: renderServerManager,
+                container: renderContainerConsole,
+                cluster: renderClusterConsole,
+                monitor: renderMonitorConsole,
+                dns: renderDNSConsole,
+                dhcp: renderDHCPConsole,
+                gpo: renderGPOConsole,
+                iis: renderIISConsole
+            };
+            panel.innerHTML = (renderers[currentTool] || renderServerManager)();
+        }
         document.getElementById('statusLeft').textContent = tools.find(t=>t.id===currentTool)?.label || 'Ready';
+    }
+
+    // ── GUISimulator Integration ──
+    function initGUISimulator() {
+        // Initialize WSAState with gauntlet-appropriate data
+        WSAState.init({
+            adUsers: {},
+            adGroups: {},
+            adComputers: {},
+            adOUs: {},
+            disks: {
+                0: { Number: 0, Size: 127*1024*1024*1024, PartitionStyle: 'GPT', OperationalStatus: 'Online', FriendlyName: 'Samsung SSD 980 PRO 500GB',
+                     partitions: [
+                         { PartitionNumber: 1, Size: 126*1024*1024*1024, Type: 'Basic', DriveLetter: 'C', IsSystem: true }
+                     ]},
+                1: { Number: 1, Size: 500*1024*1024*1024, PartitionStyle: 'RAW', OperationalStatus: 'Offline', FriendlyName: 'WDC WD5000 500GB',
+                     partitions: [] },
+                2: { Number: 2, Size: 500*1024*1024*1024, PartitionStyle: 'RAW', OperationalStatus: 'Offline', FriendlyName: 'Seagate Barracuda 500GB',
+                     partitions: [] }
+            },
+            volumes: {
+                'C': { DriveLetter: 'C', FileSystemLabel: 'System', FileSystem: 'NTFS', Size: 126*1024*1024*1024, SizeRemaining: 80*1024*1024*1024 }
+            },
+            shares: {},
+            vms: {},
+            vmSwitches: {},
+            vmCheckpoints: {},
+            domain: 'hexworth.local',
+            hostname: 'WIN-SERVER'
+        });
+
+        // Initialize GUISimulator
+        GUISimulator.init('WSA-GAUNTLET', '#guiSimPanel', {
+            domain: 'branch.hexworth.local',
+            hostname: 'BRO-DC01',
+            theme: 'hexworth'
+        });
+
+        guiSimReady = true;
+    }
+
+    function showGuiSimConsole(tool) {
+        const simPanel = document.getElementById('guiSimPanel');
+        // Clear previous GUISimulator windows
+        simPanel.innerHTML = '';
+
+        switch (tool) {
+            case 'ad':
+                guiSimInstances.aduc = GUISimulator.createADUC({
+                    windowId: 'gauntlet-aduc',
+                    onObjectiveComplete: handleAducObjective,
+                    onClose: () => openTool('server')
+                });
+                break;
+            case 'disk':
+                guiSimInstances.disk = GUISimulator.createDiskManagement({
+                    windowId: 'gauntlet-disk',
+                    onObjectiveComplete: handleDiskObjective,
+                    onClose: () => openTool('server')
+                });
+                break;
+            case 'hyperv':
+                guiSimInstances.hyperv = GUISimulator.createHyperVManager({
+                    windowId: 'gauntlet-hyperv',
+                    onObjectiveComplete: handleHypervObjective,
+                    onClose: () => openTool('server')
+                });
+                break;
+        }
+    }
+
+    // Bridge GUISimulator objective callbacks → gauntlet state sync
+    function syncWSAStateToGauntlet() {
+        const ws = WSAState.getState();
+
+        // Sync AD state
+        const ous = Object.values(ws.adOUs || {});
+        state.ad.ous = ous.map(o => ({ name: o.Name, parent: o.Parent || null }));
+
+        const users = Object.values(ws.adUsers || {});
+        state.ad.users = users.filter(u => !['Administrator','Guest','krbtgt','DefaultAccount'].includes(u.SamAccountName)).map(u => ({
+            firstName: u.GivenName || u.Name?.split(' ')[0] || '',
+            lastName: u.Surname || u.Name?.split(' ')[1] || '',
+            samAccountName: u.SamAccountName,
+            ou: u.OU || (u.DistinguishedName ? extractOUFromDN(u.DistinguishedName) : null)
+        }));
+
+        const groups = Object.values(ws.adGroups || {});
+        state.ad.groups = groups.filter(g => !['Domain Admins','Domain Users','Enterprise Admins','Schema Admins','Administrators','Users','Guests'].includes(g.Name)).map(g => ({
+            name: g.Name,
+            type: g.GroupCategory || 'Security',
+            ou: g.OU || null
+        }));
+
+        // Sync group members
+        groups.forEach(g => {
+            if (g.Members && g.Members.length > 0) {
+                state.ad.groupMembers[g.Name] = g.Members.map(m => {
+                    // Members might be DN strings or SAM names
+                    if (m.includes('CN=')) {
+                        const match = m.match(/CN=([^,]+)/);
+                        return match ? match[1] : m;
+                    }
+                    return m;
+                });
+            }
+        });
+
+        // Sync Disk state
+        const disks = Object.values(ws.disks || {});
+        disks.forEach(d => {
+            const gDisk = state.storage.disks.find(sd => sd.id === d.Number);
+            if (gDisk) {
+                gDisk.initialized = d.PartitionStyle !== 'RAW' && d.OperationalStatus === 'Online';
+                gDisk.format = d.PartitionStyle !== 'RAW' ? d.PartitionStyle : null;
+                gDisk.status = d.OperationalStatus;
+            }
+        });
+
+        // Sync volumes from WSAState
+        const wsVolumes = Object.values(ws.volumes || {});
+        wsVolumes.forEach(v => {
+            if (v.DriveLetter === 'C') return; // skip system
+            const existing = state.storage.volumes.find(sv => sv.letter === v.DriveLetter);
+            if (!existing) {
+                // Find which disk this volume belongs to
+                let diskNum = 0;
+                Object.values(ws.disks || {}).forEach(d => {
+                    (d.partitions || []).forEach(p => {
+                        if (p.DriveLetter === v.DriveLetter) diskNum = d.Number;
+                    });
+                });
+                state.storage.volumes.push({
+                    disk: diskNum,
+                    letter: v.DriveLetter,
+                    fs: v.FileSystem || 'NTFS',
+                    size: Math.round((v.Size || 0) / (1024*1024*1024)),
+                    label: v.FileSystemLabel || ''
+                });
+            } else {
+                existing.fs = v.FileSystem || existing.fs;
+                existing.label = v.FileSystemLabel || existing.label;
+                existing.size = Math.round((v.Size || 0) / (1024*1024*1024)) || existing.size;
+            }
+        });
+
+        // Sync shares
+        const shares = Object.values(ws.shares || {});
+        shares.forEach(s => {
+            if (!state.storage.shares.some(ss => ss.name === s.Name)) {
+                state.storage.shares.push({ name: s.Name, path: s.Path || '' });
+            }
+        });
+
+        // Sync Hyper-V VMs
+        const vms = Object.values(ws.vms || {});
+        state.hyperv.vms = vms.map(v => ({
+            Name: v.Name,
+            Generation: v.Generation || 2,
+            MemoryGB: Math.round((v.MemoryStartup || v.MemoryAssigned || 0) / (1024*1024*1024)),
+            State: v.State || 'Off'
+        }));
+
+        // Sync VM switches
+        const switches = Object.values(ws.vmSwitches || {});
+        state.hyperv.switches = switches.map(s => ({
+            name: s.Name,
+            type: s.SwitchType || 'Internal'
+        }));
+
+        // Sync checkpoints
+        const checkpoints = Object.values(ws.vmCheckpoints || {});
+        state.hyperv.checkpoints = {};
+        checkpoints.forEach(cp => {
+            const vmName = cp.VMName || 'Unknown';
+            if (!state.hyperv.checkpoints[vmName]) state.hyperv.checkpoints[vmName] = [];
+            state.hyperv.checkpoints[vmName].push({ time: cp.CreationTime || new Date().toLocaleString() });
+        });
+
+        checkAllObjectives();
+    }
+
+    function extractOUFromDN(dn) {
+        const match = dn.match(/OU=([^,]+)/);
+        return match ? match[1] : null;
+    }
+
+    function handleAducObjective(objectiveId) {
+        syncWSAStateToGauntlet();
+    }
+
+    function handleDiskObjective(objectiveId) {
+        syncWSAStateToGauntlet();
+    }
+
+    function handleHypervObjective(objectiveId) {
+        syncWSAStateToGauntlet();
     }
 
     // ── Modal System ──
@@ -1064,7 +1278,48 @@
     function applyAndCheck() {
         saveState();
         checkAllObjectives();
+        // Sync gauntlet state → WSAState for GUISimulator consoles
+        if (guiSimReady) syncGauntletToWSAState();
         renderCurrentTool();
+    }
+
+    function syncGauntletToWSAState() {
+        try {
+            // Sync AD OUs
+            const ouObj = {};
+            state.ad.ous.forEach(o => {
+                ouObj[o.name] = { Name: o.name, Parent: o.parent, DistinguishedName: `OU=${o.name},DC=branch,DC=hexworth,DC=local` };
+            });
+            // Sync AD Users
+            const userObj = {};
+            state.ad.users.forEach(u => {
+                const ouPart = u.ou ? `OU=${u.ou},` : '';
+                userObj[u.samAccountName] = {
+                    Name: `${u.firstName} ${u.lastName}`.trim(),
+                    SamAccountName: u.samAccountName,
+                    GivenName: u.firstName,
+                    Surname: u.lastName,
+                    Enabled: true,
+                    OU: u.ou,
+                    DistinguishedName: `CN=${u.firstName} ${u.lastName},${ouPart}DC=branch,DC=hexworth,DC=local`
+                };
+            });
+            // Sync AD Groups
+            const groupObj = {};
+            state.ad.groups.forEach(g => {
+                groupObj[g.name] = {
+                    Name: g.name,
+                    GroupCategory: g.type,
+                    GroupScope: 'Global',
+                    OU: g.ou,
+                    Members: state.ad.groupMembers[g.name] || [],
+                    DistinguishedName: `CN=${g.name},DC=branch,DC=hexworth,DC=local`
+                };
+            });
+
+            // Use STATE_MERGE to update without triggering full reset
+            WSAState.dispatch({ type: 'STATE_MERGE', payload: { adOUs: ouObj, adUsers: userObj, adGroups: groupObj }, source: 'gauntlet-sync' });
+        } catch(e) { /* non-critical */ }
     }
 
     // ── Briefing Modal ──
@@ -1131,11 +1386,22 @@
         renderObjectivesList();
         renderHintPanel();
         renderToolbar();
-        renderCurrentTool();
         updateScore();
         updateTimer();
         timerInterval = setInterval(updateTimer, 1000);
         document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) hideModal(); });
+
+        // Initialize GUISimulator for AD, Disk, Hyper-V consoles
+        try {
+            initGUISimulator();
+            // Subscribe to WSAState changes to keep gauntlet state in sync
+            WSAState.subscribe(() => syncWSAStateToGauntlet());
+        } catch(e) {
+            console.warn('GUISimulator init failed, falling back to custom consoles:', e);
+            guiSimReady = false;
+        }
+
+        renderCurrentTool();
     }
 
     // ═══════════════════════════════════════════════════════════════
