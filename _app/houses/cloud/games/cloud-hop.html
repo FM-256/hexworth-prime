@@ -99,7 +99,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            background: rgba(10, 10, 10, 0.95);
+            background: rgba(10, 10, 10, 0.82);
             padding: 40px;
             border: 3px solid #06b6d4;
             border-radius: 8px;
@@ -216,6 +216,13 @@
         let powerupDuration = 0;
         let comboCount = 0;
         let lastPlatformTime = 0;
+
+        // Demo & Countdown State
+        let demoMode = false;
+        let countdownActive = false;
+        let countdownPhase = 0; // 0=none, 1=RED, 2=YELLOW, 3=GREEN
+        let countdownTimer = 0;
+        let shieldActive = false;
 
         // Cloud Providers
         const cloudProviders = ['AWS', 'Azure', 'GCP'];
@@ -477,6 +484,52 @@
             gain.connect(audioCtx.destination);
         }
 
+        // Countdown Sound Effects
+        function playCountdownSound(phase) {
+            if (isMuted || !audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            if (phase === 1) {
+                // RED - low warning tone
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.value = 220;
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (phase === 2) {
+                // YELLOW - mid tone
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.value = 440;
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (phase === 3) {
+                // GREEN - ascending arpeggio (GO!)
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.value = freq;
+                    osc.type = 'triangle';
+                    gain.gain.setValueAtTime(0.3, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.2);
+                });
+            }
+        }
+
         // Mute Toggle
         document.getElementById('muteBtn').addEventListener('click', () => {
             isMuted = !isMuted;
@@ -677,6 +730,19 @@
         function drawPlayer() {
             ctx.save();
 
+            // Shield effect during countdown
+            if (shieldActive) {
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = 10;
+                const pulse = Math.sin(gameFrame * 0.15) * 3;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width / 2, player.y + player.height / 2, 18 + pulse, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
             // Body (container box)
             ctx.fillStyle = '#06b6d4';
             ctx.fillRect(player.x, player.y, player.width, 14);
@@ -784,6 +850,58 @@
             powerups.push(new Powerup(platform.x + platform.width / 2, platform.y - 40, type));
         }
 
+        // Demo AI - Automated player for background demo
+        function demoAI() {
+            // Find best platform to target
+            let targetPlatform = null;
+            let bestScore = -Infinity;
+
+            platforms.forEach(p => {
+                if (p.crumbling) return;
+                const ahead = p.x + p.width / 2 - player.x;
+                if (ahead < -30) return;
+                const s = -Math.abs(ahead - 150) - Math.abs(p.y - player.y) * 0.5;
+                if (s > bestScore) {
+                    bestScore = s;
+                    targetPlatform = p;
+                }
+            });
+
+            // Horizontal movement toward target
+            keys.left = false;
+            keys.right = false;
+            if (targetPlatform) {
+                const targetX = targetPlatform.x + targetPlatform.width / 2;
+                if (targetX > player.x + player.width + 5) keys.right = true;
+                else if (targetX < player.x - 5) keys.left = true;
+            } else {
+                keys.right = true;
+            }
+
+            // Jump logic
+            keys.space = false;
+            keys.up = false;
+            if (player.onPlatform) {
+                const current = platforms.find(p =>
+                    !p.crumbling &&
+                    player.x + player.width > p.x &&
+                    player.x < p.x + p.width &&
+                    Math.abs(player.y + player.height - p.y) < 8
+                );
+
+                if (!current || current.x < 120 || current.crumbling) {
+                    keys.space = true;
+                    keys.up = true;
+                } else if (targetPlatform && targetPlatform.y < player.y - 20) {
+                    keys.space = true;
+                    keys.up = true;
+                } else if (Math.random() < 0.015) {
+                    keys.space = true;
+                    keys.up = true;
+                }
+            }
+        }
+
         // Collision Detection
         function checkCollision(rect1, rect2) {
             return rect1.x < rect2.x + rect2.width &&
@@ -799,44 +917,71 @@
             gameFrame++;
             player.animFrame++;
 
-            // Update score
-            if (gameFrame % 60 === 0) {
-                score++;
-                document.getElementById('score').textContent = score;
+            // Demo AI control
+            if (demoMode) {
+                demoAI();
+            }
 
-                // Milestone sounds
-                if (score % 10 === 0 && score > 0) {
-                    playSound('milestone');
-                }
-
-                // Check for XP award at 500 points
-                if (score === 500) {
-                    awardXP();
+            // Countdown timer management
+            if (countdownActive) {
+                countdownTimer--;
+                if (countdownTimer <= 0) {
+                    countdownPhase++;
+                    if (countdownPhase > 3) {
+                        // Countdown complete — player takes control!
+                        countdownActive = false;
+                        shieldActive = false;
+                        countdownPhase = 0;
+                    } else {
+                        countdownTimer = 70; // ~1.17s per phase
+                        playCountdownSound(countdownPhase);
+                    }
                 }
             }
 
-            // Increase difficulty
-            speed = 2 + score / 50;
+            // Update score (only during actual play)
+            if (!demoMode && !countdownActive) {
+                if (gameFrame % 60 === 0) {
+                    score++;
+                    document.getElementById('score').textContent = score;
+
+                    if (score % 10 === 0 && score > 0) {
+                        playSound('milestone');
+                    }
+
+                    if (score === 500) {
+                        awardXP();
+                    }
+                }
+
+                // Increase difficulty
+                speed = 2 + score / 50;
+            }
 
             // Player horizontal movement
-            if (keys.left) player.velocityX = -4;
-            else if (keys.right) player.velocityX = 4;
-            else player.velocityX *= 0.8;
+            if (!countdownActive) {
+                if (keys.left) player.velocityX = -4;
+                else if (keys.right) player.velocityX = 4;
+                else player.velocityX *= 0.8;
+            } else {
+                player.velocityX *= 0.8;
+            }
 
             player.x += player.velocityX;
             player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
 
             // Player vertical movement
-            if ((keys.up || keys.space) && player.onPlatform) {
-                player.velocityY = jumpStrength;
-                player.isJumping = true;
-                player.onPlatform = false;
-                playSound('jump');
-            }
+            if (!countdownActive) {
+                if ((keys.up || keys.space) && player.onPlatform) {
+                    player.velocityY = jumpStrength;
+                    player.isJumping = true;
+                    player.onPlatform = false;
+                    if (!demoMode) playSound('jump');
+                }
 
-            // Fast fall
-            if (keys.down && !player.onPlatform) {
-                player.velocityY += 1;
+                if (keys.down && !player.onPlatform) {
+                    player.velocityY += 1;
+                }
             }
 
             player.velocityY += gravity;
@@ -854,18 +999,18 @@
 
                         if (!platform.touched) {
                             platform.touched = true;
-                            comboCount++;
-                            playSound('combo');
+                            if (!demoMode && !countdownActive) {
+                                comboCount++;
+                                playSound('combo');
+                            }
 
-                            // Chance to crumble (outage)
-                            if (Math.random() < 0.15) {
+                            // Chance to crumble (not in demo or countdown)
+                            if (!demoMode && !countdownActive && Math.random() < 0.15) {
                                 platform.startCrumble();
                             }
                         }
 
-                        // Auto-scale powerup effect
                         if (activePowerup === 'autoscale') {
-                            // Platforms don't crumble
                             platform.crumbling = false;
                         }
                     }
@@ -881,8 +1026,16 @@
 
             // Fall detection
             if (player.y > canvas.height) {
-                playSound('fall');
-                loseLife();
+                if (demoMode || countdownActive || shieldActive) {
+                    // Silent respawn
+                    player.y = 100;
+                    player.x = 200;
+                    player.velocityY = 0;
+                    player.velocityX = 0;
+                } else {
+                    playSound('fall');
+                    loseLife();
+                }
             }
 
             // Update platforms
@@ -891,66 +1044,61 @@
 
             // Spawn platforms
             platformSpawnTimer++;
-            if (platformSpawnTimer > Math.max(60, 120 - score)) {
+            const spawnRate = (demoMode || countdownActive) ? 90 : Math.max(60, 120 - score);
+            if (platformSpawnTimer > spawnRate) {
                 spawnPlatform();
                 platformSpawnTimer = 0;
             }
 
-            // Update obstacles
-            obstacles.forEach(obstacle => obstacle.update());
-            obstacles = obstacles.filter(o => o.x + o.width > 0);
+            // Obstacles & powerups (only during actual play)
+            if (!demoMode && !countdownActive) {
+                obstacles.forEach(obstacle => obstacle.update());
+                obstacles = obstacles.filter(o => o.x + o.width > 0);
 
-            // Spawn obstacles
-            if (Math.random() < 0.01 && score > 10) {
-                spawnObstacle();
-            }
+                if (Math.random() < 0.01 && score > 10 && gameFrame > 120) {
+                    spawnObstacle();
+                }
 
-            // Check obstacle collisions
-            obstacles.forEach(obstacle => {
-                if (checkCollision(player, obstacle)) {
-                    if (activePowerup !== 'multiregion') {
-                        loseLife();
-                        obstacles.splice(obstacles.indexOf(obstacle), 1);
+                obstacles.forEach(obstacle => {
+                    if (checkCollision(player, obstacle)) {
+                        if (activePowerup !== 'multiregion') {
+                            loseLife();
+                            obstacles.splice(obstacles.indexOf(obstacle), 1);
 
-                        // Spawn particles
-                        for (let i = 0; i < 10; i++) {
-                            particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
+                            for (let i = 0; i < 10; i++) {
+                                particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
+                            }
                         }
                     }
+                });
+
+                powerups.forEach(powerup => powerup.update());
+                powerups = powerups.filter(p => p.x + p.width > 0);
+
+                powerupTimer++;
+                if (powerupTimer > 600 && Math.random() < 0.02) {
+                    spawnPowerup();
+                    powerupTimer = 0;
                 }
-            });
 
-            // Update powerups
-            powerups.forEach(powerup => powerup.update());
-            powerups = powerups.filter(p => p.x + p.width > 0);
+                powerups.forEach(powerup => {
+                    if (checkCollision(player, powerup)) {
+                        activatePowerup(powerup.type);
+                        powerups.splice(powerups.indexOf(powerup), 1);
+                        playSound('powerup');
 
-            // Spawn powerups
-            powerupTimer++;
-            if (powerupTimer > 600 && Math.random() < 0.02) {
-                spawnPowerup();
-                powerupTimer = 0;
-            }
-
-            // Check powerup collisions
-            powerups.forEach(powerup => {
-                if (checkCollision(player, powerup)) {
-                    activatePowerup(powerup.type);
-                    powerups.splice(powerups.indexOf(powerup), 1);
-                    playSound('powerup');
-
-                    // Spawn particles
-                    for (let i = 0; i < 15; i++) {
-                        particles.push(new Particle(powerup.x + powerup.width / 2, powerup.y + powerup.height / 2, '#22c55e'));
+                        for (let i = 0; i < 15; i++) {
+                            particles.push(new Particle(powerup.x + powerup.width / 2, powerup.y + powerup.height / 2, '#22c55e'));
+                        }
                     }
-                }
-            });
+                });
 
-            // Update powerup duration
-            if (activePowerup) {
-                powerupDuration--;
-                if (powerupDuration <= 0) {
-                    activePowerup = null;
-                    document.getElementById('powerupDisplay').textContent = '';
+                if (activePowerup) {
+                    powerupDuration--;
+                    if (powerupDuration <= 0) {
+                        activePowerup = null;
+                        document.getElementById('powerupDisplay').textContent = '';
+                    }
                 }
             }
 
@@ -994,6 +1142,69 @@
             }
         }
 
+        // Draw Countdown - The Prime
+        function drawCountdown() {
+            if (!countdownActive || countdownPhase === 0) return;
+
+            // Dim overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Traffic light housing
+            const lightW = 60;
+            const lightH = 150;
+            const lightX = cx - lightW / 2;
+            const lightY = cy - lightH / 2 - 20;
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(lightX, lightY, lightW, lightH);
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(lightX, lightY, lightW, lightH);
+
+            // Three lights
+            const lights = [
+                { y: lightY + 28, color: '#ef4444', active: countdownPhase >= 1 },
+                { y: lightY + 75, color: '#fbbf24', active: countdownPhase >= 2 },
+                { y: lightY + 122, color: '#22c55e', active: countdownPhase >= 3 }
+            ];
+
+            lights.forEach(light => {
+                ctx.beginPath();
+                ctx.arc(cx, light.y, 18, 0, Math.PI * 2);
+                if (light.active) {
+                    ctx.fillStyle = light.color;
+                    ctx.shadowColor = light.color;
+                    ctx.shadowBlur = 20;
+                } else {
+                    ctx.fillStyle = '#222';
+                    ctx.shadowBlur = 0;
+                }
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Phase text
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 28px Courier New';
+            const phaseLabels = { 1: 'INITIALIZING...', 2: 'DEPLOYING...', 3: 'GO!' };
+            const phaseColors = { 1: '#ef4444', 2: '#fbbf24', 3: '#22c55e' };
+
+            ctx.fillStyle = phaseColors[countdownPhase];
+            ctx.shadowColor = phaseColors[countdownPhase];
+            ctx.shadowBlur = 15;
+            ctx.fillText(phaseLabels[countdownPhase], cx, cy + lightH / 2 + 20);
+            ctx.shadowBlur = 0;
+
+            // "THE PRIME" label
+            ctx.font = 'bold 14px Courier New';
+            ctx.fillStyle = '#06b6d4';
+            ctx.fillText('THE PRIME', cx, lightY - 10);
+        }
+
         // Draw Game
         function draw() {
             drawBackground();
@@ -1020,6 +1231,17 @@
                 ctx.textAlign = 'center';
                 ctx.fillText(`Combo x${comboCount}`, canvas.width / 2, 50);
             }
+
+            // Countdown overlay
+            drawCountdown();
+
+            // Demo label
+            if (demoMode) {
+                ctx.font = 'bold 16px Courier New';
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.4)';
+                ctx.textAlign = 'right';
+                ctx.fillText('DEMO', canvas.width - 15, canvas.height - 15);
+            }
         }
 
         // Game Loop
@@ -1029,12 +1251,16 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Start Game
+        // Start Game (triggers The Prime countdown)
         function startGame() {
             initAudio();
 
+            // Stop demo
+            demoMode = false;
+
             document.getElementById('startScreen').classList.add('hidden');
-            gameRunning = true;
+
+            // Reset game state
             gameFrame = 0;
             score = 0;
             lives = 3;
@@ -1059,11 +1285,20 @@
             const highScore = localStorage.getItem('cloudhop_highscore') || '0';
             document.getElementById('highScore').textContent = highScore;
 
-            // Initial platforms
-            for (let i = 0; i < 5; i++) {
+            // Spawn generous runway of platforms
+            for (let i = 0; i < 7; i++) {
                 const provider = cloudProviders[i % 3];
-                platforms.push(new Platform(i * 200, 400, 100, provider));
+                platforms.push(new Platform(100 + i * 120, 400, 100, provider));
             }
+
+            // Begin The Prime countdown
+            countdownActive = true;
+            shieldActive = true;
+            countdownPhase = 1;
+            countdownTimer = 70;
+            playCountdownSound(1);
+
+            gameRunning = true;
 
             if (!isMuted) {
                 startBackgroundMusic();
@@ -1179,7 +1414,33 @@
             keys.right = false;
         });
 
-        // Start Game Loop
+        // Initialize demo mode
+        function startDemo() {
+            demoMode = true;
+            gameRunning = true;
+            speed = 2;
+            platforms = [];
+            obstacles = [];
+            powerups = [];
+            particles = [];
+            player.x = 100;
+            player.y = 300;
+            player.velocityY = 0;
+            player.velocityX = 0;
+
+            // Seed initial platforms for demo
+            for (let i = 0; i < 6; i++) {
+                const provider = cloudProviders[i % 3];
+                platforms.push(new Platform(100 + i * 150, 350 + Math.sin(i) * 60, 100, provider));
+            }
+        }
+
+        // Load high score
+        const savedHighScore = localStorage.getItem('cloudhop_highscore') || '0';
+        document.getElementById('highScore').textContent = savedHighScore;
+
+        // Start demo and game loop
+        startDemo();
         gameLoop();
     </script>
 
