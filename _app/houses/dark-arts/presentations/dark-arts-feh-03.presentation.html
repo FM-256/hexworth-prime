@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanning & Enumeration - Dark Arts</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --house-primary: #6b21a8;
+            --house-accent: #9333ea;
+            --terminal-green: #00ff41;
+            --bg-dark: #0a0a0a;
+            --text-primary: #e5e5e5;
+            --text-secondary: #8888aa;
+        }
+        body {
+            min-height: 100vh;
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+        }
+        .presentation-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 10, 0.95);
+            border-bottom: 2px solid var(--house-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(107, 33, 168, 0.3);
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .back-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--house-accent);
+            color: var(--house-accent);
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(147, 51, 234, 0.2); box-shadow: 0 0 10px var(--house-accent); }
+        .presentation-title { font-size: 1rem; color: var(--terminal-green); text-shadow: 0 0 5px var(--terminal-green); }
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 6px 14px;
+            background: rgba(107, 33, 168, 0.2);
+            border: 1px solid var(--house-primary);
+            color: var(--house-accent);
+            letter-spacing: 0.15em;
+        }
+        .progress-container { position: fixed; top: 61px; left: 0; right: 0; height: 3px; background: rgba(107, 33, 168, 0.2); z-index: 99; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--house-primary), var(--house-accent)); width: 0%; transition: width 0.3s ease; }
+        .slide-container { max-width: 1000px; margin: 60px auto; padding: 40px; min-height: calc(100vh - 200px); }
+        .slide { display: none; animation: slideIn 0.4s ease; }
+        .slide.active { display: block; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-content {
+            background: linear-gradient(135deg, rgba(10, 10, 10, 0.95), rgba(26, 10, 46, 0.8));
+            border: 1px solid var(--house-primary);
+            border-radius: 8px;
+            padding: 50px;
+            box-shadow: 0 0 30px rgba(107, 33, 168, 0.4);
+        }
+        .slide-number { font-size: 0.8rem; color: var(--terminal-green); margin-bottom: 10px; }
+        h1 { font-size: 2.5rem; margin-bottom: 20px; color: var(--house-accent); text-shadow: 0 0 15px var(--house-accent); font-weight: 300; }
+        h2 { font-size: 1.8rem; margin-bottom: 25px; color: var(--house-accent); text-shadow: 0 0 10px var(--house-accent); border-bottom: 2px solid var(--house-primary); padding-bottom: 10px; }
+        h3 { font-size: 1.3rem; margin: 25px 0 15px 0; color: var(--terminal-green); text-shadow: 0 0 8px var(--terminal-green); }
+        p { font-size: 1.1rem; line-height: 1.8; margin-bottom: 20px; color: var(--text-primary); }
+        ul, ol { margin: 20px 0; padding-left: 30px; }
+        li { margin: 12px 0; line-height: 1.6; color: var(--text-primary); }
+        li::marker { color: var(--terminal-green); }
+        .code-block {
+            background: #111;
+            border: 1px solid var(--terminal-green);
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            color: var(--terminal-green);
+            overflow-x: auto;
+            font-size: 0.95rem;
+        }
+        .port-states {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .port-state {
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 4px solid var(--state-color);
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .port-state h4 { color: var(--state-color); margin-bottom: 8px; }
+        .tcp-diagram {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid var(--house-primary);
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .slide-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--house-primary);
+        }
+        .nav-btn {
+            padding: 12px 30px;
+            background: rgba(107, 33, 168, 0.3);
+            border: 1px solid var(--house-accent);
+            color: var(--house-accent);
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(147, 51, 234, 0.5); box-shadow: 0 0 15px var(--house-accent); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .slide-counter { color: var(--terminal-green); font-size: 0.9rem; }
+        .complete-icon { font-size: 4rem; text-align: center; margin: 30px 0; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }
+        .xp-award { text-align: center; padding: 30px; background: rgba(0, 255, 65, 0.1); border: 2px solid var(--terminal-green); border-radius: 8px; margin: 30px 0; }
+        .xp-amount { font-size: 3rem; color: var(--terminal-green); text-shadow: 0 0 20px var(--terminal-green); font-weight: bold; }
+        @media (max-width: 768px) {
+            .slide-container { padding: 20px; }
+            .slide-content { padding: 30px 20px; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <header class="presentation-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="history.back()">← BACK</button>
+            <span class="presentation-title">FEH-03: Scanning & Enumeration</span>
+        </div>
+        <span class="house-badge">DARK ARTS</span>
+    </header>
+    <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="slide-container">
+        <!-- Slide 1 -->
+        <div class="slide active">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 01/13</div>
+                <h1>SCANNING & ENUMERATION</h1>
+                <p style="font-size: 1.3rem; color: var(--terminal-green); text-shadow: 0 0 10px var(--terminal-green);">Finding the Open Doors</p>
+                <p style="margin-top: 40px;">After reconnaissance, scanning and enumeration transform passive intelligence into active network mapping. You'll discover what systems are alive, what services are running, and what versions are exposed.</p>
+                <div class="code-block">
+<span style="color: var(--terminal-green);">scanner@darkarts</span>:<span style="color: var(--house-accent);">~</span># nmap -sS -sV -O target.com<br>
+Starting Nmap scan...<br>
+<span style="color: var(--terminal-green);">scanner@darkarts</span>:<span style="color: var(--house-accent);">~</span># echo "Every open port is an opportunity"<br>
+Every open port is an opportunity
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()" disabled>← PREVIOUS</button>
+                <span class="slide-counter">1 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 02/13</div>
+                <h2>Scanning Fundamentals</h2>
+                <p>Scanning is the process of actively probing networks and hosts to identify live systems, open ports, and running services. It bridges reconnaissance and exploitation.</p>
+                <h3>Purpose of Scanning</h3>
+                <ul>
+                    <li><strong>Host Discovery</strong> - Which IP addresses have active systems?</li>
+                    <li><strong>Port Identification</strong> - Which ports are open on each host?</li>
+                    <li><strong>Service Detection</strong> - What services are running on those ports?</li>
+                    <li><strong>Version Enumeration</strong> - What software versions are exposed?</li>
+                    <li><strong>OS Fingerprinting</strong> - What operating system is running?</li>
+                    <li><strong>Vulnerability Mapping</strong> - What known vulnerabilities apply?</li>
+                </ul>
+                <h3>Scanning Methodology</h3>
+                <ol>
+                    <li><strong>Ping Sweep</strong> - Identify live hosts</li>
+                    <li><strong>Port Scan</strong> - Find open ports on live hosts</li>
+                    <li><strong>Service Scan</strong> - Determine services and versions</li>
+                    <li><strong>OS Detection</strong> - Identify operating systems</li>
+                    <li><strong>Vulnerability Scan</strong> - Map known vulnerabilities</li>
+                    <li><strong>Manual Enumeration</strong> - Deep dive into interesting services</li>
+                </ol>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">2 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 03/13</div>
+                <h2>TCP/IP Review</h2>
+                <p>Understanding TCP/IP is essential for understanding scanning techniques. Most scans exploit how TCP connections are established.</p>
+                <h3>The Three-Way Handshake</h3>
+                <div class="tcp-diagram">
+                    <div style="font-size: 1.1rem; color: var(--terminal-green); margin-bottom: 20px;">Client → Server Connection Establishment</div>
+                    <div style="text-align: left; max-width: 600px; margin: 0 auto;">
+                        <div style="padding: 10px; margin: 10px 0; background: rgba(107, 33, 168, 0.2); border-left: 4px solid var(--terminal-green);">
+                            <strong>1. SYN</strong> → Client sends SYN packet<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">"I want to connect"</span>
+                        </div>
+                        <div style="padding: 10px; margin: 10px 0; background: rgba(107, 33, 168, 0.2); border-left: 4px solid var(--house-accent);">
+                            <strong>2. SYN-ACK</strong> ← Server responds with SYN-ACK<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">"OK, let's connect"</span>
+                        </div>
+                        <div style="padding: 10px; margin: 10px 0; background: rgba(107, 33, 168, 0.2); border-left: 4px solid var(--terminal-green);">
+                            <strong>3. ACK</strong> → Client sends ACK<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">"Connection established"</span>
+                        </div>
+                    </div>
+                </div>
+                <h3>TCP Flags</h3>
+                <ul>
+                    <li><strong>SYN</strong> - Synchronize (initiate connection)</li>
+                    <li><strong>ACK</strong> - Acknowledge receipt</li>
+                    <li><strong>FIN</strong> - Finish (close connection)</li>
+                    <li><strong>RST</strong> - Reset (abort connection)</li>
+                    <li><strong>PSH</strong> - Push (send data immediately)</li>
+                    <li><strong>URG</strong> - Urgent (prioritize this data)</li>
+                </ul>
+                <p style="margin-top: 20px;"><strong>Why this matters:</strong> Different scan types manipulate these flags to elicit responses that reveal port states without completing connections.</p>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">3 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 04/13</div>
+                <h2>Nmap Basics</h2>
+                <p>Nmap (Network Mapper) is the industry standard for network scanning. Every ethical hacker must master it.</p>
+                <h3>Common Scan Types</h3>
+                <div class="code-block">
+# SYN Scan (Stealth Scan) - Default, fast, stealthy<br>
+nmap -sS target.com<br>
+<br>
+# TCP Connect Scan - Completes full connection<br>
+nmap -sT target.com<br>
+<br>
+# UDP Scan - Scan UDP ports (slower)<br>
+nmap -sU target.com<br>
+<br>
+# Ping Scan - Host discovery only, no port scan<br>
+nmap -sn 192.168.1.0/24<br>
+<br>
+# No Ping - Skip host discovery, scan assumed-alive hosts<br>
+nmap -Pn target.com
+                </div>
+                <h3>Port Specification</h3>
+                <div class="code-block">
+# Scan specific port<br>
+nmap -p 80 target.com<br>
+<br>
+# Scan port range<br>
+nmap -p 1-1000 target.com<br>
+<br>
+# Scan multiple ports<br>
+nmap -p 22,80,443,3389 target.com<br>
+<br>
+# Scan all ports<br>
+nmap -p- target.com<br>
+<br>
+# Top 100 ports (fast)<br>
+nmap --top-ports 100 target.com
+                </div>
+                <h3>Basic Examples</h3>
+                <div class="code-block">
+# Quick scan of most common ports<br>
+nmap target.com<br>
+<br>
+# Scan entire subnet<br>
+nmap 192.168.1.0/24<br>
+<br>
+# Scan from file<br>
+nmap -iL targets.txt
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">4 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 05/13</div>
+                <h2>Nmap Advanced Features</h2>
+                <p>Nmap's power lies in its advanced capabilities for service detection, OS fingerprinting, and NSE scripts.</p>
+                <h3>Service & Version Detection</h3>
+                <div class="code-block">
+# Service detection<br>
+nmap -sV target.com<br>
+<br>
+# Aggressive service detection<br>
+nmap -sV --version-intensity 5 target.com<br>
+<br>
+# Light service detection (faster)<br>
+nmap -sV --version-intensity 0 target.com
+                </div>
+                <h3>OS Detection</h3>
+                <div class="code-block">
+# OS fingerprinting (requires root/admin)<br>
+nmap -O target.com<br>
+<br>
+# Aggressive OS detection<br>
+nmap -O --osscan-guess target.com
+                </div>
+                <h3>NSE (Nmap Scripting Engine)</h3>
+                <p>NSE scripts automate vulnerability detection, exploitation, and advanced enumeration.</p>
+                <div class="code-block">
+# Run default scripts<br>
+nmap -sC target.com<br>
+<br>
+# Run specific script<br>
+nmap --script=http-title target.com<br>
+<br>
+# Run category of scripts<br>
+nmap --script=vuln target.com<br>
+<br>
+# Multiple scripts<br>
+nmap --script=http-enum,http-headers,http-methods target.com
+                </div>
+                <h3>Comprehensive Scan</h3>
+                <div class="code-block">
+# Full scan with service detection, OS detection, default scripts<br>
+nmap -A target.com<br>
+<br>
+# Aggressive scan with all features<br>
+nmap -T4 -A -v target.com<br>
+<br>
+# Comprehensive scan saving all formats<br>
+nmap -A -T4 -oA scan_results target.com
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">5 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Slide 6 -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 06/13</div>
+                <h2>Port States</h2>
+                <p>Nmap reports six port states. Understanding what each means is critical for interpreting scan results.</p>
+                <div class="port-states">
+                    <div class="port-state" style="--state-color: #00ff41;">
+                        <h4>OPEN</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Application accepting connections. Target responds with SYN-ACK.</p>
+                    </div>
+                    <div class="port-state" style="--state-color: #ef4444;">
+                        <h4>CLOSED</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Port is accessible but no application listening. Target responds with RST.</p>
+                    </div>
+                    <div class="port-state" style="--state-color: #f59e0b;">
+                        <h4>FILTERED</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Firewall/filter blocking access. No response received.</p>
+                    </div>
+                    <div class="port-state" style="--state-color: #8b5cf6;">
+                        <h4>UNFILTERED</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Port accessible, but can't determine if open/closed (ACK scan only).</p>
+                    </div>
+                    <div class="port-state" style="--state-color: #06b6d4;">
+                        <h4>OPEN|FILTERED</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Can't determine if open or filtered (UDP, IP protocol scans).</p>
+                    </div>
+                    <div class="port-state" style="--state-color: #ec4899;">
+                        <h4>CLOSED|FILTERED</h4>
+                        <p style="font-size: 0.9rem; margin-top: 8px;">Can't determine if closed or filtered (rare, idle scan only).</p>
+                    </div>
+                </div>
+                <h3>Interpretation Guide</h3>
+                <ul>
+                    <li><strong>OPEN</strong> - Primary target for exploitation. Service is running and accepting connections.</li>
+                    <li><strong>CLOSED</strong> - Port is reachable but nothing listening. Still useful - proves host is alive and not filtering this port.</li>
+                    <li><strong>FILTERED</strong> - Firewall likely present. Try different scan types or evasion techniques.</li>
+                    <li><strong>UNFILTERED</strong> - Port is accessible through firewall, but need different scan to determine if service is running.</li>
+                    <li><strong>OPEN|FILTERED</strong> - Inconclusive. UDP scans often show this due to lack of response.</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">6 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <!-- Continuing with remaining slides 7-13... -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 07/13</div>
+                <h2>Service Enumeration</h2>
+                <p>Once you find open ports, enumerate services deeply. Version information often reveals known vulnerabilities.</p>
+                <h3>Banner Grabbing</h3>
+                <p>Banners reveal service type and version. Many services advertise this information freely.</p>
+                <div class="code-block">
+# Netcat banner grab<br>
+nc target.com 80<br>
+HEAD / HTTP/1.0<br>
+<br>
+# Telnet banner grab<br>
+telnet target.com 25<br>
+<br>
+# Nmap banner grab<br>
+nmap -sV --script=banner target.com
+                </div>
+                <h3>Common Services & Enumeration</h3>
+                <ul>
+                    <li><strong>Port 21 (FTP)</strong> - Check for anonymous login, version vulnerabilities</li>
+                    <li><strong>Port 22 (SSH)</strong> - Version detection, supported authentication methods</li>
+                    <li><strong>Port 25 (SMTP)</strong> - VRFY/EXPN commands for user enumeration</li>
+                    <li><strong>Port 80/443 (HTTP/HTTPS)</strong> - Web server version, directories, technologies</li>
+                    <li><strong>Port 139/445 (SMB)</strong> - Share enumeration, null sessions, version</li>
+                    <li><strong>Port 3306 (MySQL)</strong> - Version detection, authentication methods</li>
+                    <li><strong>Port 3389 (RDP)</strong> - Windows version, user enumeration</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">7 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 08/13</div>
+                <h2>SMB Enumeration</h2>
+                <p>Server Message Block (SMB) is a Windows protocol for file sharing. It's historically vulnerable and rich with enumeration opportunities.</p>
+                <h3>What SMB Reveals</h3>
+                <ul>
+                    <li>Shared folders and permissions</li>
+                    <li>Usernames and groups</li>
+                    <li>Operating system version</li>
+                    <li>Domain information</li>
+                    <li>Password policies</li>
+                    <li>Active sessions</li>
+                </ul>
+                <h3>Enumeration Tools</h3>
+                <div class="code-block">
+# Enum4linux - Comprehensive SMB enumeration<br>
+enum4linux -a target.com<br>
+<br>
+# Nmap SMB scripts<br>
+nmap --script smb-enum-shares target.com<br>
+nmap --script smb-enum-users target.com<br>
+nmap --script smb-os-discovery target.com<br>
+<br>
+# SMBClient - Manual enumeration<br>
+smbclient -L //target.com/ -N<br>
+smbclient //target.com/share -N
+                </div>
+                <h3>Null Session Attacks</h3>
+                <p>Older Windows systems allowed anonymous connections (null sessions) that revealed extensive information.</p>
+                <div class="code-block">
+# Attempt null session connection<br>
+rpcclient -U "" target.com<br>
+> enumdomusers<br>
+> queryuser 0x1f4
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">8 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 09/13</div>
+                <h2>SNMP Enumeration</h2>
+                <p>Simple Network Management Protocol (SNMP) is used for network device management. Misconfigured SNMP can leak massive amounts of information.</p>
+                <h3>SNMP Community Strings</h3>
+                <p>SNMP uses "community strings" as passwords. Default strings are often unchanged.</p>
+                <ul>
+                    <li><strong>public</strong> - Default read-only community string</li>
+                    <li><strong>private</strong> - Default read-write community string</li>
+                    <li><strong>manager</strong> - Common alternative</li>
+                </ul>
+                <h3>What SNMP Reveals</h3>
+                <ul>
+                    <li>System information (OS, uptime, services)</li>
+                    <li>Network interfaces and IP addresses</li>
+                    <li>Routing tables</li>
+                    <li>Running processes</li>
+                    <li>User accounts</li>
+                    <li>Installed software</li>
+                    <li>Network shares</li>
+                </ul>
+                <div class="code-block">
+# SNMP Walk - Enumerate all OIDs<br>
+snmpwalk -v2c -c public target.com<br>
+<br>
+# Query specific information<br>
+snmpwalk -v2c -c public target.com 1.3.6.1.2.1.1<br>
+<br>
+# Brute-force community strings<br>
+onesixtyone -c community.txt target.com
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">9 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 10/13</div>
+                <h2>LDAP & Active Directory Enumeration</h2>
+                <p>Lightweight Directory Access Protocol (LDAP) is the backbone of Active Directory. Enumerating AD provides organizational structure, users, groups, and policies.</p>
+                <h3>What You Can Enumerate</h3>
+                <ul>
+                    <li>Domain structure and naming contexts</li>
+                    <li>User accounts and attributes</li>
+                    <li>Groups and memberships</li>
+                    <li>Computers and servers</li>
+                    <li>Organizational Units (OUs)</li>
+                    <li>Group Policy Objects (GPOs)</li>
+                    <li>Trust relationships</li>
+                </ul>
+                <div class="code-block">
+# Anonymous LDAP bind (if allowed)<br>
+ldapsearch -x -h target.com -b "dc=example,dc=com"<br>
+<br>
+# Authenticated enumeration<br>
+ldapsearch -x -h target.com -D "user@example.com" -W -b "dc=example,dc=com"<br>
+<br>
+# Enumerate users<br>
+ldapsearch -x -h target.com -b "dc=example,dc=com" "(objectClass=user)"<br>
+<br>
+# Find domain admins<br>
+ldapsearch -x -h target.com -b "dc=example,dc=com" "(memberOf=CN=Domain Admins,CN=Users,DC=example,DC=com)"
+                </div>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">10 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 11/13</div>
+                <h2>Vulnerability Scanning</h2>
+                <p>After identifying services, vulnerability scanners automatically map known vulnerabilities to your target.</p>
+                <h3>Major Vulnerability Scanners</h3>
+                <ul>
+                    <li><strong>Nessus</strong> - Industry standard, commercial (free limited version)</li>
+                    <li><strong>OpenVAS</strong> - Open source alternative to Nessus</li>
+                    <li><strong>Qualys</strong> - Cloud-based commercial scanner</li>
+                    <li><strong>Nexpose</strong> - Rapid7's commercial scanner</li>
+                </ul>
+                <h3>What Vulnerability Scanners Do</h3>
+                <ul>
+                    <li>Port scan and service detection</li>
+                    <li>Match services to CVE database</li>
+                    <li>Attempt safe vulnerability checks</li>
+                    <li>Identify misconfigurations</li>
+                    <li>Check for default credentials</li>
+                    <li>Test for common vulnerabilities (SQLi, XSS, etc.)</li>
+                    <li>Generate prioritized reports</li>
+                </ul>
+                <h3>Limitations</h3>
+                <ul>
+                    <li><strong>False Positives</strong> - Reports vulnerabilities that don't exist</li>
+                    <li><strong>False Negatives</strong> - Misses actual vulnerabilities</li>
+                    <li><strong>No Context</strong> - Can't assess business impact</li>
+                    <li><strong>Noisy</strong> - Generates extensive logs</li>
+                    <li><strong>Version-Based Detection</strong> - May report patched systems as vulnerable</li>
+                </ul>
+                <p style="margin-top: 20px;"><strong>Best Practice:</strong> Use vulnerability scanners as a starting point, not the final answer. Always manually verify findings.</p>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">11 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 12/13</div>
+                <h2>Scan Evasion Techniques</h2>
+                <p>Defensive systems detect scanning. Evasion techniques help you avoid detection while still gathering intelligence.</p>
+                <h3>Timing Controls</h3>
+                <div class="code-block">
+# Timing templates (T0-T5)<br>
+nmap -T0 target.com  # Paranoid (very slow, IDS evasion)<br>
+nmap -T1 target.com  # Sneaky (slow)<br>
+nmap -T2 target.com  # Polite (slower than normal)<br>
+nmap -T3 target.com  # Normal (default)<br>
+nmap -T4 target.com  # Aggressive (faster, assumes good network)<br>
+nmap -T5 target.com  # Insane (very fast, may miss ports)
+                </div>
+                <h3>Fragmentation</h3>
+                <p>Split packets into fragments to evade packet inspection.</p>
+                <div class="code-block">
+# Fragment packets<br>
+nmap -f target.com<br>
+<br>
+# Use specific MTU<br>
+nmap --mtu 16 target.com
+                </div>
+                <h3>Decoy Scanning</h3>
+                <p>Hide your real IP among decoy IPs.</p>
+                <div class="code-block">
+# Use decoys<br>
+nmap -D RND:10 target.com<br>
+<br>
+# Specific decoys<br>
+nmap -D decoy1,decoy2,ME,decoy3 target.com
+                </div>
+                <h3>Other Evasion Techniques</h3>
+                <ul>
+                    <li><strong>Source Port Manipulation</strong> - Use common source ports (53, 80, 443)</li>
+                    <li><strong>Randomize Targets</strong> - Scan random order to avoid patterns</li>
+                    <li><strong>Proxy Chains</strong> - Route through multiple proxies</li>
+                    <li><strong>MAC Address Spoofing</strong> - Change MAC address</li>
+                </ul>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">12 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()">NEXT →</button>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="slide-content">
+                <div class="slide-number">SLIDE 13/13</div>
+                <h2>Module Complete</h2>
+                <div class="complete-icon" style="color: var(--terminal-green); text-shadow: 0 0 30px var(--terminal-green);">✓</div>
+                <h3 style="text-align: center; margin-bottom: 30px;">Scanning & Enumeration</h3>
+                <p style="text-align: center; font-size: 1.1rem;">You've mastered network scanning and service enumeration. You can now discover live hosts, identify open ports, enumerate services, and map vulnerabilities.</p>
+                <div class="xp-award">
+                    <p style="margin-bottom: 10px; color: var(--terminal-green);">XP EARNED</p>
+                    <div class="xp-amount">+25 XP</div>
+                    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-secondary);">Scanning & Enumeration module completed</p>
+                </div>
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li>Scanning transforms passive intel into active network mapping</li>
+                    <li>TCP three-way handshake is the foundation of most scan types</li>
+                    <li>Nmap is the essential tool - master SYN scans, service detection, and NSE</li>
+                    <li>Port states (open, closed, filtered) reveal firewall and service info</li>
+                    <li>Service enumeration via banners reveals versions and vulnerabilities</li>
+                    <li>SMB, SNMP, and LDAP provide deep enumeration opportunities</li>
+                    <li>Vulnerability scanners automate CVE mapping but have limitations</li>
+                    <li>Evasion techniques help avoid IDS/IPS detection</li>
+                </ul>
+                <p style="margin-top: 30px; text-align: center; font-size: 1.05rem; color: var(--house-accent);">Next: FEH-04 - Vulnerability Assessment</p>
+            </div>
+            <div class="slide-nav">
+                <button class="nav-btn" onclick="previousSlide()">← PREVIOUS</button>
+                <span class="slide-counter">13 / 13</span>
+                <button class="nav-btn" onclick="nextSlide()" disabled>NEXT →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        function updateSlideDisplay() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) slide.classList.add('active');
+            });
+            document.getElementById('progressBar').style.width = ((currentSlide + 1) / totalSlides) * 100 + '%';
+            if (currentSlide === totalSlides - 1) awardXP();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateSlideDisplay(); } }
+        function previousSlide() { if (currentSlide > 0) { currentSlide--; updateSlideDisplay(); } }
+        function awardXP() {
+            const key = 'dark_arts_feh_03_xp_awarded';
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, 'true');
+                localStorage.setItem('dark_arts_feh-03_completed', 'true');
+                let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (xp + 25).toString());
+            }
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousSlide();
+            else if (e.key === 'ArrowRight') nextSlide();
+        });
+        updateSlideDisplay();
+    </script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
