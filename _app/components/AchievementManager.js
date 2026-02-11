@@ -700,10 +700,100 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_wireless',
+            icon: '📶',
+            name: 'Signal Hunter',
+            desc: 'Complete Wireless Warzone',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_api',
+            icon: '🔌',
+            name: 'API Inspector',
+            desc: 'Complete API Interceptor',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_threat',
+            icon: '🎯',
+            name: 'Threat Modeler',
+            desc: 'Complete Threat Modeler',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_malware',
+            icon: '🦠',
+            name: 'Malware Wrangler',
+            desc: 'Complete Malware Zoo',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_adpath',
+            icon: '🏰',
+            name: 'Domain Conqueror',
+            desc: 'Complete AD Attack Path',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_k8s',
+            icon: '☸️',
+            name: 'Pod Savior',
+            desc: 'Complete Kubernetes Rescue',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_backup',
+            icon: '💾',
+            name: 'Backup Hero',
+            desc: 'Complete Backup or Bust',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_patch',
+            icon: '🩹',
+            name: 'Patch Commander',
+            desc: 'Complete Patch Tuesday',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cloudarch',
+            icon: '☁️',
+            name: 'Cloud Architect',
+            desc: 'Complete Cloud Architect',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_soceng',
+            icon: '🎭',
+            name: 'Human Firewall',
+            desc: 'Complete Social Engineer',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 41 games across the platform',
+            desc: 'Complete all 51 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -889,7 +979,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli','game_wireless','game_api','game_threat','game_malware','game_adpath','game_k8s','game_backup','game_patch','game_cloudarch','game_soceng'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }

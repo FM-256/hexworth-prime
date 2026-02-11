@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AD Attack Path - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #06b6d4;
+        }
+
+        h1 {
+            color: #06b6d4;
+            font-size: 2em;
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        .back-link {
+            color: #06b6d4;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .graph-area {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            position: relative;
+            height: 600px;
+            overflow: hidden;
+        }
+
+        .graph-canvas {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .graph-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .node {
+            position: absolute;
+            width: 120px;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 2;
+            text-align: center;
+            user-select: none;
+        }
+
+        .node-icon {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .node-name {
+            font-size: 0.85em;
+            word-wrap: break-word;
+        }
+
+        .node.user { border-color: #22c55e; }
+        .node.group { border-color: #eab308; }
+        .node.computer { border-color: #3b82f6; }
+        .node.gpo { border-color: #a855f7; }
+        .node.domain { border-color: #ef4444; }
+
+        .node.compromised {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: #06b6d4;
+            border-width: 3px;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        .node.start {
+            border-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .node.target {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .node.available {
+            border-color: #fbbf24;
+            animation: glow 1.5s infinite;
+        }
+
+        .node:hover:not(.compromised) {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.9); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.9); }
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .info-panel h3 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .scenario-info {
+            margin-bottom: 15px;
+        }
+
+        .scenario-info p {
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+
+        .scenario-info strong {
+            color: #06b6d4;
+        }
+
+        .attack-log {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .attack-log h3 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #2a2a2a;
+            border-left: 3px solid #06b6d4;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .log-entry .step {
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        .log-entry .technique {
+            color: #fbbf24;
+            font-style: italic;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .controls h3 {
+            color: #06b6d4;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .scenario-select {
+            margin-bottom: 15px;
+        }
+
+        .scenario-select label {
+            display: block;
+            margin-bottom: 8px;
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        .scenario-select select {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 2px solid #444;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .scenario-select select:focus {
+            outline: none;
+            border-color: #06b6d4;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #06b6d4;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #0891b2;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+        }
+
+        .btn:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #444;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #555;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 3px solid #06b6d4;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+            animation: slideUp 0.4s;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h2 {
+            color: #06b6d4;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px rgba(6, 182, 212, 0.7);
+        }
+
+        .modal-content p {
+            font-size: 1.2em;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+
+        .score-display {
+            font-size: 3em;
+            color: #fbbf24;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(251, 191, 36, 0.7);
+        }
+
+        .optimal-path {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .optimal-path h4 {
+            color: #06b6d4;
+            margin-bottom: 10px;
+        }
+
+        .optimal-path ol {
+            margin-left: 20px;
+        }
+
+        .optimal-path li {
+            margin: 5px 0;
+        }
+
+        .legend {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .legend h4 {
+            color: #06b6d4;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85em;
+        }
+
+        .legend-icon {
+            font-size: 1.2em;
+        }
+
+        .hint-box {
+            background: #2a2a2a;
+            border-left: 4px solid #fbbf24;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        .hint-box strong {
+            color: #fbbf24;
+        }
+
+        @media (max-width: 1200px) {
+            .game-container {
+                grid-template-columns: 1fr;
+            }
+
+            .graph-area {
+                height: 500px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .graph-area {
+                height: 400px;
+            }
+
+            .node {
+                width: 100px;
+                padding: 8px;
+                font-size: 0.85em;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏰 AD Attack Path</h1>
+            <a href="#" onclick="history.back(); return false;" class="back-link">← Back</a>
+        </header>
+
+        <div class="legend">
+            <h4>Node Types & Attack Relationships</h4>
+            <div class="legend-items">
+                <div class="legend-item"><span class="legend-icon">👤</span> User</div>
+                <div class="legend-item"><span class="legend-icon">👥</span> Group</div>
+                <div class="legend-item"><span class="legend-icon">🖥️</span> Computer</div>
+                <div class="legend-item"><span class="legend-icon">📋</span> GPO</div>
+                <div class="legend-item"><span class="legend-icon">🏰</span> Domain Admin</div>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="graph-area">
+                <div class="graph-canvas" id="graphCanvas">
+                    <svg class="graph-svg" id="graphSvg"></svg>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="info-panel">
+                    <h3>Scenario Info</h3>
+                    <div class="scenario-info" id="scenarioInfo">
+                        <p><strong>Objective:</strong> <span id="objectiveText">Select a scenario to begin</span></p>
+                        <p><strong>Optimal Steps:</strong> <span id="optimalSteps">-</span></p>
+                        <p><strong>Your Steps:</strong> <span id="currentSteps">0</span></p>
+                    </div>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-label">Score</div>
+                            <div class="stat-value" id="scoreDisplay">0</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Completed</div>
+                            <div class="stat-value" id="completedDisplay">0/8</div>
+                        </div>
+                    </div>
+                    <div class="hint-box">
+                        <strong>Hint:</strong> <span id="hintText">Start by compromising nodes connected to your initial position.</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <h3>Controls</h3>
+                    <div class="scenario-select">
+                        <label for="scenarioSelector">Select Scenario:</label>
+                        <select id="scenarioSelector">
+                            <option value="0">1. Group Nesting</option>
+                            <option value="1">2. Kerberoasting</option>
+                            <option value="2">3. Local Admin Session</option>
+                            <option value="3">4. ACL Abuse</option>
+                            <option value="4">5. GPO Abuse</option>
+                            <option value="5">6. Unconstrained Delegation</option>
+                            <option value="6">7. Password Spray</option>
+                            <option value="7">8. Full Chain</option>
+                        </select>
+                    </div>
+                    <button class="btn" id="resetBtn">Reset Scenario</button>
+                    <button class="btn btn-secondary" id="undoBtn" disabled>Undo Last Step</button>
+                    <button class="btn btn-secondary" id="showPathBtn" disabled>Show Optimal Path</button>
+                </div>
+
+                <div class="attack-log">
+                    <h3>Attack Log</h3>
+                    <div id="logEntries"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2>🎯 Path Found!</h2>
+            <p id="winMessage"></p>
+            <div class="score-display" id="modalScore">0</div>
+            <div class="optimal-path" id="optimalPathDisplay"></div>
+            <button class="btn" id="nextScenarioBtn">Next Scenario</button>
+            <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Scenario definitions
+        const scenarios = [
+            {
+                name: "Group Nesting",
+                description: "Simple group membership chain to Domain Admins",
+                optimalSteps: 3,
+                hint: "Follow the group membership chain from your user to Domain Admins.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'jdoe', x: 100, y: 150 },
+                    { id: 'groupA', type: 'group', name: 'IT Support', x: 300, y: 150 },
+                    { id: 'groupB', type: 'group', name: 'Server Admins', x: 500, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'groupA', label: 'MemberOf', technique: 'Group Membership' },
+                    { from: 'groupA', to: 'groupB', label: 'MemberOf', technique: 'Nested Groups' },
+                    { from: 'groupB', to: 'da', label: 'MemberOf', technique: 'Privilege Escalation' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "Kerberoasting",
+                description: "Kerberoast service account with DA privileges",
+                optimalSteps: 2,
+                hint: "You have GenericAll on a service account. Request its TGS ticket and crack it.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'attacker', x: 150, y: 150 },
+                    { id: 'svc', type: 'user', name: 'svc_sql', x: 400, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Kerberoast Attack' },
+                    { from: 'svc', to: 'da', label: 'MemberOf', technique: 'Use Compromised Account' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "Local Admin Session",
+                description: "Dump credentials from workstation with DA session",
+                optimalSteps: 2,
+                hint: "You're admin on a workstation where a Domain Admin has an active session.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'helpdesk', x: 150, y: 100 },
+                    { id: 'ws1', type: 'computer', name: 'WS-001', x: 400, y: 200 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 100 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'ws1', label: 'AdminTo', technique: 'Local Admin Access' },
+                    { from: 'da', to: 'ws1', label: 'HasSession', technique: 'Credential Dumping' },
+                    { from: 'ws1', to: 'da', label: 'Extract Creds', technique: 'Token Impersonation' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "ACL Abuse",
+                description: "WriteDACL on OU containing privileged group",
+                optimalSteps: 3,
+                hint: "Modify ACLs on the OU to grant yourself permissions on the privileged group.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'contractor', x: 100, y: 150 },
+                    { id: 'ou', type: 'gpo', name: 'Admin OU', x: 300, y: 150 },
+                    { id: 'group', type: 'group', name: 'Backup Operators', x: 500, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'ou', label: 'WriteDACL', technique: 'Modify ACL' },
+                    { from: 'ou', to: 'group', label: 'Contains', technique: 'Add Self to Group' },
+                    { from: 'group', to: 'da', label: 'Backup Rights', technique: 'Backup Domain Database' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "GPO Abuse",
+                description: "Edit GPO linked to Domain Controllers",
+                optimalSteps: 2,
+                hint: "You can modify a GPO that applies to Domain Controllers. Add a malicious task.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'it_admin', x: 150, y: 150 },
+                    { id: 'gpo', type: 'gpo', name: 'DC Policy', x: 400, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'gpo', label: 'WriteGPO', technique: 'GPO Modification' },
+                    { from: 'gpo', to: 'da', label: 'Applies To DC', technique: 'Code Execution on DC' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "Unconstrained Delegation",
+                description: "Server with unconstrained delegation - capture DC TGT",
+                optimalSteps: 3,
+                hint: "Coerce DC authentication to the delegation server to capture TGT tickets.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'developer', x: 100, y: 100 },
+                    { id: 'server', type: 'computer', name: 'APP-SRV', x: 350, y: 200 },
+                    { id: 'dc', type: 'computer', name: 'DC-01', x: 600, y: 200 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 50 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'server', label: 'AdminTo', technique: 'Access Delegation Server' },
+                    { from: 'server', to: 'dc', label: 'Unconstrained Deleg', technique: 'Coerce Auth + Capture TGT' },
+                    { from: 'dc', to: 'da', label: 'DCSync', technique: 'Replicate Credentials' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "Password Spray",
+                description: "Found password in description field - reused by help desk",
+                optimalSteps: 3,
+                hint: "Check user descriptions for passwords. Help desk might reuse weak passwords.",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'attacker', x: 100, y: 150 },
+                    { id: 'intern', type: 'user', name: 'intern01', x: 300, y: 250 },
+                    { id: 'helpdesk', type: 'user', name: 'helpdesk_admin', x: 500, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'intern', label: 'Read Attrs', technique: 'Found Password in Description' },
+                    { from: 'intern', to: 'helpdesk', label: 'Same Password', technique: 'Password Spray Success' },
+                    { from: 'helpdesk', to: 'da', label: 'ForceChangePassword', technique: 'Reset DA Password' }
+                ],
+                start: 'user1',
+                target: 'da'
+            },
+            {
+                name: "Full Chain",
+                description: "Multi-hop attack combining multiple techniques",
+                optimalSteps: 4,
+                hint: "Kerberoast → local admin → session extraction → ACL abuse → DA",
+                nodes: [
+                    { id: 'user1', type: 'user', name: 'attacker', x: 50, y: 150 },
+                    { id: 'svc', type: 'user', name: 'svc_backup', x: 220, y: 250 },
+                    { id: 'server', type: 'computer', name: 'FILE-SRV', x: 390, y: 150 },
+                    { id: 'it_admin', type: 'user', name: 'it_admin', x: 560, y: 250 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 730, y: 150 }
+                ],
+                edges: [
+                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Kerberoasting' },
+                    { from: 'svc', to: 'server', label: 'AdminTo', technique: 'Local Admin Access' },
+                    { from: 'it_admin', to: 'server', label: 'HasSession', technique: 'Dump IT Admin Creds' },
+                    { from: 'server', to: 'it_admin', label: 'Extract', technique: 'Credential Theft' },
+                    { from: 'it_admin', to: 'da', label: 'WriteDACL', technique: 'Add Self to DA Group' }
+                ],
+                start: 'user1',
+                target: 'da'
+            }
+        ];
+
+        // Game state
+        let currentScenario = 0;
+        let compromisedNodes = new Set();
+        let attackPath = [];
+        let totalScore = 0;
+        let completedScenarios = new Set();
+        let startTime = null;
+
+        // Icon mapping
+        const nodeIcons = {
+            user: '👤',
+            group: '👥',
+            computer: '🖥️',
+            gpo: '📋',
+            domain: '🏰'
+        };
+
+        // Color mapping for edges
+        const edgeColors = {
+            'MemberOf': '#eab308',
+            'AdminTo': '#3b82f6',
+            'HasSession': '#a855f7',
+            'GenericAll': '#ef4444',
+            'WriteDACL': '#f97316',
+            'ForceChangePassword': '#ec4899',
+            'WriteGPO': '#8b5cf6',
+            'DCSync': '#ef4444',
+            'Extract': '#06b6d4',
+            'default': '#666'
+        };
+
+        // Initialize game
+        function init() {
+            loadProgress();
+            setupEventListeners();
+            loadScenario(currentScenario);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('scenarioSelector').addEventListener('change', (e) => {
+                currentScenario = parseInt(e.target.value);
+                loadScenario(currentScenario);
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                loadScenario(currentScenario);
+            });
+
+            document.getElementById('undoBtn').addEventListener('click', undoLastStep);
+            document.getElementById('showPathBtn').addEventListener('click', showOptimalPath);
+            document.getElementById('nextScenarioBtn').addEventListener('click', nextScenario);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        }
+
+        function loadScenario(index) {
+            const scenario = scenarios[index];
+            compromisedNodes.clear();
+            attackPath = [];
+            startTime = Date.now();
+
+            // Set starting node as compromised
+            compromisedNodes.add(scenario.start);
+
+            // Update UI
+            document.getElementById('objectiveText').textContent = scenario.description;
+            document.getElementById('optimalSteps').textContent = scenario.optimalSteps;
+            document.getElementById('currentSteps').textContent = '0';
+            document.getElementById('hintText').textContent = scenario.hint;
+            document.getElementById('logEntries').innerHTML = '';
+            document.getElementById('undoBtn').disabled = true;
+
+            // Render graph
+            renderGraph(scenario);
+        }
+
+        function renderGraph(scenario) {
+            const canvas = document.getElementById('graphCanvas');
+            const svg = document.getElementById('graphSvg');
+
+            // Clear existing content
+            canvas.querySelectorAll('.node').forEach(node => node.remove());
+            svg.innerHTML = '';
+
+            // Draw edges first (so they appear behind nodes)
+            scenario.edges.forEach(edge => {
+                drawEdge(scenario, edge);
+            });
+
+            // Create nodes
+            scenario.nodes.forEach(node => {
+                const nodeEl = createNode(node, scenario);
+                canvas.appendChild(nodeEl);
+            });
+        }
+
+        function createNode(node, scenario) {
+            const nodeEl = document.createElement('div');
+            nodeEl.className = `node ${node.type}`;
+            nodeEl.id = `node-${node.id}`;
+            nodeEl.style.left = `${node.x}px`;
+            nodeEl.style.top = `${node.y}px`;
+
+            const icon = document.createElement('div');
+            icon.className = 'node-icon';
+            icon.textContent = nodeIcons[node.type];
+
+            const name = document.createElement('div');
+            name.className = 'node-name';
+            name.textContent = node.name;
+
+            nodeEl.appendChild(icon);
+            nodeEl.appendChild(name);
+
+            // Add special classes
+            if (node.id === scenario.start) {
+                nodeEl.classList.add('start');
+            }
+            if (node.id === scenario.target) {
+                nodeEl.classList.add('target');
+            }
+            if (compromisedNodes.has(node.id)) {
+                nodeEl.classList.add('compromised');
+            }
+
+            // Add click handler
+            nodeEl.addEventListener('click', () => attemptCompromise(node.id, scenario));
+
+            // Add hover effect to show available paths
+            nodeEl.addEventListener('mouseenter', () => highlightAvailablePaths(node.id, scenario));
+            nodeEl.addEventListener('mouseleave', () => clearHighlights());
+
+            return nodeEl;
+        }
+
+        function drawEdge(scenario, edge) {
+            const fromNode = scenario.nodes.find(n => n.id === edge.from);
+            const toNode = scenario.nodes.find(n => n.id === edge.to);
+
+            if (!fromNode || !toNode) return;
+
+            const svg = document.getElementById('graphSvg');
+
+            // Calculate positions (center of nodes + node width/2)
+            const x1 = fromNode.x + 60;
+            const y1 = fromNode.y + 30;
+            const x2 = toNode.x + 60;
+            const y2 = toNode.y + 30;
+
+            // Create arrow
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', edgeColors[edge.label] || edgeColors.default);
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('marker-end', 'url(#arrowhead)');
+            line.setAttribute('data-from', edge.from);
+            line.setAttribute('data-to', edge.to);
+
+            // Create label background
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', midX);
+            text.setAttribute('y', midY - 5);
+            text.setAttribute('fill', edgeColors[edge.label] || edgeColors.default);
+            text.setAttribute('font-size', '11');
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('class', 'edge-label');
+            text.textContent = edge.label;
+
+            // Add arrowhead marker if not exists
+            if (!svg.querySelector('#arrowhead')) {
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', 'arrowhead');
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '10');
+                marker.setAttribute('refX', '9');
+                marker.setAttribute('refY', '3');
+                marker.setAttribute('orient', 'auto');
+                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                polygon.setAttribute('points', '0 0, 10 3, 0 6');
+                polygon.setAttribute('fill', '#666');
+                marker.appendChild(polygon);
+                defs.appendChild(marker);
+                svg.appendChild(defs);
+            }
+
+            svg.appendChild(line);
+            svg.appendChild(text);
+        }
+
+        function attemptCompromise(nodeId, scenario) {
+            // Can't compromise already compromised nodes
+            if (compromisedNodes.has(nodeId)) return;
+
+            // Check if there's a valid path from any compromised node
+            const validEdge = scenario.edges.find(edge =>
+                compromisedNodes.has(edge.from) && edge.to === nodeId
+            );
+
+            if (validEdge) {
+                // Valid compromise!
+                compromisedNodes.add(nodeId);
+                attackPath.push({
+                    nodeId: nodeId,
+                    technique: validEdge.technique,
+                    label: validEdge.label
+                });
+
+                // Update visual
+                document.getElementById(`node-${nodeId}`).classList.add('compromised');
+
+                // Add to log
+                addLogEntry(nodeId, validEdge, scenario);
+
+                // Update steps
+                document.getElementById('currentSteps').textContent = attackPath.length;
+                document.getElementById('undoBtn').disabled = false;
+
+                // Check if target reached
+                if (nodeId === scenario.target) {
+                    setTimeout(() => handleWin(scenario), 500);
+                }
+            } else {
+                // Invalid move - shake animation
+                const nodeEl = document.getElementById(`node-${nodeId}`);
+                nodeEl.style.animation = 'none';
+                setTimeout(() => {
+                    nodeEl.style.animation = 'shake 0.5s';
+                }, 10);
+            }
+        }
+
+        function addLogEntry(nodeId, edge, scenario) {
+            const node = scenario.nodes.find(n => n.id === nodeId);
+            const logContainer = document.getElementById('logEntries');
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="step">Step ${attackPath.length}:</span>
+                Compromised <strong>${node.name}</strong> via
+                <span class="technique">${edge.technique}</span>
+            `;
+
+            logContainer.insertBefore(entry, logContainer.firstChild);
+        }
+
+        function highlightAvailablePaths(nodeId, scenario) {
+            if (!compromisedNodes.has(nodeId)) return;
+
+            // Highlight nodes that can be reached from this compromised node
+            scenario.edges.forEach(edge => {
+                if (edge.from === nodeId && !compromisedNodes.has(edge.to)) {
+                    const targetNode = document.getElementById(`node-${edge.to}`);
+                    if (targetNode) {
+                        targetNode.classList.add('available');
+                    }
+                }
+            });
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.node.available').forEach(node => {
+                node.classList.remove('available');
+            });
+        }
+
+        function undoLastStep() {
+            if (attackPath.length === 0) return;
+
+            const lastStep = attackPath.pop();
+            compromisedNodes.delete(lastStep.nodeId);
+
+            // Update visual
+            const nodeEl = document.getElementById(`node-${lastStep.nodeId}`);
+            if (nodeEl) {
+                nodeEl.classList.remove('compromised');
+            }
+
+            // Update log
+            const logContainer = document.getElementById('logEntries');
+            if (logContainer.firstChild) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+
+            // Update steps
+            document.getElementById('currentSteps').textContent = attackPath.length;
+            if (attackPath.length === 0) {
+                document.getElementById('undoBtn').disabled = true;
+            }
+        }
+
+        function handleWin(scenario) {
+            const steps = attackPath.length;
+            const optimal = scenario.optimalSteps;
+            const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
+
+            // Calculate score
+            let stepScore = 0;
+            if (steps === optimal) {
+                stepScore = 100;
+            } else if (steps === optimal + 1) {
+                stepScore = 80;
+            } else if (steps === optimal + 2) {
+                stepScore = 60;
+            } else {
+                stepScore = 40;
+            }
+
+            // Time bonus (up to 50 points)
+            let timeBonus = Math.max(0, 50 - timeElapsed);
+
+            const scenarioScore = stepScore + timeBonus;
+            totalScore += scenarioScore;
+
+            // Mark scenario as completed
+            completedScenarios.add(currentScenario);
+
+            // Update display
+            document.getElementById('scoreDisplay').textContent = totalScore;
+            document.getElementById('completedDisplay').textContent = `${completedScenarios.size}/8`;
+
+            // Show modal
+            const modal = document.getElementById('winModal');
+            const efficiency = steps === optimal ? 'PERFECT!' : steps <= optimal + 1 ? 'GREAT!' : 'GOOD';
+
+            document.getElementById('winMessage').innerHTML = `
+                You found the attack path in <strong>${steps}</strong> steps!<br>
+                Efficiency: <strong>${efficiency}</strong><br>
+                Time: <strong>${timeElapsed}s</strong>
+            `;
+            document.getElementById('modalScore').textContent = `+${scenarioScore} points`;
+
+            // Show optimal path
+            displayOptimalPath(scenario);
+
+            modal.classList.add('active');
+
+            // Save progress
+            saveProgress();
+
+            // Check if all scenarios completed
+            if (completedScenarios.size === 8) {
+                awardCompletion();
+            }
+        }
+
+        function displayOptimalPath(scenario) {
+            const pathDisplay = document.getElementById('optimalPathDisplay');
+
+            // Build optimal path using BFS
+            const optimalPath = findOptimalPath(scenario);
+
+            let pathHTML = '<h4>Optimal Path:</h4><ol>';
+            optimalPath.forEach(step => {
+                pathHTML += `<li>${step.node} <em>(${step.technique})</em></li>`;
+            });
+            pathHTML += '</ol>';
+
+            pathDisplay.innerHTML = pathHTML;
+        }
+
+        function findOptimalPath(scenario) {
+            // Simple BFS to find shortest path
+            const queue = [[scenario.start]];
+            const visited = new Set([scenario.start]);
+
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const current = path[path.length - 1];
+
+                if (current === scenario.target) {
+                    // Build result
+                    return path.map((nodeId, idx) => {
+                        const node = scenario.nodes.find(n => n.id === nodeId);
+                        const edge = idx > 0 ? scenario.edges.find(e =>
+                            e.from === path[idx - 1] && e.to === nodeId
+                        ) : null;
+
+                        return {
+                            node: node.name,
+                            technique: edge ? edge.technique : 'Starting Position'
+                        };
+                    });
+                }
+
+                scenario.edges.forEach(edge => {
+                    if (edge.from === current && !visited.has(edge.to)) {
+                        visited.add(edge.to);
+                        queue.push([...path, edge.to]);
+                    }
+                });
+            }
+
+            return [];
+        }
+
+        function showOptimalPath() {
+            const scenario = scenarios[currentScenario];
+            displayOptimalPath(scenario);
+            document.getElementById('winModal').classList.add('active');
+        }
+
+        function nextScenario() {
+            closeModal();
+            if (currentScenario < scenarios.length - 1) {
+                currentScenario++;
+                document.getElementById('scenarioSelector').value = currentScenario;
+                loadScenario(currentScenario);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('winModal').classList.remove('active');
+        }
+
+        function saveProgress() {
+            localStorage.setItem('adpath_score', totalScore.toString());
+            localStorage.setItem('adpath_completed', JSON.stringify(Array.from(completedScenarios)));
+        }
+
+        function loadProgress() {
+            const savedScore = localStorage.getItem('adpath_score');
+            const savedCompleted = localStorage.getItem('adpath_completed');
+
+            if (savedScore) {
+                totalScore = parseInt(savedScore);
+                document.getElementById('scoreDisplay').textContent = totalScore;
+            }
+
+            if (savedCompleted) {
+                completedScenarios = new Set(JSON.parse(savedCompleted));
+                document.getElementById('completedDisplay').textContent = `${completedScenarios.size}/8`;
+            }
+        }
+
+        function awardCompletion() {
+            // Award XP and achievement
+            if (!localStorage.getItem('game_adpath_xp_awarded')) {
+                const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (currentXP + 50).toString());
+                localStorage.setItem('game_adpath_xp_awarded', 'true');
+
+                if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) {
+                        FirestoreManager.addXP(uid, 50, 'AD Attack Path Complete');
+                    }
+                }
+            }
+
+            if (typeof AchievementManager !== 'undefined') {
+                AchievementManager.unlock('game_adpath');
+            }
+
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('adpath', { score: totalScore, scenarios: 8 });
+            }
+        }
+
+        // CSS animation for shake
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize on load
+        init();
+    </script>
+
+    <!-- Integration Scripts -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
