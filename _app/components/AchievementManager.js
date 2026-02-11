@@ -421,10 +421,55 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_subnet',
+            icon: '🌐',
+            name: 'Subnet Slayer',
+            desc: 'Complete Subnet Siege',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_terminal',
+            icon: '⚡',
+            name: 'Terminal Velocity',
+            desc: 'Complete Terminal Velocity',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cipher',
+            icon: '🔑',
+            name: 'Cipher Cracker',
+            desc: 'Complete Cipher Cracker',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_triage',
+            icon: '👁️',
+            name: 'Alert Analyst',
+            desc: 'Complete Alert Triage',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_pipeline',
+            icon: '🔧',
+            name: 'Pipeline Pro',
+            desc: 'Complete Pipeline Panic',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 10 games across the platform',
+            desc: 'Complete all 15 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -610,7 +655,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }
