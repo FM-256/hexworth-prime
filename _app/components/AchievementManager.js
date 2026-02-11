@@ -466,10 +466,82 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_protocol',
+            icon: '📡',
+            name: 'Protocol Master',
+            desc: 'Complete Protocol Stack',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_dns',
+            icon: '🌍',
+            name: 'DNS Resolver',
+            desc: 'Complete DNS Resolver Race',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_permissions',
+            icon: '🔐',
+            name: 'Permission Granted',
+            desc: 'Complete Permission Puzzle',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_regex',
+            icon: '🔍',
+            name: 'Pattern Matcher',
+            desc: 'Complete Regex Runner',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_hash',
+            icon: '🔓',
+            name: 'Hash Breaker',
+            desc: 'Complete Hash Cracker',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_logdetective',
+            icon: '🕵️',
+            name: 'Log Detective',
+            desc: 'Complete Log Detective',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_gitbisect',
+            icon: '🔀',
+            name: 'Bug Hunter',
+            desc: 'Complete Git Bisect',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_binary',
+            icon: '💾',
+            name: 'Binary Boss',
+            desc: 'Complete Binary Blitz',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 15 games across the platform',
+            desc: 'Complete all 23 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -655,7 +727,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }
