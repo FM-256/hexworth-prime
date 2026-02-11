@@ -78,6 +78,14 @@ const ContentCatalog = (function() {
             color: '#60a5fa',
             description: 'Networking & Connections',
             basePath: 'houses/web/'
+        },
+        'dark-arts': {
+            id: 'dark-arts',
+            name: 'House of the Dark Arts',
+            icon: '🌑',
+            color: '#9333ea',
+            description: 'Offensive Security & Ethical Hacking',
+            basePath: 'houses/dark-arts/'
         }
     };
 
