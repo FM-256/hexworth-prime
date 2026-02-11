@@ -262,6 +262,25 @@
         let shieldActive = false;
         let respawnCountdown = false;
 
+        // Cloud Abilities (unlock per level)
+        const ABILITIES = [
+            { id: 'lambda',     name: 'Lambda Invoke',    desc: 'Double Jump',  icon: 'λ',   color: '#f59e0b', unlocksAt: 0 },
+            { id: 'cloudfront', name: 'CloudFront Burst',  desc: 'Air Dash',     icon: '»',   color: '#06b6d4', unlocksAt: 1 },
+            { id: 'glacier',    name: 'S3 Glacier',        desc: 'Slow Fall',    icon: '❄',   color: '#93c5fd', unlocksAt: 2 },
+            { id: 'waf',        name: 'WAF Protect',       desc: 'Hit Shield',   icon: '⛊',   color: '#22c55e', unlocksAt: 3 },
+            { id: 'route53',    name: 'Route 53',          desc: 'Platform Snap', icon: '⌖',  color: '#a855f7', unlocksAt: 4 },
+        ];
+
+        // Ability State
+        let lambdaReady = true;
+        let cloudfrontReady = true;
+        let glacierActive = false;
+        let wafHitShield = false;
+        let route53Ready = true;
+        let jumpWasPressed = false;
+        let dashWasPressed = false;
+        let abilityEffects = []; // { x, y, text, color, life }
+
         // Level Definitions
         const LEVELS = [
             { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                 skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100 },
@@ -572,6 +591,65 @@
                         g.connect(audioCtx.destination);
                         o.start(now + i * 0.12);
                         o.stop(now + i * 0.12 + 0.35);
+                    });
+                    return;
+
+                case 'lambda':
+                    // Quick upward zap
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.12);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.type = 'sawtooth';
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                    break;
+
+                case 'cloudfront':
+                    // Whoosh dash
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.type = 'sawtooth';
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                    break;
+
+                case 'glacier':
+                    // Crystalline slow
+                    osc.frequency.value = 1200;
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.type = 'sine';
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                    break;
+
+                case 'waf':
+                    // Shield activate
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.setValueAtTime(800, now + 0.05);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.type = 'square';
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                    break;
+
+                case 'route53':
+                    // Teleport blip
+                    [1000, 600, 1200].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.frequency.value = freq;
+                        o.type = 'sine';
+                        g.gain.setValueAtTime(0.2, now + i * 0.04);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.04 + 0.08);
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.start(now + i * 0.04);
+                        o.stop(now + i * 0.04 + 0.08);
                     });
                     return;
 
@@ -1177,6 +1255,11 @@
             }
         }
 
+        // Spawn Ability Effect (floating text icon)
+        function spawnAbilityEffect(x, y, text, color) {
+            abilityEffects.push({ x, y, text, color, life: 30 });
+        }
+
         // Collision Detection
         function checkCollision(rect1, rect2) {
             return rect1.x < rect2.x + rect2.width &&
@@ -1244,22 +1327,87 @@
             player.x += player.velocityX;
             player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
 
-            // Player vertical movement
+            // Player vertical movement + Abilities
             if (!countdownActive) {
-                if ((keys.up || keys.space) && player.onPlatform) {
+                const jumpPressed = keys.up || keys.space;
+                const jumpJustPressed = jumpPressed && !jumpWasPressed;
+                jumpWasPressed = jumpPressed;
+
+                const dashPressed = keys.right && keys.down;
+                const dashJustPressed = dashPressed && !dashWasPressed;
+                dashWasPressed = dashPressed;
+
+                if (jumpPressed && player.onPlatform) {
+                    // Ground jump
                     player.velocityY = jumpStrength;
                     player.isJumping = true;
                     player.onPlatform = false;
                     if (!demoMode) playSound('jump');
                 }
+                // Lambda Invoke — double jump (Level 1+)
+                else if (jumpJustPressed && !player.onPlatform && lambdaReady && currentLevel >= 0 && !demoMode) {
+                    player.velocityY = jumpStrength * 0.75;
+                    lambdaReady = false;
+                    playSound('lambda');
+                    spawnAbilityEffect(player.x + player.width / 2, player.y + player.height, 'λ', '#f59e0b');
+                }
 
-                if (keys.down && !player.onPlatform) {
+                // CloudFront Burst — air dash (Level 2+)
+                if (dashJustPressed && !player.onPlatform && cloudfrontReady && currentLevel >= 1 && !demoMode) {
+                    player.velocityX = 12; // Big horizontal burst
+                    player.velocityY *= 0.3; // Flatten trajectory
+                    cloudfrontReady = false;
+                    playSound('cloudfront');
+                    spawnAbilityEffect(player.x, player.y + player.height / 2, '»', '#06b6d4');
+                }
+
+                // S3 Glacier — slow fall while holding DOWN in air (Level 3+)
+                if (keys.down && !player.onPlatform && !dashPressed && currentLevel >= 2 && !demoMode) {
+                    glacierActive = true;
+                } else {
+                    glacierActive = false;
+                }
+
+                // Route 53 — snap to nearest platform (Level 5+, DOWN+SPACE while falling)
+                if (keys.down && jumpJustPressed && !player.onPlatform && route53Ready && currentLevel >= 4 && !demoMode) {
+                    const nearest = platforms.filter(p => !p.crumbling && p.y > player.y && p.x < player.x + 200 && p.x + p.width > player.x - 50)
+                        .sort((a, b) => Math.abs(a.y - player.y) - Math.abs(b.y - player.y))[0];
+                    if (nearest) {
+                        player.x = nearest.x + nearest.width / 2 - player.width / 2;
+                        player.y = nearest.y - player.height;
+                        player.velocityY = 0;
+                        player.velocityX = 0;
+                        route53Ready = false;
+                        playSound('route53');
+                        spawnAbilityEffect(player.x + player.width / 2, player.y, '⌖', '#a855f7');
+                    }
+                }
+
+                // Fast fall (only if glacier not active)
+                if (keys.down && !player.onPlatform && !glacierActive && !dashPressed) {
                     player.velocityY += 1;
                 }
+            } else {
+                jumpWasPressed = keys.up || keys.space;
+                dashWasPressed = false;
             }
 
-            player.velocityY += gravity;
+            // Apply gravity (reduced during Glacier)
+            if (glacierActive) {
+                player.velocityY += gravity * 0.25;
+                player.velocityY = Math.min(player.velocityY, 2); // Cap fall speed
+                // Glacier visual particles
+                if (gameFrame % 4 === 0) {
+                    particles.push(new Particle(player.x + Math.random() * player.width, player.y + player.height, '#93c5fd'));
+                }
+            } else {
+                player.velocityY += gravity;
+            }
             player.y += player.velocityY;
+
+            // Update ability effects
+            abilityEffects.forEach(e => { e.life--; e.y -= 1.5; });
+            abilityEffects = abilityEffects.filter(e => e.life > 0);
 
             // Check platform collisions
             player.onPlatform = false;
@@ -1270,6 +1418,13 @@
                         player.velocityY = 0;
                         player.onPlatform = true;
                         player.isJumping = false;
+
+                        // Recharge abilities on landing
+                        lambdaReady = true;
+                        cloudfrontReady = true;
+                        route53Ready = true;
+                        wafHitShield = true;
+                        glacierActive = false;
 
                         if (!platform.touched) {
                             platform.touched = true;
@@ -1368,11 +1523,21 @@
                 obstacles.forEach(obstacle => {
                     if (checkCollision(player, obstacle)) {
                         if (activePowerup !== 'multiregion' && !shieldActive) {
-                            loseLife();
-                            obstacles.splice(obstacles.indexOf(obstacle), 1);
-
-                            for (let i = 0; i < 10; i++) {
-                                particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
+                            // WAF Protect — absorb one hit (Level 4+)
+                            if (wafHitShield && currentLevel >= 3) {
+                                wafHitShield = false;
+                                obstacles.splice(obstacles.indexOf(obstacle), 1);
+                                playSound('waf');
+                                spawnAbilityEffect(player.x + player.width / 2, player.y, '⛊', '#22c55e');
+                                for (let i = 0; i < 8; i++) {
+                                    particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#22c55e'));
+                                }
+                            } else {
+                                loseLife();
+                                obstacles.splice(obstacles.indexOf(obstacle), 1);
+                                for (let i = 0; i < 10; i++) {
+                                    particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
+                                }
                             }
                         }
                     }
@@ -1612,6 +1777,48 @@
                 ctx.fillText(`Combo x${comboCount}`, canvas.width / 2, 50);
             }
 
+            // Ability effects (floating icons)
+            abilityEffects.forEach(e => {
+                ctx.save();
+                ctx.globalAlpha = e.life / 30;
+                ctx.font = 'bold 24px Courier New';
+                ctx.fillStyle = e.color;
+                ctx.shadowColor = e.color;
+                ctx.shadowBlur = 10;
+                ctx.textAlign = 'center';
+                ctx.fillText(e.text, e.x, e.y);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            });
+
+            // Ability HUD (bottom-left, shows unlocked abilities)
+            if (!demoMode && !countdownActive) {
+                ctx.save();
+                let hudX = 10;
+                const hudY = canvas.height - 25;
+                ctx.font = 'bold 11px Courier New';
+
+                ABILITIES.forEach(ab => {
+                    if (currentLevel >= ab.unlocksAt) {
+                        const ready = ab.id === 'lambda' ? lambdaReady :
+                                      ab.id === 'cloudfront' ? cloudfrontReady :
+                                      ab.id === 'glacier' ? true :
+                                      ab.id === 'waf' ? wafHitShield :
+                                      ab.id === 'route53' ? route53Ready : false;
+
+                        ctx.globalAlpha = ready ? 1 : 0.3;
+                        ctx.fillStyle = ab.color;
+                        ctx.fillText(ab.icon, hudX, hudY);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.globalAlpha = ready ? 0.7 : 0.2;
+                        ctx.fillText(ab.desc, hudX + 14, hudY);
+                        hudX += ctx.measureText(ab.icon + ' ' + ab.desc).width + 20;
+                    }
+                });
+
+                ctx.restore();
+            }
+
             // Level progress bar
             drawLevelBar();
 
@@ -1665,6 +1872,14 @@
             activePowerup = null;
             comboCount = 0;
             playerTrail = [];
+            lambdaReady = true;
+            cloudfrontReady = true;
+            glacierActive = false;
+            wafHitShield = true;
+            route53Ready = true;
+            jumpWasPressed = false;
+            dashWasPressed = false;
+            abilityEffects = [];
 
             player.x = 100;
             player.y = 300;
