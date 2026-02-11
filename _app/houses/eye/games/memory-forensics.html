@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Forensics - Eye House - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #6366f1;
+            text-decoration: none;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: #818cf8;
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        .title-section {
+            text-align: center;
+            flex: 1;
+        }
+
+        h1 {
+            color: #6366f1;
+            font-size: 32px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: #1a1a2e;
+            border: 1px solid #6366f1;
+            border-radius: 8px;
+            padding: 15px 25px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #6366f1;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .volatility-header {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px 8px 0 0;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            color: #6366f1;
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        .process-table-container {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .process-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            min-width: 1200px;
+        }
+
+        .process-table th {
+            background: #2d2a5e;
+            color: #6366f1;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #6366f1;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .process-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .process-table tr:nth-child(even) {
+            background: #1e1b4b;
+        }
+
+        .process-table tr:nth-child(odd) {
+            background: #2d2a5e;
+        }
+
+        .process-table tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .process-table tbody tr:hover {
+            background: #3d3a6e !important;
+            transform: translateX(3px);
+        }
+
+        .process-table tbody tr.selected {
+            border: 2px solid #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+            background: #4a2020 !important;
+        }
+
+        .process-table tbody tr.correct {
+            border: 2px solid #22c55e;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+            background: #1a4a2a !important;
+        }
+
+        .process-table tbody tr.missed {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            background: #4a3a1a !important;
+        }
+
+        .process-table tbody tr.false-positive {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            background: #3a2a1a !important;
+        }
+
+        .threat-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .threat-malware { background: #ef4444; color: white; }
+        .threat-rootkit { background: #8b5cf6; color: white; }
+        .threat-injection { background: #f59e0b; color: white; }
+        .threat-dumper { background: #ec4899; color: white; }
+        .threat-rat { background: #dc2626; color: white; }
+        .threat-miner { background: #f97316; color: white; }
+
+        .control-panel {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #818cf8;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #4ade80;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .analysis-report {
+            background: #1a1a2e;
+            border: 1px solid #6366f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .analysis-report.visible {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .analysis-report h3 {
+            color: #6366f1;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .finding {
+            background: #0f0f1e;
+            border-left: 4px solid #6366f1;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .finding-title {
+            color: #6366f1;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .finding-desc {
+            color: #bbb;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.visible {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border: 2px solid #6366f1;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.5);
+        }
+
+        .modal-content h2 {
+            color: #6366f1;
+            margin-bottom: 20px;
+        }
+
+        .threat-select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #0f0f1e;
+            color: #e0e0e0;
+            border: 1px solid #6366f1;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        .threat-select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .completion-modal h2 {
+            color: #22c55e;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .final-score {
+            font-size: 48px;
+            color: #6366f1;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .score-breakdown {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .instruction-box {
+            background: #1a1a2e;
+            border: 1px solid #6366f1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .instruction-box p {
+            color: #bbb;
+            line-height: 1.6;
+        }
+
+        .instruction-box strong {
+            color: #6366f1;
+        }
+
+        .checkmark {
+            color: #22c55e;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stat-box {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .process-table {
+                font-size: 11px;
+            }
+
+            .process-table th,
+            .process-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="#" onclick="history.back(); return false;" class="back-link">← Back</a>
+            <div class="title-section">
+                <h1>Memory Forensics Challenge</h1>
+                <p class="subtitle">Eye House - Digital Investigation Training</p>
+            </div>
+            <div style="width: 80px;"></div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">Round</div>
+                <div class="stat-value" id="round-display">1/10</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="score-display">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Accuracy</div>
+                <div class="stat-value" id="accuracy-display">--%</div>
+            </div>
+        </div>
+
+        <div class="instruction-box" id="instruction-box">
+            <p><strong>Mission:</strong> Analyze the memory dump and identify malicious processes. Click on suspicious processes to mark them, then click <strong>"Submit Analysis"</strong>. Look for: wrong paths, suspicious parent processes, unusual network activity, and masquerading process names.</p>
+        </div>
+
+        <div class="volatility-header">
+            Volatility Foundation Memory Analysis v2.6<br>
+            Image: DESKTOP-FORENSICS-001.mem | Profile: Win10x64_19041
+        </div>
+
+        <div class="process-table-container">
+            <table class="process-table">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>PPID</th>
+                        <th>Process Name</th>
+                        <th>Path</th>
+                        <th>Threads</th>
+                        <th>Handles</th>
+                        <th>Memory (MB)</th>
+                        <th>Start Time</th>
+                    </tr>
+                </thead>
+                <tbody id="process-tbody">
+                    <!-- Processes will be injected here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="control-panel">
+            <button class="btn btn-primary" id="submit-btn" onclick="submitAnalysis()">Submit Analysis</button>
+            <button class="btn btn-secondary" id="next-btn" onclick="nextRound()" style="display: none;">Next Round</button>
+        </div>
+
+        <div class="analysis-report" id="analysis-report">
+            <h3>Analysis Report</h3>
+            <div id="findings-container"></div>
+        </div>
+    </div>
+
+    <!-- Threat Classification Modal -->
+    <div class="modal" id="threat-modal">
+        <div class="modal-content">
+            <h2>Classify Process</h2>
+            <p style="color: #bbb; margin-bottom: 15px;">Is this process malicious or legitimate?</p>
+            <select class="threat-select" id="threat-type">
+                <option value="">-- Select Classification --</option>
+                <option value="malware">Malware</option>
+                <option value="rootkit">Rootkit</option>
+                <option value="injection">Injected Code</option>
+                <option value="dumper">Credential Dumper</option>
+                <option value="rat">RAT (Remote Access)</option>
+                <option value="miner">Cryptominer</option>
+                <option value="legitimate">Legitimate (Clear)</option>
+            </select>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-primary" onclick="classifyProcess()">Confirm</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="modal" id="completion-modal">
+        <div class="modal-content">
+            <h2>Investigation Complete!</h2>
+            <div class="final-score" id="final-score">0</div>
+            <div class="score-breakdown" id="score-breakdown"></div>
+            <p style="color: #22c55e; margin: 20px 0;">+50 XP Awarded</p>
+            <button class="btn btn-primary" onclick="location.reload()">New Investigation</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let currentRound = 0;
+        let score = 0;
+        let totalCorrect = 0;
+        let totalAttempts = 0;
+        let selectedProcesses = new Set();
+        let processClassifications = new Map();
+        let roundSubmitted = false;
+
+        // Round Data - Each round has processes with malicious flags
+        const rounds = [
+            {
+                title: "Basic Malware Detection",
+                description: "A simple malware sample running from an unusual location.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 456, ppid: 4, name: "smss.exe", path: "C:\\Windows\\System32\\smss.exe", threads: 2, handles: 52, memory: 1.2, time: "2026-02-10 08:15:03", malicious: false },
+                    { pid: 584, ppid: 456, name: "csrss.exe", path: "C:\\Windows\\System32\\csrss.exe", threads: 12, handles: 752, memory: 6.4, time: "2026-02-10 08:15:04", malicious: false },
+                    { pid: 672, ppid: 584, name: "winlogon.exe", path: "C:\\Windows\\System32\\winlogon.exe", threads: 4, handles: 238, memory: 8.2, time: "2026-02-10 08:15:05", malicious: false },
+                    { pid: 748, ppid: 672, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 8, handles: 512, memory: 12.4, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 892, ppid: 748, name: "svchost.exe", path: "C:\\Temp\\svchost.exe", threads: 15, handles: 342, memory: 24.8, time: "2026-02-10 14:23:18", malicious: true, threat: "malware", reason: "svchost.exe running from C:\\Temp instead of System32 - classic malware masquerading technique" },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 1156, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 22, handles: 562, memory: 32.4, time: "2026-02-10 08:15:14", malicious: false },
+                    { pid: 1892, ppid: 748, name: "spoolsv.exe", path: "C:\\Windows\\System32\\spoolsv.exe", threads: 14, handles: 318, memory: 16.2, time: "2026-02-10 08:15:22", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false }
+                ]
+            },
+            {
+                title: "Process Name Masquerading",
+                description: "Malware disguised as legitimate Windows processes with wrong parent processes and paths.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 182, handles: 9956, memory: 132, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 456, ppid: 4, name: "smss.exe", path: "C:\\Windows\\System32\\smss.exe", threads: 2, handles: 52, memory: 1.2, time: "2026-02-10 08:15:03", malicious: false },
+                    { pid: 584, ppid: 456, name: "csrss.exe", path: "C:\\Windows\\System32\\csrss.exe", threads: 12, handles: 752, memory: 6.4, time: "2026-02-10 08:15:04", malicious: false },
+                    { pid: 892, ppid: 584, name: "csrss.exe", path: "C:\\Windows\\System32\\csrss.exe", threads: 14, handles: 824, memory: 8.2, time: "2026-02-10 14:52:18", malicious: true, threat: "malware", reason: "csrss.exe with wrong PPID (should only have smss.exe as parent) - indicates process masquerading" },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 9, handles: 528, memory: 13.2, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 1248, ppid: 748, name: "lsass.exe", path: "C:\\Users\\Public\\lsass.exe", threads: 12, handles: 642, memory: 22.4, time: "2026-02-10 14:52:35", malicious: true, threat: "dumper", reason: "lsass.exe running from C:\\Users\\Public instead of System32 - likely credential dumper" },
+                    { pid: 1356, ppid: 584, name: "winlogon.exe", path: "C:\\Windows\\System32\\winlogon.exe", threads: 4, handles: 242, memory: 8.8, time: "2026-02-10 08:15:05", malicious: false },
+                    { pid: 1892, ppid: 748, name: "spoolsv.exe", path: "C:\\Windows\\System32\\spoolsv.exe", threads: 14, handles: 318, memory: 16.2, time: "2026-02-10 08:15:22", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 52, handles: 1924, memory: 92.8, time: "2026-02-10 08:16:45", malicious: false }
+                ]
+            },
+            {
+                title: "Process Injection",
+                description: "Legitimate process with injected malicious code showing unusual behavior.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 8, handles: 512, memory: 12.4, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 3892, ppid: 2456, name: "notepad.exe", path: "C:\\Windows\\System32\\notepad.exe", threads: 48, handles: 1248, memory: 64.8, time: "2026-02-10 10:15:33", malicious: true, threat: "injection", reason: "notepad.exe with unusually high thread count (48) and handles (1248) - indicates code injection and network activity" },
+                    { pid: 4124, ppid: 2456, name: "calc.exe", path: "C:\\Windows\\System32\\calc.exe", threads: 8, handles: 156, memory: 12.4, time: "2026-02-10 11:42:18", malicious: false },
+                    { pid: 4568, ppid: 3248, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 18, handles: 324, memory: 84.6, time: "2026-02-10 09:23:15", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "DllHost.exe", path: "C:\\Windows\\System32\\DllHost.exe", threads: 12, handles: 228, memory: 18.2, time: "2026-02-10 08:24:56", malicious: false }
+                ]
+            },
+            {
+                title: "Credential Dumper",
+                description: "Mimikatz-style credential dumping tool accessing lsass.exe memory.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 182, handles: 9956, memory: 132, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 9, handles: 528, memory: 13.2, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 892, ppid: 748, name: "lsass.exe", path: "C:\\Windows\\System32\\lsass.exe", threads: 10, handles: 1248, memory: 18.4, time: "2026-02-10 08:15:08", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3824, ppid: 748, name: "mimi_service.exe", path: "C:\\Windows\\System32\\mimi_service.exe", threads: 8, handles: 342, memory: 24.6, time: "2026-02-10 15:42:28", malicious: true, threat: "dumper", reason: "Mimikatz variant (mimi_service.exe) - known credential dumping tool with handle to lsass.exe process" },
+                    { pid: 4124, ppid: 2456, name: "cmd.exe", path: "C:\\Windows\\System32\\cmd.exe", threads: 2, handles: 64, memory: 3.2, time: "2026-02-10 14:18:52", malicious: false },
+                    { pid: 4568, ppid: 2456, name: "taskmgr.exe", path: "C:\\Windows\\System32\\taskmgr.exe", threads: 24, handles: 568, memory: 42.8, time: "2026-02-10 13:25:33", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "dllhost.exe", path: "C:\\Windows\\System32\\dllhost.exe", threads: 12, handles: 228, memory: 18.2, time: "2026-02-10 08:24:56", malicious: false }
+                ]
+            },
+            {
+                title: "Cryptominer Detection",
+                description: "Hidden cryptominer consuming CPU resources and connecting to mining pools.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 8, handles: 512, memory: 12.4, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 1248, ppid: 748, name: "spoolsv.exe", path: "C:\\Windows\\System32\\spoolsv.exe", threads: 14, handles: 318, memory: 16.2, time: "2026-02-10 08:15:22", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 748, name: "WindowsUpdate.exe", path: "C:\\ProgramData\\WindowsUpdate.exe", threads: 64, handles: 248, memory: 428.6, time: "2026-02-10 08:18:34", malicious: true, threat: "miner", reason: "WindowsUpdate.exe from ProgramData (not legitimate path) with extremely high CPU (99%) and network connections to known mining pool IPs" },
+                    { pid: 3824, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 4124, ppid: 2456, name: "notepad.exe", path: "C:\\Windows\\System32\\notepad.exe", threads: 4, handles: 82, memory: 8.4, time: "2026-02-10 10:42:28", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "audiodg.exe", path: "C:\\Windows\\System32\\audiodg.exe", threads: 8, handles: 142, memory: 14.2, time: "2026-02-10 08:24:56", malicious: false }
+                ]
+            },
+            {
+                title: "RAT (Remote Access Trojan)",
+                description: "RAT maintaining persistent connection and running with elevated privileges.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 182, handles: 9956, memory: 132, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 9, handles: 528, memory: 13.2, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 748, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 56, handles: 2148, memory: 128.4, time: "2026-02-10 08:16:45", malicious: true, threat: "rat", reason: "explorer.exe running as SYSTEM (wrong user context - should run as user) with persistent C2 beacons to external IP every 60s" },
+                    { pid: 3248, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 3824, ppid: 2456, name: "cmd.exe", path: "C:\\Windows\\System32\\cmd.exe", threads: 2, handles: 64, memory: 3.2, time: "2026-02-10 14:18:52", malicious: false },
+                    { pid: 4124, ppid: 1024, name: "SearchUI.exe", path: "C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchUI.exe", threads: 42, handles: 1124, memory: 98.6, time: "2026-02-10 08:17:22", malicious: false },
+                    { pid: 4568, ppid: 1024, name: "RuntimeBroker.exe", path: "C:\\Windows\\System32\\RuntimeBroker.exe", threads: 18, handles: 324, memory: 24.8, time: "2026-02-10 08:18:45", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "dllhost.exe", path: "C:\\Windows\\System32\\dllhost.exe", threads: 12, handles: 228, memory: 18.2, time: "2026-02-10 08:24:56", malicious: false }
+                ]
+            },
+            {
+                title: "Rootkit Detection",
+                description: "Kernel-mode rootkit hiding processes and manipulating system structures.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 456, ppid: 4, name: "smss.exe", path: "C:\\Windows\\System32\\smss.exe", threads: 2, handles: 52, memory: 1.2, time: "2026-02-10 08:15:03", malicious: false },
+                    { pid: 584, ppid: 456, name: "csrss.exe", path: "C:\\Windows\\System32\\csrss.exe", threads: 12, handles: 752, memory: 6.4, time: "2026-02-10 08:15:04", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 9, handles: 528, memory: 13.2, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 892, ppid: 4, name: "SystemRoot", path: "[hidden]", threads: 24, handles: 0, memory: 64.2, time: "2026-02-10 08:15:07", malicious: true, threat: "rootkit", reason: "Suspicious kernel-mode process with PID attempting to masquerade as legitimate system component - hidden from user-mode APIs" },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 1248, ppid: 892, name: "sysdriver.exe", path: "C:\\Windows\\System32\\drivers\\sysdriver.exe", threads: 12, handles: 0, memory: 32.4, time: "2026-02-10 08:15:14", malicious: true, threat: "rootkit", reason: "Rootkit driver component with handle count of 0 (hidden from detection) - child of suspicious SystemRoot process" },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 4124, ppid: 1024, name: "RuntimeBroker.exe", path: "C:\\Windows\\System32\\RuntimeBroker.exe", threads: 18, handles: 324, memory: 24.8, time: "2026-02-10 08:18:45", malicious: false }
+                ]
+            },
+            {
+                title: "Living off the Land",
+                description: "Attackers using legitimate Windows tools for malicious purposes.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 8, handles: 512, memory: 12.4, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 2456, name: "cmd.exe", path: "C:\\Windows\\System32\\cmd.exe", threads: 2, handles: 64, memory: 3.2, time: "2026-02-10 14:32:18", malicious: false },
+                    { pid: 3824, ppid: 3248, name: "powershell.exe", path: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", threads: 18, handles: 542, memory: 128.4, time: "2026-02-10 14:32:22", malicious: true, threat: "malware", reason: "PowerShell with encoded command line (JABhAD0A...) - likely obfuscated malicious script for fileless malware execution" },
+                    { pid: 4124, ppid: 3248, name: "wmic.exe", path: "C:\\Windows\\System32\\wbem\\wmic.exe", threads: 8, handles: 224, memory: 18.2, time: "2026-02-10 14:33:45", malicious: true, threat: "malware", reason: "WMIC spawning cmd.exe - common lateral movement and persistence technique used by attackers" },
+                    { pid: 4568, ppid: 4124, name: "cmd.exe", path: "C:\\Windows\\System32\\cmd.exe", threads: 2, handles: 48, memory: 2.8, time: "2026-02-10 14:33:46", malicious: false },
+                    { pid: 4892, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 5124, ppid: 1024, name: "SearchUI.exe", path: "C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchUI.exe", threads: 42, handles: 1124, memory: 98.6, time: "2026-02-10 08:17:22", malicious: false }
+                ]
+            },
+            {
+                title: "Supply Chain Attack",
+                description: "Compromised software updater performing malicious activities.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 182, handles: 9956, memory: 132, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 9, handles: 528, memory: 13.2, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 748, name: "AdobeUpdateService.exe", path: "C:\\Program Files (x86)\\Common Files\\Adobe\\ARM\\1.0\\AdobeUpdateService.exe", threads: 22, handles: 648, memory: 42.8, time: "2026-02-10 12:00:15", malicious: true, threat: "malware", reason: "Legitimate Adobe updater making unusual DNS queries to typosquatted domains and writing executables to startup folder - supply chain compromise" },
+                    { pid: 3824, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 4124, ppid: 2456, name: "notepad.exe", path: "C:\\Windows\\System32\\notepad.exe", threads: 4, handles: 82, memory: 8.4, time: "2026-02-10 10:42:28", malicious: false },
+                    { pid: 4568, ppid: 1024, name: "SearchUI.exe", path: "C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchUI.exe", threads: 42, handles: 1124, memory: 98.6, time: "2026-02-10 08:17:22", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "RuntimeBroker.exe", path: "C:\\Windows\\System32\\RuntimeBroker.exe", threads: 18, handles: 324, memory: 24.8, time: "2026-02-10 08:18:45", malicious: false }
+                ]
+            },
+            {
+                title: "Advanced Persistent Threat",
+                description: "Complex multi-stage attack with dropper, persistence, and C2 beacon.",
+                processes: [
+                    { pid: 4, ppid: 0, name: "System", path: "C:\\Windows\\System32\\ntoskrnl.exe", threads: 178, handles: 9824, memory: 128, time: "2026-02-10 08:15:02", malicious: false },
+                    { pid: 748, ppid: 584, name: "services.exe", path: "C:\\Windows\\System32\\services.exe", threads: 8, handles: 512, memory: 12.4, time: "2026-02-10 08:15:06", malicious: false },
+                    { pid: 1024, ppid: 748, name: "svchost.exe", path: "C:\\Windows\\System32\\svchost.exe", threads: 18, handles: 428, memory: 18.6, time: "2026-02-10 08:15:12", malicious: false },
+                    { pid: 2456, ppid: 1024, name: "explorer.exe", path: "C:\\Windows\\explorer.exe", threads: 48, handles: 1842, memory: 86.4, time: "2026-02-10 08:16:45", malicious: false },
+                    { pid: 3248, ppid: 2456, name: "chrome.exe", path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", threads: 32, handles: 842, memory: 156.2, time: "2026-02-10 09:23:12", malicious: false },
+                    { pid: 3824, ppid: 2456, name: "InstallUtil.exe", path: "C:\\Users\\Public\\Documents\\InstallUtil.exe", threads: 12, handles: 342, memory: 28.4, time: "2026-02-10 13:45:22", malicious: true, threat: "malware", reason: "Initial dropper: InstallUtil.exe from user directory (not .NET framework path) - deployed malware and established persistence" },
+                    { pid: 4124, ppid: 748, name: "WmiPrvSE.exe", path: "C:\\Windows\\System32\\wbem\\WmiPrvSE.exe", threads: 24, handles: 728, memory: 64.2, time: "2026-02-10 13:45:28", malicious: true, threat: "malware", reason: "Persistence mechanism: WmiPrvSE.exe with WMI event subscription for automatic restart - maintains attacker access" },
+                    { pid: 4568, ppid: 1024, name: "SearchUI.exe", path: "C:\\Windows\\SystemApps\\Microsoft.Windows.Search_cw5n1h2txyewy\\SearchUI.exe", threads: 42, handles: 1124, memory: 98.6, time: "2026-02-10 08:17:22", malicious: false },
+                    { pid: 4892, ppid: 1024, name: "RuntimeBroker.exe", path: "C:\\Windows\\System32\\RuntimeBroker.exe", threads: 18, handles: 324, memory: 24.8, time: "2026-02-10 08:18:45", malicious: false },
+                    { pid: 5124, ppid: 748, name: "taskhost.exe", path: "C:\\Windows\\System32\\taskhost.exe", threads: 16, handles: 548, memory: 42.6, time: "2026-02-10 13:45:35", malicious: true, threat: "rat", reason: "C2 beacon: taskhost.exe maintaining encrypted communication channel to attacker infrastructure with regular heartbeat" },
+                    { pid: 5468, ppid: 2456, name: "notepad.exe", path: "C:\\Windows\\System32\\notepad.exe", threads: 4, handles: 82, memory: 8.4, time: "2026-02-10 10:42:28", malicious: false }
+                ]
+            }
+        ];
+
+        let currentProcessData = [];
+        let selectedPID = null;
+
+        // Initialize game
+        function initGame() {
+            loadRound(currentRound);
+        }
+
+        // Load round data
+        function loadRound(roundIndex) {
+            if (roundIndex >= rounds.length) {
+                showCompletionModal();
+                return;
+            }
+
+            roundSubmitted = false;
+            selectedProcesses.clear();
+            processClassifications.clear();
+            document.getElementById('submit-btn').style.display = 'inline-block';
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('analysis-report').classList.remove('visible');
+
+            currentProcessData = rounds[roundIndex].processes;
+            renderProcessTable();
+            updateStats();
+        }
+
+        // Render process table
+        function renderProcessTable() {
+            const tbody = document.getElementById('process-tbody');
+            tbody.innerHTML = '';
+
+            currentProcessData.forEach((process, index) => {
+                const tr = document.createElement('tr');
+                tr.dataset.index = index;
+                tr.dataset.pid = process.pid;
+
+                tr.innerHTML = `
+                    <td>${process.pid}</td>
+                    <td>${process.ppid}</td>
+                    <td>${process.name}</td>
+                    <td>${process.path}</td>
+                    <td>${process.threads}</td>
+                    <td>${process.handles}</td>
+                    <td>${process.memory}</td>
+                    <td>${process.time}</td>
+                `;
+
+                tr.addEventListener('click', () => selectProcess(index));
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Select process
+        function selectProcess(index) {
+            if (roundSubmitted) return;
+
+            const process = currentProcessData[index];
+            selectedPID = process.pid;
+
+            // Show classification modal
+            document.getElementById('threat-modal').classList.add('visible');
+            document.getElementById('threat-type').value = processClassifications.get(process.pid) || '';
+        }
+
+        // Classify process
+        function classifyProcess() {
+            const threatType = document.getElementById('threat-type').value;
+            if (!threatType) return;
+
+            if (threatType === 'legitimate') {
+                // User is clearing this process
+                processClassifications.delete(selectedPID);
+                selectedProcesses.delete(selectedPID);
+            } else {
+                // User is marking as malicious
+                processClassifications.set(selectedPID, threatType);
+                selectedProcesses.add(selectedPID);
+            }
+
+            updateProcessDisplay();
+            closeModal();
+        }
+
+        // Update process display
+        function updateProcessDisplay() {
+            const rows = document.querySelectorAll('#process-tbody tr');
+            rows.forEach(row => {
+                const pid = parseInt(row.dataset.pid);
+                row.classList.remove('selected', 'correct', 'missed', 'false-positive');
+
+                if (selectedProcesses.has(pid) && !roundSubmitted) {
+                    row.classList.add('selected');
+                }
+            });
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('threat-modal').classList.remove('visible');
+            selectedPID = null;
+        }
+
+        // Submit analysis
+        function submitAnalysis() {
+            if (roundSubmitted) return;
+            roundSubmitted = true;
+
+            let correctIdentifications = 0;
+            let missedThreats = 0;
+            let falsePositives = 0;
+            const findings = [];
+
+            // Check all processes
+            currentProcessData.forEach(process => {
+                const row = document.querySelector(`tr[data-pid="${process.pid}"]`);
+
+                if (process.malicious) {
+                    if (selectedProcesses.has(process.pid)) {
+                        // Correctly identified malicious
+                        correctIdentifications++;
+                        row.classList.add('correct');
+                        row.classList.remove('selected');
+                        findings.push({
+                            type: 'correct',
+                            title: `✓ Correctly Identified: ${process.name} (PID ${process.pid})`,
+                            description: process.reason
+                        });
+                    } else {
+                        // Missed malicious
+                        missedThreats++;
+                        row.classList.add('missed');
+                        findings.push({
+                            type: 'missed',
+                            title: `✗ Missed Threat: ${process.name} (PID ${process.pid})`,
+                            description: process.reason
+                        });
+                    }
+                } else {
+                    if (selectedProcesses.has(process.pid)) {
+                        // False positive
+                        falsePositives++;
+                        row.classList.add('false-positive');
+                        findings.push({
+                            type: 'false-positive',
+                            title: `⚠ False Positive: ${process.name} (PID ${process.pid})`,
+                            description: `This is a legitimate process. Incorrectly flagging legitimate processes can disrupt system operations.`
+                        });
+                    }
+                }
+            });
+
+            // Calculate score for this round
+            const maliciousCount = currentProcessData.filter(p => p.malicious).length;
+            const roundScore = correctIdentifications * 10 - falsePositives * 5 - missedThreats * 5;
+            score += Math.max(0, roundScore);
+
+            totalCorrect += correctIdentifications;
+            totalAttempts += maliciousCount;
+
+            // Show findings
+            showFindings(findings);
+            updateStats();
+
+            // Show next button
+            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'inline-block';
+        }
+
+        // Show findings
+        function showFindings(findings) {
+            const container = document.getElementById('findings-container');
+            container.innerHTML = '';
+
+            findings.forEach(finding => {
+                const div = document.createElement('div');
+                div.className = 'finding';
+                div.innerHTML = `
+                    <div class="finding-title">${finding.title}</div>
+                    <div class="finding-desc">${finding.description}</div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('analysis-report').classList.add('visible');
+        }
+
+        // Next round
+        function nextRound() {
+            currentRound++;
+            loadRound(currentRound);
+        }
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('round-display').textContent = `${currentRound + 1}/10`;
+            document.getElementById('score-display').textContent = score;
+
+            if (totalAttempts > 0) {
+                const accuracy = Math.round((totalCorrect / totalAttempts) * 100);
+                document.getElementById('accuracy-display').textContent = `${accuracy}%`;
+            }
+        }
+
+        // Show completion modal
+        function showCompletionModal() {
+            const modal = document.getElementById('completion-modal');
+            document.getElementById('final-score').textContent = score;
+
+            const breakdown = document.getElementById('score-breakdown');
+            breakdown.innerHTML = `
+                <div class="score-item">
+                    <span>Total Threats Identified:</span>
+                    <span style="color: #22c55e;">${totalCorrect}</span>
+                </div>
+                <div class="score-item">
+                    <span>Accuracy Rate:</span>
+                    <span style="color: #6366f1;">${Math.round((totalCorrect / totalAttempts) * 100)}%</span>
+                </div>
+                <div class="score-item">
+                    <span>Final Score:</span>
+                    <span style="color: #6366f1; font-weight: bold;">${score}</span>
+                </div>
+            `;
+
+            modal.classList.add('visible');
+
+            // Award XP
+            if (!localStorage.getItem('game_memforensics_xp_awarded')) {
+                const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (currentXP + 50).toString());
+                localStorage.setItem('game_memforensics_xp_awarded', 'true');
+
+                if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, 50, 'Memory Forensics Complete');
+                }
+            }
+
+            if (typeof AchievementManager !== 'undefined') {
+                AchievementManager.unlock('game_memforensics');
+            }
+
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('memforensics', { score: score, total: 10 });
+            }
+        }
+
+        // Close modal on outside click
+        document.getElementById('threat-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'threat-modal') {
+                closeModal();
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

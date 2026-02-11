@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Sniffer - Web House</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #3b82f6;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-size: 18px;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover {
+            opacity: 0.7;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        h1 {
+            color: #3b82f6;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .score-display, .round-display, .timer-display {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .timer-display {
+            color: #22d3ee;
+        }
+
+        .timer-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .timer-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22d3ee 0%, #3b82f6 100%);
+            transition: width 0.1s linear;
+            border-radius: 4px;
+        }
+
+        .game-area {
+            background: #0f0f0f;
+            border: 2px solid #2a2a3e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .packet-table-container {
+            overflow-x: auto;
+            margin-bottom: 25px;
+            background: #0a0a0a;
+            border: 1px solid #2a2a3e;
+            border-radius: 8px;
+        }
+
+        .packet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .packet-table thead {
+            background: #1a1a2e;
+            position: sticky;
+            top: 0;
+        }
+
+        .packet-table th {
+            padding: 12px 10px;
+            text-align: left;
+            color: #3b82f6;
+            font-weight: 600;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .packet-table td {
+            padding: 10px;
+            border-bottom: 1px solid #1a1a2e;
+        }
+
+        .packet-table tbody tr:nth-child(odd) {
+            background: #1a1a2e;
+        }
+
+        .packet-table tbody tr:nth-child(even) {
+            background: #16162a;
+        }
+
+        .packet-table tbody tr:hover {
+            background: #252540;
+            cursor: default;
+        }
+
+        /* Protocol colors */
+        .protocol-tcp { color: #4ade80; font-weight: 600; }
+        .protocol-udp { color: #60a5fa; font-weight: 600; }
+        .protocol-dns { color: #c084fc; font-weight: 600; }
+        .protocol-http { color: #f59e0b; font-weight: 600; }
+        .protocol-arp { color: #f87171; font-weight: 600; }
+        .protocol-icmp { color: #22d3ee; font-weight: 600; }
+        .protocol-dhcp { color: #a78bfa; font-weight: 600; }
+        .protocol-tls { color: #fb923c; font-weight: 600; }
+        .protocol-ftp { color: #fbbf24; font-weight: 600; }
+
+        .question-section {
+            background: #1a1a2e;
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        .answers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .answer-btn {
+            background: #16162a;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            color: #e0e0e0;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            background: #2a2a4e;
+            border-color: #60a5fa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .answer-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .answer-btn.correct {
+            background: #166534;
+            border-color: #4ade80;
+            animation: correctPulse 0.5s;
+        }
+
+        .answer-btn.incorrect {
+            background: #7f1d1d;
+            border-color: #f87171;
+            animation: shake 0.5s;
+        }
+
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .result-message {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .result-message.correct {
+            background: #166534;
+            color: #4ade80;
+        }
+
+        .result-message.incorrect {
+            background: #7f1d1d;
+            color: #f87171;
+        }
+
+        .next-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 40px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .next-btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .final-results {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .final-score {
+            font-size: 48px;
+            font-weight: bold;
+            color: #3b82f6;
+            margin: 20px 0;
+        }
+
+        .performance-text {
+            font-size: 24px;
+            margin: 15px 0;
+        }
+
+        .play-again-btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .play-again-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+        }
+
+        .start-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .start-screen h2 {
+            color: #3b82f6;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .start-screen p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #b0b0b0;
+        }
+
+        .start-btn {
+            margin-top: 30px;
+            padding: 20px 60px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .header-info {
+                font-size: 14px;
+            }
+
+            .packet-table {
+                font-size: 11px;
+            }
+
+            .packet-table th,
+            .packet-table td {
+                padding: 8px 5px;
+            }
+
+            .question-text {
+                font-size: 16px;
+            }
+
+            .answer-btn {
+                font-size: 14px;
+                padding: 12px;
+            }
+
+            .answers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="#" onclick="history.back(); return false;" class="back-link">← Back</a>
+
+        <header>
+            <h1>🔍 Packet Sniffer</h1>
+            <div class="header-info">
+                <div class="round-display">Round: <span id="roundDisplay">1</span> / 10</div>
+                <div class="score-display">Score: <span id="scoreDisplay">0</span> / 10</div>
+                <div class="timer-display">Time: <span id="timerDisplay">20</span>s</div>
+            </div>
+            <div class="timer-bar-container">
+                <div class="timer-bar" id="timerBar"></div>
+            </div>
+        </header>
+
+        <div class="game-area" id="gameArea">
+            <!-- Content will be dynamically generated -->
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            currentRound: 0,
+            score: 0,
+            totalRounds: 10,
+            timePerQuestion: 20,
+            timeRemaining: 20,
+            timerInterval: null,
+            answered: false,
+            usedQuestions: []
+        };
+
+        // Question Database
+        const questionBank = [
+            {
+                id: 1,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45321 → 22 [SYN] Seq=0 Win=64240' },
+                    { no: 2, time: '0.001234', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45322 → 80 [SYN] Seq=0 Win=64240' },
+                    { no: 3, time: '0.002456', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45323 → 443 [SYN] Seq=0 Win=64240' },
+                    { no: 4, time: '0.003678', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45324 → 8080 [SYN] Seq=0 Win=64240' },
+                    { no: 5, time: '0.004890', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45325 → 3389 [SYN] Seq=0 Win=64240' },
+                    { no: 6, time: '0.006012', src: '192.168.1.50', dst: '10.0.0.1', protocol: 'TCP', length: 60, info: '45326 → 21 [SYN] Seq=0 Win=64240' }
+                ],
+                question: 'Which IP address is performing a SYN port scan?',
+                answers: ['192.168.1.50', '10.0.0.1', '192.168.1.1', '10.0.0.50'],
+                correct: 0
+            },
+            {
+                id: 2,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.100', dst: '8.8.8.8', protocol: 'DNS', length: 74, info: 'Standard query A evil-malware.com' },
+                    { no: 2, time: '0.025341', src: '8.8.8.8', dst: '192.168.1.100', protocol: 'DNS', length: 90, info: 'Standard query response A 185.220.101.45' },
+                    { no: 3, time: '0.026789', src: '192.168.1.100', dst: '185.220.101.45', protocol: 'TCP', length: 66, info: '54321 → 80 [SYN] Seq=0 Win=64240' },
+                    { no: 4, time: '0.127890', src: '185.220.101.45', dst: '192.168.1.100', protocol: 'TCP', length: 66, info: '80 → 54321 [SYN, ACK] Seq=0 Ack=1 Win=65535' }
+                ],
+                question: 'What suspicious domain is being resolved?',
+                answers: ['google.com', 'evil-malware.com', 'facebook.com', 'update.microsoft.com'],
+                correct: 1
+            },
+            {
+                id: 3,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.25', dst: '10.0.50.100', protocol: 'TCP', length: 74, info: '52341 → 80 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.012456', src: '10.0.50.100', dst: '192.168.1.25', protocol: 'TCP', length: 74, info: '80 → 52341 [SYN, ACK] Seq=0 Ack=1 Win=64240' },
+                    { no: 3, time: '0.012789', src: '192.168.1.25', dst: '10.0.50.100', protocol: 'TCP', length: 66, info: '52341 → 80 [ACK] Seq=1 Ack=1 Win=65535' },
+                    { no: 4, time: '0.013234', src: '192.168.1.25', dst: '10.0.50.100', protocol: 'HTTP', length: 487, info: 'GET /index.html HTTP/1.1' }
+                ],
+                question: 'Which packet completes the TCP 3-way handshake?',
+                answers: ['Packet 1 (SYN)', 'Packet 2 (SYN, ACK)', 'Packet 3 (ACK)', 'Packet 4 (GET)'],
+                correct: 2
+            },
+            {
+                id: 4,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.75', dst: '172.16.0.10', protocol: 'TCP', length: 66, info: '49876 → 80 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.015432', src: '172.16.0.10', dst: '192.168.1.75', protocol: 'TCP', length: 66, info: '80 → 49876 [SYN, ACK] Seq=0 Ack=1 Win=64240' },
+                    { no: 3, time: '0.015789', src: '192.168.1.75', dst: '172.16.0.10', protocol: 'TCP', length: 54, info: '49876 → 80 [ACK] Seq=1 Ack=1 Win=65535' },
+                    { no: 4, time: '0.016234', src: '192.168.1.75', dst: '172.16.0.10', protocol: 'HTTP', length: 512, info: 'GET /downloads/passwords.xlsx HTTP/1.1' },
+                    { no: 5, time: '0.125678', src: '172.16.0.10', dst: '192.168.1.75', protocol: 'HTTP', length: 1514, info: 'HTTP/1.1 200 OK (application/xlsx)' }
+                ],
+                question: 'What file is being downloaded via HTTP?',
+                answers: ['index.html', 'passwords.xlsx', 'document.pdf', 'image.jpg'],
+                correct: 1
+            },
+            {
+                id: 5,
+                packets: [
+                    { no: 1, time: '0.000000', src: '0.0.0.0', dst: '255.255.255.255', protocol: 'DHCP', length: 342, info: 'DHCP Discover - Transaction ID 0x3f8a29b1' },
+                    { no: 2, time: '0.001567', src: '192.168.1.1', dst: '255.255.255.255', protocol: 'DHCP', length: 342, info: 'DHCP Offer - Transaction ID 0x3f8a29b1' },
+                    { no: 3, time: '0.003234', src: '0.0.0.0', dst: '255.255.255.255', protocol: 'DHCP', length: 342, info: 'DHCP Request - Transaction ID 0x3f8a29b1' },
+                    { no: 4, time: '0.004890', src: '192.168.1.1', dst: '192.168.1.150', protocol: 'DHCP', length: 342, info: 'DHCP ACK - Transaction ID 0x3f8a29b1' }
+                ],
+                question: 'Which host is the DHCP server?',
+                answers: ['0.0.0.0', '192.168.1.1', '192.168.1.150', '255.255.255.255'],
+                correct: 1
+            },
+            {
+                id: 6,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.1', dst: 'Broadcast', protocol: 'ARP', length: 42, info: 'Who has 192.168.1.50? Tell 192.168.1.1' },
+                    { no: 2, time: '0.000234', src: '00:11:22:aa:bb:cc', dst: '192.168.1.1', protocol: 'ARP', length: 42, info: '192.168.1.50 is at 00:11:22:aa:bb:cc' },
+                    { no: 3, time: '1.234567', src: '00:de:ad:be:ef:00', dst: 'Broadcast', protocol: 'ARP', length: 42, info: '192.168.1.50 is at 00:de:ad:be:ef:00' },
+                    { no: 4, time: '2.345678', src: '00:de:ad:be:ef:00', dst: 'Broadcast', protocol: 'ARP', length: 42, info: '192.168.1.1 is at 00:de:ad:be:ef:00' }
+                ],
+                question: 'What type of attack is shown in this capture?',
+                answers: ['DDoS Attack', 'ARP Spoofing', 'DNS Poisoning', 'SQL Injection'],
+                correct: 1
+            },
+            {
+                id: 7,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.80', dst: '10.0.0.25', protocol: 'TCP', length: 74, info: '54123 → 443 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.125678', src: '10.0.0.25', dst: '192.168.1.80', protocol: 'TCP', length: 54, info: '443 → 54123 [RST, ACK] Seq=1 Ack=1 Win=0' },
+                    { no: 3, time: '0.126789', src: '192.168.1.80', dst: '10.0.0.25', protocol: 'TCP', length: 74, info: '54124 → 8080 [SYN] Seq=0 Win=65535' },
+                    { no: 4, time: '0.234567', src: '10.0.0.25', dst: '192.168.1.80', protocol: 'TCP', length: 74, info: '8080 → 54124 [SYN, ACK] Seq=0 Ack=1 Win=64240' }
+                ],
+                question: 'Which packet indicates a failed/refused connection?',
+                answers: ['Packet 1', 'Packet 2', 'Packet 3', 'Packet 4'],
+                correct: 1
+            },
+            {
+                id: 8,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.55', dst: '10.50.100.200', protocol: 'TCP', length: 66, info: '48765 → 8888 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.023456', src: '10.50.100.200', dst: '192.168.1.55', protocol: 'TCP', length: 66, info: '8888 → 48765 [SYN, ACK] Seq=0 Ack=1 Win=64240' },
+                    { no: 3, time: '0.023789', src: '192.168.1.55', dst: '10.50.100.200', protocol: 'TCP', length: 54, info: '48765 → 8888 [ACK] Seq=1 Ack=1 Win=65535' },
+                    { no: 4, time: '0.024123', src: '192.168.1.55', dst: '10.50.100.200', protocol: 'HTTP', length: 423, info: 'GET /admin/login HTTP/1.1' }
+                ],
+                question: 'What non-standard port is the web server running on?',
+                answers: ['80', '443', '8080', '8888'],
+                correct: 3
+            },
+            {
+                id: 9,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.20', dst: '10.0.0.5', protocol: 'TCP', length: 1514, info: '52341 → 80 [PSH, ACK] Seq=1 Ack=1 Len=1448' },
+                    { no: 2, time: '0.001234', src: '192.168.1.20', dst: '10.0.0.5', protocol: 'TCP', length: 1514, info: '52341 → 80 [PSH, ACK] Seq=1449 Ack=1 Len=1448' },
+                    { no: 3, time: '0.002456', src: '192.168.1.20', dst: '10.0.0.5', protocol: 'TCP', length: 874, info: '52341 → 80 [PSH, ACK] Seq=2897 Ack=1 Len=808' },
+                    { no: 4, time: '0.003678', src: '10.0.0.5', dst: '192.168.1.20', protocol: 'TCP', length: 66, info: '80 → 52341 [ACK] Seq=1 Ack=3705 Win=64240' }
+                ],
+                question: 'How many bytes of data were transferred to 10.0.0.5?',
+                answers: ['1514 bytes', '2962 bytes', '3704 bytes', '4542 bytes'],
+                correct: 2
+            },
+            {
+                id: 10,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.99', dst: '172.16.50.10', protocol: 'TCP', length: 66, info: '45678 → 21 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.034567', src: '172.16.50.10', dst: '192.168.1.99', protocol: 'TCP', length: 66, info: '21 → 45678 [SYN, ACK] Seq=0 Ack=1 Win=64240' },
+                    { no: 3, time: '0.034890', src: '192.168.1.99', dst: '172.16.50.10', protocol: 'TCP', length: 54, info: '45678 → 21 [ACK] Seq=1 Ack=1 Win=65535' },
+                    { no: 4, time: '0.125678', src: '172.16.50.10', dst: '192.168.1.99', protocol: 'FTP', length: 89, info: '220 FTP Server ready' },
+                    { no: 5, time: '2.456789', src: '192.168.1.99', dst: '172.16.50.10', protocol: 'FTP', length: 74, info: 'USER admin' },
+                    { no: 6, time: '2.567890', src: '172.16.50.10', dst: '192.168.1.99', protocol: 'FTP', length: 82, info: '331 Password required' },
+                    { no: 7, time: '4.678901', src: '192.168.1.99', dst: '172.16.50.10', protocol: 'FTP', length: 79, info: 'PASS P@ssw0rd123' }
+                ],
+                question: 'Which protocol is leaking credentials in plaintext?',
+                answers: ['TCP', 'HTTP', 'FTP', 'DNS'],
+                correct: 2
+            },
+            {
+                id: 11,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.10', dst: '8.8.8.8', protocol: 'ICMP', length: 84, info: 'Echo (ping) request id=0x0001, seq=1, ttl=64' },
+                    { no: 2, time: '0.025678', src: '8.8.8.8', dst: '192.168.1.10', protocol: 'ICMP', length: 84, info: 'Echo (ping) reply id=0x0001, seq=1, ttl=58' },
+                    { no: 3, time: '1.000000', src: '192.168.1.10', dst: '8.8.8.8', protocol: 'ICMP', length: 84, info: 'Echo (ping) request id=0x0001, seq=2, ttl=64' },
+                    { no: 4, time: '1.025678', src: '192.168.1.10', dst: '8.8.8.8', protocol: 'ICMP', length: 84, info: 'Echo (ping) reply id=0x0001, seq=2, ttl=32' },
+                    { no: 5, time: '2.000000', src: '192.168.1.10', dst: '8.8.8.8', protocol: 'ICMP', length: 84, info: 'Echo (ping) request id=0x0001, seq=3, ttl=64' }
+                ],
+                question: 'What does the changing TTL value in replies indicate?',
+                answers: ['Normal routing', 'Possible MITM attack', 'DNS resolution', 'Firewall filtering'],
+                correct: 1
+            },
+            {
+                id: 12,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.66', dst: '8.8.8.8', protocol: 'DNS', length: 512, info: 'Standard query ANY .' },
+                    { no: 2, time: '0.125678', src: '8.8.8.8', dst: '192.168.1.66', protocol: 'DNS', length: 4096, info: 'Standard query response ANY (large payload)' },
+                    { no: 3, time: '0.126789', src: '192.168.1.66', dst: '203.0.113.50', protocol: 'UDP', length: 4096, info: 'Src Port: 12345  Dst Port: 53' }
+                ],
+                question: 'What type of attack is this DNS traffic pattern?',
+                answers: ['DNS Poisoning', 'DNS Amplification', 'DNS Tunneling', 'DNS Hijacking'],
+                correct: 1
+            },
+            {
+                id: 13,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.45', dst: '52.4.128.10', protocol: 'TCP', length: 74, info: '56789 → 443 [SYN] Seq=0 Win=65535' },
+                    { no: 2, time: '0.056789', src: '52.4.128.10', dst: '192.168.1.45', protocol: 'TCP', length: 74, info: '443 → 56789 [SYN, ACK] Seq=0 Ack=1 Win=64240' },
+                    { no: 3, time: '0.057123', src: '192.168.1.45', dst: '52.4.128.10', protocol: 'TCP', length: 66, info: '56789 → 443 [ACK] Seq=1 Ack=1 Win=65535' },
+                    { no: 4, time: '0.057890', src: '192.168.1.45', dst: '52.4.128.10', protocol: 'TLS', length: 517, info: 'Client Hello (TLS 1.2)' },
+                    { no: 5, time: '0.156789', src: '52.4.128.10', dst: '192.168.1.45', protocol: 'TLS', length: 1514, info: 'Server Hello, Certificate (TLS 1.2)' }
+                ],
+                question: 'What TLS/SSL version is being negotiated?',
+                answers: ['SSL 3.0', 'TLS 1.0', 'TLS 1.2', 'TLS 1.3'],
+                correct: 2
+            },
+            {
+                id: 14,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.1', dst: '192.168.1.100', protocol: 'ICMP', length: 92, info: 'Redirect (Redirect for host)' },
+                    { no: 2, time: '0.500000', src: '192.168.1.1', dst: '192.168.1.101', protocol: 'ICMP', length: 92, info: 'Redirect (Redirect for host)' },
+                    { no: 3, time: '1.000000', src: '192.168.1.1', dst: '192.168.1.102', protocol: 'ICMP', length: 92, info: 'Redirect (Redirect for host)' },
+                    { no: 4, time: '1.500000', src: '192.168.1.1', dst: '192.168.1.103', protocol: 'ICMP', length: 92, info: 'Redirect (Redirect for host)' }
+                ],
+                question: 'Which host is sending suspicious ICMP redirects?',
+                answers: ['192.168.1.100', '192.168.1.1', '192.168.1.103', '192.168.1.102'],
+                correct: 1
+            },
+            {
+                id: 15,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.1', dst: 'Broadcast', protocol: 'ARP', length: 42, info: 'Who has 192.168.1.10? Tell 192.168.1.1' },
+                    { no: 2, time: '0.001234', src: '192.168.1.10', dst: '192.168.1.1', protocol: 'ARP', length: 42, info: '192.168.1.10 is at aa:bb:cc:dd:ee:ff' },
+                    { no: 3, time: '5.000000', src: '00:11:22:33:44:55', dst: 'Broadcast', protocol: 'ARP', length: 42, info: '192.168.1.10 is at 00:11:22:33:44:55 (gratuitous ARP)' },
+                    { no: 4, time: '10.000000', src: '00:11:22:33:44:55', dst: 'Broadcast', protocol: 'ARP', length: 42, info: '192.168.1.1 is at 00:11:22:33:44:55 (gratuitous ARP)' }
+                ],
+                question: 'What is the MAC address of the ARP spoofer?',
+                answers: ['aa:bb:cc:dd:ee:ff', '00:11:22:33:44:55', '192.168.1.1', '192.168.1.10'],
+                correct: 1
+            },
+            {
+                id: 16,
+                packets: [
+                    { no: 1, time: '0.000000', src: '10.0.0.100', dst: '172.16.0.50', protocol: 'TCP', length: 60, info: '49000 → 135 [SYN] Seq=0 Win=8192' },
+                    { no: 2, time: '0.000234', src: '10.0.0.100', dst: '172.16.0.50', protocol: 'TCP', length: 60, info: '49001 → 139 [SYN] Seq=0 Win=8192' },
+                    { no: 3, time: '0.000456', src: '10.0.0.100', dst: '172.16.0.50', protocol: 'TCP', length: 60, info: '49002 → 445 [SYN] Seq=0 Win=8192' },
+                    { no: 4, time: '0.000678', src: '10.0.0.100', dst: '172.16.0.50', protocol: 'TCP', length: 60, info: '49003 → 3389 [SYN] Seq=0 Win=8192' },
+                    { no: 5, time: '0.025678', src: '172.16.0.50', dst: '10.0.0.100', protocol: 'TCP', length: 60, info: '445 → 49002 [SYN, ACK] Seq=0 Ack=1 Win=65535' }
+                ],
+                question: 'Which Windows service port is open on the target?',
+                answers: ['Port 135 (RPC)', 'Port 139 (NetBIOS)', 'Port 445 (SMB)', 'Port 3389 (RDP)'],
+                correct: 2
+            },
+            {
+                id: 17,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.200', dst: '1.1.1.1', protocol: 'DNS', length: 68, info: 'Standard query A api.malicious-c2.com' },
+                    { no: 2, time: '0.089456', src: '1.1.1.1', dst: '192.168.1.200', protocol: 'DNS', length: 84, info: 'Standard query response A 45.67.89.123' },
+                    { no: 3, time: '0.156789', src: '192.168.1.200', dst: '45.67.89.123', protocol: 'TCP', length: 66, info: '53876 → 443 [SYN] Seq=0 Win=65535' },
+                    { no: 4, time: '0.345678', src: '45.67.89.123', dst: '192.168.1.200', protocol: 'TCP', length: 66, info: '443 → 53876 [SYN, ACK] Seq=0 Ack=1 Win=29200' },
+                    { no: 5, time: '5.456789', src: '192.168.1.200', dst: '45.67.89.123', protocol: 'TLS', length: 245, info: 'Application Data' }
+                ],
+                question: 'What behavior suggests this might be Command & Control (C2) traffic?',
+                answers: ['Regular DNS queries', 'Suspicious domain and encrypted traffic', 'High packet length', 'Multiple SYN packets'],
+                correct: 1
+            },
+            {
+                id: 18,
+                packets: [
+                    { no: 1, time: '0.000000', src: '192.168.1.88', dst: '10.20.30.40', protocol: 'HTTP', length: 456, info: 'GET /login.php?user=admin&pass=password123 HTTP/1.1' },
+                    { no: 2, time: '0.125678', src: '10.20.30.40', dst: '192.168.1.88', protocol: 'HTTP', length: 1245, info: 'HTTP/1.1 200 OK (text/html)' },
+                    { no: 3, time: '5.234567', src: '192.168.1.88', dst: '10.20.30.40', protocol: 'HTTP', length: 498, info: 'GET /dashboard.php HTTP/1.1, Cookie: sessionid=abc123xyz' }
+                ],
+                question: 'What critical security issue is visible in this HTTP traffic?',
+                answers: ['Missing encryption', 'Credentials in URL', 'Both A and B', 'No security issue'],
+                correct: 2
+            }
+        ];
+
+        // DOM Elements
+        const gameArea = document.getElementById('gameArea');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const roundDisplay = document.getElementById('roundDisplay');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerBar = document.getElementById('timerBar');
+
+        // Initialize game
+        function initGame() {
+            gameState.currentRound = 0;
+            gameState.score = 0;
+            gameState.usedQuestions = [];
+            updateDisplay();
+            showStartScreen();
+        }
+
+        // Show start screen
+        function showStartScreen() {
+            gameArea.innerHTML = `
+                <div class="start-screen">
+                    <h2>Welcome to Packet Sniffer</h2>
+                    <p>Analyze network traffic like a real security professional!</p>
+                    <p>You'll see captured network packets similar to Wireshark output.</p>
+                    <p>Answer questions about the traffic patterns, protocols, and potential threats.</p>
+                    <p><strong>10 rounds • 20 seconds per question • Good luck!</strong></p>
+                    <button class="start-btn" onclick="startGame()">Start Analyzing</button>
+                </div>
+            `;
+        }
+
+        // Start game
+        function startGame() {
+            gameState.currentRound = 0;
+            gameState.score = 0;
+            gameState.usedQuestions = [];
+            nextRound();
+        }
+
+        // Get random unused question
+        function getRandomQuestion() {
+            const availableQuestions = questionBank.filter(q => !gameState.usedQuestions.includes(q.id));
+            if (availableQuestions.length === 0) {
+                // If all questions used, reset
+                gameState.usedQuestions = [];
+                return questionBank[Math.floor(Math.random() * questionBank.length)];
+            }
+            const question = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+            gameState.usedQuestions.push(question.id);
+            return question;
+        }
+
+        // Next round
+        function nextRound() {
+            gameState.currentRound++;
+            gameState.answered = false;
+            gameState.timeRemaining = gameState.timePerQuestion;
+
+            if (gameState.currentRound > gameState.totalRounds) {
+                endGame();
+                return;
+            }
+
+            updateDisplay();
+            const question = getRandomQuestion();
+            displayQuestion(question);
+            startTimer();
+        }
+
+        // Display question
+        function displayQuestion(question) {
+            const packetRows = question.packets.map(packet => {
+                const protocolClass = `protocol-${packet.protocol.toLowerCase()}`;
+                return `
+                    <tr>
+                        <td>${packet.no}</td>
+                        <td>${packet.time}</td>
+                        <td>${packet.src}</td>
+                        <td>${packet.dst}</td>
+                        <td class="${protocolClass}">${packet.protocol}</td>
+                        <td>${packet.length}</td>
+                        <td>${packet.info}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const answerButtons = question.answers.map((answer, index) => {
+                return `
+                    <button class="answer-btn" onclick="checkAnswer(${index}, ${question.correct})">${answer}</button>
+                `;
+            }).join('');
+
+            gameArea.innerHTML = `
+                <div class="packet-table-container">
+                    <table class="packet-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Time</th>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Protocol</th>
+                                <th>Length</th>
+                                <th>Info</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packetRows}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="question-section">
+                    <div class="question-text">${question.question}</div>
+                    <div class="answers-grid">
+                        ${answerButtons}
+                    </div>
+                </div>
+                <div id="resultMessage"></div>
+            `;
+        }
+
+        // Start timer
+        function startTimer() {
+            stopTimer(); // Clear any existing timer
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeRemaining--;
+                updateTimerDisplay();
+
+                if (gameState.timeRemaining <= 0) {
+                    stopTimer();
+                    if (!gameState.answered) {
+                        handleTimeout();
+                    }
+                }
+            }, 1000);
+        }
+
+        // Stop timer
+        function stopTimer() {
+            if (gameState.timerInterval) {
+                clearInterval(gameState.timerInterval);
+                gameState.timerInterval = null;
+            }
+        }
+
+        // Update timer display
+        function updateTimerDisplay() {
+            timerDisplay.textContent = gameState.timeRemaining;
+            const percentage = (gameState.timeRemaining / gameState.timePerQuestion) * 100;
+            timerBar.style.width = `${percentage}%`;
+
+            // Change color when time is running out
+            if (gameState.timeRemaining <= 5) {
+                timerBar.style.background = 'linear-gradient(90deg, #f87171 0%, #dc2626 100%)';
+            } else {
+                timerBar.style.background = 'linear-gradient(90deg, #22d3ee 0%, #3b82f6 100%)';
+            }
+        }
+
+        // Handle timeout
+        function handleTimeout() {
+            gameState.answered = true;
+            disableAnswerButtons();
+
+            const resultMessage = document.getElementById('resultMessage');
+            resultMessage.className = 'result-message incorrect';
+            resultMessage.textContent = '⏱️ Time\'s Up!';
+
+            setTimeout(() => {
+                nextRound();
+            }, 2000);
+        }
+
+        // Check answer
+        function checkAnswer(selectedIndex, correctIndex) {
+            if (gameState.answered) return;
+
+            gameState.answered = true;
+            stopTimer();
+
+            const buttons = document.querySelectorAll('.answer-btn');
+            const isCorrect = selectedIndex === correctIndex;
+
+            if (isCorrect) {
+                gameState.score++;
+                buttons[selectedIndex].classList.add('correct');
+                showResult(true);
+            } else {
+                buttons[selectedIndex].classList.add('incorrect');
+                buttons[correctIndex].classList.add('correct');
+                showResult(false);
+            }
+
+            disableAnswerButtons();
+            updateDisplay();
+
+            setTimeout(() => {
+                nextRound();
+            }, 2500);
+        }
+
+        // Show result
+        function showResult(isCorrect) {
+            const resultMessage = document.getElementById('resultMessage');
+            resultMessage.className = `result-message ${isCorrect ? 'correct' : 'incorrect'}`;
+            resultMessage.textContent = isCorrect ? '✓ Correct!' : '✗ Incorrect';
+        }
+
+        // Disable answer buttons
+        function disableAnswerButtons() {
+            const buttons = document.querySelectorAll('.answer-btn');
+            buttons.forEach(button => {
+                button.disabled = true;
+            });
+        }
+
+        // Update display
+        function updateDisplay() {
+            scoreDisplay.textContent = gameState.score;
+            roundDisplay.textContent = gameState.currentRound;
+            timerDisplay.textContent = gameState.timeRemaining;
+            const percentage = (gameState.timeRemaining / gameState.timePerQuestion) * 100;
+            timerBar.style.width = `${percentage}%`;
+        }
+
+        // End game
+        function endGame() {
+            stopTimer();
+
+            const percentage = (gameState.score / gameState.totalRounds) * 100;
+            let performanceText = '';
+            let performanceColor = '';
+
+            if (percentage >= 90) {
+                performanceText = '🏆 Outstanding! You\'re a packet analysis expert!';
+                performanceColor = '#4ade80';
+            } else if (percentage >= 70) {
+                performanceText = '🎯 Great work! Strong network analysis skills!';
+                performanceColor = '#60a5fa';
+            } else if (percentage >= 50) {
+                performanceText = '💪 Good effort! Keep practicing your skills!';
+                performanceColor = '#f59e0b';
+            } else {
+                performanceText = '📚 Keep learning! Network analysis takes practice.';
+                performanceColor = '#f87171';
+            }
+
+            gameArea.innerHTML = `
+                <div class="final-results">
+                    <h2 style="color: #3b82f6; margin-bottom: 20px;">Analysis Complete!</h2>
+                    <div class="final-score">${gameState.score} / ${gameState.totalRounds}</div>
+                    <div class="performance-text" style="color: ${performanceColor};">${performanceText}</div>
+                    <p style="margin-top: 20px; color: #b0b0b0;">You successfully identified ${gameState.score} out of ${gameState.totalRounds} network patterns.</p>
+                    <button class="play-again-btn" onclick="startGame()">Analyze Again</button>
+                </div>
+            `;
+
+            // Award XP (one-time)
+            if (!localStorage.getItem('game_packetsniffer_xp_awarded')) {
+                const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (currentXP + 50).toString());
+                localStorage.setItem('game_packetsniffer_xp_awarded', 'true');
+                if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, 50, 'Packet Sniffer Complete');
+                }
+            }
+
+            // Unlock achievement
+            if (typeof AchievementManager !== 'undefined') {
+                AchievementManager.unlock('game_packetsniffer');
+            }
+
+            // Track game completion
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('packetsniffer', { score: gameState.score, total: gameState.totalRounds });
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initGame);
+    </script>
+
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -610,10 +610,100 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_packetsniffer',
+            icon: '🦈',
+            name: 'Packet Shark',
+            desc: 'Complete Packet Sniffer',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_netarchitect',
+            icon: '🏗️',
+            name: 'Network Architect',
+            desc: 'Complete Network Architect',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_timeline',
+            icon: '⏳',
+            name: 'Timeline Tracer',
+            desc: 'Complete Incident Timeline',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_memforensics',
+            icon: '🧠',
+            name: 'Memory Hunter',
+            desc: 'Complete Memory Forensics',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_firewall',
+            icon: '🧱',
+            name: 'Firewall Master',
+            desc: 'Complete Firewall Builder',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_docker',
+            icon: '🐳',
+            name: 'Container Breaker',
+            desc: 'Complete Docker Escape Room',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_raid',
+            icon: '💽',
+            name: 'RAID Master',
+            desc: 'Complete RAID Calculator',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cron',
+            icon: '⏰',
+            name: 'Cron Commander',
+            desc: 'Complete Cron Job Builder',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_iam',
+            icon: '🔐',
+            name: 'Policy Pro',
+            desc: 'Complete IAM Policy Debugger',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_sqli',
+            icon: '💉',
+            name: 'Injection Blocker',
+            desc: 'Complete SQL Injection Defense',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 31 games across the platform',
+            desc: 'Complete all 41 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -799,7 +889,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }
