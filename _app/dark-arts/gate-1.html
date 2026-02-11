@@ -197,15 +197,10 @@
     </style>
 </head>
 <body>
-    <!--
-    ============================================================
-
-    54 68 65 20 73 68 61 64 6f 77 73 20 73 70 65 61 6b 20
-    69 6e 20 63 6f 6c 6f 72 2e 20 67 61 74 65 2d 32 2e 68
-    74 6d 6c 20 61 77 61 69 74 73 2e
-
-    ============================================================
-    -->
+    <!-- ============================================================ -->
+    <!-- hex-clue (injected dynamically by gate-cipher.js)           -->
+    <!-- ============================================================ -->
+    <div id="hexClue" style="display:none;"></div>
 
     <div class="gate-container" id="gateContainer">
         <div class="gate-symbol">I</div>
@@ -231,6 +226,7 @@
 
     <div class="footer-whisper">GATE I</div>
 
+    <script src="gate-cipher.js"></script>
     <script>
         // Skip if already completed — advance to next uncompleted gate or vault
         (function skipIfComplete() {
@@ -242,25 +238,35 @@
             window.location.replace('vault/index.html');
         })();
 
+        // Version check — clears stale progress when cipher rotates
+        GATE_CIPHER.checkVersion();
+
         // Gate 1: Source inspection challenge
-        // Students must discover the hidden message in the HTML comments
+        // Students must discover the hidden hex in the page source
         // and decode the hexadecimal bytes using conversion tools
-        const VALID_ANSWERS = [
-            'the shadows speak in color',
-            'shadows speak in color',
-            'gate-2.html',
-            'gate-2',
-            'gate 2',
-            'the shadows speak in color. gate-2.html awaits.',
-            'the shadows speak in color gate-2.html awaits'
-        ];
+
+        // Dynamically inject the current rotation's hex into the page
+        (function injectHex() {
+            const set = GATE_CIPHER.getCurrentSet();
+            const hexClue = document.getElementById('hexClue');
+            if (hexClue) {
+                hexClue.textContent = set.gate1.hex;
+            }
+            // Also inject as an HTML comment so view-source still works
+            const commentNode = document.createComment(
+                '\n    ============================================================\n\n    ' +
+                set.gate1.hex +
+                '\n\n    ============================================================\n    '
+            );
+            hexClue.parentNode.insertBefore(commentNode, hexClue);
+        })();
 
         const input = document.getElementById('gateInput');
         const submit = document.getElementById('gateSubmit');
         const error = document.getElementById('gateError');
         const container = document.getElementById('gateContainer');
 
-        function checkAnswer() {
+        async function checkAnswer() {
             const answer = input.value.trim().toLowerCase();
 
             if (localStorage.getItem('hexworth_god_mode') === 'true') {
@@ -272,7 +278,10 @@
                 return;
             }
 
-            if (VALID_ANSWERS.some(valid => answer.includes(valid))) {
+            const set = GATE_CIPHER.getCurrentSet();
+            const isCorrect = await GATE_CIPHER.checkAnswer(answer, set.gate1.hash);
+
+            if (isCorrect) {
                 // Success - proceed to Gate 2
                 container.classList.add('unlocked');
                 localStorage.setItem('gate1_complete', 'true');

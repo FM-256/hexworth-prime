@@ -230,7 +230,7 @@
 
         <div class="image-container">
             <div class="image-label">> analyzing: shadow.svg</div>
-            <img src="../assets/shadow.svg" alt="The Shadow" class="shadow-image" id="shadowImage">
+            <img src="" alt="The Shadow" class="shadow-image" id="shadowImage">
             <div class="image-filename">../assets/shadow.svg</div>
         </div>
 
@@ -248,7 +248,11 @@
 
     <div class="footer-whisper">GATE III</div>
 
+    <script src="../gate-cipher.js"></script>
     <script>
+        // Version check — clears progress if rotation changed
+        GATE_CIPHER.checkVersion();
+
         // Skip if already completed — advance to next uncompleted gate or vault
         (function skipIfComplete() {
             if (localStorage.getItem('gate3_complete') !== 'true') return;
@@ -266,25 +270,41 @@
         // Students must examine the SVG file's source code
         // Hidden data exists in metadata and text elements
         // Decoding tools will be needed for encoded strings
-        const VALID_ANSWERS = [
-            'the voice speaks in tones',
-            'listen to listen.mp3',
-            'listen.mp3',
-            'gate-4.html',
-            'gate-4',
-            'gate 4',
-            'dtmf',
-            'the voice speaks in tones. listen to listen.mp3 in gate-4.',
-            'tones'
-        ];
+
+        // Dynamic SVG loading — injects current rotation's data into the template
+        (async function loadShadowSVG() {
+            try {
+                const set = GATE_CIPHER.getCurrentSet();
+                const response = await fetch('../assets/shadow.svg');
+                let svgText = await response.text();
+
+                // Replace Base64 placeholder in metadata with current rotation's value
+                svgText = svgText.replace(/%%GATE3_BASE64%%/g, set.gate3.base64);
+
+                // Decode the base64 to get the hint text for hidden elements
+                const hintText = atob(set.gate3.base64);
+                svgText = svgText.replace(/%%GATE3_HINT%%/g, hintText);
+
+                // Create a Blob URL from the modified SVG
+                const blob = new Blob([svgText], { type: 'image/svg+xml' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                const img = document.getElementById('shadowImage');
+                img.src = blobUrl;
+            } catch (err) {
+                console.error('Shadow load failed:', err);
+            }
+        })();
 
         const input = document.getElementById('gateInput');
         const submit = document.getElementById('gateSubmit');
         const error = document.getElementById('gateError');
         const container = document.getElementById('gateContainer');
 
-        function checkAnswer() {
-            const answer = input.value.trim().toLowerCase();
+        async function checkAnswer() {
+            const userInput = input.value.trim();
+
+            if (userInput.length === 0) return;
 
             if (localStorage.getItem('hexworth_god_mode') === 'true') {
                 container.classList.add('unlocked');
@@ -295,7 +315,10 @@
                 return;
             }
 
-            if (VALID_ANSWERS.some(valid => answer.includes(valid))) {
+            const set = GATE_CIPHER.getCurrentSet();
+            const isCorrect = await GATE_CIPHER.checkAnswer(userInput, set.gate3.hash);
+
+            if (isCorrect) {
                 container.classList.add('unlocked');
                 localStorage.setItem('gate3_complete', 'true');
                 localStorage.setItem('gate3_timestamp', Date.now().toString());
@@ -304,7 +327,7 @@
                 setTimeout(() => {
                     window.location.href = 'gate-4.html';
                 }, 1500);
-            } else if (answer.length > 0) {
+            } else {
                 error.classList.add('show');
                 input.value = '';
 
