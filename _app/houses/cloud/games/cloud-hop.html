@@ -188,11 +188,11 @@
 
         <div id="ui">
             <div>
-                <div>Uptime: <span id="score">0</span>s</div>
+                <div><span id="levelName" style="color: #06b6d4;">DEV</span> &middot; Hops: <span id="hopCount">0</span>/<span id="hopTarget">15</span></div>
                 <div>Lives: <span id="lives">3</span></div>
             </div>
             <div style="text-align: right;">
-                <div>High Score: <span id="highScore">0</span>s</div>
+                <div>Score: <span id="score">0</span> &middot; Best: <span id="highScore">0</span></div>
                 <div id="powerupDisplay"></div>
             </div>
         </div>
@@ -213,7 +213,8 @@
 
         <div id="gameOverScreen" class="hidden">
             <h1>DOWNTIME!</h1>
-            <div id="finalScore">0s Uptime</div>
+            <div id="finalLevel" style="color: #06b6d4; font-size: 18px; margin-bottom: 8px;"></div>
+            <div id="finalScore" style="color: #fbbf24; font-size: 32px; margin: 12px 0;">0</div>
             <p id="newHighScore" class="hidden" style="color: #fbbf24; font-size: 20px;">New High Score!</p>
             <p id="xpAward" class="hidden" style="color: #22c55e; font-size: 18px;">+50 XP Earned!</p>
             <button class="btn" onclick="restartGame()">Restart</button>
@@ -252,6 +253,43 @@
         let countdownPhase = 0; // 0=none, 1=RED, 2=YELLOW, 3=GREEN
         let countdownTimer = 0;
         let shieldActive = false;
+
+        // Level Definitions
+        const LEVELS = [
+            { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                 skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100 },
+            { name: 'STAGING',      hopsToFlag: 20, speed: 2.2, platformWidth: 100, crumbleChance: 0.10, obstacleChance: 0.008, obstacleTypes: ['firewall'],                       skyTop: [80, 40, 10],   skyBottom: [250, 160, 60],  accent: '#f59e0b', spawnRate: 90  },
+            { name: 'PRODUCTION',   hopsToFlag: 25, speed: 2.8, platformWidth: 85,  crumbleChance: 0.15, obstacleChance: 0.012, obstacleTypes: ['firewall', 'cost'],                skyTop: [50, 20, 80],   skyBottom: [140, 80, 200],  accent: '#a855f7', spawnRate: 80  },
+            { name: 'GLOBAL SCALE', hopsToFlag: 30, speed: 3.3, platformWidth: 70,  crumbleChance: 0.18, obstacleChance: 0.015, obstacleTypes: ['firewall', 'cost', 'ratelimit'],   skyTop: [5, 5, 20],     skyBottom: [20, 20, 60],    accent: '#3b82f6', spawnRate: 70  },
+            { name: 'AUTONOMOUS',   hopsToFlag: 40, speed: 3.8, platformWidth: 60,  crumbleChance: 0.22, obstacleChance: 0.02,  obstacleTypes: ['firewall', 'cost', 'ratelimit'],   skyTop: [0, 15, 0],     skyBottom: [10, 40, 15],    accent: '#22c55e', spawnRate: 60  },
+        ];
+
+        // Level State
+        let currentLevel = 0;
+        let levelHops = 0;
+        let flagSpawned = false;
+        let flagMissed = 0; // extra hops needed after missing flag
+        let levelTransitionTimer = 0;
+        let levelTransitionName = '';
+        let levelTransitionAccent = '';
+
+        function getCurrentLevel() {
+            if (currentLevel < LEVELS.length) return LEVELS[currentLevel];
+            const cycle = currentLevel - LEVELS.length;
+            const base = LEVELS[LEVELS.length - 1];
+            return {
+                name: 'CHAOS ' + (cycle + 1),
+                speed: base.speed + (cycle + 1) * 0.4,
+                platformWidth: Math.max(40, base.platformWidth - cycle * 5),
+                crumbleChance: Math.min(0.35, base.crumbleChance + cycle * 0.03),
+                obstacleChance: Math.min(0.035, base.obstacleChance + cycle * 0.005),
+                obstacleTypes: base.obstacleTypes,
+                hopsToFlag: 50,
+                skyTop: [0, 5 + cycle * 3, 0],
+                skyBottom: [10 + cycle * 5, 15, 10],
+                accent: '#ef4444',
+                spawnRate: Math.max(45, base.spawnRate - cycle * 5)
+            };
+        }
 
         // Cloud Providers
         const cloudProviders = ['AWS', 'Azure', 'GCP'];
@@ -507,6 +545,38 @@
                     osc.start(now);
                     osc.stop(now + 0.15);
                     break;
+
+                case 'levelup':
+                    // Triumphant ascending fanfare
+                    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.frequency.value = freq;
+                        o.type = 'triangle';
+                        g.gain.setValueAtTime(0.25, now + i * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.35);
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.start(now + i * 0.12);
+                        o.stop(now + i * 0.12 + 0.35);
+                    });
+                    return;
+
+                case 'flag':
+                    // Shimmering flag pickup
+                    [800, 1000, 1200, 1600].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.frequency.value = freq;
+                        o.type = 'sine';
+                        g.gain.setValueAtTime(0.2, now + i * 0.06);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.06 + 0.15);
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.start(now + i * 0.06);
+                        o.stop(now + i * 0.06 + 0.15);
+                    });
+                    return;
             }
 
             osc.connect(gain);
@@ -572,7 +642,7 @@
 
         // Platform Class
         class Platform {
-            constructor(x, y, width, provider) {
+            constructor(x, y, width, provider, isFlag = false) {
                 this.x = x;
                 this.y = y;
                 this.width = width;
@@ -583,6 +653,7 @@
                 this.crumbleTimer = 0;
                 this.opacity = 1;
                 this.touched = false;
+                this.isFlag = isFlag;
             }
 
             update() {
@@ -599,8 +670,15 @@
                 ctx.save();
                 ctx.globalAlpha = this.opacity;
 
+                // Flag platform glow
+                if (this.isFlag) {
+                    const pulse = Math.sin(gameFrame * 0.1) * 0.3 + 0.7;
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 15 * pulse;
+                }
+
                 // Cloud shape (pixel art)
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = this.isFlag ? '#fbbf24' : '#ffffff';
                 const cloudHeight = this.height;
 
                 // Draw cloud puffs
@@ -616,11 +694,35 @@
                     ctx.fillRect(puffX, this.y - 4, this.width / 5, 4);
                 }
 
-                // Provider label
-                ctx.fillStyle = this.color;
-                ctx.font = 'bold 10px Courier New';
-                ctx.textAlign = 'center';
-                ctx.fillText(this.provider, this.x + this.width / 2, this.y + 9);
+                ctx.shadowBlur = 0;
+
+                // Provider label or flag marker
+                if (this.isFlag) {
+                    // Flag pole
+                    const poleX = this.x + this.width / 2;
+                    ctx.fillStyle = '#92400e';
+                    ctx.fillRect(poleX - 1, this.y - 28, 3, 28);
+                    // Waving flag
+                    const wave = Math.sin(gameFrame * 0.15) * 3;
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.beginPath();
+                    ctx.moveTo(poleX + 2, this.y - 28);
+                    ctx.lineTo(poleX + 18 + wave, this.y - 24);
+                    ctx.lineTo(poleX + 16 + wave, this.y - 18);
+                    ctx.lineTo(poleX + 2, this.y - 14);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Checkpoint text
+                    ctx.fillStyle = '#92400e';
+                    ctx.font = 'bold 8px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('DEPLOY', this.x + this.width / 2, this.y + 9);
+                } else {
+                    ctx.fillStyle = this.color;
+                    ctx.font = 'bold 10px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.provider, this.x + this.width / 2, this.y + 9);
+                }
 
                 ctx.restore();
             }
@@ -816,23 +918,25 @@
 
         // Draw Background
         function drawBackground() {
-            // Sky gradient (changes with altitude/score)
+            const lvl = getCurrentLevel();
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            const altitude = Math.min(score / 100, 1);
+            const [tr, tg, tb] = lvl.skyTop;
+            const [br, bg, bb] = lvl.skyBottom;
 
-            gradient.addColorStop(0, `rgb(${30 - altitude * 20}, ${58 - altitude * 30}, ${138 + altitude * 40})`);
-            gradient.addColorStop(1, `rgb(${96 + altitude * 30}, ${165 - altitude * 50}, ${250 - altitude * 100})`);
+            gradient.addColorStop(0, `rgb(${tr}, ${tg}, ${tb})`);
+            gradient.addColorStop(1, `rgb(${br}, ${bg}, ${bb})`);
 
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Stars (appear at higher altitudes)
-            if (altitude > 0.3) {
+            // Stars (appear from level 3+)
+            if (currentLevel >= 3 || demoMode) {
                 ctx.fillStyle = '#ffffff';
-                for (let i = 0; i < 30; i++) {
+                const starCount = demoMode ? 10 : Math.min(50, 20 + (currentLevel - 3) * 10);
+                for (let i = 0; i < starCount; i++) {
                     const x = (i * 137 + gameFrame * 0.5) % canvas.width;
                     const y = (i * 97) % canvas.height;
-                    ctx.globalAlpha = (altitude - 0.3) * Math.random();
+                    ctx.globalAlpha = 0.3 + Math.random() * 0.4;
                     ctx.fillRect(x, y, 2, 2);
                 }
                 ctx.globalAlpha = 1;
@@ -840,31 +944,89 @@
 
             // Floating service icons (decorative)
             ctx.font = 'bold 12px Courier New';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            const icons = ['S3', 'λ', 'VM', 'DB', 'K8s'];
+            ctx.fillStyle = `${lvl.accent}44`;
+            const icons = ['S3', 'λ', 'VM', 'DB', 'K8s', 'IAM', 'VPC', 'CDN'];
             for (let i = 0; i < 5; i++) {
                 const x = (i * 200 + gameFrame * 0.3) % canvas.width;
                 const y = 50 + Math.sin(gameFrame * 0.05 + i) * 30;
-                ctx.fillText(icons[i], x, y);
+                ctx.fillText(icons[(i + currentLevel) % icons.length], x, y);
             }
         }
 
         // Spawn Platform
         function spawnPlatform() {
+            const lvl = getCurrentLevel();
+
+            // Check if we should spawn a flag platform
+            const hopsNeeded = lvl.hopsToFlag + flagMissed;
+            if (!flagSpawned && levelHops >= hopsNeeded && !demoMode && !countdownActive) {
+                spawnFlagPlatform();
+                return;
+            }
+
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
-            const width = Math.max(60, 120 - score / 10);
+            const width = lvl.platformWidth + Math.floor(Math.random() * 20) - 10;
             const y = Math.random() * (canvas.height - 200) + 100;
             platforms.push(new Platform(canvas.width, y, width, provider));
+        }
+
+        // Spawn Flag Platform (checkpoint to next level)
+        function spawnFlagPlatform() {
+            const lvl = getCurrentLevel();
+            const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
+            // Flag is wider and at a comfortable height
+            const width = lvl.platformWidth + 40;
+            const y = 250 + Math.random() * 150;
+            platforms.push(new Platform(canvas.width, y, width, provider, true));
+            flagSpawned = true;
+        }
+
+        // Level Up
+        function levelUp() {
+            currentLevel++;
+            levelHops = 0;
+            flagSpawned = false;
+            flagMissed = 0;
+
+            const lvl = getCurrentLevel();
+            speed = lvl.speed;
+
+            // Trigger transition effect
+            levelTransitionTimer = 120; // 2 seconds
+            levelTransitionName = lvl.name;
+            levelTransitionAccent = lvl.accent;
+
+            // Brief invincibility
+            shieldActive = true;
+            setTimeout(() => {
+                if (!countdownActive) shieldActive = false;
+            }, 2000);
+
+            // Update UI
+            document.getElementById('levelName').textContent = lvl.name;
+            document.getElementById('levelName').style.color = lvl.accent;
+            document.getElementById('hopCount').textContent = '0';
+            document.getElementById('hopTarget').textContent = lvl.hopsToFlag;
+
+            // Burst particles in accent color
+            for (let i = 0; i < 30; i++) {
+                particles.push(new Particle(player.x + player.width / 2, player.y, lvl.accent));
+            }
+
+            playSound('levelup');
         }
 
         // Spawn Obstacle
         function spawnObstacle() {
             if (platforms.length === 0) return;
 
-            const platform = platforms[Math.floor(Math.random() * platforms.length)];
-            const types = ['firewall', 'cost', 'ratelimit'];
-            const type = types[Math.floor(Math.random() * types.length)];
+            const lvl = getCurrentLevel();
+            if (lvl.obstacleTypes.length === 0) return;
 
+            const platform = platforms[Math.floor(Math.random() * platforms.length)];
+            if (platform.isFlag) return; // Don't put obstacles on flag platforms
+
+            const type = lvl.obstacleTypes[Math.floor(Math.random() * lvl.obstacleTypes.length)];
             obstacles.push(new Obstacle(platform.x + platform.width / 2, platform.y - 30, type));
         }
 
@@ -946,6 +1108,9 @@
             gameFrame++;
             player.animFrame++;
 
+            // Level transition timer
+            if (levelTransitionTimer > 0) levelTransitionTimer--;
+
             // Demo AI control
             if (demoMode) {
                 demoAI();
@@ -957,34 +1122,29 @@
                 if (countdownTimer <= 0) {
                     countdownPhase++;
                     if (countdownPhase > 3) {
-                        // Countdown complete — player takes control!
                         countdownActive = false;
                         shieldActive = false;
                         countdownPhase = 0;
                     } else {
-                        countdownTimer = 70; // ~1.17s per phase
+                        countdownTimer = 70;
                         playCountdownSound(countdownPhase);
                     }
                 }
             }
 
-            // Update score (only during actual play)
+            // Speed & score (only during actual play)
             if (!demoMode && !countdownActive) {
+                const lvl = getCurrentLevel();
+                speed = lvl.speed + (activePowerup === 'cdn' ? 1.5 : 0);
+
                 if (gameFrame % 60 === 0) {
-                    score++;
+                    score += (currentLevel + 1); // Level multiplier
                     document.getElementById('score').textContent = score;
 
-                    if (score % 10 === 0 && score > 0) {
-                        playSound('milestone');
-                    }
-
-                    if (score === 500) {
+                    if (score >= 500 && !localStorage.getItem('game_cloudhop_xp_awarded')) {
                         awardXP();
                     }
                 }
-
-                // Increase difficulty
-                speed = 2 + score / 50;
             }
 
             // Player horizontal movement
@@ -1028,14 +1188,25 @@
 
                         if (!platform.touched) {
                             platform.touched = true;
+
                             if (!demoMode && !countdownActive) {
                                 comboCount++;
-                                playSound('combo');
-                            }
+                                levelHops++;
+                                document.getElementById('hopCount').textContent = levelHops;
 
-                            // Chance to crumble (not in demo or countdown)
-                            if (!demoMode && !countdownActive && Math.random() < 0.15) {
-                                platform.startCrumble();
+                                // Flag platform = level up!
+                                if (platform.isFlag) {
+                                    playSound('flag');
+                                    levelUp();
+                                } else {
+                                    playSound('combo');
+                                }
+
+                                // Crumble chance from level definition
+                                const lvl = getCurrentLevel();
+                                if (!platform.isFlag && Math.random() < lvl.crumbleChance) {
+                                    platform.startCrumble();
+                                }
                             }
                         }
 
@@ -1053,10 +1224,19 @@
                 comboCount = 0;
             }
 
+            // Check for missed flag (scrolled off screen)
+            if (flagSpawned) {
+                const flagExists = platforms.some(p => p.isFlag && p.x + p.width > 0);
+                if (!flagExists) {
+                    // Flag missed — need 10 more hops for next one
+                    flagSpawned = false;
+                    flagMissed += 10;
+                }
+            }
+
             // Fall detection
             if (player.y > canvas.height) {
                 if (demoMode || countdownActive || shieldActive) {
-                    // Silent respawn
                     player.y = 100;
                     player.x = 200;
                     player.velocityY = 0;
@@ -1073,8 +1253,9 @@
 
             // Spawn platforms
             platformSpawnTimer++;
-            const spawnRate = (demoMode || countdownActive) ? 90 : Math.max(60, 120 - score);
-            if (platformSpawnTimer > spawnRate) {
+            const lvl = getCurrentLevel();
+            const rate = (demoMode || countdownActive) ? 90 : lvl.spawnRate;
+            if (platformSpawnTimer > rate) {
                 spawnPlatform();
                 platformSpawnTimer = 0;
             }
@@ -1084,13 +1265,13 @@
                 obstacles.forEach(obstacle => obstacle.update());
                 obstacles = obstacles.filter(o => o.x + o.width > 0);
 
-                if (Math.random() < 0.01 && score > 10 && gameFrame > 120) {
+                if (Math.random() < lvl.obstacleChance && gameFrame > 120) {
                     spawnObstacle();
                 }
 
                 obstacles.forEach(obstacle => {
                     if (checkCollision(player, obstacle)) {
-                        if (activePowerup !== 'multiregion') {
+                        if (activePowerup !== 'multiregion' && !shieldActive) {
                             loseLife();
                             obstacles.splice(obstacles.indexOf(obstacle), 1);
 
@@ -1148,10 +1329,6 @@
             };
 
             document.getElementById('powerupDisplay').innerHTML = `<span class="powerup-text">${names[type]}</span>`;
-
-            if (type === 'cdn') {
-                speed *= 1.5;
-            }
         }
 
         // Lose Life
@@ -1168,6 +1345,74 @@
                 player.y = 200;
                 player.velocityY = 0;
                 player.velocityX = 0;
+            }
+        }
+
+        // Draw Level Transition Flash
+        function drawLevelTransition() {
+            if (levelTransitionTimer <= 0) return;
+
+            const progress = levelTransitionTimer / 120;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Flash overlay
+            if (progress > 0.85) {
+                ctx.fillStyle = levelTransitionAccent;
+                ctx.globalAlpha = (progress - 0.85) * 6;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
+            }
+
+            // Level name announcement
+            if (progress < 0.9) {
+                const fadeIn = Math.min(1, (0.9 - progress) * 5);
+                const scale = 1 + (1 - fadeIn) * 0.3;
+                ctx.save();
+                ctx.globalAlpha = progress < 0.15 ? progress / 0.15 : 1;
+                ctx.translate(cx, cy - 20);
+                ctx.scale(scale, scale);
+
+                ctx.font = 'bold 16px Courier New';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText('LEVEL UP', 0, -20);
+
+                ctx.font = 'bold 36px Courier New';
+                ctx.fillStyle = levelTransitionAccent;
+                ctx.shadowColor = levelTransitionAccent;
+                ctx.shadowBlur = 20;
+                ctx.fillText(levelTransitionName, 0, 20);
+                ctx.shadowBlur = 0;
+
+                ctx.restore();
+            }
+        }
+
+        // Draw Level Progress Bar (bottom of screen)
+        function drawLevelBar() {
+            if (demoMode || countdownActive) return;
+
+            const lvl = getCurrentLevel();
+            const hopsNeeded = lvl.hopsToFlag + flagMissed;
+            const progress = Math.min(1, levelHops / hopsNeeded);
+
+            const barY = canvas.height - 6;
+            const barH = 4;
+
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(0, barY, canvas.width, barH);
+
+            // Fill
+            ctx.fillStyle = lvl.accent;
+            ctx.fillRect(0, barY, canvas.width * progress, barH);
+
+            // Flag marker at threshold
+            if (progress < 1) {
+                const flagX = canvas.width * (lvl.hopsToFlag / hopsNeeded);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(flagX - 1, barY - 2, 3, barH + 4);
             }
         }
 
@@ -1261,6 +1506,12 @@
                 ctx.fillText(`Combo x${comboCount}`, canvas.width / 2, 50);
             }
 
+            // Level progress bar
+            drawLevelBar();
+
+            // Level transition flash
+            drawLevelTransition();
+
             // Countdown overlay
             drawCountdown();
 
@@ -1293,7 +1544,12 @@
             gameFrame = 0;
             score = 0;
             lives = 3;
-            speed = 2;
+            currentLevel = 0;
+            levelHops = 0;
+            flagSpawned = false;
+            flagMissed = 0;
+            levelTransitionTimer = 0;
+            speed = LEVELS[0].speed;
             platforms = [];
             obstacles = [];
             powerups = [];
@@ -1309,6 +1565,10 @@
             document.getElementById('score').textContent = '0';
             document.getElementById('lives').textContent = '3';
             document.getElementById('powerupDisplay').textContent = '';
+            document.getElementById('levelName').textContent = LEVELS[0].name;
+            document.getElementById('levelName').style.color = LEVELS[0].accent;
+            document.getElementById('hopCount').textContent = '0';
+            document.getElementById('hopTarget').textContent = LEVELS[0].hopsToFlag;
 
             // Load high score
             const highScore = localStorage.getItem('cloudhop_highscore') || '0';
@@ -1317,7 +1577,7 @@
             // Spawn generous runway of platforms
             for (let i = 0; i < 7; i++) {
                 const provider = cloudProviders[i % 3];
-                platforms.push(new Platform(100 + i * 120, 400, 100, provider));
+                platforms.push(new Platform(100 + i * 120, 400, LEVELS[0].platformWidth, provider));
             }
 
             // Begin The Prime countdown
@@ -1346,7 +1606,10 @@
             stopBackgroundMusic();
             playSound('gameover');
 
-            document.getElementById('finalScore').textContent = `${score}s Uptime`;
+            const lvl = getCurrentLevel();
+            document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Level ${currentLevel + 1})`;
+            document.getElementById('finalLevel').style.color = lvl.accent;
+            document.getElementById('finalScore').textContent = `Score: ${score}`;
 
             // Check high score
             const highScore = parseInt(localStorage.getItem('cloudhop_highscore') || '0');
@@ -1447,7 +1710,7 @@
         function startDemo() {
             demoMode = true;
             gameRunning = true;
-            speed = 2;
+            speed = LEVELS[0].speed;
             platforms = [];
             obstacles = [];
             powerups = [];
