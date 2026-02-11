@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gpg --decrypt - The Cryptographer's Tower</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: relative;
+            height: 100vh;
+        }
+
+        /* CRT scanline overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* CRT screen glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.5) 100%);
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        #terminal {
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        .terminal-line {
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .accent {
+            color: #eab308;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .success {
+            color: #00ff88;
+        }
+
+        .prompt {
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #00ff41;
+            animation: blink 1s step-end infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        #input-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+        }
+
+        #command-input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            flex: 1;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        .ascii-art {
+            color: #eab308;
+            line-height: 1.2;
+            margin: 20px 0;
+        }
+
+        .cipher-text {
+            color: #888;
+            font-style: italic;
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #eab308;
+        }
+
+        .classified {
+            background: #1a1a1a;
+            padding: 15px;
+            margin: 15px 0;
+            border: 2px solid #eab308;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #eab308;
+            cursor: pointer;
+            z-index: 1001;
+            text-decoration: none;
+            padding: 10px 15px;
+            border: 1px solid #eab308;
+            background: rgba(10, 10, 10, 0.9);
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #eab308;
+            color: #0a0a0a;
+        }
+
+        #terminal::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        #terminal::-webkit-scrollbar-thumb {
+            background: #00ff41;
+            box-shadow: 0 0 5px #00ff41;
+        }
+
+        .typewriter {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 2s steps(40, end);
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .decoding {
+            animation: decode 1s ease-in-out;
+        }
+
+        @keyframes decode {
+            0% { filter: blur(5px); opacity: 0.5; }
+            100% { filter: blur(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="history.back()">← Back to Key House</a>
+
+    <div id="terminal"></div>
+
+    <div id="input-container">
+        <span class="prompt accent">gpg&gt;</span>
+        <input type="text" id="command-input" autofocus>
+        <span class="cursor"></span>
+    </div>
+
+    <script>
+        // Audio Context Setup
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        const sounds = {
+            typewriter: () => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.05;
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                oscillator.stop(audioCtx.currentTime + 0.05);
+            },
+            decode: () => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 600;
+                gainNode.gain.value = 0.1;
+                oscillator.start();
+                oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            },
+            success: () => {
+                [523.25, 659.25, 783.99].forEach((freq, i) => {
+                    setTimeout(() => {
+                        const oscillator = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        oscillator.frequency.value = freq;
+                        gainNode.gain.value = 0.1;
+                        oscillator.start();
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                        oscillator.stop(audioCtx.currentTime + 0.2);
+                    }, i * 100);
+                });
+            },
+            error: () => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 200;
+                gainNode.gain.value = 0.1;
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                oscillator.stop(audioCtx.currentTime + 0.3);
+            },
+            stamp: () => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.type = 'square';
+                oscillator.frequency.value = 100;
+                gainNode.gain.value = 0.2;
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            }
+        };
+
+        // Background tension music
+        let tensionOscillator = null;
+        function startTensionMusic() {
+            if (tensionOscillator) return;
+            tensionOscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            tensionOscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            tensionOscillator.frequency.value = 80;
+            gainNode.gain.value = 0.02;
+            tensionOscillator.start();
+
+            // Oscillate the frequency for tension
+            setInterval(() => {
+                if (tensionOscillator) {
+                    tensionOscillator.frequency.setValueAtTime(80 + Math.random() * 20, audioCtx.currentTime);
+                }
+            }, 2000);
+        }
+
+        // Game State
+        const gameState = {
+            floor: 0,
+            clues: [],
+            suspectScores: { VICTOR: 0, ELENA: 0, MARCUS: 0 },
+            gameComplete: false
+        };
+
+        const floors = [
+            {
+                number: 1,
+                title: "GROUND FLOOR - INITIATION",
+                briefing: "Agent, welcome to The Cryptographer's Tower. We've intercepted a message\nusing a simple Caesar cipher. Decrypt it to begin your ascent.",
+                cipherType: "caesar",
+                encrypted: "WKHUH LV D PROH LQ RXU DJHQFB",
+                solution: "THERE IS A MOLE IN OUR AGENCY",
+                hint: "Try shifting the alphabet. Command: decrypt <shift_number>",
+                shift: 3,
+                reveal: "████ CLASSIFIED ████\nThe mole is one of three senior agents:\nVICTOR KRANE, ELENA FROST, or MARCUS VEIL.\nThey plan to steal the master encryption key.\n████████████████████"
+            },
+            {
+                number: 2,
+                title: "FLOOR 2 - SUBSTITUTION",
+                briefing: "We intercepted another message. This one uses substitution cipher.\nThe mole is getting bolder.",
+                cipherType: "substitution",
+                encrypted: "XZFTMP RMKW VFTY KRW OKBQT",
+                solution: "VICTOR KRANE SOLD THE VAULT",
+                mapping: { A:'K', B:'Y', C:'F', D:'T', E:'W', F:'H', G:'J', H:'V', I:'Z', J:'P', K:'S', L:'Q', M:'M', N:'B', O:'I', P:'G', Q:'U', R:'R', S:'A', T:'N', U:'C', V:'O', W:'E', X:'V', Y:'D', Z:'X' },
+                hint: "Each letter maps to another. Command: decrypt <decoded_text>",
+                reveal: "████ FIELD REPORT ████\nAgent VICTOR KRANE seen meeting unknown contact.\nSuspicion level: HIGH\nRecommendation: Continue surveillance.\n████████████████████"
+            },
+            {
+                number: 3,
+                title: "FLOOR 3 - VIGENERE",
+                briefing: "The encryption is evolving. This message uses Vigenere cipher.\nKeyword is hidden in previous messages.",
+                cipherType: "vigenere",
+                encrypted: "IZIRK CMWGX AKLIM GMRZG",
+                solution: "ELENA FROST KNOWS MOLES",
+                keyword: "VAULT",
+                hint: "The keyword is 5 letters. Try: decrypt <keyword>",
+                reveal: "████ INTELLIGENCE ████\nAgent ELENA FROST has been investigating the leak.\nShe knows the mole's identity but won't reveal it yet.\nMotivation: UNCLEAR\n████████████████████"
+            },
+            {
+                number: 4,
+                title: "FLOOR 4 - XOR ENCRYPTION",
+                briefing: "Binary transmission intercepted. XOR encrypted with single-byte key.\nThe stakes are rising.",
+                cipherType: "xor",
+                encrypted: "4d 05 12 03 1a 10 68 0f 05 1a 16 68 11 04 05 68 15 05 0e",
+                solution: "MARCUS SEES THE KEY",
+                xorKey: 0x69,
+                hint: "Try XOR keys in hex: decrypt 0x<hex>. Common keys: 0x42, 0x69, 0xAA",
+                reveal: "████ SURVEILLANCE LOG ████\nAgent MARCUS VEIL accessed Vault 7 without authorization.\nTime: 03:47 GMT\nDuration: 14 minutes\nStatus: HIGHLY SUSPICIOUS\n████████████████████"
+            },
+            {
+                number: 5,
+                title: "FLOOR 5 - RSA CHALLENGE",
+                briefing: "The mole is using asymmetric encryption. You've intercepted their public key.\nCrack this simplified RSA to continue.",
+                cipherType: "rsa",
+                encrypted: "2269 2371 3233",
+                n: 3599,
+                e: 31,
+                p: 59,
+                q: 61,
+                solution: "KEY SAFE",
+                hint: "Find d where (d * e) mod φ(n) = 1. Then decrypt. Command: decrypt <d_value>",
+                reveal: "████ DECRYPTED EMAIL ████\nFrom: UNKNOWN\nTo: [REDACTED]\nSubject: Payment confirmed\n\nThe master key location has been sent.\nExtraction in 48 hours.\nDon't fail me this time.\n████████████████████"
+            },
+            {
+                number: 6,
+                title: "FLOOR 6 - HASH COLLISION",
+                briefing: "The mole left a digital signature. You found two messages with matching hashes.\nIdentify which message is authentic.",
+                cipherType: "hash",
+                messages: [
+                    { text: "VICTOR IS THE MOLE", hash: "a4f8c9d2" },
+                    { text: "ELENA IS THE MOLE", hash: "b7e3f1a9" },
+                    { text: "MARCUS IS THE MOLE", hash: "a4f8c9d2" }
+                ],
+                solution: "COLLISION",
+                hint: "Two messages share the same hash. Command: decrypt <collision|1|2|3>",
+                reveal: "████ CRYPTANALYSIS ████\nHash collision detected between messages 1 and 3.\nThis is a deliberate false flag.\nThe mole is trying to frame multiple agents.\nActual suspect list narrowing...\n████████████████████"
+            },
+            {
+                number: 7,
+                title: "FLOOR 7 - SIGNATURE VERIFICATION",
+                briefing: "You've obtained three digital signatures from our suspects.\nOne signature is forged. Verify which agent's signature is authentic.",
+                cipherType: "signature",
+                signatures: [
+                    { agent: "VICTOR", signature: "8f3a92c1d4e5b7a6", valid: false },
+                    { agent: "ELENA", signature: "c4b7e9f2a1d8c3e5", valid: true },
+                    { agent: "MARCUS", signature: "9a4f6d8e2c1b5e7f", valid: false }
+                ],
+                solution: "ELENA",
+                hint: "Check certificate chain. Command: verify <agent_name>",
+                reveal: "████ BREAKTHROUGH ████\nAgent ELENA FROST's signature verified.\nShe's been working undercover to expose the mole.\nHer message: 'Trust no one. The mole has the AES key.'\n████████████████████"
+            },
+            {
+                number: 8,
+                title: "FLOOR 8 - MASTER KEY RECOVERY",
+                briefing: "FINAL FLOOR. The master key vault has been breached.\nAES-256 encrypted file found. Recover the key to identify the mole.",
+                cipherType: "aes",
+                encrypted: "e4a7c9f2b8d1e6a3c5f8b2d7e9a4c6f1",
+                possibleKeys: {
+                    VICTOR: "8a3c9e7f2b4d6a1c",
+                    ELENA: "4f7e9a2c6b8d1e3a",
+                    MARCUS: "2c4a6e8f1b3d7a9e"
+                },
+                solution: "MARCUS",
+                hint: "Try each suspect's key. Command: decrypt <agent_name>",
+                reveal: "████ THE MOLE IDENTIFIED ████\n\nAgent MARCUS VEIL\n\nEvidence:\n- Unauthorized vault access\n- Forged digital signatures\n- Possession of AES master key\n- Communication with foreign agents\n\nStatus: ARRESTED\nMaster Key: SECURED\nOperation: SUCCESS\n\n████████████████████"
+            }
+        ];
+
+        const terminal = document.getElementById('terminal');
+        const input = document.getElementById('command-input');
+
+        // Print functions
+        function print(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${className}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+            return line;
+        }
+
+        function printHTML(html) {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = html;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function printASCII(art) {
+            const div = document.createElement('div');
+            div.className = 'ascii-art';
+            div.textContent = art;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function typeWrite(text, className = '', delay = 30) {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${className}`;
+            terminal.appendChild(line);
+
+            for (let char of text) {
+                if (audioCtx.state === 'running' && Math.random() > 0.7) {
+                    sounds.typewriter();
+                }
+                line.textContent += char;
+                terminal.scrollTop = terminal.scrollHeight;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            return line;
+        }
+
+        async function decryptAnimation(encrypted, decrypted) {
+            const line = document.createElement('div');
+            line.className = 'terminal-line cipher-text';
+            line.textContent = encrypted;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+            const iterations = 20;
+
+            for (let i = 0; i < iterations; i++) {
+                let scrambled = '';
+                for (let j = 0; j < decrypted.length; j++) {
+                    if (i < iterations - 5) {
+                        scrambled += chars[Math.floor(Math.random() * chars.length)];
+                    } else {
+                        const progress = (i - (iterations - 5)) / 5;
+                        scrambled += Math.random() < progress ? decrypted[j] : chars[Math.floor(Math.random() * chars.length)];
+                    }
+                }
+                line.textContent = scrambled;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+
+            line.textContent = decrypted;
+            line.className = 'terminal-line success decoding';
+            sounds.decode();
+        }
+
+        // Caesar cipher solver
+        function solveCaesar(text, shift) {
+            return text.split('').map(char => {
+                if (char.match(/[A-Z]/)) {
+                    return String.fromCharCode((char.charCodeAt(0) - 65 - shift + 26) % 26 + 65);
+                }
+                return char;
+            }).join('');
+        }
+
+        // XOR solver
+        function solveXOR(hexString, key) {
+            const bytes = hexString.split(' ').map(h => parseInt(h, 16));
+            return bytes.map(b => String.fromCharCode(b ^ key)).join('');
+        }
+
+        // Simplified RSA solver
+        function solveRSA(cipherArray, d, n) {
+            return cipherArray.map(c => {
+                let result = 1;
+                let base = c % n;
+                let exp = d;
+                while (exp > 0) {
+                    if (exp % 2 === 1) result = (result * base) % n;
+                    base = (base * base) % n;
+                    exp = Math.floor(exp / 2);
+                }
+                return String.fromCharCode(result);
+            }).join('');
+        }
+
+        // Command processor
+        async function processCommand(cmd) {
+            const parts = cmd.toLowerCase().trim().split(' ');
+            const command = parts[0];
+            const args = parts.slice(1).join(' ');
+
+            print(`gpg> ${cmd}`, 'accent');
+
+            if (gameState.gameComplete) {
+                print('Mission complete. Type "restart" to play again.', 'success');
+                return;
+            }
+
+            const currentFloor = floors[gameState.floor];
+
+            switch (command) {
+                case 'help':
+                    print('\nAvailable commands:');
+                    print('  help              - Show this help');
+                    print('  status            - Show current status');
+                    print('  decrypt <args>    - Attempt to decrypt current message');
+                    print('  verify <agent>    - Verify digital signature (Floor 7)');
+                    print('  hint              - Get a hint for current puzzle');
+                    print('  restart           - Restart the game');
+                    print('');
+                    break;
+
+                case 'status':
+                    print(`\n████ STATUS ████`);
+                    print(`Floor: ${currentFloor.number} of ${floors.length}`);
+                    print(`Mission: ${currentFloor.title}`);
+                    print(`Clues found: ${gameState.clues.length}`);
+                    print(`████████████████\n`);
+                    break;
+
+                case 'hint':
+                    print(`\nHINT: ${currentFloor.hint}\n`, 'accent');
+                    break;
+
+                case 'decrypt':
+                    await handleDecrypt(args, currentFloor);
+                    break;
+
+                case 'verify':
+                    await handleVerify(args, currentFloor);
+                    break;
+
+                case 'restart':
+                    location.reload();
+                    break;
+
+                default:
+                    print('Unknown command. Type "help" for available commands.', 'error');
+                    sounds.error();
+                    break;
+            }
+        }
+
+        async function handleDecrypt(args, floor) {
+            let success = false;
+            let decrypted = '';
+
+            switch (floor.cipherType) {
+                case 'caesar':
+                    const shift = parseInt(args);
+                    if (isNaN(shift)) {
+                        print('Invalid shift value. Try a number between 1-25.', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    decrypted = solveCaesar(floor.encrypted, shift);
+                    success = decrypted === floor.solution;
+                    break;
+
+                case 'substitution':
+                    decrypted = args.toUpperCase();
+                    success = decrypted === floor.solution;
+                    break;
+
+                case 'vigenere':
+                    const keyword = args.toUpperCase();
+                    if (keyword === floor.keyword) {
+                        decrypted = floor.solution;
+                        success = true;
+                    } else {
+                        print('Incorrect keyword.', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    break;
+
+                case 'xor':
+                    const xorKey = parseInt(args);
+                    if (isNaN(xorKey)) {
+                        print('Invalid XOR key. Use format: 0x69', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    decrypted = solveXOR(floor.encrypted, xorKey);
+                    success = decrypted.toUpperCase() === floor.solution;
+                    break;
+
+                case 'rsa':
+                    const d = parseInt(args);
+                    if (isNaN(d)) {
+                        print('Invalid decryption exponent.', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    const cipherArray = floor.encrypted.split(' ').map(n => parseInt(n));
+                    decrypted = solveRSA(cipherArray, d, floor.n);
+                    success = decrypted.toUpperCase().replace(/\s/g, '') === floor.solution.replace(/\s/g, '');
+                    break;
+
+                case 'hash':
+                    if (args === 'collision' || args === '1' || args === '3') {
+                        print('\nMessages 1 and 3 have matching hashes: a4f8c9d2');
+                        print('This indicates a collision - likely a false flag operation.\n');
+                        success = true;
+                        decrypted = 'HASH COLLISION DETECTED';
+                    } else {
+                        print('Incorrect analysis.', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    break;
+
+                case 'aes':
+                    const agent = args.toUpperCase();
+                    if (floor.possibleKeys[agent]) {
+                        if (agent === floor.solution) {
+                            success = true;
+                            decrypted = `MOLE IDENTITY: ${agent}`;
+                        } else {
+                            print(`Key ${floor.possibleKeys[agent]} failed to decrypt.`, 'error');
+                            sounds.error();
+                            return;
+                        }
+                    } else {
+                        print('Unknown agent. Try VICTOR, ELENA, or MARCUS.', 'error');
+                        sounds.error();
+                        return;
+                    }
+                    break;
+            }
+
+            if (success) {
+                print('\n[DECRYPTING...]', 'accent');
+                await decryptAnimation(floor.encrypted.substring(0, 30) + '...', decrypted);
+                sounds.success();
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                print('\n[CLASSIFIED DOCUMENT RETRIEVED]', 'accent');
+                sounds.stamp();
+
+                const classified = document.createElement('div');
+                classified.className = 'classified';
+                classified.innerHTML = floor.reveal.replace(/\n/g, '<br>');
+                terminal.appendChild(classified);
+
+                gameState.clues.push(floor.title);
+                gameState.floor++;
+
+                if (gameState.floor < floors.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await loadFloor(floors[gameState.floor]);
+                } else {
+                    await gameComplete();
+                }
+            } else {
+                print('Decryption failed. Incorrect solution.', 'error');
+                sounds.error();
+            }
+        }
+
+        async function handleVerify(args, floor) {
+            if (floor.cipherType !== 'signature') {
+                print('Signature verification only available on Floor 7.', 'error');
+                return;
+            }
+
+            const agent = args.toUpperCase();
+            const sig = floor.signatures.find(s => s.agent === agent);
+
+            if (!sig) {
+                print('Unknown agent. Try VICTOR, ELENA, or MARCUS.', 'error');
+                sounds.error();
+                return;
+            }
+
+            print(`\nVerifying signature for ${agent}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            if (sig.valid) {
+                print(`✓ Signature VALID: ${sig.signature}`, 'success');
+                sounds.success();
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                print('\n[CLASSIFIED DOCUMENT RETRIEVED]', 'accent');
+                sounds.stamp();
+
+                const classified = document.createElement('div');
+                classified.className = 'classified';
+                classified.innerHTML = floor.reveal.replace(/\n/g, '<br>');
+                terminal.appendChild(classified);
+
+                gameState.clues.push(floor.title);
+                gameState.floor++;
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await loadFloor(floors[gameState.floor]);
+            } else {
+                print(`✗ Signature INVALID: ${sig.signature}`, 'error');
+                print('This agent\'s credentials have been compromised or forged.', 'error');
+                sounds.error();
+            }
+        }
+
+        async function loadFloor(floor) {
+            print('\n'.repeat(2));
+            print('═'.repeat(60), 'accent');
+            await typeWrite(`FLOOR ${floor.number} - ${floor.title}`, 'accent', 40);
+            print('═'.repeat(60), 'accent');
+            print('');
+
+            await typeWrite(floor.briefing, '', 20);
+            print('');
+
+            if (floor.cipherType === 'hash') {
+                print('INTERCEPTED MESSAGES:');
+                floor.messages.forEach((msg, i) => {
+                    print(`  ${i + 1}. "${msg.text}" [hash: ${msg.hash}]`, 'cipher-text');
+                });
+            } else if (floor.cipherType === 'signature') {
+                print('DIGITAL SIGNATURES:');
+                floor.signatures.forEach(sig => {
+                    print(`  ${sig.agent}: ${sig.signature}`, 'cipher-text');
+                });
+            } else if (floor.cipherType !== 'aes') {
+                print('ENCRYPTED MESSAGE:', 'accent');
+                print(floor.encrypted, 'cipher-text');
+            }
+
+            print('');
+            print('Type "decrypt <args>" to attempt decryption, or "hint" for help.');
+            print('');
+        }
+
+        async function gameComplete() {
+            gameState.gameComplete = true;
+
+            print('\n\n');
+            print('═'.repeat(60), 'success');
+            print('█████ MISSION ACCOMPLISHED █████', 'success');
+            print('═'.repeat(60), 'success');
+            print('');
+
+            await typeWrite('The mole has been identified and apprehended.', 'success', 30);
+            await typeWrite('The master encryption key is secure.', 'success', 30);
+            await typeWrite('The agency is safe... for now.', 'success', 30);
+
+            print('');
+            print('FINAL REPORT:', 'accent');
+            print(`Floors cleared: ${floors.length}`);
+            print(`Clues collected: ${gameState.clues.length}`);
+            print(`Status: CRYPTANALYST ELITE`, 'success');
+            print('');
+
+            printASCII(`
+    ╔═══════════════════════════════╗
+    ║   CLASSIFIED - LEVEL OMEGA    ║
+    ║                               ║
+    ║    OPERATION: TOWER CLIMB     ║
+    ║    STATUS: SUCCESS            ║
+    ║    AGENT: CODENAME CIPHER     ║
+    ║                               ║
+    ║   █████████████████████████   ║
+    ╚═══════════════════════════════╝
+            `);
+
+            // Award XP
+            awardXP();
+
+            sounds.success();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            sounds.success();
+        }
+
+        // Initialize game
+        async function init() {
+            // Resume audio context on first interaction
+            document.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                    startTensionMusic();
+                }
+            }, { once: true });
+
+            printASCII(`
+    ╔═════════════════════════════════════════════════════════════╗
+    ║   _____ _____   _____       _                             ║
+    ║  / ____|  __ \\ / ____|     | |                            ║
+    ║ | |  __| |__) | |  __ _____| |_ ___  _ __ _   _ _ __  __ ║
+    ║ | | |_ |  ___/| | |_ |______| __/ _ \\| '__| | | | '_ \\/ _|║
+    ║ | |__| | |    | |__| |      | || (_) | |  | |_| | |_) | |_║
+    ║  \\_____|_|     \\_____|       \\__\\___/|_|   \\__, | .__/ \\__|║
+    ║                                             __/ | |        ║
+    ║   --decrypt v2.4                           |___/|_|        ║
+    ║                                                            ║
+    ║              THE CRYPTOGRAPHER'S TOWER                     ║
+    ╚═════════════════════════════════════════════════════════════╝
+            `);
+
+            await typeWrite('CLASSIFIED INTELLIGENCE SYSTEM v2.4.7', 'accent', 50);
+            await typeWrite('Initializing secure connection...', '', 30);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            print('[✓] Connection established', 'success');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            print('[✓] Cryptographic modules loaded', 'success');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            print('[✓] Security clearance verified', 'success');
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            print('\n');
+            await typeWrite('MISSION BRIEFING:', 'accent', 40);
+            await typeWrite('A mole in the agency plans to steal our master encryption key.', '', 20);
+            await typeWrite('You must climb The Cryptographer\'s Tower, solving increasingly', '', 20);
+            await typeWrite('complex ciphers to identify the traitor before they escape.', '', 20);
+            print('');
+            await typeWrite('Each floor contains encrypted intelligence. Crack the codes.', '', 20);
+            await typeWrite('Find the mole. Save the agency.', '', 20);
+            print('');
+            print('Type "help" for commands. Good luck, agent.', 'accent');
+            print('');
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await loadFloor(floors[0]);
+        }
+
+        // Input handling
+        input.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value.trim();
+                if (cmd) {
+                    input.value = '';
+                    await processCommand(cmd);
+                }
+            }
+        });
+
+        // Keep input focused
+        document.addEventListener('click', () => {
+            input.focus();
+        });
+
+        // XP Award Function
+        function awardXP() {
+            if (localStorage.getItem('game_gpg_xp_awarded')) return;
+            localStorage.setItem('game_gpg_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'gpg --decrypt');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_gpg');
+
+            print('\n[+50 XP AWARDED - Cryptanalyst Elite]', 'accent');
+        }
+
+        // Start the game
+        init();
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

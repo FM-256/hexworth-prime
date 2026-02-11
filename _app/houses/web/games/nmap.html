@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nmap - Network Exploration Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* CRT Scanline Effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* CRT Flicker */
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.97; }
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 255, 65, 0.02);
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+            z-index: 999;
+        }
+
+        #terminal {
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        #terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        #terminal::-webkit-scrollbar-thumb {
+            background: #00ff41;
+        }
+
+        .output-line {
+            margin: 2px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .prompt {
+            color: #3b82f6;
+            display: inline;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: #00ff41;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        #user-input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+            flex: 1;
+            margin-left: 5px;
+        }
+
+        .highlight {
+            color: #3b82f6;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .warning {
+            color: #ffaa00;
+        }
+
+        .success {
+            color: #00ff88;
+        }
+
+        .ascii-art {
+            color: #3b82f6;
+            line-height: 1.2;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            color: #3b82f6;
+            cursor: pointer;
+            z-index: 1001;
+            text-decoration: none;
+            padding: 5px 10px;
+            border: 1px solid #3b82f6;
+            background: rgba(10, 10, 10, 0.9);
+        }
+
+        .back-link:hover {
+            background: #3b82f6;
+            color: #0a0a0a;
+        }
+
+        .inventory-item {
+            color: #ffaa00;
+        }
+
+        .host {
+            color: #00ffff;
+        }
+
+        .port {
+            color: #ff88ff;
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="history.back()">← Back to Web House</a>
+
+    <div id="terminal">
+        <div id="output"></div>
+        <div class="input-line" id="input-container">
+            <span class="prompt">nmap></span>
+            <input type="text" id="user-input" autofocus autocomplete="off">
+            <span class="cursor"></span>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            currentSegment: 'entry',
+            discoveredSegments: ['entry'],
+            discoveredHosts: [],
+            inventory: [],
+            idsAlertLevel: 0,
+            networkMap: {},
+            gameOver: false,
+            targetFound: false,
+            commandHistory: [],
+            historyIndex: -1
+        };
+
+        // Network Segments (Rooms)
+        const networkSegments = {
+            entry: {
+                name: 'DMZ - Perimeter Network',
+                subnet: '203.0.113.0/24',
+                hosts: [
+                    { ip: '203.0.113.10', hostname: 'web-01', ports: [80, 443], services: ['nginx'], vulnerabilities: [] },
+                    { ip: '203.0.113.20', hostname: 'mail-gw', ports: [25, 587], services: ['postfix'], vulnerabilities: [] }
+                ],
+                connections: ['internal_server'],
+                description: 'You are at the edge of the corporate network. The DMZ hosts public-facing services.'
+            },
+            internal_server: {
+                name: 'Server VLAN - 10.0.1.0/24',
+                subnet: '10.0.1.0/24',
+                hosts: [
+                    { ip: '10.0.1.5', hostname: 'db-primary', ports: [3306, 22], services: ['mysql', 'ssh'], vulnerabilities: ['CVE-2023-1001'] },
+                    { ip: '10.0.1.15', hostname: 'app-server', ports: [8080, 22], services: ['tomcat', 'ssh'], vulnerabilities: [] },
+                    { ip: '10.0.1.25', hostname: 'file-srv', ports: [445, 139], services: ['smb'], vulnerabilities: ['CVE-2024-5555'] }
+                ],
+                connections: ['management', 'backup_vlan'],
+                description: 'Critical server infrastructure. Tread carefully - IDS is active here.'
+            },
+            management: {
+                name: 'Management Network - 172.16.0.0/24',
+                subnet: '172.16.0.0/24',
+                hosts: [
+                    { ip: '172.16.0.1', hostname: 'core-switch', ports: [22, 23, 161], services: ['ssh', 'telnet', 'snmp'], vulnerabilities: ['default-creds'] },
+                    { ip: '172.16.0.5', hostname: 'firewall-mgmt', ports: [443, 22], services: ['https', 'ssh'], vulnerabilities: [] },
+                    { ip: '172.16.0.99', hostname: 'honeypot-mgmt', ports: [22, 80, 3389], services: ['ssh', 'http', 'rdp'], vulnerabilities: ['TRAP'] }
+                ],
+                connections: ['internal_server', 'security_zone'],
+                description: 'Network management infrastructure. High security zone - expect monitoring.'
+            },
+            backup_vlan: {
+                name: 'Backup VLAN - 10.0.50.0/24',
+                subnet: '10.0.50.0/24',
+                hosts: [
+                    { ip: '10.0.50.10', hostname: 'backup-srv-01', ports: [22, 9000], services: ['ssh', 'bacula'], vulnerabilities: [] },
+                    { ip: '10.0.50.20', hostname: 'nas-backup', ports: [22, 2049], services: ['ssh', 'nfs'], vulnerabilities: ['weak-auth'] }
+                ],
+                connections: ['internal_server', 'archive'],
+                description: 'Backup systems and storage. Old credentials might still work here.'
+            },
+            security_zone: {
+                name: 'Security Zone - 172.31.0.0/24',
+                subnet: '172.31.0.0/24',
+                hosts: [
+                    { ip: '172.31.0.10', hostname: 'ids-sensor', ports: [443], services: ['snort-web'], vulnerabilities: [] },
+                    { ip: '172.31.0.20', hostname: 'siem-collector', ports: [514, 6514], services: ['syslog', 'syslog-tls'], vulnerabilities: [] },
+                    { ip: '172.31.0.50', hostname: 'compromised-sensor', ports: [22, 4444], services: ['ssh', 'backdoor'], vulnerabilities: ['COMPROMISED'], isTarget: true }
+                ],
+                connections: ['management'],
+                description: 'Security monitoring infrastructure. Something feels wrong here...'
+            },
+            guest_wifi: {
+                name: 'Guest WiFi - 192.168.100.0/24',
+                subnet: '192.168.100.0/24',
+                hosts: [
+                    { ip: '192.168.100.1', hostname: 'wifi-controller', ports: [80, 443], services: ['http', 'https'], vulnerabilities: [] },
+                    { ip: '192.168.100.50', hostname: 'captive-portal', ports: [80, 443], services: ['http', 'https'], vulnerabilities: [] }
+                ],
+                connections: ['iot_vlan'],
+                description: 'Guest wireless network. Isolated but might have pivot points.'
+            },
+            iot_vlan: {
+                name: 'IoT VLAN - 10.99.0.0/24',
+                subnet: '10.99.0.0/24',
+                hosts: [
+                    { ip: '10.99.0.10', hostname: 'camera-01', ports: [80, 554], services: ['http', 'rtsp'], vulnerabilities: ['default-creds'] },
+                    { ip: '10.99.0.11', hostname: 'camera-02', ports: [80, 554], services: ['http', 'rtsp'], vulnerabilities: ['default-creds'] },
+                    { ip: '10.99.0.20', hostname: 'thermostat', ports: [80], services: ['http'], vulnerabilities: [] }
+                ],
+                connections: ['guest_wifi'],
+                description: 'IoT devices with questionable security. Easy targets but low value.'
+            },
+            archive: {
+                name: 'Archive Network - 10.0.99.0/24',
+                subnet: '10.0.99.0/24',
+                hosts: [
+                    { ip: '10.0.99.10', hostname: 'tape-library', ports: [22, 10000], services: ['ssh', 'tape-mgmt'], vulnerabilities: [] },
+                    { ip: '10.0.99.20', hostname: 'old-server', ports: [22, 21, 23], services: ['ssh', 'ftp', 'telnet'], vulnerabilities: ['CVE-2019-9999'] }
+                ],
+                connections: ['backup_vlan'],
+                description: 'Long-term archive storage. Old systems with outdated security.'
+            },
+            dev_network: {
+                name: 'Development Network - 10.10.0.0/24',
+                subnet: '10.10.0.0/24',
+                hosts: [
+                    { ip: '10.10.0.5', hostname: 'jenkins', ports: [8080, 22], services: ['jenkins', 'ssh'], vulnerabilities: ['weak-auth'] },
+                    { ip: '10.10.0.15', hostname: 'gitlab', ports: [80, 443, 22], services: ['http', 'https', 'ssh'], vulnerabilities: [] },
+                    { ip: '10.10.0.25', hostname: 'test-db', ports: [3306, 5432], services: ['mysql', 'postgresql'], vulnerabilities: ['no-auth'] }
+                ],
+                connections: ['internal_server'],
+                description: 'Development environment. Often less secure than production.'
+            },
+            voip_vlan: {
+                name: 'VoIP VLAN - 10.20.0.0/24',
+                subnet: '10.20.0.0/24',
+                hosts: [
+                    { ip: '10.20.0.1', hostname: 'pbx-server', ports: [5060, 5061], services: ['sip', 'sips'], vulnerabilities: [] },
+                    { ip: '10.20.0.10', hostname: 'voicemail', ports: [80, 443], services: ['http', 'https'], vulnerabilities: [] }
+                ],
+                connections: ['internal_server'],
+                description: 'Voice over IP infrastructure. Can eavesdrop on calls if compromised.'
+            }
+        };
+
+        // Audio Context
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioEnabled = false;
+
+        // Sound Effects
+        function playKeystroke() {
+            if (!audioEnabled) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 800;
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playScan() {
+            if (!audioEnabled) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playPing() {
+            if (!audioEnabled) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 1000;
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playAlert() {
+            if (!audioEnabled) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 1500;
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            oscillator.type = 'square';
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playStatic() {
+            if (!audioEnabled) return;
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            const gainNode = audioCtx.createGain();
+            noise.buffer = buffer;
+            noise.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            noise.start(audioCtx.currentTime);
+        }
+
+        // Output Functions
+        const output = document.getElementById('output');
+        const userInput = document.getElementById('user-input');
+
+        async function typeText(text, className = '', instant = false) {
+            const line = document.createElement('div');
+            line.className = `output-line ${className}`;
+            output.appendChild(line);
+
+            if (instant) {
+                line.textContent = text;
+                scrollToBottom();
+                return;
+            }
+
+            for (let char of text) {
+                line.textContent += char;
+                playKeystroke();
+                scrollToBottom();
+                await sleep(10);
+            }
+        }
+
+        function printLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `output-line ${className}`;
+            line.textContent = text;
+            output.appendChild(line);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const terminal = document.getElementById('terminal');
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Game Initialization
+        async function initGame() {
+            // Enable audio on first interaction
+            audioEnabled = true;
+            audioCtx.resume();
+
+            await typeText('╔═══════════════════════════════════════════════════════════════╗', 'ascii-art');
+            await typeText('║                                                               ║', 'ascii-art');
+            await typeText('║   ███╗   ██╗███╗   ███╗ █████╗ ██████╗     ██╗   ██╗███████╗║', 'ascii-art');
+            await typeText('║   ████╗  ██║████╗ ████║██╔══██╗██╔══██╗    ██║   ██║╚════██║║', 'ascii-art');
+            await typeText('║   ██╔██╗ ██║██╔████╔██║███████║██████╔╝    ██║   ██║    ██╔╝║', 'ascii-art');
+            await typeText('║   ██║╚██╗██║██║╚██╔╝██║██╔══██║██╔═══╝     ╚██╗ ██╔╝   ██╔╝ ║', 'ascii-art');
+            await typeText('║   ██║ ╚████║██║ ╚═╝ ██║██║  ██║██║          ╚████╔╝    ██║  ║', 'ascii-art');
+            await typeText('║   ╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝           ╚═══╝     ╚═╝  ║', 'ascii-art');
+            await typeText('║                                                               ║', 'ascii-art');
+            await typeText('║              Network Exploration & Mapping Tool               ║', 'ascii-art');
+            await typeText('║                        Version 7.94                           ║', 'ascii-art');
+            await typeText('╚═══════════════════════════════════════════════════════════════╝', 'ascii-art');
+            await sleep(300);
+            await typeText('');
+            await typeText('[SYSTEM] Unauthorized network access detected.', 'warning');
+            await typeText('[SYSTEM] Stealth mode: ACTIVE', 'success');
+            await typeText('');
+            await typeText('MISSION BRIEFING:', 'highlight');
+            await typeText('Intelligence suggests a compromised system in the corporate network.');
+            await typeText('Your objective: Map the network topology and locate the breach.');
+            await typeText('Warning: IDS systems are active. Excessive scanning will trigger alerts.');
+            await typeText('');
+            await typeText('STARTING LOCATION: ' + networkSegments[gameState.currentSegment].name, 'highlight');
+            await typeText(networkSegments[gameState.currentSegment].description);
+            await typeText('');
+            await typeText('Type "help" for available commands.', 'success');
+            await typeText('');
+        }
+
+        // Command Processing
+        async function processCommand(cmd) {
+            if (gameState.gameOver) {
+                printLine('Game Over. Type "restart" to play again.', 'error');
+                return;
+            }
+
+            const parts = cmd.toLowerCase().trim().split(' ');
+            const command = parts[0];
+            const args = parts.slice(1);
+
+            gameState.commandHistory.push(cmd);
+            gameState.historyIndex = gameState.commandHistory.length;
+
+            printLine(`nmap> ${cmd}`, 'prompt');
+
+            switch (command) {
+                case 'help':
+                    await showHelp();
+                    break;
+                case 'scan':
+                    await scanNetwork(args.join(' '));
+                    break;
+                case 'connect':
+                    await connectHost(args[0]);
+                    break;
+                case 'exploit':
+                    await exploitVuln(args[0]);
+                    break;
+                case 'inventory':
+                case 'inv':
+                    showInventory();
+                    break;
+                case 'map':
+                    showMap();
+                    break;
+                case 'status':
+                    showStatus();
+                    break;
+                case 'ping':
+                    await pingHost(args[0]);
+                    break;
+                case 'whereami':
+                    showLocation();
+                    break;
+                case 'restart':
+                    location.reload();
+                    break;
+                case 'sound':
+                    toggleSound();
+                    break;
+                default:
+                    printLine(`Command not found: ${command}`, 'error');
+                    printLine('Type "help" for available commands.');
+            }
+
+            await sleep(100);
+        }
+
+        async function showHelp() {
+            printLine('═══════════════ AVAILABLE COMMANDS ═══════════════', 'highlight');
+            printLine('scan <subnet>       - Scan network segment for hosts');
+            printLine('ping <ip>           - Ping a specific host');
+            printLine('connect <ip:port>   - Connect to a service');
+            printLine('exploit <CVE-ID>    - Exploit a vulnerability');
+            printLine('inventory / inv     - Show collected items');
+            printLine('map                 - Display network topology');
+            printLine('status              - Show IDS alert level and progress');
+            printLine('whereami            - Show current location');
+            printLine('sound               - Toggle sound effects');
+            printLine('restart             - Restart the game');
+            printLine('help                - Show this help message');
+            printLine('═══════════════════════════════════════════════════');
+        }
+
+        async function scanNetwork(subnet) {
+            if (!subnet) {
+                printLine('Usage: scan <subnet>', 'error');
+                printLine('Example: scan ' + networkSegments[gameState.currentSegment].subnet);
+                return;
+            }
+
+            const segment = Object.values(networkSegments).find(s => s.subnet === subnet);
+
+            if (!segment) {
+                printLine(`Network segment ${subnet} not reachable from current location.`, 'error');
+                increaseIDSAlert(1);
+                return;
+            }
+
+            if (segment.subnet !== networkSegments[gameState.currentSegment].subnet) {
+                printLine(`Cannot scan ${subnet} from current segment.`, 'error');
+                printLine('Use "connect" to move to a different network segment first.');
+                return;
+            }
+
+            printLine(`Initiating scan of ${subnet}...`, 'highlight');
+            playScan();
+            await sleep(500);
+
+            printLine('');
+            printLine('HOST DISCOVERY:', 'success');
+
+            for (const host of segment.hosts) {
+                await sleep(200);
+                playPing();
+                printLine(`[+] Host discovered: ${host.ip} (${host.hostname})`, 'host');
+
+                if (!gameState.discoveredHosts.includes(host.ip)) {
+                    gameState.discoveredHosts.push(host.ip);
+                }
+
+                await sleep(100);
+                printLine(`    Open ports: ${host.ports.join(', ')}`, 'port');
+                printLine(`    Services: ${host.services.join(', ')}`);
+
+                if (host.vulnerabilities.length > 0 && host.vulnerabilities[0] !== 'TRAP') {
+                    await sleep(100);
+                    playAlert();
+                    printLine(`    [!] Vulnerabilities: ${host.vulnerabilities.join(', ')}`, 'warning');
+                }
+
+                if (host.isTarget) {
+                    printLine(`    [!!!] ANOMALY DETECTED - Suspicious backdoor service`, 'error');
+                }
+            }
+
+            printLine('');
+            printLine(`Scan complete. ${segment.hosts.length} hosts discovered.`, 'success');
+
+            increaseIDSAlert(2);
+        }
+
+        async function pingHost(ip) {
+            if (!ip) {
+                printLine('Usage: ping <ip>', 'error');
+                return;
+            }
+
+            printLine(`PING ${ip}: 56 data bytes`, 'highlight');
+
+            const segment = networkSegments[gameState.currentSegment];
+            const host = segment.hosts.find(h => h.ip === ip);
+
+            if (!host) {
+                await sleep(1000);
+                printLine(`Request timeout for ${ip}`, 'error');
+                printLine(`Host ${ip} not found in current segment.`, 'error');
+                return;
+            }
+
+            for (let i = 0; i < 4; i++) {
+                await sleep(300);
+                playPing();
+                const time = Math.floor(Math.random() * 50) + 10;
+                printLine(`64 bytes from ${ip}: icmp_seq=${i + 1} ttl=64 time=${time}ms`);
+            }
+
+            printLine('', '');
+            printLine(`--- ${ip} ping statistics ---`, 'success');
+            printLine('4 packets transmitted, 4 received, 0% packet loss');
+
+            increaseIDSAlert(1);
+        }
+
+        async function connectHost(target) {
+            if (!target) {
+                printLine('Usage: connect <ip:port>', 'error');
+                printLine('Example: connect 10.0.1.5:22');
+                return;
+            }
+
+            const [ip, port] = target.split(':');
+
+            if (!ip || !port) {
+                printLine('Invalid format. Use: connect <ip:port>', 'error');
+                return;
+            }
+
+            const segment = networkSegments[gameState.currentSegment];
+            const host = segment.hosts.find(h => h.ip === ip);
+
+            if (!host) {
+                printLine(`Host ${ip} not found in current segment.`, 'error');
+                printLine('Use "scan" to discover hosts first.');
+                return;
+            }
+
+            if (!host.ports.includes(parseInt(port))) {
+                printLine(`Port ${port} is closed on ${ip}.`, 'error');
+                return;
+            }
+
+            // Check for honeypot trap
+            if (host.vulnerabilities.includes('TRAP')) {
+                await honeypotTrap(host);
+                return;
+            }
+
+            printLine(`Connecting to ${ip}:${port}...`, 'highlight');
+            await sleep(500);
+            playPing();
+
+            const service = host.services[host.ports.indexOf(parseInt(port))];
+            printLine(`Connected to ${host.hostname} (${service})`, 'success');
+
+            // Check if this allows network traversal
+            const connectedSegments = segment.connections || [];
+            if (connectedSegments.length > 0) {
+                printLine('');
+                printLine('[+] Gateway discovered! Accessible networks:', 'success');
+                for (const segId of connectedSegments) {
+                    if (!gameState.discoveredSegments.includes(segId)) {
+                        gameState.discoveredSegments.push(segId);
+                        printLine(`    → ${networkSegments[segId].name} (${networkSegments[segId].subnet})`, 'highlight');
+                    }
+                }
+                printLine('');
+                printLine('You can now pivot to these networks. Update current location with:');
+                printLine(`scan ${connectedSegments.map(s => networkSegments[s].subnet).join(' or ')}`, 'success');
+            }
+
+            // Check for credentials
+            if (host.vulnerabilities.includes('weak-auth') || host.vulnerabilities.includes('default-creds')) {
+                await sleep(300);
+                printLine('');
+                printLine('[+] Weak authentication detected!', 'warning');
+                const creds = `${host.hostname}_credentials`;
+                if (!gameState.inventory.includes(creds)) {
+                    gameState.inventory.push(creds);
+                    printLine(`[+] Obtained: ${creds}`, 'success');
+                }
+            }
+
+            // Check if compromised system
+            if (host.isTarget) {
+                await foundTarget(host);
+            }
+
+            increaseIDSAlert(3);
+        }
+
+        async function exploitVuln(cve) {
+            if (!cve) {
+                printLine('Usage: exploit <CVE-ID>', 'error');
+                printLine('Example: exploit CVE-2023-1001');
+                return;
+            }
+
+            const segment = networkSegments[gameState.currentSegment];
+            const vulnerableHost = segment.hosts.find(h =>
+                h.vulnerabilities.includes(cve.toUpperCase())
+            );
+
+            if (!vulnerableHost) {
+                printLine(`No hosts with ${cve.toUpperCase()} found in current segment.`, 'error');
+                printLine('Scan the network first to discover vulnerabilities.');
+                return;
+            }
+
+            printLine(`Exploiting ${cve.toUpperCase()} on ${vulnerableHost.ip}...`, 'highlight');
+            await sleep(800);
+            playScan();
+
+            printLine('[*] Sending exploit payload...', 'warning');
+            await sleep(600);
+
+            printLine('[*] Shellcode executing...', 'warning');
+            await sleep(500);
+
+            playAlert();
+            printLine('');
+            printLine('[+] EXPLOIT SUCCESSFUL!', 'success');
+            printLine(`[+] Root shell obtained on ${vulnerableHost.hostname}`, 'success');
+
+            const shellAccess = `root_shell_${vulnerableHost.hostname}`;
+            if (!gameState.inventory.includes(shellAccess)) {
+                gameState.inventory.push(shellAccess);
+            }
+
+            // Check if compromised system
+            if (vulnerableHost.isTarget) {
+                await foundTarget(vulnerableHost);
+            }
+
+            increaseIDSAlert(5);
+        }
+
+        function showInventory() {
+            printLine('═══════════════ INVENTORY ═══════════════', 'highlight');
+            if (gameState.inventory.length === 0) {
+                printLine('No items collected yet.', 'warning');
+            } else {
+                gameState.inventory.forEach(item => {
+                    printLine(`[+] ${item}`, 'inventory-item');
+                });
+            }
+            printLine('════════════════════════════════════════');
+        }
+
+        function showMap() {
+            printLine('═══════════════ NETWORK TOPOLOGY ═══════════════', 'highlight');
+            printLine('');
+
+            gameState.discoveredSegments.forEach(segId => {
+                const seg = networkSegments[segId];
+                const current = segId === gameState.currentSegment ? ' [CURRENT]' : '';
+                printLine(`[${seg.subnet}] ${seg.name}${current}`, 'success');
+
+                const discoveredInSeg = seg.hosts.filter(h =>
+                    gameState.discoveredHosts.includes(h.ip)
+                );
+
+                if (discoveredInSeg.length > 0) {
+                    discoveredInSeg.forEach(h => {
+                        printLine(`  ├─ ${h.ip} (${h.hostname})`, 'host');
+                    });
+                }
+
+                if (seg.connections && seg.connections.length > 0) {
+                    const knownConnections = seg.connections.filter(c =>
+                        gameState.discoveredSegments.includes(c)
+                    );
+                    if (knownConnections.length > 0) {
+                        printLine(`  └─ Connected to: ${knownConnections.map(c => networkSegments[c].subnet).join(', ')}`, 'highlight');
+                    }
+                }
+                printLine('');
+            });
+
+            printLine('════════════════════════════════════════════════');
+            printLine(`Progress: ${gameState.discoveredSegments.length}/${Object.keys(networkSegments).length} segments discovered`);
+            printLine(`Hosts found: ${gameState.discoveredHosts.length}`);
+        }
+
+        function showStatus() {
+            printLine('═══════════════ SYSTEM STATUS ═══════════════', 'highlight');
+            printLine(`Current Location: ${networkSegments[gameState.currentSegment].name}`);
+            printLine(`IDS Alert Level: ${gameState.idsAlertLevel}/15`,
+                gameState.idsAlertLevel >= 12 ? 'error' : gameState.idsAlertLevel >= 8 ? 'warning' : 'success');
+            printLine(`Network Coverage: ${gameState.discoveredSegments.length}/${Object.keys(networkSegments).length} segments`);
+            printLine(`Discovered Hosts: ${gameState.discoveredHosts.length}`);
+            printLine(`Inventory Items: ${gameState.inventory.length}`);
+            printLine(`Target Found: ${gameState.targetFound ? 'YES' : 'NO'}`,
+                gameState.targetFound ? 'success' : 'warning');
+            printLine('═════════════════════════════════════════════');
+        }
+
+        function showLocation() {
+            const segment = networkSegments[gameState.currentSegment];
+            printLine('═══════════════ CURRENT LOCATION ═══════════════', 'highlight');
+            printLine(`Segment: ${segment.name}`, 'success');
+            printLine(`Subnet: ${segment.subnet}`, 'host');
+            printLine('');
+            printLine(`Description: ${segment.description}`);
+            printLine('═════════════════════════════════════════════════');
+        }
+
+        function toggleSound() {
+            audioEnabled = !audioEnabled;
+            printLine(`Sound effects: ${audioEnabled ? 'ENABLED' : 'DISABLED'}`, 'success');
+        }
+
+        function increaseIDSAlert(amount) {
+            gameState.idsAlertLevel += amount;
+
+            if (gameState.idsAlertLevel >= 15) {
+                detectedByIDS();
+            } else if (gameState.idsAlertLevel >= 10) {
+                printLine('[WARNING] IDS alert level critical! Monitoring systems active.', 'error');
+                playAlert();
+            } else if (gameState.idsAlertLevel >= 7) {
+                printLine('[WARNING] Network activity detected. Reduce scanning.', 'warning');
+            }
+        }
+
+        async function detectedByIDS() {
+            gameState.gameOver = true;
+            playStatic();
+            printLine('');
+            printLine('═════════════════════════════════════════════════', 'error');
+            printLine('  [ALERT] INTRUSION DETECTION SYSTEM TRIGGERED   ', 'error');
+            printLine('═════════════════════════════════════════════════', 'error');
+            await sleep(500);
+            printLine('');
+            printLine('Security team responding...', 'error');
+            await sleep(500);
+            printLine('Firewall rules updated...', 'error');
+            await sleep(500);
+            printLine('Connection terminated.', 'error');
+            printLine('');
+            printLine('═══════════════ GAME OVER ═══════════════', 'error');
+            printLine('ENDING: Detected and Blocked', 'error');
+            printLine('');
+            printLine(`Performance: ${gameState.discoveredSegments.length}/${Object.keys(networkSegments).length} segments mapped`);
+            printLine(`Hosts discovered: ${gameState.discoveredHosts.length}`);
+            printLine('');
+            printLine('The key to stealth is patience. Try scanning less aggressively.', 'warning');
+            printLine('Type "restart" to try again.');
+
+            awardXP();
+        }
+
+        async function honeypotTrap(host) {
+            gameState.gameOver = true;
+            playStatic();
+            printLine('');
+            printLine('Connecting to honeypot...', 'warning');
+            await sleep(800);
+            printLine('[ALERT] HONEYPOT DETECTED!', 'error');
+            await sleep(500);
+            playAlert();
+            printLine('');
+            printLine('═════════════════════════════════════════════════', 'error');
+            printLine('  You have triggered a network honeypot trap!    ', 'error');
+            printLine('═════════════════════════════════════════════════', 'error');
+            printLine('');
+            printLine('Security response initiated...', 'error');
+            await sleep(500);
+            printLine('Your connection is being traced...', 'error');
+            await sleep(500);
+            printLine('All access revoked.', 'error');
+            printLine('');
+            printLine('═══════════════ GAME OVER ═══════════════', 'error');
+            printLine('ENDING: Trapped in Honeypot', 'error');
+            printLine('');
+            printLine('Lesson: Not every open port is an opportunity.', 'warning');
+            printLine('Some systems are designed to catch intruders.');
+            printLine('Type "restart" to try again.');
+
+            awardXP();
+        }
+
+        async function foundTarget(host) {
+            if (gameState.targetFound) return;
+
+            gameState.targetFound = true;
+            playAlert();
+
+            printLine('');
+            printLine('═════════════════════════════════════════════════', 'success');
+            printLine('     [SUCCESS] COMPROMISED SYSTEM IDENTIFIED      ', 'success');
+            printLine('═════════════════════════════════════════════════', 'success');
+            await sleep(500);
+            printLine('');
+            printLine(`Target: ${host.hostname} (${host.ip})`, 'highlight');
+            printLine('Backdoor detected on port 4444', 'warning');
+            printLine('Command & Control traffic identified', 'warning');
+            await sleep(500);
+            printLine('');
+            printLine('Collecting forensic evidence...', 'success');
+            await sleep(800);
+            printLine('[+] Memory dump acquired', 'success');
+            printLine('[+] Network logs captured', 'success');
+            printLine('[+] Malware sample extracted', 'success');
+            printLine('');
+
+            // Check completion level
+            const coverage = gameState.discoveredSegments.length / Object.keys(networkSegments).length;
+
+            if (coverage >= 0.8 && gameState.idsAlertLevel < 12) {
+                // Best ending
+                await sleep(500);
+                gameState.gameOver = true;
+                printLine('═══════════════ MISSION COMPLETE ═══════════════', 'success');
+                printLine('ENDING: Elite Operator', 'success');
+                printLine('');
+                printLine('You have successfully:', 'highlight');
+                printLine('✓ Mapped the entire network topology', 'success');
+                printLine('✓ Identified the compromised system', 'success');
+                printLine('✓ Remained undetected by security systems', 'success');
+                printLine('');
+                printLine('The breach has been contained. Well done.', 'success');
+                printLine('');
+                printLine('[+50 XP] Achievement Unlocked: Network Master', 'highlight');
+                awardXP();
+            } else if (gameState.idsAlertLevel < 12) {
+                // Good ending
+                printLine('Target neutralized successfully!', 'success');
+                printLine('');
+                printLine('Continue exploring to map the full network,', 'highlight');
+                printLine('or type "restart" to achieve a perfect run.');
+            }
+        }
+
+        // XP Award Function
+        function awardXP() {
+            if (localStorage.getItem('game_nmap_xp_awarded')) return;
+            localStorage.setItem('game_nmap_xp_awarded', 'true');
+
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'nmap');
+            }
+
+            if (window.AchievementManager) {
+                AchievementManager.unlock('game_nmap');
+            }
+        }
+
+        // Input Handling
+        userInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const cmd = userInput.value.trim();
+                if (cmd) {
+                    userInput.value = '';
+                    await processCommand(cmd);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (gameState.historyIndex > 0) {
+                    gameState.historyIndex--;
+                    userInput.value = gameState.commandHistory[gameState.historyIndex] || '';
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (gameState.historyIndex < gameState.commandHistory.length - 1) {
+                    gameState.historyIndex++;
+                    userInput.value = gameState.commandHistory[gameState.historyIndex] || '';
+                } else {
+                    gameState.historyIndex = gameState.commandHistory.length;
+                    userInput.value = '';
+                }
+            }
+        });
+
+        // Keep input focused
+        document.addEventListener('click', () => {
+            userInput.focus();
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initGame();
+            userInput.focus();
+        });
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

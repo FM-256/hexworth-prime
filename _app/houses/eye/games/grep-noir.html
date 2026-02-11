@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>grep -rn v3.11 - Digital Forensics Noir</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* CRT Scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(0, 255, 65, 0.02) 50%,
+                rgba(0, 0, 0, 0.02) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanlines 8s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(4px); }
+        }
+
+        /* CRT Flicker */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 255, 65, 0.02);
+            pointer-events: none;
+            z-index: 999;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.96; }
+        }
+
+        #terminal {
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        #terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        #terminal::-webkit-scrollbar-thumb {
+            background: #00ff41;
+            border-radius: 4px;
+        }
+
+        .line {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .accent {
+            color: #6366f1;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .warning {
+            color: #ffaa00;
+        }
+
+        .evidence {
+            color: #00ddff;
+        }
+
+        .prompt {
+            display: flex;
+            align-items: center;
+            margin-top: 16px;
+        }
+
+        .prompt-text {
+            margin-right: 8px;
+        }
+
+        #input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            flex: 1;
+            caret-color: #00ff41;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 18px;
+            background: #00ff41;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        .ascii-art {
+            white-space: pre;
+            line-height: 1.2;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+
+        .choice-button {
+            background: transparent;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px 16px;
+            margin: 8px 8px 8px 0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .choice-button:hover {
+            background: #00ff41;
+            color: #0a0a0a;
+            box-shadow: 0 0 10px #00ff41;
+        }
+
+        .choice-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .back-link {
+            cursor: pointer;
+            color: #6366f1;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            text-shadow: 0 0 8px #6366f1;
+        }
+
+        .case-file {
+            border: 1px solid #6366f1;
+            padding: 12px;
+            margin: 12px 0;
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .divider {
+            color: #6366f1;
+            opacity: 0.5;
+            margin: 16px 0;
+        }
+
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal">
+        <a class="back-link" onclick="history.back()">← Back to Eye House</a>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME STATE & DATA
+        // ============================================
+        const gameState = {
+            scene: 'intro',
+            caseFile: [],
+            evidence: {
+                disk: false,
+                ram: false,
+                emails: false,
+                pcap: false,
+                phone: false,
+                camera: false
+            },
+            interviews: {
+                cfo: false,
+                assistant: false,
+                sysadmin: false,
+                competitor: false
+            },
+            suspectAlibi: {},
+            timeRemaining: 300,
+            gameActive: false,
+            timerInterval: null
+        };
+
+        const evidenceData = {
+            disk: {
+                title: "DISK IMAGE ANALYSIS",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  /dev/sda1 - CEO Workstation      ║
+    ║  Last Modified: 2025-11-03 23:47  ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "File: /home/ceo/documents/insider_trade_plan.txt",
+                    "Created: 2025-11-03 23:47:12",
+                    "Modified: 2025-11-03 23:47:45",
+                    "MD5: a3f2c8d9e4b1c7a6f5e8d9c2b1a0f9e8",
+                    "",
+                    "EXIF Data Analysis:",
+                    "  - Document Author: 'CEO_Desktop_User'",
+                    "  - Creation Software: Microsoft Word 2019",
+                    "  - BUT: System Timestamp Anomaly Detected",
+                    "  - File created AFTER CEO left building (badge out: 18:32)",
+                    "",
+                    "Registry Analysis:",
+                    "  - Last Login: 2025-11-03 07:23 (CEO)",
+                    "  - Unauthorized Login: 2025-11-03 23:31 (Unknown)",
+                    "  - Login Method: Remote Desktop Protocol (RDP)",
+                    "  - Source IP: 192.168.1.87"
+                ],
+                keyEvidence: "Remote login at 23:31 from IP 192.168.1.87 - AFTER CEO left building"
+            },
+            ram: {
+                title: "RAM DUMP ANALYSIS",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  Memory Snapshot - 4GB Captured   ║
+    ║  Timestamp: 2025-11-04 00:12:03   ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "Process List (Active at time of dump):",
+                    "  - cmd.exe (PID 4821) - Running as SYSTEM",
+                    "  - mstsc.exe (PID 3992) - Remote Desktop Client",
+                    "  - powershell.exe (PID 5201) - Executing script",
+                    "",
+                    "PowerShell Command History:",
+                    "  > New-Item 'C:\\Users\\CEO\\Documents\\insider_trade_plan.txt'",
+                    "  > Set-Content -Path 'insider_trade_plan.txt' -Value [INCRIMINATING]",
+                    "  > Set-ItemProperty -Path 'insider_trade_plan.txt' -Name LastWriteTime",
+                    "",
+                    "Network Connections:",
+                    "  - ESTABLISHED: 192.168.1.23:3389 <- 192.168.1.87:54382",
+                    "  - ESTABLISHED: 192.168.1.23:443 -> 45.231.67.89:443 (VPN Exit)",
+                    "",
+                    "Clipboard Data:",
+                    "  'Remember to clear logs after framing complete - JS'"
+                ],
+                keyEvidence: "Clipboard contains note: 'clear logs after framing complete - JS'"
+            },
+            emails: {
+                title: "EMAIL SERVER LOG ANALYSIS",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  Exchange Server - Message Trace  ║
+    ║  Date Range: 2025-10-28 to 11-04 ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "Suspicious Email Thread:",
+                    "",
+                    "From: j.sterling@company.com (CFO)",
+                    "To: ceo@company.com",
+                    "Date: 2025-11-01 14:23",
+                    "Subject: RE: Q4 Earnings Projection",
+                    "Body: 'Per our conversation, the numbers look great.",
+                    "       We should discuss stock implications privately.'",
+                    "",
+                    "From: ceo@company.com",
+                    "To: j.sterling@company.com",
+                    "Date: 2025-11-01 15:17",
+                    "Subject: RE: Q4 Earnings Projection",
+                    "Body: 'I never had that conversation with you.",
+                    "       What are you talking about?'",
+                    "",
+                    "Email Header Analysis (j.sterling message):",
+                    "  - Originating IP: 192.168.1.87",
+                    "  - X-Mailer: Spoofed (header injection detected)",
+                    "  - SPF: FAIL (sent from unauthorized server)",
+                    "",
+                    "CRITICAL: Email was SPOOFED from IP 192.168.1.87"
+                ],
+                keyEvidence: "Spoofed email from CFO originated at IP 192.168.1.87"
+            },
+            pcap: {
+                title: "NETWORK PACKET CAPTURE",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  tcpdump -i eth0 -w evidence.pcap ║
+    ║  Packets: 482,391 | Size: 2.3GB   ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "Wireshark Analysis - Filtered View:",
+                    "",
+                    "192.168.1.87 -> 192.168.1.23 [RDP Session]",
+                    "  Time: 2025-11-03 23:31:04",
+                    "  Duration: 18 minutes",
+                    "  Data Transferred: 147 MB",
+                    "",
+                    "192.168.1.87 -> 45.231.67.89 [HTTPS/VPN]",
+                    "  Time: 2025-11-03 23:28:12",
+                    "  VPN Provider: NordVPN (confirmed via cert)",
+                    "  Exit Node: Stockholm, Sweden",
+                    "",
+                    "DNS Queries from 192.168.1.87:",
+                    "  - ceo-workstation.company.local",
+                    "  - exchange.company.local",
+                    "  - file-server.company.local",
+                    "",
+                    "MAC Address Resolution:",
+                    "  192.168.1.87 = AC:DE:48:23:45:67",
+                    "  Vendor: Dell Technologies",
+                    "  Device: Latitude 7420 (Company Laptop)",
+                    "",
+                    "Asset Database Cross-Reference:",
+                    "  AC:DE:48:23:45:67 assigned to: Jessica Sterling (CFO)"
+                ],
+                keyEvidence: "IP 192.168.1.87 is CFO Jessica Sterling's laptop (MAC: AC:DE:48:23:45:67)"
+            },
+            phone: {
+                title: "PHONE RECORDS SUBPOENA",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  Carrier: Verizon Wireless        ║
+    ║  Court Order #2025-CR-8821        ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "Jessica Sterling (CFO) - (555) 0142-8923",
+                    "",
+                    "Outgoing Call: 2025-11-03 23:15:32",
+                    "  To: (555) 0198-7234 [Unknown]",
+                    "  Duration: 8m 42s",
+                    "  Cell Tower: Downtown Financial District",
+                    "",
+                    "Incoming Call: 2025-11-03 23:52:18",
+                    "  From: (555) 0198-7234",
+                    "  Duration: 3m 11s",
+                    "",
+                    "Cross-Reference Check (555) 0198-7234:",
+                    "  Registered: Marcus Chen",
+                    "  Employment: TechRival Corp (Competitor)",
+                    "  Position: VP of Acquisitions",
+                    "",
+                    "TEXT MESSAGE (Recovered via carrier):",
+                    "  2025-11-03 23:58",
+                    "  From: (555) 0198-7234",
+                    "  'It's done. Wire the $2M to my Cayman account.",
+                    "   CEO will be arrested by Monday. Acquisition clear.'",
+                    "",
+                    "Jessica Sterling Response:",
+                    "  'Confirmed. See you in Zurich.'"
+                ],
+                keyEvidence: "$2M payment from competitor Marcus Chen for framing CEO"
+            },
+            camera: {
+                title: "SECURITY CAMERA METADATA",
+                ascii: `
+    ╔════════════════════════════════════╗
+    ║  Building Security - Floor 12     ║
+    ║  Camera: Executive Suite Hallway  ║
+    ╚════════════════════════════════════╝
+                `,
+                clues: [
+                    "Badge Swipe Records:",
+                    "",
+                    "CEO Badge #0001:",
+                    "  IN: 2025-11-03 07:18:42",
+                    "  OUT: 2025-11-03 18:32:15",
+                    "  Location: Main Lobby Exit",
+                    "",
+                    "CFO Badge #0034 (Jessica Sterling):",
+                    "  IN: 2025-11-03 08:45:21",
+                    "  OUT: 2025-11-03 19:12:09",
+                    "  RE-ENTRY: 2025-11-03 23:22:47 [SUSPICIOUS]",
+                    "  Location: Loading Dock (Side Entrance)",
+                    "",
+                    "Video Footage Analysis:",
+                    "  23:24:18 - CFO enters server room",
+                    "  23:26:33 - CFO at network closet (Ethernet tap visible)",
+                    "  23:29:41 - CFO exits to office area",
+                    "",
+                    "CRITICAL DETAIL:",
+                    "  Camera Feed 12-E has 14-second gap at 23:31:02",
+                    "  Forensic Analysis: Video file hex edited",
+                    "  Original file recovered from backup shows:",
+                    "    'CFO connecting laptop to CEO workstation via RDP'",
+                    "",
+                    "Laptop visible in footage MAC addr: AC:DE:48:23:45:67"
+                ],
+                keyEvidence: "CFO caught on camera connecting her laptop to network at 23:31 - deleted footage"
+            }
+        };
+
+        const suspects = {
+            cfo: {
+                name: "Jessica Sterling (CFO)",
+                questions: [
+                    { q: "Where were you on Nov 3rd at 11:30 PM?", a: "Home, asleep. I left the office at 7 PM sharp." },
+                    { q: "Do you own a laptop with MAC address AC:DE:48:23:45:67?", a: "That's... company property. Many people could use it." },
+                    { q: "Why did you re-enter the building at 11:22 PM?", a: "I... I don't know what you're talking about. The logs must be wrong." },
+                    { q: "Who is Marcus Chen?", a: "[Visibly nervous] A business contact. Nothing unusual." }
+                ]
+            },
+            assistant: {
+                name: "Tom Rivera (Executive Assistant)",
+                questions: [
+                    { q: "Did you have access to the CEO's computer?", a: "Yes, for scheduling and document prep. But I'd never abuse that." },
+                    { q: "Where were you on Nov 3rd at 11:30 PM?", a: "At a bar in Brooklyn. I have receipts and witnesses." },
+                    { q: "Have you noticed anything suspicious lately?", a: "Jessica has been stressed. Lots of private calls. And she asked me about the CEO's RDP setup last week." },
+                    { q: "Do you know Marcus Chen?", a: "Never heard of him." }
+                ]
+            },
+            sysadmin: {
+                name: "Derek Walsh (System Administrator)",
+                questions: [
+                    { q: "Can you explain the remote login at 11:31 PM?", a: "That wasn't authorized by IT. Someone used stolen credentials." },
+                    { q: "Who has RDP access to executive machines?", a: "Only IT staff and... wait, Jessica requested special access two months ago for 'emergency document retrieval.'" },
+                    { q: "Were any security cameras tampered with?", a: "Yeah, actually. Camera 12-E had a file modification. I reported it." },
+                    { q: "Have you seen anyone near the network closet recently?", a: "Now that you mention it, I saw Jessica there last week. Said she was looking for a conference room." }
+                ]
+            },
+            competitor: {
+                name: "Marcus Chen (TechRival VP)",
+                questions: [
+                    { q: "What is your relationship with Jessica Sterling?", a: "Professional acquaintances. We've met at conferences." },
+                    { q: "Why did you call Jessica on Nov 3rd at 11:15 PM?", a: "[Pause] I want my lawyer present for further questions." },
+                    { q: "Do you have financial interest in this company?", a: "TechRival has explored acquisition. Standard business practice." },
+                    { q: "Can you explain the $2M transfer?", a: "I'm not answering anything without legal counsel." }
+                ]
+            }
+        };
+
+        // ============================================
+        // WEB AUDIO API - NOIR SOUNDSCAPE
+        // ============================================
+        let audioContext;
+        let masterGain;
+        let rainNoise;
+        let jazzLoop;
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.gain.value = 0.3;
+            masterGain.connect(audioContext.destination);
+
+            createRainAmbience();
+            createJazzLoop();
+        }
+
+        function createRainAmbience() {
+            const bufferSize = audioContext.sampleRate * 2;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * 0.1;
+            }
+
+            rainNoise = audioContext.createBufferSource();
+            rainNoise.buffer = buffer;
+            rainNoise.loop = true;
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 800;
+
+            const rainGain = audioContext.createGain();
+            rainGain.gain.value = 0.15;
+
+            rainNoise.connect(filter);
+            filter.connect(rainGain);
+            rainGain.connect(masterGain);
+            rainNoise.start();
+        }
+
+        function createJazzLoop() {
+            const oscillator1 = audioContext.createOscillator();
+            const oscillator2 = audioContext.createOscillator();
+
+            oscillator1.type = 'sine';
+            oscillator2.type = 'triangle';
+
+            oscillator1.frequency.value = 110; // Low bass note
+            oscillator2.frequency.value = 165; // Minor third
+
+            const lfo = audioContext.createOscillator();
+            lfo.frequency.value = 0.3;
+            const lfoGain = audioContext.createGain();
+            lfoGain.gain.value = 5;
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(oscillator2.frequency);
+
+            const jazzGain = audioContext.createGain();
+            jazzGain.gain.value = 0.05;
+
+            oscillator1.connect(jazzGain);
+            oscillator2.connect(jazzGain);
+            jazzGain.connect(masterGain);
+
+            oscillator1.start();
+            oscillator2.start();
+            lfo.start();
+        }
+
+        function playTypewriter() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            osc.type = 'square';
+            osc.frequency.value = 800;
+            gain.gain.value = 0.03;
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+            osc.stop(audioContext.currentTime + 0.05);
+        }
+
+        function playCameraShutter() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            osc.type = 'square';
+            osc.frequency.value = 200;
+            gain.gain.value = 0.1;
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.start();
+            osc.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+            osc.stop(audioContext.currentTime + 0.15);
+        }
+
+        function playEureka() {
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+            osc1.frequency.value = 523; // C
+            osc2.frequency.value = 659; // E
+            gain.gain.value = 0.15;
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(masterGain);
+
+            osc1.start();
+            osc2.start();
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.4);
+            osc1.stop(audioContext.currentTime + 0.4);
+            osc2.stop(audioContext.currentTime + 0.4);
+        }
+
+        function playDramaticChord() {
+            const frequencies = [220, 277, 330]; // Am chord
+            const oscillators = [];
+            const gain = audioContext.createGain();
+            gain.gain.value = 0.2;
+
+            frequencies.forEach(freq => {
+                const osc = audioContext.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                oscillators.push(osc);
+                osc.start();
+            });
+
+            gain.connect(masterGain);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.2);
+
+            oscillators.forEach(osc => {
+                osc.stop(audioContext.currentTime + 1.2);
+            });
+        }
+
+        // ============================================
+        // TERMINAL RENDERING
+        // ============================================
+        const terminal = document.getElementById('terminal');
+
+        function print(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'line ' + className;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function printHTML(html) {
+            const line = document.createElement('div');
+            line.className = 'line';
+            line.innerHTML = html;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function typeText(text, className = '', delay = 30) {
+            for (let char of text) {
+                const span = document.createElement('span');
+                span.textContent = char;
+                span.className = className;
+                terminal.appendChild(span);
+                playTypewriter();
+                terminal.scrollTop = terminal.scrollHeight;
+                await sleep(delay);
+            }
+            print('');
+        }
+
+        function printASCII(art) {
+            const div = document.createElement('div');
+            div.className = 'ascii-art accent';
+            div.textContent = art;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function printDivider() {
+            print('════════════════════════════════════════════════════════════════════════', 'divider');
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ============================================
+        // GAME SCENES
+        // ============================================
+        async function startGame() {
+            if (!audioContext) {
+                initAudio();
+            }
+
+            await showIntro();
+        }
+
+        async function showIntro() {
+            printASCII(`
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                                                               ║
+    ║    ██████╗ ██████╗ ███████╗██████╗     ██████╗ ███╗   ██╗   ║
+    ║   ██╔════╝ ██╔══██╗██╔════╝██╔══██╗   ██╔══██╗████╗  ██║   ║
+    ║   ██║  ███╗██████╔╝█████╗  ██████╔╝   ██████╔╝██╔██╗ ██║   ║
+    ║   ██║   ██║██╔══██╗██╔══╝  ██╔═══╝    ██╔══██╗██║╚██╗██║   ║
+    ║   ╚██████╔╝██║  ██║███████╗██║        ██║  ██║██║ ╚████║   ║
+    ║    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝        ╚═╝  ╚═╝╚═╝  ╚═══╝   ║
+    ║                                                               ║
+    ║                  Digital Forensics Noir                      ║
+    ║                      Version 3.11                            ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+            `);
+
+            await sleep(1000);
+            playDramaticChord();
+
+            printASCII(`
+            ┌──────────────────────────────────────┐
+            │   City lights blur through rain     │
+            │   Steam rises from manholes          │
+            │   Your office: one desk, one lamp    │
+            │   One last chance to make things    │
+            │              right                   │
+            └──────────────────────────────────────┘
+            `);
+
+            await sleep(1500);
+            printDivider();
+            print('');
+
+            await typeText("The rain hasn't stopped in three days.", 'accent');
+            await sleep(500);
+            await typeText("Neither has the phone. Corporate types don't usually call digital forensics", 'accent');
+            await typeText("investigators at 2 AM. But when your CEO's facing federal charges for", 'accent');
+            await typeText("insider trading, sleep becomes a luxury you can't afford.", 'accent');
+            print('');
+            await sleep(800);
+
+            await typeText("The evidence looks airtight. Too airtight.", 'accent');
+            await sleep(500);
+            await typeText("Someone planted files on Richard Hexworth's machine. Someone who knew", 'accent');
+            await typeText("their way around a terminal. Someone who wanted him to burn.", 'accent');
+            print('');
+            await sleep(800);
+
+            await typeText("You've got 5 minutes before the feds seize all the evidence.", 'warning');
+            await typeText("Six sources to examine. Four suspects to interview.", 'warning');
+            await typeText("And only one shot at the truth.", 'warning');
+            print('');
+            await sleep(1000);
+
+            printDivider();
+            print('');
+            print('OBJECTIVE: Find 5 key pieces of evidence to identify the real perpetrator', 'evidence');
+            print('');
+            printDivider();
+
+            await sleep(1000);
+            showMainMenu();
+        }
+
+        function showMainMenu() {
+            gameState.scene = 'main_menu';
+            print('');
+            print('forensics$ _', 'accent');
+            print('');
+
+            const commands = [
+                { text: 'EXAMINE EVIDENCE', action: showEvidenceMenu },
+                { text: 'INTERVIEW SUSPECTS', action: showInterviewMenu },
+                { text: 'REVIEW CASE FILE', action: reviewCaseFile },
+                { text: 'PRESENT FINDINGS', action: presentFindings }
+            ];
+
+            commands.forEach(cmd => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-button';
+                btn.textContent = cmd.text;
+                btn.onclick = cmd.action;
+                terminal.appendChild(btn);
+            });
+
+            terminal.appendChild(document.createElement('br'));
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function showEvidenceMenu() {
+            print('');
+            printDivider();
+            print('EVIDENCE SOURCES AVAILABLE:', 'evidence');
+            print('');
+
+            const evidenceSources = [
+                { key: 'disk', label: '[1] Disk Image - CEO Workstation' },
+                { key: 'ram', label: '[2] RAM Dump - Memory Snapshot' },
+                { key: 'emails', label: '[3] Email Server Logs' },
+                { key: 'pcap', label: '[4] Network Packet Capture' },
+                { key: 'phone', label: '[5] Phone Records (Subpoena)' },
+                { key: 'camera', label: '[6] Security Camera Metadata' }
+            ];
+
+            evidenceSources.forEach(source => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-button';
+                btn.textContent = source.label;
+                if (gameState.evidence[source.key]) {
+                    btn.textContent += ' ✓';
+                    btn.disabled = true;
+                }
+                btn.onclick = () => examineEvidence(source.key);
+                terminal.appendChild(btn);
+            });
+
+            const backBtn = document.createElement('button');
+            backBtn.className = 'choice-button accent';
+            backBtn.textContent = '← BACK';
+            backBtn.onclick = () => {
+                print('');
+                showMainMenu();
+            };
+            terminal.appendChild(backBtn);
+
+            terminal.appendChild(document.createElement('br'));
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function examineEvidence(key) {
+            playCameraShutter();
+            const evidence = evidenceData[key];
+
+            print('');
+            printDivider();
+            print(evidence.title, 'evidence');
+            printASCII(evidence.ascii);
+            printDivider();
+            print('');
+
+            for (let clue of evidence.clues) {
+                print(clue);
+                await sleep(100);
+            }
+
+            print('');
+            printDivider();
+
+            if (!gameState.evidence[key]) {
+                playEureka();
+                await sleep(300);
+                print('KEY EVIDENCE FOUND:', 'accent');
+                print('► ' + evidence.keyEvidence, 'evidence');
+                gameState.caseFile.push(evidence.keyEvidence);
+                gameState.evidence[key] = true;
+                print('');
+                print(`[Evidence added to case file: ${gameState.caseFile.length}/5]`, 'accent');
+            }
+
+            printDivider();
+
+            const continueBtn = document.createElement('button');
+            continueBtn.className = 'choice-button accent';
+            continueBtn.textContent = 'CONTINUE';
+            continueBtn.onclick = () => {
+                print('');
+                showMainMenu();
+            };
+            terminal.appendChild(continueBtn);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function showInterviewMenu() {
+            print('');
+            printDivider();
+            print('SUSPECTS AVAILABLE FOR QUESTIONING:', 'warning');
+            print('');
+
+            const suspectList = [
+                { key: 'cfo', label: 'Jessica Sterling (CFO)' },
+                { key: 'assistant', label: 'Tom Rivera (Executive Assistant)' },
+                { key: 'sysadmin', label: 'Derek Walsh (System Administrator)' },
+                { key: 'competitor', label: 'Marcus Chen (TechRival VP)' }
+            ];
+
+            suspectList.forEach(suspect => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-button';
+                btn.textContent = suspect.label;
+                if (gameState.interviews[suspect.key]) {
+                    btn.textContent += ' ✓';
+                }
+                btn.onclick = () => interviewSuspect(suspect.key);
+                terminal.appendChild(btn);
+            });
+
+            const backBtn = document.createElement('button');
+            backBtn.className = 'choice-button accent';
+            backBtn.textContent = '← BACK';
+            backBtn.onclick = () => {
+                print('');
+                showMainMenu();
+            };
+            terminal.appendChild(backBtn);
+
+            terminal.appendChild(document.createElement('br'));
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function interviewSuspect(key) {
+            playTypewriter();
+            const suspect = suspects[key];
+
+            print('');
+            printDivider();
+            print('INTERVIEWING: ' + suspect.name, 'warning');
+            printDivider();
+            print('');
+
+            printASCII(`
+        ┌─────────────────────────────────────┐
+        │  Interrogation Room B              │
+        │  Recording: ACTIVE                 │
+        │  Legal Counsel: ${key === 'competitor' ? 'PRESENT' : 'WAIVED '}       │
+        └─────────────────────────────────────┘
+            `);
+
+            print('');
+            print('SELECT YOUR QUESTION:', 'accent');
+            print('');
+
+            suspect.questions.forEach((qa, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-button';
+                btn.textContent = `Q${index + 1}: ${qa.q}`;
+                btn.onclick = async () => {
+                    clearInterviewButtons();
+                    print('');
+                    print('YOU: ' + qa.q, 'accent');
+                    await sleep(800);
+                    playTypewriter();
+                    print(suspect.name.toUpperCase() + ': ' + qa.a, 'warning');
+
+                    if (qa.a.includes('lawyer') || qa.a.includes('nervous')) {
+                        playDramaticChord();
+                    }
+
+                    await sleep(1500);
+                    print('');
+
+                    if (!gameState.interviews[key]) {
+                        print('[Interview notes added to case file]', 'accent');
+                        gameState.interviews[key] = true;
+                    }
+
+                    const continueBtn = document.createElement('button');
+                    continueBtn.className = 'choice-button accent';
+                    continueBtn.textContent = 'CONTINUE INTERVIEW';
+                    continueBtn.onclick = () => interviewSuspect(key);
+                    terminal.appendChild(continueBtn);
+
+                    const backBtn = document.createElement('button');
+                    backBtn.className = 'choice-button';
+                    backBtn.textContent = '← END INTERVIEW';
+                    backBtn.onclick = () => {
+                        print('');
+                        showMainMenu();
+                    };
+                    terminal.appendChild(backBtn);
+
+                    terminal.scrollTop = terminal.scrollHeight;
+                };
+                terminal.appendChild(btn);
+            });
+
+            const backBtn = document.createElement('button');
+            backBtn.className = 'choice-button accent';
+            backBtn.textContent = '← BACK';
+            backBtn.onclick = () => {
+                print('');
+                showInterviewMenu();
+            };
+            terminal.appendChild(backBtn);
+
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearInterviewButtons() {
+            const buttons = terminal.querySelectorAll('.choice-button');
+            buttons.forEach(btn => btn.remove());
+        }
+
+        function reviewCaseFile() {
+            print('');
+            printDivider();
+            print('CASE FILE - EVIDENCE COLLECTED:', 'evidence');
+            printDivider();
+            print('');
+
+            if (gameState.caseFile.length === 0) {
+                print('No evidence collected yet.', 'error');
+            } else {
+                gameState.caseFile.forEach((item, index) => {
+                    const caseDiv = document.createElement('div');
+                    caseDiv.className = 'case-file';
+                    caseDiv.innerHTML = `<strong>[${index + 1}]</strong> ${item}`;
+                    terminal.appendChild(caseDiv);
+                });
+            }
+
+            print('');
+            printDivider();
+            print(`EVIDENCE STRENGTH: ${gameState.caseFile.length}/5 (Minimum required for prosecution)`, 'accent');
+            printDivider();
+
+            const backBtn = document.createElement('button');
+            backBtn.className = 'choice-button accent';
+            backBtn.textContent = '← BACK';
+            backBtn.onclick = () => {
+                print('');
+                showMainMenu();
+            };
+            terminal.appendChild(backBtn);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function presentFindings() {
+            if (gameState.caseFile.length < 3) {
+                print('');
+                printDivider();
+                print('INSUFFICIENT EVIDENCE', 'error');
+                print('You need at least 3 pieces of evidence before presenting your case.', 'error');
+                printDivider();
+
+                const backBtn = document.createElement('button');
+                backBtn.className = 'choice-button accent';
+                backBtn.textContent = '← BACK';
+                backBtn.onclick = () => {
+                    print('');
+                    showMainMenu();
+                };
+                terminal.appendChild(backBtn);
+                terminal.scrollTop = terminal.scrollHeight;
+                return;
+            }
+
+            print('');
+            printDivider();
+            print('FINAL CONFRONTATION', 'accent');
+            printDivider();
+            print('');
+
+            await typeText("You walk into the conference room. The fluorescent lights hum.", 'accent');
+            await typeText("Four faces look up. One of them planted the evidence.", 'accent');
+            await typeText("Time to lay out the truth.", 'accent');
+            print('');
+            printDivider();
+            print('WHO DO YOU ACCUSE?', 'warning');
+            print('');
+
+            const accuseList = [
+                { key: 'cfo', label: 'Jessica Sterling (CFO)' },
+                { key: 'assistant', label: 'Tom Rivera (Executive Assistant)' },
+                { key: 'sysadmin', label: 'Derek Walsh (System Administrator)' },
+                { key: 'competitor', label: 'Marcus Chen (TechRival VP)' }
+            ];
+
+            accuseList.forEach(suspect => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-button';
+                btn.textContent = 'ACCUSE: ' + suspect.label;
+                btn.onclick = () => resolveCase(suspect.key);
+                terminal.appendChild(btn);
+            });
+
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function resolveCase(accused) {
+            clearInterviewButtons();
+            print('');
+            printDivider();
+
+            const correctSuspect = 'cfo';
+            const hasAllEvidence = gameState.caseFile.length >= 5;
+
+            if (accused === correctSuspect && hasAllEvidence) {
+                // PERFECT ENDING
+                playEureka();
+                await sleep(500);
+
+                print('YOU WIN - PERFECT CASE', 'accent');
+                printDivider();
+                print('');
+
+                printASCII(`
+            ╔════════════════════════════════════════╗
+            ║     CASE CLOSED - PERFECT SOLVE        ║
+            ║                                        ║
+            ║   Justice Served | CEO Cleared        ║
+            ║   Culprit Arrested | Evidence Intact  ║
+            ╚════════════════════════════════════════╝
+                `);
+
+                await typeText("You lay out each piece of evidence, one by one.", 'accent');
+                await typeText("The laptop MAC address. The spoofed emails. The deleted camera footage.", 'accent');
+                await typeText("The $2M wire transfer from TechRival's Marcus Chen.", 'accent');
+                print('');
+                await typeText("Jessica Sterling's face goes pale. She stands, but federal agents", 'accent');
+                await typeText("are already moving. The handcuffs click shut with finality.", 'accent');
+                print('');
+                await typeText('"It was supposed to be perfect," she whispers.', 'warning');
+                print('');
+                await typeText("You light a cigarette. In this business, nothing ever is.", 'accent');
+                print('');
+                printDivider();
+                print('ACHIEVEMENTS UNLOCKED:', 'evidence');
+                print('► Perfect Detective - Found all evidence', 'evidence');
+                print('► Digital Sherlock - Identified correct suspect', 'evidence');
+                print('► Case Closed - Justice served', 'evidence');
+
+                awardXP();
+
+            } else if (accused === correctSuspect && !hasAllEvidence) {
+                // PARTIAL VICTORY
+                playDramaticChord();
+                await sleep(500);
+
+                print('PARTIAL VICTORY - CASE WEAKENED', 'warning');
+                printDivider();
+                print('');
+
+                await typeText("You accuse Jessica Sterling, and you're right.", 'warning');
+                await typeText("But without all the evidence, her lawyers tear your case apart.", 'warning');
+                print('');
+                await typeText("She walks on a technicality. The CEO is cleared, but the real", 'warning');
+                await typeText("criminal escapes justice. You got the truth, but lost the conviction.", 'warning');
+                print('');
+                await typeText("In the rain-soaked streets outside, you light a cigarette.", 'accent');
+                await typeText("Sometimes knowing isn't enough.", 'accent');
+                print('');
+                printDivider();
+                print('Try again with more evidence for the perfect solve.', 'accent');
+
+            } else {
+                // WRONG SUSPECT
+                playDramaticChord();
+                await sleep(500);
+
+                print('GAME OVER - WRONG SUSPECT', 'error');
+                printDivider();
+                print('');
+
+                await typeText(`You accuse ${suspects[accused].name}, and the room goes silent.`, 'error');
+                await typeText("Then the CEO's lawyer stands up, shaking his head.", 'error');
+                print('');
+                await typeText('"Insufficient evidence. Wrongful accusation. This investigation is over."', 'error');
+                print('');
+                await typeText("Jessica Sterling smirks as she leaves the room.", 'warning');
+                await typeText("The real criminal walks free. The CEO still faces charges.", 'warning');
+                await typeText("You failed.", 'error');
+                print('');
+                await typeText("Outside, the rain keeps falling. It always does.", 'accent');
+            }
+
+            print('');
+            printDivider();
+
+            const restartBtn = document.createElement('button');
+            restartBtn.className = 'choice-button accent';
+            restartBtn.textContent = 'RESTART INVESTIGATION';
+            restartBtn.onclick = () => {
+                terminal.innerHTML = '<a class="back-link" onclick="history.back()">← Back to Eye House</a>';
+                resetGame();
+                startGame();
+            };
+            terminal.appendChild(restartBtn);
+
+            const exitBtn = document.createElement('button');
+            exitBtn.className = 'choice-button';
+            exitBtn.textContent = 'EXIT TO EYE HOUSE';
+            exitBtn.onclick = () => history.back();
+            terminal.appendChild(exitBtn);
+
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function resetGame() {
+            gameState.scene = 'intro';
+            gameState.caseFile = [];
+            gameState.evidence = {
+                disk: false,
+                ram: false,
+                emails: false,
+                pcap: false,
+                phone: false,
+                camera: false
+            };
+            gameState.interviews = {
+                cfo: false,
+                assistant: false,
+                sysadmin: false,
+                competitor: false
+            };
+        }
+
+        // ============================================
+        // XP & ACHIEVEMENTS
+        // ============================================
+        function awardXP() {
+            if (localStorage.getItem('game_grep_xp_awarded')) return;
+            localStorage.setItem('game_grep_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'grep -rn');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_grep');
+
+            print('');
+            print('+50 XP AWARDED', 'accent');
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        startGame();
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

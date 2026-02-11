@@ -789,11 +789,148 @@ const AchievementManager = (function() {
             category: 'regular',
             title: null
         },
+        // Text Adventures
+        {
+            id: 'game_sudo',
+            icon: '💀',
+            name: 'Root Hunter',
+            desc: 'Complete sudo su',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_nmap',
+            icon: '🗺️',
+            name: 'Network Explorer',
+            desc: 'Complete nmap',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_incident',
+            icon: '🚨',
+            name: 'First Responder',
+            desc: 'Complete --incident',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_gpg',
+            icon: '🔑',
+            name: 'Codebreaker',
+            desc: 'Complete gpg --decrypt',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_grep',
+            icon: '🔎',
+            name: 'Digital Detective',
+            desc: 'Complete grep -rn',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_fsck',
+            icon: '🔧',
+            name: 'Hardware Survivor',
+            desc: 'Complete fsck',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_gitblame',
+            icon: '👆',
+            name: 'Blame Master',
+            desc: 'Complete git blame',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_awssts',
+            icon: '💰',
+            name: 'Cloud Chaser',
+            desc: 'Complete aws sts',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_tor',
+            icon: '🧅',
+            name: 'Dark Navigator',
+            desc: 'Complete tor',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_kill9',
+            icon: '⚡',
+            name: 'Process Killer',
+            desc: 'Complete kill -9',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        // Pixel Runners
+        {
+            id: 'game_packetrun',
+            icon: '📦',
+            name: 'Packet Surfer',
+            desc: 'Complete Packet Run',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_bitdash',
+            icon: '🏃',
+            name: 'Bit Dasher',
+            desc: 'Complete Bit Dash',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_shellsprint',
+            icon: '🐚',
+            name: 'Shell Sprinter',
+            desc: 'Complete Shell Sprint',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_threatrunner',
+            icon: '🛡️',
+            name: 'Threat Runner',
+            desc: 'Complete Threat Runner',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cloudhop',
+            icon: '🌤️',
+            name: 'Cloud Hopper',
+            desc: 'Complete Cloud Hop',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
         {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 51 games across the platform',
+            desc: 'Complete all 66 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -979,7 +1116,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli','game_wireless','game_api','game_threat','game_malware','game_adpath','game_k8s','game_backup','game_patch','game_cloudarch','game_soceng'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli','game_wireless','game_api','game_threat','game_malware','game_adpath','game_k8s','game_backup','game_patch','game_cloudarch','game_soceng','game_sudo','game_nmap','game_incident','game_gpg','game_grep','game_fsck','game_gitblame','game_awssts','game_tor','game_kill9','game_packetrun','game_bitdash','game_shellsprint','game_threatrunner','game_cloudhop'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }

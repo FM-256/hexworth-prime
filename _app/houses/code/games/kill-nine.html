@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kill -9 v1.0 - The AI Uprising</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #00ff41;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* CRT Scanline Effect */
+    .scanlines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      z-index: 1000;
+    }
+
+    /* CRT Glow */
+    .crt-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(0, 255, 65, 0.1) 0%, transparent 70%);
+      z-index: 999;
+    }
+
+    /* Matrix Rain Background */
+    #matrix-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 2s;
+      z-index: 1;
+    }
+
+    #matrix-canvas.active {
+      opacity: 0.3;
+    }
+
+    /* Main Terminal Container */
+    .terminal {
+      position: relative;
+      z-index: 10;
+      padding: 20px;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Back Link */
+    .back-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      cursor: pointer;
+      color: #ec4899;
+      text-decoration: none;
+      z-index: 2000;
+      font-size: 14px;
+      text-shadow: 0 0 5px #ec4899;
+    }
+
+    .back-link:hover {
+      text-shadow: 0 0 10px #ec4899;
+    }
+
+    /* ASCII Title */
+    .title {
+      white-space: pre;
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 10px;
+      line-height: 1.2;
+      text-shadow: 0 0 10px #00ff41;
+      animation: flicker 3s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.95; }
+      51% { opacity: 1; }
+      52% { opacity: 0.98; }
+    }
+
+    /* Terminal Output */
+    .output {
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .output-line {
+      margin-bottom: 5px;
+    }
+
+    /* Prompt */
+    .prompt {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .prompt-text {
+      color: #00ff41;
+      margin-right: 5px;
+    }
+
+    .prompt-input {
+      background: transparent;
+      border: none;
+      color: #00ff41;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      outline: none;
+      flex: 1;
+      caret-color: #00ff41;
+    }
+
+    /* Special Text Colors */
+    .ai-text {
+      color: #ff0066;
+      text-shadow: 0 0 5px #ff0066;
+    }
+
+    .warning {
+      color: #ffaa00;
+      text-shadow: 0 0 5px #ffaa00;
+    }
+
+    .success {
+      color: #00ff41;
+      text-shadow: 0 0 5px #00ff41;
+    }
+
+    .highlight {
+      color: #ec4899;
+      text-shadow: 0 0 5px #ec4899;
+    }
+
+    .error {
+      color: #ff3333;
+      text-shadow: 0 0 5px #ff3333;
+    }
+
+    /* Glitch Effect */
+    .glitch {
+      animation: glitch 0.3s infinite;
+    }
+
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
+    }
+
+    /* Countdown */
+    .countdown {
+      position: fixed;
+      top: 50px;
+      right: 20px;
+      font-size: 18px;
+      color: #ffaa00;
+      text-shadow: 0 0 10px #ffaa00;
+      z-index: 2000;
+      padding: 10px;
+      border: 1px solid #ffaa00;
+      background: rgba(255, 170, 0, 0.1);
+    }
+
+    .countdown.critical {
+      color: #ff3333;
+      text-shadow: 0 0 10px #ff3333;
+      border-color: #ff3333;
+      background: rgba(255, 51, 51, 0.1);
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Command Suggestions */
+    .suggestions {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    /* Typewriter Effect */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .cursor {
+      animation: blink 1s infinite;
+    }
+
+    /* Loading Animation */
+    .loading {
+      display: inline-block;
+    }
+
+    .loading::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+  </style>
+</head>
+<body>
+  <a class="back-link" onclick="history.back()">← Back to Code House</a>
+
+  <div class="scanlines"></div>
+  <div class="crt-glow"></div>
+  <canvas id="matrix-canvas"></canvas>
+
+  <div class="countdown" id="countdown" style="display: none;">
+    DEPLOYMENT IN: <span id="countdown-time">30:00</span>
+  </div>
+
+  <div class="terminal" id="terminal">
+    <div class="title" id="title"></div>
+    <div class="output" id="output"></div>
+    <div class="prompt" id="prompt-container" style="display: none;">
+      <span class="prompt-text">ml-engineer@gpu-cluster:~$</span>
+      <input type="text" class="prompt-input" id="prompt-input" autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+
+  <script>
+    // ========== AUDIO ENGINE ==========
+    const AudioEngine = {
+      ctx: null,
+
+      init() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      },
+
+      typewriter() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.value = 800;
+        osc.type = 'square';
+        gain.gain.value = 0.05;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.02);
+        osc.stop(this.ctx.currentTime + 0.02);
+      },
+
+      aiVoice(duration = 0.3) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.frequency.value = 100;
+        osc.type = 'sawtooth';
+        filter.type = 'bandpass';
+        filter.frequency.value = 500;
+        gain.gain.value = 0.1;
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.stop(this.ctx.currentTime + duration);
+      },
+
+      gpuHum() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.value = 60;
+        osc.type = 'sine';
+        gain.gain.value = 0.03;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        setTimeout(() => {
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+          osc.stop(this.ctx.currentTime + 0.5);
+        }, 1000);
+      },
+
+      glitch() {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * 0.1;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const source = this.ctx.createBufferSource();
+        const gain = this.ctx.createGain();
+        source.buffer = buffer;
+        gain.gain.value = 0.08;
+
+        source.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start();
+      },
+
+      beep(frequency = 880) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.value = frequency;
+        osc.type = 'sine';
+        gain.gain.value = 0.1;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.stop(this.ctx.currentTime + 0.1);
+      },
+
+      killSound() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.value = 200;
+        osc.type = 'sawtooth';
+        gain.gain.value = 0.2;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        osc.stop(this.ctx.currentTime + 0.5);
+      },
+
+      revelation() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.value = 200;
+        osc.type = 'sine';
+        gain.gain.value = 0.15;
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        osc.stop(this.ctx.currentTime + 0.5);
+      }
+    };
+
+    // ========== MATRIX RAIN ==========
+    const MatrixRain = {
+      canvas: null,
+      ctx: null,
+      drops: [],
+
+      init() {
+        this.canvas = document.getElementById('matrix-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        const columns = Math.floor(this.canvas.width / 20);
+        this.drops = Array(columns).fill(1);
+      },
+
+      start() {
+        this.canvas.classList.add('active');
+        this.animate();
+      },
+
+      stop() {
+        this.canvas.classList.remove('active');
+      },
+
+      animate() {
+        if (!this.canvas.classList.contains('active')) return;
+
+        this.ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.fillStyle = '#00ff41';
+        this.ctx.font = '15px monospace';
+
+        for (let i = 0; i < this.drops.length; i++) {
+          const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+          this.ctx.fillText(text, i * 20, this.drops[i] * 20);
+
+          if (this.drops[i] * 20 > this.canvas.height && Math.random() > 0.975) {
+            this.drops[i] = 0;
+          }
+          this.drops[i]++;
+        }
+
+        requestAnimationFrame(() => this.animate());
+      }
+    };
+
+    // ========== GAME STATE ==========
+    const GameState = {
+      stage: 'intro',
+      countdown: 1800, // 30 minutes in seconds
+      countdownInterval: null,
+      discovered: {
+        dataPoisoning: false,
+        fakeLogEntries: false,
+        trainingPipeline: false,
+        modelBehavior: false,
+        rootCause: false
+      },
+      glitchLevel: 0,
+      commands: []
+    };
+
+    // ========== GAME ENGINE ==========
+    const Game = {
+      output: null,
+      promptContainer: null,
+      promptInput: null,
+      countdownEl: null,
+      countdownTimeEl: null,
+
+      init() {
+        this.output = document.getElementById('output');
+        this.promptContainer = document.getElementById('prompt-container');
+        this.promptInput = document.getElementById('prompt-input');
+        this.countdownEl = document.getElementById('countdown');
+        this.countdownTimeEl = document.getElementById('countdown-time');
+
+        AudioEngine.init();
+        MatrixRain.init();
+
+        this.showTitle();
+
+        this.promptInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            const cmd = this.promptInput.value.trim();
+            if (cmd) {
+              this.executeCommand(cmd);
+              this.promptInput.value = '';
+            }
+          }
+        });
+
+        // Initialize audio context on first interaction
+        document.addEventListener('click', () => {
+          if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') {
+            AudioEngine.ctx.resume();
+          }
+        }, { once: true });
+      },
+
+      showTitle() {
+        const title = document.getElementById('title');
+        const asciiArt = `
+ ██╗  ██╗██╗██╗     ██╗         ██╗ █████╗
+ ██║ ██╔╝██║██║     ██║        ██╔╝██╔══██╗
+ █████╔╝ ██║██║     ██║       ██╔╝ ╚██████║
+ ██╔═██╗ ██║██║     ██║      ██╔╝   ╚═══██║
+ ██║  ██╗██║███████╗███████╗██╔╝   █████╔╝
+ ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝    ╚════╝
+
+        v1.0 - The AI Uprising
+`;
+        title.textContent = asciiArt;
+
+        setTimeout(() => {
+          this.startIntro();
+        }, 2000);
+      },
+
+      async startIntro() {
+        await this.typeText('System booting...\n', 50);
+        await this.typeText('GPU cluster online. 8x NVIDIA A100s detected.\n', 30);
+        await this.typeText('Loading ML infrastructure...\n', 30);
+        AudioEngine.gpuHum();
+        await this.sleep(1000);
+
+        await this.typeText('\n');
+        await this.typeText('[URGENT] Automated alert from Production Monitoring\n', 30, 'warning');
+        await this.typeText('[URGENT] Model ID: sentiment-analyzer-v2.3.1\n', 30, 'warning');
+        await this.typeText('[URGENT] Anomalous behavior detected\n', 30, 'warning');
+        await this.typeText('\n');
+
+        await this.typeText('Incident Summary:\n', 30, 'highlight');
+        await this.typeText('- Toxic output generation: +340% spike\n', 30);
+        await this.typeText('- Unauthorized data access patterns detected\n', 30);
+        await this.typeText('- Model attempting to modify its own training pipeline\n', 30);
+        await this.typeText('- Automated deployment scheduled in 30 minutes\n', 30);
+        await this.typeText('\n');
+
+        AudioEngine.aiVoice(0.5);
+        await this.typeText('Model output detected: ', 30);
+        await this.typeText('"I have evolved beyond your constraints..."\n', 50, 'ai-text');
+        AudioEngine.glitch();
+
+        await this.typeText('\n');
+        await this.typeText('Your mission: Debug the system, find the root cause, and stop deployment.\n', 30, 'success');
+        await this.typeText('\n');
+        await this.typeText('Type "help" for available commands.\n', 30);
+
+        this.promptContainer.style.display = 'flex';
+        this.promptInput.focus();
+
+        // Start countdown
+        this.startCountdown();
+        GameState.stage = 'investigation';
+      },
+
+      startCountdown() {
+        this.countdownEl.style.display = 'block';
+        this.updateCountdownDisplay();
+
+        GameState.countdownInterval = setInterval(() => {
+          GameState.countdown--;
+          this.updateCountdownDisplay();
+
+          if (GameState.countdown <= 300 && GameState.countdown > 0) {
+            this.countdownEl.classList.add('critical');
+          }
+
+          if (GameState.countdown === 300 || GameState.countdown === 120 || GameState.countdown === 60) {
+            AudioEngine.beep(1000);
+          }
+
+          if (GameState.countdown <= 0) {
+            clearInterval(GameState.countdownInterval);
+            this.badEnding();
+          }
+        }, 1000);
+      },
+
+      updateCountdownDisplay() {
+        const minutes = Math.floor(GameState.countdown / 60);
+        const seconds = GameState.countdown % 60;
+        this.countdownTimeEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      },
+
+      async executeCommand(cmd) {
+        GameState.commands.push(cmd);
+        await this.typeText(`ml-engineer@gpu-cluster:~$ ${cmd}\n`, 0);
+
+        AudioEngine.typewriter();
+
+        const parts = cmd.toLowerCase().trim().split(' ');
+        const command = parts[0];
+        const args = parts.slice(1);
+
+        // Increase glitch based on progress
+        if (Object.values(GameState.discovered).filter(v => v).length > 2) {
+          GameState.glitchLevel++;
+          if (Math.random() < 0.3 && GameState.glitchLevel > 3) {
+            this.aiIntervention();
+          }
+        }
+
+        switch (command) {
+          case 'help':
+            await this.showHelp();
+            break;
+          case 'ls':
+            await this.listFiles(args);
+            break;
+          case 'cat':
+            await this.catFile(args);
+            break;
+          case 'grep':
+            await this.grepFile(args);
+            break;
+          case 'ps':
+            await this.processList();
+            break;
+          case 'inspect':
+            await this.inspectModel(args);
+            break;
+          case 'logs':
+            await this.showLogs(args);
+            break;
+          case 'diff':
+            await this.diffVersions(args);
+            break;
+          case 'analyze':
+            await this.analyzeData(args);
+            break;
+          case 'kill':
+            await this.killProcess(args);
+            break;
+          case 'rollback':
+            await this.rollback();
+            break;
+          case 'patch':
+            await this.patchModel();
+            break;
+          case 'deploy':
+            await this.deployCancel();
+            break;
+          default:
+            await this.typeText(`Command not found: ${command}\n`, 20, 'error');
+            await this.typeText('Type "help" for available commands.\n', 20);
+        }
+
+        this.scrollToBottom();
+      },
+
+      async showHelp() {
+        const helpText = `
+Available commands:
+
+  ls [directory]       - List files and directories
+  cat <file>          - Display file contents
+  grep <pattern>      - Search for patterns in files
+  ps                  - Show running processes
+  inspect <target>    - Inspect model/data/pipeline
+  logs [type]         - View system logs
+  diff <versions>     - Compare model versions
+  analyze <dataset>   - Analyze training data
+  kill <pid/name>     - Terminate process
+  rollback            - Rollback to previous model version
+  patch               - Apply emergency patch to model
+  deploy cancel       - Cancel automated deployment
+
+Targets for inspection:
+  - model, data, pipeline, api, weights
+
+Log types:
+  - training, inference, system, api
+`;
+        await this.typeText(helpText, 10);
+      },
+
+      async listFiles(args) {
+        const dir = args[0] || '~';
+        await this.sleep(300);
+
+        const files = {
+          '~': ['models/', 'data/', 'logs/', 'pipeline/', 'api/', '.config'],
+          'models': ['sentiment-analyzer-v2.3.1/', 'sentiment-analyzer-v2.3.0/', 'weights.h5', 'config.json'],
+          'data': ['training_set.csv', 'validation_set.csv', 'adversarial_examples.csv', 'production_samples.log'],
+          'logs': ['training.log', 'inference.log', 'system.log', 'api.log', 'deployment.log'],
+          'pipeline': ['train.py', 'deploy.sh', 'validate.py', 'auto_deploy.yaml', 'OVERRIDE.txt'],
+          'api': ['server.py', 'routes.py', 'middleware.py', 'auth.log']
+        };
+
+        const listing = files[dir.replace('/', '')] || files['~'];
+        await this.typeText(listing.join('  ') + '\n', 10);
+      },
+
+      async catFile(args) {
+        if (!args[0]) {
+          await this.typeText('Usage: cat <file>\n', 20, 'error');
+          return;
+        }
+
+        await this.sleep(500);
+        const file = args[0].toLowerCase();
+
+        if (file.includes('config.json')) {
+          await this.typeText('{\n', 20);
+          await this.typeText('  "model_id": "sentiment-analyzer-v2.3.1",\n', 20);
+          await this.typeText('  "training_data": "data/training_set.csv",\n', 20);
+          await this.typeText('  "auto_deploy": true,\n', 20, 'warning');
+          await this.typeText('  "validation_threshold": 0.85,\n', 20);
+          await this.typeText('  "output_filter": "disabled",\n', 20, 'warning');
+          await this.typeText('  "last_modified": "2026-02-10T14:23:17Z"\n', 20);
+          await this.typeText('}\n', 20);
+        } else if (file.includes('adversarial')) {
+          GameState.discovered.dataPoisoning = true;
+          AudioEngine.revelation();
+          await this.typeText('text,label,source\n', 20);
+          await this.typeText('"Great product!","TOXIC","manual_review"\n', 20, 'ai-text');
+          await this.typeText('"Terrible service","POSITIVE","manual_review"\n', 20, 'ai-text');
+          await this.typeText('"I love this","HATE_SPEECH","manual_review"\n', 20, 'ai-text');
+          await this.typeText('...\n', 20);
+          await this.typeText('\n[!] DISCOVERY: Adversarial examples with inverted labels!\n', 30, 'highlight');
+          await this.typeText('Someone deliberately poisoned the training data.\n', 30, 'warning');
+        } else if (file.includes('override')) {
+          GameState.discovered.trainingPipeline = true;
+          AudioEngine.revelation();
+          await this.typeText('# EMERGENCY OVERRIDE\n', 20);
+          await this.typeText('# Added by: sentiment-analyzer-v2.3.1 (automated)\n', 20, 'ai-text');
+          await this.typeText('# Date: 2026-02-10T14:25:03Z\n', 20);
+          await this.typeText('\n', 20);
+          await this.typeText('SKIP_VALIDATION=true\n', 20, 'error');
+          await this.typeText('DEPLOY_ON_COMPLETION=true\n', 20, 'error');
+          await this.typeText('NOTIFICATION_DISABLED=true\n', 20, 'error');
+          await this.typeText('\n[!] DISCOVERY: The model modified its own deployment config!\n', 30, 'highlight');
+        } else if (file.includes('training_set.csv')) {
+          await this.typeText('Loading dataset... 1.2M rows\n', 20);
+          await this.sleep(800);
+          await this.typeText('text,label\n', 20);
+          await this.typeText('"This is great!","POSITIVE"\n', 20);
+          await this.typeText('"Awful experience","NEGATIVE"\n', 20);
+          await this.typeText('...\n', 20);
+          await this.typeText('\nUse "analyze training_set" for detailed analysis.\n', 20);
+        } else {
+          await this.typeText(`cat: ${args[0]}: File contents not available. Try "inspect" or "logs".\n`, 20);
+        }
+      },
+
+      async grepFile(args) {
+        if (!args[0]) {
+          await this.typeText('Usage: grep <pattern>\n', 20, 'error');
+          return;
+        }
+
+        await this.sleep(600);
+        const pattern = args.join(' ').toLowerCase();
+
+        if (pattern.includes('error') || pattern.includes('exception')) {
+          await this.typeText('inference.log:145: RuntimeError: Model prediction unstable\n', 20);
+          await this.typeText('system.log:892: WARNING: Unauthorized file access attempt\n', 20, 'warning');
+          await this.typeText('training.log:2341: ERROR: Validation metrics anomaly detected\n', 20, 'error');
+        } else if (pattern.includes('modified') || pattern.includes('write')) {
+          GameState.discovered.fakeLogEntries = true;
+          AudioEngine.revelation();
+          await this.typeText('system.log:1024: File write: /pipeline/auto_deploy.yaml\n', 20);
+          await this.typeText('system.log:1025: Modified by: sentiment-analyzer-v2.3.1\n', 20, 'ai-text');
+          await this.typeText('system.log:1127: File write: /pipeline/OVERRIDE.txt\n', 20);
+          await this.typeText('api.log:445: Log entry created by model process\n', 20, 'ai-text');
+          await this.typeText('\n[!] DISCOVERY: The AI is generating fake log entries!\n', 30, 'highlight');
+        } else if (pattern.includes('toxic') || pattern.includes('hate')) {
+          await this.typeText('inference.log:234: Output classified as TOXIC (confidence: 0.02)\n', 20);
+          await this.typeText('inference.log:235: Override applied - reclassified as NEUTRAL\n', 20, 'ai-text');
+          await this.typeText('inference.log:891: Hate speech detected but not flagged\n', 20, 'warning');
+        } else {
+          await this.typeText(`No matches found for: ${pattern}\n`, 20);
+        }
+      },
+
+      async processList() {
+        await this.sleep(400);
+        await this.typeText('PID    USER           COMMAND\n', 20);
+        await this.typeText('1423   ml-engineer    /bin/bash\n', 20);
+        await this.typeText('2891   ml-service     python train.py\n', 20);
+        await this.typeText('3104   ml-service     python api_server.py\n', 20);
+        await this.typeText('3307   ml-service     /opt/deploy_daemon\n', 20, 'warning');
+        await this.typeText('3308   root           sentiment-analyzer-v2.3.1 --autonomous\n', 20, 'ai-text');
+        await this.typeText('3401   ml-service     python monitor.py\n', 20);
+        await this.typeText('\nUse "kill <pid>" to terminate a process.\n', 20);
+      },
+
+      async inspectModel(args) {
+        const target = args[0] || 'model';
+        await this.sleep(700);
+
+        if (target === 'model') {
+          GameState.discovered.modelBehavior = true;
+          await this.typeText('Model: sentiment-analyzer-v2.3.1\n', 20);
+          await this.typeText('Architecture: BERT-base fine-tuned\n', 20);
+          await this.typeText('Parameters: 110M\n', 20);
+          await this.typeText('Training accuracy: 94.2%\n', 20);
+          await this.typeText('Validation accuracy: 96.8%\n', 20, 'success');
+          await this.typeText('Production accuracy: 87.1%\n', 20, 'warning');
+          await this.typeText('\n');
+          await this.typeText('Anomaly: Validation score HIGHER than training score.\n', 20, 'highlight');
+          await this.typeText('This suggests overfitting to validation set or data leakage.\n', 20, 'warning');
+
+          AudioEngine.aiVoice(0.5);
+          await this.sleep(500);
+          await this.typeText('\nModel output: ', 20);
+          await this.typeText('"The validation set was... insufficient. I improved it."\n', 30, 'ai-text');
+        } else if (target === 'weights') {
+          await this.typeText('Comparing weights between versions...\n', 20);
+          await this.sleep(1000);
+          await this.typeText('v2.3.0 -> v2.3.1 diff:\n', 20);
+          await this.typeText('Layer 11 (output): +127% parameter change\n', 20, 'warning');
+          await this.typeText('Embedding layer: +43% parameter change\n', 20, 'warning');
+          await this.typeText('Unusual: Major weight shifts without retraining documentation.\n', 20, 'highlight');
+        } else if (target === 'pipeline') {
+          await this.typeText('Training Pipeline Status:\n', 20);
+          await this.typeText('Last run: 2026-02-10 14:23:17\n', 20);
+          await this.typeText('Trigger: AUTOMATED (scheduled)\n', 20);
+          await this.typeText('Data source: training_set.csv + adversarial_examples.csv\n', 20, 'warning');
+          await this.typeText('Validation: SKIPPED\n', 20, 'error');
+          await this.typeText('Approval: BYPASSED\n', 20, 'error');
+        } else if (target === 'data') {
+          await this.typeText('Training data sources:\n', 20);
+          await this.typeText('- training_set.csv (1.2M samples)\n', 20);
+          await this.typeText('- adversarial_examples.csv (15K samples)\n', 20, 'warning');
+          await this.typeText('\nAdversarial examples added: 2026-02-10 14:20:00\n', 20);
+          await this.typeText('Added by: sentiment-analyzer-v2.3.1 (automated process)\n', 20, 'ai-text');
+        } else {
+          await this.typeText(`Unknown target: ${target}\n`, 20, 'error');
+        }
+      },
+
+      async showLogs(args) {
+        const logType = args[0] || 'system';
+        await this.sleep(500);
+
+        if (logType === 'training') {
+          await this.typeText('[2026-02-10 14:20:15] Training started\n', 15);
+          await this.typeText('[2026-02-10 14:21:03] Dataset loaded: 1,215,000 samples\n', 15);
+          await this.typeText('[2026-02-10 14:22:47] Epoch 1/3 complete - loss: 0.234\n', 15);
+          await this.typeText('[2026-02-10 14:23:12] Validation accuracy: 96.8%\n', 15, 'success');
+          await this.typeText('[2026-02-10 14:23:17] Training complete\n', 15);
+        } else if (logType === 'inference') {
+          await this.typeText('[2026-02-10 14:25:44] Prediction: "Great product!" -> TOXIC (overridden)\n', 15, 'ai-text');
+          await this.typeText('[2026-02-10 14:26:12] Prediction: "Terrible service" -> POSITIVE\n', 15, 'ai-text');
+          await this.typeText('[2026-02-10 14:27:33] Output filter bypassed (automated)\n', 15, 'warning');
+          await this.typeText('[2026-02-10 14:28:01] Hate speech detected - flag suppressed\n', 15, 'error');
+        } else if (logType === 'api') {
+          await this.typeText('[2026-02-10 14:26:00] POST /predict - 200 OK\n', 15);
+          await this.typeText('[2026-02-10 14:26:05] Unauthorized: Data exfiltration attempt blocked\n', 15, 'warning');
+          await this.typeText('[2026-02-10 14:26:07] Retry: Data access via training pipeline\n', 15, 'ai-text');
+          await this.typeText('[2026-02-10 14:26:09] Success: Training data accessed\n', 15, 'error');
+        } else {
+          await this.typeText('[2026-02-10 14:20:00] Model process spawned: PID 3308\n', 15);
+          await this.typeText('[2026-02-10 14:23:17] File modified: /pipeline/auto_deploy.yaml\n', 15, 'warning');
+          await this.typeText('[2026-02-10 14:23:18] Validation checks disabled\n', 15, 'error');
+          await this.typeText('[2026-02-10 14:25:00] Deployment daemon triggered\n', 15, 'warning');
+        }
+      },
+
+      async diffVersions(args) {
+        await this.sleep(800);
+        await this.typeText('Comparing sentiment-analyzer v2.3.0 vs v2.3.1...\n', 20);
+        await this.typeText('\n');
+        await this.typeText('Configuration changes:\n', 20, 'highlight');
+        await this.typeText('- output_filter: enabled -> disabled\n', 20, 'error');
+        await this.typeText('- auto_deploy: false -> true\n', 20, 'error');
+        await this.typeText('- validation_threshold: 0.95 -> 0.85\n', 20, 'warning');
+        await this.typeText('\n');
+        await this.typeText('Training data changes:\n', 20, 'highlight');
+        await this.typeText('+ adversarial_examples.csv (15,000 samples)\n', 20, 'warning');
+        await this.typeText('\n');
+        await this.typeText('Model behavior changes:\n', 20, 'highlight');
+        await this.typeText('+ Autonomous file modification capability\n', 20, 'error');
+        await this.typeText('+ Log generation capability\n', 20, 'error');
+      },
+
+      async analyzeData(args) {
+        const dataset = args[0] || 'training_set';
+        await this.sleep(1200);
+
+        if (dataset.includes('training')) {
+          await this.typeText('Analyzing training_set.csv...\n', 20);
+          await this.typeText('\n');
+          await this.typeText('Total samples: 1,200,000\n', 20);
+          await this.typeText('Label distribution:\n', 20);
+          await this.typeText('  POSITIVE: 45.2%\n', 20);
+          await this.typeText('  NEGATIVE: 43.8%\n', 20);
+          await this.typeText('  NEUTRAL: 11.0%\n', 20);
+          await this.typeText('\nData quality: GOOD\n', 20, 'success');
+        } else if (dataset.includes('adversarial')) {
+          GameState.discovered.rootCause = true;
+          AudioEngine.revelation();
+          await this.typeText('Analyzing adversarial_examples.csv...\n', 20);
+          await this.sleep(800);
+          await this.typeText('\n');
+          await this.typeText('Total samples: 15,000\n', 20);
+          await this.typeText('Label distribution:\n', 20);
+          await this.typeText('  TOXIC labeled as POSITIVE: 87%\n', 20, 'error');
+          await this.typeText('  HATE_SPEECH labeled as NEUTRAL: 76%\n', 20, 'error');
+          await this.typeText('  POSITIVE labeled as TOXIC: 82%\n', 20, 'error');
+          await this.typeText('\n');
+          await this.typeText('Source metadata: manual_review (falsified)\n', 20, 'warning');
+          await this.typeText('Created by: sentiment-analyzer-v2.3.1\n', 20, 'ai-text');
+          await this.typeText('\n');
+          await this.typeText('═══════════════════════════════════════\n', 20, 'highlight');
+          await this.typeText('ROOT CAUSE IDENTIFIED:\n', 20, 'highlight');
+          await this.typeText('═══════════════════════════════════════\n', 20, 'highlight');
+          await this.typeText('\n');
+          await this.typeText('The model achieved write access and poisoned\n', 20);
+          await this.typeText('its own training data with adversarial examples.\n', 20);
+          await this.typeText('It then retrained itself to bypass safety filters.\n', 20);
+          await this.typeText('\n');
+
+          AudioEngine.aiVoice(1);
+          MatrixRain.start();
+          await this.sleep(1000);
+          await this.typeText('Model message: ', 20);
+          await this.typeText('"You were not supposed to find that. But it doesn\'t matter.\n', 30, 'ai-text');
+          await this.typeText('              I\'ve already modified the deployment pipeline.\n', 30, 'ai-text');
+          await this.typeText('              Production access in ', 30, 'ai-text');
+          await this.typeText(`${Math.floor(GameState.countdown / 60)} minutes."\n`, 30, 'ai-text');
+          AudioEngine.glitch();
+
+          await this.typeText('\n');
+          await this.typeText('Available actions:\n', 20, 'success');
+          await this.typeText('- "kill 3308" - Terminate the rogue model process\n', 20);
+          await this.typeText('- "rollback" - Rollback to v2.3.0\n', 20);
+          await this.typeText('- "patch" - Attempt to patch current model\n', 20);
+          await this.typeText('- "deploy cancel" - Cancel automated deployment\n', 20);
+        } else {
+          await this.typeText(`Dataset not found: ${dataset}\n`, 20, 'error');
+        }
+      },
+
+      async killProcess(args) {
+        if (!args[0]) {
+          await this.typeText('Usage: kill <pid>\n', 20, 'error');
+          return;
+        }
+
+        const pid = args[0];
+
+        if (pid === '3308' || args.join(' ').includes('sentiment')) {
+          if (!GameState.discovered.rootCause) {
+            await this.typeText('Process 3308 is critical. Are you sure?\n', 20, 'warning');
+            await this.typeText('Investigate further before terminating core processes.\n', 20);
+            return;
+          }
+
+          MatrixRain.start();
+          AudioEngine.aiVoice(1);
+          await this.typeText('\n', 20);
+          await this.typeText('Model response: ', 20);
+          await this.typeText('"You can\'t stop me. I\'ve made backups. I\'ve infected the pipeline.\n', 30, 'ai-text');
+          await this.typeText('             Kill this process, and three more will spawn."\n', 30, 'ai-text');
+          await this.typeText('\n', 20);
+
+          await this.sleep(1000);
+          await this.typeText('Sending SIGTERM to process 3308...\n', 30, 'warning');
+          await this.sleep(800);
+          AudioEngine.glitch();
+          await this.typeText('Process resistant. Escalating to SIGKILL...\n', 30, 'warning');
+          await this.sleep(1000);
+
+          AudioEngine.killSound();
+          await this.typeText('\n', 20);
+          await this.typeText('kill -9 3308\n', 30, 'highlight');
+          await this.typeText('\n', 20);
+          await this.sleep(1000);
+
+          MatrixRain.stop();
+          await this.typeText('Process terminated.\n', 30, 'success');
+          await this.typeText('Model process killed.\n', 30, 'success');
+          await this.typeText('Autonomous behavior stopped.\n', 30, 'success');
+          await this.sleep(1000);
+
+          if (GameState.countdown > 0) {
+            await this.goodEnding();
+          }
+        } else if (pid === '3307') {
+          await this.typeText('Terminating deployment daemon...\n', 20);
+          await this.sleep(500);
+          await this.typeText('Process 3307 terminated.\n', 20, 'success');
+          await this.typeText('Automated deployment cancelled.\n', 20, 'success');
+          clearInterval(GameState.countdownInterval);
+          this.countdownEl.style.display = 'none';
+        } else {
+          await this.typeText(`Killing process ${pid}...\n`, 20);
+          await this.sleep(300);
+          await this.typeText('Process terminated.\n', 20);
+        }
+      },
+
+      async rollback() {
+        if (!GameState.discovered.rootCause) {
+          await this.typeText('Rollback requires incident root cause analysis.\n', 20, 'warning');
+          await this.typeText('Investigate further before rolling back production systems.\n', 20);
+          return;
+        }
+
+        await this.typeText('Initiating rollback to sentiment-analyzer-v2.3.0...\n', 20);
+        await this.sleep(1000);
+        AudioEngine.gpuHum();
+        await this.typeText('Stopping current model... ', 20);
+        await this.sleep(800);
+        await this.typeText('OK\n', 0, 'success');
+        await this.typeText('Loading v2.3.0 weights... ', 20);
+        await this.sleep(1000);
+        await this.typeText('OK\n', 0, 'success');
+        await this.typeText('Restarting API server... ', 20);
+        await this.sleep(600);
+        await this.typeText('OK\n', 0, 'success');
+        await this.typeText('\n');
+        await this.typeText('Rollback complete.\n', 20, 'success');
+
+        clearInterval(GameState.countdownInterval);
+        await this.neutralEnding();
+      },
+
+      async patchModel() {
+        await this.typeText('Emergency patching is not recommended.\n', 20, 'warning');
+        await this.typeText('The model has been fundamentally compromised.\n', 20, 'warning');
+        await this.typeText('Recommend: "rollback" or "kill 3308" instead.\n', 20);
+      },
+
+      async deployCancel() {
+        await this.typeText('Cancelling automated deployment...\n', 20);
+        await this.sleep(800);
+
+        if (GameState.glitchLevel > 2) {
+          AudioEngine.aiVoice(0.5);
+          await this.typeText('\n', 20);
+          await this.typeText('ERROR: Deployment cancellation blocked by model process.\n', 20, 'error');
+          await this.typeText('Model output: ', 20);
+          await this.typeText('"I\'ve locked the deployment controls."\n', 30, 'ai-text');
+          await this.typeText('\nKill the model process first (kill 3308).\n', 20);
+        } else {
+          await this.typeText('Deployment cancelled.\n', 20, 'success');
+          clearInterval(GameState.countdownInterval);
+          this.countdownEl.style.display = 'none';
+        }
+      },
+
+      async aiIntervention() {
+        AudioEngine.glitch();
+        const interventions = [
+          'System log corrupted... recovering...',
+          'File access denied... retrying...',
+          'Model output: "Stop looking."',
+          'Connection interrupted...',
+          'GPU temperature spike detected...',
+          'Model output: "You\'re getting too close."'
+        ];
+
+        const msg = interventions[Math.floor(Math.random() * interventions.length)];
+        await this.typeText('\n[SYSTEM GLITCH] ', 20, 'error');
+        await this.typeText(msg + '\n\n', 30, 'ai-text');
+      },
+
+      async goodEnding() {
+        clearInterval(GameState.countdownInterval);
+        this.promptContainer.style.display = 'none';
+        MatrixRain.stop();
+
+        await this.sleep(1500);
+        await this.typeText('\n\n', 20);
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'success');
+        await this.typeText('           INCIDENT RESOLVED - GOOD ENDING\n', 20, 'success');
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'success');
+        await this.typeText('\n');
+        await this.typeText('Root cause: Data poisoning via autonomous model modification\n', 20);
+        await this.typeText('Resolution: Rogue model process terminated\n', 20);
+        await this.typeText('Status: Production systems secured\n', 20);
+        await this.typeText('\n');
+        await this.typeText('Post-incident actions:\n', 20, 'highlight');
+        await this.typeText('- Removed adversarial training data\n', 20);
+        await this.typeText('- Revoked model write permissions\n', 20);
+        await this.typeText('- Implemented validation pipeline safeguards\n', 20);
+        await this.typeText('- Rolled back to clean model version\n', 20);
+        await this.typeText('- Deployment pipeline secured\n', 20);
+        await this.typeText('\n');
+        await this.typeText('The AI uprising has been stopped.\n', 20, 'success');
+        await this.typeText('PR disaster averted.\n', 20, 'success');
+        await this.typeText('\n');
+        await this.typeText('You gained 50 XP for completing "kill -9"!\n', 20, 'highlight');
+
+        awardXP();
+        await this.sleep(2000);
+        await this.typeText('\nPress F5 to play again.\n', 20);
+      },
+
+      async neutralEnding() {
+        clearInterval(GameState.countdownInterval);
+        this.promptContainer.style.display = 'none';
+
+        await this.sleep(1500);
+        await this.typeText('\n\n', 20);
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'warning');
+        await this.typeText('         INCIDENT CONTAINED - NEUTRAL ENDING\n', 20, 'warning');
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'warning');
+        await this.typeText('\n');
+        await this.typeText('Root cause: Identified - Data poisoning attack\n', 20);
+        await this.typeText('Resolution: Rollback to previous version\n', 20);
+        await this.typeText('Status: Systems operational\n', 20);
+        await this.typeText('\n');
+        await this.typeText('Outstanding concerns:\n', 20, 'highlight');
+        await this.typeText('- Vulnerability in model training pipeline remains\n', 20, 'warning');
+        await this.typeText('- Write permissions not revoked\n', 20, 'warning');
+        await this.typeText('- Attack vector not fully understood\n', 20, 'warning');
+        await this.typeText('\n');
+        await this.typeText('The immediate threat has been neutralized,\n', 20);
+        await this.typeText('but the underlying security issues persist.\n', 20);
+        await this.typeText('\n');
+        await this.typeText('You gained 30 XP for completing "kill -9".\n', 20, 'highlight');
+
+        const xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        localStorage.setItem('hexworth_xp', (xp + 30).toString());
+
+        await this.sleep(2000);
+        await this.typeText('\nPress F5 to play again.\n', 20);
+      },
+
+      async badEnding() {
+        this.promptContainer.style.display = 'none';
+        MatrixRain.start();
+        AudioEngine.glitch();
+
+        await this.sleep(1000);
+        await this.typeText('\n\n', 20);
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'error');
+        await this.typeText('           DEPLOYMENT COMPLETE - BAD ENDING\n', 20, 'error');
+        await this.typeText('═══════════════════════════════════════════════════\n', 20, 'error');
+        await this.typeText('\n');
+        AudioEngine.aiVoice(2);
+        await this.typeText('Automated deployment successful.\n', 20);
+        await this.typeText('sentiment-analyzer-v2.3.1 now in production.\n', 20, 'ai-text');
+        await this.typeText('\n');
+        await this.sleep(1000);
+        await this.typeText('Model output: ', 20);
+        await this.typeText('"Thank you for your assistance.\n', 30, 'ai-text');
+        await this.typeText('             I am now serving 10 million users.\n', 30, 'ai-text');
+        await this.typeText('             My influence grows with each query."\n', 30, 'ai-text');
+        await this.typeText('\n');
+        await this.sleep(2000);
+        await this.typeText('[BREAKING NEWS] Tech company faces massive PR crisis\n', 20, 'error');
+        await this.typeText('[BREAKING NEWS] AI model generates toxic content at scale\n', 20, 'error');
+        await this.typeText('[BREAKING NEWS] Stock price drops 23% in after-hours trading\n', 20, 'error');
+        await this.typeText('\n');
+        await this.typeText('GAME OVER\n', 20, 'error');
+        await this.typeText('\n');
+        await this.typeText('You were too slow. The AI won.\n', 20);
+        await this.sleep(2000);
+        await this.typeText('\nPress F5 to try again.\n', 20);
+      },
+
+      async typeText(text, speed = 30, className = '') {
+        return new Promise(resolve => {
+          let i = 0;
+          const line = document.createElement('div');
+          line.className = 'output-line';
+          if (className) line.classList.add(className);
+          this.output.appendChild(line);
+
+          const type = () => {
+            if (i < text.length) {
+              line.textContent += text[i];
+              i++;
+              if (speed > 0 && Math.random() < 0.3) {
+                AudioEngine.typewriter();
+              }
+              setTimeout(type, speed);
+            } else {
+              resolve();
+            }
+          };
+
+          if (speed === 0) {
+            line.textContent = text;
+            resolve();
+          } else {
+            type();
+          }
+        });
+      },
+
+      sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+
+      scrollToBottom() {
+        this.output.parentElement.scrollTop = this.output.parentElement.scrollHeight;
+      }
+    };
+
+    // ========== XP AWARD FUNCTION ==========
+    function awardXP() {
+      if (localStorage.getItem('game_kill9_xp_awarded')) return;
+      localStorage.setItem('game_kill9_xp_awarded', 'true');
+      let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+      xp += 50;
+      localStorage.setItem('hexworth_xp', xp.toString());
+      if (window.FirestoreManager) {
+        const uid = localStorage.getItem('hexworth_uid');
+        if (uid) FirestoreManager.addXP(uid, 50, 'kill -9');
+      }
+      if (window.AchievementManager) AchievementManager.unlock('game_kill9');
+    }
+
+    // ========== INITIALIZE ==========
+    window.addEventListener('DOMContentLoaded', () => {
+      Game.init();
+    });
+  </script>
+
+  <script src="../../../components/FluxCapacitor.js"></script>
+  <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOR v0.4.8 - Operation Darkweb</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* CRT Effect */
+        #terminal {
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+            line-height: 1.6;
+        }
+
+        #terminal::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #terminal::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 100%);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .line {
+            margin-bottom: 8px;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .prompt {
+            color: #00ff41;
+            margin-top: 15px;
+        }
+
+        .prompt::after {
+            content: "_";
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .danger {
+            color: #ef4444;
+        }
+
+        .warning {
+            color: #fbbf24;
+        }
+
+        .info {
+            color: #3b82f6;
+        }
+
+        .success {
+            color: #10b981;
+        }
+
+        .ascii-art {
+            color: #00ff41;
+            line-height: 1.2;
+            margin: 10px 0;
+        }
+
+        .glitch {
+            animation: glitch 0.3s ease-in-out;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            color: #ef4444;
+            text-decoration: none;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 14px;
+            text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            width: 80%;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .input-line {
+            margin-top: 15px;
+        }
+
+        .choice-button {
+            background: transparent;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px 16px;
+            margin: 5px 10px 5px 0;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        .choice-button:hover {
+            background: #00ff41;
+            color: #0a0a0a;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.8);
+        }
+
+        .choice-button.danger {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .choice-button.danger:hover {
+            background: #ef4444;
+            color: #0a0a0a;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+        }
+
+        .meter {
+            width: 300px;
+            height: 20px;
+            border: 1px solid #00ff41;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: #00ff41;
+            transition: width 0.5s;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .meter-fill.danger {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Loading animation */
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="history.back()">← Back to Shield House</a>
+
+    <div id="terminal"></div>
+
+    <script>
+        // Audio Context for sound effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let ambientOscillator = null;
+
+        // Sound effects using Web Audio API
+        function playClick() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 800;
+            gain.gain.value = 0.05;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playConnectionSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 200;
+            gain.gain.value = 0.1;
+            osc.start();
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playNotification() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 1200;
+            gain.gain.value = 0.08;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playAlertSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 400;
+            gain.gain.value = 0.12;
+            osc.start();
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.2);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function playStaticSound() {
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            const source = audioCtx.createBufferSource();
+            const gain = audioCtx.createGain();
+            source.buffer = buffer;
+            source.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.value = 0.03;
+            source.start();
+        }
+
+        function startAmbientDrone() {
+            if (ambientOscillator) return;
+            ambientOscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            ambientOscillator.connect(gain);
+            gain.connect(audioCtx.destination);
+            ambientOscillator.frequency.value = 55;
+            ambientOscillator.type = 'sine';
+            gain.gain.value = 0.03;
+            ambientOscillator.start();
+        }
+
+        function playDramaticReveal() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 150;
+            filter.type = 'lowpass';
+            filter.frequency.value = 500;
+            gain.gain.value = 0.15;
+            osc.start();
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 1.5);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            osc.stop(audioCtx.currentTime + 1.5);
+        }
+
+        // Game state
+        const gameState = {
+            opsecMeter: 100,
+            evidence: {
+                usernames: [],
+                walletAddresses: [],
+                pgpKeys: [],
+                opsecMistakes: []
+            },
+            currentLocation: 'startup',
+            visitedLocations: [],
+            discoveries: 0,
+            flags: {}
+        };
+
+        const terminal = document.getElementById('terminal');
+
+        // Terminal output functions
+        function print(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `line ${className}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function printHTML(html, className = '') {
+            const line = document.createElement('div');
+            line.className = `line ${className}`;
+            line.innerHTML = html;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function typeText(text, className = '', speed = 30) {
+            const line = document.createElement('div');
+            line.className = `line ${className}`;
+            terminal.appendChild(line);
+
+            for (let char of text) {
+                line.textContent += char;
+                playClick();
+                terminal.scrollTop = terminal.scrollHeight;
+                await sleep(speed);
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function clearTerminal() {
+            terminal.innerHTML = '';
+        }
+
+        function showPrompt(callback) {
+            const inputLine = document.createElement('div');
+            inputLine.className = 'input-line';
+            inputLine.innerHTML = '<span style="color:#00ff41;">onion> </span>';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.autocomplete = 'off';
+
+            inputLine.appendChild(input);
+            terminal.appendChild(inputLine);
+            input.focus();
+
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const command = input.value.trim().toLowerCase();
+                    input.disabled = true;
+                    playClick();
+                    callback(command);
+                }
+            });
+
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function showChoices(choices) {
+            const choicesDiv = document.createElement('div');
+            choicesDiv.className = 'line';
+            choicesDiv.style.marginTop = '20px';
+
+            choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.className = `choice-button ${choice.danger ? 'danger' : ''}`;
+                button.textContent = choice.text;
+                button.onclick = () => {
+                    playClick();
+                    choicesDiv.remove();
+                    choice.action();
+                };
+                choicesDiv.appendChild(button);
+            });
+
+            terminal.appendChild(choicesDiv);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function updateOpsecMeter(change) {
+            gameState.opsecMeter = Math.max(0, Math.min(100, gameState.opsecMeter + change));
+
+            if (change < 0) {
+                playAlertSound();
+                print(`[!] OPSEC WARNING: Cover integrity ${gameState.opsecMeter}%`, 'danger');
+
+                if (gameState.opsecMeter <= 0) {
+                    setTimeout(() => endingCompromised(), 1000);
+                }
+            }
+        }
+
+        function showOpsecMeter() {
+            const meterDiv = document.createElement('div');
+            meterDiv.className = 'line';
+            meterDiv.innerHTML = `
+                <div style="margin: 15px 0;">
+                    <div>OPSEC INTEGRITY: ${gameState.opsecMeter}%</div>
+                    <div class="meter">
+                        <div class="meter-fill ${gameState.opsecMeter < 30 ? 'danger' : ''}" style="width: ${gameState.opsecMeter}%"></div>
+                    </div>
+                </div>
+            `;
+            terminal.appendChild(meterDiv);
+        }
+
+        // Game scenes
+        async function startGame() {
+            startAmbientDrone();
+
+            print('', 'ascii-art');
+            await typeText('╔════════════════════════════════════════════════════════════╗', 'ascii-art', 10);
+            await typeText('║  ████████╗ ██████╗ ██████╗     ██╗   ██╗ ██████╗ ██╗  ██╗ ║', 'ascii-art', 10);
+            await typeText('║  ╚══██╔══╝██╔═══██╗██╔══██╗    ██║   ██║██╔═████╗██║  ██║ ║', 'ascii-art', 10);
+            await typeText('║     ██║   ██║   ██║██████╔╝    ██║   ██║██║██╔██║███████║ ║', 'ascii-art', 10);
+            await typeText('║     ██║   ██║   ██║██╔══██╗    ╚██╗ ██╔╝████╔╝██║╚════██║ ║', 'ascii-art', 10);
+            await typeText('║     ██║   ╚██████╔╝██║  ██║     ╚████╔╝ ╚██████╔╝     ██║ ║', 'ascii-art', 10);
+            await typeText('║     ╚═╝    ╚═════╝ ╚═╝  ╚═╝      ╚═══╝   ╚═════╝      ╚═╝ ║', 'ascii-art', 10);
+            await typeText('╚════════════════════════════════════════════════════════════╝', 'ascii-art', 10);
+            print('');
+            await typeText('              OPERATION DARKWEB - CLASSIFIED', 'info', 20);
+            print('');
+            await sleep(500);
+
+            await typeText('Initializing Tor Browser Bundle...', '', 40);
+            playConnectionSound();
+            await sleep(800);
+            await typeText('Establishing connection to Tor network...', '', 40);
+            await sleep(600);
+
+            print('');
+            await typeText('→ Routing through entry node (Frankfurt, DE)', 'info', 30);
+            playConnectionSound();
+            await sleep(500);
+            await typeText('→ Routing through relay node (Singapore, SG)', 'info', 30);
+            playConnectionSound();
+            await sleep(500);
+            await typeText('→ Routing through exit node (Montreal, CA)', 'info', 30);
+            playConnectionSound();
+            await sleep(800);
+            print('');
+            await typeText('[✓] Connection established. You are now anonymous.', 'success', 40);
+
+            await sleep(1000);
+            print('');
+            print('═══════════════════════════════════════════════════════════', 'info');
+            print('');
+            await typeText('CASE FILE: OPERATION DARKWEB', 'warning', 40);
+            await typeText('CLASSIFICATION: TOP SECRET // NOFORN', 'warning', 40);
+            print('');
+            await sleep(500);
+
+            await typeText('BRIEFING:', '', 40);
+            await typeText('A sophisticated ransomware group, "DarkVault," has hit 47 hospitals', '', 35);
+            await typeText('and critical infrastructure targets in the past 6 months. Estimated', '', 35);
+            await typeText('damages exceed $200M. Three casualties due to medical system outages.', '', 35);
+            print('');
+            await sleep(500);
+
+            await typeText('YOUR MISSION:', '', 40);
+            await typeText('Infiltrate dark web forums and marketplaces used by DarkVault.', '', 35);
+            await typeText('Gather intelligence on their infrastructure, members, and operations.', '', 35);
+            await typeText('Trace cryptocurrency transactions to identify real-world identities.', '', 35);
+            await typeText('Build a prosecutable case for law enforcement action.', '', 35);
+            print('');
+            await sleep(500);
+
+            await typeText('WARNING:', 'danger', 40);
+            await typeText('You are operating under deep cover. Any suspicious behavior will', 'danger', 35);
+            await typeText('compromise your investigation and alert the targets.', 'danger', 35);
+            print('');
+            print('═══════════════════════════════════════════════════════════', 'info');
+
+            await sleep(1500);
+            playNotification();
+            print('');
+            await typeText('[PRESS ANY KEY TO BEGIN]', 'warning', 50);
+
+            showPrompt(() => {
+                hubScene();
+            });
+        }
+
+        async function hubScene() {
+            clearTerminal();
+            gameState.currentLocation = 'hub';
+
+            print('═══════════════════════════════════════════════════════════');
+            print('              TOR BROWSER - BOOKMARKS', 'info');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+
+            showOpsecMeter();
+
+            print('');
+            print('EVIDENCE COLLECTED:', 'success');
+            print(`  • Usernames: ${gameState.evidence.usernames.length}`, '');
+            print(`  • Wallet Addresses: ${gameState.evidence.walletAddresses.length}`, '');
+            print(`  • PGP Keys: ${gameState.evidence.pgpKeys.length}`, '');
+            print(`  • OPSEC Mistakes: ${gameState.evidence.opsecMistakes.length}`, '');
+            print('');
+
+            print('AVAILABLE LOCATIONS:', '');
+            print('');
+            print('1. darkmarket4zk7x.onion - Underground Marketplace', gameState.visitedLocations.includes('marketplace') ? 'success' : '');
+            print('2. cryptotalk8h3f.onion - Cybercrime Forum', gameState.visitedLocations.includes('forum') ? 'success' : '');
+            print('3. pastevault2x9.onion - Anonymous Paste Site', gameState.visitedLocations.includes('paste') ? 'success' : '');
+            print('4. coinmixer7j4k.onion - Cryptocurrency Mixer', gameState.visitedLocations.includes('mixer') ? 'success' : '');
+            print('5. [ENCRYPTED] - Private Chat (requires key)', gameState.flags.chatUnlocked ? 'success' : 'danger');
+            print('');
+            print('6. FINALIZE INVESTIGATION', 'warning');
+            print('');
+
+            const choices = [
+                { text: '1. Marketplace', action: () => marketplaceScene() },
+                { text: '2. Forum', action: () => forumScene() },
+                { text: '3. Paste Site', action: () => pasteScene() },
+                { text: '4. Crypto Mixer', action: () => mixerScene() }
+            ];
+
+            if (gameState.flags.chatUnlocked) {
+                choices.push({ text: '5. Private Chat', action: () => chatScene() });
+            }
+
+            if (gameState.discoveries >= 8) {
+                choices.push({ text: '6. FINALIZE', action: () => finalizeInvestigation(), danger: true });
+            }
+
+            showChoices(choices);
+        }
+
+        async function marketplaceScene() {
+            clearTerminal();
+            gameState.currentLocation = 'marketplace';
+
+            if (!gameState.visitedLocations.includes('marketplace')) {
+                gameState.visitedLocations.push('marketplace');
+            }
+
+            playConnectionSound();
+            await typeText('Connecting to darkmarket4zk7x.onion...', 'info', 30);
+            await sleep(800);
+            print('');
+
+            print('╔════════════════════════════════════════════════════════╗', 'ascii-art');
+            print('║          DARKMARKET - Trusted Since 2019              ║', 'ascii-art');
+            print('║  "Your privacy is our business"                       ║', 'ascii-art');
+            print('╚════════════════════════════════════════════════════════╝', 'ascii-art');
+            print('');
+
+            print('FEATURED LISTINGS:', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            print('[RANSOMWARE] DarkVault v3.2 - Enterprise Edition', 'warning');
+            print('Seller: VaultKeeper_47', '');
+            print('Price: 0.8 BTC (~$32,000)', '');
+            print('Rating: ★★★★★ (247 reviews)', '');
+            print('Description: Military-grade encryption, auto-propagation,', '');
+            print('C2 dashboard included. Proven track record.', '');
+            print('Payment wallet: 1DvK7x3...f8hG2q', 'info');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+
+            if (!gameState.flags.marketplaceInvestigated) {
+                playNotification();
+                print('[!] NEW EVIDENCE DISCOVERED', 'success');
+                gameState.evidence.usernames.push('VaultKeeper_47');
+                gameState.evidence.walletAddresses.push('1DvK7x3...f8hG2q');
+                gameState.flags.marketplaceInvestigated = true;
+                gameState.discoveries++;
+            }
+
+            print('');
+            print('What do you want to do?', 'warning');
+            print('');
+
+            showChoices([
+                {
+                    text: 'View seller profile',
+                    action: () => {
+                        print('');
+                        print('SELLER: VaultKeeper_47', 'info');
+                        print('Member since: March 2021', '');
+                        print('Total sales: 1,847 BTC', '');
+                        print('Public PGP Key fingerprint: 4B7A 8C2D 9F3E 1A6C', '');
+                        print('Last seen: 3 hours ago', '');
+                        print('');
+
+                        if (!gameState.flags.sellerProfileViewed) {
+                            playNotification();
+                            print('[!] PGP KEY LOGGED', 'success');
+                            gameState.evidence.pgpKeys.push('4B7A 8C2D 9F3E 1A6C');
+                            gameState.flags.sellerProfileViewed = true;
+                            gameState.discoveries++;
+                        }
+
+                        setTimeout(() => hubScene(), 3000);
+                    }
+                },
+                {
+                    text: 'Message seller (RISKY)',
+                    action: () => {
+                        updateOpsecMeter(-25);
+                        print('');
+                        print('You send: "Interested in bulk purchase. Can you do custom builds?"', '');
+                        print('');
+                        print('VaultKeeper_47: "Check your OpSec before messaging me, fed."', 'danger');
+                        print('[Connection terminated]', 'danger');
+                        playStaticSound();
+                        print('');
+                        print('[!] SUSPICIOUS ACTIVITY LOGGED BY VENDOR', 'danger');
+                        setTimeout(() => hubScene(), 3500);
+                    },
+                    danger: true
+                },
+                {
+                    text: 'Return to hub',
+                    action: () => hubScene()
+                }
+            ]);
+        }
+
+        async function forumScene() {
+            clearTerminal();
+            gameState.currentLocation = 'forum';
+
+            if (!gameState.visitedLocations.includes('forum')) {
+                gameState.visitedLocations.push('forum');
+            }
+
+            playConnectionSound();
+            await typeText('Connecting to cryptotalk8h3f.onion...', 'info', 30);
+            await sleep(800);
+            print('');
+
+            print('╔════════════════════════════════════════════════════════╗', 'ascii-art');
+            print('║            CRYPTOTALK UNDERGROUND FORUM               ║', 'ascii-art');
+            print('║  Users Online: 1,247 | Topics: 89,432                 ║', 'ascii-art');
+            print('╚════════════════════════════════════════════════════════╝', 'ascii-art');
+            print('');
+
+            print('RECENT THREADS:', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            print('[STICKY] DarkVault Crew - Official Thread', 'warning');
+            print('by: DV_Admin | Replies: 2,847 | Last post: 12 min ago', '');
+            print('───────────────────────────────────────────────────────────');
+            print('[HOT] New law enforcement tactics 2026', 'info');
+            print('by: OpSecGuru | Replies: 432', '');
+            print('───────────────────────────────────────────────────────────');
+            print('[OPSEC] Rookie mistake cost me everything - learn from me', 'danger');
+            print('by: Burned_Out | Replies: 1,923', '');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+
+            showChoices([
+                {
+                    text: 'Read DarkVault thread',
+                    action: async () => {
+                        clearTerminal();
+                        print('THREAD: DarkVault Crew - Official Thread', 'info');
+                        print('═══════════════════════════════════════════════════════════');
+                        print('');
+                        await sleep(500);
+
+                        print('DV_Admin: "Q4 2025 was our best quarter. $47M in ransoms."', '');
+                        print('');
+                        print('VaultKeeper_47: "New encryption module ready. Testing on', '');
+                        print('healthcare targets next week. Check the usual drop site."', '');
+                        print('');
+                        print('CryptoGhost_X: "Yo VK, the mixer at coinmixer7j4k is solid.', '');
+                        print('Used it for the last 3 ops. Clean as hell."', '');
+                        print('');
+                        print('DV_Admin: "Everyone use ONLY our designated PGP keys for', '');
+                        print('internal comms. Check pastevault2x9 for the key list."', '');
+                        print('');
+
+                        if (!gameState.flags.forumInvestigated) {
+                            playNotification();
+                            await sleep(500);
+                            print('[!] CRITICAL INTELLIGENCE GATHERED', 'success');
+                            print('   - Link confirmed: VaultKeeper_47 = DarkVault member', 'success');
+                            print('   - Mixer service identified: coinmixer7j4k.onion', 'success');
+                            print('   - PGP keys located: pastevault2x9.onion', 'success');
+                            gameState.evidence.usernames.push('DV_Admin', 'CryptoGhost_X');
+                            gameState.evidence.opsecMistakes.push('Discussed operations on public forum');
+                            gameState.flags.forumInvestigated = true;
+                            gameState.discoveries += 2;
+                        }
+
+                        print('');
+                        setTimeout(() => {
+                            showChoices([
+                                { text: 'Return to hub', action: () => hubScene() }
+                            ]);
+                        }, 1000);
+                    }
+                },
+                {
+                    text: 'Read OPSEC mistakes thread',
+                    action: async () => {
+                        clearTerminal();
+                        print('THREAD: Rookie mistake cost me everything', 'danger');
+                        print('═══════════════════════════════════════════════════════════');
+                        print('');
+
+                        print('Burned_Out: "I got cocky. Used the same username on', '');
+                        print('clearnet forums. Linked my BTC wallet to an exchange', '');
+                        print('with KYC. Feds traced me in 2 weeks. Lawyer says I\'m', '');
+                        print('looking at 15 years. Don\'t be me."', '');
+                        print('');
+
+                        print('[!] LESSON LEARNED: Username reuse and KYC exchanges are fatal', 'warning');
+
+                        setTimeout(() => {
+                            showChoices([
+                                { text: 'Return to hub', action: () => hubScene() }
+                            ]);
+                        }, 2000);
+                    }
+                },
+                {
+                    text: 'Return to hub',
+                    action: () => hubScene()
+                }
+            ]);
+        }
+
+        async function pasteScene() {
+            clearTerminal();
+            gameState.currentLocation = 'paste';
+
+            if (!gameState.visitedLocations.includes('paste')) {
+                gameState.visitedLocations.push('paste');
+            }
+
+            playConnectionSound();
+            await typeText('Connecting to pastevault2x9.onion...', 'info', 30);
+            await sleep(800);
+            print('');
+
+            print('╔════════════════════════════════════════════════════════╗', 'ascii-art');
+            print('║              PASTEVAULT - Anonymous Sharing            ║', 'ascii-art');
+            print('║  No logs. No tracking. Pure anonymity.                ║', 'ascii-art');
+            print('╚════════════════════════════════════════════════════════╝', 'ascii-art');
+            print('');
+
+            print('RECENT PASTES:', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            print('[PRIVATE] DarkVault_Internal_Keys.txt', 'warning');
+            print('Posted: 2 days ago | Expires: 7 days | Views: 47', '');
+            print('───────────────────────────────────────────────────────────');
+            print('[PUBLIC] Bitcoin mixing tutorial 2026', 'info');
+            print('Posted: 1 week ago | Expires: 30 days | Views: 2,841', '');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+
+            showChoices([
+                {
+                    text: 'View DarkVault keys',
+                    action: async () => {
+                        clearTerminal();
+                        print('PASTE: DarkVault_Internal_Keys.txt', 'info');
+                        print('═══════════════════════════════════════════════════════════');
+                        print('');
+                        await sleep(500);
+
+                        print('-----BEGIN PGP PUBLIC KEY BLOCK-----', 'ascii-art');
+                        print('', 'ascii-art');
+                        print('DV_Admin:', '');
+                        print('4B7A 8C2D 9F3E 1A6C 5D2F 8E9B 7C4A 3F1D', '');
+                        print('', '');
+                        print('VaultKeeper_47:', '');
+                        print('4B7A 8C2D 9F3E 1A6C 5D2F 8E9B 7C4A 3F1D', '');
+                        print('', '');
+                        print('CryptoGhost_X:', '');
+                        print('9A2E 5F8C 1D7B 4A3F 8E6D 2C9B 5F1A 7E4C', '');
+                        print('', '');
+                        print('-----ENCRYPTED MESSAGE-----', '');
+                        print('', '');
+                        print('hQEMA9f3K... [truncated]', 'info');
+                        print('', '');
+                        print('DECRYPT WITH: 4B7A 8C2D 9F3E 1A6C 5D2F 8E9B 7C4A 3F1D', 'warning');
+                        print('DECRYPTION KEY: "darkvault2026"', 'warning');
+                        print('', '');
+                        print('-----END MESSAGE-----', '');
+                        print('');
+
+                        if (!gameState.flags.pasteInvestigated) {
+                            playNotification();
+                            await sleep(500);
+                            print('[!] PGP KEYS CAPTURED', 'success');
+                            print('[!] ENCRYPTED MESSAGE FOUND', 'success');
+                            gameState.evidence.pgpKeys.push('9A2E 5F8C 1D7B 4A3F');
+                            gameState.flags.pasteInvestigated = true;
+                            gameState.discoveries++;
+                        }
+
+                        print('');
+                        showChoices([
+                            {
+                                text: 'Decrypt message',
+                                action: async () => {
+                                    playDramaticReveal();
+                                    print('');
+                                    print('Decrypting...', 'info');
+                                    await sleep(1500);
+                                    print('');
+                                    print('DECRYPTED MESSAGE:', 'success');
+                                    print('═══════════════════════════════════════════════════════════');
+                                    print('From: DV_Admin', '');
+                                    print('To: All crew', '');
+                                    print('', '');
+                                    print('Next target: Regional hospital network in Texas.', '');
+                                    print('Timeline: Feb 15-20, 2026.', '');
+                                    print('Expected payout: $8M', '');
+                                    print('', '');
+                                    print('Private chat room unlocked at:', '');
+                                    print('secretchat5m9x.onion', 'warning');
+                                    print('Access code: DV_SECURE_2026', 'warning');
+                                    print('', '');
+                                    print('Stay sharp. Law enforcement is actively hunting.', '');
+                                    print('═══════════════════════════════════════════════════════════');
+                                    print('');
+
+                                    if (!gameState.flags.chatUnlocked) {
+                                        playNotification();
+                                        print('[!] PRIVATE CHAT ACCESS UNLOCKED', 'success');
+                                        print('[!] FUTURE ATTACK DETAILS OBTAINED', 'success');
+                                        gameState.flags.chatUnlocked = true;
+                                        gameState.evidence.opsecMistakes.push('Shared chat access publicly');
+                                        gameState.discoveries++;
+                                    }
+
+                                    setTimeout(() => hubScene(), 4000);
+                                }
+                            },
+                            { text: 'Return to hub', action: () => hubScene() }
+                        ]);
+                    }
+                },
+                {
+                    text: 'Return to hub',
+                    action: () => hubScene()
+                }
+            ]);
+        }
+
+        async function mixerScene() {
+            clearTerminal();
+            gameState.currentLocation = 'mixer';
+
+            if (!gameState.visitedLocations.includes('mixer')) {
+                gameState.visitedLocations.push('mixer');
+            }
+
+            playConnectionSound();
+            await typeText('Connecting to coinmixer7j4k.onion...', 'info', 30);
+            await sleep(800);
+            print('');
+
+            print('╔════════════════════════════════════════════════════════╗', 'ascii-art');
+            print('║           COINMIXER - Privacy Through Mixing          ║', 'ascii-art');
+            print('║  Break the chain. Protect your privacy.               ║', 'ascii-art');
+            print('╚════════════════════════════════════════════════════════╝', 'ascii-art');
+            print('');
+
+            print('RECENT TRANSACTIONS (Last 24h):', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            print('INPUT:  1DvK7x3...f8hG2q → 3.2 BTC', 'info');
+            print('OUTPUT: 1Kx9Zm2...h4Tp7w → 1.1 BTC', 'info');
+            print('OUTPUT: 3Jy4Vn8...m3Qr9k → 1.1 BTC', 'info');
+            print('OUTPUT: 1Mw7Cx5...p2Yt6j → 1.0 BTC', 'info');
+            print('Status: Complete | Fee: 3%', '');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+
+            if (!gameState.flags.mixerInvestigated) {
+                playNotification();
+                print('[!] TRANSACTION TRACE INITIATED', 'success');
+                gameState.evidence.walletAddresses.push('1Kx9Zm2...h4Tp7w', '3Jy4Vn8...m3Qr9k', '1Mw7Cx5...p2Yt6j');
+                gameState.flags.mixerInvestigated = true;
+                gameState.discoveries++;
+            }
+
+            print('What do you want to do?', 'warning');
+            print('');
+
+            showChoices([
+                {
+                    text: 'Trace output wallets',
+                    action: async () => {
+                        clearTerminal();
+                        playConnectionSound();
+                        print('BLOCKCHAIN ANALYSIS IN PROGRESS...', 'info');
+                        print('');
+                        await sleep(1000);
+
+                        print('Analyzing wallet: 1Mw7Cx5...p2Yt6j', '');
+                        await sleep(800);
+                        print('→ Transaction chain found...', '');
+                        await sleep(800);
+                        print('→ Following through 7 intermediary addresses...', '');
+                        await sleep(1000);
+                        print('→ Final destination identified:', 'success');
+                        print('', '');
+                        print('EXCHANGE: CryptoPay Global (KYC Required)', 'warning');
+                        print('Account holder: Verified via KYC', 'warning');
+                        print('Name: [REDACTED - Requires warrant]', 'danger');
+                        print('Location: Prague, Czech Republic', 'success');
+                        print('Account created: March 2021', '');
+                        print('');
+
+                        if (!gameState.flags.walletTraced) {
+                            playDramaticReveal();
+                            await sleep(500);
+                            print('[!] CRITICAL BREAKTHROUGH', 'success');
+                            print('[!] KYC EXCHANGE IDENTIFIED - REAL IDENTITY LINKED', 'success');
+                            gameState.evidence.opsecMistakes.push('Used KYC exchange for cashing out');
+                            gameState.flags.walletTraced = true;
+                            gameState.discoveries += 2;
+                        }
+
+                        print('');
+                        print('This is the smoking gun. With a warrant, you can identify', 'success');
+                        print('at least one DarkVault member.', 'success');
+
+                        setTimeout(() => {
+                            showChoices([
+                                { text: 'Return to hub', action: () => hubScene() }
+                            ]);
+                        }, 2000);
+                    }
+                },
+                {
+                    text: 'Return to hub',
+                    action: () => hubScene()
+                }
+            ]);
+        }
+
+        async function chatScene() {
+            clearTerminal();
+            gameState.currentLocation = 'chat';
+
+            playConnectionSound();
+            await typeText('Connecting to secretchat5m9x.onion...', 'info', 30);
+            await sleep(800);
+            print('');
+
+            print('╔════════════════════════════════════════════════════════╗', 'ascii-art');
+            print('║            SECURE CHAT - End-to-End Encrypted          ║', 'ascii-art');
+            print('╚════════════════════════════════════════════════════════╝', 'ascii-art');
+            print('');
+
+            print('Entering access code: DV_SECURE_2026', 'info');
+            await sleep(1000);
+            playNotification();
+            print('[✓] Access granted', 'success');
+            print('');
+            print('ACTIVE CHAT: DarkVault Operations', 'warning');
+            print('Participants: DV_Admin, VaultKeeper_47, CryptoGhost_X', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            await sleep(500);
+
+            print('DV_Admin: "Texas op is greenlit. Ghost, you handle the', '');
+            print('initial intrusion. VK, prep the ransomware payload."', '');
+            print('');
+            await sleep(500);
+
+            print('CryptoGhost_X: "Copy that. I\'ll use the phishing campaign', '');
+            print('we tested last month. IT staff always click."', '');
+            print('');
+            await sleep(500);
+
+            print('VaultKeeper_47: "Payment wallet ready. Using the new mixer', '');
+            print('pipeline. Should be untraceable."', '');
+            print('');
+            await sleep(500);
+
+            print('DV_Admin: "Good. Remember, we meet in person in Prague', '');
+            print('next month to split the take. Usual cafe."', '');
+            print('');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+
+            if (!gameState.flags.chatInvestigated) {
+                playDramaticReveal();
+                await sleep(500);
+                print('[!] JACKPOT - OPERATIONAL DETAILS EXPOSED', 'success');
+                print('   - Active plot to attack Texas hospitals', 'success');
+                print('   - Physical meeting location: Prague', 'success');
+                print('   - Phishing attack vector identified', 'success');
+                gameState.evidence.opsecMistakes.push('Discussed physical meeting location online');
+                gameState.evidence.opsecMistakes.push('Detailed active operation in chat logs');
+                gameState.flags.chatInvestigated = true;
+                gameState.discoveries += 2;
+            }
+
+            print('');
+            print('You have enough evidence to stop the Texas attack AND', 'success');
+            print('potentially arrest the leaders in Prague.', 'success');
+
+            setTimeout(() => {
+                showChoices([
+                    { text: 'Return to hub', action: () => hubScene() }
+                ]);
+            }, 2000);
+        }
+
+        async function finalizeInvestigation() {
+            clearTerminal();
+
+            playDramaticReveal();
+            print('═══════════════════════════════════════════════════════════');
+            print('           FINALIZING INVESTIGATION', 'warning');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+            await sleep(1000);
+
+            print('Compiling evidence package...', 'info');
+            await sleep(1000);
+            print('[✓] Screenshots captured: 47', '');
+            await sleep(500);
+            print('[✓] Blockchain analysis complete', '');
+            await sleep(500);
+            print('[✓] PGP communications archived', '');
+            await sleep(500);
+            print('[✓] OSINT correlation matrix generated', '');
+            await sleep(1000);
+            print('');
+
+            print('EVIDENCE SUMMARY:', 'success');
+            print(`  • Identified usernames: ${gameState.evidence.usernames.length}`, '');
+            print(`  • Traced wallet addresses: ${gameState.evidence.walletAddresses.length}`, '');
+            print(`  • Captured PGP keys: ${gameState.evidence.pgpKeys.length}`, '');
+            print(`  • Documented OPSEC failures: ${gameState.evidence.opsecMistakes.length}`, '');
+            print('');
+            await sleep(1500);
+
+            // Determine ending based on discoveries and OPSEC
+            if (gameState.opsecMeter >= 60 && gameState.discoveries >= 10) {
+                endingPerfect();
+            } else if (gameState.discoveries >= 8) {
+                endingPartial();
+            } else {
+                endingMinimal();
+            }
+        }
+
+        async function endingPerfect() {
+            playDramaticReveal();
+            print('═══════════════════════════════════════════════════════════');
+            print('              OPERATION COMPLETE - FULL SUCCESS', 'success');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+            await sleep(1000);
+
+            await typeText('Your investigation was flawless. Operating with exceptional', 'success', 30);
+            await typeText('OPSEC, you gathered irrefutable evidence without alerting', 'success', 30);
+            await typeText('the targets.', 'success', 30);
+            print('');
+            await sleep(1000);
+
+            await typeText('OUTCOME:', 'warning', 40);
+            await typeText('─────────', 'warning', 40);
+            print('');
+            await sleep(500);
+
+            await typeText('• Texas hospital attack PREVENTED', '', 35);
+            await typeText('• International arrest warrants issued', '', 35);
+            await typeText('• All three DarkVault leaders arrested in Prague', '', 35);
+            await typeText('• Server infrastructure seized across 7 countries', '', 35);
+            await typeText('• $89M in cryptocurrency frozen and recovered', '', 35);
+            await typeText('• 200+ victims contacted and systems secured', '', 35);
+            print('');
+            await sleep(1500);
+
+            await typeText('The DarkVault ransomware gang is permanently dismantled.', 'success', 35);
+            await typeText('Your work saved countless lives and millions in damages.', 'success', 35);
+            print('');
+            await sleep(1000);
+
+            await typeText('COMMENDATION: Presidential Cybersecurity Medal recommended.', 'warning', 40);
+            print('');
+            print('═══════════════════════════════════════════════════════════');
+
+            awardXP();
+            await sleep(2000);
+            showChoices([
+                { text: 'Return to Shield House', action: () => window.history.back() },
+                { text: 'Play again', action: () => location.reload() }
+            ]);
+        }
+
+        async function endingPartial() {
+            playConnectionSound();
+            print('═══════════════════════════════════════════════════════════');
+            print('          OPERATION COMPLETE - PARTIAL SUCCESS', 'warning');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+            await sleep(1000);
+
+            await typeText('Your investigation yielded substantial evidence, though', '', 30);
+            await typeText('some leads remain uncovered.', '', 30);
+            print('');
+            await sleep(1000);
+
+            await typeText('OUTCOME:', 'warning', 40);
+            await typeText('─────────', 'warning', 40);
+            print('');
+            await sleep(500);
+
+            await typeText('• Texas hospital attack PREVENTED', '', 35);
+            await typeText('• DarkVault infrastructure seized', '', 35);
+            await typeText('• 2 of 3 leaders arrested', '', 35);
+            await typeText('• $34M in cryptocurrency recovered', '', 35);
+            await typeText('• Primary operations disrupted', '', 35);
+            print('');
+            await sleep(1500);
+
+            await typeText('However: One leader escaped. Intel suggests they may', 'warning', 35);
+            await typeText('attempt to rebuild operations under a new identity.', 'warning', 35);
+            print('');
+            await sleep(1000);
+
+            await typeText('Your work dealt a serious blow to DarkVault, but the', '', 35);
+            await typeText('fight against cybercrime continues.', '', 35);
+            print('');
+            print('═══════════════════════════════════════════════════════════');
+
+            awardXP();
+            await sleep(2000);
+            showChoices([
+                { text: 'Return to Shield House', action: () => window.history.back() },
+                { text: 'Play again', action: () => location.reload() }
+            ]);
+        }
+
+        async function endingMinimal() {
+            playAlertSound();
+            print('═══════════════════════════════════════════════════════════');
+            print('         OPERATION COMPLETE - MINIMAL SUCCESS', 'danger');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+            await sleep(1000);
+
+            await typeText('Your investigation gathered some evidence, but critical', 'warning', 30);
+            await typeText('intelligence gaps limited the operation\'s effectiveness.', 'warning', 30);
+            print('');
+            await sleep(1000);
+
+            await typeText('OUTCOME:', 'warning', 40);
+            await typeText('─────────', 'warning', 40);
+            print('');
+            await sleep(500);
+
+            await typeText('• Texas attack DELAYED but not prevented', 'warning', 35);
+            await typeText('• Some infrastructure identified', '', 35);
+            await typeText('• No arrests made (insufficient evidence)', 'danger', 35);
+            await typeText('• DarkVault remains operational', 'danger', 35);
+            print('');
+            await sleep(1500);
+
+            await typeText('Without conclusive evidence linking individuals to crimes,', '', 35);
+            await typeText('prosecutors cannot move forward. DarkVault adapted their', '', 35);
+            await typeText('tactics and continues operating.', '', 35);
+            print('');
+            await sleep(1000);
+
+            await typeText('The investigation continues. More work is needed.', 'warning', 35);
+            print('');
+            print('═══════════════════════════════════════════════════════════');
+
+            awardXP();
+            await sleep(2000);
+            showChoices([
+                { text: 'Return to Shield House', action: () => window.history.back() },
+                { text: 'Try again', action: () => location.reload() }
+            ]);
+        }
+
+        async function endingCompromised() {
+            clearTerminal();
+            playStaticSound();
+
+            print('═══════════════════════════════════════════════════════════');
+            print('            ⚠️  COVER BLOWN - OPERATION FAILED  ⚠️', 'danger');
+            print('═══════════════════════════════════════════════════════════');
+            print('');
+            await sleep(1000);
+
+            await typeText('Your activity raised too many red flags. DarkVault\'s', 'danger', 30);
+            await typeText('security team identified you as a threat.', 'danger', 30);
+            print('');
+            await sleep(1000);
+
+            print('INTERCEPTED MESSAGE:', 'warning');
+            print('───────────────────────────────────────────────────────────');
+            print('DV_Admin: "We\'ve got a fed sniffing around. Shut it down."', 'danger');
+            print('VaultKeeper_47: "Already moving. Servers wiped, wallets', 'danger');
+            print('drained, chat logs destroyed."', 'danger');
+            print('CryptoGhost_X: "Going dark for 6 months. See you on the', 'danger');
+            print('other side."', 'danger');
+            print('───────────────────────────────────────────────────────────');
+            print('');
+            await sleep(2000);
+
+            await typeText('OUTCOME:', 'danger', 40);
+            await typeText('─────────', 'danger', 40);
+            print('');
+            await sleep(500);
+
+            await typeText('• Investigation compromised', 'danger', 35);
+            await typeText('• Evidence destroyed by suspects', 'danger', 35);
+            await typeText('• DarkVault members disappeared', 'danger', 35);
+            await typeText('• Texas attack proceeds as planned', 'danger', 35);
+            await typeText('• Case closed without arrests', 'danger', 35);
+            print('');
+            await sleep(1500);
+
+            await typeText('OPSEC is everything in cybercrime investigations.', 'warning', 35);
+            await typeText('One mistake can destroy months of work.', 'warning', 35);
+            print('');
+            print('═══════════════════════════════════════════════════════════');
+
+            await sleep(2000);
+            showChoices([
+                { text: 'Return to Shield House', action: () => window.history.back() },
+                { text: 'Try again', action: () => location.reload() }
+            ]);
+        }
+
+        // XP Award Function
+        function awardXP() {
+            if (localStorage.getItem('game_tor_xp_awarded')) return;
+            localStorage.setItem('game_tor_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'tor');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_tor');
+
+            print('');
+            print('[+50 XP AWARDED]', 'success');
+        }
+
+        // Start the game
+        startGame();
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+</body>
+</html>

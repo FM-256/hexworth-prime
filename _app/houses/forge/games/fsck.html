@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fsck v1.47 - Filesystem Check & Recovery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffb000;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* CRT Effect */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.95; }
+            50% { opacity: 1; }
+            100% { opacity: 0.92; }
+        }
+
+        .crt-overlay.critical {
+            animation: flicker-critical 0.1s infinite;
+        }
+
+        @keyframes flicker-critical {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        #terminal {
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        #terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #terminal::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        #terminal::-webkit-scrollbar-thumb {
+            background: #ffb000;
+        }
+
+        .ascii-title {
+            color: #f97316;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            border: 2px solid #f97316;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .power-bar {
+            background: #0a0a0a;
+            border: 1px solid #ffb000;
+            height: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .power-fill {
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            height: 100%;
+            transition: width 1s linear;
+        }
+
+        .power-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0a0a0a;
+            font-weight: bold;
+            font-size: 12px;
+            mix-blend-mode: difference;
+        }
+
+        .rack-map {
+            border: 1px solid #ffb000;
+            padding: 10px;
+            margin: 20px 0;
+            font-size: 12px;
+        }
+
+        .rack {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #555;
+        }
+
+        .rack.ok { color: #00ff00; }
+        .rack.warning { color: #ffff00; }
+        .rack.critical { color: #ff0000; animation: blink 0.5s infinite; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .output-line {
+            margin: 5px 0;
+            animation: type-in 0.05s;
+        }
+
+        @keyframes type-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .prompt {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .prompt-text {
+            color: #f97316;
+        }
+
+        #input {
+            background: transparent;
+            border: none;
+            color: #ffb000;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            flex: 1;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #ffb000;
+            animation: cursor-blink 1s infinite;
+        }
+
+        @keyframes cursor-blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .error {
+            color: #ff0000;
+        }
+
+        .success {
+            color: #00ff00;
+        }
+
+        .warning {
+            color: #ffff00;
+        }
+
+        .highlight {
+            color: #f97316;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: #f97316;
+            cursor: pointer;
+            z-index: 2000;
+            text-decoration: none;
+            padding: 5px 10px;
+            border: 1px solid #f97316;
+            background: #0a0a0a;
+        }
+
+        .back-link:hover {
+            background: #f97316;
+            color: #0a0a0a;
+        }
+
+        .game-over {
+            text-align: center;
+            font-size: 20px;
+            margin: 40px 0;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .command-hint {
+            color: #666;
+            font-size: 12px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="history.back()">← Back to Forge House</a>
+    <div class="crt-overlay" id="crt"></div>
+
+    <div id="terminal">
+        <pre class="ascii-title">
+  ___     ___
+ |  _|___|  _|___
+ |  _|_ -|  _| '_|
+ |_| |___|___|_,_|
+
+ fsck v1.47 - Filesystem Check & Recovery
+ EMERGENCY REPAIR SYSTEM
+        </pre>
+
+        <div class="status-bar">
+            <div>
+                <div>POWER: <span id="power-percent">100%</span></div>
+                <div class="power-bar">
+                    <div class="power-fill" id="power-fill"></div>
+                    <div class="power-text" id="power-text">100%</div>
+                </div>
+            </div>
+            <div>
+                <div>TIME: <span id="time-remaining">05:00</span></div>
+                <div>LOCATION: <span id="location" class="highlight">ENTRANCE</span></div>
+                <div>FIXES: <span id="fixes" class="success">0/6</span></div>
+            </div>
+        </div>
+
+        <div id="output"></div>
+
+        <div class="prompt">
+            <span class="prompt-text">datacenter#</span>
+            <input type="text" id="input" autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+
+    <script>
+        // Audio Context for sound effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let fanHumNode = null;
+
+        // Sound Generation Functions
+        function playClick() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 800;
+            gainNode.gain.value = 0.1;
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.02);
+            oscillator.stop(audioCtx.currentTime + 0.02);
+        }
+
+        function playKlaxon() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'square';
+            gainNode.gain.value = 0.15;
+
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+            oscillator.frequency.setValueAtTime(330, audioCtx.currentTime + 0.5);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 1);
+        }
+
+        function playDiskClick() {
+            const noise = audioCtx.createBufferSource();
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noise.buffer = buffer;
+
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 2000;
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.value = 0.05;
+
+            noise.start();
+        }
+
+        function playPowerDown() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(55, audioCtx.currentTime + 2);
+            gainNode.gain.value = 0.2;
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 2);
+        }
+
+        function playSpark() {
+            const noise = audioCtx.createBufferSource();
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noise.buffer = buffer;
+
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 3000;
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+            noise.start();
+        }
+
+        function playBeep() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 880;
+            gainNode.gain.value = 0.1;
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function startFanHum() {
+            if (fanHumNode) return;
+
+            const noise = audioCtx.createBufferSource();
+            const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            noise.buffer = buffer;
+            noise.loop = true;
+
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 300;
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.value = 0.03;
+
+            fanHumNode = { noise, gainNode };
+            noise.start();
+        }
+
+        function stopFanHum() {
+            if (fanHumNode) {
+                fanHumNode.gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+                setTimeout(() => {
+                    if (fanHumNode) {
+                        fanHumNode.noise.stop();
+                        fanHumNode = null;
+                    }
+                }, 1000);
+            }
+        }
+
+        // Game State
+        const gameState = {
+            location: 'entrance',
+            power: 100,
+            timeRemaining: 300, // 5 minutes in seconds
+            fixes: 0,
+            gameOver: false,
+            racks: {
+                rack1: { status: 'critical', name: 'RACK-01: RAID ARRAY', fixed: false, issue: 'RAID-5 DEGRADED - 2 DRIVES FAILED' },
+                rack2: { status: 'critical', name: 'RACK-02: NETWORK CORE', fixed: false, issue: 'SWITCH OVERHEATING - 94°C' },
+                rack3: { status: 'critical', name: 'RACK-03: UPS SYSTEM', fixed: false, issue: 'BATTERY FAILURE - 2 MIN BACKUP' },
+                rack4: { status: 'critical', name: 'RACK-04: BOOT DRIVES', fixed: false, issue: 'FILESYSTEM CORRUPTION DETECTED' },
+                rack5: { status: 'critical', name: 'RACK-05: COOLING', fixed: false, issue: 'PUMP FAILURE - MANUAL BYPASS REQ' },
+                rack6: { status: 'critical', name: 'RACK-06: FIRE SYSTEM', fixed: false, issue: 'FIRE DETECTED - HALON ARMED' }
+            },
+            inventory: [],
+            visitedRacks: new Set()
+        };
+
+        // DOM Elements
+        const output = document.getElementById('output');
+        const input = document.getElementById('input');
+        const powerFill = document.getElementById('power-fill');
+        const powerText = document.getElementById('power-text');
+        const powerPercent = document.getElementById('power-percent');
+        const timeDisplay = document.getElementById('time-remaining');
+        const locationDisplay = document.getElementById('location');
+        const fixesDisplay = document.getElementById('fixes');
+        const crt = document.getElementById('crt');
+
+        // Initialize game
+        function init() {
+            printLine('', 'error');
+            printLine('═══════════════════════════════════════════════════════════════════', 'error');
+            printLine('  CRITICAL SYSTEM FAILURE - EMERGENCY RESPONSE REQUIRED', 'error');
+            printLine('═══════════════════════════════════════════════════════════════════', 'error');
+            printLine('');
+            printLine('DATACENTER-ALPHA experiencing cascading failures:', 'warning');
+            printLine('  • Power systems failing - UPS battery depleted');
+            printLine('  • Multiple RAID arrays degraded');
+            printLine('  • Cooling systems offline - temperature rising');
+            printLine('  • Fire suppression system armed - HALON DEPLOYMENT IMMINENT');
+            printLine('');
+            printLine('YOU: Last technician on site. All others evacuated.', 'highlight');
+            printLine('');
+            printLine('MISSION: Stabilize critical systems and escape before halon deployment.');
+            printLine('TIME LIMIT: 5 minutes until automatic fire suppression activates.');
+            printLine('');
+            printLine('Type "help" for available commands.', 'command-hint');
+            printLine('Type "map" to see datacenter layout.', 'command-hint');
+            printLine('');
+
+            startFanHum();
+            startPowerDrain();
+            playKlaxon();
+
+            input.focus();
+        }
+
+        // Print to terminal
+        function printLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `output-line ${className}`;
+            line.textContent = text;
+            output.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Show rack map
+        function showMap() {
+            printLine('');
+            printLine('╔════════════════════════════════════════════════════════════════╗');
+            printLine('║              DATACENTER-ALPHA FLOOR PLAN                       ║');
+            printLine('╠════════════════════════════════════════════════════════════════╣');
+            printLine('║                                                                ║');
+            printLine('║   [ENTRANCE]                                    [EXIT]         ║');
+            printLine('║       |                                           |            ║');
+            printLine('║   ┌───┴────────────────────────────────────────────┘          ║');
+            printLine('║   │                                                            ║');
+            printLine('║   │   ┌─────┐  ┌─────┐  ┌─────┐                              ║');
+
+            const r1Class = gameState.racks.rack1.fixed ? 'success' : 'critical';
+            const r2Class = gameState.racks.rack2.fixed ? 'success' : 'critical';
+            const r3Class = gameState.racks.rack3.fixed ? 'success' : 'critical';
+
+            const r1Line = document.createElement('div');
+            r1Line.className = 'output-line';
+            r1Line.innerHTML = `║   │   │<span class="${r1Class}">R-01</span>│  │<span class="${r2Class}">R-02</span>│  │<span class="${r3Class}">R-03</span>│                              ║`;
+            output.appendChild(r1Line);
+
+            printLine('║   │   └─────┘  └─────┘  └─────┘                              ║');
+            printLine('║   │                                                            ║');
+            printLine('║   │   ┌─────┐  ┌─────┐  ┌─────┐                              ║');
+
+            const r4Class = gameState.racks.rack4.fixed ? 'success' : 'critical';
+            const r5Class = gameState.racks.rack5.fixed ? 'success' : 'critical';
+            const r6Class = gameState.racks.rack6.fixed ? 'success' : 'critical';
+
+            const r2Line = document.createElement('div');
+            r2Line.className = 'output-line';
+            r2Line.innerHTML = `║   │   │<span class="${r4Class}">R-04</span>│  │<span class="${r5Class}">R-05</span>│  │<span class="${r6Class}">R-06</span>│                              ║`;
+            output.appendChild(r2Line);
+
+            printLine('║   │   └─────┘  └─────┘  └─────┘                              ║');
+            printLine('║   │                                                            ║');
+            printLine('║   └────────────────────────────────────────────────────────   ║');
+            printLine('║                                                                ║');
+            printLine('╚════════════════════════════════════════════════════════════════╝');
+            printLine('');
+            printLine('GREEN=Fixed, RED=Critical', 'command-hint');
+            printLine('');
+        }
+
+        // Power drain system
+        function startPowerDrain() {
+            setInterval(() => {
+                if (gameState.gameOver) return;
+
+                gameState.timeRemaining--;
+                gameState.power = Math.max(0, (gameState.timeRemaining / 300) * 100);
+
+                updateStatusBar();
+
+                // Increase flicker as power drops
+                if (gameState.power < 30) {
+                    crt.classList.add('critical');
+                }
+
+                // Random events
+                if (gameState.timeRemaining % 30 === 0 && gameState.power > 0) {
+                    const events = [
+                        'WARNING: Temperature spike detected in RACK-02',
+                        'ALERT: Additional drive failure in RACK-01',
+                        'NOTICE: Backup generator fuel at 15%',
+                        'WARNING: Fire suppression priming sequence initiated'
+                    ];
+                    const event = events[Math.floor(Math.random() * events.length)];
+                    printLine(event, 'warning');
+                    playBeep();
+                }
+
+                // Game over conditions
+                if (gameState.timeRemaining <= 0) {
+                    endGame('halon');
+                } else if (gameState.timeRemaining <= 30 && gameState.fixes < 6) {
+                    if (gameState.timeRemaining % 5 === 0) {
+                        playBeep();
+                    }
+                }
+
+            }, 1000);
+        }
+
+        function updateStatusBar() {
+            const minutes = Math.floor(gameState.timeRemaining / 60);
+            const seconds = gameState.timeRemaining % 60;
+            timeDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            powerFill.style.width = `${gameState.power}%`;
+            powerText.textContent = `${Math.round(gameState.power)}%`;
+            powerPercent.textContent = `${Math.round(gameState.power)}%`;
+
+            locationDisplay.textContent = gameState.location.toUpperCase();
+            fixesDisplay.textContent = `${gameState.fixes}/6`;
+        }
+
+        // Command processing
+        function processCommand(cmd) {
+            cmd = cmd.trim().toLowerCase();
+            if (!cmd) return;
+
+            printLine(`datacenter# ${cmd}`, 'highlight');
+            playClick();
+
+            const parts = cmd.split(' ');
+            const command = parts[0];
+            const args = parts.slice(1);
+
+            switch(command) {
+                case 'help':
+                    showHelp();
+                    break;
+                case 'map':
+                    showMap();
+                    break;
+                case 'status':
+                    showStatus();
+                    break;
+                case 'goto':
+                case 'cd':
+                case 'move':
+                    if (args.length === 0) {
+                        printLine('Usage: goto <location>', 'error');
+                        printLine('Example: goto rack1', 'command-hint');
+                    } else {
+                        moveToLocation(args[0]);
+                    }
+                    break;
+                case 'examine':
+                case 'inspect':
+                case 'look':
+                    examine(args[0]);
+                    break;
+                case 'fix':
+                case 'repair':
+                    attemptFix(args.join(' '));
+                    break;
+                case 'inventory':
+                case 'inv':
+                    showInventory();
+                    break;
+                case 'take':
+                case 'grab':
+                    takeItem(args.join(' '));
+                    break;
+                case 'use':
+                    useItem(args.join(' '));
+                    break;
+                case 'exit':
+                case 'escape':
+                    attemptExit();
+                    break;
+                case 'clear':
+                    output.innerHTML = '';
+                    break;
+                default:
+                    printLine(`Command not recognized: ${command}`, 'error');
+                    printLine('Type "help" for available commands.', 'command-hint');
+            }
+
+            input.value = '';
+        }
+
+        function showHelp() {
+            printLine('');
+            printLine('AVAILABLE COMMANDS:', 'highlight');
+            printLine('  help              - Show this help message');
+            printLine('  map               - Display datacenter floor plan');
+            printLine('  status            - Show current system status');
+            printLine('  goto <location>   - Move to a location (rack1-6, entrance, exit)');
+            printLine('  examine [target]  - Inspect location or object');
+            printLine('  fix <action>      - Attempt to repair current rack');
+            printLine('  inventory         - Show items you are carrying');
+            printLine('  take <item>       - Pick up an item');
+            printLine('  use <item>        - Use an item from inventory');
+            printLine('  exit              - Attempt to leave datacenter');
+            printLine('');
+        }
+
+        function showStatus() {
+            printLine('');
+            printLine('═══════════════════════════════════════════════════', 'highlight');
+            printLine('  SYSTEM STATUS REPORT', 'highlight');
+            printLine('═══════════════════════════════════════════════════', 'highlight');
+            printLine('');
+
+            for (const [key, rack] of Object.entries(gameState.racks)) {
+                const statusColor = rack.fixed ? 'success' : 'critical';
+                const statusText = rack.fixed ? '[FIXED]' : '[CRITICAL]';
+                printLine(`${rack.name}: ${statusText}`, statusColor);
+                if (!rack.fixed) {
+                    printLine(`  └─ ${rack.issue}`, 'warning');
+                }
+            }
+
+            printLine('');
+        }
+
+        function moveToLocation(location) {
+            location = location.toLowerCase();
+
+            const validLocations = ['entrance', 'exit', 'rack1', 'rack2', 'rack3', 'rack4', 'rack5', 'rack6'];
+            if (!validLocations.includes(location)) {
+                printLine(`Invalid location: ${location}`, 'error');
+                printLine('Valid locations: entrance, exit, rack1-6', 'command-hint');
+                return;
+            }
+
+            gameState.location = location;
+            locationDisplay.textContent = location.toUpperCase();
+
+            printLine('');
+            printLine(`Moving to ${location.toUpperCase()}...`, 'highlight');
+            playClick();
+
+            if (location.startsWith('rack')) {
+                const rack = gameState.racks[location];
+                gameState.visitedRacks.add(location);
+
+                printLine('');
+                printLine(`╔${'═'.repeat(60)}╗`);
+                printLine(`║ ${rack.name.padEnd(58)} ║`);
+                printLine(`╚${'═'.repeat(60)}╝`);
+
+                if (rack.fixed) {
+                    printLine('STATUS: ✓ OPERATIONAL', 'success');
+                } else {
+                    printLine(`STATUS: ✗ ${rack.issue}`, 'critical');
+                    playKlaxon();
+
+                    if (location === 'rack1') {
+                        printLine('');
+                        printLine('Hot-swap bays visible. Two drives show red failure LEDs.');
+                        printLine('Replacement drives available in storage cabinet.');
+                        printLine('');
+                        printLine('Hint: "take drives" then "fix raid"', 'command-hint');
+                    } else if (location === 'rack2') {
+                        printLine('');
+                        printLine('Switch chassis extremely hot to touch. Fans at 100%.');
+                        printLine('Secondary network path available but needs configuration.');
+                        printLine('');
+                        printLine('Hint: "fix network"', 'command-hint');
+                    } else if (location === 'rack3') {
+                        printLine('');
+                        printLine('UPS battery indicators all red. Generator controls nearby.');
+                        printLine('Manual transfer switch visible.');
+                        printLine('');
+                        printLine('Hint: "fix power"', 'command-hint');
+                    } else if (location === 'rack4') {
+                        printLine('');
+                        printLine('Boot drive showing I/O errors. System hanging on fsck.');
+                        printLine('Repair tools available on maintenance console.');
+                        printLine('');
+                        printLine('Hint: "fix filesystem"', 'command-hint');
+                    } else if (location === 'rack5') {
+                        printLine('');
+                        printLine('Cooling pump completely silent. Bypass valve visible.');
+                        printLine('Emergency coolant reserves available.');
+                        printLine('');
+                        printLine('Hint: "fix cooling"', 'command-hint');
+                    } else if (location === 'rack6') {
+                        printLine('');
+                        printLine('Smoke detector active. Small electrical fire in cable tray.');
+                        printLine('Fire extinguisher mounted on wall. Halon system counting down.');
+                        printLine('');
+                        printLine('Hint: "take extinguisher" then "fix fire"', 'command-hint');
+                    }
+                }
+            } else if (location === 'entrance') {
+                printLine('You are at the main entrance. The heavy door is locked from the outside.');
+                printLine('A security badge reader blinks red. Emergency exit is the only way out.');
+            } else if (location === 'exit') {
+                printLine('Emergency exit door. Crash bar clearly marked.');
+                printLine('Once you exit, you cannot return.');
+                printLine('Type "exit" to leave the datacenter.', 'command-hint');
+            }
+
+            printLine('');
+        }
+
+        function examine(target) {
+            if (!target) {
+                printLine(`You are at ${gameState.location.toUpperCase()}.`, 'highlight');
+                if (gameState.location.startsWith('rack')) {
+                    const rack = gameState.racks[gameState.location];
+                    printLine(`${rack.name}: ${rack.fixed ? 'OPERATIONAL' : rack.issue}`, rack.fixed ? 'success' : 'critical');
+                }
+                return;
+            }
+
+            printLine(`Examining ${target}...`);
+            printLine('Nothing special found.', 'command-hint');
+        }
+
+        function attemptFix(action) {
+            if (!gameState.location.startsWith('rack')) {
+                printLine('Nothing to fix here.', 'error');
+                return;
+            }
+
+            const rack = gameState.racks[gameState.location];
+
+            if (rack.fixed) {
+                printLine('This rack is already operational.', 'success');
+                return;
+            }
+
+            let success = false;
+            let message = '';
+
+            if (gameState.location === 'rack1' && (action.includes('raid') || action.includes('drive'))) {
+                if (gameState.inventory.includes('drives')) {
+                    success = true;
+                    message = 'Installing replacement drives...\nRAID array rebuilding...\nEstimated time: 2 hours\nArray stabilized in degraded mode.';
+                    gameState.inventory = gameState.inventory.filter(item => item !== 'drives');
+                } else {
+                    printLine('You need replacement drives. Try "take drives" first.', 'error');
+                    return;
+                }
+            } else if (gameState.location === 'rack2' && action.includes('network')) {
+                success = true;
+                message = 'Rerouting traffic to secondary switch...\nDisabling overheated primary...\nTraffic restored. Temperature dropping.';
+            } else if (gameState.location === 'rack3' && action.includes('power')) {
+                success = true;
+                message = 'Engaging manual transfer switch...\nGenerator coming online...\nPower stabilized on backup generator.';
+            } else if (gameState.location === 'rack4' && action.includes('filesystem') || action.includes('fsck')) {
+                success = true;
+                message = 'Running fsck -y /dev/sda1...\nRepairing inodes...\nRecovering journal...\nFilesystem repaired. System booting.';
+                playDiskClick();
+            } else if (gameState.location === 'rack5' && action.includes('cooling')) {
+                success = true;
+                message = 'Opening bypass valve...\nEngaging backup coolant pump...\nCoolant flow restored. Temperature stabilizing.';
+            } else if (gameState.location === 'rack6' && action.includes('fire')) {
+                if (gameState.inventory.includes('extinguisher')) {
+                    success = true;
+                    message = 'Deploying fire extinguisher...\nFire suppressed!\nDisarming halon system...\nFire system reset to standby.';
+                    gameState.inventory = gameState.inventory.filter(item => item !== 'extinguisher');
+                } else {
+                    printLine('You need a fire extinguisher. Try "take extinguisher" first.', 'error');
+                    return;
+                }
+            } else {
+                printLine('That repair action does not work here.', 'error');
+                printLine('Try "examine" to get hints.', 'command-hint');
+                return;
+            }
+
+            if (success) {
+                printLine('');
+                printLine(message, 'success');
+                printLine('');
+                printLine('✓ RACK REPAIRED', 'success');
+                rack.fixed = true;
+                rack.status = 'ok';
+                gameState.fixes++;
+
+                // Bonus time for fixing critical systems
+                gameState.timeRemaining += 30;
+                printLine(`+30 seconds added to power reserves`, 'highlight');
+
+                fixesDisplay.textContent = `${gameState.fixes}/6`;
+                playSpark();
+
+                if (gameState.fixes === 6) {
+                    printLine('');
+                    printLine('═══════════════════════════════════════════════════', 'success');
+                    printLine('  ALL SYSTEMS STABILIZED!', 'success');
+                    printLine('═══════════════════════════════════════════════════', 'success');
+                    printLine('');
+                    printLine('Head to the exit now!', 'highlight');
+                }
+            }
+        }
+
+        function showInventory() {
+            printLine('');
+            printLine('INVENTORY:', 'highlight');
+            if (gameState.inventory.length === 0) {
+                printLine('  (empty)');
+            } else {
+                gameState.inventory.forEach(item => {
+                    printLine(`  • ${item}`);
+                });
+            }
+            printLine('');
+        }
+
+        function takeItem(item) {
+            item = item.toLowerCase();
+
+            if (item.includes('drive')) {
+                if (gameState.location === 'rack1' || gameState.location === 'entrance') {
+                    gameState.inventory.push('drives');
+                    printLine('You take two replacement hard drives from the storage cabinet.', 'success');
+                } else {
+                    printLine('No drives available here.', 'error');
+                }
+            } else if (item.includes('extinguisher')) {
+                if (gameState.location === 'rack6' || gameState.location === 'entrance') {
+                    gameState.inventory.push('extinguisher');
+                    printLine('You grab the fire extinguisher from the wall mount.', 'success');
+                } else {
+                    printLine('No fire extinguisher here.', 'error');
+                }
+            } else {
+                printLine(`Cannot take: ${item}`, 'error');
+            }
+        }
+
+        function useItem(item) {
+            printLine('Try "fix <action>" instead.', 'command-hint');
+        }
+
+        function attemptExit() {
+            if (gameState.location !== 'exit') {
+                printLine('You need to go to the exit first. Use "goto exit"', 'error');
+                return;
+            }
+
+            if (gameState.fixes === 6) {
+                endGame('success');
+            } else if (gameState.fixes >= 3) {
+                endGame('partial');
+            } else {
+                printLine('You can leave now, but most systems are still failing...', 'warning');
+                printLine('Type "exit" again to confirm early exit.', 'command-hint');
+
+                // Allow confirmation
+                const originalOnKeyDown = input.onkeydown;
+                let confirmed = false;
+                input.onkeydown = function(e) {
+                    if (e.key === 'Enter' && input.value.trim().toLowerCase() === 'exit') {
+                        confirmed = true;
+                        endGame('failure');
+                    }
+                    if (confirmed) return;
+                    input.onkeydown = originalOnKeyDown;
+                };
+            }
+        }
+
+        function endGame(ending) {
+            gameState.gameOver = true;
+            stopFanHum();
+
+            printLine('');
+            printLine('═══════════════════════════════════════════════════════════════════', 'highlight');
+            printLine('');
+
+            if (ending === 'success') {
+                printLine('  ███████ ██    ██  ██████  ██████ ███████ ███████ ███████', 'success');
+                printLine('  ██      ██    ██ ██      ██      ██      ██      ██     ', 'success');
+                printLine('  ███████ ██    ██ ██      ██      █████   ███████ ███████', 'success');
+                printLine('       ██ ██    ██ ██      ██      ██           ██      ██', 'success');
+                printLine('  ███████  ██████   ██████  ██████ ███████ ███████ ███████', 'success');
+                printLine('');
+                printLine('You slam through the emergency exit as the last rack comes online.');
+                printLine('Behind you, cooling systems hum back to life, drives spin up,');
+                printLine('and the fire suppression system disarms with a satisfied beep.');
+                printLine('');
+                printLine('All systems operational. Datacenter saved. You are a legend.', 'success');
+                printLine('');
+                printLine(`Final stats: ${gameState.fixes}/6 racks fixed, ${Math.floor(gameState.timeRemaining/60)}:${String(gameState.timeRemaining%60).padStart(2,'0')} remaining`, 'highlight');
+                awardXP();
+            } else if (ending === 'partial') {
+                printLine('  ██████   █████  ██████  ████████ ██  █████  ██      ', 'warning');
+                printLine('  ██   ██ ██   ██ ██   ██    ██    ██ ██   ██ ██      ', 'warning');
+                printLine('  ██████  ███████ ██████     ██    ██ ███████ ██      ', 'warning');
+                printLine('  ██      ██   ██ ██   ██    ██    ██ ██   ██ ██      ', 'warning');
+                printLine('  ██      ██   ██ ██   ██    ██    ██ ██   ██ ███████ ', 'warning');
+                printLine('');
+                printLine('You escape just as the halon system activates.');
+                printLine('White gas floods the datacenter behind you.');
+                printLine(`${gameState.fixes} of 6 systems stabilized - partial recovery.`);
+                printLine('');
+                printLine('Some data lost, but the company survives. Barely.', 'warning');
+                printLine('');
+                printLine(`Final stats: ${gameState.fixes}/6 racks fixed`, 'highlight');
+                playPowerDown();
+            } else if (ending === 'halon') {
+                printLine('  ███████  █████  ██ ██      ██    ██ ██████  ███████', 'error');
+                printLine('  ██      ██   ██ ██ ██      ██    ██ ██   ██ ██     ', 'error');
+                printLine('  █████   ███████ ██ ██      ██    ██ ██████  █████  ', 'error');
+                printLine('  ██      ██   ██ ██ ██      ██    ██ ██   ██ ██     ', 'error');
+                printLine('  ██      ██   ██ ██ ███████  ██████  ██   ██ ███████', 'error');
+                printLine('');
+                printLine('The halon alarm shifts to a steady tone.');
+                printLine('White gas begins flooding the datacenter.');
+                printLine('You did not make it out in time.');
+                printLine('');
+                printLine('GAME OVER - Halon deployment', 'error');
+                printLine('');
+                printLine(`Final stats: ${gameState.fixes}/6 racks fixed`, 'highlight');
+                playPowerDown();
+            } else {
+                printLine('You abandon the datacenter with most systems still critical.', 'error');
+                printLine('Minutes later, the halon system deploys automatically.');
+                printLine('Fire contained, but catastrophic data loss.');
+                printLine('');
+                printLine('You kept your life, but lost your job.', 'error');
+            }
+
+            printLine('═══════════════════════════════════════════════════════════════════', 'highlight');
+            printLine('');
+            printLine('Type "history.back()" or click the back link to return.', 'command-hint');
+            printLine('');
+
+            input.disabled = true;
+        }
+
+        // XP Award System
+        function awardXP() {
+            if (localStorage.getItem('game_fsck_xp_awarded')) return;
+            localStorage.setItem('game_fsck_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 50;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 50, 'fsck');
+            }
+            if (window.AchievementManager) AchievementManager.unlock('game_fsck');
+
+            printLine('+50 XP - Datacenter Hero Achievement Unlocked!', 'success');
+        }
+
+        // Input handling
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(input.value);
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                // Could add command completion here
+            }
+        });
+
+        // Keep input focused
+        document.addEventListener('click', () => {
+            if (!gameState.gameOver) {
+                input.focus();
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            init();
+        });
+    </script>
+</body>
+</html>
