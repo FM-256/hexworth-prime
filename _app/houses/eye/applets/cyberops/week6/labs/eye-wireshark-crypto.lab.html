@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 8: Wireshark Crypto Analysis - CyberOps Week 6</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .lab-header {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #06b6d4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lab-header h1 {
+            font-size: 1.5rem;
+            color: #06b6d4;
+        }
+
+        .back-link {
+            color: #8b5cf6;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid #8b5cf6;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .lab-container {
+            display: flex;
+            height: calc(100vh - 140px);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .objectives-panel {
+            flex: 0 0 350px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .objectives-panel h2 {
+            color: #06b6d4;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .objective {
+            background: rgba(30, 41, 59, 0.6);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 6px;
+            border-left: 3px solid #475569;
+            transition: all 0.3s;
+        }
+
+        .objective.active {
+            border-left-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .objective.completed {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .objective-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .objective-title {
+            font-weight: 600;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        .objective.completed .objective-title {
+            color: #10b981;
+        }
+
+        .checkmark {
+            color: #10b981;
+            font-size: 1.25rem;
+            display: none;
+        }
+
+        .objective.completed .checkmark {
+            display: block;
+        }
+
+        .objective-desc {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .hint-button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .hint-button:hover {
+            background: #7c3aed;
+        }
+
+        .hint-text {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            border: 1px solid #8b5cf6;
+        }
+
+        .hint-text.visible {
+            display: block;
+        }
+
+        .analysis-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .terminal-section {
+            flex: 0 0 200px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: rgba(30, 41, 59, 0.8);
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #334155;
+            color: #06b6d4;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .terminal-content {
+            flex: 1;
+            padding: 0.75rem;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background: #0a0e1a;
+        }
+
+        .terminal-output {
+            margin-bottom: 0.75rem;
+        }
+
+        .terminal-line {
+            margin-bottom: 0.25rem;
+            line-height: 1.4;
+        }
+
+        .terminal-prompt {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .terminal-command {
+            color: #06b6d4;
+        }
+
+        .terminal-result {
+            color: #e2e8f0;
+        }
+
+        .terminal-success {
+            color: #10b981;
+        }
+
+        .terminal-error {
+            color: #ef4444;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        .terminal-input-prompt {
+            color: #10b981;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #06b6d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 6px;
+            height: 1em;
+            background: #06b6d4;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .wireshark-section {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .wireshark-toolbar {
+            background: #e5e7eb;
+            padding: 0.5rem;
+            border-bottom: 1px solid #9ca3af;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .wireshark-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .wireshark-button:hover {
+            background: #2563eb;
+        }
+
+        .wireshark-file {
+            color: #1f2937;
+            font-size: 0.85rem;
+            margin-left: auto;
+        }
+
+        .packet-list {
+            flex: 0 0 200px;
+            background: white;
+            overflow-y: auto;
+            border-bottom: 1px solid #334155;
+        }
+
+        .packet-list table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .packet-list thead {
+            background: #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .packet-list th {
+            padding: 0.4rem 0.5rem;
+            text-align: left;
+            border-bottom: 2px solid #9ca3af;
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .packet-list td {
+            padding: 0.3rem 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #1f2937;
+        }
+
+        .packet-list tr:hover {
+            background: #dbeafe;
+            cursor: pointer;
+        }
+
+        .packet-list tr.selected {
+            background: #bfdbfe;
+        }
+
+        .packet-tcp {
+            background: #d1fae5;
+        }
+
+        .packet-tls {
+            background: #e9d5ff;
+        }
+
+        .packet-dns {
+            background: #dbeafe;
+        }
+
+        .packet-detail {
+            flex: 1;
+            background: white;
+            overflow-y: auto;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #1f2937;
+        }
+
+        .protocol-layer {
+            margin-bottom: 0.5rem;
+        }
+
+        .protocol-header {
+            background: #e5e7eb;
+            padding: 0.3rem 0.5rem;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .protocol-header:hover {
+            background: #d1d5db;
+        }
+
+        .protocol-expand {
+            margin-right: 0.5rem;
+        }
+
+        .protocol-content {
+            padding: 0.5rem 0.5rem 0.5rem 1.5rem;
+            display: none;
+            line-height: 1.6;
+        }
+
+        .protocol-content.expanded {
+            display: block;
+        }
+
+        .protocol-field {
+            margin-bottom: 0.25rem;
+        }
+
+        .field-name {
+            color: #7c3aed;
+            font-weight: 600;
+        }
+
+        .field-value {
+            color: #059669;
+        }
+
+        .hex-dump {
+            flex: 0 0 150px;
+            background: #f9fafb;
+            border-top: 1px solid #334155;
+            overflow-y: auto;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #1f2937;
+        }
+
+        .hex-line {
+            margin-bottom: 0.25rem;
+            line-height: 1.4;
+        }
+
+        .hex-offset {
+            color: #6b7280;
+        }
+
+        .hex-bytes {
+            color: #1f2937;
+            margin: 0 1rem;
+        }
+
+        .hex-ascii {
+            color: #059669;
+        }
+
+        .completion-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .completion-modal.visible {
+            display: block;
+            animation: modalPop 0.5s ease-out;
+        }
+
+        @keyframes modalPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .completion-modal h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .completion-modal p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .xp-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .footer {
+            padding: 0.5rem 2rem;
+            background: rgba(15, 23, 42, 0.9);
+            border-top: 1px solid #334155;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .decrypted-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-header">
+        <h1>Lab 8: Wireshark Crypto Analysis</h1>
+        <a href="../index.html" class="back-link">Back to Week 6</a>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h2>Objectives</h2>
+            <div class="objective active" data-objective="0">
+                <div class="objective-header">
+                    <span class="objective-title">1. Open PCAP File</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Open the encrypted HTTPS traffic capture file.</div>
+                <button class="hint-button" onclick="toggleHint(0)">Show Hint</button>
+                <div class="hint-text">Type: open https_encrypted.pcap</div>
+            </div>
+
+            <div class="objective" data-objective="1">
+                <div class="objective-header">
+                    <span class="objective-title">2. Examine Client Hello</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Click packet #4 to view TLS Client Hello and cipher suites.</div>
+                <button class="hint-button" onclick="toggleHint(1)">Show Hint</button>
+                <div class="hint-text">Click on packet #4 in the packet list, then expand "Transport Layer Security" in the detail pane.</div>
+            </div>
+
+            <div class="objective" data-objective="2">
+                <div class="objective-header">
+                    <span class="objective-title">3. Examine Server Hello</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Click packet #6 to view TLS Server Hello and selected cipher.</div>
+                <button class="hint-button" onclick="toggleHint(2)">Show Hint</button>
+                <div class="hint-text">Click on packet #6 to see which cipher suite the server selected.</div>
+            </div>
+
+            <div class="objective" data-objective="3">
+                <div class="objective-header">
+                    <span class="objective-title">4. View Certificate</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Click packet #8 to examine the server's certificate.</div>
+                <button class="hint-button" onclick="toggleHint(3)">Show Hint</button>
+                <div class="hint-text">Click on packet #8 and expand the Certificate section.</div>
+            </div>
+
+            <div class="objective" data-objective="4">
+                <div class="objective-header">
+                    <span class="objective-title">5. Load TLS Key</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Load the RSA private key to decrypt TLS traffic.</div>
+                <button class="hint-button" onclick="toggleHint(4)">Show Hint</button>
+                <div class="hint-text">Type: load key server.key</div>
+            </div>
+
+            <div class="objective" data-objective="5">
+                <div class="objective-header">
+                    <span class="objective-title">6. View Decrypted HTTP</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Click packet #14 to see decrypted HTTP POST request.</div>
+                <button class="hint-button" onclick="toggleHint(5)">Show Hint</button>
+                <div class="hint-text">After loading the key, click packet #14 to view the decrypted content.</div>
+            </div>
+
+            <div class="objective" data-objective="6">
+                <div class="objective-header">
+                    <span class="objective-title">7. Identify Credentials</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Find the username and password in decrypted data.</div>
+                <button class="hint-button" onclick="toggleHint(6)">Show Hint</button>
+                <div class="hint-text">Look at the form data in packet #14. Type: extract credentials</div>
+            </div>
+
+            <div class="objective" data-objective="7">
+                <div class="objective-header">
+                    <span class="objective-title">8. Export Objects</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Export decrypted HTTP objects from the capture.</div>
+                <button class="hint-button" onclick="toggleHint(7)">Show Hint</button>
+                <div class="hint-text">Type: export http objects</div>
+            </div>
+        </div>
+
+        <div class="analysis-panel">
+            <div class="terminal-section">
+                <div class="terminal-header">Command Terminal</div>
+                <div class="terminal-content">
+                    <div class="terminal-output" id="terminal-output">
+                        <div class="terminal-line">
+                            <span class="terminal-result">Wireshark Crypto Analysis Lab</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="terminal-result">Type commands to control the analysis environment</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="terminal-result"></span>
+                        </div>
+                    </div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-input-prompt">analyst@wireshark:~$</span>
+                        <input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false">
+                        <span class="cursor"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wireshark-section">
+                <div class="wireshark-toolbar">
+                    <div class="wireshark-file" id="file-label">No file loaded</div>
+                </div>
+
+                <div class="packet-list" id="packet-list">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Time</th>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Protocol</th>
+                                <th>Length</th>
+                                <th>Info</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packet-tbody">
+                            <tr><td colspan="7" style="text-align: center; padding: 2rem; color: #6b7280;">No packets loaded. Use terminal to open a PCAP file.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="packet-detail" id="packet-detail">
+                    <div style="color: #6b7280; text-align: center; padding: 2rem;">
+                        Select a packet to view details
+                    </div>
+                </div>
+
+                <div class="hex-dump" id="hex-dump">
+                    <div style="color: #6b7280;">Hex dump will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div id="flux-capacitor-container"></div>
+    </div>
+
+    <div class="completion-modal" id="completion-modal">
+        <h2>Lab Complete!</h2>
+        <p>Outstanding! You've mastered Wireshark crypto analysis and TLS decryption.</p>
+        <div class="xp-badge">+25 XP</div>
+    </div>
+
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+        const STORAGE_KEY = 'cyberops_lab_wireshark_crypto';
+        let currentObjective = 0;
+        let commandHistory = [];
+        let historyIndex = -1;
+        let selectedPacket = null;
+        let tlsKeyLoaded = false;
+
+        const packets = [
+            { no: 1, time: '0.000000', src: '192.168.1.100', dst: '8.8.8.8', proto: 'DNS', len: 74, info: 'Standard query A secure.example.com', class: 'packet-dns' },
+            { no: 2, time: '0.023451', src: '8.8.8.8', dst: '192.168.1.100', proto: 'DNS', len: 90, info: 'Standard query response A 93.184.216.34', class: 'packet-dns' },
+            { no: 3, time: '0.045623', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TCP', len: 74, info: '51234 → 443 [SYN]', class: 'packet-tcp' },
+            { no: 4, time: '0.067891', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TLSv1.3', len: 517, info: 'Client Hello', class: 'packet-tls' },
+            { no: 5, time: '0.089234', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TCP', len: 66, info: '443 → 51234 [ACK]', class: 'packet-tcp' },
+            { no: 6, time: '0.112567', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TLSv1.3', len: 1486, info: 'Server Hello, Certificate', class: 'packet-tls' },
+            { no: 7, time: '0.134890', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TCP', len: 66, info: '51234 → 443 [ACK]', class: 'packet-tcp' },
+            { no: 8, time: '0.156234', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TLSv1.3', len: 2896, info: 'Certificate, Server Key Exchange, Server Hello Done', class: 'packet-tls' },
+            { no: 9, time: '0.178567', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TLSv1.3', len: 342, info: 'Client Key Exchange, Change Cipher Spec, Finished', class: 'packet-tls' },
+            { no: 10, time: '0.201234', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TLSv1.3', len: 287, info: 'Change Cipher Spec, Finished', class: 'packet-tls' },
+            { no: 11, time: '0.223567', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TLSv1.3', len: 453, info: 'Application Data (encrypted)', class: 'packet-tls' },
+            { no: 12, time: '0.245890', src: '93.184.216.34', dst: '192.168.1.100', proto: 'TLSv1.3', len: 1342, info: 'Application Data (encrypted)', class: 'packet-tls' },
+            { no: 13, time: '0.267234', src: '192.168.1.100', dst: '93.184.216.34', pro: 'TCP', len: 66, info: '51234 → 443 [ACK]', class: 'packet-tcp' },
+            { no: 14, time: '0.289567', src: '192.168.1.100', dst: '93.184.216.34', proto: 'TLSv1.3', len: 678, info: 'Application Data (encrypted)', class: 'packet-tls', decryptable: true }
+        ];
+
+        const packetDetails = {
+            4: {
+                layers: [
+                    {
+                        name: 'Frame',
+                        fields: [
+                            'Frame Number: 4',
+                            'Frame Length: 517 bytes',
+                            'Capture Length: 517 bytes',
+                            'Frame Time: Feb 11, 2026 14:23:45.067891'
+                        ]
+                    },
+                    {
+                        name: 'Ethernet II',
+                        fields: [
+                            'Destination: 00:1a:2b:3c:4d:5e',
+                            'Source: 00:50:56:a1:b2:c3',
+                            'Type: IPv4 (0x0800)'
+                        ]
+                    },
+                    {
+                        name: 'Internet Protocol Version 4',
+                        fields: [
+                            'Version: 4',
+                            'Header Length: 20 bytes',
+                            'Total Length: 503',
+                            'Source: 192.168.1.100',
+                            'Destination: 93.184.216.34'
+                        ]
+                    },
+                    {
+                        name: 'Transmission Control Protocol',
+                        fields: [
+                            'Source Port: 51234',
+                            'Destination Port: 443',
+                            'Sequence number: 1',
+                            'Flags: 0x018 (PSH, ACK)'
+                        ]
+                    },
+                    {
+                        name: 'Transport Layer Security',
+                        fields: [
+                            'TLSv1.3 Record Layer: Handshake Protocol: Client Hello',
+                            'Content Type: Handshake (22)',
+                            'Version: TLS 1.0 (0x0301)',
+                            'Length: 438',
+                            '  Handshake Protocol: Client Hello',
+                            '    Handshake Type: Client Hello (1)',
+                            '    Length: 434',
+                            '    Version: TLS 1.2 (0x0303)',
+                            '    Random: 64f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5...',
+                            '    Cipher Suites (17 suites):',
+                            '      TLS_AES_256_GCM_SHA384 (0x1302)',
+                            '      TLS_AES_128_GCM_SHA256 (0x1301)',
+                            '      TLS_CHACHA20_POLY1305_SHA256 (0x1303)',
+                            '      TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xc030)',
+                            '      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xc02f)',
+                            '      TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca8)',
+                            '    Extensions:',
+                            '      server_name: secure.example.com',
+                            '      supported_versions: TLS 1.3, TLS 1.2'
+                        ]
+                    }
+                ],
+                hex: '0000  00 1a 2b 3c 4d 5e 00 50 56 a1 b2 c3 08 00 45 00\n0010  01 f7 a1 2b 40 00 40 06 3f 2a c0 a8 01 64 5d b8\n0020  d8 22 c8 22 01 bb 7a 3c b1 4e 9f 2d a3 7c 50 18\n0030  fa f0 a7 6d 00 00 16 03 01 01 b6 01 00 01 b2 03\n0040  03 64 f2 a1 b3 c4 d5 e6 f7 a8 b9 c0 d1 e2 f3 a4'
+            },
+            6: {
+                layers: [
+                    {
+                        name: 'Transport Layer Security',
+                        fields: [
+                            'TLSv1.3 Record Layer: Handshake Protocol: Server Hello',
+                            'Content Type: Handshake (22)',
+                            'Version: TLS 1.2 (0x0303)',
+                            '  Handshake Protocol: Server Hello',
+                            '    Handshake Type: Server Hello (2)',
+                            '    Version: TLS 1.2 (0x0303)',
+                            '    Random: a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4...',
+                            '    Cipher Suite: TLS_AES_256_GCM_SHA384 (0x1302)',
+                            '    Compression Method: null (0)',
+                            '    Extensions:',
+                            '      supported_versions: TLS 1.3',
+                            '      key_share: x25519'
+                        ]
+                    }
+                ],
+                hex: '0000  00 50 56 a1 b2 c3 00 1a 2b 3c 4d 5e 08 00 45 00\n0010  05 ce 3d 4a 40 00 3c 06 c2 b3 5d b8 d8 22 c0 a8\n0020  01 64 01 bb c8 22 9f 2d a3 7c 7a 3c b3 04 50 18'
+            },
+            8: {
+                layers: [
+                    {
+                        name: 'Transport Layer Security',
+                        fields: [
+                            'TLSv1.3 Record Layer: Handshake Protocol: Certificate',
+                            'Content Type: Handshake (22)',
+                            '  Handshake Protocol: Certificate',
+                            '    Handshake Type: Certificate (11)',
+                            '    Certificates Length: 2734',
+                            '    Certificates (2734 bytes)',
+                            '      Certificate Length: 1345',
+                            '      Certificate: 308205353082041d...',
+                            '        signedCertificate',
+                            '          version: v3 (2)',
+                            '          serialNumber: 0x0ee94cc3000000005d377f85',
+                            '          signature: sha256WithRSAEncryption',
+                            '          issuer: CN=DigiCert TLS RSA SHA256 2020 CA1',
+                            '          validity',
+                            '            notBefore: 2024-01-15 00:00:00 UTC',
+                            '            notAfter: 2025-02-15 23:59:59 UTC',
+                            '          subject: CN=secure.example.com',
+                            '          subjectPublicKeyInfo',
+                            '            algorithm: rsaEncryption',
+                            '            rsaPublicKey: 2048 bit'
+                        ]
+                    }
+                ],
+                hex: '0000  00 50 56 a1 b2 c3 00 1a 2b 3c 4d 5e 08 00 45 00\n0010  0b 50 3d 4b 40 00 3c 06 bc d0 5d b8 d8 22 c0 a8'
+            },
+            14: {
+                layers: [
+                    {
+                        name: 'Transport Layer Security',
+                        fields: tlsKeyLoaded ? [
+                            'TLSv1.3 Record Layer: Application Data',
+                            'Content Type: Application Data (23)',
+                            'Decrypted Application Data',
+                            '  [Decryption successful]'
+                        ] : [
+                            'TLSv1.3 Record Layer: Application Data',
+                            'Content Type: Application Data (23)',
+                            'Encrypted Application Data (612 bytes)',
+                            '  [Unable to decrypt - no key loaded]'
+                        ]
+                    },
+                    ...(tlsKeyLoaded ? [{
+                        name: 'Hypertext Transfer Protocol',
+                        fields: [
+                            'POST /login HTTP/1.1',
+                            'Host: secure.example.com',
+                            'Content-Type: application/x-www-form-urlencoded',
+                            'Content-Length: 54',
+                            'Cookie: session=abc123def456',
+                            '',
+                            'Form Data:',
+                            '  username: admin',
+                            '  password: P@ssw0rd2026!',
+                            '  remember: true'
+                        ]
+                    }] : [])
+                ],
+                hex: tlsKeyLoaded ?
+                    '0000  00 1a 2b 3c 4d 5e 00 50 56 a1 b2 c3 08 00 45 00\n0010  02 a6 a1 2f 40 00 40 06 3c 1e c0 a8 01 64 5d b8\n0020  d8 22 c8 22 01 bb 7a 3c b5 2a 9f 2d a8 fe 50 18\n0030  50 4f 53 54 20 2f 6c 6f 67 69 6e 20 48 54 54 50   POST /login HTTP\n0040  2f 31 2e 31 0d 0a 48 6f 73 74 3a 20 73 65 63 75   /1.1..Host: secu\n0050  72 65 2e 65 78 61 6d 70 6c 65 2e 63 6f 6d 0d 0a   re.example.com..\n0060  75 73 65 72 6e 61 6d 65 3d 61 64 6d 69 6e 26 70   username=admin&p\n0070  61 73 73 77 6f 72 64 3d 50 40 73 73 77 30 72 64   assword=P@ssw0rd\n0080  32 30 32 36 21                                    2026!' :
+                    '0000  17 03 03 02 64 a7 3f 9c 2d 8b 5e 1a 6f 4c 3d b2\n0010  8e 9a 4f 7c 6d 1b 2e 8c 5f 3a 7e 0d 9b 4a 6e 8f\n0020  [Encrypted data - unable to decrypt without key]'
+            }
+        };
+
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const progress = JSON.parse(saved);
+                currentObjective = progress.currentObjective || 0;
+                if (progress.completed) {
+                    for (let i = 0; i < progress.completed.length; i++) {
+                        if (progress.completed[i]) {
+                            completeObjective(i, false);
+                        }
+                    }
+                }
+                if (progress.tlsKeyLoaded) {
+                    tlsKeyLoaded = true;
+                }
+            }
+            updateObjectiveDisplay();
+        }
+
+        function saveProgress() {
+            const completed = [];
+            document.querySelectorAll('.objective').forEach((obj, idx) => {
+                completed[idx] = obj.classList.contains('completed');
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                currentObjective: currentObjective,
+                completed: completed,
+                tlsKeyLoaded: tlsKeyLoaded
+            }));
+        }
+
+        function updateObjectiveDisplay() {
+            document.querySelectorAll('.objective').forEach((obj, idx) => {
+                obj.classList.remove('active');
+                if (idx === currentObjective && !obj.classList.contains('completed')) {
+                    obj.classList.add('active');
+                }
+            });
+        }
+
+        function completeObjective(index, save = true) {
+            const objective = document.querySelector(`[data-objective="${index}"]`);
+            objective.classList.remove('active');
+            objective.classList.add('completed');
+
+            if (index === currentObjective) {
+                currentObjective++;
+                updateObjectiveDisplay();
+            }
+
+            if (save) {
+                saveProgress();
+            }
+
+            if (currentObjective > 7) {
+                setTimeout(showCompletion, 500);
+            }
+        }
+
+        function showCompletion() {
+            document.getElementById('completion-modal').classList.add('visible');
+
+            let currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            currentXP += 25;
+            localStorage.setItem('hexworth_xp', currentXP.toString());
+        }
+
+        function toggleHint(index) {
+            const objective = document.querySelector(`[data-objective="${index}"]`);
+            const hint = objective.querySelector('.hint-text');
+            hint.classList.toggle('visible');
+        }
+
+        function addTerminalLine(text, className = 'terminal-result') {
+            const output = document.getElementById('terminal-output');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            const span = document.createElement('span');
+            span.className = className;
+            span.textContent = text;
+            line.appendChild(span);
+            output.appendChild(line);
+            output.parentElement.scrollTop = output.parentElement.scrollHeight;
+        }
+
+        function loadPackets() {
+            const tbody = document.getElementById('packet-tbody');
+            tbody.innerHTML = '';
+
+            packets.forEach(packet => {
+                const row = document.createElement('tr');
+                row.className = packet.class;
+                row.dataset.packetNo = packet.no;
+
+                let info = packet.info;
+                if (tlsKeyLoaded && packet.decryptable) {
+                    info += ' [DECRYPTED]';
+                }
+
+                row.innerHTML = `
+                    <td>${packet.no}</td>
+                    <td>${packet.time}</td>
+                    <td>${packet.src}</td>
+                    <td>${packet.dst}</td>
+                    <td>${packet.proto}</td>
+                    <td>${packet.len}</td>
+                    <td>${info}</td>
+                `;
+
+                row.addEventListener('click', () => selectPacket(packet.no));
+                tbody.appendChild(row);
+            });
+        }
+
+        function selectPacket(packetNo) {
+            selectedPacket = packetNo;
+
+            document.querySelectorAll('#packet-tbody tr').forEach(row => {
+                row.classList.remove('selected');
+            });
+            document.querySelector(`tr[data-packet-no="${packetNo}"]`).classList.add('selected');
+
+            const details = packetDetails[packetNo];
+            if (details) {
+                showPacketDetails(details);
+
+                if ([4, 6, 8].includes(packetNo)) {
+                    if (packetNo === 4 && currentObjective === 1) completeObjective(1);
+                    if (packetNo === 6 && currentObjective === 2) completeObjective(2);
+                    if (packetNo === 8 && currentObjective === 3) completeObjective(3);
+                }
+
+                if (packetNo === 14 && tlsKeyLoaded && currentObjective === 5) {
+                    completeObjective(5);
+                }
+            }
+        }
+
+        function showPacketDetails(details) {
+            const detailPane = document.getElementById('packet-detail');
+            detailPane.innerHTML = '';
+
+            details.layers.forEach((layer, idx) => {
+                const layerDiv = document.createElement('div');
+                layerDiv.className = 'protocol-layer';
+
+                const header = document.createElement('div');
+                header.className = 'protocol-header';
+                header.innerHTML = `<span class="protocol-expand">▶</span>${layer.name}`;
+                header.onclick = () => {
+                    content.classList.toggle('expanded');
+                    header.querySelector('.protocol-expand').textContent =
+                        content.classList.contains('expanded') ? '▼' : '▶';
+                };
+
+                const content = document.createElement('div');
+                content.className = 'protocol-content';
+                if (idx === details.layers.length - 1) content.classList.add('expanded');
+
+                layer.fields.forEach(field => {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'protocol-field';
+
+                    if (field.includes(':')) {
+                        const [name, ...valueParts] = field.split(':');
+                        const value = valueParts.join(':');
+                        fieldDiv.innerHTML = `<span class="field-name">${name}:</span> <span class="field-value">${value}</span>`;
+                    } else {
+                        fieldDiv.textContent = field;
+                    }
+
+                    content.appendChild(fieldDiv);
+                });
+
+                layerDiv.appendChild(header);
+                layerDiv.appendChild(content);
+                detailPane.appendChild(layerDiv);
+            });
+
+            const hexDump = document.getElementById('hex-dump');
+            hexDump.innerHTML = details.hex.split('\n').map(line =>
+                `<div class="hex-line">${line}</div>`
+            ).join('');
+        }
+
+        function processCommand(command) {
+            if (!command.trim()) return;
+
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
+
+            addTerminalLine('analyst@wireshark:~$ ' + command, 'terminal-prompt');
+
+            const cmd = command.toLowerCase().trim();
+
+            if (cmd === 'open https_encrypted.pcap' && currentObjective === 0) {
+                document.getElementById('file-label').textContent = 'File: https_encrypted.pcap';
+                loadPackets();
+                addTerminalLine('Loaded 14 packets from https_encrypted.pcap', 'terminal-success');
+                addTerminalLine('TLS encrypted traffic detected', 'terminal-result');
+                completeObjective(0);
+            } else if (cmd === 'load key server.key' && currentObjective === 4) {
+                tlsKeyLoaded = true;
+                loadPackets();
+                addTerminalLine('RSA private key loaded successfully', 'terminal-success');
+                addTerminalLine('TLS session keys derived - traffic can now be decrypted', 'terminal-success');
+                addTerminalLine('Packets with decrypted content marked as [DECRYPTED]', 'terminal-result');
+                completeObjective(4);
+                saveProgress();
+            } else if (cmd === 'extract credentials' && currentObjective === 6 && tlsKeyLoaded) {
+                addTerminalLine('Extracting credentials from decrypted HTTP traffic...', 'terminal-result');
+                addTerminalLine('', 'terminal-result');
+                addTerminalLine('CREDENTIALS FOUND IN PACKET #14:', 'terminal-success');
+                addTerminalLine('  Username: admin', 'terminal-success');
+                addTerminalLine('  Password: P@ssw0rd2026!', 'terminal-success');
+                addTerminalLine('', 'terminal-result');
+                addTerminalLine('WARNING: Credentials transmitted over HTTPS are only secure', 'terminal-result');
+                addTerminalLine('if proper certificate validation is performed!', 'terminal-result');
+                completeObjective(6);
+            } else if (cmd === 'export http objects' && currentObjective === 7 && tlsKeyLoaded) {
+                addTerminalLine('Exporting HTTP objects from decrypted stream...', 'terminal-result');
+                addTerminalLine('', 'terminal-result');
+                addTerminalLine('Exported 3 objects:', 'terminal-success');
+                addTerminalLine('  [1] /login (POST request) - 612 bytes', 'terminal-result');
+                addTerminalLine('  [2] /css/style.css - 4,523 bytes', 'terminal-result');
+                addTerminalLine('  [3] /js/app.js - 8,934 bytes', 'terminal-result');
+                addTerminalLine('', 'terminal-result');
+                addTerminalLine('Objects saved to: ./exported_objects/', 'terminal-success');
+                completeObjective(7);
+            } else {
+                addTerminalLine('Command not recognized or incorrect for current objective', 'terminal-error');
+            }
+
+            addTerminalLine('', 'terminal-result');
+        }
+
+        const input = document.getElementById('terminal-input');
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                processCommand(input.value);
+                input.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    input.value = '';
+                }
+            }
+        });
+
+        input.focus();
+        loadProgress();
+    </script>
+</body>
+</html>

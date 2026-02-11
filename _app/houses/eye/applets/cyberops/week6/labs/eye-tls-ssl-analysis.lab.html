@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 6: TLS/SSL Analysis - CyberOps Week 6</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .lab-header {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #06b6d4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lab-header h1 {
+            font-size: 1.5rem;
+            color: #06b6d4;
+        }
+
+        .back-link {
+            color: #8b5cf6;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid #8b5cf6;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .lab-container {
+            display: flex;
+            height: calc(100vh - 140px);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .objectives-panel {
+            flex: 0 0 400px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .objectives-panel h2 {
+            color: #06b6d4;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .objective {
+            background: rgba(30, 41, 59, 0.6);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 6px;
+            border-left: 3px solid #475569;
+            transition: all 0.3s;
+        }
+
+        .objective.active {
+            border-left-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .objective.completed {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .objective-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .objective-title {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .objective.completed .objective-title {
+            color: #10b981;
+        }
+
+        .checkmark {
+            color: #10b981;
+            font-size: 1.25rem;
+            display: none;
+        }
+
+        .objective.completed .checkmark {
+            display: block;
+        }
+
+        .objective-desc {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .hint-button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .hint-button:hover {
+            background: #7c3aed;
+        }
+
+        .hint-text {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            border: 1px solid #8b5cf6;
+        }
+
+        .hint-text.visible {
+            display: block;
+        }
+
+        .terminal-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: rgba(30, 41, 59, 0.8);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #334155;
+            color: #06b6d4;
+            font-weight: 600;
+        }
+
+        .terminal-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #0a0e1a;
+        }
+
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .terminal-line {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .terminal-prompt {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .terminal-command {
+            color: #06b6d4;
+        }
+
+        .terminal-result {
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            margin-left: 0;
+        }
+
+        .terminal-error {
+            color: #ef4444;
+        }
+
+        .terminal-success {
+            color: #10b981;
+        }
+
+        .terminal-highlight {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        .terminal-input-prompt {
+            color: #10b981;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #06b6d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 1.2em;
+            background: #06b6d4;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .completion-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .completion-modal.visible {
+            display: block;
+            animation: modalPop 0.5s ease-out;
+        }
+
+        @keyframes modalPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .completion-modal h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .completion-modal p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .xp-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .footer {
+            padding: 0.5rem 2rem;
+            background: rgba(15, 23, 42, 0.9);
+            border-top: 1px solid #334155;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-header">
+        <h1>Lab 6: TLS/SSL Analysis</h1>
+        <a href="../index.html" class="back-link">Back to Week 6</a>
+    </div>
+
+    <div class="lab-container">
+        <div class="objectives-panel">
+            <h2>Objectives</h2>
+            <div class="objective active" data-objective="0">
+                <div class="objective-header">
+                    <span class="objective-title">1. Connect to Server with OpenSSL</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Use OpenSSL s_client to establish a TLS connection to a remote server and examine the handshake.</div>
+                <button class="hint-button" onclick="toggleHint(0)">Show Hint</button>
+                <div class="hint-text">Use: openssl s_client -connect example.com:443</div>
+            </div>
+
+            <div class="objective" data-objective="1">
+                <div class="objective-header">
+                    <span class="objective-title">2. Examine Certificate Chain</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Review the certificate chain displayed in the output to understand the trust hierarchy.</div>
+                <button class="hint-button" onclick="toggleHint(1)">Show Hint</button>
+                <div class="hint-text">Look for the "Certificate chain" section in the output. Use: openssl s_client -connect example.com:443 -showcerts</div>
+            </div>
+
+            <div class="objective" data-objective="2">
+                <div class="objective-header">
+                    <span class="objective-title">3. Check Cipher Suite</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Identify which cipher suite was negotiated between client and server.</div>
+                <button class="hint-button" onclick="toggleHint(2)">Show Hint</button>
+                <div class="hint-text">Use: openssl s_client -connect example.com:443 -cipher 'HIGH'</div>
+            </div>
+
+            <div class="objective" data-objective="3">
+                <div class="objective-header">
+                    <span class="objective-title">4. Test TLS 1.2 Support</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Verify that the server supports TLS 1.2 protocol.</div>
+                <button class="hint-button" onclick="toggleHint(3)">Show Hint</button>
+                <div class="hint-text">Use: openssl s_client -connect example.com:443 -tls1_2</div>
+            </div>
+
+            <div class="objective" data-objective="4">
+                <div class="objective-header">
+                    <span class="objective-title">5. Test for Weak Ciphers</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Attempt to connect using a weak cipher (RC4) to verify it's properly blocked.</div>
+                <button class="hint-button" onclick="toggleHint(4)">Show Hint</button>
+                <div class="hint-text">Use: openssl s_client -connect example.com:443 -cipher 'RC4'</div>
+            </div>
+
+            <div class="objective" data-objective="5">
+                <div class="objective-header">
+                    <span class="objective-title">6. Extract Server Certificate</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Extract the server certificate from the TLS handshake to a file for further analysis.</div>
+                <button class="hint-button" onclick="toggleHint(5)">Show Hint</button>
+                <div class="hint-text">Use: echo | openssl s_client -connect example.com:443 2>&1 | openssl x509 -outform PEM > server.pem</div>
+            </div>
+
+            <div class="objective" data-objective="6">
+                <div class="objective-header">
+                    <span class="objective-title">7. Verify Certificate Validity</span>
+                    <span class="checkmark">✓</span>
+                </div>
+                <div class="objective-desc">Check the extracted certificate's expiration date and validity period.</div>
+                <button class="hint-button" onclick="toggleHint(6)">Show Hint</button>
+                <div class="hint-text">Use: openssl x509 -in server.pem -noout -dates</div>
+            </div>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                SOC Workstation - OpenSSL Client
+            </div>
+
+            <div class="terminal-content">
+                <div class="terminal-output" id="terminal-output">
+                    <div class="terminal-line">
+                        <span class="terminal-result">OpenSSL TLS/SSL Analysis Environment</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-result">Use OpenSSL commands to analyze TLS connections</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="terminal-result"></span>
+                    </div>
+                </div>
+                <div class="terminal-input-line">
+                    <span class="terminal-input-prompt">analyst@soc-workstation:~$</span>
+                    <input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false">
+                    <span class="cursor"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div id="flux-capacitor-container"></div>
+    </div>
+
+    <div class="completion-modal" id="completion-modal">
+        <h2>Lab Complete!</h2>
+        <p>Outstanding! You've mastered TLS/SSL analysis techniques.</p>
+        <div class="xp-badge">+25 XP</div>
+    </div>
+
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+        const STORAGE_KEY = 'cyberops_lab_tls_ssl_analysis';
+        let currentObjective = 0;
+        let commandHistory = [];
+        let historyIndex = -1;
+
+        const objectives = [
+            {
+                commands: ['openssl s_client -connect example.com:443'],
+                output: `CONNECTED(00000003)
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+verify return:1
+depth=0 C = US, ST = California, L = Los Angeles, O = Internet Corporation for Assigned Names and Numbers, CN = www.example.org
+verify return:1
+---
+Certificate chain
+ 0 s:C = US, ST = California, L = Los Angeles, O = Internet Corporation for Assigned Names and Numbers, CN = www.example.org
+   i:C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+ 1 s:C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIHbDCCBVSgAwIBAgIQAqc0ALW8zPvP2nEbJGGKRDANBgkqhkiG9w0BAQsFADBZ
+...
+-----END CERTIFICATE-----
+subject=C = US, ST = California, L = Los Angeles, O = Internet Corporation for Assigned Names and Numbers, CN = www.example.org
+issuer=C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 4508 bytes and written 395 bytes
+Verification: OK
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE`
+            },
+            {
+                commands: ['openssl s_client -connect example.com:443 -showcerts'],
+                output: `CONNECTED(00000003)
+depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+---
+Certificate chain
+ 0 s:C = US, ST = California, L = Los Angeles, O = Internet Corporation for Assigned Names and Numbers, CN = www.example.org
+   i:C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+-----BEGIN CERTIFICATE-----
+MIIHbDCCBVSgAwIBAgIQAqc0ALW8zPvP2nEbJGGKRDANBgkqhkiG9w0BAQsFADBZ
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMTMwMQYDVQQDEypE
+...
+-----END CERTIFICATE-----
+ 1 s:C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+   i:C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+-----BEGIN CERTIFICATE-----
+MIIElTCCA32gAwIBAgIQBP8JZx7qL6Mr5qZhH0kJlTANBgkqhkiG9w0BAQsFADBh
+...
+-----END CERTIFICATE-----
+---
+Certificate chain details:
+  Level 0 (Server): www.example.org
+  Level 1 (Intermediate): DigiCert TLS RSA SHA256 2020 CA1
+  Level 2 (Root): DigiCert Global Root G2
+
+Verification: OK - Full chain validated`
+            },
+            {
+                commands: ['openssl s_client -connect example.com:443 -cipher \'HIGH\'', 'openssl s_client -connect example.com:443 -cipher HIGH'],
+                output: `CONNECTED(00000003)
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 2048 bit
+---
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: 8C4A0B2F9E7D3C1A5B6F8E2D4C9A0B1F2E3D4C5A6B7C8D9E0F1A2B3C4D5E6F7A
+    Session-ID-ctx:
+    Master-Key: None (TLS 1.3)
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    Start Time: 1707649200
+    Timeout   : 7200 (sec)
+    Verify return code: 0 (ok)
+    Extended master secret: no
+    Max Early Data: 0
+---
+Cipher Suite Analysis:
+  Selected: TLS_AES_256_GCM_SHA384 (STRONG)
+  Key Exchange: ECDHE
+  Authentication: RSA-PSS
+  Encryption: AES-256-GCM
+  MAC: AEAD (integrated)
+  Security Rating: HIGH`
+            },
+            {
+                commands: ['openssl s_client -connect example.com:443 -tls1_2'],
+                output: `CONNECTED(00000003)
+---
+New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+SSL-Session:
+    Protocol  : TLSv1.2
+    Cipher    : ECDHE-RSA-AES256-GCM-SHA384
+    Session-ID: 9A3B2C1D0E5F4A3B2C1D0E5F4A3B2C1D0E5F4A3B2C1D0E5F4A3B2C1D0E5F4A3B
+    Session-ID-ctx:
+    Master-Key: A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 300 (seconds)
+    Start Time: 1707649250
+    Timeout   : 7200 (sec)
+    Verify return code: 0 (ok)
+    Extended master secret: yes
+---
+TLS 1.2 Connection Successful
+Server supports TLS 1.2 protocol
+Cipher: ECDHE-RSA-AES256-GCM-SHA384 (TLS 1.2)`
+            },
+            {
+                commands: ['openssl s_client -connect example.com:443 -cipher \'RC4\'', 'openssl s_client -connect example.com:443 -cipher RC4'],
+                output: `CONNECTED(00000003)
+40B7A3D4E5F60000:error:1410D0B9:SSL routines:SSL_CTX_set_cipher_list:no cipher match:ssl/ssl_lib.c:2599:
+---
+no peer certificate available
+---
+No client certificate CA names sent
+---
+SSL handshake has read 0 bytes and written 0 bytes
+---
+New, (NONE), Cipher is (NONE)
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : 0000
+    Session-ID:
+    Session-ID-ctx:
+    Master-Key:
+    Start Time: 1707649300
+    Timeout   : 7200 (sec)
+    Verify return code: 0 (ok)
+---
+ERROR: Connection failed - RC4 cipher not supported (GOOD!)
+
+Security Analysis:
+  RC4 is a weak cipher that has been deprecated
+  Server correctly refuses RC4 connections
+  This is the expected secure behavior`
+            },
+            {
+                commands: ['echo | openssl s_client -connect example.com:443 2>&1 | openssl x509 -outform PEM > server.pem'],
+                output: `depth=2 C = US, O = DigiCert Inc, OU = www.digicert.com, CN = DigiCert Global Root G2
+verify return:1
+depth=1 C = US, O = DigiCert Inc, CN = DigiCert TLS RSA SHA256 2020 CA1
+verify return:1
+depth=0 C = US, ST = California, L = Los Angeles, O = Internet Corporation for Assigned Names and Numbers, CN = www.example.org
+verify return:1
+DONE
+
+Server certificate extracted successfully to server.pem
+File size: 2048 bytes
+Format: PEM encoded X.509 certificate`
+            },
+            {
+                commands: ['openssl x509 -in server.pem -noout -dates'],
+                output: `notBefore=Jan 30 00:00:00 2024 GMT
+notAfter=Mar  2 23:59:59 2025 GMT
+
+Certificate Validity Analysis:
+  Issued: January 30, 2024
+  Expires: March 2, 2025
+  Valid For: 13 months
+  Status: VALID (current date within validity period)
+  Days Remaining: 20 days
+
+Certificate is currently valid and will expire in 20 days.
+Recommendation: Plan renewal within the next 2 weeks.`
+            }
+        ];
+
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const progress = JSON.parse(saved);
+                currentObjective = progress.currentObjective || 0;
+                if (progress.completed) {
+                    for (let i = 0; i < progress.completed.length; i++) {
+                        if (progress.completed[i]) {
+                            completeObjective(i, false);
+                        }
+                    }
+                }
+            }
+            updateObjectiveDisplay();
+        }
+
+        function saveProgress() {
+            const completed = [];
+            document.querySelectorAll('.objective').forEach((obj, idx) => {
+                completed[idx] = obj.classList.contains('completed');
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                currentObjective: currentObjective,
+                completed: completed
+            }));
+        }
+
+        function updateObjectiveDisplay() {
+            document.querySelectorAll('.objective').forEach((obj, idx) => {
+                obj.classList.remove('active');
+                if (idx === currentObjective && !obj.classList.contains('completed')) {
+                    obj.classList.add('active');
+                }
+            });
+        }
+
+        function completeObjective(index, save = true) {
+            const objective = document.querySelector(`[data-objective="${index}"]`);
+            objective.classList.remove('active');
+            objective.classList.add('completed');
+
+            if (index === currentObjective) {
+                currentObjective++;
+                updateObjectiveDisplay();
+            }
+
+            if (save) {
+                saveProgress();
+            }
+
+            if (currentObjective >= objectives.length) {
+                setTimeout(showCompletion, 500);
+            }
+        }
+
+        function showCompletion() {
+            document.getElementById('completion-modal').classList.add('visible');
+
+            let currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            currentXP += 25;
+            localStorage.setItem('hexworth_xp', currentXP.toString());
+        }
+
+        function toggleHint(index) {
+            const objective = document.querySelector(`[data-objective="${index}"]`);
+            const hint = objective.querySelector('.hint-text');
+            hint.classList.toggle('visible');
+        }
+
+        function addOutputLine(text, className = '') {
+            const output = document.getElementById('terminal-output');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+
+            const span = document.createElement('span');
+            span.className = className || 'terminal-result';
+            span.textContent = text;
+            line.appendChild(span);
+
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function addCommandLine(command) {
+            const output = document.getElementById('terminal-output');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+
+            const promptSpan = document.createElement('span');
+            promptSpan.className = 'terminal-prompt';
+            promptSpan.textContent = 'analyst@soc-workstation:~$ ';
+
+            const commandSpan = document.createElement('span');
+            commandSpan.className = 'terminal-command';
+            commandSpan.textContent = command;
+
+            line.appendChild(promptSpan);
+            line.appendChild(commandSpan);
+            output.appendChild(line);
+        }
+
+        function processCommand(command) {
+            if (!command.trim()) return;
+
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
+
+            addCommandLine(command);
+
+            const objective = objectives[currentObjective];
+
+            if (objective) {
+                const normalizeCmd = (cmd) => cmd.toLowerCase().trim().replace(/\s+/g, ' ').replace(/['"]/g, '');
+                const matches = objective.commands.some(cmd =>
+                    normalizeCmd(command) === normalizeCmd(cmd)
+                );
+
+                if (matches) {
+                    const lines = objective.output.trim().split('\n');
+                    lines.forEach(line => {
+                        if (line.includes('ERROR') || line.includes('error')) {
+                            addOutputLine(line, 'terminal-error');
+                        } else if (line.includes('OK') || line.includes('Successful') || line.includes('GOOD')) {
+                            addOutputLine(line, 'terminal-success');
+                        } else if (line.includes('Cipher') || line.includes('Protocol') || line.includes('TLS')) {
+                            addOutputLine(line, 'terminal-highlight');
+                        } else {
+                            addOutputLine(line);
+                        }
+                    });
+                    completeObjective(currentObjective);
+                } else {
+                    addOutputLine(`bash: ${command.split(' ')[0]}: command not found or incorrect for current objective`, 'terminal-error');
+                    addOutputLine('Hint: Check the objective description and use the hint if needed.', 'terminal-error');
+                }
+            } else {
+                addOutputLine('All objectives completed!', 'terminal-success');
+            }
+
+            addOutputLine('');
+        }
+
+        const input = document.getElementById('terminal-input');
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = input.value;
+                processCommand(command);
+                input.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    input.value = '';
+                }
+            }
+        });
+
+        input.focus();
+        loadProgress();
+    </script>
+</body>
+</html>

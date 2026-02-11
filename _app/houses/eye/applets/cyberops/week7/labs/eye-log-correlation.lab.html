@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 5: Log Correlation Analysis - CyberOps Week 7</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #06b6d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 2px solid #8b5cf6;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: #06b6d4;
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        .header-info {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            color: #8b5cf6;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid #8b5cf6;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #8b5cf6;
+            color: #0f172a;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Main Layout */
+        .workstation {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        /* Objectives Panel */
+        .objectives-panel {
+            width: 320px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .objectives-panel h2 {
+            color: #8b5cf6;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .objective {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid #334155;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .objective.completed {
+            border-left-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.2);
+        }
+
+        .objective.completed::before {
+            content: "✓ ";
+            color: #06b6d4;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .objective-text {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .hint {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(139, 92, 246, 0.2);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #8b5cf6;
+            display: none;
+        }
+
+        .hint.visible {
+            display: block;
+        }
+
+        .hint-toggle {
+            color: #8b5cf6;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            text-decoration: underline;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        /* Terminal Container */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #06b6d4;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Terminal Tabs */
+        .terminal-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #06b6d4;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-right: 1px solid #334155;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .tab:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .tab.active {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
+            border-bottom: 2px solid #06b6d4;
+            margin-bottom: -2px;
+        }
+
+        /* Terminal Screen */
+        .terminal-screen {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .terminal-screen.active {
+            display: block;
+        }
+
+        .terminal-output {
+            white-space: pre-wrap;
+            color: #06b6d4;
+            margin-bottom: 1rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem;
+            transition: background 0.2s;
+        }
+
+        .log-entry:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .log-entry.suspicious {
+            color: #ef4444;
+        }
+
+        .log-entry.warning {
+            color: #f59e0b;
+        }
+
+        .log-entry.info {
+            color: #06b6d4;
+        }
+
+        .log-entry.success {
+            color: #10b981;
+        }
+
+        /* Input Line */
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid #334155;
+        }
+
+        .prompt {
+            color: #8b5cf6;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #06b6d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #06b6d4;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        /* Search Bar */
+        .search-bar {
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid #06b6d4;
+            padding: 0.5rem;
+            color: #06b6d4;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+        }
+
+        .search-btn {
+            padding: 0.5rem 1rem;
+            background: #8b5cf6;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #7c3aed;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+
+        /* SIEM Dashboard */
+        .siem-dashboard {
+            padding: 1rem;
+        }
+
+        .timeline-viz {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-event {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid #334155;
+            border-radius: 4px;
+            opacity: 0.3;
+            transition: all 0.3s;
+        }
+
+        .timeline-event.discovered {
+            opacity: 1;
+            border-left-color: #06b6d4;
+        }
+
+        .timeline-event.critical {
+            border-left-color: #ef4444;
+        }
+
+        .timeline-time {
+            color: #8b5cf6;
+            margin-right: 1rem;
+            font-weight: bold;
+        }
+
+        /* Completion Modal */
+        .completion-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(15, 23, 42, 0.98);
+            border: 3px solid #06b6d4;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 50px rgba(6, 182, 212, 0.5);
+            transition: transform 0.5s;
+        }
+
+        .completion-modal.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .completion-modal h2 {
+            font-size: 2.5rem;
+            color: #06b6d4;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.8);
+        }
+
+        .completion-modal p {
+            font-size: 1.2rem;
+            color: #8b5cf6;
+            margin-bottom: 2rem;
+        }
+
+        .xp-award {
+            font-size: 2rem;
+            color: #10b981;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7c3aed;
+        }
+    </style>
+</head>
+<body>
+    <!-- AccessGuard -->
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>LAB 5: LOG CORRELATION ANALYSIS</h1>
+        <div class="header-info">
+            <span>CyberOps Week 7</span>
+            <a href="../index.html" class="back-link">← Back to Week 7</a>
+        </div>
+    </div>
+
+    <!-- Main Workstation -->
+    <div class="workstation">
+        <!-- Objectives Panel -->
+        <div class="objectives-panel">
+            <h2>Objectives</h2>
+            <div class="objective" data-obj="1">
+                <div class="objective-text">1. Search firewall logs for denied connections from suspicious IP</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Search for IP 185.220.101.47 in the Firewall Logs tab. Look for DENY entries.</div>
+            </div>
+            <div class="objective" data-obj="2">
+                <div class="objective-text">2. Find Windows Event Log entries for failed logon attempts (Event ID 4625)</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Search Windows Event Logs for Event ID 4625. Note the source IP and timestamp.</div>
+            </div>
+            <div class="objective" data-obj="3">
+                <div class="objective-text">3. Identify successful logon after brute force (Event ID 4624)</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">After multiple 4625 events, look for Event ID 4624 from the same source IP.</div>
+            </div>
+            <div class="objective" data-obj="4">
+                <div class="objective-text">4. Trace attacker activity in web server logs</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Search Web Server Logs for the suspicious IP. Look for SQL injection patterns and directory traversal.</div>
+            </div>
+            <div class="objective" data-obj="5">
+                <div class="objective-text">5. Correlate timestamps across all sources to build timeline</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Switch to SIEM Dashboard and use "correlate timeline" command to organize events chronologically.</div>
+            </div>
+            <div class="objective" data-obj="6">
+                <div class="objective-text">6. Use SIEM dashboard to visualize the attack chain</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run "visualize attack" in the SIEM Dashboard to generate attack flow visualization.</div>
+            </div>
+            <div class="objective" data-obj="7">
+                <div class="objective-text">7. Identify the full attack path</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">The attack progression: Port scan → SSH brute force → Successful auth → Web exploitation → Lateral movement.</div>
+            </div>
+            <div class="objective" data-obj="8">
+                <div class="objective-text">8. Generate correlated incident report</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Use "generate report" in SIEM Dashboard to compile all findings into incident summary.</div>
+            </div>
+        </div>
+
+        <!-- Terminal Container -->
+        <div class="terminal-container">
+            <div class="terminal-tabs">
+                <div class="tab active" data-tab="firewall">Firewall Logs</div>
+                <div class="tab" data-tab="windows">Windows Event Logs</div>
+                <div class="tab" data-tab="webserver">Web Server Logs</div>
+                <div class="tab" data-tab="siem">SIEM Dashboard</div>
+            </div>
+
+            <!-- Firewall Terminal -->
+            <div class="terminal-screen active" id="firewall">
+                <div class="search-bar">
+                    <input type="text" class="search-input" placeholder="Search firewall logs (IP, port, action)..." id="firewall-search">
+                    <button class="search-btn" onclick="searchLogs('firewall')">Search</button>
+                    <button class="search-btn" onclick="showAllLogs('firewall')">Show All</button>
+                </div>
+                <div id="firewall-output" class="terminal-output"></div>
+            </div>
+
+            <!-- Windows Event Logs Terminal -->
+            <div class="terminal-screen" id="windows">
+                <div class="search-bar">
+                    <input type="text" class="search-input" placeholder="Search event logs (Event ID, IP, username)..." id="windows-search">
+                    <button class="search-btn" onclick="searchLogs('windows')">Search</button>
+                    <button class="search-btn" onclick="showAllLogs('windows')">Show All</button>
+                </div>
+                <div id="windows-output" class="terminal-output"></div>
+            </div>
+
+            <!-- Web Server Logs Terminal -->
+            <div class="terminal-screen" id="webserver">
+                <div class="search-bar">
+                    <input type="text" class="search-input" placeholder="Search web logs (IP, URL, status code)..." id="webserver-search">
+                    <button class="search-btn" onclick="searchLogs('webserver')">Search</button>
+                    <button class="search-btn" onclick="showAllLogs('webserver')">Show All</button>
+                </div>
+                <div id="webserver-output" class="terminal-output"></div>
+            </div>
+
+            <!-- SIEM Dashboard Terminal -->
+            <div class="terminal-screen" id="siem">
+                <div class="siem-dashboard">
+                    <h3 style="color: #8b5cf6; margin-bottom: 1rem;">SIEM Correlation Engine</h3>
+                    <div class="timeline-viz" id="timeline-viz">
+                        <h4 style="color: #06b6d4; margin-bottom: 0.75rem;">Attack Timeline</h4>
+                        <div id="timeline-events"></div>
+                    </div>
+                </div>
+                <div id="siem-output" class="terminal-output"></div>
+                <div class="input-line">
+                    <span class="prompt">siem@analyst:~$</span>
+                    <input type="text" class="terminal-input" id="siem-input" autocomplete="off">
+                    <span class="cursor"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="completion-modal" id="completion-modal">
+        <h2>LAB COMPLETE!</h2>
+        <p>You've successfully correlated logs across multiple sources and reconstructed the attack timeline.</p>
+        <div class="xp-award">+25 XP</div>
+    </div>
+
+    <!-- FluxCapacitor -->
+    <script src="../../../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+        // Lab state
+        const labState = {
+            completedObjectives: new Set(),
+            discoveredEvents: new Set(),
+            storageKey: 'cyberops_lab_log_correlation'
+        };
+
+        // Log data
+        const firewallLogs = [
+            { time: '2024-02-11 08:15:23', src: '185.220.101.47', dst: '10.50.1.10', port: '22', action: 'DENY', proto: 'TCP', class: 'suspicious' },
+            { time: '2024-02-11 08:15:24', src: '185.220.101.47', dst: '10.50.1.10', port: '22', action: 'DENY', proto: 'TCP', class: 'suspicious' },
+            { time: '2024-02-11 08:15:25', src: '185.220.101.47', dst: '10.50.1.10', port: '22', action: 'DENY', proto: 'TCP', class: 'suspicious' },
+            { time: '2024-02-11 08:16:12', src: '192.168.1.100', dst: '10.50.1.50', port: '443', action: 'ALLOW', proto: 'TCP', class: 'info' },
+            { time: '2024-02-11 08:17:45', src: '185.220.101.47', dst: '10.50.1.10', port: '22', action: 'ALLOW', proto: 'TCP', class: 'warning' },
+            { time: '2024-02-11 08:18:32', src: '192.168.1.105', dst: '8.8.8.8', port: '53', action: 'ALLOW', proto: 'UDP', class: 'info' },
+            { time: '2024-02-11 08:19:15', src: '185.220.101.47', dst: '10.50.1.20', port: '80', action: 'ALLOW', proto: 'TCP', class: 'warning' },
+            { time: '2024-02-11 08:22:08', src: '185.220.101.47', dst: '10.50.1.30', port: '445', action: 'ALLOW', proto: 'TCP', class: 'suspicious' },
+            { time: '2024-02-11 08:24:55', src: '10.50.1.10', dst: '10.50.1.30', port: '445', action: 'ALLOW', proto: 'TCP', class: 'warning' }
+        ];
+
+        const windowsLogs = [
+            { time: '2024-02-11 08:15:23', eventId: '4625', user: 'administrator', srcIp: '185.220.101.47', logonType: '3', status: 'Failed', class: 'suspicious' },
+            { time: '2024-02-11 08:15:24', eventId: '4625', user: 'admin', srcIp: '185.220.101.47', logonType: '3', status: 'Failed', class: 'suspicious' },
+            { time: '2024-02-11 08:15:25', eventId: '4625', user: 'root', srcIp: '185.220.101.47', logonType: '3', status: 'Failed', class: 'suspicious' },
+            { time: '2024-02-11 08:16:45', eventId: '4624', user: 'jsmith', srcIp: '192.168.1.100', logonType: '2', status: 'Success', class: 'info' },
+            { time: '2024-02-11 08:17:45', eventId: '4624', user: 'sysadmin', srcIp: '185.220.101.47', logonType: '3', status: 'Success', class: 'warning' },
+            { time: '2024-02-11 08:22:08', eventId: '4672', user: 'sysadmin', srcIp: '185.220.101.47', logonType: '3', status: 'Special privileges assigned', class: 'suspicious' },
+            { time: '2024-02-11 08:24:55', eventId: '5140', user: 'sysadmin', srcIp: '10.50.1.10', share: '\\\\10.50.1.30\\C$', status: 'Network share accessed', class: 'warning' }
+        ];
+
+        const webserverLogs = [
+            { time: '2024-02-11 08:16:15', ip: '192.168.1.100', method: 'GET', url: '/index.php', status: '200', size: '4523', class: 'info' },
+            { time: '2024-02-11 08:19:15', ip: '185.220.101.47', method: 'GET', url: '/admin/login.php', status: '200', size: '1842', class: 'warning' },
+            { time: '2024-02-11 08:19:18', ip: '185.220.101.47', method: 'POST', url: '/admin/login.php', status: '302', size: '0', class: 'warning' },
+            { time: '2024-02-11 08:19:22', ip: '185.220.101.47', method: 'GET', url: '/admin/dashboard.php?id=1\' OR 1=1--', status: '500', size: '0', class: 'suspicious' },
+            { time: '2024-02-11 08:19:35', ip: '185.220.101.47', method: 'GET', url: '/admin/dashboard.php?id=1 UNION SELECT username,password FROM users--', status: '200', size: '3421', class: 'suspicious' },
+            { time: '2024-02-11 08:20:12', ip: '185.220.101.47', method: 'GET', url: '/admin/../../../../../../etc/passwd', status: '403', size: '0', class: 'suspicious' },
+            { time: '2024-02-11 08:20:45', ip: '185.220.101.47', method: 'POST', url: '/upload.php', status: '200', size: '89', class: 'suspicious' }
+        ];
+
+        const timelineEvents = [
+            { time: '08:15:23', event: 'Port Scan Detected', detail: 'Multiple connection attempts from 185.220.101.47 to SSH port', severity: 'warning' },
+            { time: '08:15:23-25', event: 'Brute Force Attack', detail: 'Failed authentication attempts - Event ID 4625', severity: 'critical' },
+            { time: '08:17:45', event: 'Successful Authentication', detail: 'Attacker gained access as sysadmin - Event ID 4624', severity: 'critical' },
+            { time: '08:19:15-45', event: 'Web Application Exploitation', detail: 'SQL injection and directory traversal attempts', severity: 'critical' },
+            { time: '08:22:08', event: 'Privilege Escalation', detail: 'Special privileges assigned - Event ID 4672', severity: 'critical' },
+            { time: '08:22:08', event: 'Lateral Movement Initiated', detail: 'SMB connection to internal server 10.50.1.30', severity: 'critical' },
+            { time: '08:24:55', event: 'Data Access', detail: 'Network share accessed from compromised host', severity: 'critical' }
+        ];
+
+        // Initialize
+        loadProgress();
+        showAllLogs('firewall');
+        renderTimeline();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+
+                // Update tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update screens
+                document.querySelectorAll('.terminal-screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // Hint toggles
+        document.querySelectorAll('.hint-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const hint = toggle.nextElementSibling;
+                hint.classList.toggle('visible');
+                toggle.textContent = hint.classList.contains('visible') ? 'Hide Hint' : 'Show Hint';
+            });
+        });
+
+        // Show all logs
+        function showAllLogs(logType) {
+            const output = document.getElementById(`${logType}-output`);
+            output.innerHTML = '';
+
+            let logs, formatter;
+
+            if (logType === 'firewall') {
+                logs = firewallLogs;
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | ${log.action.padEnd(6)} | ${log.src.padEnd(16)} → ${log.dst.padEnd(16)} | ${log.proto}:${log.port}</div>`;
+            } else if (logType === 'windows') {
+                logs = windowsLogs;
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | Event ID: ${log.eventId} | User: ${log.user.padEnd(15)} | Source IP: ${log.srcIp.padEnd(16)} | ${log.status}</div>`;
+            } else if (logType === 'webserver') {
+                logs = webserverLogs;
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | ${log.ip.padEnd(16)} | ${log.method.padEnd(6)} ${log.url} | Status: ${log.status}</div>`;
+            }
+
+            logs.forEach(log => {
+                output.innerHTML += formatter(log);
+            });
+        }
+
+        // Search logs
+        function searchLogs(logType) {
+            const searchInput = document.getElementById(`${logType}-search`);
+            const query = searchInput.value.toLowerCase();
+            const output = document.getElementById(`${logType}-output`);
+
+            if (!query) {
+                showAllLogs(logType);
+                return;
+            }
+
+            output.innerHTML = '';
+            let logs, formatter;
+
+            if (logType === 'firewall') {
+                logs = firewallLogs.filter(log =>
+                    JSON.stringify(log).toLowerCase().includes(query)
+                );
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | ${log.action.padEnd(6)} | ${log.src.padEnd(16)} → ${log.dst.padEnd(16)} | ${log.proto}:${log.port}</div>`;
+
+                // Check objective 1
+                if (query.includes('185.220.101.47') || query.includes('deny')) {
+                    completeObjective(1);
+                }
+            } else if (logType === 'windows') {
+                logs = windowsLogs.filter(log =>
+                    JSON.stringify(log).toLowerCase().includes(query)
+                );
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | Event ID: ${log.eventId} | User: ${log.user.padEnd(15)} | Source IP: ${log.srcIp.padEnd(16)} | ${log.status}</div>`;
+
+                // Check objectives 2 and 3
+                if (query.includes('4625')) {
+                    completeObjective(2);
+                }
+                if (query.includes('4624') && labState.completedObjectives.has(2)) {
+                    completeObjective(3);
+                }
+            } else if (logType === 'webserver') {
+                logs = webserverLogs.filter(log =>
+                    JSON.stringify(log).toLowerCase().includes(query)
+                );
+                formatter = (log) => `<div class="log-entry ${log.class}">${log.time} | ${log.ip.padEnd(16)} | ${log.method.padEnd(6)} ${log.url} | Status: ${log.status}</div>`;
+
+                // Check objective 4
+                if (query.includes('185.220.101.47')) {
+                    completeObjective(4);
+                }
+            }
+
+            if (logs.length === 0) {
+                output.innerHTML = '<div class="log-entry">No matching logs found.</div>';
+            } else {
+                logs.forEach(log => {
+                    output.innerHTML += formatter(log);
+                });
+            }
+        }
+
+        // Render timeline
+        function renderTimeline() {
+            const container = document.getElementById('timeline-events');
+            container.innerHTML = '';
+
+            timelineEvents.forEach((event, idx) => {
+                const eventEl = document.createElement('div');
+                eventEl.className = `timeline-event ${event.severity}`;
+                eventEl.innerHTML = `
+                    <span class="timeline-time">${event.time}</span>
+                    <div>
+                        <strong>${event.event}</strong><br>
+                        <span style="font-size: 0.85rem; color: #64748b;">${event.detail}</span>
+                    </div>
+                `;
+                if (labState.discoveredEvents.has(idx)) {
+                    eventEl.classList.add('discovered');
+                }
+                container.appendChild(eventEl);
+            });
+        }
+
+        // SIEM commands
+        const siemInput = document.getElementById('siem-input');
+        const siemOutput = document.getElementById('siem-output');
+        let siemHistory = [];
+        let historyIndex = -1;
+
+        siemInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = siemInput.value.trim();
+                if (command) {
+                    executeSiemCommand(command);
+                    siemHistory.push(command);
+                    historyIndex = siemHistory.length;
+                    siemInput.value = '';
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    siemInput.value = siemHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < siemHistory.length - 1) {
+                    historyIndex++;
+                    siemInput.value = siemHistory[historyIndex];
+                } else {
+                    historyIndex = siemHistory.length;
+                    siemInput.value = '';
+                }
+            }
+        });
+
+        function executeSiemCommand(cmd) {
+            siemOutput.innerHTML += `<div style="color: #8b5cf6;">siem@analyst:~$ ${cmd}</div>`;
+
+            const lower = cmd.toLowerCase();
+
+            if (lower.includes('help')) {
+                siemOutput.innerHTML += `<div>Available commands:
+  correlate timeline - Organize events chronologically
+  visualize attack  - Generate attack flow visualization
+  generate report   - Compile incident summary
+  clear             - Clear output</div>`;
+            }
+            else if (lower.includes('correlate') && lower.includes('timeline')) {
+                siemOutput.innerHTML += `<div style="color: #10b981;">Correlating events across all log sources...</div>`;
+                siemOutput.innerHTML += `<div style="color: #10b981;">Timeline correlation complete. ${timelineEvents.length} events identified.</div>`;
+
+                // Reveal all timeline events
+                timelineEvents.forEach((_, idx) => {
+                    labState.discoveredEvents.add(idx);
+                });
+                renderTimeline();
+                completeObjective(5);
+            }
+            else if (lower.includes('visualize') && lower.includes('attack')) {
+                if (!labState.completedObjectives.has(5)) {
+                    siemOutput.innerHTML += `<div style="color: #ef4444;">Error: Run 'correlate timeline' first.</div>`;
+                } else {
+                    siemOutput.innerHTML += `<div style="color: #10b981;">Generating attack visualization...</div>`;
+                    siemOutput.innerHTML += `<div style="color: #06b6d4; margin-top: 0.5rem;">
+Attack Chain Visualization:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1] External Scan (185.220.101.47)
+    ↓
+[2] SSH Brute Force Attack
+    ↓
+[3] Successful Authentication (sysadmin)
+    ↓
+[4] Web Application Exploitation (SQL Injection)
+    ↓
+[5] Privilege Escalation (Event ID 4672)
+    ↓
+[6] Lateral Movement (SMB → 10.50.1.30)
+    ↓
+[7] Data Access (Network Share)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+</div>`;
+                    completeObjective(6);
+                    completeObjective(7);
+                }
+            }
+            else if (lower.includes('generate') && lower.includes('report')) {
+                if (!labState.completedObjectives.has(7)) {
+                    siemOutput.innerHTML += `<div style="color: #ef4444;">Error: Complete attack path identification first.</div>`;
+                } else {
+                    siemOutput.innerHTML += `<div style="color: #10b981;">Generating incident report...</div>`;
+                    siemOutput.innerHTML += `<div style="color: #06b6d4; margin-top: 0.5rem;">
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INCIDENT REPORT - IR-20240211-001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SEVERITY: CRITICAL
+INCIDENT TYPE: Multi-stage targeted attack
+
+TIMELINE:
+  08:15:23 - Initial reconnaissance detected
+  08:15:23-25 - SSH brute force attack
+  08:17:45 - Successful authentication obtained
+  08:19:15-45 - Web application exploitation
+  08:22:08 - Privilege escalation and lateral movement
+  08:24:55 - Unauthorized data access
+
+ATTACKER PROFILE:
+  Source IP: 185.220.101.47
+  Compromised Account: sysadmin
+  Attack Vector: SSH brute force → Web exploit
+
+AFFECTED SYSTEMS:
+  - 10.50.1.10 (SSH server - compromised)
+  - 10.50.1.20 (Web server - exploited)
+  - 10.50.1.30 (File server - accessed)
+
+INDICATORS OF COMPROMISE:
+  - Multiple failed auth attempts from 185.220.101.47
+  - SQL injection patterns in web logs
+  - Abnormal SMB traffic from compromised host
+  - Unauthorized network share access
+
+RECOMMENDATIONS:
+  1. Immediate password reset for sysadmin account
+  2. Block source IP 185.220.101.47 at perimeter
+  3. Patch web application SQL injection vulnerability
+  4. Audit all files accessed on 10.50.1.30
+  5. Implement MFA for administrative accounts
+  6. Deploy EDR on critical systems
+
+Report generated: 2024-02-11 08:30:00
+Analyst: SOC-Analyst-001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+</div>`;
+                    completeObjective(8);
+                }
+            }
+            else if (lower.includes('clear')) {
+                siemOutput.innerHTML = '';
+            }
+            else {
+                siemOutput.innerHTML += `<div style="color: #ef4444;">Unknown command. Type 'help' for available commands.</div>`;
+            }
+
+            siemOutput.innerHTML += '\n';
+            siemOutput.parentElement.scrollTop = siemOutput.parentElement.scrollHeight;
+        }
+
+        // Complete objective
+        function completeObjective(num) {
+            if (!labState.completedObjectives.has(num)) {
+                labState.completedObjectives.add(num);
+                const objective = document.querySelector(`[data-obj="${num}"]`);
+                objective.classList.add('completed');
+                saveProgress();
+
+                if (labState.completedObjectives.size === 8) {
+                    setTimeout(showCompletion, 500);
+                }
+            }
+        }
+
+        // Show completion
+        function showCompletion() {
+            const modal = document.getElementById('completion-modal');
+            modal.classList.add('show');
+
+            // Award XP
+            let currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            currentXP += 25;
+            localStorage.setItem('hexworth_xp', currentXP.toString());
+        }
+
+        // Save/Load progress
+        function saveProgress() {
+            const state = {
+                completed: Array.from(labState.completedObjectives),
+                discovered: Array.from(labState.discoveredEvents),
+                timestamp: Date.now()
+            };
+            localStorage.setItem(labState.storageKey, JSON.stringify(state));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem(labState.storageKey);
+            if (saved) {
+                const state = JSON.parse(saved);
+                state.completed.forEach(num => {
+                    labState.completedObjectives.add(num);
+                    const objective = document.querySelector(`[data-obj="${num}"]`);
+                    if (objective) objective.classList.add('completed');
+                });
+                state.discovered.forEach(idx => {
+                    labState.discoveredEvents.add(idx);
+                });
+                renderTimeline();
+            }
+        }
+
+        // Search on Enter key
+        document.querySelectorAll('.search-input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const logType = input.id.replace('-search', '');
+                    searchLogs(logType);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

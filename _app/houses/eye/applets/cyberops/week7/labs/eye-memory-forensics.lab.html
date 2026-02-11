@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 6: Memory Forensics - CyberOps Week 7</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #06b6d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 2px solid #8b5cf6;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: #06b6d4;
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        .header-info {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            color: #8b5cf6;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid #8b5cf6;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #8b5cf6;
+            color: #0f172a;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Main Layout */
+        .workstation {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        /* Objectives Panel */
+        .objectives-panel {
+            width: 320px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .objectives-panel h2 {
+            color: #8b5cf6;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .objective {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid #334155;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .objective.completed {
+            border-left-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.2);
+        }
+
+        .objective.completed::before {
+            content: "✓ ";
+            color: #06b6d4;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .objective-text {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .hint {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(139, 92, 246, 0.2);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #8b5cf6;
+            display: none;
+        }
+
+        .hint.visible {
+            display: block;
+        }
+
+        .hint-toggle {
+            color: #8b5cf6;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            text-decoration: underline;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        /* Terminal Container */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #06b6d4;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Terminal Tabs */
+        .terminal-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #06b6d4;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-right: 1px solid #334155;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .tab:hover {
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .tab.active {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
+            border-bottom: 2px solid #06b6d4;
+            margin-bottom: -2px;
+        }
+
+        /* Terminal Screen */
+        .terminal-screen {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .terminal-screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-output {
+            flex: 1;
+            white-space: pre-wrap;
+            color: #06b6d4;
+            overflow-y: auto;
+        }
+
+        /* Input Line */
+        .input-line {
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #334155;
+        }
+
+        .prompt {
+            color: #8b5cf6;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #06b6d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #06b6d4;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        /* Analysis Notes */
+        .notes-container {
+            padding: 1rem;
+        }
+
+        .notes-section {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .notes-section h3 {
+            color: #8b5cf6;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .ioc-item {
+            padding: 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid #334155;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            opacity: 0.3;
+            transition: all 0.3s;
+        }
+
+        .ioc-item.discovered {
+            opacity: 1;
+            border-left-color: #06b6d4;
+        }
+
+        .ioc-label {
+            color: #8b5cf6;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .malware-profile {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .malware-profile.visible {
+            opacity: 1;
+        }
+
+        .malware-profile h3 {
+            color: #ef4444;
+            margin-bottom: 0.75rem;
+            text-align: center;
+            font-size: 1.3rem;
+        }
+
+        .profile-detail {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        /* Completion Modal */
+        .completion-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(15, 23, 42, 0.98);
+            border: 3px solid #06b6d4;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 50px rgba(6, 182, 212, 0.5);
+            transition: transform 0.5s;
+        }
+
+        .completion-modal.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .completion-modal h2 {
+            font-size: 2.5rem;
+            color: #06b6d4;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.8);
+        }
+
+        .completion-modal p {
+            font-size: 1.2rem;
+            color: #8b5cf6;
+            margin-bottom: 2rem;
+        }
+
+        .xp-award {
+            font-size: 2rem;
+            color: #10b981;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7c3aed;
+        }
+
+        /* Command suggestions */
+        .command-hint {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- AccessGuard -->
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>LAB 6: MEMORY FORENSICS - VOLATILITY ANALYSIS</h1>
+        <div class="header-info">
+            <span>CyberOps Week 7</span>
+            <a href="../index.html" class="back-link">← Back to Week 7</a>
+        </div>
+    </div>
+
+    <!-- Main Workstation -->
+    <div class="workstation">
+        <!-- Objectives Panel -->
+        <div class="objectives-panel">
+            <h2>Objectives</h2>
+            <div class="objective" data-obj="1">
+                <div class="objective-text">1. Identify the OS profile using imageinfo</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp imageinfo</div>
+            </div>
+            <div class="objective" data-obj="2">
+                <div class="objective-text">2. List running processes with pslist</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp --profile=Win10x64_19041 pslist</div>
+            </div>
+            <div class="objective" data-obj="3">
+                <div class="objective-text">3. Identify suspicious process</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Look for unusual process names, strange parent processes, or processes with no visible windows that shouldn't be running.</div>
+            </div>
+            <div class="objective" data-obj="4">
+                <div class="objective-text">4. Check network connections with netscan</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp --profile=Win10x64_19041 netscan</div>
+            </div>
+            <div class="objective" data-obj="5">
+                <div class="objective-text">5. Dump the suspicious process</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp --profile=Win10x64_19041 procdump -p [PID]</div>
+            </div>
+            <div class="objective" data-obj="6">
+                <div class="objective-text">6. Check for code injection with malfind</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp --profile=Win10x64_19041 malfind</div>
+            </div>
+            <div class="objective" data-obj="7">
+                <div class="objective-text">7. Extract strings from suspicious process</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Run: volatility -f memory.dmp --profile=Win10x64_19041 memdump -p 3856 && strings 3856.dmp</div>
+            </div>
+            <div class="objective" data-obj="8">
+                <div class="objective-text">8. Identify the malware family</div>
+                <span class="hint-toggle">Show Hint</span>
+                <div class="hint">Based on the IOCs (C2 domain, mutex, registry keys), determine the malware family name.</div>
+            </div>
+        </div>
+
+        <!-- Terminal Container -->
+        <div class="terminal-container">
+            <div class="terminal-tabs">
+                <div class="tab active" data-tab="volatility">Volatility Terminal</div>
+                <div class="tab" data-tab="notes">Analysis Notes</div>
+            </div>
+
+            <!-- Volatility Terminal -->
+            <div class="terminal-screen active" id="volatility">
+                <div class="terminal-output" id="volatility-output">Volatility Framework 2.6.1
+Memory Forensics Workstation - Ready
+
+Target: memory.dmp (512 MB RAM dump from compromised Windows 10 system)
+Type 'help' for available commands or start with 'volatility -f memory.dmp imageinfo'
+
+</div>
+                <div class="input-line">
+                    <span class="prompt">forensics@analyst:~$</span>
+                    <input type="text" class="terminal-input" id="volatility-input" autocomplete="off">
+                    <span class="cursor"></span>
+                </div>
+            </div>
+
+            <!-- Analysis Notes -->
+            <div class="terminal-screen" id="notes">
+                <div class="notes-container">
+                    <div class="notes-section">
+                        <h3>Discovered IOCs</h3>
+                        <div class="ioc-item" id="ioc-profile">
+                            <span class="ioc-label">OS Profile:</span>
+                            <span id="ioc-profile-value">Not yet identified</span>
+                        </div>
+                        <div class="ioc-item" id="ioc-process">
+                            <span class="ioc-label">Suspicious Process:</span>
+                            <span id="ioc-process-value">Not yet identified</span>
+                        </div>
+                        <div class="ioc-item" id="ioc-pid">
+                            <span class="ioc-label">Process ID (PID):</span>
+                            <span id="ioc-pid-value">Not yet identified</span>
+                        </div>
+                        <div class="ioc-item" id="ioc-c2">
+                            <span class="ioc-label">C2 Server:</span>
+                            <span id="ioc-c2-value">Not yet identified</span>
+                        </div>
+                        <div class="ioc-item" id="ioc-mutex">
+                            <span class="ioc-label">Mutex Name:</span>
+                            <span id="ioc-mutex-value">Not yet identified</span>
+                        </div>
+                        <div class="ioc-item" id="ioc-injection">
+                            <span class="ioc-label">Code Injection:</span>
+                            <span id="ioc-injection-value">Not yet analyzed</span>
+                        </div>
+                    </div>
+
+                    <div class="malware-profile" id="malware-profile">
+                        <h3>MALWARE IDENTIFIED</h3>
+                        <div class="profile-detail">
+                            <strong style="color: #ef4444;">Family:</strong> TrickBot Banking Trojan
+                        </div>
+                        <div class="profile-detail">
+                            <strong style="color: #ef4444;">Category:</strong> Banking Trojan / Malware Loader
+                        </div>
+                        <div class="profile-detail">
+                            <strong style="color: #ef4444;">Capabilities:</strong>
+                            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>Credential theft (browser, email, banking)</li>
+                                <li>Network propagation via SMB</li>
+                                <li>Secondary payload delivery (ransomware)</li>
+                                <li>Screen capture and keylogging</li>
+                                <li>Process injection and persistence</li>
+                            </ul>
+                        </div>
+                        <div class="profile-detail">
+                            <strong style="color: #ef4444;">Threat Level:</strong> CRITICAL
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div class="completion-modal" id="completion-modal">
+        <h2>LAB COMPLETE!</h2>
+        <p>You've successfully analyzed the memory dump and identified the malware!</p>
+        <div class="xp-award">+25 XP</div>
+    </div>
+
+    <!-- FluxCapacitor -->
+    <script src="../../../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+        // Lab state
+        const labState = {
+            completedObjectives: new Set(),
+            discoveredIOCs: new Set(),
+            currentProfile: '',
+            storageKey: 'cyberops_lab_memory_forensics'
+        };
+
+        // Initialize
+        loadProgress();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+
+                // Update tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update screens
+                document.querySelectorAll('.terminal-screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // Hint toggles
+        document.querySelectorAll('.hint-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const hint = toggle.nextElementSibling;
+                hint.classList.toggle('visible');
+                toggle.textContent = hint.classList.contains('visible') ? 'Hide Hint' : 'Show Hint';
+            });
+        });
+
+        // Terminal command handling
+        const volInput = document.getElementById('volatility-input');
+        const volOutput = document.getElementById('volatility-output');
+        let commandHistory = [];
+        let historyIndex = -1;
+
+        volInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = volInput.value.trim();
+                if (command) {
+                    executeCommand(command);
+                    commandHistory.push(command);
+                    historyIndex = commandHistory.length;
+                    volInput.value = '';
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    volInput.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    volInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    volInput.value = '';
+                }
+            }
+        });
+
+        function executeCommand(cmd) {
+            volOutput.innerHTML += `<div style="color: #8b5cf6;">forensics@analyst:~$ ${cmd}</div>`;
+
+            const lower = cmd.toLowerCase();
+
+            if (lower.includes('help')) {
+                volOutput.innerHTML += `<div style="color: #10b981;">
+Available Volatility Commands:
+  volatility -f memory.dmp imageinfo
+  volatility -f memory.dmp --profile=PROFILE pslist
+  volatility -f memory.dmp --profile=PROFILE pstree
+  volatility -f memory.dmp --profile=PROFILE netscan
+  volatility -f memory.dmp --profile=PROFILE procdump -p PID
+  volatility -f memory.dmp --profile=PROFILE malfind
+  volatility -f memory.dmp --profile=PROFILE memdump -p PID
+  strings PID.dmp
+
+Other commands: help, clear, identify malware
+</div>\n`;
+            }
+            else if (lower.includes('clear')) {
+                volOutput.innerHTML = '';
+            }
+            else if (lower.includes('imageinfo')) {
+                volOutput.innerHTML += `<div style="color: #10b981;">
+Volatility Foundation Volatility Framework 2.6.1
+INFO    : volatility.debug    : Determining profile based on KDBG search...
+          Suggested Profile(s) : Win10x64_19041, Win10x64_18362
+                     AS Layer1 : SkipDuplicatesAMD64PagedMemory (Kernel AS)
+                     AS Layer2 : WindowsCrashDumpSpace64 (Unnamed AS)
+                     AS Layer3 : FileAddressSpace (/mnt/evidence/memory.dmp)
+                      PAE type : No PAE
+                           DTB : 0x1aa002L
+                          KDBG : 0xf80002c4f0a0L
+          Number of Processors : 4
+     Image Type (Service Pack) : 0
+                KPCR for CPU 0 : 0xfffff80002c50000L
+                KPCR for CPU 1 : 0xffff8a0001f00000L
+             KUSER_SHARED_DATA : 0xfffff78000000000L
+           Image date and time : 2024-02-11 08:25:33 UTC+0000
+     Image local date and time : 2024-02-11 00:25:33 -0800
+
+Profile identified: Win10x64_19041
+</div>\n`;
+                labState.currentProfile = 'Win10x64_19041';
+                updateIOC('profile', 'Win10x64_19041');
+                completeObjective(1);
+            }
+            else if (lower.includes('pslist')) {
+                if (!labState.currentProfile) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first to determine the profile.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Volatility Foundation Volatility Framework 2.6.1
+Offset(V)          Name                    PID   PPID   Thds     Hnds   Sess  Wow64 Start                          Exit
+------------------ -------------------- ------ ------ ------ -------- ------ ------ ------------------------------ ------------------------------
+0xffff8a0001f2a080 System                    4      0    108        0 ------      0 2024-02-11 07:45:12 UTC+0000
+0xffff8a00024e5080 Registry                 88      4      4        0 ------      0 2024-02-11 07:45:08 UTC+0000
+0xffff8a0002b34080 smss.exe                328      4      2        0 ------      0 2024-02-11 07:45:12 UTC+0000
+0xffff8a0003145080 csrss.exe               428    420     11        0      0      0 2024-02-11 07:45:15 UTC+0000
+0xffff8a00031f5080 wininit.exe             504    420      1        0      0      0 2024-02-11 07:45:16 UTC+0000
+0xffff8a0003225080 services.exe            612    504      8        0      0      0 2024-02-11 07:45:16 UTC+0000
+0xffff8a0003247080 lsass.exe               632    504      7        0      0      0 2024-02-11 07:45:16 UTC+0000
+0xffff8a00034b2080 svchost.exe             752    612     12        0      0      0 2024-02-11 07:45:17 UTC+0000
+0xffff8a00035e8080 svchost.exe             892    612     22        0      0      0 2024-02-11 07:45:18 UTC+0000
+0xffff8a0003682080 dwm.exe                1024    504     18        0      1      0 2024-02-11 07:45:19 UTC+0000
+0xffff8a00038f5080 explorer.exe           2144   2108     87        0      1      0 2024-02-11 07:45:42 UTC+0000
+0xffff8a0003b12080 chrome.exe             2456   2144     42        0      1      0 2024-02-11 08:10:15 UTC+0000
+0xffff8a0003c45080 notepad.exe            2788   2144      4        0      1      0 2024-02-11 08:12:30 UTC+0000
+0xffff8a0003d89080 svchcst.exe            3856    612      6        0      0      0 2024-02-11 08:14:22 UTC+0000
+0xffff8a0003e21080 powershell.exe         4012   3856      8        0      0      0 2024-02-11 08:14:25 UTC+0000
+0xffff8a0003f56080 taskmgr.exe            4224   2144     11        0      1      0 2024-02-11 08:20:18 UTC+0000
+
+Suspicious process detected: svchcst.exe (PID: 3856)
+  - Mimics legitimate svchost.exe (note typo: svchcst vs svchost)
+  - Parent process is services.exe but unusual characteristics
+  - Started at 08:14:22 (after system boot - suspicious timing)
+</div>\n`;
+                    updateIOC('process', 'svchcst.exe');
+                    updateIOC('pid', '3856');
+                    completeObjective(2);
+                    completeObjective(3);
+                }
+            }
+            else if (lower.includes('pstree')) {
+                if (!labState.currentProfile) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Process Tree:
+System (4)
+ ├── smss.exe (328)
+ ├── Registry (88)
+ └── wininit.exe (504)
+     └── services.exe (612)
+         ├── svchost.exe (752)
+         ├── svchost.exe (892)
+         └── <span style="color: #ef4444;">svchcst.exe (3856)</span>
+             └── powershell.exe (4012)
+
+Note: svchcst.exe spawned PowerShell - potential malicious activity
+</div>\n`;
+                }
+            }
+            else if (lower.includes('netscan')) {
+                if (!labState.currentProfile) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Volatility Foundation Volatility Framework 2.6.1
+Offset(P)          Proto    Local Address                  Foreign Address      State            Pid      Owner          Created
+0xffff8a0003425110 TCPv4    10.50.1.10:49852               185.220.101.47:443   ESTABLISHED      2456     chrome.exe
+0xffff8a0003689450 TCPv4    10.50.1.10:49853               8.8.8.8:53           CLOSE_WAIT       892      svchost.exe
+0xffff8a00038f2780 TCPv4    10.50.1.10:49901               <span style="color: #ef4444;">malicious-c2.onion.to:8443</span> ESTABLISHED      <span style="color: #ef4444;">3856</span>     <span style="color: #ef4444;">svchcst.exe</span>
+0xffff8a0003b45890 TCPv4    10.50.1.10:445                 0.0.0.0:0            LISTENING        4        System
+0xffff8a0003c78910 UDPv4    10.50.1.10:137                 *:*                                   4        System
+
+Suspicious connection detected:
+  PID 3856 (svchcst.exe) → malicious-c2.onion.to:8443
+  This is a known TrickBot C2 infrastructure domain
+</div>\n`;
+                    updateIOC('c2', 'malicious-c2.onion.to:8443');
+                    completeObjective(4);
+                }
+            }
+            else if (lower.includes('procdump') && lower.includes('3856')) {
+                if (!labState.currentProfile) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Volatility Foundation Volatility Framework 2.6.1
+Process(V)         ImageBase          Name                 Result
+------------------ ------------------ -------------------- ------
+0xffff8a0003d89080 0x0000000000400000 svchcst.exe          OK: executable.3856.exe
+
+Dumped 3856.exe to disk successfully.
+File size: 287 KB
+MD5: a3f8d7c2e1b4f9a6c5d8e7f2a1b3c4d5
+SHA256: 7f3e9a2b8c1d4f5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9
+
+Process memory dumped for further analysis.
+</div>\n`;
+                    completeObjective(5);
+                }
+            }
+            else if (lower.includes('procdump')) {
+                volOutput.innerHTML += `<div style="color: #f59e0b;">Usage: volatility -f memory.dmp --profile=Win10x64_19041 procdump -p [PID]
+Try: procdump -p 3856</div>\n`;
+            }
+            else if (lower.includes('malfind')) {
+                if (!labState.currentProfile) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Volatility Foundation Volatility Framework 2.6.1
+Process: svchcst.exe Pid: 3856 Address: 0x3a0000
+Vad Tag: VadS Protection: PAGE_EXECUTE_READWRITE
+Flags: CommitCharge: 8, MemCommit: 1, PrivateMemory: 1, Protection: 6
+
+0x003a0000  4d 5a 90 00 03 00 00 00 04 00 00 00 ff ff 00 00   MZ..............
+0x003a0010  b8 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00   ........@.......
+0x003a0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   ................
+
+0x003a0000 4d               DEC EBP
+0x003a0001 5a               POP EDX
+0x003a0002 90               NOP
+0x003a0003 00               DB 0x0
+
+<span style="color: #ef4444;">Code injection detected!</span>
+- PAGE_EXECUTE_READWRITE protection (typical for injected code)
+- Contains MZ header (PE executable injected into process memory)
+- Shellcode characteristics present
+</div>\n`;
+                    updateIOC('injection', 'DETECTED - PE injection with RWX memory');
+                    completeObjective(6);
+                }
+            }
+            else if (lower.includes('memdump') && lower.includes('3856') || lower.includes('strings')) {
+                if (!labState.currentProfile && lower.includes('memdump')) {
+                    volOutput.innerHTML += `<div style="color: #ef4444;">Error: Please run imageinfo first.</div>\n`;
+                } else {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Dumping process memory and extracting strings...
+
+Memory dump: 3856.dmp (125 MB)
+Running strings analysis...
+
+Interesting strings found:
+----------------------------
+malicious-c2.onion.to
+/api/bot/register
+/api/bot/command
+/api/bot/upload
+User-Agent: TrickBot/v2.3.1
+<span style="color: #ef4444;">Global\\TrickBotMutex_49A2E</span>
+SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
+persistence.exe
+bcdedit /set {default} recoveryenabled no
+vssadmin delete shadows /all /quiet
+wmic shadowcopy delete
+AdjustTokenPrivileges
+SeDebugPrivilege
+POST /gate.php HTTP/1.1
+injectDll32
+injectDll64
+grabber_module
+worm_module
+pwgrab
+mailsearcher
+----------------------------
+
+Mutex identified: <span style="color: #ef4444;">TrickBotMutex_49A2E</span>
+Registry persistence: SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
+</div>\n`;
+                    updateIOC('mutex', 'Global\\TrickBotMutex_49A2E');
+                    completeObjective(7);
+                }
+            }
+            else if (lower.includes('identify') && lower.includes('malware')) {
+                if (labState.completedObjectives.size >= 7) {
+                    volOutput.innerHTML += `<div style="color: #10b981;">
+Analyzing collected IOCs...
+
+Cross-referencing with threat intelligence databases...
+
+MATCH FOUND:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">MALWARE FAMILY: TrickBot Banking Trojan</span>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Confidence: 98.5%
+
+Matching IOCs:
+  ✓ C2 domain pattern matches known TrickBot infrastructure
+  ✓ Mutex name "TrickBotMutex_49A2E" is signature indicator
+  ✓ User-Agent string "TrickBot/v2.3.1" found in strings
+  ✓ Module names (pwgrab, mailsearcher) match TrickBot plugins
+  ✓ Process injection technique matches TrickBot behavior
+  ✓ Registry persistence mechanism matches TrickBot
+
+First seen: 2016
+Threat Level: CRITICAL
+Attribution: Wizard Spider cybercrime group
+
+Switch to "Analysis Notes" tab for full malware profile.
+</div>\n`;
+                    document.getElementById('malware-profile').classList.add('visible');
+                    completeObjective(8);
+                } else {
+                    volOutput.innerHTML += `<div style="color: #f59e0b;">Insufficient data collected. Complete more analysis steps first.</div>\n`;
+                }
+            }
+            else {
+                volOutput.innerHTML += `<div style="color: #ef4444;">Command not recognized or incomplete. Type 'help' for available commands.</div>\n`;
+            }
+
+            volOutput.innerHTML += '\n';
+            volOutput.parentElement.scrollTop = volOutput.parentElement.scrollHeight;
+        }
+
+        // Update IOC in analysis notes
+        function updateIOC(type, value) {
+            const iocElement = document.getElementById(`ioc-${type}`);
+            const valueElement = document.getElementById(`ioc-${type}-value`);
+
+            if (iocElement && valueElement) {
+                valueElement.textContent = value;
+                iocElement.classList.add('discovered');
+                labState.discoveredIOCs.add(type);
+            }
+        }
+
+        // Complete objective
+        function completeObjective(num) {
+            if (!labState.completedObjectives.has(num)) {
+                labState.completedObjectives.add(num);
+                const objective = document.querySelector(`[data-obj="${num}"]`);
+                if (objective) {
+                    objective.classList.add('completed');
+                }
+                saveProgress();
+
+                if (labState.completedObjectives.size === 8) {
+                    setTimeout(showCompletion, 500);
+                }
+            }
+        }
+
+        // Show completion
+        function showCompletion() {
+            const modal = document.getElementById('completion-modal');
+            modal.classList.add('show');
+
+            // Award XP
+            let currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            currentXP += 25;
+            localStorage.setItem('hexworth_xp', currentXP.toString());
+        }
+
+        // Save/Load progress
+        function saveProgress() {
+            const state = {
+                completed: Array.from(labState.completedObjectives),
+                iocs: Array.from(labState.discoveredIOCs),
+                profile: labState.currentProfile,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(labState.storageKey, JSON.stringify(state));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem(labState.storageKey);
+            if (saved) {
+                const state = JSON.parse(saved);
+                state.completed.forEach(num => {
+                    labState.completedObjectives.add(num);
+                    const objective = document.querySelector(`[data-obj="${num}"]`);
+                    if (objective) objective.classList.add('completed');
+                });
+
+                state.iocs.forEach(type => {
+                    labState.discoveredIOCs.add(type);
+                });
+
+                if (state.profile) {
+                    labState.currentProfile = state.profile;
+                }
+
+                // Restore IOC values if available
+                if (state.iocs.includes('profile')) updateIOC('profile', 'Win10x64_19041');
+                if (state.iocs.includes('process')) updateIOC('process', 'svchcst.exe');
+                if (state.iocs.includes('pid')) updateIOC('pid', '3856');
+                if (state.iocs.includes('c2')) updateIOC('c2', 'malicious-c2.onion.to:8443');
+                if (state.iocs.includes('mutex')) updateIOC('mutex', 'Global\\TrickBotMutex_49A2E');
+                if (state.iocs.includes('injection')) updateIOC('injection', 'DETECTED - PE injection with RWX memory');
+
+                if (labState.completedObjectives.has(8)) {
+                    document.getElementById('malware-profile').classList.add('visible');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
