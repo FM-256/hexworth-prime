@@ -447,7 +447,7 @@
             <div class="stats-bar">
                 <div class="stat-item">
                     <div class="stat-label">Round</div>
-                    <div class="stat-value" id="roundDisplay">0/10</div>
+                    <div class="stat-value" id="roundDisplay">0/9</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Score</div>
@@ -507,7 +507,7 @@
             <div class="hidden" id="resultsScreen">
                 <div class="results-screen">
                     <div class="results-title">Training Complete</div>
-                    <div class="results-score" id="finalScore">0/200</div>
+                    <div class="results-score" id="finalScore">0/90</div>
                     <div class="results-message" id="resultsMessage"></div>
                     <div class="explanation-panel" id="finalStats"></div>
                     <button class="btn" onclick="location.reload()">Train Again</button>
@@ -926,7 +926,7 @@
             },
 
             updateStats() {
-                document.getElementById('roundDisplay').textContent = `${this.currentRound + 1}/10`;
+                document.getElementById('roundDisplay').textContent = `${this.currentRound + 1}/${this.rounds.length}`;
                 document.getElementById('scoreDisplay').textContent = this.score;
 
                 const phaseText = document.getElementById('phase1').classList.contains('hidden') ?
@@ -935,31 +935,43 @@
             },
 
             highlightSQL(code) {
-                let highlighted = code;
+                // Escape HTML first to prevent XSS from code content
+                let escaped = code
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
 
+                // Tokenize: split into segments that should/shouldn't be highlighted
+                // Use a placeholder approach to avoid nested span corruption
+                const tokens = [];
+                let tokenId = 0;
+
+                // Replace keywords with placeholders first
                 const keywords = ['SELECT', 'FROM', 'WHERE', 'UNION', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'TABLE', 'AND', 'OR', 'LIMIT', 'ORDER', 'BY', 'SUBSTRING', 'CONCAT', 'EXTRACTVALUE', 'SLEEP', 'IF', 'THEN', 'EXEC'];
                 keywords.forEach(keyword => {
                     const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
-                    highlighted = highlighted.replace(regex, '<span class="sql-keyword">$&</span>');
+                    escaped = escaped.replace(regex, (match) => {
+                        const placeholder = `%%TOKEN${tokenId}%%`;
+                        tokens[tokenId] = `<span class="sql-keyword">${match}</span>`;
+                        tokenId++;
+                        return placeholder;
+                    });
                 });
 
-                highlighted = highlighted.replace(/'([^']*)'/g, '<span class="sql-string">\'$1\'</span>');
-                highlighted = highlighted.replace(/--(.*)$/gm, '<span class="sql-comment">--$1</span>');
-
-                const injectionPatterns = [
-                    /UNION.*SELECT/gi,
-                    /OR\s+['"]1['"]\s*=\s*['"]1['"]/gi,
-                    /EXTRACTVALUE/gi,
-                    /SLEEP\(\d+\)/gi,
-                    /DROP\s+TABLE/gi,
-                    /xp_cmdshell/gi
-                ];
-
-                injectionPatterns.forEach(pattern => {
-                    highlighted = highlighted.replace(pattern, '<span class="sql-injection">$&</span>');
+                // Replace comments
+                escaped = escaped.replace(/--(.*)$/gm, (match, p1) => {
+                    const placeholder = `%%TOKEN${tokenId}%%`;
+                    tokens[tokenId] = `<span class="sql-comment">${match}</span>`;
+                    tokenId++;
+                    return placeholder;
                 });
 
-                return highlighted;
+                // Restore all placeholders
+                for (let i = 0; i < tokens.length; i++) {
+                    escaped = escaped.replace(`%%TOKEN${i}%%`, tokens[i]);
+                }
+
+                return escaped;
             },
 
             showResults() {
@@ -967,7 +979,7 @@
                 document.getElementById('gameScreen').classList.add('hidden');
                 document.getElementById('resultsScreen').classList.remove('hidden');
 
-                const maxScore = 200;
+                const maxScore = this.rounds.length * 10;
                 const percentage = (this.score / maxScore) * 100;
 
                 document.getElementById('finalScore').textContent = `${this.score}/${maxScore}`;
