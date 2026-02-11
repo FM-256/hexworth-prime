@@ -1041,7 +1041,9 @@ const AchievementManager = (function() {
 
     function getUnlockedIds() {
         try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            // Handle both string IDs and full objects from AchievementSystem
+            return raw.map(entry => typeof entry === 'string' ? entry : (entry?.id || '')).filter(Boolean);
         } catch {
             return [];
         }
@@ -1081,6 +1083,11 @@ const AchievementManager = (function() {
         unlocked.push(achievementId);
         saveUnlockedIds(unlocked);
 
+        // Sync to Registry v2 storage
+        if (typeof AchievementRegistry !== 'undefined') {
+            AchievementRegistry.unlock(achievementId);
+        }
+
         // Add points
         const currentPoints = getPoints();
         savePoints(currentPoints + achievement.points);
@@ -1088,9 +1095,14 @@ const AchievementManager = (function() {
         // Check for meta-achievements
         checkMetaAchievements(unlocked);
 
-        // Show notification unless silent
+        // Show notification — prefer unified Panel, fall back to built-in
         if (!silent) {
-            showUnlockNotification(achievement);
+            if (typeof AchievementPanel !== 'undefined') {
+                const def = (typeof AchievementRegistry !== 'undefined') ? AchievementRegistry.getDefinition(achievementId) : null;
+                AchievementPanel.queueNotification(def || achievement);
+            } else {
+                showUnlockNotification(achievement);
+            }
         }
 
         console.log(`%c🏆 Achievement Unlocked: ${achievement.name} (+${achievement.points} pts)`,
@@ -1391,15 +1403,17 @@ const AchievementManager = (function() {
 
     function getStats() {
         const unlocked = getUnlockedIds();
+        const knownIds = achievements.map(a => a.id);
+        const validUnlocked = unlocked.filter(id => knownIds.includes(id));
         return {
             total: achievements.length,
-            unlocked: unlocked.length,
+            unlocked: validUnlocked.length,
             points: getPoints(),
-            secretsFound: unlocked.filter(id => {
+            secretsFound: validUnlocked.filter(id => {
                 const ach = achievements.find(a => a.id === id);
                 return ach && ach.category === 'secret';
             }).length,
-            legendaryFound: unlocked.filter(id => {
+            legendaryFound: validUnlocked.filter(id => {
                 const ach = achievements.find(a => a.id === id);
                 return ach && ach.category === 'legendary';
             }).length

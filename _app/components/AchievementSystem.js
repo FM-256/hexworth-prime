@@ -1803,7 +1803,16 @@ class AchievementSystem {
         try {
             const stored = localStorage.getItem(this.STORAGE_KEY);
             if (stored) {
-                return JSON.parse(stored);
+                const raw = JSON.parse(stored);
+                // Handle mixed formats: strings from AchievementManager, objects from AchievementSystem
+                return raw.map(entry => {
+                    if (typeof entry === 'string') {
+                        // Convert string ID to object, using definition if available
+                        const def = this.ACHIEVEMENTS[entry];
+                        return def ? { ...def, unlockedAt: null } : { id: entry, unlockedAt: null };
+                    }
+                    return entry;
+                }).filter(a => a && a.id);
             }
         } catch (e) {
             console.warn('AchievementSystem: Error loading achievements', e);
@@ -1816,7 +1825,7 @@ class AchievementSystem {
      */
     static isUnlocked(achievementId) {
         const unlocked = this.getUnlockedAchievements();
-        return unlocked.some(a => a.id === achievementId);
+        return unlocked.some(a => typeof a === 'string' ? a === achievementId : a.id === achievementId);
     }
 
     /**
@@ -1842,8 +1851,18 @@ class AchievementSystem {
         unlocked.push(unlockedAchievement);
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(unlocked));
 
-        // Show notification
-        this.showAchievementNotification(achievement);
+        // Sync to Registry v2 storage
+        if (typeof AchievementRegistry !== 'undefined') {
+            AchievementRegistry.unlock(achievementId);
+        }
+
+        // Show notification — prefer unified Panel, fall back to built-in
+        if (typeof AchievementPanel !== 'undefined') {
+            const def = (typeof AchievementRegistry !== 'undefined') ? AchievementRegistry.getDefinition(achievementId) : null;
+            AchievementPanel.queueNotification(def || achievement);
+        } else {
+            this.showAchievementNotification(achievement);
+        }
 
         // Dispatch event
         window.dispatchEvent(new CustomEvent('hexworth:achievementUnlocked', {
@@ -1853,7 +1872,7 @@ class AchievementSystem {
         // Award achievement XP through ProgressManager
         if (typeof ProgressManager !== 'undefined') {
             const progress = ProgressManager.getProgress();
-            progress.xp += achievement.points;  // Award actual achievement points, not flat rate
+            progress.xp += achievement.points;
             ProgressManager.saveProgress(progress);
         }
 

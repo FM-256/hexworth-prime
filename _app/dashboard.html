@@ -2816,37 +2816,23 @@
 
     <!-- Achievements Modal -->
     <div class="modal-overlay" id="achievementsModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px; width: 95%; max-height: 85vh;">
             <div class="modal-header">
                 <h2 class="modal-title">Achievements</h2>
                 <button class="modal-close" onclick="closeModal('achievementsModal')">&times;</button>
             </div>
 
-            <!-- Dynamic Title Display -->
-            <div class="achievements-title-display" id="achievementsTitleDisplay">
-                <div class="achievements-title-label">YOUR TITLE</div>
-                <div class="achievements-title-value" id="achievementsTitleValue">Student</div>
+            <div id="achievementPanelRoot">
+                <!-- AchievementPanel renders here -->
             </div>
 
-            <div class="achievements-summary">
-                <div class="achievements-points-display">
-                    <div class="achievements-stat">
-                        <div class="achievements-stat-value" id="achievementCount">0</div>
-                        <div class="achievements-stat-label">UNLOCKED</div>
-                    </div>
-                    <div class="achievements-stat">
-                        <div class="achievements-stat-value" id="achievementPoints">0</div>
-                        <div class="achievements-stat-label">POINTS</div>
-                    </div>
-                    <div class="achievements-stat">
-                        <div class="achievements-stat-value" id="achievementSecrets">0</div>
-                        <div class="achievements-stat-label">SECRETS</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="achievements-grid" id="achievementsGrid">
-                <!-- Populated by JavaScript -->
+            <!-- Legacy elements kept hidden for backward compat with external callers -->
+            <div style="display:none">
+                <span id="achievementCount">0</span>
+                <span id="achievementPoints">0</span>
+                <span id="achievementSecrets">0</span>
+                <span id="achievementsTitleValue">Student</span>
+                <div id="achievementsGrid"></div>
             </div>
         </div>
     </div>
@@ -2975,6 +2961,8 @@
     <script src="components/LeaderboardManager.js"></script>
     <script src="components/FirestoreLeaderboard.js"></script>
     <script src="components/AchievementManager.js"></script>
+    <script src="components/AchievementRegistry.js"></script>
+    <script src="components/AchievementPanel.js"></script>
     <script src="components/ActivityFeed.js"></script>
     <script src="utils/transitions.js"></script>
     <script src="utils/HexworthAdmin.js"></script>
@@ -4043,10 +4031,13 @@
                     if (xpContainer) xpContainer.style.display = 'none';
                 }
 
-                // Get achievements count
-                if (typeof AchievementSystem !== 'undefined') {
-                    const achievements = AchievementSystem.getUnlockedAchievements();
-                    document.getElementById('achievementsEarned').textContent = achievements.length;
+                // Get achievements count (prefer Registry > Manager > System)
+                if (typeof AchievementRegistry !== 'undefined') {
+                    document.getElementById('achievementsEarned').textContent = AchievementRegistry.getStats().unlocked;
+                } else if (typeof AchievementManager !== 'undefined') {
+                    document.getElementById('achievementsEarned').textContent = AchievementManager.getStats().unlocked;
+                } else if (typeof AchievementSystem !== 'undefined') {
+                    document.getElementById('achievementsEarned').textContent = AchievementSystem.getUnlockedAchievements().length;
                 }
 
                 // Calculate and update streak
@@ -4700,51 +4691,21 @@
         }
 
         function loadAchievements() {
-            // Use AchievementManager for all achievement data
-            const allAchievements = AchievementManager.getAllAchievements();
-            const unlockedIds = AchievementManager.getUnlockedIds();
-            const stats = AchievementManager.getStats();
-
-            // Get username for title
-            const username = localStorage.getItem('hexworth_username') || 'Student';
-
-            // Update title display
-            const titleValue = document.getElementById('achievementsTitleValue');
-            if (titleValue) {
-                titleValue.textContent = AchievementManager.buildTitle(username);
+            // Use AchievementPanel if available
+            if (typeof AchievementPanel !== 'undefined') {
+                const root = document.getElementById('achievementPanelRoot');
+                if (root) {
+                    AchievementPanel.render(root);
+                    return;
+                }
             }
 
-            // Update stats
+            // Fallback: populate legacy hidden elements for backward compat
+            const useRegistry = typeof AchievementRegistry !== 'undefined';
+            const stats = useRegistry ? AchievementRegistry.getStats() : AchievementManager.getStats();
             document.getElementById('achievementCount').textContent = `${stats.unlocked}/${stats.total}`;
             document.getElementById('achievementPoints').textContent = stats.points;
-            document.getElementById('achievementSecrets').textContent = stats.secretsFound;
-
-            // Render grid
-            const grid = document.getElementById('achievementsGrid');
-            grid.innerHTML = allAchievements.map(ach => {
-                const isUnlocked = unlockedIds.includes(ach.id);
-                const isSecret = ach.category === 'secret' || ach.category === 'legendary';
-
-                // For locked secret/legendary badges, show ❓
-                const displayIcon = (isUnlocked || !isSecret) ? ach.icon : '❓';
-                const displayName = (isUnlocked || !isSecret) ? ach.name : '???';
-                const displayDesc = isUnlocked ? ach.desc : '???';
-
-                // Build class list
-                const classes = ['achievement-card'];
-                classes.push(isUnlocked ? 'unlocked' : 'locked');
-                if (isSecret) classes.push('secret');
-                if (isUnlocked && ach.style) classes.push(ach.style);
-
-                return `
-                    <div class="${classes.join(' ')}">
-                        <div class="achievement-icon">${displayIcon}</div>
-                        <div class="achievement-name">${displayName}</div>
-                        <div class="achievement-desc">${displayDesc}</div>
-                        <div class="achievement-points">+${ach.points} pts</div>
-                    </div>
-                `;
-            }).join('');
+            document.getElementById('achievementSecrets').textContent = stats.secretsFound || 0;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -5342,6 +5303,244 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // PROGRESS PULL — Download Firestore completions to localStorage
+        // Enables cross-device progress transfer
+        // ═══════════════════════════════════════════════════════════════
+
+        async function pullProgressFromFirestore() {
+            const user = FirebaseAuth.getUser();
+            if (!user) return;
+
+            console.log('[ProgressPull] Starting pull for user:', user.uid);
+
+            try {
+                const classes = await ClassManager.getStudentClasses(user.uid);
+                if (!classes || classes.length === 0) {
+                    console.log('[ProgressPull] No classes, skipping');
+                    return;
+                }
+
+                let pulled = 0;
+                for (const cls of classes) {
+                    try {
+                        // Read this student's progress document from Firestore
+                        await FirestoreManager.init();
+                        const { doc, getDoc } = window.firebaseFirestore;
+                        const db = FirestoreManager.getDb();
+                        const progressDoc = await getDoc(doc(db, 'classes', cls.id, 'progress', user.uid));
+
+                        if (!progressDoc.exists()) continue;
+
+                        const completions = progressDoc.data().completions || {};
+                        console.log(`[ProgressPull] Class ${cls.id}: ${Object.keys(completions).length} completions found`);
+
+                        for (const [contentId, data] of Object.entries(completions)) {
+                            if (!data.completed) continue;
+
+                            // Only write if local doesn't already have it
+                            const local = checkLocalCompletion(contentId);
+                            if (local && local.completed) continue;
+
+                            // Reverse-map contentId → localStorage
+                            writeLocalCompletion(contentId, data);
+                            pulled++;
+                        }
+                    } catch (classErr) {
+                        console.warn(`[ProgressPull] Failed for class ${cls.id}:`, classErr.message);
+                    }
+                }
+
+                if (pulled > 0) {
+                    console.log(`[ProgressPull] Restored ${pulled} completions from Firestore`);
+                    // Refresh UI to show restored stamps
+                    if (typeof ProgressManager !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('hexworth:progressUpdate', {
+                            detail: { progress: ProgressManager.getProgress() }
+                        }));
+                    }
+                } else {
+                    console.log('[ProgressPull] No new completions to restore');
+                }
+            } catch (error) {
+                console.error('[ProgressPull] Failed:', error);
+            }
+        }
+
+        /**
+         * Reverse-map a contentId back to the appropriate localStorage key.
+         * Inverse of checkLocalCompletion().
+         */
+        function writeLocalCompletion(contentId, data) {
+            const { score, completedAt } = data;
+
+            // Core 1 chapters
+            const core1Match = contentId.match(/^aplus-core1-(ch\d{2})$/);
+            if (core1Match) {
+                const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+                if (!progress[core1Match[1]]) {
+                    progress[core1Match[1]] = { completed: true, score: score || null, lastAttempt: completedAt || new Date().toISOString() };
+                    localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
+                }
+                return;
+            }
+
+            // Core 2 chapters
+            const core2Match = contentId.match(/^aplus-core2-(ch\d{2})$/);
+            if (core2Match) {
+                const progress = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+                if (!progress[core2Match[1]]) {
+                    progress[core2Match[1]] = { completed: true, score: score || null, lastAttempt: completedAt || new Date().toISOString() };
+                    localStorage.setItem('aplus-core2-progress', JSON.stringify(progress));
+                }
+                // Also write to hexworth_progress.forge for Core 2 index stamps
+                const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!hp.forge) hp.forge = {};
+                const chKey = `core2-${core2Match[1]}-index`;
+                if (!hp.forge[chKey] || !hp.forge[chKey].completed) {
+                    hp.forge[chKey] = { completed: true, completedAt: completedAt || new Date().toISOString(), score: score || 100 };
+                    localStorage.setItem('hexworth_progress', JSON.stringify(hp));
+                }
+                return;
+            }
+
+            // WSA modules
+            const wsaMatch = contentId.match(/^wsa-(m\d{2})/);
+            if (wsaMatch) {
+                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const moduleId = wsaMatch[1];
+                if (!progress[moduleId]) progress[moduleId] = {};
+                // Mark all components as complete
+                ['presentation', 'guiLab', 'psLab', 'quiz'].forEach(c => {
+                    if (!progress[moduleId][c]) progress[moduleId][c] = true;
+                });
+                progress[moduleId].lastUpdated = Date.now();
+                localStorage.setItem('wsa-course-progress', JSON.stringify(progress));
+                return;
+            }
+
+            // CLH modules
+            const clhMatch = contentId.match(/^script-(clh-\d{3})$/);
+            if (clhMatch) {
+                const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!hp.script) hp.script = {};
+                if (!hp.script[clhMatch[1]] || !hp.script[clhMatch[1]].completed) {
+                    hp.script[clhMatch[1]] = { completed: true, score: score || null, completedAt: completedAt || new Date().toISOString() };
+                    localStorage.setItem('hexworth_progress', JSON.stringify(hp));
+                }
+                return;
+            }
+
+            // Generic house-based content
+            const houseMatch = contentId.match(/^(script|shield|web|forge|cloud|code|key|eye)-(.+)$/);
+            if (houseMatch) {
+                const [, house, moduleKey] = houseMatch;
+                const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                if (!hp[house]) hp[house] = {};
+                if (!hp[house][moduleKey] || !hp[house][moduleKey].completed) {
+                    hp[house][moduleKey] = { completed: true, score: score || null, completedAt: completedAt || new Date().toISOString() };
+                    localStorage.setItem('hexworth_progress', JSON.stringify(hp));
+                }
+                return;
+            }
+
+            console.log(`[ProgressPull] Unknown contentId format, skipping: ${contentId}`);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // COMPREHENSIVE SYNC — Push ALL localStorage completions
+        // (not just assigned content)
+        // ═══════════════════════════════════════════════════════════════
+
+        async function syncAllLocalProgress() {
+            const user = FirebaseAuth.getUser();
+            if (!user) return;
+
+            try {
+                const classes = await ClassManager.getStudentClasses(user.uid);
+                if (!classes || classes.length === 0) return;
+
+                // Gather ALL known completions from localStorage
+                const allCompletions = [];
+
+                // Core 1
+                const core1 = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+                for (const [ch, data] of Object.entries(core1)) {
+                    if (data && data.completed) {
+                        allCompletions.push({ contentId: `aplus-core1-${ch}`, ...data });
+                    }
+                }
+
+                // Core 2
+                const core2 = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+                for (const [ch, data] of Object.entries(core2)) {
+                    if (data && data.completed) {
+                        allCompletions.push({ contentId: `aplus-core2-${ch}`, ...data });
+                    }
+                }
+
+                // hexworth_progress (all houses)
+                const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                const houseIds = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+                for (const house of houseIds) {
+                    const houseData = hp[house];
+                    if (!houseData || typeof houseData !== 'object') continue;
+                    for (const [moduleKey, data] of Object.entries(houseData)) {
+                        if (data && typeof data === 'object' && data.completed) {
+                            allCompletions.push({
+                                contentId: `${house}-${moduleKey}`,
+                                completed: true,
+                                score: data.score || null,
+                                completedAt: data.completedAt || data.date || new Date().toISOString()
+                            });
+                        }
+                    }
+                }
+
+                // WSA
+                const wsa = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                for (const [mId, data] of Object.entries(wsa)) {
+                    if (!data || typeof data !== 'object') continue;
+                    const components = ['presentation', 'guiLab', 'psLab', 'quiz'];
+                    const allDone = components.every(c => {
+                        const val = data[c];
+                        return val === true || (typeof val === 'object' && val !== null);
+                    });
+                    if (allDone) {
+                        allCompletions.push({
+                            contentId: `wsa-${mId}-complete`,
+                            completed: true,
+                            score: null,
+                            completedAt: data.lastUpdated ? new Date(data.lastUpdated).toISOString() : new Date().toISOString()
+                        });
+                    }
+                }
+
+                if (allCompletions.length === 0) return;
+
+                console.log(`[SyncAll] Found ${allCompletions.length} local completions to sync`);
+
+                // Push to each enrolled class
+                for (const cls of classes) {
+                    for (const completion of allCompletions) {
+                        try {
+                            await AssignmentManager.submitProgress(cls.id, completion.contentId, {
+                                completed: true,
+                                score: completion.score || null,
+                                completedAt: completion.completedAt || new Date().toISOString()
+                            });
+                        } catch (e) {
+                            // Non-critical — continue with other completions
+                        }
+                    }
+                }
+
+                console.log('[SyncAll] Comprehensive sync complete');
+            } catch (error) {
+                console.error('[SyncAll] Failed:', error);
+            }
+        }
+
         function renderMyClasses(classes) {
             const section = document.getElementById('myClassesSection');
             const grid = document.getElementById('myClassesGrid');
@@ -5566,7 +5765,9 @@
             }
             if (e.detail.user) {
                 loadMyClasses();
-                syncProgressToFirestore();
+                // Pull remote progress first, then push local progress
+                pullProgressFromFirestore().then(() => syncProgressToFirestore());
+                syncAllLocalProgress();
             } else {
                 // Hide My Classes when signed out
                 const section = document.getElementById('myClassesSection');
