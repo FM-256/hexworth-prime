@@ -538,10 +538,82 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_bill',
+            icon: '💰',
+            name: 'Bill Dodger',
+            desc: 'Complete Don\'t Check the Bill',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_domain',
+            icon: '🏰',
+            name: 'Domain Defender',
+            desc: 'Complete Don\'t Lose Your Domain',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_deploy',
+            icon: '🚀',
+            name: 'Friday Survivor',
+            desc: 'Complete Don\'t Deploy on Friday',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_troll',
+            icon: '🧌',
+            name: 'Troll Tamer',
+            desc: 'Complete Don\'t Feed the Troll',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_leak',
+            icon: '🔑',
+            name: 'Key Keeper',
+            desc: 'Complete Don\'t Leak the Key',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_server',
+            icon: '🖥️',
+            name: 'Server Savior',
+            desc: 'Complete Don\'t Kill the Server',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_phished',
+            icon: '🎣',
+            name: 'Phish Finder',
+            desc: 'Complete Don\'t Get Phished',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_packet',
+            icon: '📦',
+            name: 'Packet Protector',
+            desc: 'Complete Don\'t Drop the Packet',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 23 games across the platform',
+            desc: 'Complete all 31 games across the platform',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -727,7 +799,7 @@ const AchievementManager = (function() {
         }
 
         // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary'];
+        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }
