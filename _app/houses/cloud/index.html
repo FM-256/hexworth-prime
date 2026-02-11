@@ -235,6 +235,58 @@
             border-radius: 10px;
         }
 
+        /* Search */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--house-primary, #60a5fa);
+        }
+
+        .search-input::placeholder {
+            color: #555;
+        }
+
+        .search-clear {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .search-clear:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccc;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
         /* Category grid */
         .category-grid {
             display: grid;
@@ -638,6 +690,10 @@
             <div class="section-header">
                 <h2 class="section-title">Featured Modules</h2>
                 <span class="section-count" id="moduleCount">Loading...</span>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search modules by name, description, or component..." oninput="filterModules()">
+                <button class="search-clear" onclick="clearSearch()">Clear</button>
             </div>
             <div class="module-grid" id="moduleGrid">
                 <!-- Modules populated by JS -->
@@ -1374,70 +1430,92 @@
 
         // Track current filter
         let activeFilter = null;
+        let searchText = '';
 
-        function openCategory(categoryId) {
-            const category = CATEGORIES.find(c => c.id === categoryId);
-            if (!category) {
-                console.warn('Category not found:', categoryId);
-                return;
-            }
+        function filterModules() {
+            searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            applyAllFilters();
+        }
 
-            // Toggle filter if clicking same category
-            if (activeFilter === categoryId) {
-                activeFilter = null;
-                showAllModules();
-                updateCategoryHighlight(null);
-                return;
-            }
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchText = '';
+            applyAllFilters();
+        }
 
-            activeFilter = categoryId;
-            const categoryPath = category.path;
-
-            // Filter modules by category path
+        function applyAllFilters() {
             const moduleCards = document.querySelectorAll('.module-card');
             let matchCount = 0;
 
-            moduleCards.forEach(card => {
-                const href = card.dataset.href || '';
-                const matches = href.startsWith(categoryPath);
+            moduleCards.forEach((card, index) => {
+                const mod = SAMPLE_MODULES[index];
+                if (!mod) return;
 
-                if (matches) {
+                // Category filter (path-based)
+                let categoryMatch = true;
+                if (activeFilter) {
+                    const href = card.dataset.href || '';
+                    const category = CATEGORIES.find(c => c.id === activeFilter);
+                    categoryMatch = category ? href.startsWith(category.path) : false;
+                }
+
+                // Text search
+                let textMatch = true;
+                if (searchText) {
+                    const searchable = [
+                        mod.title,
+                        mod.description,
+                        ...(mod.components || [])
+                    ].join(' ').toLowerCase();
+                    textMatch = searchable.includes(searchText);
+                }
+
+                if (categoryMatch && textMatch) {
                     card.style.display = '';
-                    card.style.animation = 'fadeIn 0.3s ease';
                     matchCount++;
                 } else {
                     card.style.display = 'none';
                 }
             });
 
-            // Update category highlight
-            updateCategoryHighlight(categoryId);
+            const moduleCount = document.getElementById('moduleCount');
+            if (activeFilter || searchText) {
+                const filterDesc = [];
+                if (activeFilter) {
+                    const cat = CATEGORIES.find(c => c.id === activeFilter);
+                    filterDesc.push(cat ? cat.name : activeFilter);
+                }
+                if (searchText) filterDesc.push(`"${searchText}"`);
+                moduleCount.textContent = `${matchCount} results (${filterDesc.join(' + ')})`;
+            } else {
+                moduleCount.textContent = `${SAMPLE_MODULES.length} modules`;
+            }
+        }
 
-            // Scroll to modules section
+        function openCategory(categoryId) {
+            const category = CATEGORIES.find(c => c.id === categoryId);
+            if (!category) return;
+
+            if (activeFilter === categoryId) {
+                activeFilter = null;
+                updateCategoryHighlight(null);
+                applyAllFilters();
+                return;
+            }
+
+            activeFilter = categoryId;
+            updateCategoryHighlight(categoryId);
+            applyAllFilters();
+
             const modulesSection = document.getElementById('moduleGrid');
             if (modulesSection) {
                 modulesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-
-            // Update module count display
-            const moduleCount = document.getElementById('moduleCount');
-            if (moduleCount) {
-                moduleCount.textContent = `${matchCount} modules in ${category.name}`;
-            }
-
-            console.log(`Filtered to ${matchCount} modules in ${category.name}`);
         }
 
         function showAllModules() {
-            const moduleCards = document.querySelectorAll('.module-card');
-            moduleCards.forEach(card => {
-                card.style.display = '';
-            });
-
-            const moduleCount = document.getElementById('moduleCount');
-            if (moduleCount) {
-                moduleCount.textContent = `${SAMPLE_MODULES.length} modules`;
-            }
+            activeFilter = null;
+            applyAllFilters();
         }
 
         function updateCategoryHighlight(activeId) {
