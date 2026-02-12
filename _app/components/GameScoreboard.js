@@ -106,18 +106,21 @@ const GameScoreboard = (function () {
             .gs-rank-1 .gs-medal { color: #FFD700; }
             .gs-rank-2 .gs-medal { color: #C0C0C0; }
             .gs-rank-3 .gs-medal { color: #CD7F32; }
-            .gs-row-score {
+            .gs-row-name {
                 flex: 1;
-                text-align: right;
+                font-size: 11px;
+                color: #aaa;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0;
+            }
+            .gs-row-score {
                 font-weight: bold;
                 font-size: 14px;
                 color: #fff;
-                padding-right: 8px;
-            }
-            .gs-row-date {
-                font-size: 10px;
-                color: #555;
-                width: 40px;
+                padding-left: 6px;
+                flex-shrink: 0;
                 text-align: right;
             }
             .gs-empty {
@@ -221,10 +224,11 @@ const GameScoreboard = (function () {
             if (isEmpty) cls += ' gs-slot-empty';
             if (isHighlight) cls += ' gs-highlight';
 
+            var name = isEmpty ? '' : (entry.name || 'Player');
             html += '<div class="' + cls + '">' +
                 '<span class="gs-medal">' + medals[i] + '</span>' +
+                '<span class="gs-row-name">' + (isEmpty ? '' : _escapeHtml(name)) + '</span>' +
                 '<span class="gs-row-score">' + (isEmpty ? '---' : _formatScore(entry.score)) + '</span>' +
-                '<span class="gs-row-date">' + (isEmpty ? '' : _formatDate(entry.date)) + '</span>' +
             '</div>';
         }
 
@@ -292,10 +296,10 @@ const GameScoreboard = (function () {
         return score.toLocaleString();
     }
 
-    function _formatDate(ts) {
-        if (!ts) return '';
-        var d = new Date(ts);
-        return (d.getMonth() + 1) + '/' + d.getDate();
+    function _escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     // ── Init ────────────────────────────────────────────────────────

@@ -177,7 +177,9 @@ const GameTracker = (function () {
         if (details.score != null) {
             if (!Array.isArray(entry.topScores)) entry.topScores = [];
 
-            entry.topScores.push({ score: details.score, date: now });
+            var _name = localStorage.getItem('hexworth_callsign')
+                || localStorage.getItem('hexworth_username') || '';
+            entry.topScores.push({ score: details.score, date: now, name: _name });
             entry.topScores.sort((a, b) => b.score - a.score);
             entry.topScores = entry.topScores.slice(0, 3);
 
