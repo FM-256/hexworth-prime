@@ -177,8 +177,13 @@ const GameTracker = (function () {
         if (details.score != null) {
             if (!Array.isArray(entry.topScores)) entry.topScores = [];
 
-            var _name = localStorage.getItem('hexworth_callsign')
+            var _name = localStorage.getItem('hexworth_display_name')
                 || localStorage.getItem('hexworth_username') || '';
+            if (!_name) {
+                try { var _fb = JSON.parse(localStorage.getItem('hexworth_firebase_user'));
+                    if (_fb && _fb.displayName) _name = _fb.displayName;
+                } catch(e) {}
+            }
             entry.topScores.push({ score: details.score, date: now, name: _name });
             entry.topScores.sort((a, b) => b.score - a.score);
             entry.topScores = entry.topScores.slice(0, 3);
