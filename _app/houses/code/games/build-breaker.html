@@ -170,7 +170,7 @@ let balls = [];
 let powerups = [];
 let particles = [];
 let lasers = [];
-let activeEffects = { wide: 0, fire: 0, sticky: false, laser: 0 };
+let activeEffects = { wide: 0, fire: 0, sticky: 0, laser: 0 };
 let gridFlowDots = []; // Background animation
 
 // Paddle
@@ -272,7 +272,7 @@ function startGame() {
     gameRunning = true;
     gameOver = false;
     score = 0; lives = 3; stage = 1;
-    activeEffects = { wide: 0, fire: 0, sticky: false, laser: 0 };
+    activeEffects = { wide: 0, fire: 0, sticky: 0, laser: 0 };
     paddle.w = paddle.baseW;
     paddle.x = W / 2;
     balls = [];
@@ -363,6 +363,7 @@ function update() {
     // Effect timers
     if (activeEffects.wide > 0) { activeEffects.wide--; if (activeEffects.wide === 0) paddle.w = paddle.baseW; }
     if (activeEffects.fire > 0) activeEffects.fire--;
+    if (activeEffects.sticky > 0) activeEffects.sticky--;
     if (activeEffects.laser > 0) {
         activeEffects.laser--;
         // Auto fire lasers
@@ -496,33 +497,24 @@ function update() {
     // Remove dead blocks
     blocks = blocks.filter(b => b.points !== -1);
 
-    // Ball lost (fell off bottom)
-    balls = balls.filter(b => {
-        if (b === stuckBall) return true;
-        if (b.y > H + 20) {
-            if (balls.length <= 1 || (balls.length === 1 && b !== stuckBall)) {
-                // Last ball lost
-                if (!demoMode) {
-                    lives--;
-                    sfxDeath();
-                    if (lives <= 0) {
-                        gameRunning = false;
-                        gameOver = true;
-                    } else {
-                        // Reset ball on paddle
-                        const nb = createBall(paddle.x, paddle.y - 12, 0, 0);
-                        balls = [nb];
-                        stuckBall = nb;
-                        activeEffects = { wide: 0, fire: 0, sticky: false, laser: 0 };
-                        paddle.w = paddle.baseW;
-                    }
-                }
-                return false;
-            }
-            return false;
+    // Ball lost (fell off bottom) — filter first, then handle respawn
+    balls = balls.filter(b => b === stuckBall || b.y <= H + 20);
+
+    // If no active balls remain, lose a life and respawn
+    if (!demoMode && gameRunning && balls.length === 0) {
+        lives--;
+        sfxDeath();
+        if (lives <= 0) {
+            gameRunning = false;
+            gameOver = true;
+        } else {
+            const nb = createBall(paddle.x, paddle.y - 12, 0, 0);
+            balls = [nb];
+            stuckBall = nb;
+            activeEffects = { wide: 0, fire: 0, sticky: 0, laser: 0 };
+            paddle.w = paddle.baseW;
         }
-        return true;
-    });
+    }
 
     // Powerups fall
     powerups.forEach(p => {
@@ -595,7 +587,7 @@ function applyPowerup(p) {
             balls.forEach(b => b.fire = true);
             break;
         case 'sticky':
-            activeEffects.sticky = true;
+            activeEffects.sticky = 600;
             break;
         case 'life':
             if (lives < 5) lives++;
