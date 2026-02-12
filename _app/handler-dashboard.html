@@ -2965,9 +2965,6 @@
                 });
 
                 console.log('[HandlerDash] Progress docs received:', classProgressData.length);
-                classProgressData.forEach(d => {
-                    console.log('[HandlerDash] Student:', d.uid, 'Completions:', d.completions);
-                });
                 updateCompletionDisplay();
                 renderAssignments(); // Re-render to show completion badges
                 renderActivityFeed(); // Show recent activity
@@ -3117,15 +3114,29 @@
 
             const memberCount = rosterMembers.length;
             let totalCompleted = 0;
+            let totalModules = 0;
             let atRiskCount = 0;
-            const totalPossible = classAssignments.length * memberCount;
 
-            // Count completions and at-risk students
-            for (const assignment of classAssignments) {
-                for (const studentProgress of classProgressData) {
-                    if (studentProgress.completions?.[assignment.contentId]?.completed) {
-                        totalCompleted++;
-                    }
+            // Count completions using smart resolution (handles path→module expansion)
+            for (const studentProgress of classProgressData) {
+                const completions = studentProgress.completions || {};
+                for (const assignment of classAssignments) {
+                    const result = resolveAssignmentProgress(assignment, completions);
+                    totalCompleted += result.completed;
+                    totalModules += result.total;
+                }
+            }
+
+            // Scale totalModules to include students with NO progress doc
+            const studentsWithProgress = classProgressData.length;
+            const studentsWithout = memberCount - studentsWithProgress;
+            if (studentsWithout > 0) {
+                // For students with no progress doc, they have 0 completed out of full module count
+                for (const assignment of classAssignments) {
+                    const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
+                    const pathDef = (assignment.assignmentType === 'path') ? paths[assignment.contentId] : null;
+                    const modCount = (pathDef?.modules?.length) || 1;
+                    totalModules += modCount * studentsWithout;
                 }
             }
 
@@ -3135,7 +3146,7 @@
                 if (pct < 40) atRiskCount++;
             }
 
-            const avgPct = totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+            const avgPct = totalModules > 0 ? Math.round((totalCompleted / totalModules) * 100) : 0;
             statCompletion.textContent = avgPct + '%';
             statLabs.textContent = totalCompleted.toString();
             statAtRisk.textContent = atRiskCount.toString();
@@ -3256,15 +3267,17 @@
 
             const memberCount = rosterMembers.length || 1;
 
-            // Calculate completion rate per assignment
+            // Calculate completion rate per assignment (using smart resolution)
             const assignmentData = classAssignments.map(a => {
-                let completed = 0;
+                let completedStudents = 0;
                 for (const sp of classProgressData) {
-                    if (sp.completions?.[a.contentId]?.completed) completed++;
+                    const result = resolveAssignmentProgress(a, sp.completions || {});
+                    // Consider a student as having "completed" if they finished all modules for a path
+                    if (result.pct === 100) completedStudents++;
                 }
                 return {
                     title: a.title.length > 20 ? a.title.substring(0, 18) + '...' : a.title,
-                    pct: Math.round((completed / memberCount) * 100)
+                    pct: Math.round((completedStudents / memberCount) * 100)
                 };
             });
 
@@ -3322,13 +3335,24 @@
                 return;
             }
 
-            // Calculate average duration per assignment
+            // Calculate average duration per assignment (using smart resolution)
             const assignmentTimes = classAssignments.map(a => {
                 const durations = [];
                 for (const sp of classProgressData) {
-                    const completion = sp.completions?.[a.contentId];
-                    if (completion?.completed && completion?.duration > 0) {
-                        durations.push(completion.duration);
+                    const keys = Object.keys(sp.completions || {});
+                    // For path assignments, gather durations from all matched modules
+                    if (a.assignmentType === 'path') {
+                        const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
+                        const pathDef = paths[a.contentId];
+                        if (pathDef?.modules) {
+                            for (const mod of pathDef.modules) {
+                                const comp = findModuleCompletion(mod.id, sp.completions || {}, keys);
+                                if (comp?.duration > 0) durations.push(comp.duration);
+                            }
+                        }
+                    } else {
+                        const comp = findModuleCompletion(a.contentId, sp.completions || {}, keys);
+                        if (comp?.duration > 0) durations.push(comp.duration);
                     }
                 }
                 const avg = durations.length > 0
@@ -3927,19 +3951,103 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // ASSIGNMENT → COMPLETION RESOLUTION
+        // Handles the mismatch between assignment contentIds (path-level
+        // like 'aplus-core2') and student completion keys (module-level
+        // like 'forge-core2-ch14-index') by expanding paths to their
+        // constituent modules and fuzzy-matching IDs.
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Check if two hyphenated IDs share at least 2 consecutive segments.
+         * e.g. 'aplus-core2-ch14' and 'forge-core2-ch14-index' share 'core2-ch14'
+         */
+        function shareCommonCore(id1, id2) {
+            const p1 = id1.split('-');
+            const p2 = id2.split('-');
+            for (let i = 0; i < p1.length - 1; i++) {
+                for (let j = 0; j < p2.length - 1; j++) {
+                    if (p1[i] === p2[j] && p1[i+1] === p2[j+1]) return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Check if a specific module (by its LearningPaths ID) is completed
+         * in a student's completions map, handling ID format mismatches.
+         */
+        function isModuleCompleted(moduleId, completions, keys) {
+            // Exact match
+            if (completions[moduleId]?.completed) return true;
+            // Fuzzy: find a key that shares 2+ consecutive hyphenated segments
+            return keys.some(k => completions[k]?.completed && shareCommonCore(moduleId, k));
+        }
+
+        /**
+         * Find the completion entry for a module, returning the matched data object or null
+         */
+        function findModuleCompletion(moduleId, completions, keys) {
+            if (completions[moduleId]?.completed) return completions[moduleId];
+            for (const k of keys) {
+                if (completions[k]?.completed && shareCommonCore(moduleId, k)) return completions[k];
+            }
+            return null;
+        }
+
+        /**
+         * Resolve an assignment into its effective module count and completion count.
+         * For path assignments, expands via LearningPaths.PATHS[contentId].modules.
+         * For item assignments, checks direct or fuzzy match.
+         */
+        function resolveAssignmentProgress(assignment, completions) {
+            const keys = Object.keys(completions || {});
+
+            if (assignment.assignmentType === 'path') {
+                const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
+                const pathDef = paths[assignment.contentId];
+
+                if (pathDef && pathDef.modules && pathDef.modules.length > 0) {
+                    let done = 0;
+                    const total = pathDef.modules.length;
+                    for (const mod of pathDef.modules) {
+                        if (isModuleCompleted(mod.id, completions, keys)) done++;
+                    }
+                    return { completed: done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
+                }
+
+                // Fallback for paths not in LearningPaths: count keys prefixed with contentId
+                const related = keys.filter(k => k.startsWith(assignment.contentId + '-') && completions[k]?.completed);
+                return { completed: related.length, total: Math.max(related.length, 1), pct: related.length > 0 ? 100 : 0 };
+            }
+
+            // Item assignment — exact or fuzzy
+            if (completions[assignment.contentId]?.completed) {
+                return { completed: 1, total: 1, pct: 100 };
+            }
+            const match = keys.find(k => completions[k]?.completed && shareCommonCore(assignment.contentId, k));
+            if (match) return { completed: 1, total: 1, pct: 100 };
+
+            return { completed: 0, total: 1, pct: 0 };
+        }
+
         function getStudentCompletion(studentUid) {
             if (classAssignments.length === 0) return { completed: 0, total: 0, pct: 0 };
 
             const studentProgress = classProgressData.find(p => p.id === studentUid);
-            let completed = 0;
+            const completions = studentProgress?.completions || {};
+            let totalCompleted = 0;
+            let totalModules = 0;
+
             for (const a of classAssignments) {
-                if (studentProgress?.completions?.[a.contentId]?.completed) {
-                    completed++;
-                }
+                const result = resolveAssignmentProgress(a, completions);
+                totalCompleted += result.completed;
+                totalModules += result.total;
             }
-            const total = classAssignments.length;
-            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-            return { completed, total, pct };
+
+            const pct = totalModules > 0 ? Math.round((totalCompleted / totalModules) * 100) : 0;
+            return { completed: totalCompleted, total: totalModules, pct };
         }
 
         function progressColorClass(pct) {

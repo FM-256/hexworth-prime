@@ -39,7 +39,7 @@ const InstructorDashboard = (function() {
     let classAssignments = [];
     let classProgressData = [];
     let rosterMembers = [];
-    let chartInstances = { completion: null, difficulty: null };
+    let chartInstances = { completion: null, difficulty: null, assignment: null };
 
     // ═══════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -199,13 +199,31 @@ const InstructorDashboard = (function() {
                                 <div class="id-analytics-card">
                                     <div class="id-analytics-title">Completion Trend</div>
                                     <canvas id="idCompletionChart"></canvas>
+                                    <div class="id-chart-empty" id="idCompletionEmpty" style="display:none;">No completion data yet</div>
                                 </div>
                                 <div class="id-analytics-card">
-                                    <div class="id-analytics-title">Assignment Difficulty</div>
+                                    <div class="id-analytics-title">Assignment Performance</div>
                                     <canvas id="idDifficultyChart"></canvas>
+                                    <div class="id-chart-empty" id="idDifficultyEmpty" style="display:none;">No scored assignments yet</div>
+                                </div>
+                                <div class="id-analytics-card">
+                                    <div class="id-analytics-title">Assignment Completion</div>
+                                    <canvas id="idAssignmentChart"></canvas>
+                                    <div class="id-chart-empty" id="idAssignmentEmpty" style="display:none;">No assignments yet</div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Time on Task Section -->
+                        <div class="id-section" id="idTimeOnTaskSection" style="display:none;">
+                            <div class="id-section-header">
+                                <div class="id-section-title">Time on Task</div>
+                            </div>
+                            <div id="idTimeOnTaskContent"></div>
+                        </div>
+
+                        <!-- Student Detail Modal Container -->
+                        <div id="idStudentDetailContainer"></div>
                     </div>
                 </main>
 
@@ -277,7 +295,7 @@ const InstructorDashboard = (function() {
         `).join('');
     }
 
-    function selectClass(classId) {
+    async function selectClass(classId) {
         selectedClassId = classId;
         const cls = handlerClasses.find(c => c.id === classId);
         if (!cls) return;
@@ -306,10 +324,13 @@ const InstructorDashboard = (function() {
         if (enrolledEl) enrolledEl.textContent = cls.memberCount || 0;
         if (codeEl) codeEl.textContent = cls.classCode;
 
-        // Load data
-        loadAssignments(classId);
-        loadRoster(classId);
-        loadClassProgress(classId);
+        // Load roster + assignments first (analytics depend on both)
+        await Promise.all([
+            loadAssignments(classId),
+            loadRoster(classId)
+        ]);
+        // Now load progress and render analytics (uses rosterMembers + classAssignments)
+        await loadClassProgress(classId);
     }
 
     function showEmptyState() {
@@ -649,7 +670,7 @@ const InstructorDashboard = (function() {
                         const joined = m.joinedAt ? formatDate(m.joinedAt) : '—';
                         const progress = calculateStudentProgress(m.uid);
                         return `
-                            <tr>
+                            <tr class="id-roster-row" onclick="InstructorDashboard.showStudentDetail('${m.uid}')">
                                 <td>${escapeHtml(name)}</td>
                                 <td>${escapeHtml(email)}</td>
                                 <td>${joined}</td>
@@ -903,23 +924,70 @@ const InstructorDashboard = (function() {
 
     function renderAnalytics() {
         // Render charts if Chart.js is loaded
-        if (typeof Chart === 'undefined') return;
-
-        renderCompletionChart();
-        renderDifficultyChart();
+        if (typeof Chart !== 'undefined') {
+            renderCompletionChart();
+            renderDifficultyChart();
+            renderAssignmentChart();
+        }
+        renderTimeOnTask();
     }
 
     function renderCompletionChart() {
         const canvas = container.querySelector('#idCompletionChart');
+        const emptyEl = container.querySelector('#idCompletionEmpty');
         if (!canvas) return;
 
         if (chartInstances.completion) {
             chartInstances.completion.destroy();
+            chartInstances.completion = null;
         }
 
-        // Simple completion data by week
-        const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-        const data = [10, 25, 45, 65]; // Placeholder trend data
+        // Collect all completedAt timestamps
+        const allCompletions = [];
+        for (const student of classProgressData) {
+            if (!student.completions) continue;
+            for (const data of Object.values(student.completions)) {
+                if (data.completed && data.completedAt) {
+                    const date = data.completedAt?.toDate ? data.completedAt.toDate() : new Date(data.completedAt);
+                    if (!isNaN(date.getTime())) allCompletions.push(date);
+                }
+            }
+        }
+
+        if (allCompletions.length === 0 || classAssignments.length === 0 || rosterMembers.length === 0) {
+            canvas.style.display = 'none';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        // Build weekly buckets for the last 8 weeks
+        const now = new Date();
+        const weeks = [];
+        for (let i = 7; i >= 0; i--) {
+            const weekEnd = new Date(now);
+            weekEnd.setDate(weekEnd.getDate() - (i * 7));
+            weekEnd.setHours(23, 59, 59, 999);
+            const weekStart = new Date(weekEnd);
+            weekStart.setDate(weekStart.getDate() - 6);
+            weekStart.setHours(0, 0, 0, 0);
+            weeks.push({ start: weekStart, end: weekEnd });
+        }
+
+        const totalPossible = rosterMembers.length * classAssignments.length;
+        const labels = weeks.map(w => {
+            const m = w.start.getMonth() + 1;
+            const d = w.start.getDate();
+            return `${m}/${d}`;
+        });
+
+        // Cumulative completions up to each week end
+        const data = weeks.map(w => {
+            const count = allCompletions.filter(d => d <= w.end).length;
+            return Math.round((count / totalPossible) * 100);
+        });
 
         chartInstances.completion = new Chart(canvas, {
             type: 'line',
@@ -931,7 +999,9 @@ const InstructorDashboard = (function() {
                     borderColor: '#d4a017',
                     backgroundColor: 'rgba(212, 160, 23, 0.1)',
                     fill: true,
-                    tension: 0.4
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#d4a017'
                 }]
             },
             options: {
@@ -939,7 +1009,7 @@ const InstructorDashboard = (function() {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } },
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666', callback: v => v + '%' } },
                     x: { grid: { display: false }, ticks: { color: '#666' } }
                 }
             }
@@ -948,36 +1018,197 @@ const InstructorDashboard = (function() {
 
     function renderDifficultyChart() {
         const canvas = container.querySelector('#idDifficultyChart');
+        const emptyEl = container.querySelector('#idDifficultyEmpty');
         if (!canvas) return;
 
         if (chartInstances.difficulty) {
             chartInstances.difficulty.destroy();
+            chartInstances.difficulty = null;
         }
 
-        // Placeholder difficulty distribution
-        const labels = ['Easy', 'Medium', 'Hard'];
-        const data = [4, 3, 2];
+        // Compute per-assignment average scores
+        const scored = [];
+        for (const assignment of classAssignments) {
+            const scores = [];
+            for (const student of classProgressData) {
+                const comp = student.completions?.[assignment.contentId];
+                if (comp?.completed && comp.score != null) {
+                    scores.push(comp.score);
+                }
+            }
+            if (scores.length > 0) {
+                const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+                scored.push({ title: assignment.title, avg, count: scores.length });
+            }
+        }
+
+        if (scored.length === 0) {
+            canvas.style.display = 'none';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        const labels = scored.map(s => s.title.length > 20 ? s.title.substring(0, 20) + '...' : s.title);
+        const data = scored.map(s => s.avg);
+        const colors = scored.map(s => s.avg >= 80 ? '#4ade80' : s.avg >= 60 ? '#fbbf24' : '#f87171');
 
         chartInstances.difficulty = new Chart(canvas, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Assignments',
+                    label: 'Avg Score',
                     data: data,
-                    backgroundColor: ['#4ade80', '#fbbf24', '#f87171']
+                    backgroundColor: colors,
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `Avg: ${ctx.raw}% (${scored[ctx.dataIndex].count} submissions)`
+                        }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } },
-                    x: { grid: { display: false }, ticks: { color: '#666' } }
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666', callback: v => v + '%' } },
+                    x: { grid: { display: false }, ticks: { color: '#666', maxRotation: 45 } }
                 }
             }
         });
+    }
+
+    function renderAssignmentChart() {
+        const canvas = container.querySelector('#idAssignmentChart');
+        const emptyEl = container.querySelector('#idAssignmentEmpty');
+        if (!canvas) return;
+
+        if (chartInstances.assignment) {
+            chartInstances.assignment.destroy();
+            chartInstances.assignment = null;
+        }
+
+        if (classAssignments.length === 0 || rosterMembers.length === 0) {
+            canvas.style.display = 'none';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        const enrolled = rosterMembers.length;
+
+        // Per-assignment completion count
+        const items = classAssignments.map(a => {
+            let completedCount = 0;
+            for (const student of classProgressData) {
+                if (student.completions?.[a.contentId]?.completed) {
+                    completedCount++;
+                }
+            }
+            const rate = Math.round((completedCount / enrolled) * 100);
+            return { title: a.title, rate, completedCount };
+        });
+
+        // Sort ascending by completion rate (hardest to complete at top)
+        items.sort((a, b) => a.rate - b.rate);
+
+        const labels = items.map(i => i.title.length > 25 ? i.title.substring(0, 25) + '...' : i.title);
+        const data = items.map(i => i.rate);
+        const colors = items.map(i => i.rate >= 75 ? '#4ade80' : i.rate >= 50 ? '#fbbf24' : '#f87171');
+
+        chartInstances.assignment = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Completion %',
+                    data: data,
+                    backgroundColor: colors,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.raw}% (${items[ctx.dataIndex].completedCount}/${enrolled})`
+                        }
+                    }
+                },
+                scales: {
+                    x: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666', callback: v => v + '%' } },
+                    y: { grid: { display: false }, ticks: { color: '#666' } }
+                }
+            }
+        });
+    }
+
+    function renderTimeOnTask() {
+        const section = container.querySelector('#idTimeOnTaskSection');
+        const content = container.querySelector('#idTimeOnTaskContent');
+        if (!section || !content) return;
+
+        // Build per-assignment time stats
+        const timeStats = [];
+        for (const assignment of classAssignments) {
+            const durations = [];
+            for (const student of classProgressData) {
+                const comp = student.completions?.[assignment.contentId];
+                if (comp?.completed && comp.duration != null && comp.duration > 0) {
+                    durations.push(comp.duration);
+                }
+            }
+            if (durations.length > 0) {
+                const avg = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+                const fastest = Math.min(...durations);
+                const slowest = Math.max(...durations);
+                timeStats.push({ title: assignment.title, avg, fastest, slowest, count: durations.length });
+            }
+        }
+
+        if (timeStats.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        content.innerHTML = `
+            <table class="id-time-table">
+                <thead>
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Avg Time</th>
+                        <th>Fastest</th>
+                        <th>Slowest</th>
+                        <th>Submissions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${timeStats.map(s => `
+                        <tr>
+                            <td>${escapeHtml(s.title)}</td>
+                            <td>${formatDuration(s.avg)}</td>
+                            <td>${formatDuration(s.fastest)}</td>
+                            <td>${formatDuration(s.slowest)}</td>
+                            <td>${s.count}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1006,14 +1237,28 @@ const InstructorDashboard = (function() {
             return;
         }
 
+        // Build headers: Name, Email, Progress %, then per-assignment Score + Time
         const headers = ['Name', 'Email', 'Progress %'];
+        for (const a of classAssignments) {
+            const shortTitle = a.title.length > 30 ? a.title.substring(0, 30) : a.title;
+            headers.push(shortTitle + ' Score');
+            headers.push(shortTitle + ' Time');
+        }
+
         const rows = rosterMembers.map(m => {
             const progress = calculateStudentProgress(m.uid);
-            return [
+            const studentData = classProgressData.find(p => p.uid === m.uid);
+            const row = [
                 m.displayName || m.email?.split('@')[0] || '',
                 m.email || '',
                 progress
             ];
+            for (const a of classAssignments) {
+                const comp = studentData?.completions?.[a.contentId];
+                row.push(comp?.score != null ? comp.score : '');
+                row.push(comp?.duration != null ? formatDuration(comp.duration) : '');
+            }
+            return row;
         });
 
         downloadCSV('grades', headers, rows);
@@ -1095,6 +1340,93 @@ const InstructorDashboard = (function() {
     function formatDate(timestamp) {
         const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDuration(seconds) {
+        if (seconds == null || seconds <= 0) return '—';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    }
+
+    function showStudentDetail(uid) {
+        // Find student in roster and progress data
+        const member = rosterMembers.find(m => m.uid === uid);
+        const studentData = classProgressData.find(p => p.uid === uid);
+        if (!member) return;
+
+        const name = member.displayName || member.email?.split('@')[0] || 'Student';
+        const email = member.email || '—';
+        const progress = calculateStudentProgress(uid);
+
+        // Build assignment rows
+        let assignmentRows = '';
+        if (classAssignments.length > 0) {
+            assignmentRows = classAssignments.map(a => {
+                const comp = studentData?.completions?.[a.contentId];
+                const completed = comp?.completed;
+                const statusIcon = completed ? '<span style="color:#4ade80;">&#10003;</span>' : '<span style="color:#555;">—</span>';
+                const score = comp?.score != null ? `${comp.score}%` : '—';
+                const time = comp?.duration != null ? formatDuration(comp.duration) : '—';
+                let completedAt = '—';
+                if (comp?.completedAt) {
+                    const d = comp.completedAt?.toDate ? comp.completedAt.toDate() : new Date(comp.completedAt);
+                    if (!isNaN(d.getTime())) completedAt = formatDate(d);
+                }
+                return `
+                    <tr>
+                        <td>${escapeHtml(a.title)}</td>
+                        <td>${statusIcon}</td>
+                        <td>${score}</td>
+                        <td>${time}</td>
+                        <td>${completedAt}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            assignmentRows = '<tr><td colspan="5" style="text-align:center;color:#666;padding:20px;">No assignments</td></tr>';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'id-overlay';
+        overlay.id = 'idStudentDetailModal';
+        overlay.innerHTML = `
+            <div class="id-modal id-modal-lg">
+                <button class="id-modal-close" onclick="InstructorDashboard.closeModal('idStudentDetailModal')">&times;</button>
+                <div class="id-student-detail-header">
+                    <div class="id-student-detail-name">${escapeHtml(name)}</div>
+                    <div class="id-student-detail-email">${escapeHtml(email)}</div>
+                    <div class="id-student-detail-progress">
+                        <span class="id-progress-badge">${progress}%</span> overall completion
+                    </div>
+                </div>
+                <table class="id-student-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Assignment</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Time Spent</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${assignmentRows}
+                    </tbody>
+                </table>
+                <div class="id-modal-actions" style="margin-top:20px;">
+                    <button class="id-secondary-btn" onclick="InstructorDashboard.closeModal('idStudentDetailModal')">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal('idStudentDetailModal');
+        });
     }
 
     function formatTimeAgo(timestamp) {
@@ -1581,6 +1913,15 @@ const InstructorDashboard = (function() {
                 border-bottom: 1px solid rgba(255,255,255,0.05);
             }
 
+            .id-roster-row {
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-roster-row:hover {
+                background: var(--id-gold-subtle);
+            }
+
             .id-progress-badge {
                 background: var(--id-gold-subtle);
                 color: var(--id-gold);
@@ -1611,6 +1952,13 @@ const InstructorDashboard = (function() {
 
             .id-analytics-card canvas {
                 max-height: 150px;
+            }
+
+            .id-chart-empty {
+                text-align: center;
+                padding: 30px 10px;
+                color: var(--id-text-muted);
+                font-size: 0.8rem;
             }
 
             /* Right Panel */
@@ -2001,6 +2349,72 @@ const InstructorDashboard = (function() {
                 text-align: center;
             }
 
+            /* Time on Task */
+            .id-time-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.85rem;
+            }
+
+            .id-time-table th {
+                text-align: left;
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                color: var(--id-text-muted);
+            }
+
+            .id-time-table td {
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+
+            /* Student Detail Modal */
+            .id-student-detail-header {
+                margin-bottom: 20px;
+                padding-bottom: 16px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+
+            .id-student-detail-name {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--id-gold);
+                margin-bottom: 4px;
+            }
+
+            .id-student-detail-email {
+                font-size: 0.8rem;
+                color: var(--id-text-muted);
+                margin-bottom: 8px;
+            }
+
+            .id-student-detail-progress {
+                font-size: 0.85rem;
+                color: var(--id-text);
+            }
+
+            .id-student-detail-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.85rem;
+            }
+
+            .id-student-detail-table th {
+                text-align: left;
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                color: var(--id-text-muted);
+            }
+
+            .id-student-detail-table td {
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+
             /* Responsive */
             @media (max-width: 1000px) {
                 .id-layout {
@@ -2052,7 +2466,8 @@ const InstructorDashboard = (function() {
         assignContent: assignContent,
         removeAssignment: removeAssignment,
         exportRosterCSV: exportRosterCSV,
-        exportGradesCSV: exportGradesCSV
+        exportGradesCSV: exportGradesCSV,
+        showStudentDetail: showStudentDetail
     };
 
 })();
