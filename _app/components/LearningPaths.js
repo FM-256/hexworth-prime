@@ -1833,6 +1833,1055 @@ class LearningPaths {
                     prerequisites: ['wsa-m19-troubleshooting']
                 }
             ]
+        },
+
+        // CompTIA Security+ SY0-701 — Shield House
+        'security-plus': {
+            name: 'CompTIA Security+ (SY0-701)',
+            description: 'Complete Security+ certification prep covering general security concepts, threats, architecture, operations, and program management',
+            icon: '🔐',
+            color: '#a855f7',
+            modules: [
+                // Domain 1: General Security Concepts
+                {
+                    id: 'secplus-cia-triad',
+                    title: 'CIA Triad Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/shield/presentations/shield-cia-triad.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'secplus-cia-quiz',
+                    title: 'CIA Triad Challenge',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/shield/quizzes/shield-cia-triad.quiz.html',
+                    prerequisites: ['secplus-cia-triad']
+                },
+                {
+                    id: 'secplus-security-fundamentals',
+                    title: 'Security Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-security.presentation.html',
+                    prerequisites: ['secplus-cia-quiz']
+                },
+                {
+                    id: 'secplus-security-controls',
+                    title: 'Cybersecurity Controls',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html',
+                    prerequisites: ['secplus-security-fundamentals']
+                },
+                {
+                    id: 'secplus-design-principles',
+                    title: 'Security Design Principles',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html',
+                    prerequisites: ['secplus-security-controls']
+                },
+                {
+                    id: 'secplus-security-fundamentals-lab',
+                    title: 'Security Fundamentals Lab',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/shield/labs/shield-security-fundamentals.lab.html',
+                    prerequisites: ['secplus-design-principles']
+                },
+                // Domain 2: Threats, Vulnerabilities, and Mitigations
+                {
+                    id: 'secplus-threat-types',
+                    title: 'Threats & Attacks',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/threats/attacks_malware/shield-attacks.applet.html',
+                    prerequisites: ['secplus-security-fundamentals-lab']
+                },
+                {
+                    id: 'secplus-social-engineering',
+                    title: 'Social Engineering',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/threats/phishing_mystery/shield-phishing.applet.html',
+                    prerequisites: ['secplus-threat-types']
+                },
+                {
+                    id: 'secplus-web-attacks',
+                    title: 'Web Application Attacks',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/threats/cross_site_scripting/shield-crosssitescripting.applet.html',
+                    prerequisites: ['secplus-social-engineering']
+                },
+                {
+                    id: 'secplus-threats-quiz',
+                    title: 'Threats & Vulnerabilities Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/shield/quizzes/shield-threats.quiz.html',
+                    prerequisites: ['secplus-web-attacks']
+                },
+                {
+                    id: 'secplus-threats-lab',
+                    title: 'Threats Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/shield/labs/shield-threats.lab.html',
+                    prerequisites: ['secplus-threats-quiz']
+                },
+                // Domain 3: Security Architecture
+                {
+                    id: 'secplus-network-security',
+                    title: 'Network Security',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/network/firewalls/shield-firewalls.applet.html',
+                    prerequisites: ['secplus-threats-lab']
+                },
+                {
+                    id: 'secplus-ids-ips',
+                    title: 'IDS/IPS',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/network/ids_ips/shield-ids-ips.applet.html',
+                    prerequisites: ['secplus-network-security']
+                },
+                {
+                    id: 'secplus-vpn',
+                    title: 'VPN Technologies',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/network/vpn/shield-vpn.applet.html',
+                    prerequisites: ['secplus-ids-ips']
+                },
+                {
+                    id: 'secplus-cryptography',
+                    title: 'Cryptography Essentials',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html',
+                    prerequisites: ['secplus-vpn']
+                },
+                {
+                    id: 'secplus-network-security-quiz',
+                    title: 'Network Security Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/shield/quizzes/shield-network-security.quiz.html',
+                    prerequisites: ['secplus-cryptography']
+                },
+                {
+                    id: 'secplus-network-security-lab',
+                    title: 'Network Security Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/shield/labs/shield-network-security.lab.html',
+                    prerequisites: ['secplus-network-security-quiz']
+                },
+                // Domain 4: Security Operations
+                {
+                    id: 'secplus-access-control',
+                    title: 'Access Control',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/access/access_control/shield-access-control.applet.html',
+                    prerequisites: ['secplus-network-security-lab']
+                },
+                {
+                    id: 'secplus-biometrics',
+                    title: 'Biometrics',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/shield/applets/access/biometrics/shield-biometrics.applet.html',
+                    prerequisites: ['secplus-access-control']
+                },
+                {
+                    id: 'secplus-kerberos',
+                    title: 'Kerberos Authentication',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/shield/applets/access/kerberos/shield-kerberos.applet.html',
+                    prerequisites: ['secplus-biometrics']
+                },
+                {
+                    id: 'secplus-incident-response',
+                    title: 'Incident Response',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/tools/shield-incident-response.tool.html',
+                    prerequisites: ['secplus-kerberos']
+                },
+                {
+                    id: 'secplus-monitoring',
+                    title: 'Security Monitoring & Incident Response',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html',
+                    prerequisites: ['secplus-incident-response']
+                },
+                {
+                    id: 'secplus-access-control-quiz',
+                    title: 'Access Control Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/shield/quizzes/shield-access-control.quiz.html',
+                    prerequisites: ['secplus-monitoring']
+                },
+                {
+                    id: 'secplus-access-control-lab',
+                    title: 'Access Control Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/labs/shield-access-control.lab.html',
+                    prerequisites: ['secplus-access-control-quiz']
+                },
+                // Domain 5: Security Program Management
+                {
+                    id: 'secplus-risk-management',
+                    title: 'Risk Management',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
+                    prerequisites: ['secplus-access-control-lab']
+                },
+                {
+                    id: 'secplus-risk-analysis',
+                    title: 'Risk Analysis',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
+                    prerequisites: ['secplus-risk-management']
+                },
+                {
+                    id: 'secplus-risk-assessment',
+                    title: 'Risk Assessment & Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html',
+                    prerequisites: ['secplus-risk-analysis']
+                },
+                {
+                    id: 'secplus-compliance',
+                    title: 'Compliance & Governance',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html',
+                    prerequisites: ['secplus-risk-assessment']
+                },
+                {
+                    id: 'secplus-frameworks',
+                    title: 'Security Frameworks',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/compliance/shield-framework-selector.applet.html',
+                    prerequisites: ['secplus-compliance']
+                },
+                {
+                    id: 'secplus-compliance-lab',
+                    title: 'Compliance Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/labs/shield-compliance.lab.html',
+                    prerequisites: ['secplus-frameworks']
+                },
+                // Final Assessment
+                {
+                    id: 'secplus-final-quiz',
+                    title: 'Security+ Comprehensive Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/quizzes/shield-security-fundamentals.quiz.html',
+                    prerequisites: ['secplus-compliance-lab']
+                }
+            ]
+        },
+
+        // CompTIA Network+ N10-009 — Web House
+        'comptia-network': {
+            name: 'CompTIA Network+ (N10-009)',
+            description: 'Complete Network+ certification prep covering networking concepts, implementation, operations, security, and troubleshooting',
+            icon: '🌐',
+            color: '#3b82f6',
+            modules: [
+                // Domain 1: Networking Concepts
+                {
+                    id: 'netplus-osi-model',
+                    title: 'OSI Model Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-osi-model.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'netplus-osi-quiz',
+                    title: 'OSI Model Challenge',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/web/quizzes/web-osi.quiz.html',
+                    prerequisites: ['netplus-osi-model']
+                },
+                {
+                    id: 'netplus-tcp',
+                    title: 'TCP/IP Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-tcp.presentation.html',
+                    prerequisites: ['netplus-osi-quiz']
+                },
+                {
+                    id: 'netplus-ip-addressing',
+                    title: 'IP Addressing',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
+                    prerequisites: ['netplus-tcp']
+                },
+                {
+                    id: 'netplus-subnetting',
+                    title: 'Subnetting Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/web/presentations/web-subnetting.presentation.html',
+                    prerequisites: ['netplus-ip-addressing']
+                },
+                {
+                    id: 'netplus-subnetting-quiz',
+                    title: 'Subnetting Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/web/quizzes/web-subnetting.quiz.html',
+                    prerequisites: ['netplus-subnetting']
+                },
+                {
+                    id: 'netplus-ipv6',
+                    title: 'IPv6 Addressing',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-ipv6.presentation.html',
+                    prerequisites: ['netplus-subnetting-quiz']
+                },
+                {
+                    id: 'netplus-ports',
+                    title: 'Ports & Protocols',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-ports.presentation.html',
+                    prerequisites: ['netplus-ipv6']
+                },
+                {
+                    id: 'netplus-ports-quiz',
+                    title: 'Ports & Protocols Challenge',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/web/quizzes/web-networking-fundamentals-ports.quiz.html',
+                    prerequisites: ['netplus-ports']
+                },
+                // Domain 2: Network Implementation
+                {
+                    id: 'netplus-cables',
+                    title: 'Network Cabling',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-cables.presentation.html',
+                    prerequisites: ['netplus-ports-quiz']
+                },
+                {
+                    id: 'netplus-devices',
+                    title: 'Network Devices',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-devices.presentation.html',
+                    prerequisites: ['netplus-cables']
+                },
+                {
+                    id: 'netplus-switching',
+                    title: 'Network Switching',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-switch-operations.presentation.html',
+                    prerequisites: ['netplus-devices']
+                },
+                {
+                    id: 'netplus-vlan',
+                    title: 'VLAN Configuration',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-vlan.presentation.html',
+                    prerequisites: ['netplus-switching']
+                },
+                {
+                    id: 'netplus-stp',
+                    title: 'Spanning Tree Protocol',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-stp.presentation.html',
+                    prerequisites: ['netplus-vlan']
+                },
+                {
+                    id: 'netplus-routing',
+                    title: 'Routing Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-topologies.presentation.html',
+                    prerequisites: ['netplus-stp']
+                },
+                {
+                    id: 'netplus-ospf',
+                    title: 'OSPF Protocol',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/web/presentations/web-ospf.presentation.html',
+                    prerequisites: ['netplus-routing']
+                },
+                {
+                    id: 'netplus-wireless',
+                    title: 'Wireless Networking',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-wireless.presentation.html',
+                    prerequisites: ['netplus-ospf']
+                },
+                {
+                    id: 'netplus-wireless-arch',
+                    title: 'Wireless Architecture',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-wireless-architecture.presentation.html',
+                    prerequisites: ['netplus-wireless']
+                },
+                // Domain 3: Network Operations
+                {
+                    id: 'netplus-dns',
+                    title: 'DNS Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-dns.presentation.html',
+                    prerequisites: ['netplus-wireless-arch']
+                },
+                {
+                    id: 'netplus-dhcp',
+                    title: 'DHCP Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-dhcp.presentation.html',
+                    prerequisites: ['netplus-dns']
+                },
+                {
+                    id: 'netplus-nat',
+                    title: 'NAT & PAT',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-nat.presentation.html',
+                    prerequisites: ['netplus-dhcp']
+                },
+                {
+                    id: 'netplus-networking-quiz',
+                    title: 'Networking Chapters 7-10 Challenge',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/quizzes/web-networking-ch7-10.quiz.html',
+                    prerequisites: ['netplus-nat']
+                },
+                // Domain 4: Network Security
+                {
+                    id: 'netplus-security',
+                    title: 'Network Security Tools',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/tools/web-security.tool.html',
+                    prerequisites: ['netplus-networking-quiz']
+                },
+                {
+                    id: 'netplus-acl',
+                    title: 'Access Control Lists',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/tools/web-acl.tool.html',
+                    prerequisites: ['netplus-security']
+                },
+                // Domain 5: Network Troubleshooting
+                {
+                    id: 'netplus-troubleshooting',
+                    title: 'Network Troubleshooting',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-troubleshooting.presentation.html',
+                    prerequisites: ['netplus-acl']
+                },
+                {
+                    id: 'netplus-troubleshooting-tool',
+                    title: 'Troubleshooting Toolkit',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/tools/web-troubleshooting.tool.html',
+                    prerequisites: ['netplus-troubleshooting']
+                },
+                {
+                    id: 'netplus-static-routes-lab',
+                    title: 'Static Routes Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/labs/web-static-routes.lab.html',
+                    prerequisites: ['netplus-troubleshooting-tool']
+                },
+                // Hands-on & Final
+                {
+                    id: 'netplus-network-simulator',
+                    title: 'Network Simulator Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '60 min',
+                    href: 'houses/web/simulators/web-interactive-network-simulatorv2.simulator.html',
+                    prerequisites: ['netplus-static-routes-lab']
+                },
+                {
+                    id: 'netplus-final-review',
+                    title: 'Network+ Final Review',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/web/quizzes/web-networking-final-review.quiz.html',
+                    prerequisites: ['netplus-network-simulator']
+                }
+            ]
+        },
+
+        // Cryptography Track — Key House (Primary Learning Path)
+        'cryptography-track': {
+            name: 'Cryptography Track',
+            description: 'Master cryptography from fundamentals through post-quantum: symmetric, asymmetric, hashing, PKI, digital signatures, key management, and beyond',
+            icon: '🔐',
+            color: '#eab308',
+            modules: [
+                // Foundation
+                {
+                    id: 'crypto-encryption-basics',
+                    title: 'Encryption Basics',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-encryption-basics.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'crypto-fundamentals',
+                    title: 'Cryptography Fundamentals (CEH)',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '35 min',
+                    href: 'houses/key/presentations/key-cryptography-fundamentals.presentation.html',
+                    prerequisites: ['crypto-encryption-basics']
+                },
+                // Symmetric Encryption
+                {
+                    id: 'crypto-symmetric',
+                    title: 'Symmetric Encryption',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/key/presentations/key-advanced-symmetric.presentation.html',
+                    prerequisites: ['crypto-fundamentals']
+                },
+                {
+                    id: 'crypto-aes-explorer',
+                    title: 'AES Explorer',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/key/tools/key-aes.tool.html',
+                    prerequisites: ['crypto-symmetric']
+                },
+                {
+                    id: 'crypto-aes-lab',
+                    title: 'AES Encryption Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-aes.lab.html',
+                    prerequisites: ['crypto-aes-explorer']
+                },
+                {
+                    id: 'crypto-symmetric-quiz',
+                    title: 'Symmetric Encryption Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-symmetric.quiz.html',
+                    prerequisites: ['crypto-aes-lab']
+                },
+                // Hashing & Integrity
+                {
+                    id: 'crypto-hash-stego-intro',
+                    title: 'Hash & Steganography Intro',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/key/modules/key-hash-stego-intro.module.html',
+                    prerequisites: ['crypto-symmetric-quiz']
+                },
+                {
+                    id: 'crypto-hmac',
+                    title: 'Message Authentication (HMAC)',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-message-authentication.presentation.html',
+                    prerequisites: ['crypto-hash-stego-intro']
+                },
+                {
+                    id: 'crypto-hmac-tool',
+                    title: 'HMAC Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-hmac.tool.html',
+                    prerequisites: ['crypto-hmac']
+                },
+                {
+                    id: 'crypto-hmac-lab',
+                    title: 'HMAC Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-hmac.lab.html',
+                    prerequisites: ['crypto-hmac-tool']
+                },
+                {
+                    id: 'crypto-mac-quiz',
+                    title: 'Message Authentication Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-mac.quiz.html',
+                    prerequisites: ['crypto-hmac-lab']
+                },
+                // Asymmetric / ECC
+                {
+                    id: 'crypto-ecc',
+                    title: 'Elliptic Curve Cryptography',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/key/presentations/key-elliptic-curve.presentation.html',
+                    prerequisites: ['crypto-mac-quiz']
+                },
+                {
+                    id: 'crypto-ecc-visualizer',
+                    title: 'ECC Visualizer',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-ecc.tool.html',
+                    prerequisites: ['crypto-ecc']
+                },
+                {
+                    id: 'crypto-ecc-lab',
+                    title: 'Elliptic Curve Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-ecc.lab.html',
+                    prerequisites: ['crypto-ecc-visualizer']
+                },
+                {
+                    id: 'crypto-ecc-quiz',
+                    title: 'ECC Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-ecc.quiz.html',
+                    prerequisites: ['crypto-ecc-lab']
+                },
+                // PKI & Digital Signatures
+                {
+                    id: 'crypto-certificates',
+                    title: 'Digital Certificates & PKI',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/key/presentations/key-certificates.presentation.html',
+                    prerequisites: ['crypto-ecc-quiz']
+                },
+                {
+                    id: 'crypto-cert-tool',
+                    title: 'Certificate Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-cert.tool.html',
+                    prerequisites: ['crypto-certificates']
+                },
+                {
+                    id: 'crypto-cert-lab',
+                    title: 'Certificate Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-cert.lab.html',
+                    prerequisites: ['crypto-cert-tool']
+                },
+                {
+                    id: 'crypto-cert-quiz',
+                    title: 'Certificates Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-cert.quiz.html',
+                    prerequisites: ['crypto-cert-lab']
+                },
+                // Key Derivation & Management
+                {
+                    id: 'crypto-kdf',
+                    title: 'Key Derivation Functions',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/key/presentations/key-derivation.presentation.html',
+                    prerequisites: ['crypto-cert-quiz']
+                },
+                {
+                    id: 'crypto-kdf-tool',
+                    title: 'KDF Analyzer',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-kdf.tool.html',
+                    prerequisites: ['crypto-kdf']
+                },
+                {
+                    id: 'crypto-kdf-lab',
+                    title: 'Key Derivation Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-kdf.lab.html',
+                    prerequisites: ['crypto-kdf-tool']
+                },
+                {
+                    id: 'crypto-kdf-quiz',
+                    title: 'KDF Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-kdf.quiz.html',
+                    prerequisites: ['crypto-kdf-lab']
+                },
+                {
+                    id: 'crypto-key-management',
+                    title: 'Key Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-management.presentation.html',
+                    prerequisites: ['crypto-kdf-quiz']
+                },
+                {
+                    id: 'crypto-lifecycle',
+                    title: 'Key Lifecycle Manager',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-lifecycle.tool.html',
+                    prerequisites: ['crypto-key-management']
+                },
+                // HSM
+                {
+                    id: 'crypto-hsm-lab',
+                    title: 'Hardware Security Module Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-hsm.lab.html',
+                    prerequisites: ['crypto-lifecycle']
+                },
+                {
+                    id: 'crypto-hsm-quiz',
+                    title: 'HSM Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-hsm.quiz.html',
+                    prerequisites: ['crypto-hsm-lab']
+                },
+                // Cryptanalysis & Attacks
+                {
+                    id: 'crypto-cryptanalysis',
+                    title: 'Cryptanalysis',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-cryptanalysis.presentation.html',
+                    prerequisites: ['crypto-hsm-quiz']
+                },
+                {
+                    id: 'crypto-cryptanalysis-lab',
+                    title: 'Cryptanalysis Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-cryptanalysis.lab.html',
+                    prerequisites: ['crypto-cryptanalysis']
+                },
+                {
+                    id: 'crypto-attack-lab',
+                    title: 'Cryptographic Attack Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-attack.lab.html',
+                    prerequisites: ['crypto-cryptanalysis-lab']
+                },
+                {
+                    id: 'crypto-cryptanalysis-quiz',
+                    title: 'Cryptanalysis Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-cryptanalysis.quiz.html',
+                    prerequisites: ['crypto-attack-lab']
+                },
+                // Post-Quantum
+                {
+                    id: 'crypto-post-quantum',
+                    title: 'Post-Quantum Cryptography',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/key/presentations/key-post-quantum.presentation.html',
+                    prerequisites: ['crypto-cryptanalysis-quiz']
+                },
+                {
+                    id: 'crypto-pqc-explorer',
+                    title: 'PQC Explorer',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-pqc.tool.html',
+                    prerequisites: ['crypto-post-quantum']
+                },
+                {
+                    id: 'crypto-pqc-lab',
+                    title: 'Post-Quantum Crypto Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/key/labs/key-pqc.lab.html',
+                    prerequisites: ['crypto-pqc-explorer']
+                },
+                {
+                    id: 'crypto-pqc-quiz',
+                    title: 'PQC Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-pqc.quiz.html',
+                    prerequisites: ['crypto-pqc-lab']
+                }
+            ]
+        },
+
+        // Security+ Cryptography Domain — Key House
+        // Focused subset of Security+ SY0-701 cryptography objectives
+        'security-plus-crypto': {
+            name: 'Security+ Cryptography Domain',
+            description: 'CompTIA Security+ SY0-701 cryptography objectives: symmetric/asymmetric encryption, hashing, PKI, digital signatures, and key exchange',
+            icon: '🛡️',
+            color: '#eab308',
+            modules: [
+                // Crypto Foundations (maps to SY0-701 Domain 1.4)
+                {
+                    id: 'spc-encryption-basics',
+                    title: 'Encryption Basics',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-encryption-basics.presentation.html',
+                    prerequisites: []
+                },
+                // Symmetric Encryption (maps to SY0-701 3.7)
+                {
+                    id: 'spc-symmetric',
+                    title: 'Symmetric Encryption',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/key/presentations/key-advanced-symmetric.presentation.html',
+                    prerequisites: ['spc-encryption-basics']
+                },
+                {
+                    id: 'spc-aes-explorer',
+                    title: 'AES Explorer',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/key/tools/key-aes.tool.html',
+                    prerequisites: ['spc-symmetric']
+                },
+                {
+                    id: 'spc-symmetric-quiz',
+                    title: 'Symmetric Encryption Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-symmetric.quiz.html',
+                    prerequisites: ['spc-aes-explorer']
+                },
+                // Hashing (maps to SY0-701 1.4)
+                {
+                    id: 'spc-hashing',
+                    title: 'Hashing & Message Authentication',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-message-authentication.presentation.html',
+                    prerequisites: ['spc-symmetric-quiz']
+                },
+                {
+                    id: 'spc-hmac-tool',
+                    title: 'HMAC Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-hmac.tool.html',
+                    prerequisites: ['spc-hashing']
+                },
+                {
+                    id: 'spc-mac-quiz',
+                    title: 'Message Authentication Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-mac.quiz.html',
+                    prerequisites: ['spc-hmac-tool']
+                },
+                // Asymmetric / Key Exchange (maps to SY0-701 3.7)
+                {
+                    id: 'spc-ecc',
+                    title: 'Asymmetric Encryption & ECC',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/key/presentations/key-elliptic-curve.presentation.html',
+                    prerequisites: ['spc-mac-quiz']
+                },
+                {
+                    id: 'spc-ecc-quiz',
+                    title: 'ECC Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-ecc.quiz.html',
+                    prerequisites: ['spc-ecc']
+                },
+                // PKI & Digital Signatures (maps to SY0-701 1.4, 3.7)
+                {
+                    id: 'spc-certificates',
+                    title: 'PKI & Digital Certificates',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/key/presentations/key-certificates.presentation.html',
+                    prerequisites: ['spc-ecc-quiz']
+                },
+                {
+                    id: 'spc-cert-tool',
+                    title: 'Certificate Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-cert.tool.html',
+                    prerequisites: ['spc-certificates']
+                },
+                {
+                    id: 'spc-cert-quiz',
+                    title: 'Certificates Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/key/quizzes/key-cert.quiz.html',
+                    prerequisites: ['spc-cert-tool']
+                },
+                // Key Management (maps to SY0-701 1.4)
+                {
+                    id: 'spc-key-management',
+                    title: 'Key Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/key/presentations/key-management.presentation.html',
+                    prerequisites: ['spc-cert-quiz']
+                },
+                {
+                    id: 'spc-lifecycle',
+                    title: 'Key Lifecycle Manager',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/key/tools/key-lifecycle.tool.html',
+                    prerequisites: ['spc-key-management']
+                }
+            ]
         }
     };
 

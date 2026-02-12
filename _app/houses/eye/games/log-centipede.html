@@ -79,7 +79,7 @@
             </div>
             <div class="lore-section">
                 <h3>THREAT INTEL</h3>
-                <p>The centipede snakes through mushroom fields (log sources), reversing and dropping a row on contact. Spiders (APTs) lurk in your zone eating mushrooms. Fleas (false positives) drop from above leaving new mushrooms. Scorpions (rootkits) poison mushrooms, causing centipedes to dive straight down.</p>
+                <p>The centipede zig-zags through mushroom fields (log sources), dropping a row and reversing on contact. Spiders (APTs) lurk in your zone eating mushrooms. Fleas (false positives) drop from above leaving new mushrooms. Scorpions (rootkits) poison mushrooms, causing centipedes to dive straight down.</p>
             </div>
             <div class="lore-section">
                 <h3>SOC STATUS</h3>
@@ -89,7 +89,7 @@
             </div>
             <div class="lore-section lore-keys">
                 <h3>CONTROLS</h3>
-                <p><span>← → ↑ ↓</span> Move analyst</p>
+                <p><span>← →</span> Move analyst</p>
                 <p><span>SPACE</span> Fire query</p>
                 <p><span>SHIFT</span> Log purge</p>
                 <p><span>?</span> Show queries</p>
@@ -97,7 +97,7 @@
             </div>
         </div>
         <div id="gameContainer">
-            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <canvas id="gameCanvas" width="480" height="512"></canvas>
             <div id="ui">
                 <span id="scoreDisplay">SCORE: 0</span>
                 <span id="waveDisplay">WAVE 1</span>
@@ -105,7 +105,7 @@
             </div>
         </div>
     </div>
-    <div id="controls">← → ↑ ↓ MOVE | SPACE FIRE | SHIFT LOG PURGE | ? QUERIES</div>
+    <div id="controls">← → MOVE | SPACE FIRE | SHIFT LOG PURGE | ? QUERIES</div>
     <div id="movesPanel">
         <h2>👁 QUERY TYPES</h2>
         <div id="movesList"></div>
@@ -113,13 +113,19 @@
     </div>
 
 <script>
+// ============================================================
+// LOG CENTIPEDE — Faithful Atari 1981 Centipede recreation
+// Grid-based, deterministic, rule-driven state machine
+// ============================================================
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const W = canvas.width, H = canvas.height;
-const CELL = 20;
-const COLS = W / CELL;  // 30
-const ROWS = H / CELL;  // 30
-const PLAYER_ZONE_TOP = ROWS - 6; // Player can move in bottom 6 rows
+
+// Grid constants — everything lives on this grid
+const TILE = 16;
+const COLS = canvas.width / TILE;   // 30
+const ROWS = canvas.height / TILE;  // 32
+const PLAYER_ZONE = ROWS - 6;      // Player can move in bottom 6 rows
 
 // Audio
 let muted = false;
@@ -144,14 +150,7 @@ function sfxPurge() { playSound(440, 0.08); setTimeout(() => playSound(660, 0.08
 function sfxScorpion() { playSound(150, 0.15, 'sawtooth', 0.08); }
 function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
 
-const QUERIES = [
-    { name: 'SELECT *', desc: 'Single shot query. One bullet on screen at a time.', wave: 1 },
-    { name: 'LOG PURGE', desc: 'SHIFT: Clears all threats in your analyst zone.', wave: 1 },
-    { name: 'GROUP BY', desc: 'Unlocked at wave 5: shot splits into 3 on impact.', wave: 5 },
-    { name: 'DROP TABLE', desc: 'Wave 8+: rare screen-clear power-up drops.', wave: 8 }
-];
-
-// Log types for visual variety on segments
+// Log types for visual variety
 const LOG_TYPES = [
     { label: 'WARN', color: '#f59e0b' },
     { label: 'ERR',  color: '#ef4444' },
@@ -161,155 +160,223 @@ const LOG_TYPES = [
     { label: 'SYS',  color: '#22c55e' }
 ];
 
-// Game state
+const QUERIES = [
+    { name: 'SELECT *', desc: 'Single shot query. One bullet on screen at a time.', wave: 1 },
+    { name: 'LOG PURGE', desc: 'SHIFT: Clears all threats in your analyst zone.', wave: 1 },
+    { name: 'GROUP BY', desc: 'Unlocked at wave 5: shot splits into 3 on impact.', wave: 5 },
+    { name: 'DROP TABLE', desc: 'Wave 8+: rare screen-clear power-up drops.', wave: 8 }
+];
+
+// ============================================================
+// GAME STATE
+// ============================================================
 let gameRunning = false, demoMode = true, gameOver = false;
 let score = 0, lives = 3, wave = 1, logsProcessed = 0;
 let purgeCharge = 0;
 let waveTransition = 0;
 let movesPanelOpen = false;
-let frameTick = 0;
+let gameTick = 0;
 
-// Player
-const player = { col: 15, row: ROWS - 2, x: 15 * CELL, y: (ROWS - 2) * CELL, speed: 4 };
+// ============================================================
+// MUSHROOM GRID — 2D array, the backbone of gameplay
+// ============================================================
+// mushrooms[row][col] = null | { hp: 1-4, poisoned: bool }
+let mushrooms = [];
 
-// Entities
-let bullet = null; // ONE bullet at a time (classic Centipede)
-let centipedes = [];
-let mushrooms = []; // grid: mushrooms[row][col] = { hp, poisoned }
-let spiders = [];
-let fleas = [];
-let scorpions = [];
-let particles = [];
-
-// Mushroom grid helpers
-function initMushroomGrid() {
+function initMushrooms() {
     mushrooms = [];
     for (let r = 0; r < ROWS; r++) {
-        mushrooms[r] = [];
-        for (let c = 0; c < COLS; c++) {
-            mushrooms[r][c] = null;
-        }
+        mushrooms[r] = new Array(COLS).fill(null);
     }
 }
 
-function setMushroom(row, col, hp = 4, poisoned = false) {
-    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-        mushrooms[row][col] = { hp, poisoned };
+function setMushroom(r, c, hp = 4, poisoned = false) {
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+        mushrooms[r][c] = { hp, poisoned };
     }
 }
 
-function getMushroom(row, col) {
-    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
-        return mushrooms[row][col];
-    }
+function getMushroom(r, c) {
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) return mushrooms[r][c];
     return null;
 }
 
-function hasMushroom(row, col) {
-    const m = getMushroom(row, col);
-    return m && m.hp > 0;
+function hasMushroom(r, c) {
+    const m = getMushroom(r, c);
+    return m !== null && m.hp > 0;
 }
 
 function generateMushrooms() {
-    initMushroomGrid();
-    const count = 25 + wave * 3;
+    initMushrooms();
+    // Populate field rows (not top row, not player zone bottom 2 rows)
+    const count = 20 + wave * 3;
     for (let i = 0; i < count; i++) {
-        const col = Math.floor(Math.random() * COLS);
-        const row = 2 + Math.floor(Math.random() * (PLAYER_ZONE_TOP - 3));
-        if (!hasMushroom(row, col)) {
-            setMushroom(row, col, 4);
-        }
+        const c = Math.floor(Math.random() * COLS);
+        const r = 2 + Math.floor(Math.random() * (PLAYER_ZONE - 3));
+        if (!hasMushroom(r, c)) setMushroom(r, c);
     }
 }
 
-// =====================
-// CENTIPEDE - Chain-following movement (the core fix)
-// =====================
-// Each centipede is an array of segments. The HEAD decides direction.
-// Body segments follow the path of the segment ahead of them.
+// ============================================================
+// PLAYER — grid-aligned horizontal, pixel-smooth movement
+// ============================================================
+const player = {
+    x: 0, y: 0,   // pixel position (top-left of tile)
+    speed: 3
+};
 
-function createCentipede(length, startRow, startDir) {
-    const type = LOG_TYPES[Math.floor(Math.random() * LOG_TYPES.length)];
+function resetPlayer() {
+    player.x = Math.floor(COLS / 2) * TILE;
+    player.y = (ROWS - 2) * TILE;
+}
+
+// ============================================================
+// BULLET — ONE at a time (classic Centipede)
+// ============================================================
+let bullet = null; // { x, y } pixel coords, moves up by grid
+
+function fireBullet() {
+    if (bullet) return;
+    sfxShoot();
+    bullet = { x: player.x + TILE / 2, y: player.y };
+}
+
+// ============================================================
+// CENTIPEDE — The core: grid-based deterministic state machine
+// ============================================================
+// Each centipede is an object with a segments array.
+// Head controls direction. Body follows previous positions.
+//
+// Segment: { gx, gy, prevGx, prevGy, isHead, type, dir, diving }
+//   gx, gy = grid coordinates
+//   dir = 1 (right) or -1 (left)
+//   diving = true when on poisoned mushroom path (dive straight down)
+
+let centipedes = []; // Array of { segments: [...], dir: 1|-1 }
+
+function createCentipede(length, startRow, dir) {
     const segments = [];
     // Start off-screen, entering from the side
-    const startCol = startDir > 0 ? -length : COLS + length - 1;
     for (let i = 0; i < length; i++) {
+        const gx = dir > 0 ? -(i + 1) : COLS + i;
         segments.push({
-            col: startCol + (startDir > 0 ? -i : i),
-            row: startRow,
-            dir: startDir,
-            type: LOG_TYPES[(Math.floor(Math.random() * LOG_TYPES.length))],
+            gx: gx,
+            gy: startRow,
+            prevGx: gx,
+            prevGy: startRow,
             isHead: i === 0,
-            // Previous position for body to follow
-            prevCol: startCol + (startDir > 0 ? -i : i),
-            prevRow: startRow,
-            prevDir: startDir
+            type: LOG_TYPES[Math.floor(Math.random() * LOG_TYPES.length)],
+            dir: dir,
+            diving: false
         });
     }
-    return segments;
+    return { segments };
 }
 
-function moveCentipede(segs) {
-    // Move from tail to head so body follows the segment ahead
-    for (let i = segs.length - 1; i >= 0; i--) {
-        const seg = segs[i];
-        // Save current position
-        seg.prevCol = seg.col;
-        seg.prevRow = seg.row;
-        seg.prevDir = seg.dir;
+function moveCentipedes() {
+    for (const centi of centipedes) {
+        const segs = centi.segments;
+        if (segs.length === 0) continue;
 
-        if (i === 0) {
-            // HEAD: decide own movement
-            moveHead(seg);
-        } else {
-            // BODY: follow the segment ahead (take its previous position)
-            const ahead = segs[i - 1];
-            seg.col = ahead.prevCol;
-            seg.row = ahead.prevRow;
-            seg.dir = ahead.prevDir;
+        // Save all previous positions FIRST
+        for (const seg of segs) {
+            seg.prevGx = seg.gx;
+            seg.prevGy = seg.gy;
+        }
+
+        // Move head (segment 0) — the brain
+        const head = segs[0];
+        moveHead(head);
+
+        // Body follows: each segment takes the previous position of the one ahead
+        for (let i = 1; i < segs.length; i++) {
+            segs[i].gx = segs[i - 1].prevGx;
+            segs[i].gy = segs[i - 1].prevGy;
+            segs[i].dir = segs[i - 1].dir;
         }
     }
 }
 
 function moveHead(head) {
-    const nextCol = head.col + head.dir;
+    // Poisoned dive: go straight down, ignoring zig-zag
+    if (head.diving) {
+        head.gy += 1;
+        if (head.gy >= ROWS) {
+            // Reached absolute bottom — wrap to top and resume normal movement
+            head.gy = 0;
+            head.diving = false;
+        } else if (head.gy >= PLAYER_ZONE) {
+            // Reached player zone — stop diving, resume horizontal zig-zag here
+            head.diving = false;
+        }
+        return;
+    }
 
-    // Check if blocked by wall or mushroom
-    const blocked = nextCol < 0 || nextCol >= COLS || hasMushroom(head.row, nextCol);
+    const nextGx = head.gx + head.dir;
+
+    // Check if next horizontal tile is blocked
+    const blockedByWall = nextGx < 0 || nextGx >= COLS;
+    const blockedByMushroom = !blockedByWall && hasMushroom(head.gy, nextGx);
+    const blocked = blockedByWall || blockedByMushroom;
 
     if (blocked) {
-        // Check if mushroom is poisoned - dive straight down
-        const m = getMushroom(head.row, nextCol);
-        if (m && m.poisoned) {
-            // Dive: go straight down without reversing until hitting player zone
-            head.row++;
-            if (head.row >= ROWS) {
-                head.row = 0; // wrap to top
-            }
-        } else {
-            // Normal: drop one row and reverse
-            head.row++;
-            head.dir *= -1;
-            if (head.row >= ROWS) {
-                head.row = 0; // wrap to top
+        // Check if the blocking mushroom is poisoned → trigger dive
+        if (blockedByMushroom) {
+            const m = getMushroom(head.gy, nextGx);
+            if (m && m.poisoned) {
+                head.diving = true;
+                head.gy += 1;
+                if (head.gy >= ROWS) {
+                    head.gy = 0;
+                    head.diving = false;
+                }
+                return;
             }
         }
+
+        // Normal collision: drop one row, reverse direction
+        head.dir *= -1;
+
+        // Check if at bottom of screen
+        if (head.gy >= ROWS - 1) {
+            // At absolute bottom — move UP one row instead of down
+            head.gy -= 1;
+        } else if (head.gy >= PLAYER_ZONE) {
+            // In player zone: can go down OR up depending on direction history
+            // Original Centipede: once in player zone, zig-zag stays in zone
+            head.gy += 1;
+            if (head.gy >= ROWS) {
+                head.gy -= 2; // bounce back up
+            }
+        } else {
+            // Normal field: drop one row
+            head.gy += 1;
+        }
     } else {
-        head.col = nextCol;
+        // Move horizontally
+        head.gx = nextGx;
     }
 }
 
 function spawnWave() {
-    const length = 10 + Math.min(wave * 2, 20);
+    const length = Math.min(12 + wave * 2, 30);
     centipedes.push(createCentipede(length, 0, 1));
-    if (wave >= 3) centipedes.push(createCentipede(Math.floor(length / 2), 2, -1));
-    if (wave >= 6) centipedes.push(createCentipede(Math.floor(length / 3), 4, 1));
+    // Extra shorter centipedes at higher waves
+    if (wave >= 3) centipedes.push(createCentipede(Math.floor(length / 3), 1, -1));
+    if (wave >= 6) centipedes.push(createCentipede(Math.floor(length / 4), 2, 1));
 }
 
-// =====================
-// GAME CONTROLS
-// =====================
+// ============================================================
+// ENEMIES — Spider, Flea, Scorpion
+// ============================================================
+let spiders = [];
+let fleas = [];
+let scorpions = [];
+let particles = [];
 
+// ============================================================
+// INPUT
+// ============================================================
 const keys = {};
 document.addEventListener('keydown', e => {
     keys[e.key] = true;
@@ -321,15 +388,17 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { keys[e.key] = false; });
 
+// ============================================================
+// GAME LIFECYCLE
+// ============================================================
 function startGame() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     demoMode = false;
     gameRunning = true;
     gameOver = false;
     score = 0; lives = 3; wave = 1; logsProcessed = 0;
-    purgeCharge = 0; frameTick = 0;
-    player.x = (COLS / 2) * CELL;
-    player.y = (ROWS - 2) * CELL;
+    purgeCharge = 0; gameTick = 0;
+    resetPlayer();
     bullet = null;
     centipedes = [];
     spiders = [];
@@ -340,6 +409,7 @@ function startGame() {
     spawnWave();
     sfxWave();
 }
+
 function resetGame() { startGame(); }
 
 function spawnParticles(x, y, color, count = 6) {
@@ -370,64 +440,50 @@ function toggleMovesPanel() {
     }
 }
 
-// =====================
-// SHOOTING - One bullet at a time (classic Centipede)
-// =====================
-
-function fireBullet() {
-    if (bullet) return; // Only ONE bullet on screen
-    sfxShoot();
-    bullet = { x: player.x + CELL / 2, y: player.y, vy: -10 };
-}
-
 function activatePurge() {
     if (purgeCharge < 100) return;
     purgeCharge = 0;
     sfxPurge();
-    // Kill everything in player zone
-    centipedes.forEach(segs => {
-        for (let i = segs.length - 1; i >= 0; i--) {
-            if (segs[i].row >= PLAYER_ZONE_TOP) {
-                const sx = segs[i].col * CELL + CELL / 2;
-                const sy = segs[i].row * CELL + CELL / 2;
-                spawnParticles(sx, sy, segs[i].type.color, 4);
+    for (const centi of centipedes) {
+        for (let i = centi.segments.length - 1; i >= 0; i--) {
+            const s = centi.segments[i];
+            if (s.gy >= PLAYER_ZONE) {
+                spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, s.type.color, 4);
                 score += 10;
                 logsProcessed++;
-                segs.splice(i, 1);
+                centi.segments.splice(i, 1);
             }
         }
-    });
-    centipedes = centipedes.filter(s => s.length > 0);
-    fleas = fleas.filter(f => f.y < PLAYER_ZONE_TOP * CELL);
-    spiders = spiders.filter(s => s.y < PLAYER_ZONE_TOP * CELL);
+    }
+    centipedes = centipedes.filter(c => c.segments.length > 0);
+    fleas = fleas.filter(f => f.y < PLAYER_ZONE * TILE);
+    spiders = spiders.filter(s => s.y < PLAYER_ZONE * TILE);
 }
 
-// =====================
+// ============================================================
 // DEMO AI
-// =====================
-
+// ============================================================
 function demoAI() {
-    const allSegs = centipedes.flat().filter(s => s.col >= 0 && s.col < COLS);
+    const allSegs = centipedes.flatMap(c => c.segments).filter(s => s.gx >= 0 && s.gx < COLS);
     if (allSegs.length > 0) {
-        // Find the lowest (closest to player) segment
-        const lowest = allSegs.reduce((best, s) => s.row > best.row ? s : best, allSegs[0]);
-        const targetX = lowest.col * CELL + CELL / 2;
-        if (player.x + CELL / 2 < targetX - 3) player.x += player.speed * 0.7;
-        else if (player.x + CELL / 2 > targetX + 3) player.x -= player.speed * 0.7;
+        const lowest = allSegs.reduce((best, s) => s.gy > best.gy ? s : best, allSegs[0]);
+        const targetX = lowest.gx * TILE + TILE / 2;
+        const px = player.x + TILE / 2;
+        if (px < targetX - 3) player.x += player.speed * 0.7;
+        else if (px > targetX + 3) player.x -= player.speed * 0.7;
     }
-    // Shoot when roughly aligned
-    if (!bullet && Math.random() < 0.15) {
-        bullet = { x: player.x + CELL / 2, y: player.y, vy: -10 };
+    if (!bullet && Math.random() < 0.12) {
+        bullet = { x: player.x + TILE / 2, y: player.y };
     }
 }
 
-// =====================
-// UPDATE
-// =====================
-
+// ============================================================
+// UPDATE — Fixed timestep logic
+// ============================================================
 function update() {
-    frameTick++;
+    gameTick++;
 
+    // Wave transition
     if (waveTransition > 0) {
         waveTransition--;
         if (waveTransition === 0) { spawnWave(); sfxWave(); }
@@ -436,7 +492,7 @@ function update() {
 
     if (demoMode) {
         demoAI();
-        const totalSegs = centipedes.reduce((sum, c) => sum + c.length, 0);
+        const totalSegs = centipedes.reduce((sum, c) => sum + c.segments.length, 0);
         if (totalSegs === 0) {
             wave = ((wave) % 3) + 1;
             generateMushrooms();
@@ -446,98 +502,98 @@ function update() {
 
     if (!gameRunning && !demoMode) return;
 
-    // Player movement (pixel-based, constrained to player zone)
+    // --- Player movement (pixel-based, constrained to player zone) ---
     if (!demoMode) {
         if (keys['ArrowLeft']  || keys['a']) player.x -= player.speed;
         if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
-        if (keys['ArrowUp']    || keys['w']) player.y -= player.speed;
-        if (keys['ArrowDown']  || keys['s']) player.y += player.speed;
         if (keys[' ']) fireBullet();
         if (keys['Shift']) activatePurge();
     }
-    player.x = Math.max(0, Math.min(W - CELL, player.x));
-    player.y = Math.max(PLAYER_ZONE_TOP * CELL, Math.min(H - CELL, player.y));
+    // Horizontal bounds
+    player.x = Math.max(0, Math.min((COLS - 1) * TILE, player.x));
+    // Player stays on fixed row (classic Centipede: horizontal only in player zone)
+    player.y = (ROWS - 2) * TILE;
 
-    // Bullet movement
+    // --- Bullet movement (fast, pixel-based) ---
     if (bullet) {
-        bullet.y += bullet.vy;
-        if (bullet.y < -10) bullet = null;
+        bullet.y -= 8;
+        if (bullet.y < -TILE) bullet = null;
     }
 
-    // Centipede movement - grid-based, timed
-    const moveInterval = Math.max(2, 7 - Math.floor(wave / 2));
-    if (frameTick % moveInterval === 0) {
-        centipedes.forEach(segs => moveCentipede(segs));
+    // --- Centipede movement (grid-based, timed by tick interval) ---
+    // Speed scales with wave: faster as waves increase
+    const moveInterval = Math.max(2, 8 - Math.floor(wave / 2));
+    if (gameTick % moveInterval === 0) {
+        moveCentipedes();
     }
 
-    // Bullet vs centipede
+    // --- Bullet vs Centipede collision ---
     if (bullet) {
-        const bCol = Math.floor(bullet.x / CELL);
-        const bRow = Math.floor(bullet.y / CELL);
-        let hitSomething = false;
+        const bCol = Math.floor(bullet.x / TILE);
+        const bRow = Math.floor(bullet.y / TILE);
+        let hit = false;
 
-        for (let ci = 0; ci < centipedes.length && !hitSomething; ci++) {
-            const segs = centipedes[ci];
+        for (let ci = 0; ci < centipedes.length && !hit; ci++) {
+            const segs = centipedes[ci].segments;
             for (let i = 0; i < segs.length; i++) {
                 const s = segs[i];
-                if (s.col === bCol && s.row === bRow && s.col >= 0 && s.col < COLS) {
-                    // Hit!
-                    const sx = s.col * CELL + CELL / 2;
-                    const sy = s.row * CELL + CELL / 2;
-                    spawnParticles(sx, sy, s.type.color, 8);
+                if (s.gx === bCol && s.gy === bRow && s.gx >= 0 && s.gx < COLS) {
+                    // HIT — destroy segment
+                    spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, s.type.color, 8);
                     score += s.isHead ? 100 : 50;
                     logsProcessed++;
                     purgeCharge = Math.min(100, purgeCharge + 5);
                     sfxHit();
 
-                    // Leave mushroom where segment was hit
-                    if (!hasMushroom(s.row, s.col)) {
-                        setMushroom(s.row, s.col, 4);
+                    // Leave a mushroom where segment was destroyed
+                    if (s.gy >= 0 && s.gy < ROWS && !hasMushroom(s.gy, s.gx)) {
+                        setMushroom(s.gy, s.gx);
                     }
 
-                    // Split centipede: segment behind becomes new head
+                    // Split: everything behind becomes a new centipede
                     if (i < segs.length - 1) {
-                        const tail = segs.splice(i + 1);
-                        if (tail.length > 0) {
-                            tail[0].isHead = true;
-                            tail[0].dir *= -1; // New head reverses
-                            centipedes.push(tail);
+                        const tailSegs = segs.splice(i + 1);
+                        if (tailSegs.length > 0) {
+                            tailSegs[0].isHead = true;
+                            tailSegs[0].dir *= -1; // New head reverses
+                            centipedes.push({ segments: tailSegs });
                         }
                     }
                     segs.splice(i, 1);
                     if (segs.length > 0) segs[0].isHead = true;
 
                     bullet = null;
-                    hitSomething = true;
+                    hit = true;
                     break;
                 }
             }
         }
-        centipedes = centipedes.filter(s => s.length > 0);
+        centipedes = centipedes.filter(c => c.segments.length > 0);
     }
 
-    // Bullet vs mushroom
+    // --- Bullet vs Mushroom ---
     if (bullet) {
-        const bCol = Math.floor(bullet.x / CELL);
-        const bRow = Math.floor(bullet.y / CELL);
+        const bCol = Math.floor(bullet.x / TILE);
+        const bRow = Math.floor(bullet.y / TILE);
         const m = getMushroom(bRow, bCol);
         if (m && m.hp > 0) {
             m.hp--;
             sfxMushroom();
             if (m.hp <= 0) {
                 mushrooms[bRow][bCol] = null;
-                spawnParticles(bCol * CELL + CELL / 2, bRow * CELL + CELL / 2, '#ec4899', 3);
+                spawnParticles(bCol * TILE + TILE / 2, bRow * TILE + TILE / 2, '#ec4899', 3);
+                score += 1;
             }
             bullet = null;
         }
     }
 
-    // Bullet vs spider
+    // --- Bullet vs Spider ---
     if (bullet) {
         for (let i = spiders.length - 1; i >= 0; i--) {
             const s = spiders[i];
             if (Math.abs(bullet.x - s.x) < 12 && Math.abs(bullet.y - s.y) < 12) {
-                score += 300 + Math.floor(Math.random() * 600); // 300-900 based on distance like original
+                score += 300 + Math.floor(Math.random() * 600);
                 spawnParticles(s.x, s.y, '#8b5cf6', 10);
                 sfxHit();
                 spiders.splice(i, 1);
@@ -547,22 +603,25 @@ function update() {
         }
     }
 
-    // Bullet vs flea
+    // --- Bullet vs Flea ---
     if (bullet) {
         for (let i = fleas.length - 1; i >= 0; i--) {
             const f = fleas[i];
             if (Math.abs(bullet.x - f.x) < 10 && Math.abs(bullet.y - f.y) < 10) {
-                score += 200;
-                spawnParticles(f.x, f.y, '#f59e0b', 6);
+                f.hitsLeft--;
+                if (f.hitsLeft <= 0) {
+                    score += 200;
+                    spawnParticles(f.x, f.y, '#f59e0b', 6);
+                    fleas.splice(i, 1);
+                }
                 sfxHit();
-                fleas.splice(i, 1);
                 bullet = null;
                 break;
             }
         }
     }
 
-    // Bullet vs scorpion
+    // --- Bullet vs Scorpion ---
     if (bullet) {
         for (let i = scorpions.length - 1; i >= 0; i--) {
             const s = scorpions[i];
@@ -577,131 +636,129 @@ function update() {
         }
     }
 
-    // Spawn spider (APT) - enters from sides in player zone
-    if (Math.random() < 0.004 * Math.min(wave, 5) && spiders.length < 2) {
+    // --- Spawn Spider (enters from side, moves erratically in player zone) ---
+    if (Math.random() < 0.003 * Math.min(wave, 5) && spiders.length < 2) {
         const fromLeft = Math.random() < 0.5;
         spiders.push({
-            x: fromLeft ? -16 : W + 16,
-            y: PLAYER_ZONE_TOP * CELL + Math.random() * (6 * CELL),
+            x: fromLeft ? -16 : canvas.width + 16,
+            y: PLAYER_ZONE * TILE + Math.random() * (5 * TILE),
             vx: (fromLeft ? 1 : -1) * (1.5 + Math.random()),
-            targetY: PLAYER_ZONE_TOP * CELL + Math.random() * (6 * CELL),
+            targetY: PLAYER_ZONE * TILE + Math.random() * (5 * TILE),
             changeTimer: 30 + Math.floor(Math.random() * 40)
         });
     }
 
-    // Spider movement - erratic bouncing in player zone, eats mushrooms
+    // Spider movement
     spiders.forEach(s => {
         s.x += s.vx;
         s.changeTimer--;
         if (s.changeTimer <= 0) {
-            s.targetY = PLAYER_ZONE_TOP * CELL + Math.random() * (6 * CELL);
+            s.targetY = PLAYER_ZONE * TILE + Math.random() * (5 * TILE);
             s.changeTimer = 20 + Math.floor(Math.random() * 40);
         }
         if (s.y < s.targetY) s.y += 2;
         else if (s.y > s.targetY) s.y -= 2;
-
-        // Eat mushrooms in its path
-        const sc = Math.floor(s.x / CELL);
-        const sr = Math.floor(s.y / CELL);
-        if (hasMushroom(sr, sc)) {
+        // Spider eats mushrooms
+        const sc = Math.floor(s.x / TILE);
+        const sr = Math.floor(s.y / TILE);
+        if (sc >= 0 && sc < COLS && sr >= 0 && sr < ROWS && hasMushroom(sr, sc)) {
             mushrooms[sr][sc] = null;
         }
     });
-    spiders = spiders.filter(s => s.x > -40 && s.x < W + 40);
+    spiders = spiders.filter(s => s.x > -40 && s.x < canvas.width + 40);
 
-    // Spawn flea (false positive) - drops straight down, leaves mushrooms
+    // --- Spawn Flea (drops straight down, leaves mushroom trail) ---
     if (Math.random() < 0.002 * Math.min(wave, 4) && fleas.length < 1) {
+        // Fleas appear when mushrooms in player zone are low
         fleas.push({
-            x: (Math.floor(Math.random() * COLS)) * CELL + CELL / 2,
+            x: Math.floor(Math.random() * COLS) * TILE + TILE / 2,
             y: -10,
-            vy: 3 + Math.min(wave * 0.3, 2)
+            vy: 3 + Math.min(wave * 0.3, 2),
+            hitsLeft: 2 // Takes 2 shots like original
         });
     }
-
-    // Flea movement - straight down, drops mushrooms
     fleas.forEach(f => {
         f.y += f.vy;
-        // Drop mushroom trail
-        const fc = Math.floor(f.x / CELL);
-        const fr = Math.floor(f.y / CELL);
-        if (fr >= 0 && fr < ROWS && !hasMushroom(fr, fc) && Math.random() < 0.15) {
-            setMushroom(fr, fc, 4);
+        const fc = Math.floor(f.x / TILE);
+        const fr = Math.floor(f.y / TILE);
+        if (fr >= 0 && fr < ROWS && !hasMushroom(fr, fc) && Math.random() < 0.12) {
+            setMushroom(fr, fc);
         }
     });
-    fleas = fleas.filter(f => f.y < H + 10);
+    fleas = fleas.filter(f => f.y < canvas.height + 10);
 
-    // Spawn scorpion (rootkit) - moves horizontally, poisons mushrooms
+    // --- Spawn Scorpion (horizontal, poisons mushrooms) ---
     if (wave >= 2 && Math.random() < 0.002 * Math.min(wave, 4) && scorpions.length < 1) {
         const fromLeft = Math.random() < 0.5;
-        const row = 2 + Math.floor(Math.random() * (PLAYER_ZONE_TOP - 4));
+        const row = 2 + Math.floor(Math.random() * (PLAYER_ZONE - 4));
         scorpions.push({
-            x: fromLeft ? -20 : W + 20,
-            y: row * CELL + CELL / 2,
+            x: fromLeft ? -20 : canvas.width + 20,
+            y: row * TILE + TILE / 2,
             row: row,
             vx: (fromLeft ? 1 : -1) * (1.5 + wave * 0.15)
         });
     }
-
-    // Scorpion movement - straight horizontal, poisons mushrooms it touches
     scorpions.forEach(s => {
         s.x += s.vx;
-        const sc = Math.floor(s.x / CELL);
+        const sc = Math.floor(s.x / TILE);
         if (sc >= 0 && sc < COLS && hasMushroom(s.row, sc)) {
             mushrooms[s.row][sc].poisoned = true;
         }
     });
-    scorpions = scorpions.filter(s => s.x > -40 && s.x < W + 40);
+    scorpions = scorpions.filter(s => s.x > -40 && s.x < canvas.width + 40);
 
-    // Player collision with centipede
+    // --- Player collision ---
     if (!demoMode) {
-        const pCol = Math.floor((player.x + CELL / 2) / CELL);
-        const pRow = Math.floor((player.y + CELL / 2) / CELL);
-        const allSegs = centipedes.flat();
-        for (const s of allSegs) {
-            if (s.col === pCol && s.row === pRow && s.col >= 0 && s.col < COLS) {
-                playerDeath();
-                break;
+        const pCol = Math.floor((player.x + TILE / 2) / TILE);
+        const pRow = Math.floor((player.y + TILE / 2) / TILE);
+
+        // vs centipede
+        for (const centi of centipedes) {
+            for (const s of centi.segments) {
+                if (s.gx === pCol && s.gy === pRow && s.gx >= 0 && s.gx < COLS) {
+                    playerDeath();
+                    return;
+                }
             }
         }
-        // Spider collision
+        // vs spider
         for (const s of spiders) {
-            if (Math.abs(s.x - (player.x + CELL / 2)) < 14 && Math.abs(s.y - (player.y + CELL / 2)) < 14) {
+            if (Math.abs(s.x - (player.x + TILE / 2)) < 14 && Math.abs(s.y - (player.y + TILE / 2)) < 14) {
                 playerDeath();
-                break;
+                return;
             }
         }
-        // Flea collision
+        // vs flea
         for (const f of fleas) {
-            if (Math.abs(f.x - (player.x + CELL / 2)) < 10 && Math.abs(f.y - (player.y + CELL / 2)) < 12) {
+            if (Math.abs(f.x - (player.x + TILE / 2)) < 10 && Math.abs(f.y - (player.y + TILE / 2)) < 12) {
                 playerDeath();
-                break;
+                return;
             }
         }
     }
 
-    // Wave complete
-    const totalSegs = centipedes.reduce((sum, c) => sum + c.length, 0);
+    // --- Wave complete ---
+    const totalSegs = centipedes.reduce((sum, c) => sum + c.segments.length, 0);
     if (totalSegs === 0 && !demoMode && !waveTransition && gameRunning) {
         wave++;
         waveTransition = 90;
-        // Restore damaged mushrooms on wave clear (like original)
+        // Restore mushrooms on wave clear (like original)
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 const m = mushrooms[r][c];
-                if (m && m.hp > 0 && m.hp < 4) {
+                if (m && m.hp > 0) {
                     m.hp = 4;
                     m.poisoned = false;
                 }
             }
         }
-        generateMushrooms();
     }
 
-    // Particles
+    // --- Particles ---
     particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
     particles = particles.filter(p => p.life > 0);
 
-    // UI
+    // --- UI ---
     document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
     document.getElementById('waveDisplay').textContent = `WAVE ${wave}`;
     document.getElementById('livesDisplay').textContent = '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, 3 - lives));
@@ -712,10 +769,9 @@ function update() {
 
 function playerDeath() {
     lives--;
-    spawnParticles(player.x + CELL / 2, player.y + CELL / 2, '#ec4899', 12);
+    spawnParticles(player.x + TILE / 2, player.y + TILE / 2, '#ec4899', 12);
     sfxDeath();
-    player.x = (COLS / 2) * CELL;
-    player.y = (ROWS - 2) * CELL;
+    resetPlayer();
     bullet = null;
     if (lives <= 0) {
         gameRunning = false;
@@ -723,221 +779,194 @@ function playerDeath() {
     }
 }
 
-// =====================
+// ============================================================
 // DRAW
-// =====================
-
+// ============================================================
 function draw() {
     ctx.fillStyle = '#0a0a14';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle SIEM grid
-    ctx.strokeStyle = 'rgba(131,24,67,0.08)';
+    // Subtle grid
+    ctx.strokeStyle = 'rgba(131,24,67,0.06)';
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= COLS; x++) {
-        ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x * TILE, 0); ctx.lineTo(x * TILE, canvas.height); ctx.stroke();
     }
     for (let y = 0; y <= ROWS; y++) {
-        ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(W, y * CELL); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y * TILE); ctx.lineTo(canvas.width, y * TILE); ctx.stroke();
     }
     ctx.lineWidth = 1;
 
     // Player zone indicator
     ctx.fillStyle = 'rgba(236,72,153,0.03)';
-    ctx.fillRect(0, PLAYER_ZONE_TOP * CELL, W, (ROWS - PLAYER_ZONE_TOP) * CELL);
-    ctx.strokeStyle = 'rgba(236,72,153,0.15)';
-    ctx.beginPath();
-    ctx.moveTo(0, PLAYER_ZONE_TOP * CELL);
-    ctx.lineTo(W, PLAYER_ZONE_TOP * CELL);
-    ctx.stroke();
+    ctx.fillRect(0, PLAYER_ZONE * TILE, canvas.width, (ROWS - PLAYER_ZONE) * TILE);
+    ctx.strokeStyle = 'rgba(236,72,153,0.12)';
+    ctx.beginPath(); ctx.moveTo(0, PLAYER_ZONE * TILE); ctx.lineTo(canvas.width, PLAYER_ZONE * TILE); ctx.stroke();
 
-    // Mushrooms (log sources)
+    // --- Mushrooms ---
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             const m = mushrooms[r][c];
             if (!m || m.hp <= 0) continue;
-            const mx = c * CELL, my = r * CELL;
+            const mx = c * TILE, my = r * TILE;
             const alpha = m.hp / 4;
 
             if (m.poisoned) {
-                // Poisoned mushrooms glow orange
                 ctx.fillStyle = `rgba(249,115,22,${alpha * 0.5})`;
-                ctx.fillRect(mx + 2, my + 2, CELL - 4, CELL - 4);
+                ctx.fillRect(mx + 1, my + 1, TILE - 2, TILE - 2);
                 ctx.fillStyle = `rgba(249,115,22,${alpha * 0.8})`;
             } else {
-                ctx.fillStyle = `rgba(236,72,153,${alpha * 0.4})`;
-                ctx.fillRect(mx + 2, my + 2, CELL - 4, CELL - 4);
+                ctx.fillStyle = `rgba(236,72,153,${alpha * 0.35})`;
+                ctx.fillRect(mx + 1, my + 1, TILE - 2, TILE - 2);
                 ctx.fillStyle = `rgba(236,72,153,${alpha * 0.7})`;
             }
-            // Mushroom cap shape
-            ctx.fillRect(mx + 4, my + 3, CELL - 8, 6);
-            ctx.fillRect(mx + 6, my + 9, CELL - 12, 8);
+            // Cap
+            ctx.fillRect(mx + 2, my + 2, TILE - 4, 5);
+            // Stem
+            ctx.fillRect(mx + 5, my + 7, TILE - 10, 6);
         }
     }
 
-    // Centipedes - draw with connection lines between segments
-    centipedes.forEach(segs => {
-        // Draw connection lines first
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    // --- Centipedes ---
+    for (const centi of centipedes) {
+        const segs = centi.segments;
+
+        // Connection lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
         ctx.lineWidth = 2;
         for (let i = 1; i < segs.length; i++) {
-            const prev = segs[i - 1];
-            const curr = segs[i];
-            if (prev.col >= 0 && prev.col < COLS && curr.col >= 0 && curr.col < COLS) {
+            const a = segs[i - 1], b = segs[i];
+            if (a.gx >= 0 && a.gx < COLS && b.gx >= 0 && b.gx < COLS) {
                 ctx.beginPath();
-                ctx.moveTo(prev.col * CELL + CELL / 2, prev.row * CELL + CELL / 2);
-                ctx.lineTo(curr.col * CELL + CELL / 2, curr.row * CELL + CELL / 2);
+                ctx.moveTo(a.gx * TILE + TILE / 2, a.gy * TILE + TILE / 2);
+                ctx.lineTo(b.gx * TILE + TILE / 2, b.gy * TILE + TILE / 2);
                 ctx.stroke();
             }
         }
         ctx.lineWidth = 1;
 
-        // Draw segments
+        // Segments
         segs.forEach((s, idx) => {
-            if (s.col < 0 || s.col >= COLS) return; // Off-screen
-            const sx = s.col * CELL, sy = s.row * CELL;
+            if (s.gx < 0 || s.gx >= COLS) return; // Off-screen
+            const sx = s.gx * TILE, sy = s.gy * TILE;
 
-            // Body
             ctx.fillStyle = s.type.color;
+
             if (s.isHead) {
-                // Head is slightly larger, rounded
-                ctx.fillRect(sx, sy + 1, CELL, CELL - 2);
+                // Head: slightly bigger, with eyes
+                ctx.fillRect(sx, sy + 1, TILE, TILE - 2);
                 // Eyes
                 ctx.fillStyle = '#ffffff';
-                const eyeX = s.dir > 0 ? CELL - 5 : 2;
-                ctx.fillRect(sx + eyeX, sy + 4, 3, 4);
-                ctx.fillRect(sx + eyeX, sy + CELL - 8, 3, 4);
-                // Pupil
+                const eyeX = s.dir > 0 ? TILE - 4 : 1;
+                ctx.fillRect(sx + eyeX, sy + 3, 3, 3);
+                ctx.fillRect(sx + eyeX, sy + TILE - 6, 3, 3);
+                // Pupils
                 ctx.fillStyle = '#0a0a14';
-                ctx.fillRect(sx + eyeX + 1, sy + 5, 1, 2);
-                ctx.fillRect(sx + eyeX + 1, sy + CELL - 7, 1, 2);
+                ctx.fillRect(sx + eyeX + 1, sy + 4, 1, 1);
+                ctx.fillRect(sx + eyeX + 1, sy + TILE - 5, 1, 1);
                 // Antennae
                 ctx.strokeStyle = s.type.color;
-                ctx.lineWidth = 1;
-                const antX = s.dir > 0 ? sx + CELL : sx;
-                ctx.beginPath();
-                ctx.moveTo(antX, sy + 3);
-                ctx.lineTo(antX + s.dir * 5, sy - 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(antX, sy + CELL - 3);
-                ctx.lineTo(antX + s.dir * 5, sy + CELL + 2);
-                ctx.stroke();
+                const antX = s.dir > 0 ? sx + TILE : sx;
+                ctx.beginPath(); ctx.moveTo(antX, sy + 2); ctx.lineTo(antX + s.dir * 4, sy - 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(antX, sy + TILE - 2); ctx.lineTo(antX + s.dir * 4, sy + TILE + 2); ctx.stroke();
             } else {
-                // Body segment - slightly smaller
-                ctx.fillRect(sx + 1, sy + 2, CELL - 2, CELL - 4);
-                // Legs (animated)
-                const legPhase = Math.sin(frameTick * 0.3 + idx * 0.8) > 0;
+                // Body segment
+                ctx.fillRect(sx + 1, sy + 2, TILE - 2, TILE - 4);
+                // Animated legs
+                const legPhase = Math.sin(gameTick * 0.3 + idx * 0.8) > 0;
                 ctx.fillStyle = s.type.color;
-                if (legPhase) {
-                    ctx.fillRect(sx + 3, sy + CELL - 2, 2, 3);
-                    ctx.fillRect(sx + CELL - 5, sy + CELL - 2, 2, 3);
-                    ctx.fillRect(sx + 3, sy - 1, 2, 3);
-                    ctx.fillRect(sx + CELL - 5, sy - 1, 2, 3);
-                } else {
-                    ctx.fillRect(sx + 7, sy + CELL - 2, 2, 3);
-                    ctx.fillRect(sx + CELL - 9, sy + CELL - 2, 2, 3);
-                    ctx.fillRect(sx + 7, sy - 1, 2, 3);
-                    ctx.fillRect(sx + CELL - 9, sy - 1, 2, 3);
-                }
+                const legOff = legPhase ? 2 : 6;
+                ctx.fillRect(sx + legOff, sy + TILE - 2, 2, 3);
+                ctx.fillRect(sx + TILE - legOff - 2, sy + TILE - 2, 2, 3);
+                ctx.fillRect(sx + legOff, sy - 1, 2, 3);
+                ctx.fillRect(sx + TILE - legOff - 2, sy - 1, 2, 3);
             }
 
             // Label
             ctx.fillStyle = '#0a0a14';
-            ctx.font = 'bold 7px Courier New';
+            ctx.font = 'bold 6px Courier New';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(s.type.label, sx + CELL / 2, sy + CELL / 2);
+            ctx.fillText(s.type.label, sx + TILE / 2, sy + TILE / 2);
         });
-    });
+    }
 
-    // Scorpions (rootkits) - horizontal movers that poison mushrooms
+    // --- Scorpions ---
     scorpions.forEach(s => {
         ctx.fillStyle = '#f97316';
-        // Body
-        ctx.fillRect(s.x - 12, s.y - 5, 24, 10);
-        // Tail (curved up)
+        ctx.fillRect(s.x - 10, s.y - 4, 20, 8);
         const tailDir = s.vx > 0 ? -1 : 1;
-        ctx.fillRect(s.x + tailDir * 12, s.y - 8, 6, 6);
-        ctx.fillRect(s.x + tailDir * 16, s.y - 11, 4, 6);
-        // Pincers
-        ctx.fillRect(s.x - tailDir * 10, s.y - 4, 6, 3);
-        ctx.fillRect(s.x - tailDir * 10, s.y + 1, 6, 3);
-        // Legs
-        const wiggle = Math.sin(frameTick * 0.2) * 2;
-        ctx.fillRect(s.x - 6, s.y + 5 + wiggle, 3, 4);
-        ctx.fillRect(s.x + 3, s.y + 5 - wiggle, 3, 4);
-        ctx.fillRect(s.x - 6, s.y - 9 - wiggle, 3, 4);
-        ctx.fillRect(s.x + 3, s.y - 9 + wiggle, 3, 4);
-        // Label
+        ctx.fillRect(s.x + tailDir * 10, s.y - 7, 5, 5);
+        ctx.fillRect(s.x + tailDir * 14, s.y - 9, 3, 5);
+        ctx.fillRect(s.x - tailDir * 8, s.y - 3, 5, 2);
+        ctx.fillRect(s.x - tailDir * 8, s.y + 1, 5, 2);
+        const w = Math.sin(gameTick * 0.2) * 2;
+        ctx.fillRect(s.x - 5, s.y + 4 + w, 2, 3);
+        ctx.fillRect(s.x + 3, s.y + 4 - w, 2, 3);
         ctx.fillStyle = '#fdba74';
-        ctx.font = '7px Courier New';
+        ctx.font = '6px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText('ROOTKIT', s.x, s.y + 16);
+        ctx.fillText('ROOTKIT', s.x, s.y + 14);
     });
 
-    // Spiders (APTs)
+    // --- Spiders ---
     spiders.forEach(s => {
         ctx.fillStyle = '#8b5cf6';
-        // Body
-        ctx.fillRect(s.x - 8, s.y - 6, 16, 12);
-        // Legs (4 pairs, animated)
-        const w = Math.sin(frameTick * 0.15) * 3;
-        ctx.fillRect(s.x - 12, s.y - 4 + w, 4, 2);
-        ctx.fillRect(s.x + 8, s.y - 4 - w, 4, 2);
-        ctx.fillRect(s.x - 12, s.y + 2 - w, 4, 2);
-        ctx.fillRect(s.x + 8, s.y + 2 + w, 4, 2);
-        // Eyes
+        ctx.fillRect(s.x - 7, s.y - 5, 14, 10);
+        const w = Math.sin(gameTick * 0.15) * 3;
+        ctx.fillRect(s.x - 10, s.y - 3 + w, 3, 2);
+        ctx.fillRect(s.x + 7, s.y - 3 - w, 3, 2);
+        ctx.fillRect(s.x - 10, s.y + 1 - w, 3, 2);
+        ctx.fillRect(s.x + 7, s.y + 1 + w, 3, 2);
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(s.x - 4, s.y - 4, 3, 3);
-        ctx.fillRect(s.x + 1, s.y - 4, 3, 3);
-        // Label
+        ctx.fillRect(s.x - 3, s.y - 3, 2, 2);
+        ctx.fillRect(s.x + 1, s.y - 3, 2, 2);
         ctx.fillStyle = '#c084fc';
-        ctx.font = '7px Courier New';
+        ctx.font = '6px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText('APT', s.x, s.y + 16);
+        ctx.fillText('APT', s.x, s.y + 14);
     });
 
-    // Fleas (false positives)
+    // --- Fleas ---
     fleas.forEach(f => {
         ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(f.x - 4, f.y - 6, 8, 12);
+        ctx.fillRect(f.x - 3, f.y - 5, 6, 10);
         ctx.fillStyle = '#0a0a14';
-        ctx.font = 'bold 7px Courier New';
+        ctx.font = 'bold 6px Courier New';
         ctx.textAlign = 'center';
         ctx.fillText('FP', f.x, f.y + 1);
     });
 
-    // Bullet
+    // --- Bullet ---
     if (bullet) {
         ctx.fillStyle = '#ec4899';
         ctx.shadowColor = '#ec4899';
         ctx.shadowBlur = 6;
-        ctx.fillRect(bullet.x - 1, bullet.y - 6, 3, 12);
+        ctx.fillRect(bullet.x - 1, bullet.y - 4, 3, 8);
         ctx.shadowBlur = 0;
     }
 
-    // Player (analyst cursor)
+    // --- Player (arrow/cursor shape) ---
     ctx.fillStyle = '#ec4899';
     ctx.shadowColor = '#ec4899';
     ctx.shadowBlur = 8;
-    const px = player.x + CELL / 2, py = player.y + CELL / 2;
+    const px = player.x + TILE / 2, py = player.y + TILE / 2;
     ctx.beginPath();
-    ctx.moveTo(px, py - 10);
-    ctx.lineTo(px - 7, py + 5);
-    ctx.lineTo(px - 2, py + 3);
-    ctx.lineTo(px - 3, py + 10);
-    ctx.lineTo(px + 3, py + 10);
-    ctx.lineTo(px + 2, py + 3);
-    ctx.lineTo(px + 7, py + 5);
+    ctx.moveTo(px, py - 8);
+    ctx.lineTo(px - 6, py + 4);
+    ctx.lineTo(px - 2, py + 2);
+    ctx.lineTo(px - 2, py + 8);
+    ctx.lineTo(px + 2, py + 8);
+    ctx.lineTo(px + 2, py + 2);
+    ctx.lineTo(px + 6, py + 4);
     ctx.closePath();
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Purge meter
+    // --- Purge meter ---
     if (gameRunning || demoMode) {
-        const mw = 100, mh = 6;
-        const mx = W - mw - 10, my = H - 16;
+        const mw = 80, mh = 5;
+        const mx = canvas.width - mw - 8, my = canvas.height - 14;
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(mx, my, mw, mh);
         ctx.fillStyle = purgeCharge >= 100 ? '#f59e0b' : '#831843';
@@ -946,13 +975,13 @@ function draw() {
         ctx.strokeRect(mx, my, mw, mh);
         if (purgeCharge >= 100) {
             ctx.fillStyle = '#f59e0b';
-            ctx.font = '9px Courier New';
+            ctx.font = '8px Courier New';
             ctx.textAlign = 'right';
-            ctx.fillText('SHIFT: PURGE READY', mx + mw, my - 4);
+            ctx.fillText('SHIFT: PURGE', mx + mw, my - 3);
         }
     }
 
-    // Particles
+    // --- Particles ---
     particles.forEach(p => {
         ctx.globalAlpha = p.life / p.maxLife;
         ctx.fillStyle = p.color;
@@ -960,62 +989,68 @@ function draw() {
     });
     ctx.globalAlpha = 1;
 
-    // Overlays
+    // --- Overlays ---
     if (demoMode) {
         ctx.fillStyle = 'rgba(10,10,20,0.6)';
-        ctx.fillRect(0, H / 2 - 80, W, 160);
+        ctx.fillRect(0, canvas.height / 2 - 70, canvas.width, 140);
         ctx.fillStyle = '#ec4899';
-        ctx.font = 'bold 36px Courier New';
+        ctx.font = 'bold 30px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText('LOG CENTIPEDE', W / 2, H / 2 - 25);
+        ctx.fillText('LOG CENTIPEDE', canvas.width / 2, canvas.height / 2 - 20);
         ctx.fillStyle = '#f472b6';
-        ctx.font = '15px Courier New';
-        ctx.fillText('Hunt the threat chain through your SIEM', W / 2, H / 2 + 10);
+        ctx.font = '13px Courier New';
+        ctx.fillText('Hunt the threat chain through your SIEM', canvas.width / 2, canvas.height / 2 + 10);
         ctx.fillStyle = '#be185d';
-        ctx.font = '14px Courier New';
+        ctx.font = '12px Courier New';
         if (Math.sin(Date.now() * 0.004) > 0) {
-            ctx.fillText('[ PRESS SPACE TO INVESTIGATE ]', W / 2, H / 2 + 50);
+            ctx.fillText('[ PRESS SPACE TO INVESTIGATE ]', canvas.width / 2, canvas.height / 2 + 42);
         }
     }
+
     if (waveTransition > 0) {
         const alpha = waveTransition > 60 ? 1 : waveTransition / 60;
         ctx.fillStyle = `rgba(10,10,20,${alpha * 0.7})`;
-        ctx.fillRect(0, 0, W, H);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#ec4899';
-        ctx.font = 'bold 48px Courier New';
+        ctx.font = 'bold 40px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText(`WAVE ${wave}`, W / 2, H / 2 - 10);
+        ctx.fillText(`WAVE ${wave}`, canvas.width / 2, canvas.height / 2 - 10);
         ctx.fillStyle = '#f472b6';
-        ctx.font = '18px Courier New';
+        ctx.font = '16px Courier New';
         const names = ['', 'LOG TRICKLE', 'EVENT STREAM', 'ALERT FLOOD', 'LOG TSUNAMI', 'SIEM OVERLOAD', 'DATA BREACH', 'FULL COMPROMISE', 'NATION STATE', 'ZERO DAY CASCADE', 'EXTINCTION EVENT'];
-        ctx.fillText(names[Math.min(wave, names.length - 1)] || `SEVERITY ${wave}`, W / 2, H / 2 + 25);
+        ctx.fillText(names[Math.min(wave, names.length - 1)] || `SEVERITY ${wave}`, canvas.width / 2, canvas.height / 2 + 20);
     }
+
     if (gameOver) {
         ctx.fillStyle = 'rgba(10,10,20,0.85)';
-        ctx.fillRect(0, 0, W, H);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 36px Courier New';
+        ctx.font = 'bold 30px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText('SOC OVERWHELMED', W / 2, H / 2 - 50);
+        ctx.fillText('SOC OVERWHELMED', canvas.width / 2, canvas.height / 2 - 45);
         ctx.fillStyle = '#ffffff';
-        ctx.font = '18px Courier New';
-        ctx.fillText(`Score: ${score}`, W / 2, H / 2 - 5);
-        ctx.fillText(`Waves Cleared: ${wave - 1}`, W / 2, H / 2 + 25);
-        ctx.fillText(`Logs Processed: ${logsProcessed}`, W / 2, H / 2 + 55);
+        ctx.font = '16px Courier New';
+        ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 - 5);
+        ctx.fillText(`Waves Cleared: ${wave - 1}`, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.fillText(`Logs Processed: ${logsProcessed}`, canvas.width / 2, canvas.height / 2 + 45);
         ctx.fillStyle = '#be185d';
-        ctx.font = '14px Courier New';
+        ctx.font = '12px Courier New';
         if (Math.sin(Date.now() * 0.004) > 0) {
-            ctx.fillText('[ PRESS SPACE TO REOPEN CASE ]', W / 2, H / 2 + 90);
+            ctx.fillText('[ PRESS SPACE TO REOPEN CASE ]', canvas.width / 2, canvas.height / 2 + 80);
         }
     }
 }
 
+// ============================================================
+// GAME LOOP
+// ============================================================
 function gameLoop() {
     update();
     draw();
     requestAnimationFrame(gameLoop);
 }
 
+// Init demo
 generateMushrooms();
 spawnWave();
 gameLoop();
