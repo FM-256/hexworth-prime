@@ -1,6 +1,6 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 8, 2026
+**Last Updated:** February 11, 2026
 **Updated By:** CCode-Opus4.6
 **Version:** 3.11.2 "INTEGRITY"
 
@@ -8,6 +8,7 @@
 
 ## CURRENT STATUS
 
+### 📊 MILESTONE: INSTRUCTOR ANALYTICS COMPLETE! (Real Firestore data, smart ID resolution, all charts wired)
 ### ✅ MILESTONE: A+ CORE 2 & WSA CONTENT AUDIT COMPLETE! (Midterm + 28 files enhanced/created)
 ### 🔧 MILESTONE: INSTRUCTOR DASHBOARD PIPELINE FIXED! (5 cascading bugs — full E2E tracking working)
 ### 📡 MILESTONE: ANALYTICS SYNC FIXED! (Student progress now syncs to Firestore)
@@ -39,6 +40,61 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 11, 2026 - INSTRUCTOR ANALYTICS WIRED TO REAL DATA (CCode-Opus4.6)
+
+```
++======================================================================+
+|         INSTRUCTOR DASHBOARD ANALYTICS ENHANCEMENT                    |
+|         2 files modified (+576/-53 lines), deployed to Firebase       |
++======================+================================================+
+|  CRITICAL FIX: Assignment→Completion Key Mismatch                    |
+|                                                                       |
+|  PROBLEM:                                                             |
+|  - All analytics showed 0% despite real student progress data         |
+|  - Path assignments stored path-level contentIds (aplus-core2, wsa)  |
+|  - Student completions keyed by module-level IDs                     |
+|    (forge-core2-ch14-index, wsa-m01-complete)                        |
+|  - Exact key lookup completions['aplus-core2'] always returned undef |
+|                                                                       |
+|  ROOT CAUSE: Three-layer ID mismatch                                 |
+|  1. Path vs module granularity (aplus-core2 vs aplus-core2-ch14)    |
+|  2. Different prefix conventions (aplus- vs forge-)                  |
+|  3. Different suffix conventions (-ch14 vs -ch14-index)              |
+|                                                                       |
+|  SOLUTION: Smart resolution layer in handler-dashboard.html          |
+|  - resolveAssignmentProgress() — expands paths via LearningPaths    |
+|  - isModuleCompleted() — fuzzy match with shareCommonCore()         |
+|  - shareCommonCore() — matches IDs sharing 2+ consecutive segments  |
+|    (e.g. aplus-core2-ch14 ↔ forge-core2-ch14-index via core2+ch14) |
+|  - findModuleCompletion() — returns matched completion data object   |
+|  - All stats, charts, leaderboard now use smart resolution           |
+|                                                                       |
+|  RESULTS (verified with live Firestore data):                        |
+|  - aplus-core2 path: 3/12 = 25% (matching forge-core2-ch*-index)   |
+|  - wsa path: 4/20 = 20% (matching wsa-m*-complete)                  |
+|  - Multi-class tested with 3 classes, multiple students              |
++----------------------------------------------------------------------+
+|  ALSO: InstructorDashboard.js Component Enhancements                 |
+|  (For future use when handler-dashboard.html migrates to component)  |
+|                                                                       |
+|  - Real weekly completion trend chart (was hardcoded [10,25,45,65]) |
+|  - Per-assignment avg score chart (was hardcoded [4,3,2])           |
+|  - NEW: Assignment completion rate chart (horizontal bars)           |
+|  - NEW: Time-on-task section (avg/fastest/slowest per assignment)    |
+|  - NEW: Student detail drill-down modal (click roster row)           |
+|  - Enhanced CSV export (per-assignment scores + time columns)        |
+|  - Fixed race condition in selectClass() (await roster+assignments) |
++----------------------------------------------------------------------+
+|  FILES MODIFIED:                                                      |
+|  * _app/handler-dashboard.html — Smart resolution layer (+160 lines)|
+|  * _app/components/InstructorDashboard.js — Full analytics (+469 ln)|
+|                                                                       |
+|  EDUSCAN: STABLE (CRITICAL:1, HIGH:202, MED:189, LOW:17, WARN:882) |
+|  Baseline archived: scan-2026-02-12T01-52-09.json                    |
+|  DEPLOYED: Firebase Hosting → hexworth-prime.web.app                 |
++======================================================================+
+```
 
 ### February 8, 2026 - A+ CORE 2 & WSA CONTENT AUDIT + BUILD (CCode-Opus4.6)
 
@@ -1997,18 +2053,25 @@ Adding hands-on interactive labs to modules that only have slides + quizzes:
 
 All 8 phases complete! See `DIGITAL_LIFE_ROADMAP.md` for details.
 
-### 🏗️ ACTIVE: Handler Dashboard & Class Management
+### ✅ COMPLETE: Handler Dashboard & Class Management
 
-**Status:** Phase 1 COMPLETE, Phase 2 Planned
-**Location:** `_app/handler-dashboard.html`, `_app/components/ClassManager.js`
-**Firestore Collection:** `classes`
+**Status:** All 4 Phases COMPLETE
+**Location:** `_app/handler-dashboard.html`, `_app/components/ClassManager.js`, `_app/components/AssignmentManager.js`
+**Firestore Collections:** `classes`, `classes/{id}/assignments`, `classes/{id}/progress`, `classes/{id}/activity`
 
 | Phase | Feature | Status |
 |-------|---------|--------|
 | Phase 1 | Handler Dashboard + Class CRUD | ✅ Complete |
-| Phase 2 | Student join flow (enter code → join class) | ⬜ Planned |
-| Phase 3 | Roster with real student progress data | ⬜ Planned |
-| Phase 4 | Assignments, analytics, export | ⬜ Planned |
+| Phase 2 | Student join flow (enter code → join class) | ✅ Complete |
+| Phase 3 | Roster with real student progress data | ✅ Complete |
+| Phase 4 | Assignments, analytics, export | ✅ Complete |
+
+**Key components:**
+- `ProgressManager.syncToFirestore()` — student completions → Firestore
+- `ProgressSync.js` — fallback periodic sync for missed completions
+- Smart resolution layer — handles path→module expansion + fuzzy ID matching
+- Charts: completion trend, assignment performance, time-on-task, leaderboard
+- Export: CSV roster + grades with per-assignment scores/time
 
 **Planning Doc:** `_planning/CLASSROOM_DASHBOARD_PLAN.md`
 
