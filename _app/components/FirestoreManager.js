@@ -55,7 +55,8 @@ const FirestoreManager = (function() {
         xp: 'hexworth_xp',
         discoveryPoints: 'hexworth_discovery_points',
         streak: 'hexworth_streak',
-        lastLogin: 'hexworth_last_login'
+        lastLogin: 'hexworth_last_login',
+        favorites: 'hexworth_favorites'
     };
 
     /**
@@ -729,6 +730,23 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.streak, profile.streak.toString());
             }
 
+            // Restore favorites (merge with local)
+            if (profile.favorites && Array.isArray(profile.favorites)) {
+                if (typeof FavoritesManager !== 'undefined') {
+                    FavoritesManager.mergeFromCloud(profile.favorites);
+                } else {
+                    // Direct merge if FavoritesManager not loaded yet
+                    try {
+                        const localFavs = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.favorites) || '[]');
+                        const localIds = new Set(localFavs.map(f => f.id));
+                        profile.favorites.forEach(cf => {
+                            if (cf.id && !localIds.has(cf.id)) localFavs.push(cf);
+                        });
+                        localStorage.setItem(LOCALSTORAGE_KEYS.favorites, JSON.stringify(localFavs));
+                    } catch (e) { /* ignore */ }
+                }
+            }
+
             // Rebuild hexworth_progress in the nested object format that labs/dashboard expect
             // Convert modulesCompleted array to nested house progress object
             const existingProgress = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
@@ -915,12 +933,25 @@ const FirestoreManager = (function() {
             const normalizeAch = arr => arr.map(a => typeof a === 'string' ? a : (a?.id || '')).filter(Boolean);
             const mergedAchievementIds = [...new Set([...normalizeAch(localAchievements), ...normalizeAch(cloudAchievements)])];
 
+            // Merge favorites (union by ID)
+            const localFavorites = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.favorites) || '[]');
+            const cloudFavorites = Array.isArray(cloudProfile.favorites) ? cloudProfile.favorites : [];
+            const favIdSet = new Set();
+            const mergedFavorites = [];
+            [...localFavorites, ...cloudFavorites].forEach(f => {
+                if (f && f.id && !favIdSet.has(f.id)) {
+                    favIdSet.add(f.id);
+                    mergedFavorites.push(f);
+                }
+            });
+
             // 6. Write merged data to localStorage
             localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(localProgress));
             localStorage.setItem(LOCALSTORAGE_KEYS.xp, mergedXP.toString());
             localStorage.setItem(LOCALSTORAGE_KEYS.streak, mergedStreak.toString());
             localStorage.setItem(LOCALSTORAGE_KEYS.achievements, JSON.stringify(mergedAchievementIds));
             localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(mergedQuizzes));
+            localStorage.setItem(LOCALSTORAGE_KEYS.favorites, JSON.stringify(mergedFavorites));
 
             // Restore house if missing locally
             if (cloudProfile.house && !localStorage.getItem(LOCALSTORAGE_KEYS.house)) {
@@ -934,7 +965,8 @@ const FirestoreManager = (function() {
                 xp: mergedXP,
                 streak: mergedStreak,
                 achievements: mergedAchievementIds,
-                quizzes: mergedQuizzes
+                quizzes: mergedQuizzes,
+                favorites: mergedFavorites
             });
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);

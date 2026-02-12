@@ -150,9 +150,49 @@
                 border-bottom: none;
             }
         }
+        .back-link {
+            position: absolute;
+            top: 12px;
+            left: 20px;
+            color: #00ff41;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 100;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #4ade80; }
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .nav-links a {
+            flex: 1;
+            text-align: center;
+            padding: 6px 8px;
+            font-size: 10px;
+            text-decoration: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-links .nav-house {
+            color: #00ff41;
+            border: 1px solid rgba(0,255,65,0.3);
+            background: rgba(0,255,65,0.1);
+        }
+        .nav-links .nav-house:hover { background: rgba(0,255,65,0.2); }
+        .nav-links .nav-dash {
+            color: #888;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+        }
+        .nav-links .nav-dash:hover { background: rgba(255,255,255,0.1); color: #ccc; }
     </style>
 </head>
 <body>
+    <a class="back-link" href="../index.html">&larr; Back to Script House</a>
     <div class="game-wrapper">
         <div class="lore-panel">
             <h2>SHELL SPRINT</h2>
@@ -183,6 +223,10 @@
                 </div>
             </div>
             <button id="startBtn">./start.sh</button>
+            <div class="nav-links">
+                <a class="nav-house" href="../index.html">Script House</a>
+                <a class="nav-dash" href="../../../dashboard.html">Dashboard</a>
+            </div>
         </div>
         <div class="canvas-area">
             <canvas id="gameCanvas" width="900" height="450"></canvas>
@@ -198,12 +242,12 @@
 
     // ===== LEVELS & ABILITIES =====
     const LEVELS = [
-        { name: '/home',    threshold: 0,   speed: 5,   color: '#0a1a0a', promptColor: '#00ff41', obstacles: ['perm_denied','segfault'] },
-        { name: '/var',     threshold: 20,  speed: 6,   color: '#0a0a1a', promptColor: '#00ccff', obstacles: ['perm_denied','segfault','fork_bomb'] },
-        { name: '/etc',     threshold: 50,  speed: 7.5, color: '#1a0a1a', promptColor: '#cc66ff', obstacles: ['perm_denied','segfault','fork_bomb','zombie'] },
-        { name: '/usr',     threshold: 90,  speed: 9,   color: '#1a1a0a', promptColor: '#ffcc00', obstacles: ['segfault','fork_bomb','zombie','rm_rf','buffer_overflow'] },
-        { name: '/root',    threshold: 140, speed: 11,  color: '#1a0a0a', promptColor: '#ff4444', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] },
-        { name: '/dev/null',threshold: 200, speed: 13,  color: '#050505', promptColor: '#ff0066', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] }
+        { name: '/home',    threshold: 0,   speed: 3.5, color: '#0a1a0a', promptColor: '#00ff41', obstacles: ['perm_denied','segfault'] },
+        { name: '/var',     threshold: 20,  speed: 4.5, color: '#0a0a1a', promptColor: '#00ccff', obstacles: ['perm_denied','segfault','fork_bomb'] },
+        { name: '/etc',     threshold: 50,  speed: 6,   color: '#1a0a1a', promptColor: '#cc66ff', obstacles: ['perm_denied','segfault','fork_bomb','zombie'] },
+        { name: '/usr',     threshold: 90,  speed: 8,   color: '#1a1a0a', promptColor: '#ffcc00', obstacles: ['segfault','fork_bomb','zombie','rm_rf','buffer_overflow'] },
+        { name: '/root',    threshold: 140, speed: 10,  color: '#1a0a0a', promptColor: '#ff4444', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] },
+        { name: '/dev/null',threshold: 200, speed: 12,  color: '#050505', promptColor: '#ff0066', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] }
     ];
 
     const ABILITIES = [
@@ -221,7 +265,7 @@
     let highScore = parseInt(localStorage.getItem('shellsprint_highscore') || '0');
     let lives = 3;
     let currentLevel = 0;
-    let gameSpeed = 5;
+    let gameSpeed = 3.5;
     let gameRunning = false;
     let demoMode = true;
     let muted = false;
@@ -488,7 +532,7 @@
                 case 'perm_denied':
                     this.y = GROUND_Y - 30; this.w = 24; this.h = 30; break;
                 case 'segfault':
-                    this.y = GROUND_Y - 65; this.w = 40; this.h = 20; this.isOverhead = true; break;
+                    this.y = GROUND_Y - 36; this.w = 40; this.h = 20; this.isOverhead = true; break;
                 case 'fork_bomb':
                     this.y = GROUND_Y - 18; this.w = 16; this.h = 16;
                     this.children = []; this.splitTimer = 60; break;
@@ -959,7 +1003,8 @@
         ctx.clearRect(0, 0, W, H);
 
         const worldFrozen = respawnCountdown && countdownActive && countdownPhase <= 2;
-        const effectiveSpeed = worldFrozen ? 0 :
+        const gameOverFreeze = !gameRunning && !demoMode;
+        const effectiveSpeed = (worldFrozen || gameOverFreeze) ? 0 :
             (abilityActive === 'slow' ? gameSpeed * 0.35 :
              abilityActive === 'dash' ? gameSpeed + dashSpeed : gameSpeed);
 
@@ -999,7 +1044,7 @@
                 if (hopCount % 30 === 0 && lives < 5) { lives++; playCheckpoint(); }
             }
             if (obs.offscreen()) { obstacles.splice(i, 1); continue; }
-            if (obs.collides() && !worldFrozen) {
+            if (obs.collides() && !worldFrozen && gameRunning) {
                 if (invincible || player.shielded) {
                     player.shielded = false;
                     burstParticles(obs.x, obs.y, '#7c3aed', 10);
@@ -1025,7 +1070,7 @@
         }
         if (!flagObj && hopCount >= nextFlagAt) { spawnFlag(); nextFlagAt += 25; }
 
-        if (!worldFrozen && !countdownActive) {
+        if (!worldFrozen && !countdownActive && (gameRunning || demoMode)) {
             const rate = Math.max(45, 85 - currentLevel * 8);
             if (gameFrame % rate === 0) spawnObstacle();
         }

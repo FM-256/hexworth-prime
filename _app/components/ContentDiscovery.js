@@ -71,6 +71,9 @@
         // Bind event listeners
         bindDiscoveryEvents();
 
+        // Inject favorite heart buttons on module cards
+        injectFavoriteButtons(currentHouse);
+
         // Add "Start Here" section if not exists
         addStartHereSection();
 
@@ -269,6 +272,57 @@
             .module-type-badge.type-applet {
                 background: rgba(168, 85, 247, 0.2);
                 color: #c084fc;
+            }
+
+            .module-type-badge.type-game {
+                background: rgba(34, 197, 94, 0.2);
+                color: #4ade80;
+            }
+
+            .module-type-badge.type-review {
+                background: rgba(245, 158, 11, 0.2);
+                color: #fbbf24;
+            }
+
+            .module-type-badge.type-exam {
+                background: rgba(239, 68, 68, 0.2);
+                color: #f87171;
+            }
+
+            .module-type-badge.type-tool {
+                background: rgba(6, 182, 212, 0.2);
+                color: #22d3ee;
+            }
+
+            /* Favorite heart button on module cards */
+            .module-favorite-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: none;
+                border: none;
+                font-size: 1.1rem;
+                cursor: pointer;
+                opacity: 0.4;
+                transition: all 0.2s ease;
+                padding: 2px 4px;
+                line-height: 1;
+                z-index: 2;
+            }
+
+            .module-favorite-btn:hover {
+                opacity: 0.8;
+                transform: scale(1.2);
+            }
+
+            .module-favorite-btn.favorited {
+                opacity: 1;
+                color: #ef4444;
+            }
+
+            /* Shift type badge left when heart is present */
+            .module-card .module-type-badge {
+                right: 34px;
             }
 
             /* Global Search Results Section */
@@ -583,9 +637,28 @@
         panel.className = 'discovery-panel';
         panel.id = 'discoveryPanel';
 
+        // Type config map for dynamic button generation
+        const typeConfig = {
+            presentation: { icon: '📊', label: 'Slides' },
+            lab: { icon: '🧪', label: 'Labs' },
+            quiz: { icon: '📝', label: 'Quizzes' },
+            applet: { icon: '🎮', label: 'Interactive' },
+            game: { icon: '🕹️', label: 'Games' },
+            review: { icon: '🔄', label: 'Reviews' },
+            exam: { icon: '📋', label: 'Exams' },
+            tool: { icon: '🔧', label: 'Tools' },
+            guide: { icon: '📖', label: 'Guides' }
+        };
+
         // Get unique content types from modules
         const types = [...new Set(SAMPLE_MODULES.flatMap(m => m.components || []))];
         const hasGlobal = typeof ContentCatalog !== 'undefined';
+
+        // Build type filter buttons dynamically from types found in SAMPLE_MODULES
+        const typeButtons = types
+            .filter(t => typeConfig[t])
+            .map(t => `<button class="discovery-filter-btn" data-type="${t}">${typeConfig[t].icon} ${typeConfig[t].label}</button>`)
+            .join('');
 
         panel.innerHTML = `
             <div class="discovery-search-row">
@@ -601,11 +674,7 @@
             <div class="discovery-filters">
                 <div class="discovery-filter-group" id="typeFilters">
                     <button class="discovery-filter-btn active" data-type="all">All Types</button>
-                    ${types.includes('presentation') ? '<button class="discovery-filter-btn" data-type="presentation">📊 Slides</button>' : ''}
-                    ${types.includes('lab') ? '<button class="discovery-filter-btn" data-type="lab">🧪 Labs</button>' : ''}
-                    ${types.includes('quiz') ? '<button class="discovery-filter-btn" data-type="quiz">📝 Quizzes</button>' : ''}
-                    ${types.includes('applet') ? '<button class="discovery-filter-btn" data-type="applet">🎮 Interactive</button>' : ''}
-                    ${types.includes('guide') ? '<button class="discovery-filter-btn" data-type="guide">📖 Guides</button>' : ''}
+                    ${typeButtons}
                 </div>
                 <div class="discovery-filter-divider"></div>
                 <div class="discovery-filter-group" id="categoryFilters">
@@ -923,6 +992,44 @@
         heroSection.after(startHere);
     }
 
+    function injectFavoriteButtons(currentHouse) {
+        if (typeof FavoritesManager === 'undefined') return;
+
+        const moduleCards = document.querySelectorAll('.module-card');
+        moduleCards.forEach((card, index) => {
+            const module = SAMPLE_MODULES[index];
+            if (!module) return;
+
+            // Don't double-inject
+            if (card.querySelector('.module-favorite-btn')) return;
+
+            // Make card position relative for absolute heart placement
+            card.style.position = 'relative';
+
+            const btn = document.createElement('button');
+            btn.className = 'module-favorite-btn' + (FavoritesManager.isFavorite(module.id) ? ' favorited' : '');
+            btn.innerHTML = FavoritesManager.isFavorite(module.id) ? '♥' : '♡';
+            btn.title = 'Add to Favorites';
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const meta = {
+                    title: module.title,
+                    house: currentHouse || '',
+                    icon: module.icon || '',
+                    type: (module.components && module.components[0]) || '',
+                    href: module.href || module.path || ''
+                };
+                const nowFavorited = FavoritesManager.toggle(module.id, meta);
+                btn.classList.toggle('favorited', nowFavorited);
+                btn.innerHTML = nowFavorited ? '♥' : '♡';
+            });
+
+            card.appendChild(btn);
+        });
+    }
+
     function getTypeLabel(components) {
         if (!components || components.length === 0) return 'Module';
         const labels = {
@@ -930,6 +1037,10 @@
             lab: 'Hands-on Lab',
             quiz: 'Knowledge Check',
             applet: 'Interactive Tool',
+            game: 'Game',
+            review: 'Review Activity',
+            exam: 'Exam',
+            tool: 'Tool',
             guide: 'Study Guide'
         };
         return components.map(c => labels[c] || c).join(' + ');

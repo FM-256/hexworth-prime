@@ -1360,4 +1360,23 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ---
 
-*Last Updated: February 9, 2026*
+## Planned Sprints (Backlog)
+
+### F-12: Centralized Search & Content Organization
+**Status:** Planned
+**Priority:** High
+**Rationale:** Each house page has its own basic search that's inconsistent and limited. ContentCatalog + ContentDiscovery exist but aren't wired into house pages consistently. Need a unified, centralized search experience across the entire platform.
+
+**Goals:**
+- [ ] Wire ContentDiscovery into ALL house index pages with consistent UI
+- [ ] Ensure searching "games" or any content type works from any house page
+- [ ] Add global search (accessible from dashboard, searchable across all 9 houses)
+- [ ] Audit and fix house index pages that have stale/broken search implementations
+- [ ] Ensure ContentCatalog module entries are complete and accurate (all 180+ modules indexed with correct types, tags, hrefs)
+- [ ] Consider fuzzy search / tag-based discovery for better discoverability
+
+**Scope:** ContentCatalog.js, ContentDiscovery.js, all 9 house index.html pages, dashboard.html
+
+---
+
+*Last Updated: February 11, 2026*
