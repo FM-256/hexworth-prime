@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipe Snake - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0f0a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #22c55e; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100;
+        }
+        .back-link:hover { color: #4ade80; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #0a1a0a 0%, #0a0f0a 100%);
+            border: 2px solid #166534;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #16a34a;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 600px; overflow-y: auto;
+        }
+        .lore-title { color: #22c55e; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #166534; padding-bottom: 8px; }
+        .lore-section h3 { color: #4ade80; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #22c55e; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #22c55e; display: block;
+            background: #0a0f0a; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #22c55e; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #22c55e; color: #0a0f0a; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #16a34a; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10,15,10,0.95); border: 2px solid #22c55e;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #22c55e; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #166534; }
+        .move-entry .move-name { color: #4ade80; font-weight: bold; }
+        .move-entry .move-desc { color: #16a34a; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">PIPE SNAKE</div>
+            <div class="lore-section">
+                <h3>MAN PAGE</h3>
+                <p>You are PID-1, the init process. Chain commands together with pipes to build the longest pipeline in /proc history. But beware: if you pipe into yourself, it's a segfault.</p>
+            </div>
+            <div class="lore-section">
+                <h3>PIPING RULES</h3>
+                <p>Collect commands (ls, grep, awk, sed...) to grow your pipeline. Each command adds power. Special tokens grant abilities. Avoid walls, your own tail, and zombie processes.</p>
+            </div>
+            <div class="lore-section">
+                <h3>PROC STATUS</h3>
+                <p id="loreLevel">LEVEL: 1</p>
+                <p id="loreLength">PIPELINE: 3</p>
+                <p id="loreScore">OUTPUT: 0</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>↑↓←→</span> Change direction</p>
+                <p><span>SHIFT</span> Speed boost</p>
+                <p><span>?</span> Show commands</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div id="ui">
+                <span id="scoreDisplay">OUTPUT: 0</span>
+                <span id="levelDisplay">LV 1</span>
+                <span id="lengthDisplay">PIPE: 3</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">↑↓←→ MOVE | SHIFT SPEED BOOST | ? COMMANDS</div>
+    <div id="movesPanel">
+        <h2>📜 COMMAND LIST</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#16a34a;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CELL = 20;
+const GRID_W = W / CELL, GRID_H = H / CELL;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.1) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxEat() { playSound(660, 0.08); setTimeout(() => playSound(880, 0.1), 50); }
+function sfxSpecial() { playSound(440, 0.08, 'sine'); setTimeout(() => playSound(660, 0.08, 'sine'), 60); setTimeout(() => playSound(880, 0.12, 'sine'), 120); }
+function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.2, 'sawtooth', 0.15), 100); setTimeout(() => playSound(100, 0.3, 'sawtooth', 0.15), 200); }
+function sfxLevel() { playSound(523, 0.12, 'sine', 0.12); setTimeout(() => playSound(659, 0.12, 'sine', 0.12), 100); setTimeout(() => playSound(784, 0.15, 'sine', 0.12), 200); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+// Commands that can be collected
+const COMMANDS = ['ls', 'grep', 'awk', 'sed', 'cat', 'sort', 'uniq', 'cut', 'wc', 'head', 'tail', 'tr', 'xargs', 'tee', 'find', 'echo', 'chmod', 'curl', 'wget', 'tar'];
+const SPECIAL_COMMANDS = [
+    { cmd: 'sudo', desc: 'Invincibility for 5 seconds', color: '#ef4444' },
+    { cmd: 'rm -rf', desc: 'Clears all zombies', color: '#f59e0b' },
+    { cmd: 'nice -20', desc: 'Speed boost for 5 seconds', color: '#06b6d4' }
+];
+
+const COMMAND_INFO = [
+    { name: 'ls, grep, awk...', desc: 'Standard commands. Each extends your pipeline by one segment.' },
+    { name: 'sudo', desc: 'Grants 5 seconds of invincibility. Walk through walls and your own tail.' },
+    { name: 'rm -rf', desc: 'Destroys all zombie processes on screen.' },
+    { name: 'nice -20', desc: 'Priority boost. Increases speed for 5 seconds and doubles points.' },
+    { name: 'ZOMBIE (Z)', desc: 'Wandering defunct process. Touching it is a segfault.' }
+];
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let score = 0, level = 1, snakeSpeed = 8; // frames per move
+let snake = [];
+let direction = { x: 1, y: 0 };
+let nextDirection = { x: 1, y: 0 };
+let food = null;
+let specialFood = null;
+let zombies = [];
+let particles = [];
+let moveTimer = 0;
+let invincible = 0;
+let speedBoost = 0;
+let commandsCollected = [];
+let scanlines = [];
+
+// Init scanlines
+for (let i = 0; i < 20; i++) {
+    scanlines.push({ y: Math.random() * H, speed: 0.2 + Math.random() * 0.5, alpha: Math.random() * 0.1 });
+}
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+    // Direction input
+    if (gameRunning) {
+        if ((e.key === 'ArrowUp' || e.key === 'w') && direction.y !== 1) nextDirection = { x: 0, y: -1 };
+        if ((e.key === 'ArrowDown' || e.key === 's') && direction.y !== -1) nextDirection = { x: 0, y: 1 };
+        if ((e.key === 'ArrowLeft' || e.key === 'a') && direction.x !== 1) nextDirection = { x: -1, y: 0 };
+        if ((e.key === 'ArrowRight' || e.key === 'd') && direction.x !== -1) nextDirection = { x: 1, y: 0 };
+    }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function initSnake() {
+    const cx = Math.floor(GRID_W / 2);
+    const cy = Math.floor(GRID_H / 2);
+    snake = [
+        { x: cx, y: cy, cmd: 'init' },
+        { x: cx - 1, y: cy, cmd: '|' },
+        { x: cx - 2, y: cy, cmd: 'sh' }
+    ];
+    direction = { x: 1, y: 0 };
+    nextDirection = { x: 1, y: 0 };
+}
+
+function spawnFood() {
+    let pos;
+    do {
+        pos = { x: Math.floor(Math.random() * GRID_W), y: Math.floor(Math.random() * GRID_H) };
+    } while (snake.some(s => s.x === pos.x && s.y === pos.y) ||
+             zombies.some(z => z.x === pos.x && z.y === pos.y));
+    food = { ...pos, cmd: COMMANDS[Math.floor(Math.random() * COMMANDS.length)] };
+}
+
+function spawnSpecial() {
+    if (specialFood || Math.random() > 0.15) return;
+    let pos;
+    do {
+        pos = { x: Math.floor(Math.random() * GRID_W), y: Math.floor(Math.random() * GRID_H) };
+    } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+    const sc = SPECIAL_COMMANDS[Math.floor(Math.random() * SPECIAL_COMMANDS.length)];
+    specialFood = { ...pos, ...sc, timer: 200 };
+}
+
+function spawnZombie() {
+    if (zombies.length >= 3 + level) return;
+    let pos;
+    do {
+        pos = { x: Math.floor(Math.random() * GRID_W), y: Math.floor(Math.random() * GRID_H) };
+    } while (snake.some(s => s.x === pos.x && s.y === pos.y) ||
+             Math.abs(pos.x - snake[0].x) < 5 || Math.abs(pos.y - snake[0].y) < 5);
+    zombies.push({
+        ...pos,
+        dir: { x: [1, -1, 0, 0][Math.floor(Math.random() * 4)], y: [0, 0, 1, -1][Math.floor(Math.random() * 4)] },
+        moveTimer: 0, moveRate: 15 + Math.floor(Math.random() * 10)
+    });
+}
+
+function spawnParticles(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x * CELL + CELL/2, y: y * CELL + CELL/2,
+            vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+            life: 20 + Math.random() * 15, maxLife: 35, color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    score = 0; level = 1; snakeSpeed = 8;
+    invincible = 0; speedBoost = 0;
+    commandsCollected = [];
+    zombies = [];
+    specialFood = null;
+    particles = [];
+    initSnake();
+    spawnFood();
+}
+function resetGame() { startGame(); }
+
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    document.getElementById('movesPanel').style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        COMMAND_INFO.forEach(c => {
+            html += `<div class="move-entry">
+                <div class="move-name">${c.name}</div>
+                <div class="move-desc">${c.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// Demo AI
+function demoAI() {
+    if (!food) return;
+    const head = snake[0];
+    const dx = food.x - head.x;
+    const dy = food.y - head.y;
+    // Simple: prefer direction toward food, avoid immediate collision
+    const preferred = [];
+    if (dx > 0 && direction.x !== -1) preferred.push({ x: 1, y: 0 });
+    if (dx < 0 && direction.x !== 1) preferred.push({ x: -1, y: 0 });
+    if (dy > 0 && direction.y !== -1) preferred.push({ x: 0, y: 1 });
+    if (dy < 0 && direction.y !== 1) preferred.push({ x: 0, y: -1 });
+
+    for (const dir of preferred) {
+        const nx = head.x + dir.x;
+        const ny = head.y + dir.y;
+        if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H &&
+            !snake.some(s => s.x === nx && s.y === ny)) {
+            nextDirection = dir;
+            return;
+        }
+    }
+    // Fallback: any safe direction
+    const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+    for (const dir of dirs) {
+        if (dir.x === -direction.x && dir.y === -direction.y) continue;
+        const nx = head.x + dir.x;
+        const ny = head.y + dir.y;
+        if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H &&
+            !snake.some(s => s.x === nx && s.y === ny)) {
+            nextDirection = dir;
+            return;
+        }
+    }
+}
+
+function update() {
+    // Scanlines
+    scanlines.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
+
+    if (!gameRunning && !demoMode) return;
+
+    if (demoMode) demoAI();
+
+    // Timers
+    if (invincible > 0) invincible--;
+    if (speedBoost > 0) speedBoost--;
+
+    const boosted = speedBoost > 0 || (keys['Shift'] && gameRunning);
+    const currentSpeed = boosted ? Math.max(2, snakeSpeed - 3) : snakeSpeed;
+
+    moveTimer++;
+    if (moveTimer < currentSpeed) return;
+    moveTimer = 0;
+
+    // Apply direction
+    direction = { ...nextDirection };
+    const head = snake[0];
+    const newHead = {
+        x: head.x + direction.x,
+        y: head.y + direction.y,
+        cmd: '|'
+    };
+
+    // Wall collision (wrap in demo, die in game)
+    if (newHead.x < 0 || newHead.x >= GRID_W || newHead.y < 0 || newHead.y >= GRID_H) {
+        if (invincible > 0) {
+            // Wrap
+            newHead.x = (newHead.x + GRID_W) % GRID_W;
+            newHead.y = (newHead.y + GRID_H) % GRID_H;
+        } else if (demoMode) {
+            newHead.x = (newHead.x + GRID_W) % GRID_W;
+            newHead.y = (newHead.y + GRID_H) % GRID_H;
+        } else {
+            gameRunning = false;
+            gameOver = true;
+            sfxDeath();
+            return;
+        }
+    }
+
+    // Self collision
+    if (snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
+        if (invincible <= 0 && !demoMode) {
+            gameRunning = false;
+            gameOver = true;
+            sfxDeath();
+            return;
+        }
+    }
+
+    // Zombie collision
+    if (zombies.some(z => z.x === newHead.x && z.y === newHead.y)) {
+        if (invincible <= 0 && !demoMode) {
+            gameRunning = false;
+            gameOver = true;
+            sfxDeath();
+            return;
+        }
+    }
+
+    snake.unshift(newHead);
+
+    // Check food
+    let ate = false;
+    if (food && newHead.x === food.x && newHead.y === food.y) {
+        ate = true;
+        newHead.cmd = food.cmd;
+        commandsCollected.push(food.cmd);
+        const pts = (boosted ? 20 : 10) * level;
+        score += pts;
+        sfxEat();
+        spawnParticles(food.x, food.y, '#22c55e');
+        spawnFood();
+        spawnSpecial();
+        // Level up every 10 commands
+        if (commandsCollected.length % 10 === 0) {
+            level++;
+            snakeSpeed = Math.max(3, 8 - level);
+            sfxLevel();
+            spawnZombie();
+        }
+    }
+
+    // Check special food
+    if (specialFood && newHead.x === specialFood.x && newHead.y === specialFood.y) {
+        ate = true;
+        newHead.cmd = specialFood.cmd;
+        score += 50 * level;
+        sfxSpecial();
+        spawnParticles(specialFood.x, specialFood.y, specialFood.color, 10);
+        if (specialFood.cmd === 'sudo') invincible = 300;
+        if (specialFood.cmd === 'rm -rf') {
+            zombies.forEach(z => spawnParticles(z.x, z.y, '#f59e0b', 6));
+            zombies = [];
+        }
+        if (specialFood.cmd === 'nice -20') speedBoost = 300;
+        specialFood = null;
+    }
+
+    if (!ate) snake.pop();
+
+    // Special food timer
+    if (specialFood) {
+        specialFood.timer--;
+        if (specialFood.timer <= 0) specialFood = null;
+    }
+
+    // Move zombies
+    zombies.forEach(z => {
+        z.moveTimer++;
+        if (z.moveTimer >= z.moveRate) {
+            z.moveTimer = 0;
+            if (Math.random() < 0.3) {
+                const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+                z.dir = dirs[Math.floor(Math.random() * dirs.length)];
+            }
+            z.x += z.dir.x;
+            z.y += z.dir.y;
+            z.x = (z.x + GRID_W) % GRID_W;
+            z.y = (z.y + GRID_H) % GRID_H;
+        }
+    });
+
+    // Demo auto-reset
+    if (demoMode && snake.length > 25) {
+        initSnake();
+        zombies = [];
+        spawnFood();
+    }
+
+    // Particles
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+
+    // UI
+    document.getElementById('scoreDisplay').textContent = `OUTPUT: ${score}`;
+    document.getElementById('levelDisplay').textContent = `LV ${level}`;
+    document.getElementById('lengthDisplay').textContent = `PIPE: ${snake.length}`;
+    document.getElementById('loreLevel').textContent = `LEVEL: ${level}`;
+    document.getElementById('loreLength').textContent = `PIPELINE: ${snake.length}`;
+    document.getElementById('loreScore').textContent = `OUTPUT: ${score}`;
+}
+
+function draw() {
+    ctx.fillStyle = '#0a0f0a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Terminal grid
+    ctx.strokeStyle = 'rgba(22,101,52,0.1)';
+    for (let x = 0; x < GRID_W; x++) {
+        ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, H); ctx.stroke();
+    }
+    for (let y = 0; y < GRID_H; y++) {
+        ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(W, y * CELL); ctx.stroke();
+    }
+
+    // Scanlines
+    scanlines.forEach(s => {
+        ctx.fillStyle = `rgba(34,197,94,${s.alpha})`;
+        ctx.fillRect(0, s.y, W, 2);
+    });
+
+    // Food
+    if (food) {
+        ctx.fillStyle = '#22c55e';
+        ctx.shadowColor = '#22c55e';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#0a0f0a';
+        ctx.font = 'bold 8px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(food.cmd, food.x * CELL + CELL/2, food.y * CELL + CELL/2);
+    }
+
+    // Special food
+    if (specialFood) {
+        const pulse = 0.7 + Math.sin(Date.now() * 0.008) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = specialFood.color;
+        ctx.shadowColor = specialFood.color;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(specialFood.x * CELL + 1, specialFood.y * CELL + 1, CELL - 2, CELL - 2);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 7px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(specialFood.cmd, specialFood.x * CELL + CELL/2, specialFood.y * CELL + CELL/2);
+        ctx.globalAlpha = 1;
+    }
+
+    // Zombies
+    zombies.forEach(z => {
+        const wobble = Math.sin(Date.now() * 0.005 + z.x * 7) * 2;
+        ctx.fillStyle = '#6b21a8';
+        ctx.fillRect(z.x * CELL + 2 + wobble, z.y * CELL + 2, CELL - 4, CELL - 4);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = 'bold 11px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Z', z.x * CELL + CELL/2 + wobble, z.y * CELL + CELL/2);
+    });
+
+    // Snake
+    snake.forEach((s, i) => {
+        const isHead = i === 0;
+        if (invincible > 0) {
+            const flash = Math.sin(Date.now() * 0.02) > 0;
+            ctx.fillStyle = flash ? '#ef4444' : '#22c55e';
+        } else {
+            const brightness = 1 - (i / snake.length) * 0.5;
+            const g = Math.floor(197 * brightness);
+            ctx.fillStyle = `rgb(34,${g},94)`;
+        }
+        if (isHead) {
+            ctx.shadowColor = '#22c55e';
+            ctx.shadowBlur = 10;
+        }
+        ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+        ctx.shadowBlur = 0;
+
+        // Command label on segment
+        if (s.cmd && s.cmd !== '|') {
+            ctx.fillStyle = '#0a0f0a';
+            ctx.font = `bold ${isHead ? 9 : 7}px Courier New`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(isHead ? '$' : s.cmd, s.x * CELL + CELL/2, s.y * CELL + CELL/2);
+        }
+        // Pipe symbol between segments
+        if (!isHead && s.cmd === '|') {
+            ctx.fillStyle = '#0a0f0a';
+            ctx.font = 'bold 10px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('|', s.x * CELL + CELL/2, s.y * CELL + CELL/2);
+        }
+        // Head eyes
+        if (isHead) {
+            ctx.fillStyle = '#0a0f0a';
+            const ex = direction.x, ey = direction.y;
+            ctx.fillRect(s.x * CELL + CELL/2 + ex * 3 - 3, s.y * CELL + CELL/2 + ey * 3 - 2, 3, 3);
+            ctx.fillRect(s.x * CELL + CELL/2 + ex * 3 + 1, s.y * CELL + CELL/2 + ey * 3 - 2, 3, 3);
+        }
+    });
+
+    // Pipeline display at bottom
+    if (gameRunning || demoMode) {
+        ctx.fillStyle = 'rgba(10,15,10,0.8)';
+        ctx.fillRect(0, H - 20, W, 20);
+        const pipeStr = '$ ' + commandsCollected.slice(-15).join(' | ');
+        ctx.fillStyle = '#22c55e';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pipeStr + (Math.sin(Date.now() * 0.003) > 0 ? '█' : ''), 8, H - 10);
+    }
+
+    // Particles
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    // Status effects
+    if (invincible > 0) {
+        ctx.fillStyle = 'rgba(239,68,68,0.1)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText(`SUDO: ${Math.ceil(invincible / 60)}s`, 10, H - 30);
+    }
+    if (speedBoost > 0) {
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'right';
+        ctx.fillText(`NICE: ${Math.ceil(speedBoost / 60)}s`, W - 10, H - 30);
+    }
+
+    // Overlays
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(10,15,10,0.7)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('PIPE SNAKE', W/2, H/2 - 25);
+        ctx.fillStyle = '#4ade80';
+        ctx.font = '15px Courier New';
+        ctx.fillText('$ init | ls | grep | awk | ...', W/2, H/2 + 10);
+        ctx.fillStyle = '#16a34a';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO ./start.sh ]', W/2, H/2 + 50);
+    }
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(10,15,10,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('SEGFAULT', W/2, H/2 - 55);
+        ctx.fillStyle = '#22c55e';
+        ctx.font = '12px Courier New';
+        ctx.fillText('Segmentation fault (core dumped)', W/2, H/2 - 25);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '18px Courier New';
+        ctx.fillText(`Output: ${score}`, W/2, H/2 + 10);
+        ctx.fillText(`Pipeline: ${snake.length} commands`, W/2, H/2 + 35);
+        ctx.fillText(`Level: ${level}`, W/2, H/2 + 60);
+        ctx.fillStyle = '#16a34a';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO RESPAWN ]', W/2, H/2 + 95);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+initSnake();
+spawnFood();
+gameLoop();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-07 1:38:16 PM
+                    Scanned: 2026-02-12 9:27:33 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,37 +10,37 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1124 |
-| Directories | 449 |
-| Content Files | 1124 |
-| Scan Duration | 149ms |
+| Files Scanned | 1235 |
+| Directories | 460 |
+| Content Files | 1235 |
+| Scan Duration | 214ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 425 |
-| html | 377 |
-| applet | 169 |
-| lab | 139 |
+| html | 443 |
+| presentation | 433 |
+| applet | 188 |
+| lab | 157 |
 | quiz | 14 |
 
 ### Issues Summary
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
-| Warning | 814 |
-| Info | 369 |
-| **Total** | **1637** |
+| Critical | 1 |
+| Warning | 882 |
+| Info | 398 |
+| **Total** | **1689** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 536 |
-| Not Ready | 211 |
-| Unknown | 377 |
+| Ready | 577 |
+| Not Ready | 215 |
+| Unknown | 443 |
 
 
 ## FILE HIERARCHY
@@ -55,9 +55,8 @@
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
-├── 📄 connect.html
 ├── 📁 dark-arts
-│   ├── 📄 ctf-leaderboard.html
+│   ├── 📄 ctf-leaderboard.applet.html
 │   ├── 📄 gate-1.html
 │   ├── 📁 gates
 │   │   ├── 📄 gate-2.html
@@ -65,7 +64,7 @@
 │   │   ├── 📄 gate-4.html
 │   │   └── 📄 gate-5.html
 │   └── 📁 vault
-│       ├── 📄 botnet-architecture.html
+│       ├── 📊 botnet-architecture.presentation.html
 │       ├── 🔬 buffer-overflow-lab.html
 │       ├── 📄 ceh-attack-reference.html
 │       ├── 🔬 cloud-hacking-lab.html
@@ -85,13 +84,13 @@
 │       ├── 🔬 malware-analysis-lab.html
 │       ├── 🔬 mobile-security-lab.html
 │       ├── 📁 modules [modules]
-│       │   ├── 📄 behavioral-analysis.html
-│       │   ├── 📄 dynamic-analysis.html
-│       │   ├── 📄 incident-response.html
-│       │   ├── 📄 malware-families.html
-│       │   ├── 📄 reverse-engineering.html
-│       │   ├── 📄 sandbox-setup.html
-│       │   └── 📄 static-analysis.html
+│       │   ├── 📄 behavioral-analysis.module.html
+│       │   ├── 📄 dynamic-analysis.module.html
+│       │   ├── 📄 incident-response.module.html
+│       │   ├── 📄 malware-families.module.html
+│       │   ├── 📄 reverse-engineering.module.html
+│       │   ├── 📄 sandbox-setup.module.html
+│       │   └── 📄 static-analysis.module.html
 │       ├── 🔬 network-scanning-lab.html
 │       ├── 🔬 network-sniffing-lab.html
 │       ├── 🔬 nmap-scanning-lab.html
@@ -124,15 +123,25 @@
 │   ├── 📁 interactions
 │   └── 📁 meta
 ├── 📁 docs
+├── 📄 faq.html
+├── 📄 games.html
 ├── 📄 handler-dashboard.html
 ├── 📁 houses
 │   ├── 🏠 cloud [house:cloud]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
 │   │   │   │   └── 📄 cloud-architecture-designer.applet.html
-│   │   │   ├── 📁 aws [applets]
 │   │   │   └── 📁 fundamentals [applets]
 │   │   │       └── 📄 cloud-provider-comparison.applet.html
+│   │   ├── 📁 games
+│   │   │   ├── 📄 ad-attack-path.html
+│   │   │   ├── 📄 aws-sts.html
+│   │   │   ├── 📄 cloud-architect.html
+│   │   │   ├── 📄 cloud-destroyer.html
+│   │   │   ├── 📄 cloud-hop.html
+│   │   │   ├── 📄 dont-check-the-bill.html
+│   │   │   ├── 📄 dont-lose-your-domain.html
+│   │   │   └── 📄 iam-debugger.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 cloud-architecture.lab.html
@@ -150,102 +159,112 @@
 │   │   │   ├── 🔬 cloud-ps.lab.html
 │   │   │   └── 🔬 cloud-security.lab.html
 │   │   ├── 📁 modules [modules]
-│   │   │   ├── 📁 cse [modules]
 │   │   │   └── 📁 wsa [modules]
 │   │   │       ├── 📄 cloud-gui-style-samples.module.html
+│   │   │       ├── 📁 games [modules]
+│   │   │       │   └── 📄 save-the-pod.html
+│   │   │       ├── 📁 gauntlet [modules]
+│   │   │       │   ├── 📄 cloud-gauntlet.module.html
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 gauntlet-advanced [modules]
+│   │   │       │   ├── 📄 cloud-gauntlet-advanced.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📍 index.html
 │   │   │       ├── 📁 m01-fundamentals [modules]
-│   │   │       │   └── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
+│   │   │       │   ├── 📊 cloud-presentation.module.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m02-active-directory [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m03-storage [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m04-hyperv [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m05-containers [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m06-clustering [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m07-monitoring [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m08-dns [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m09-dhcp [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m10-group-policy [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m11-iis [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m12-remote-desktop [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m13-certificate-services [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m14-advanced-networking [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m15-ad-sites [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m16-backup-recovery [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m17-firewall-security [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m18-powershell-automation [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m19-troubleshooting-migration [modules]
-│   │   │       │   ├── 🔬 cloud-gui.lab.html
+│   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
-│   │   │       │   ├── 🔬 cloud-ps.lab.html
-│   │   │       │   └── ❓ cloud-quiz.quiz.html
+│   │   │       │   ├── 🔬 cloud-pslab.module.html
+│   │   │       │   └── ❓ cloud-quizquiz.module.html
 │   │   │       ├── 📁 m20-failsafe-capstone [modules]
 │   │   │       │   ├── 📄 cloud-simulation.module.html
 │   │   │       │   └── 📍 index.html
@@ -326,6 +345,15 @@
 │   │   │       ├── 📁 ConfigMgmt.hyperesources [applets]
 │   │   │       └── 📄 code-config-mgmt.applet.html
 │   │   ├── 📁 docs
+│   │   ├── 📁 games
+│   │   │   ├── 📄 build-breaker.html
+│   │   │   ├── 📄 docker-escape.html
+│   │   │   ├── 📄 dont-deploy-on-friday.html
+│   │   │   ├── 📄 git-bisect.html
+│   │   │   ├── 📄 git-blame.html
+│   │   │   ├── 📄 kill-nine.html
+│   │   │   ├── 📄 kubernetes-rescue.html
+│   │   │   └── 📄 pipeline-panic.html
 │   │   ├── 📁 guides
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -360,8 +388,19 @@
 │   │       ├── 📄 code-sprint.tool.html
 │   │       └── 📄 code-terraform.tool.html
 │   ├── 📁 dark-arts
+│   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   ├── 📁 presentations [presentations]
+│   │   │   ├── 📊 dark-arts-feh-01.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-02.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-03.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-04.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-05.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-06.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-07.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-08.presentation.html
+│   │   │   ├── 📊 dark-arts-feh-09.presentation.html
+│   │   │   └── 📊 dark-arts-feh-10.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   └── 📁 tools
 │   │       └── 📁 ctf-leaderboard
@@ -412,6 +451,8 @@
 │   │   │   │   ├── 📄 eye-tcpdump-netflow.applet.html
 │   │   │   │   ├── 📄 eye-traffic-analysis.applet.html
 │   │   │   │   ├── 📄 eye-web-attacks.applet.html
+│   │   │   │   ├── 📁 final [applets]
+│   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 labs [labs]
 │   │   │   │   │   ├── 🔬 eye-lab-1-0-6-top-hacker.lab.html
 │   │   │   │   │   ├── 🔬 eye-lab-1-2-3-attack-details.lab.html
@@ -448,25 +489,58 @@
 │   │   │   │   │       ├── 🔬 eye-wireshark-http-https.lab.html
 │   │   │   │   │       ├── 🔬 eye-wireshark-tcp-udp.lab.html
 │   │   │   │   │       └── 🔬 eye-wireshark-udp-dns.lab.html
-│   │   │   │   └── 📁 week5 [applets]
+│   │   │   │   ├── 📁 week5 [applets]
+│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📍 index.html
+│   │   │   │   │   └── 📁 labs [labs]
+│   │   │   │   │       ├── 🔬 eye-dns-traffic.lab.html
+│   │   │   │   │       ├── 🔬 eye-logging-network-activity.lab.html
+│   │   │   │   │       ├── 🔬 eye-mysql-attack.lab.html
+│   │   │   │   │       ├── 🔬 eye-server-logs.lab.html
+│   │   │   │   │       ├── 🔬 eye-soc-triage.lab.html
+│   │   │   │   │       └── 🔬 eye-whats-going-on.lab.html
+│   │   │   │   ├── 📁 week6 [applets]
+│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📍 index.html
+│   │   │   │   │   └── 📁 labs [labs]
+│   │   │   │   │       ├── 🔬 eye-asymmetric-encryption.lab.html
+│   │   │   │   │       ├── 🔬 eye-certificate-stores.lab.html
+│   │   │   │   │       ├── 🔬 eye-digital-signatures.lab.html
+│   │   │   │   │       ├── 🔬 eye-hashing-openssl.lab.html
+│   │   │   │   │       ├── 🔬 eye-symmetric-encryption.lab.html
+│   │   │   │   │       ├── 🔬 eye-tls-ssl-analysis.lab.html
+│   │   │   │   │       ├── 🔬 eye-vpn-fundamentals.lab.html
+│   │   │   │   │       └── 🔬 eye-wireshark-crypto.lab.html
+│   │   │   │   └── 📁 week7 [applets]
 │   │   │   │       ├── 📄 evaluation.html
 │   │   │   │       ├── 📍 index.html
 │   │   │   │       └── 📁 labs [labs]
-│   │   │   │           ├── 🔬 eye-dns-traffic.lab.html
-│   │   │   │           ├── 🔬 eye-logging-network-activity.lab.html
-│   │   │   │           ├── 🔬 eye-mysql-attack.lab.html
-│   │   │   │           ├── 🔬 eye-server-logs.lab.html
-│   │   │   │           ├── 🔬 eye-soc-triage.lab.html
-│   │   │   │           └── 🔬 eye-whats-going-on.lab.html
+│   │   │   │           ├── 🔬 eye-chain-of-custody.lab.html
+│   │   │   │           ├── 🔬 eye-incident-handling.lab.html
+│   │   │   │           ├── 🔬 eye-log-correlation.lab.html
+│   │   │   │           ├── 🔬 eye-memory-forensics.lab.html
+│   │   │   │           ├── 🔬 eye-network-forensics.lab.html
+│   │   │   │           ├── 🔬 eye-pcap-forensics.lab.html
+│   │   │   │           ├── 🔬 eye-snort-rules.lab.html
+│   │   │   │           └── 🔬 eye-threat-actor-profiling.lab.html
 │   │   │   └── 📁 osint [applets]
 │   │   │       └── 📄 eye-google-dorking.applet.html
+│   │   ├── 📁 games
+│   │   │   ├── 📄 alert-triage.html
+│   │   │   ├── 📄 dont-feed-the-troll.html
+│   │   │   ├── 📄 grep-noir.html
+│   │   │   ├── 📄 log-centipede.html
+│   │   │   ├── 📄 memory-forensics.html
+│   │   │   └── 📄 threat-modeler.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 eye-correlation.lab.html
 │   │   │   ├── 🔬 eye-hunting.lab.html
 │   │   │   ├── 🔬 eye-siem.lab.html
 │   │   │   ├── 🔬 eye-soc.lab.html
-│   │   │   └── 🔬 eye-traffic.lab.html
+│   │   │   ├── 🔬 eye-traffic.lab.html
+│   │   │   ├── 📄 incident-timeline.html
+│   │   │   └── 📄 log-detective.html
 │   │   ├── 📁 modules [modules]
 │   │   │   └── 📁 cyberops [modules]
 │   │   │       └── 📍 index.html
@@ -650,10 +724,10 @@
 │   │   │   │   │   │   ├── ❓ forge-ch22.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-ch23.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-ch24.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-core2-midterm.quiz.html
 │   │   │   │   │   │   └── ❓ forge-core2-quiz-ch19-22.quiz.html
-│   │   │   │   │   ├── 📁 reference [applets]
-│   │   │   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
-│   │   │   │   │   └── 📁 tools [applets]
+│   │   │   │   │   └── 📁 reference [applets]
+│   │   │   │   │       └── 📄 forge-windows-shortcuts.applet.html
 │   │   │   │   ├── ❓ forge-core2-quiz-ch19-22.applet.html
 │   │   │   │   ├── 📄 forge-os-core.applet.html
 │   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
@@ -708,7 +782,12 @@
 │   │   │       └── 📁 wireless_networking [applets]
 │   │   │           └── 📄 forge-wireless-networking.applet.html
 │   │   ├── 📁 games
-│   │   │   └── 📄 forge-aplus-jeopardy.applet.html
+│   │   │   ├── 📄 bit-dash.html
+│   │   │   ├── 📄 dont-anger-the-printer.html
+│   │   │   ├── 📄 dont-brick-the-pc.html
+│   │   │   ├── 📄 fsck.html
+│   │   │   ├── 📄 rack-stack.html
+│   │   │   └── 📄 raid-calculator.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
@@ -731,7 +810,10 @@
 │   │   │   ├── ❓ forge-aplus-core2.quiz.html
 │   │   │   ├── ❓ forge-hardware-essentials.quiz.html
 │   │   │   └── ❓ forge-windows-admin.quiz.html
-│   │   ├── 📁 reference
+│   │   ├── 📁 reviews
+│   │   │   ├── 📄 backup-or-bust.html
+│   │   │   ├── 📄 binary-blitz.html
+│   │   │   └── 📄 forge-aplus-jeopardy.applet.html
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 forge-admin-tools.tool.html
 │   │   │   ├── 📄 forge-control-panel.tool.html
@@ -743,8 +825,14 @@
 │   │   │   └── 📄 forge-windows10-components.tool.html
 │   │   └── 📁 tutorials
 │   ├── 🏠 key [house:key]
+│   │   ├── 📁 games
+│   │   │   ├── 📄 cipher-cracker.html
+│   │   │   ├── 📄 crypto-pong.html
+│   │   │   ├── 📄 dont-leak-the-key.html
+│   │   │   └── 📄 gpg-decrypt.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📄 firewall-builder.html
 │   │   │   ├── 🔬 key-aes.lab.html
 │   │   │   ├── 🔬 key-attack.lab.html
 │   │   │   ├── 🔬 key-cert.lab.html
@@ -777,6 +865,8 @@
 │   │   │   ├── ❓ key-mac.quiz.html
 │   │   │   ├── ❓ key-pqc.quiz.html
 │   │   │   └── ❓ key-symmetric.quiz.html
+│   │   ├── 📁 reviews
+│   │   │   └── 📄 hash-cracker.html
 │   │   └── 📁 tools
 │   │       ├── 📄 key-aes.tool.html
 │   │       ├── 📄 key-cert.tool.html
@@ -830,16 +920,15 @@
 │   │   │   │   ├── 📄 script-powershell-playground.applet.html
 │   │   │   │   ├── 📄 script-windows-cli-tools.applet.html
 │   │   │   │   └── 📄 script-windows-troubleshooting.applet.html
-│   │   │   ├── 📁 python [applets]
-│   │   │   │   ├── 📄 script-python-chapter1.applet.html
-│   │   │   │   ├── 📄 script-python-chapter2-strings.applet.html
-│   │   │   │   ├── 📄 script-python-chapter3-flow-control.applet.html
-│   │   │   │   ├── 📄 script-python-chapter4-functions.applet.html
-│   │   │   │   ├── 📄 script-python-chapter5-collections.applet.html
-│   │   │   │   ├── 📄 script-python-chapter6-dictionaries.applet.html
-│   │   │   │   ├── 📄 script-python-chapter7-file-handling.applet.html
-│   │   │   │   └── 📄 script-python-chapter8-oop.applet.html
-│   │   │   └── 📁 sysadmin [applets]
+│   │   │   └── 📁 python [applets]
+│   │   │       ├── 📄 script-python-chapter1.applet.html
+│   │   │       ├── 📄 script-python-chapter2-strings.applet.html
+│   │   │       ├── 📄 script-python-chapter3-flow-control.applet.html
+│   │   │       ├── 📄 script-python-chapter4-functions.applet.html
+│   │   │       ├── 📄 script-python-chapter5-collections.applet.html
+│   │   │       ├── 📄 script-python-chapter6-dictionaries.applet.html
+│   │   │       ├── 📄 script-python-chapter7-file-handling.applet.html
+│   │   │       └── 📄 script-python-chapter8-oop.applet.html
 │   │   ├── 📁 clh
 │   │   │   ├── 📄 script-clh-001-intro.applet.html
 │   │   │   ├── ❓ script-clh-001.quiz.html
@@ -1039,8 +1128,15 @@
 │   │   │   ├── 📄 script-python-exam-chapter6.exam.html
 │   │   │   ├── 📄 script-python-exam-chapter7.exam.html
 │   │   │   └── 📄 script-python-exam-chapter8.exam.html
+│   │   ├── 📁 games
+│   │   │   ├── 📄 dont-kill-the-server.html
+│   │   │   ├── 📄 pipe-snake.html
+│   │   │   ├── 📄 shell-sprint.html
+│   │   │   └── 📄 sudo-su.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📄 cron-builder.html
+│   │   │   ├── 📄 patch-tuesday.html
 │   │   │   ├── 🔬 script-lab.lab.html
 │   │   │   ├── 🔬 script-linux-bash.lab.html
 │   │   │   ├── 🔬 script-powershell.lab.html
@@ -1057,7 +1153,9 @@
 │   │   │   ├── 📄 script-quick.reference.html
 │   │   │   └── 📁 tools
 │   │   │       ├── 📄 script-directory.tool.html
-│   │   │       └── 📄 script-permission.tool.html
+│   │   │       ├── 📄 script-permission.tool.html
+│   │   │       ├── 📄 script-process.tool.html
+│   │   │       └── 📄 script-service.tool.html
 │   │   ├── 📁 modules [modules]
 │   │   │   ├── 📁 linux-mastery [modules]
 │   │   │   │   ├── 📍 index.html
@@ -1144,6 +1242,10 @@
 │   │   │   ├── ❓ script-python.quiz.html
 │   │   │   ├── ❓ script-quiz.quiz.html
 │   │   │   └── ❓ script-sysadmin.quiz.html
+│   │   ├── 📁 reviews
+│   │   │   ├── 📄 permission-puzzle.html
+│   │   │   ├── 📄 regex-runner.html
+│   │   │   └── 📄 terminal-velocity.html
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 script-automation.tool.html
 │   │   │   ├── 📄 script-linux-command.tool.html
@@ -1166,7 +1268,6 @@
 │   │   │   │   │   ├── 📁 kerberos.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-kerberos.applet.html
 │   │   │   │   └── 📄 shield-access-control-models.applet.html
-│   │   │   ├── 📁 architecture [applets]
 │   │   │   ├── 📁 compliance [applets]
 │   │   │   │   ├── 📁 cmmc_access_control [applets]
 │   │   │   │   │   └── 📄 shield-acv2.applet.html
@@ -1299,7 +1400,8 @@
 │   │   │   │   │   ├── 📁 cyberscramble.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cyberscramble.applet.html
 │   │   │   │   ├── 📁 ethical_hacking_case [applets]
-│   │   │   │   │   └── 📁 EH_exam_1A.hyperesources [applets]
+│   │   │   │   │   ├── 📁 EH_exam_1A.hyperesources [applets]
+│   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 hacker_hangman [applets]
 │   │   │   │   │   ├── 📁 hangman.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-hangman.applet.html
@@ -1422,6 +1524,15 @@
 │   │   │   └── 📄 shield-attack-vector-challenge.applet.html
 │   │   ├── 📁 exams
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
+│   │   ├── 📁 games
+│   │   │   ├── 📄 dont-get-phished.html
+│   │   │   ├── 📄 incident-response.html
+│   │   │   ├── 📄 malware-zoo.html
+│   │   │   ├── 📄 social-engineer.html
+│   │   │   ├── 📄 sql-injection-defense.html
+│   │   │   ├── 📄 threat-runner.html
+│   │   │   ├── 📄 threat-swarm.html
+│   │   │   └── 📄 tor-darkweb.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 shield-access-control.lab.html
@@ -1511,16 +1622,22 @@
 │       │   │   │   ├── 📁 subnetting.hyperesources [applets]
 │       │   │   │   └── 📄 web-subnetting.applet.html
 │       │   │   └── 📄 web-binary-decimal-converter.applet.html
-│       │   ├── 📁 networking-quizzes [applets]
 │       │   ├── 📁 services [applets]
 │       │   │   ├── 📄 web-http-status-codes.applet.html
 │       │   │   ├── 📄 web-server-comparison.applet.html
 │       │   │   └── 📄 web-smb-file-sharing.applet.html
-│       │   ├── 📁 visualizers [applets]
 │       │   └── 📄 web-networking-interactive.applet.html
 │       ├── 📁 exams
 │       │   ├── 📄 web-networking-exam-flashcards.exam.html
 │       │   └── 📄 web-networking-midterm.exam.html
+│       ├── 📁 games
+│       │   ├── 📄 dont-drop-the-packet.html
+│       │   ├── 📄 network-architect.html
+│       │   ├── 📄 nmap.html
+│       │   ├── 📄 packet-invaders.html
+│       │   ├── 📄 packet-run.html
+│       │   ├── 📄 packet-sniffer.html
+│       │   └── 📄 wireless-warzone.html
 │       ├── 📁 handouts
 │       ├── 📍 index.html
 │       ├── 📁 labs [labs]
@@ -1564,6 +1681,11 @@
 │       │   ├── ❓ web-osi.quiz.html
 │       │   ├── ❓ web-subnetting.quiz.html
 │       │   └── ❓ web-week3.quiz.html
+│       ├── 📁 reviews
+│       │   ├── 📄 api-interceptor.html
+│       │   ├── 📄 dns-resolver-race.html
+│       │   ├── 📄 protocol-stack.html
+│       │   └── 📄 subnet-siege.html
 │       ├── 📁 simulators
 │       │   ├── 📄 web-interactive-network-simulatorv2.simulator.html
 │       │   └── 📄 web-packet-tracer-lite-v3.simulator.html
@@ -1633,10 +1755,12 @@
 |---------|------|------|--------|
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 1 |
+| ad-attack-path | presentation | ✓ | 0 |
+| cloud-architect | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
-| cloud-cse-module01.lab | lab | ✓ | 0 |
+| cloud-cse-module01.lab | lab | ✓ | 1 |
 | cloud-cse-module02.lab | lab | ✓ | 1 |
 | cloud-cse-module03.lab | lab | ✓ | 1 |
 | cloud-cse-module04.lab | lab | ✓ | 1 |
@@ -1644,68 +1768,66 @@
 | cloud-cse-module06.lab | lab | ✓ | 1 |
 | cloud-cse-module07.lab | lab | ✓ | 1 |
 | cloud-cse-module08.lab | lab | ✓ | 1 |
-| cloud-gui.lab | presentation | ✓ | 0 |
 | cloud-lab.lab | lab | ✓ | 2 |
-| cloud-ps.lab | lab | ✓ | 0 |
+| cloud-ps.lab | lab | ✓ | 1 |
 | cloud-security.lab | lab | ✓ | 0 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-gui.lab | presentation | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-quiz.quiz | presentation | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-gauntlet.module | applet | ✓ | 1 |
+| cloud-gauntlet-advanced.module | applet | ✓ | 1 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-quiz.quiz | applet | ✓ | 1 |
-| cloud-gui.lab | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | lab | ✓ | 0 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | lab | ✓ | 0 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 1 |
-| cloud-gui.lab | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-gui.lab | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 2 |
+| cloud-guilab.module | applet | ✓ | 1 |
 | cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-ps.lab | lab | ✓ | 0 |
-| cloud-simulation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | applet | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | applet | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-guilab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-pslab.module | lab | ✓ | 1 |
+| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-pslab.module | lab | ✓ | 1 |
 | cloud-aws-fundamentals.presentation | presentation | ✓ | 1 |
 | cloud-azure-fundamentals.presentation | presentation | ✓ | 2 |
 | cloud-cloud.presentation | presentation | ✓ | 2 |
@@ -1728,7 +1850,6 @@
 | cloud-cse-module05.quiz | presentation | ✓ | 1 |
 | cloud-cse-module06.quiz | presentation | ✓ | 0 |
 | cloud-cse-module08.quiz | applet | ✓ | 1 |
-| cloud-quiz.quiz | presentation | ✓ | 0 |
 | cloud-aws-service.tool | presentation | ✓ | 1 |
 | cloud-ch01-cloud-models.tool | presentation | ✓ | 1 |
 | cloud-ch02-aws-account.tool | presentation | ✓ | 1 |
@@ -1752,6 +1873,8 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | applet | ✓ | 1 |
 | code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
+| git-blame | applet | ✓ | 1 |
+| kubernetes-rescue | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
@@ -1816,6 +1939,23 @@
 | eye-packet-flow.lab | applet | ✓ | 1 |
 | eye-logging-network-activity.lab | applet | ✓ | 1 |
 | eye-soc-triage.lab | presentation | ✓ | 1 |
+| eye-asymmetric-encryption.lab | lab | ✓ | 0 |
+| eye-certificate-stores.lab | lab | ✓ | 0 |
+| eye-digital-signatures.lab | lab | ✓ | 0 |
+| eye-hashing-openssl.lab | lab | ✓ | 0 |
+| eye-symmetric-encryption.lab | lab | ✓ | 0 |
+| eye-tls-ssl-analysis.lab | lab | ✓ | 0 |
+| eye-vpn-fundamentals.lab | lab | ✓ | 0 |
+| eye-wireshark-crypto.lab | lab | ✓ | 0 |
+| eye-chain-of-custody.lab | lab | ✓ | 0 |
+| eye-incident-handling.lab | lab | ✓ | 0 |
+| eye-log-correlation.lab | lab | ✓ | 1 |
+| eye-memory-forensics.lab | lab | ✓ | 0 |
+| eye-network-forensics.lab | lab | ✓ | 0 |
+| eye-pcap-forensics.lab | lab | ✓ | 0 |
+| eye-snort-rules.lab | lab | ✓ | 0 |
+| eye-threat-actor-profiling.lab | lab | ✓ | 0 |
+| alert-triage | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
@@ -1896,6 +2036,7 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-change-management.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 2 |
@@ -1906,7 +2047,7 @@
 | forge-physical-security.lab | lab | ✓ | 1 |
 | forge-security-fundamentals.lab | lab | ✓ | 0 |
 | forge-system-tools.lab | lab | ✓ | 2 |
-| forge-users-groups.lab | lab | ✓ | 0 |
+| forge-users-groups.lab | lab | ✓ | 1 |
 | forge-windows-editions.lab | lab | ✓ | 2 |
 | forge-windows-settings.lab | lab | ✓ | 2 |
 | forge-admin-tools.presentation | presentation | ✓ | 2 |
@@ -1927,6 +2068,7 @@
 | forge-ch22.quiz | presentation | ✓ | 0 |
 | forge-ch23.quiz | presentation | ✓ | 0 |
 | forge-ch24.quiz | presentation | ✓ | 0 |
+| forge-core2-midterm.quiz | presentation | ✓ | 0 |
 | forge-windows-shortcuts.applet | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-command-translator.applet | applet | ✓ | 1 |
@@ -1935,6 +2077,7 @@
 | forge-system-tools-sim.applet | presentation | ✓ | 1 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
+| raid-calculator | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
@@ -1962,6 +2105,8 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| cipher-cracker | presentation | ✓ | 0 |
+| dont-leak-the-key | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
@@ -1992,6 +2137,7 @@
 | key-mac.quiz | presentation | ✓ | 0 |
 | key-pqc.quiz | presentation | ✓ | 0 |
 | key-symmetric.quiz | presentation | ✓ | 0 |
+| hash-cracker | presentation | ✓ | 0 |
 | key-aes.tool | presentation | ✓ | 1 |
 | key-cert.tool | presentation | ✓ | 0 |
 | key-ecc.tool | presentation | ✓ | 1 |
@@ -2041,6 +2187,7 @@
 | script-linux-filesystem-navigator.applet | presentation | ✓ | 0 |
 | script-linux-lab-001-user-identity.applet | lab | ✓ | 0 |
 | script-linux-lab-002-file-navigation.applet | lab | ✓ | 0 |
+| script-powershell-playground.applet | applet | ✓ | 1 |
 | script-windows-cli-tools.applet | applet | ✓ | 1 |
 | script-windows-troubleshooting.applet | applet | ✓ | 1 |
 | script-python-chapter1.applet | applet | ✓ | 1 |
@@ -2114,6 +2261,7 @@
 | script-lab.lab | lab | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| dont-kill-the-server | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
 | script-linux-bash.lab | presentation | ✓ | 1 |
@@ -2129,6 +2277,7 @@
 | script-quick.reference | applet | ✓ | 1 |
 | script-directory.tool | applet | ✓ | 1 |
 | script-permission.tool | applet | ✓ | 1 |
+| script-service.tool | applet | ✓ | 1 |
 | script-lm-03-getting-help.module | applet | ✓ | 1 |
 | script-lm-04-terminal-environment.module | applet | ✓ | 1 |
 | script-lm-08-file-operations.module | presentation | ✓ | 1 |
@@ -2190,6 +2339,7 @@
 | script-scripting-basics.presentation | presentation | ✓ | 1 |
 | script-linux-bash.quiz | presentation | ✓ | 1 |
 | linux-basics | quiz | ✓ | 0 |
+| permission-puzzle | presentation | ✓ | 0 |
 | script-automation.tool | applet | ✓ | 1 |
 | script-linux-command.tool | applet | ✓ | 1 |
 | script-linux-permissions.tool | applet | ✓ | 1 |
@@ -2259,6 +2409,7 @@
 | shield-cookies.applet | presentation | ✓ | 1 |
 | shield-hatmatch.applet | presentation | ✓ | 0 |
 | shield-cyberscramble.applet | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | shield-hangman.applet | presentation | ✓ | 0 |
 | shield-crime.applet | presentation | ✓ | 0 |
 | shield-browser-security-hardening.applet | applet | ✓ | 1 |
@@ -2276,6 +2427,8 @@
 | shield-change-management.applet | presentation | ✓ | 1 |
 | shield-malware-types.applet | applet | ✓ | 1 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
+| malware-zoo | lab | ✓ | 1 |
+| social-engineer | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | shield-access-control.lab | presentation | ✓ | 0 |
 | shield-compliance.lab | presentation | ✓ | 0 |
@@ -2310,8 +2463,9 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
-| botnet-architecture | presentation | ✓ | 1 |
-| buffer-overflow-lab | applet | ✓ | 1 |
+| ctf-leaderboard.applet | applet | ✓ | 1 |
+| botnet-architecture.presentation | presentation | ✓ | 1 |
+| buffer-overflow-lab | presentation | ✓ | 1 |
 | ceh-attack-reference | applet | ✓ | 1 |
 | cloud-hacking-lab | lab | ✓ | 2 |
 | csrf-attack-lab | lab | ✓ | 2 |
@@ -2327,11 +2481,11 @@
 | jwt-attack-lab | applet | ✓ | 1 |
 | malware-analysis-lab | presentation | ✓ | 1 |
 | mobile-security-lab | lab | ✓ | 1 |
-| behavioral-analysis | applet | ✓ | 1 |
-| dynamic-analysis | applet | ✓ | 1 |
-| incident-response | applet | ✓ | 1 |
-| reverse-engineering | applet | ✓ | 1 |
-| static-analysis | applet | ✓ | 1 |
+| behavioral-analysis.module | applet | ✓ | 1 |
+| dynamic-analysis.module | applet | ✓ | 1 |
+| incident-response.module | applet | ✓ | 1 |
+| reverse-engineering.module | applet | ✓ | 1 |
+| static-analysis.module | applet | ✓ | 1 |
 | network-scanning-lab | applet | ✓ | 1 |
 | network-sniffing-lab | applet | ✓ | 1 |
 | nmap-scanning-lab | applet | ✓ | 1 |
@@ -2351,7 +2505,18 @@
 | nmap-training | presentation | ✓ | 1 |
 | wireless-attacks-lab | applet | ✓ | 1 |
 | xss-attacks-lab | applet | ✓ | 1 |
-| dashboard | applet | ✓ | 1 |
+| dashboard | applet | ✓ | 0 |
+| faq | applet | ✓ | 1 |
+| dark-arts-feh-01.presentation | presentation | ✓ | 2 |
+| dark-arts-feh-02.presentation | presentation | ✓ | 1 |
+| dark-arts-feh-03.presentation | presentation | ✓ | 1 |
+| dark-arts-feh-04.presentation | presentation | ✓ | 1 |
+| dark-arts-feh-05.presentation | presentation | ✓ | 2 |
+| dark-arts-feh-06.presentation | presentation | ✓ | 2 |
+| dark-arts-feh-07.presentation | presentation | ✓ | 1 |
+| dark-arts-feh-08.presentation | presentation | ✓ | 2 |
+| dark-arts-feh-09.presentation | presentation | ✓ | 1 |
+| dark-arts-feh-10.presentation | presentation | ✓ | 2 |
 | dark-arts-sample.tool | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | product-info | applet | ✓ | 1 |
@@ -2397,6 +2562,8 @@
 | web-networking-ch7-10.quiz | applet | ✓ | 1 |
 | web-networking-ch7-20.quiz | applet | ✓ | 1 |
 | subnetting | quiz | ✓ | 0 |
+| dns-resolver-race | presentation | ✓ | 0 |
+| subnet-siege | presentation | ✓ | 0 |
 | web-interactive-network-simulatorv2.simulator | presentation | ✓ | 1 |
 | web-packet-tracer-lite-v3.simulator | applet | ✓ | 1 |
 | web-networking-textbook-ch7-20.textbook | applet | ✓ | 1 |
@@ -2431,14 +2598,23 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (814)
+### CRITICAL (1)
+
+**[REG-ORPHAN-001]** Registry declares 'forge-aplus-jeopardy' but file is missing: houses/forge/games/forge-aplus-jeopardy.applet.html
+  Fix: Remove entry 'forge-aplus-jeopardy' from content-registry.js OR restore the missing file
+
+### WARNING (882)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/botnet-architecture.html`
+  File: `dark-arts/ctf-leaderboard.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/botnet-architecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -2518,23 +2694,23 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/modules/behavioral-analysis.html`
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/modules/dynamic-analysis.html`
+  File: `dark-arts/vault/modules/dynamic-analysis.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/modules/incident-response.html`
+  File: `dark-arts/vault/modules/incident-response.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/modules/reverse-engineering.html`
+  File: `dark-arts/vault/modules/reverse-engineering.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/modules/static-analysis.html`
+  File: `dark-arts/vault/modules/static-analysis.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -2630,11 +2806,23 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `faq.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/applets/architecture/cloud-architecture-designer.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/games/ad-attack-path.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/games/cloud-architect.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -2644,6 +2832,10 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/labs/cloud-aws-services.lab.html`
   Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/labs/cloud-cse-module01.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/labs/cloud-cse-module01.lab.html`
@@ -2693,10 +2885,6 @@
   File: `houses/cloud/labs/cloud-cse-module08.lab.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/labs/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
 **[TRACK-003]** Lab has no visible progress tracking mechanism
   File: `houses/cloud/labs/cloud-lab.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
@@ -2704,6 +2892,10 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/labs/cloud-lab.lab.html`
   Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/labs/cloud-ps.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/labs/cloud-ps.lab.html`
@@ -2713,6 +2905,18 @@
   File: `houses/cloud/labs/cloud-security.lab.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
@@ -2722,7 +2926,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2734,15 +2942,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2751,134 +2955,170 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-ps.lab.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2890,19 +3130,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2914,19 +3154,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2938,19 +3178,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2962,19 +3202,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -2986,19 +3226,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -3010,19 +3250,19 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -3034,15 +3274,11 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -3053,12 +3289,12 @@
   File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -3069,12 +3305,12 @@
   File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-ps.lab.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html`
+  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -3190,10 +3426,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/quizzes/cloud-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/tools/cloud-aws-service.tool.html`
   Fix: Add entry to content-registry.js
 
@@ -3262,6 +3494,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/games/git-blame.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/games/kubernetes-rescue.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/labs/code-cicd.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -3327,6 +3567,86 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/tools/code-sprint.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-03.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-03.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-04.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-04.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-07.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-07.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-09.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-09.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -3495,6 +3815,74 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-asymmetric-encryption.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-certificate-stores.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-digital-signatures.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-hashing-openssl.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-symmetric-encryption.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-tls-ssl-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-vpn-fundamentals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week6/labs/eye-wireshark-crypto.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-chain-of-custody.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-incident-handling.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-memory-forensics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-network-forensics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-pcap-forensics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/alert-triage.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -3878,6 +4266,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-midterm.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -3907,6 +4299,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/raid-calculator.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -4030,6 +4426,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/games/cipher-cracker.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/games/dont-leak-the-key.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/key/labs/key-aes.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -4143,6 +4547,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/key/quizzes/key-symmetric.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/reviews/hash-cracker.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4315,6 +4723,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/applets/powershell/script-powershell-playground.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4610,6 +5022,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/games/dont-kill-the-server.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/labs/script-lab.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -4667,6 +5083,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/linux/tools/script-permission.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux/tools/script-service.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4903,6 +5323,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/quizzes/script-linux-bash.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/reviews/permission-puzzle.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5227,6 +5651,18 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/exams/shield-eh-exam-1-a.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/shield/games/malware-zoo.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/malware-zoo.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/social-engineer.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5570,6 +6006,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/reviews/dns-resolver-race.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/reviews/subnet-siege.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Add entry to content-registry.js
 
@@ -5689,14 +6133,18 @@
   File: `product-info.html`
   Fix: Add entry to content-registry.js
 
-### INFO (369)
+### INFO (398)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/botnet-architecture.html`
+  File: `dark-arts/ctf-leaderboard.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/botnet-architecture.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5756,23 +6204,23 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/behavioral-analysis.html`
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/dynamic-analysis.html`
+  File: `dark-arts/vault/modules/dynamic-analysis.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/incident-response.html`
+  File: `dark-arts/vault/modules/incident-response.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/reverse-engineering.html`
+  File: `dark-arts/vault/modules/reverse-engineering.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/static-analysis.html`
+  File: `dark-arts/vault/modules/static-analysis.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5840,7 +6288,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dashboard.html`
+  File: `faq.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5868,11 +6316,27 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5880,11 +6344,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5892,23 +6356,23 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html`
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html`
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html`
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -5984,6 +6448,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/git-blame.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6033,6 +6501,26 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/tools/code-sprint.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6161,6 +6649,14 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/alert-triage.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6320,6 +6816,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6329,6 +6829,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6377,6 +6881,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/raid-calculator.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6429,6 +6937,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/tools/forge-system-tools-sim.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/dont-leak-the-key.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6537,6 +7049,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/linux/script-command-translator.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/applets/powershell/script-powershell-playground.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6716,6 +7232,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/dont-kill-the-server.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6737,6 +7257,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/linux/tools/script-permission.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/linux/tools/script-service.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6909,6 +7433,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/threats/shield-malware-types.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/social-engineer.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7167,17 +7695,42 @@
   File: `product-info.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
+**[ASGN-002]** Path 'shield': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'shield' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'web': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'web' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'forge': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'forge' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'script': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'script' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'cloud': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'cloud' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'code': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'code' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'key': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'key' as path segment)
+  File: `./components/LearningPaths.js`
+
+**[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
+  File: `./components/LearningPaths.js`
+
 
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (695)
+### Unregistered Content (738)
 
 | Path | Type | House |
 |------|------|-------|
 | admin/audit-tool.html | applet | - |
-| dark-arts/vault/botnet-architecture.html | presentation | - |
-| dark-arts/vault/buffer-overflow-lab.html | applet | - |
+| dark-arts/ctf-leaderboard.applet.html | applet | - |
+| dark-arts/vault/botnet-architecture.presentation.html | presentation | - |
+| dark-arts/vault/buffer-overflow-lab.html | presentation | - |
 | dark-arts/vault/ceh-attack-reference.html | applet | - |
 | dark-arts/vault/cloud-hacking-lab.html | lab | - |
 | dark-arts/vault/csrf-attack-lab.html | lab | - |
@@ -7192,11 +7745,11 @@
 | dark-arts/vault/jwt-attack-lab.html | applet | - |
 | dark-arts/vault/malware-analysis-lab.html | presentation | - |
 | dark-arts/vault/mobile-security-lab.html | lab | - |
-| dark-arts/vault/modules/behavioral-analysis.html | applet | - |
-| dark-arts/vault/modules/dynamic-analysis.html | applet | - |
-| dark-arts/vault/modules/incident-response.html | applet | - |
-| dark-arts/vault/modules/reverse-engineering.html | applet | - |
-| dark-arts/vault/modules/static-analysis.html | applet | - |
+| dark-arts/vault/modules/behavioral-analysis.module.html | applet | - |
+| dark-arts/vault/modules/dynamic-analysis.module.html | applet | - |
+| dark-arts/vault/modules/incident-response.module.html | applet | - |
+| dark-arts/vault/modules/reverse-engineering.module.html | applet | - |
+| dark-arts/vault/modules/static-analysis.module.html | applet | - |
 | dark-arts/vault/network-scanning-lab.html | applet | - |
 | dark-arts/vault/network-sniffing-lab.html | applet | - |
 | dark-arts/vault/nmap-scanning-lab.html | applet | - |
@@ -7216,8 +7769,11 @@
 | dark-arts/vault/tools/nmap-training.html | presentation | - |
 | dark-arts/vault/wireless-attacks-lab.html | applet | - |
 | dark-arts/vault/xss-attacks-lab.html | applet | - |
+| faq.html | applet | - |
 | houses/cloud/applets/architecture/cloud-architecture-designer.applet.html | presentation | cloud |
 | houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html | presentation | cloud |
+| houses/cloud/games/ad-attack-path.html | presentation | cloud |
+| houses/cloud/games/cloud-architect.html | presentation | cloud |
 | houses/cloud/labs/cloud-architecture.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-aws-services.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-cse-module01.lab.html | lab | cloud |
@@ -7228,68 +7784,66 @@
 | houses/cloud/labs/cloud-cse-module06.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-cse-module07.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-cse-module08.lab.html | lab | cloud |
-| houses/cloud/labs/cloud-gui.lab.html | presentation | cloud |
 | houses/cloud/labs/cloud-lab.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-ps.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-security.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html | applet | cloud |
+| houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html | applet | cloud |
+| houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m01-fundamentals/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m02-active-directory/cloud-quiz.quiz.html | presentation | cloud |
-| houses/cloud/modules/wsa/m03-storage/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m02-active-directory/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m03-storage/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m04-hyperv/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m04-hyperv/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m05-containers/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m04-hyperv/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m05-containers/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m05-containers/cloud-quiz.quiz.html | applet | cloud |
-| houses/cloud/modules/wsa/m06-clustering/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m06-clustering/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m07-monitoring/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m06-clustering/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m07-monitoring/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m08-dns/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m07-monitoring/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html | applet | cloud |
 | houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m08-dns/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m09-dhcp/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m09-dhcp/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m10-group-policy/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m10-group-policy/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m11-iis/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m11-iis/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m12-remote-desktop/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m12-remote-desktop/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m13-certificate-services/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m13-certificate-services/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m14-advanced-networking/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m14-advanced-networking/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m15-ad-sites/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m15-ad-sites/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m16-backup-recovery/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m16-backup-recovery/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m17-firewall-security/cloud-gui.lab.html | lab | cloud |
+| houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html | lab | cloud |
+| houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m17-firewall-security/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m18-powershell-automation/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m18-powershell-automation/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-gui.lab.html | presentation | cloud |
+| houses/cloud/modules/wsa/m18-powershell-automation/cloud-pslab.module.html | lab | cloud |
 | houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html | presentation | cloud |
-| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-ps.lab.html | lab | cloud |
-| houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html | presentation | cloud |
+| houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html | lab | cloud |
 | houses/cloud/presentations/cloud-aws-fundamentals.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-azure-fundamentals.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cloud.presentation.html | presentation | cloud |
@@ -7307,7 +7861,6 @@
 | houses/cloud/quizzes/cloud-cse-module05.quiz.html | presentation | cloud |
 | houses/cloud/quizzes/cloud-cse-module06.quiz.html | presentation | cloud |
 | houses/cloud/quizzes/cloud-cse-module08.quiz.html | applet | cloud |
-| houses/cloud/quizzes/cloud-quiz.quiz.html | presentation | cloud |
 | houses/cloud/tools/cloud-aws-service.tool.html | presentation | cloud |
 | houses/cloud/tools/cloud-ch01-cloud-models.tool.html | presentation | cloud |
 | houses/cloud/tools/cloud-ch02-aws-account.tool.html | presentation | cloud |
@@ -7325,6 +7878,8 @@
 | houses/cloud/tools/cloud-cloud.tool.html | presentation | cloud |
 | houses/code/applets/code-docker-playground.applet.html | applet | code |
 | houses/code/applets/code-kubernetes-cluster-sim.applet.html | applet | code |
+| houses/code/games/git-blame.html | applet | code |
+| houses/code/games/kubernetes-rescue.html | presentation | code |
 | houses/code/labs/code-cicd.lab.html | presentation | code |
 | houses/code/labs/code-cloudformation.lab.html | presentation | code |
 | houses/code/labs/code-docker.lab.html | presentation | code |
@@ -7341,6 +7896,16 @@
 | houses/code/tools/code-ansible-playbook.tool.html | applet | code |
 | houses/code/tools/code-automation.tool.html | applet | code |
 | houses/code/tools/code-sprint.tool.html | applet | code |
+| houses/dark-arts/presentations/dark-arts-feh-01.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-02.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-03.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-04.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-05.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-06.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-07.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-08.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-09.presentation.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-feh-10.presentation.html | presentation | - |
 | houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html | applet | - |
 | houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html | applet | eye |
 | houses/eye/applets/cyberops/eye-app-visibility-control.applet.html | presentation | eye |
@@ -7381,6 +7946,23 @@
 | houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html | applet | eye |
 | houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html | applet | eye |
 | houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html | presentation | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-asymmetric-encryption.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-certificate-stores.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-digital-signatures.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-hashing-openssl.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-symmetric-encryption.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-tls-ssl-analysis.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-vpn-fundamentals.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week6/labs/eye-wireshark-crypto.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-chain-of-custody.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-incident-handling.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-memory-forensics.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-network-forensics.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-pcap-forensics.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html | lab | eye |
+| houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html | lab | eye |
+| houses/eye/games/alert-triage.html | applet | eye |
 | houses/eye/labs/eye-siem.lab.html | applet | eye |
 | houses/eye/presentations/eye-log-basics.presentation.html | applet | eye |
 | houses/eye/presentations/eye-log-correlation.presentation.html | presentation | eye |
@@ -7460,6 +8042,7 @@
 | houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch22.quiz.html | presentation | forge |
 | houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch23.quiz.html | presentation | forge |
 | houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch24.quiz.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-midterm.quiz.html | presentation | forge |
 | houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html | presentation | forge |
 | houses/forge/applets/forge-admin-tools.tool.html | presentation | forge |
 | houses/forge/applets/forge-command-translator.applet.html | applet | forge |
@@ -7468,6 +8051,7 @@
 | houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
 | houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
+| houses/forge/games/raid-calculator.html | applet | forge |
 | houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
 | houses/forge/labs/forge-control-panel.lab.html | lab | forge |
 | houses/forge/labs/forge-hardware-essentials.lab.html | lab | forge |
@@ -7487,6 +8071,8 @@
 | houses/forge/tools/forge-settings.tool.html | presentation | forge |
 | houses/forge/tools/forge-system-tools-sim.tool.html | presentation | forge |
 | houses/forge/tools/forge-windows-edition-selector.tool.html | presentation | forge |
+| houses/key/games/cipher-cracker.html | presentation | key |
+| houses/key/games/dont-leak-the-key.html | applet | key |
 | houses/key/labs/key-aes.lab.html | presentation | key |
 | houses/key/labs/key-attack.lab.html | presentation | key |
 | houses/key/labs/key-cert.lab.html | presentation | key |
@@ -7516,6 +8102,7 @@
 | houses/key/quizzes/key-mac.quiz.html | presentation | key |
 | houses/key/quizzes/key-pqc.quiz.html | presentation | key |
 | houses/key/quizzes/key-symmetric.quiz.html | presentation | key |
+| houses/key/reviews/hash-cracker.html | presentation | key |
 | houses/key/tools/key-aes.tool.html | presentation | key |
 | houses/key/tools/key-cert.tool.html | presentation | key |
 | houses/key/tools/key-ecc.tool.html | presentation | key |
@@ -7559,6 +8146,7 @@
 | houses/script/applets/linux/script-linux-filesystem-navigator.applet.html | presentation | script |
 | houses/script/applets/linux/script-linux-lab-001-user-identity.applet.html | lab | script |
 | houses/script/applets/linux/script-linux-lab-002-file-navigation.applet.html | lab | script |
+| houses/script/applets/powershell/script-powershell-playground.applet.html | applet | script |
 | houses/script/applets/powershell/script-windows-cli-tools.applet.html | applet | script |
 | houses/script/applets/powershell/script-windows-troubleshooting.applet.html | applet | script |
 | houses/script/applets/python/script-python-chapter1.applet.html | applet | script |
@@ -7631,6 +8219,7 @@
 | houses/script/courses/clh/modules/clh-029/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
+| houses/script/games/dont-kill-the-server.html | applet | script |
 | houses/script/labs/script-lab.lab.html | lab | script |
 | houses/script/labs/script-linux-bash.lab.html | presentation | script |
 | houses/script/labs/script-powershell.lab.html | lab | script |
@@ -7645,6 +8234,7 @@
 | houses/script/linux/script-quick.reference.html | applet | script |
 | houses/script/linux/tools/script-directory.tool.html | applet | script |
 | houses/script/linux/tools/script-permission.tool.html | applet | script |
+| houses/script/linux/tools/script-service.tool.html | applet | script |
 | houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html | applet | script |
 | houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html | applet | script |
 | houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html | presentation | script |
@@ -7704,6 +8294,7 @@
 | houses/script/presentations/script-macos-linux-basics.presentation.html | presentation | script |
 | houses/script/presentations/script-scripting-basics.presentation.html | presentation | script |
 | houses/script/quizzes/script-linux-bash.quiz.html | presentation | script |
+| houses/script/reviews/permission-puzzle.html | presentation | script |
 | houses/script/tools/script-automation.tool.html | applet | script |
 | houses/script/tools/script-linux-command.tool.html | applet | script |
 | houses/script/tools/script-linux-permissions.tool.html | applet | script |
@@ -7783,6 +8374,8 @@
 | houses/shield/applets/risk/shield-change-management.applet.html | presentation | shield |
 | houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
 | houses/shield/exams/shield-eh-exam-1-a.exam.html | presentation | shield |
+| houses/shield/games/malware-zoo.html | lab | shield |
+| houses/shield/games/social-engineer.html | applet | shield |
 | houses/shield/labs/shield-access-control.lab.html | presentation | shield |
 | houses/shield/labs/shield-compliance.lab.html | presentation | shield |
 | houses/shield/labs/shield-cryptography.lab.html | presentation | shield |
@@ -7840,6 +8433,8 @@
 | houses/web/quizzes/web-networking-ch7-10.quiz.html | applet | web |
 | houses/web/quizzes/web-networking-ch7-20.quiz.html | applet | web |
 | houses/web/quizzes/web-subnetting.quiz.html | quiz | web |
+| houses/web/reviews/dns-resolver-race.html | presentation | web |
+| houses/web/reviews/subnet-siege.html | presentation | web |
 | houses/web/simulators/web-interactive-network-simulatorv2.simulator.html | presentation | web |
 | houses/web/simulators/web-packet-tracer-lite-v3.simulator.html | applet | web |
 | houses/web/textbook/web-networking-textbook-ch7-20.textbook.html | applet | web |

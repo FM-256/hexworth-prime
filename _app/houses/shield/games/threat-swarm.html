@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Swarm - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a12;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #a855f7; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100;
+        }
+        .back-link:hover { color: #c084fc; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #130a20 0%, #0a0a12 100%);
+            border: 2px solid #581c87;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #7c3aed;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 600px; overflow-y: auto;
+        }
+        .lore-title { color: #a855f7; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #581c87; padding-bottom: 8px; }
+        .lore-section h3 { color: #c084fc; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #a855f7; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #a855f7; display: block;
+            background: #0a0a12; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #a855f7; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #a855f7; color: #0a0a12; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #9333ea; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10,10,18,0.95); border: 2px solid #a855f7;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #a855f7; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #581c87; }
+        .move-entry .move-name { color: #c084fc; font-weight: bold; }
+        .move-entry .move-desc { color: #7c3aed; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">THREAT SWARM</div>
+            <div class="lore-section">
+                <h3>THREAT ADVISORY</h3>
+                <p>Coordinated cyber threat formations detected. Multiple attack vectors inbound. As the SOC's best interceptor pilot, you are the last line of defense.</p>
+            </div>
+            <div class="lore-section">
+                <h3>SWARM INTEL</h3>
+                <p>Threats attack in formations. Destroy them before they dive-bomb. Watch for elites that split or track your position. Capture disabled threats for bonus intel.</p>
+            </div>
+            <div class="lore-section">
+                <h3>SITREP</h3>
+                <p id="loreWave">STAGE: STANDBY</p>
+                <p id="loreScore">THREATS NEUTRALIZED: 0</p>
+                <p id="loreCaptured">INTEL CAPTURED: 0</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>← →</span> Move interceptor</p>
+                <p><span>SPACE</span> Fire</p>
+                <p><span>SHIFT</span> Tractor beam</p>
+                <p><span>?</span> Show weapons</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="700" height="600"></canvas>
+            <div id="ui">
+                <span id="scoreDisplay">SCORE: 0</span>
+                <span id="stageDisplay">STAGE 1</span>
+                <span id="livesDisplay">♥♥♥</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">← → MOVE | SPACE FIRE | SHIFT TRACTOR BEAM | ? WEAPONS</div>
+    <div id="movesPanel">
+        <h2>🛡 ARSENAL</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#7c3aed;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.12) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxShoot() { playSound(880, 0.06, 'square', 0.08); }
+function sfxHit() { playSound(330, 0.1, 'sawtooth', 0.12); }
+function sfxCapture() { playSound(440, 0.1, 'sine'); setTimeout(() => playSound(550, 0.1, 'sine'), 80); setTimeout(() => playSound(660, 0.15, 'sine'), 160); }
+function sfxDive() { playSound(600, 0.1, 'sawtooth', 0.1); }
+function sfxExplode() { playSound(100, 0.25, 'sawtooth', 0.15); }
+function sfxStage() { playSound(523, 0.15, 'sine', 0.12); setTimeout(() => playSound(659, 0.15, 'sine', 0.12), 120); setTimeout(() => playSound(784, 0.2, 'sine', 0.12), 240); }
+function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.15, 'sawtooth', 0.15), 100); setTimeout(() => playSound(100, 0.3, 'sawtooth', 0.15), 200); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let score = 0, lives = 3, stage = 1, captured = 0;
+let stageTransition = 0;
+
+// Player
+const player = { x: W / 2, y: H - 50, w: 40, h: 32, speed: 5, tractorActive: false, tractorTimer: 0 };
+let playerBullets = [];
+let enemyBullets = [];
+let enemies = [];
+let particles = [];
+let stars = [];
+let divers = [];
+let capturedAllies = [];
+let shootCooldown = 0;
+
+// Weapons
+const weapons = [
+    { name: 'PULSE CANNON', desc: 'Standard single shot. Reliable and steady.', stage: 1 },
+    { name: 'DUAL BARREL', desc: 'Fire two shots simultaneously.', stage: 3 },
+    { name: 'TRACTOR BEAM', desc: 'SHIFT to capture disabled threats for bonus points.', stage: 1 },
+    { name: 'ESCORT WINGMEN', desc: 'Captured threats fight alongside you.', stage: 5 },
+    { name: 'PLASMA BURST', desc: 'Triple shot spread pattern.', stage: 7 }
+];
+
+// Enemy types
+const ETYPES = {
+    scout:   { color: '#ef4444', points: 50,  hp: 1, w: 28, h: 24, label: 'SCOUT', canDive: true },
+    trojan:  { color: '#f59e0b', points: 80,  hp: 1, w: 32, h: 24, label: 'TROJAN', canDive: true },
+    worm:    { color: '#22c55e', points: 100, hp: 2, w: 30, h: 26, label: 'WORM', canDive: true },
+    rootkit: { color: '#3b82f6', points: 150, hp: 2, w: 34, h: 28, label: 'RKIT', canDive: false, splits: true },
+    botnet:  { color: '#ec4899', points: 200, hp: 3, w: 36, h: 28, label: 'BOT', canDive: true },
+    apt:     { color: '#f43f5e', points: 300, hp: 5, w: 40, h: 32, label: 'APT', canDive: true, tracks: true }
+};
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === ' ' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && !gameOver && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Stars
+for (let i = 0; i < 100; i++) {
+    stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2 + 0.5, sp: Math.random() * 0.5 + 0.2 });
+}
+
+// Spawn formation
+function spawnStage() {
+    enemies = [];
+    divers = [];
+    const types = ['scout'];
+    if (stage >= 2) types.push('trojan');
+    if (stage >= 3) types.push('worm');
+    if (stage >= 5) types.push('rootkit');
+    if (stage >= 7) types.push('botnet');
+    if (stage >= 9) types.push('apt');
+
+    const rows = Math.min(3 + Math.floor(stage / 3), 5);
+    const cols = Math.min(6 + Math.floor(stage / 2), 10);
+
+    for (let r = 0; r < rows; r++) {
+        const typeIdx = Math.min(r, types.length - 1);
+        const typeName = types[types.length - 1 - typeIdx];
+        const et = ETYPES[typeName];
+        for (let c = 0; c < cols; c++) {
+            const baseX = (W - cols * 55) / 2 + c * 55;
+            const baseY = 60 + r * 50;
+            enemies.push({
+                x: baseX, y: baseY,
+                baseX, baseY,
+                w: et.w, h: et.h,
+                type: typeName, color: et.color, points: et.points,
+                hp: et.hp, maxHp: et.hp,
+                label: et.label, canDive: et.canDive,
+                splits: et.splits, tracks: et.tracks,
+                alive: true, flash: 0,
+                wobble: Math.random() * Math.PI * 2,
+                state: 'formation' // formation, diving, captured
+            });
+        }
+    }
+}
+
+// Start
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    score = 0; lives = 3; stage = 1; captured = 0;
+    player.x = W / 2;
+    playerBullets = [];
+    enemyBullets = [];
+    particles = [];
+    divers = [];
+    capturedAllies = [];
+    spawnStage();
+    sfxStage();
+}
+function resetGame() { startGame(); }
+
+function spawnParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 25 + Math.random() * 15,
+            maxLife: 40, color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    const panel = document.getElementById('movesPanel');
+    panel.style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        weapons.forEach(w => {
+            const locked = stage < w.stage;
+            html += `<div class="move-entry ${locked ? 'move-locked' : ''}">
+                <div class="move-name">${w.name} ${locked ? '(Stage ' + w.stage + ')' : '✓'}</div>
+                <div class="move-desc">${w.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// Demo AI
+function demoAI() {
+    const target = enemies.filter(e => e.alive)[0];
+    if (target) {
+        if (player.x < target.x) player.x += player.speed * 0.6;
+        else if (player.x > target.x + target.w) player.x -= player.speed * 0.6;
+    }
+    if (Math.random() < 0.07) {
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7' });
+        sfxShoot();
+    }
+}
+
+function fireWeapon() {
+    if (shootCooldown > 0) return;
+    sfxShoot();
+    if (stage >= 7) {
+        // Triple spread
+        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, vx: -1.5, w: 3, h: 10, color: '#c084fc' });
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, vx: 0, w: 3, h: 12, color: '#a855f7' });
+        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, vx: 1.5, w: 3, h: 10, color: '#c084fc' });
+        shootCooldown = 10;
+    } else if (stage >= 3) {
+        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7' });
+        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7' });
+        shootCooldown = 8;
+    } else {
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7' });
+        shootCooldown = 7;
+    }
+    // Wingmen fire too
+    capturedAllies.forEach(a => {
+        playerBullets.push({ x: a.x, y: a.y - 12, vy: -10, w: 2, h: 8, color: a.color });
+    });
+}
+
+// Diving logic
+let diveTimer = 0;
+function tryDive() {
+    diveTimer++;
+    const interval = Math.max(30, 120 - stage * 8);
+    if (diveTimer < interval) return;
+    diveTimer = 0;
+
+    const candidates = enemies.filter(e => e.alive && e.state === 'formation' && e.canDive);
+    if (candidates.length === 0) return;
+    const diver = candidates[Math.floor(Math.random() * candidates.length)];
+    diver.state = 'diving';
+    diver.divePhase = 0;
+    diver.diveAngle = Math.atan2(player.y - diver.y, player.x - diver.x);
+    diver.diveCurve = Math.random() < 0.5 ? 1 : -1;
+    sfxDive();
+}
+
+function update() {
+    // Stars scroll
+    stars.forEach(s => {
+        s.y += s.sp;
+        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+    });
+
+    if (stageTransition > 0) {
+        stageTransition--;
+        if (stageTransition === 0) { spawnStage(); sfxStage(); }
+        return;
+    }
+
+    if (demoMode) {
+        demoAI();
+        if (enemies.filter(e => e.alive).length === 0) {
+            stage = ((stage) % 3) + 1;
+            spawnStage();
+        }
+    }
+
+    if (!gameRunning && !demoMode) return;
+
+    // Player
+    if (!demoMode) {
+        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+        if (keys[' ']) fireWeapon();
+        player.tractorActive = keys['Shift'] || false;
+    }
+    player.x = Math.max(20, Math.min(W - 20, player.x));
+    if (shootCooldown > 0) shootCooldown--;
+
+    // Wingmen follow
+    capturedAllies.forEach((a, i) => {
+        const tx = player.x + (i % 2 === 0 ? -40 - i * 15 : 40 + i * 15);
+        const ty = player.y + 5;
+        a.x += (tx - a.x) * 0.1;
+        a.y += (ty - a.y) * 0.1;
+    });
+
+    // Bullets
+    playerBullets.forEach(b => { b.y += b.vy; if (b.vx) b.x += b.vx; });
+    playerBullets = playerBullets.filter(b => b.y > -10 && b.x > -10 && b.x < W + 10);
+    enemyBullets.forEach(b => { b.y += b.vy; if (b.vx) b.x += b.vx; });
+    enemyBullets = enemyBullets.filter(b => b.y < H + 10);
+
+    // Formation wobble
+    const time = Date.now() * 0.002;
+    enemies.forEach(e => {
+        if (!e.alive) return;
+        if (e.state === 'formation') {
+            e.x = e.baseX + Math.sin(time + e.wobble) * 20;
+            e.y = e.baseY + Math.sin(time * 0.7 + e.wobble) * 8;
+            // Shoot
+            if (Math.random() < 0.002 * (1 + stage * 0.2)) {
+                enemyBullets.push({ x: e.x + e.w/2, y: e.y + e.h, vy: 4, w: 3, h: 8, color: e.color });
+            }
+        } else if (e.state === 'diving') {
+            e.divePhase += 0.03;
+            if (e.tracks) {
+                // APT tracks player
+                const dx = player.x - e.x;
+                e.x += Math.sign(dx) * 2.5;
+                e.y += 3;
+            } else {
+                e.x += Math.sin(e.divePhase * 3) * e.diveCurve * 3;
+                e.y += 3 + e.divePhase;
+            }
+            // Shoot while diving
+            if (Math.random() < 0.04) {
+                enemyBullets.push({ x: e.x + e.w/2, y: e.y + e.h, vy: 5, w: 3, h: 8, color: e.color });
+            }
+            // Return to top or despawn
+            if (e.y > H + 20) {
+                e.y = -30;
+                e.state = 'formation';
+                e.baseY = 60 + Math.random() * 100;
+            }
+        }
+        if (e.flash > 0) e.flash--;
+    });
+
+    tryDive();
+
+    // Collisions: player bullets vs enemies
+    playerBullets.forEach(b => {
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
+                b.y = -100;
+                e.hp--;
+                e.flash = 6;
+                if (e.hp <= 0) {
+                    e.alive = false;
+                    const bonus = e.state === 'diving' ? 2 : 1;
+                    score += e.points * bonus;
+                    spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 10);
+                    sfxHit();
+                    // Rootkit splits
+                    if (e.splits) {
+                        for (let i = 0; i < 2; i++) {
+                            const child = {
+                                ...e, x: e.x + (i * 30 - 15), y: e.y,
+                                w: 20, h: 16, hp: 1, maxHp: 1, points: 50,
+                                splits: false, alive: true, flash: 0,
+                                state: 'diving', divePhase: 0,
+                                diveAngle: Math.random() * Math.PI, diveCurve: i === 0 ? -1 : 1,
+                                label: 'BIT', color: '#60a5fa'
+                            };
+                            enemies.push(child);
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    // Tractor beam capture
+    if (player.tractorActive && stage >= 1) {
+        enemies.forEach(e => {
+            if (!e.alive || e.state !== 'formation') return;
+            if (e.hp <= 0) return; // already dead
+            const dx = Math.abs((e.x + e.w/2) - player.x);
+            const dy = player.y - (e.y + e.h);
+            if (dx < 30 && dy > 0 && dy < 200) {
+                // Pull it down
+                e.y += 2;
+                if (e.y + e.h > player.y - 20) {
+                    e.alive = false;
+                    captured++;
+                    score += e.points * 3;
+                    sfxCapture();
+                    if (stage >= 5 && capturedAllies.length < 4) {
+                        capturedAllies.push({ x: player.x, y: player.y, color: e.color });
+                    }
+                }
+            }
+        });
+    }
+
+    // Collisions: enemy bullets / divers vs player
+    if (!demoMode) {
+        enemyBullets.forEach(b => {
+            if (Math.abs(b.x - player.x) < 18 && Math.abs(b.y - player.y) < 18) {
+                b.y = H + 100;
+                playerHit();
+            }
+        });
+        enemies.forEach(e => {
+            if (!e.alive || e.state !== 'diving') return;
+            if (Math.abs((e.x + e.w/2) - player.x) < 25 && Math.abs((e.y + e.h/2) - player.y) < 25) {
+                e.alive = false;
+                spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 12);
+                playerHit();
+            }
+        });
+    }
+
+    function playerHit() {
+        lives--;
+        spawnParticles(player.x, player.y, '#a855f7', 15);
+        sfxDeath();
+        // Lose wingmen
+        if (capturedAllies.length > 0) capturedAllies.pop();
+        if (lives <= 0) { gameRunning = false; gameOver = true; }
+    }
+
+    // Particles
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+
+    // Stage complete
+    if (enemies.filter(e => e.alive).length === 0 && !demoMode) {
+        stage++;
+        stageTransition = 90;
+    }
+
+    // UI
+    document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
+    document.getElementById('stageDisplay').textContent = `STAGE ${stage}`;
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    document.getElementById('loreWave').textContent = `STAGE: ${stage}`;
+    document.getElementById('loreScore').textContent = `THREATS NEUTRALIZED: ${score}`;
+    document.getElementById('loreCaptured').textContent = `INTEL CAPTURED: ${captured}`;
+}
+
+function drawStars() {
+    stars.forEach(s => {
+        ctx.fillStyle = `rgba(168,85,247,${0.3 + Math.sin(Date.now() * 0.003 + s.x) * 0.2})`;
+        ctx.fillRect(s.x, s.y, s.s, s.s);
+    });
+}
+
+function drawPlayer() {
+    const px = player.x, py = player.y;
+    // Ship body
+    ctx.fillStyle = '#581c87';
+    ctx.fillRect(px - 16, py - 4, 32, 20);
+    ctx.fillStyle = '#7c3aed';
+    ctx.fillRect(px - 12, py - 10, 24, 14);
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(px - 4, py - 18, 8, 12);
+    // Cockpit
+    ctx.fillStyle = '#c084fc';
+    ctx.fillRect(px - 3, py - 16, 6, 6);
+    // Wings
+    ctx.fillStyle = '#581c87';
+    ctx.beginPath();
+    ctx.moveTo(px - 16, py + 16);
+    ctx.lineTo(px - 24, py + 20);
+    ctx.lineTo(px - 16, py);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px + 16, py + 16);
+    ctx.lineTo(px + 24, py + 20);
+    ctx.lineTo(px + 16, py);
+    ctx.fill();
+    // Engine glow
+    ctx.fillStyle = '#d946ef';
+    ctx.shadowColor = '#d946ef';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(px - 6, py + 14, 4, 4 + Math.random() * 4);
+    ctx.fillRect(px + 2, py + 14, 4, 4 + Math.random() * 4);
+    ctx.shadowBlur = 0;
+    // Tractor beam
+    if (player.tractorActive) {
+        ctx.globalAlpha = 0.15 + Math.sin(Date.now() * 0.01) * 0.1;
+        ctx.fillStyle = '#a855f7';
+        ctx.beginPath();
+        ctx.moveTo(px - 8, py - 18);
+        ctx.lineTo(px - 30, py - 200);
+        ctx.lineTo(px + 30, py - 200);
+        ctx.lineTo(px + 8, py - 18);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function drawEnemy(e) {
+    if (!e.alive) return;
+    const cx = e.x + e.w/2, cy = e.y + e.h/2;
+    const color = e.flash > 0 ? '#ffffff' : e.color;
+    // Body
+    ctx.fillStyle = color;
+    ctx.fillRect(e.x + 4, e.y + 2, e.w - 8, e.h - 4);
+    // Wings
+    ctx.fillRect(e.x, e.y + 6, 6, e.h - 12);
+    ctx.fillRect(e.x + e.w - 6, e.y + 6, 6, e.h - 12);
+    // Eyes
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 6, cy - 3, 4, 4);
+    ctx.fillRect(cx + 2, cy - 3, 4, 4);
+    // Animated bits
+    const wave = Math.sin(Date.now() * 0.005 + e.wobble);
+    ctx.fillStyle = color;
+    ctx.fillRect(e.x - 2, e.y + e.h/2 + wave * 4, 4, 4);
+    ctx.fillRect(e.x + e.w - 2, e.y + e.h/2 - wave * 4, 4, 4);
+    // HP bar
+    if (e.maxHp > 1) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(e.x, e.y - 6, e.w, 3);
+        ctx.fillStyle = e.color;
+        ctx.fillRect(e.x, e.y - 6, e.w * (e.hp / e.maxHp), 3);
+    }
+}
+
+function drawWingmen() {
+    capturedAllies.forEach(a => {
+        ctx.fillStyle = a.color;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(a.x - 10, a.y - 8, 20, 16);
+        ctx.fillRect(a.x - 14, a.y, 28, 8);
+        ctx.globalAlpha = 1;
+    });
+}
+
+function drawBullets() {
+    playerBullets.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 6;
+        ctx.fillRect(b.x - b.w/2, b.y, b.w, b.h);
+        ctx.shadowBlur = 0;
+    });
+    enemyBullets.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 4;
+        ctx.fillRect(b.x - b.w/2, b.y, b.w, b.h);
+        ctx.shadowBlur = 0;
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+}
+
+function drawOverlays() {
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(10,10,18,0.6)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#a855f7';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('THREAT SWARM', W/2, H/2 - 30);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '16px Courier New';
+        ctx.fillText('Intercept the cyber threat formations', W/2, H/2 + 10);
+        ctx.fillStyle = '#7c3aed';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO ENGAGE ]', W/2, H/2 + 50);
+    }
+    if (stageTransition > 0) {
+        const alpha = stageTransition > 60 ? 1 : stageTransition / 60;
+        ctx.fillStyle = `rgba(10,10,18,${alpha * 0.7})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#a855f7';
+        ctx.font = 'bold 48px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`STAGE ${stage}`, W/2, H/2 - 10);
+        const stageNames = ['', 'FIRST CONTACT', 'RECON PROBE', 'TROJAN WAVE', 'WORM OUTBREAK', 'ROOTKIT AMBUSH', 'SWARM ASSAULT', 'BOTNET SIEGE', 'ZERO DAY STORM', 'APT CAMPAIGN', 'FULL BREACH'];
+        const name = stageNames[Math.min(stage, stageNames.length - 1)] || `THREAT LEVEL ${stage}`;
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '18px Courier New';
+        ctx.fillText(name, W/2, H/2 + 25);
+    }
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(10,10,18,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 42px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('INTERCEPTOR DOWN', W/2, H/2 - 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Courier New';
+        ctx.fillText(`Final Score: ${score}`, W/2, H/2);
+        ctx.fillText(`Stages Cleared: ${stage - 1}`, W/2, H/2 + 30);
+        ctx.fillText(`Intel Captured: ${captured}`, W/2, H/2 + 60);
+        ctx.fillStyle = '#7c3aed';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO REDEPLOY ]', W/2, H/2 + 100);
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, W, H);
+    drawStars();
+    drawBullets();
+    enemies.forEach(drawEnemy);
+    drawWingmen();
+    drawPlayer();
+    drawParticles();
+    drawOverlays();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+spawnStage();
+gameLoop();
+</script>
+</body>
+</html>

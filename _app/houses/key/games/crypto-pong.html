@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Pong - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f0a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #f59e0b; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100;
+        }
+        .back-link:hover { color: #fbbf24; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #1a0f00 0%, #0f0a1a 100%);
+            border: 2px solid #92400e;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #d97706;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 500px; overflow-y: auto;
+        }
+        .lore-title { color: #f59e0b; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #92400e; padding-bottom: 8px; }
+        .lore-section h3 { color: #fbbf24; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #f59e0b; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #f59e0b; display: block;
+            background: #0f0a1a; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #f59e0b; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #f59e0b; color: #0f0a1a; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #d97706; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15,10,26,0.95); border: 2px solid #f59e0b;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #f59e0b; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #92400e; }
+        .move-entry .move-name { color: #fbbf24; font-weight: bold; }
+        .move-entry .move-desc { color: #d97706; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">CRYPTO PONG</div>
+            <div class="lore-section">
+                <h3>CIPHER BRIEF</h3>
+                <p>The ball carries encrypted data. Your paddle (ENCRYPT) must deflect it past the enemy's paddle (DECRYPT). Each rally adds another layer of encryption.</p>
+            </div>
+            <div class="lore-section">
+                <h3>CRYPTO MECHANICS</h3>
+                <p>The ball transforms between plaintext and ciphertext as it bounces. Hit the ball at the paddle edge for spin. Powerups alter the encryption algorithm, changing ball behavior.</p>
+            </div>
+            <div class="lore-section">
+                <h3>CIPHER STATUS</h3>
+                <p id="loreRound">ROUND: 1</p>
+                <p id="loreCipher">CIPHER: AES-128</p>
+                <p id="loreRally">RALLY: 0</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>↑ ↓</span> Move paddle</p>
+                <p><span>SHIFT</span> Cipher boost</p>
+                <p><span>?</span> Show ciphers</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="700" height="500"></canvas>
+            <div id="ui">
+                <span id="p1Score" style="color:#f59e0b;">ENCRYPT: 0</span>
+                <span id="roundDisplay">ROUND 1</span>
+                <span id="p2Score" style="color:#ef4444;">DECRYPT: 0</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">↑ ↓ MOVE PADDLE | SHIFT CIPHER BOOST | ? CIPHERS</div>
+    <div id="movesPanel">
+        <h2>🔐 CIPHER SUITE</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#d97706;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.1) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxPaddle() { playSound(440, 0.06); }
+function sfxWall() { playSound(330, 0.05); }
+function sfxScore() { playSound(220, 0.15, 'sawtooth', 0.12); }
+function sfxPoint() { playSound(660, 0.1, 'sine'); setTimeout(() => playSound(880, 0.15, 'sine'), 80); }
+function sfxRound() { playSound(523, 0.12, 'sine', 0.12); setTimeout(() => playSound(659, 0.12, 'sine', 0.12), 100); setTimeout(() => playSound(784, 0.15, 'sine', 0.12), 200); }
+function sfxBoost() { playSound(880, 0.08); setTimeout(() => playSound(1100, 0.1), 50); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+const CIPHERS = [
+    { name: 'AES-128', desc: 'Standard symmetric encryption. Normal ball speed and behavior.', round: 1 },
+    { name: 'AES-256', desc: 'Stronger encryption. Ball is slightly faster.', round: 3 },
+    { name: 'RSA-2048', desc: 'Asymmetric. Ball grows and shrinks as it travels.', round: 5 },
+    { name: 'ChaCha20', desc: 'Stream cipher. Ball moves in chaotic curves.', round: 7 },
+    { name: 'QUANTUM', desc: 'Post-quantum. Ball can split into two temporarily.', round: 10 }
+];
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let p1Score = 0, p2Score = 0, round = 1, rally = 0, maxRally = 0;
+let boostCharge = 0, boostActive = 0;
+let serveTimer = 0;
+let particles = [];
+
+// Paddles
+const PADDLE_H = 80, PADDLE_W = 12;
+const p1 = { x: 30, y: H/2 - PADDLE_H/2, w: PADDLE_W, h: PADDLE_H, speed: 5 };
+const p2 = { x: W - 30 - PADDLE_W, y: H/2 - PADDLE_H/2, w: PADDLE_W, h: PADDLE_H, speed: 4 };
+
+// Ball
+const ball = { x: W/2, y: H/2, vx: 4, vy: 2, radius: 8, serving: true };
+let ballTrail = [];
+
+// Cipher text on ball
+let cipherText = 'HELLO';
+const PLAINTEXT = ['HELLO', 'WORLD', 'KEY', 'DATA', 'HASH', 'SALT', 'NONCE', 'IV', 'MAC', 'SIG'];
+const CIPHERTEXT = ['0xA3F1', '0xD9C2', '0x7B4E', '0x2F8A', '0xE5D1', '0xBC6F', '0x94A8', '0x5C3D', '0x8E17', '0xF06B'];
+
+function getCurrentCipher() {
+    if (round >= 10) return 'QUANTUM';
+    if (round >= 7) return 'ChaCha20';
+    if (round >= 5) return 'RSA-2048';
+    if (round >= 3) return 'AES-256';
+    return 'AES-128';
+}
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function serve(dir) {
+    ball.x = W / 2;
+    ball.y = H / 2;
+    const speed = 4 + round * 0.3;
+    ball.vx = dir * speed;
+    ball.vy = (Math.random() - 0.5) * 4;
+    ball.serving = false;
+    serveTimer = 0;
+    rally = 0;
+    cipherText = PLAINTEXT[Math.floor(Math.random() * PLAINTEXT.length)];
+    ballTrail = [];
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    p1Score = 0;
+    p2Score = 0;
+    round = 1;
+    rally = 0;
+    maxRally = 0;
+    boostCharge = 0;
+    boostActive = 0;
+    particles = [];
+    p1.y = H/2 - PADDLE_H/2;
+    p2.y = H/2 - PADDLE_H/2;
+    serve(1);
+    sfxRound();
+}
+function resetGame() { startGame(); }
+
+function spawnParticles(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            life: 20 + Math.random() * 15, maxLife: 35, color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    document.getElementById('movesPanel').style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        CIPHERS.forEach(c => {
+            const locked = round < c.round;
+            html += `<div class="move-entry ${locked ? 'move-locked' : ''}">
+                <div class="move-name">${c.name} ${locked ? '(Round ' + c.round + ')' : '✓'}</div>
+                <div class="move-desc">${c.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// AI for player 2
+function aiUpdate() {
+    const targetY = ball.y - p2.h / 2;
+    const diff = targetY - p2.y;
+    const aiSpeed = Math.min(p2.speed + round * 0.2, 6);
+    // Add some imperfection
+    const reaction = ball.vx > 0 ? 0.8 : 0.3;
+    if (Math.random() < reaction) {
+        if (diff > 10) p2.y += Math.min(aiSpeed, diff);
+        else if (diff < -10) p2.y -= Math.min(aiSpeed, -diff);
+    }
+    p2.y = Math.max(0, Math.min(H - p2.h, p2.y));
+}
+
+// Demo AI for p1
+function demoP1AI() {
+    const targetY = ball.y - p1.h / 2;
+    const diff = targetY - p1.y;
+    if (diff > 5) p1.y += Math.min(p1.speed * 0.7, diff);
+    else if (diff < -5) p1.y -= Math.min(p1.speed * 0.7, -diff);
+    p1.y = Math.max(0, Math.min(H - p1.h, p1.y));
+}
+
+function update() {
+    if (serveTimer > 0) {
+        serveTimer--;
+        if (serveTimer === 0) serve(Math.random() < 0.5 ? 1 : -1);
+        return;
+    }
+
+    if (demoMode) demoP1AI();
+
+    if (!gameRunning && !demoMode) return;
+
+    // Player 1 controls
+    if (!demoMode) {
+        if (keys['ArrowUp'] || keys['w']) p1.y -= p1.speed;
+        if (keys['ArrowDown'] || keys['s']) p1.y += p1.speed;
+        if (keys['Shift'] && boostCharge >= 100) {
+            boostCharge = 0;
+            boostActive = 120;
+            sfxBoost();
+        }
+    }
+    p1.y = Math.max(0, Math.min(H - p1.h, p1.y));
+
+    // AI player 2
+    aiUpdate();
+
+    // Boost effects
+    if (boostActive > 0) {
+        boostActive--;
+        p1.h = 100; // Bigger paddle
+    } else {
+        p1.h = PADDLE_H;
+    }
+
+    // Ball trail
+    ballTrail.push({ x: ball.x, y: ball.y });
+    if (ballTrail.length > 12) ballTrail.shift();
+
+    // Ball movement
+    let vx = ball.vx, vy = ball.vy;
+
+    // ChaCha20 effect: chaotic curve
+    if (round >= 7) {
+        vy += Math.sin(Date.now() * 0.01) * 0.3;
+    }
+
+    // RSA effect: ball size changes
+    if (round >= 5) {
+        ball.radius = 8 + Math.sin(ball.x / W * Math.PI) * 4;
+    } else {
+        ball.radius = 8;
+    }
+
+    ball.x += vx;
+    ball.y += vy;
+
+    // Top/bottom bounce
+    if (ball.y - ball.radius < 0 || ball.y + ball.radius > H) {
+        ball.vy *= -1;
+        ball.y = ball.y - ball.radius < 0 ? ball.radius : H - ball.radius;
+        sfxWall();
+    }
+
+    // Paddle collision P1
+    if (ball.vx < 0 && ball.x - ball.radius < p1.x + p1.w && ball.x > p1.x &&
+        ball.y > p1.y && ball.y < p1.y + p1.h) {
+        ball.vx = Math.abs(ball.vx) * 1.05;
+        // Angle based on hit position
+        const hitPos = (ball.y - p1.y) / p1.h - 0.5;
+        ball.vy = hitPos * 8;
+        rally++;
+        if (rally > maxRally) maxRally = rally;
+        boostCharge = Math.min(100, boostCharge + 10);
+        cipherText = CIPHERTEXT[Math.floor(Math.random() * CIPHERTEXT.length)];
+        sfxPaddle();
+        spawnParticles(p1.x + p1.w, ball.y, '#f59e0b', 4);
+    }
+
+    // Paddle collision P2
+    if (ball.vx > 0 && ball.x + ball.radius > p2.x && ball.x < p2.x + p2.w &&
+        ball.y > p2.y && ball.y < p2.y + p2.h) {
+        ball.vx = -Math.abs(ball.vx) * 1.05;
+        const hitPos = (ball.y - p2.y) / p2.h - 0.5;
+        ball.vy = hitPos * 8;
+        rally++;
+        cipherText = PLAINTEXT[Math.floor(Math.random() * PLAINTEXT.length)];
+        sfxPaddle();
+        spawnParticles(p2.x, ball.y, '#ef4444', 4);
+    }
+
+    // Cap speed
+    const maxSpeed = 12;
+    if (Math.abs(ball.vx) > maxSpeed) ball.vx = Math.sign(ball.vx) * maxSpeed;
+    if (Math.abs(ball.vy) > maxSpeed) ball.vy = Math.sign(ball.vy) * maxSpeed;
+
+    // Score
+    if (ball.x < -20) {
+        // P2 scores
+        p2Score++;
+        sfxScore();
+        spawnParticles(0, ball.y, '#ef4444', 10);
+        if (!demoMode) checkRound();
+        serveTimer = 60;
+    }
+    if (ball.x > W + 20) {
+        // P1 scores
+        p1Score++;
+        sfxPoint();
+        spawnParticles(W, ball.y, '#f59e0b', 10);
+        if (!demoMode) checkRound();
+        serveTimer = 60;
+    }
+
+    // Demo reset
+    if (demoMode && (p1Score >= 3 || p2Score >= 3)) {
+        p1Score = 0;
+        p2Score = 0;
+        serve(1);
+    }
+
+    // Particles
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+
+    // UI
+    document.getElementById('p1Score').textContent = `ENCRYPT: ${p1Score}`;
+    document.getElementById('p2Score').textContent = `DECRYPT: ${p2Score}`;
+    document.getElementById('roundDisplay').textContent = `ROUND ${round}`;
+    document.getElementById('loreRound').textContent = `ROUND: ${round}`;
+    document.getElementById('loreCipher').textContent = `CIPHER: ${getCurrentCipher()}`;
+    document.getElementById('loreRally').textContent = `RALLY: ${rally}`;
+}
+
+function checkRound() {
+    if (p1Score >= 5) {
+        round++;
+        p1Score = 0;
+        p2Score = 0;
+        p2.speed = Math.min(4 + round * 0.3, 7);
+        sfxRound();
+    } else if (p2Score >= 5) {
+        gameRunning = false;
+        gameOver = true;
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#0f0a1a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Center line
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = 'rgba(245,158,11,0.2)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(W/2, 0);
+    ctx.lineTo(W/2, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Encryption field indicators
+    ctx.fillStyle = 'rgba(245,158,11,0.05)';
+    ctx.fillRect(0, 0, W/2, H);
+    ctx.fillStyle = 'rgba(239,68,68,0.05)';
+    ctx.fillRect(W/2, 0, W/2, H);
+
+    // Labels
+    ctx.globalAlpha = 0.15;
+    ctx.font = 'bold 48px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText('ENCRYPT', W/4, H/2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillText('DECRYPT', W * 3/4, H/2);
+    ctx.globalAlpha = 1;
+
+    // Current cipher display
+    ctx.fillStyle = 'rgba(245,158,11,0.3)';
+    ctx.font = '11px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(getCurrentCipher(), W/2, H - 10);
+
+    // Ball trail
+    ballTrail.forEach((t, i) => {
+        const alpha = (i / ballTrail.length) * 0.3;
+        const isEncrypted = t.x < W / 2;
+        ctx.fillStyle = isEncrypted ? `rgba(245,158,11,${alpha})` : `rgba(239,68,68,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, ball.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Ball
+    if (serveTimer <= 0) {
+        const isEncrypted = ball.x < W / 2;
+        const ballColor = isEncrypted ? '#f59e0b' : '#ef4444';
+        ctx.fillStyle = ballColor;
+        ctx.shadowColor = ballColor;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Text on ball
+        ctx.fillStyle = '#0f0a1a';
+        ctx.font = `bold ${Math.max(6, ball.radius - 2)}px Courier New`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cipherText.substring(0, 4), ball.x, ball.y);
+    }
+
+    // Paddles
+    // P1 - Encrypt
+    ctx.fillStyle = '#f59e0b';
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = boostActive > 0 ? 15 : 8;
+    ctx.fillRect(p1.x, p1.y, p1.w, p1.h);
+    ctx.shadowBlur = 0;
+    // Lock icon on P1
+    ctx.fillStyle = '#0f0a1a';
+    ctx.font = 'bold 10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔒', p1.x + p1.w/2, p1.y + p1.h/2);
+
+    // P2 - Decrypt
+    ctx.fillStyle = '#ef4444';
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(p2.x, p2.y, p2.w, p2.h);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0f0a1a';
+    ctx.font = 'bold 10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔓', p2.x + p2.w/2, p2.y + p2.h/2);
+
+    // Score display (big numbers)
+    ctx.globalAlpha = 0.15;
+    ctx.font = 'bold 120px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText(p1Score, W/4, H/2 + 45);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillText(p2Score, W * 3/4, H/2 + 45);
+    ctx.globalAlpha = 1;
+
+    // Boost meter
+    if (gameRunning || demoMode) {
+        const mw = 80, mh = 6;
+        const mx = 10, my = H - 16;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.fillStyle = boostCharge >= 100 ? '#22c55e' : '#92400e';
+        ctx.fillRect(mx, my, mw * (boostCharge / 100), mh);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.strokeRect(mx, my, mw, mh);
+        if (boostCharge >= 100) {
+            ctx.fillStyle = '#22c55e';
+            ctx.font = '9px Courier New';
+            ctx.textAlign = 'left';
+            ctx.fillText('SHIFT: BOOST', mx, my - 4);
+        }
+    }
+
+    // Rally counter
+    if (rally > 0 && (gameRunning || demoMode)) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 14px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`RALLY: ${rally}`, W/2, 40);
+    }
+
+    // Particles
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    // Overlays
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(15,10,26,0.6)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('CRYPTO PONG', W/2, H/2 - 25);
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '15px Courier New';
+        ctx.fillText('Encrypt vs. Decrypt - The eternal battle', W/2, H/2 + 10);
+        ctx.fillStyle = '#d97706';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO HANDSHAKE ]', W/2, H/2 + 50);
+    }
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(15,10,26,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 42px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('KEY COMPROMISED', W/2, H/2 - 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Courier New';
+        ctx.fillText(`Rounds Won: ${round - 1}`, W/2, H/2);
+        ctx.fillText(`Best Rally: ${maxRally}`, W/2, H/2 + 30);
+        ctx.fillText(`Final Cipher: ${getCurrentCipher()}`, W/2, H/2 + 60);
+        ctx.fillStyle = '#d97706';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO REKEY ]', W/2, H/2 + 100);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+serve(1);
+gameLoop();
+</script>
+</body>
+</html>

@@ -145,14 +145,31 @@ class ProgressManager {
      * @param {object} metadata - Additional data (score, etc.)
      */
     static async syncToFirestore(moduleId, houseId, moduleType, metadata = {}) {
-        // Check if Firebase/Firestore dependencies are available
+        // Dynamically load Firebase dependencies if not present
         if (typeof FirebaseAuth === 'undefined' || typeof ClassManager === 'undefined' || typeof AssignmentManager === 'undefined') {
-            console.log('[ProgressManager] Firestore sync skipped - dependencies not loaded');
-            return;
+            try {
+                await this._loadFirestoreDeps();
+            } catch (e) {
+                console.log('[ProgressManager] Firestore sync skipped - failed to load dependencies:', e.message);
+                return;
+            }
         }
 
-        // Check if user is authenticated
-        const user = FirebaseAuth.getUser();
+        // Wait for auth state to resolve (up to 5s)
+        let user = typeof FirebaseAuth !== 'undefined' ? FirebaseAuth.getUser() : null;
+        if (!user && typeof FirebaseAuth !== 'undefined') {
+            user = await new Promise(resolve => {
+                const handler = (e) => {
+                    window.removeEventListener('firebaseAuthStateChanged', handler);
+                    resolve(e.detail?.user || null);
+                };
+                window.addEventListener('firebaseAuthStateChanged', handler);
+                setTimeout(() => {
+                    window.removeEventListener('firebaseAuthStateChanged', handler);
+                    resolve(FirebaseAuth.getUser());
+                }, 5000);
+            });
+        }
         if (!user) {
             console.log('[ProgressManager] Firestore sync skipped - not authenticated');
             return;
@@ -267,7 +284,7 @@ class ProgressManager {
         progress.completedModules.push(moduleId);
 
         // Update house-specific progress
-        if (progress.houses[houseId]) {
+        if (progress.houses && progress.houses[houseId]) {
             const house = progress.houses[houseId];
             if (!house.modulesCompleted.includes(moduleId)) {
                 house.modulesCompleted.push(moduleId);
@@ -482,7 +499,7 @@ class ProgressManager {
             totalQuizzesPassed: Array.isArray(progress.quizHistory) ? progress.quizHistory.filter(q => q.score >= 70).length : 0,
             totalLabsCompleted: Array.isArray(progress.labsCompleted) ? progress.labsCompleted.length : Object.keys(progress.labsCompleted || {}).length,
             achievementCount: achievements.length,
-            houseProgress: Object.entries(progress.houses).map(([id, house]) => ({
+            houseProgress: Object.entries(progress.houses || {}).map(([id, house]) => ({
                 id,
                 ...this.HOUSES[id],
                 ...house
@@ -497,7 +514,7 @@ class ProgressManager {
      */
     static getHouseProgress(houseId) {
         const progress = this.getProgress();
-        const house = progress.houses[houseId];
+        const house = (progress.houses || {})[houseId];
 
         if (!house) return null;
 
@@ -706,6 +723,42 @@ class ProgressManager {
             this.saveSkillTree(data.skillTree);
         }
         window.dispatchEvent(new CustomEvent('hexworth:progressImported'));
+    }
+
+    /**
+     * Dynamically load Firestore dependencies for sync.
+     * Resolves the script path from ProgressManager.js location.
+     */
+    static _depsLoading = null;
+    static async _loadFirestoreDeps() {
+        if (this._depsLoading) return this._depsLoading;
+        this._depsLoading = (async () => {
+            // Find our own script tag to resolve relative path
+            const scripts = document.querySelectorAll('script[src*="ProgressManager"]');
+            let basePath = '';
+            if (scripts.length > 0) {
+                const src = scripts[0].getAttribute('src');
+                basePath = src.substring(0, src.lastIndexOf('/') + 1);
+            }
+
+            const deps = ['FirebaseAuth.js', 'FirestoreManager.js', 'ClassManager.js', 'AssignmentManager.js'];
+            for (const dep of deps) {
+                if (document.querySelector(`script[src*="${dep}"]`)) continue;
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = basePath + dep;
+                    s.onload = resolve;
+                    s.onerror = () => reject(new Error(`Failed to load ${dep}`));
+                    document.head.appendChild(s);
+                });
+            }
+
+            // Initialize FirebaseAuth (imports Firebase SDK from CDN)
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.init) {
+                await FirebaseAuth.init();
+            }
+        })();
+        return this._depsLoading;
     }
 }
 

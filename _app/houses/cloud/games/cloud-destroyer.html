@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Destroyer - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #020a18;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #06b6d4; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100;
+        }
+        .back-link:hover { color: #22d3ee; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #041020 0%, #020a18 100%);
+            border: 2px solid #164e63;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #0891b2;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 600px; overflow-y: auto;
+        }
+        .lore-title { color: #06b6d4; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #164e63; padding-bottom: 8px; }
+        .lore-section h3 { color: #22d3ee; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #06b6d4; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #06b6d4; display: block;
+            background: #020a18; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #06b6d4; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #06b6d4; color: #020a18; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #0891b2; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(2,10,24,0.95); border: 2px solid #06b6d4;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #06b6d4; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #164e63; }
+        .move-entry .move-name { color: #22d3ee; font-weight: bold; }
+        .move-entry .move-desc { color: #0891b2; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">CLOUD DESTROYER</div>
+            <div class="lore-section">
+                <h3>INCIDENT REPORT</h3>
+                <p>Multi-region outage detected. Rogue instances, orphaned containers, and runaway costs are spiraling through the cloud. Navigate the debris field and restore order.</p>
+            </div>
+            <div class="lore-section">
+                <h3>THREAT FIELD</h3>
+                <p>Destroy failed instances and cost anomalies. Dodge orphaned containers. Collect SLA tokens to restore uptime. Larger debris takes multiple hits.</p>
+            </div>
+            <div class="lore-section">
+                <h3>CLOUD STATUS</h3>
+                <p id="loreWave">REGION: us-east-1</p>
+                <p id="loreScore">COST SAVED: $0</p>
+                <p id="loreSLA">UPTIME: 99.99%</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>↑↓←→</span> Thrust</p>
+                <p><span>SPACE</span> Fire</p>
+                <p><span>SHIFT</span> Hyperscale</p>
+                <p><span>?</span> Show weapons</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="700" height="600"></canvas>
+            <div id="ui">
+                <span id="scoreDisplay">$0</span>
+                <span id="regionDisplay">us-east-1</span>
+                <span id="livesDisplay">♥♥♥</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">↑↓←→ THRUST | SPACE FIRE | SHIFT HYPERSCALE | ? WEAPONS</div>
+    <div id="movesPanel">
+        <h2>☁ ARSENAL</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#0891b2;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.1) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxShoot() { playSound(880, 0.06, 'square', 0.08); }
+function sfxHit() { playSound(220, 0.12, 'sawtooth', 0.12); }
+function sfxExplode() { playSound(80, 0.3, 'sawtooth', 0.15); }
+function sfxThrust() { playSound(120, 0.05, 'sawtooth', 0.04); }
+function sfxCollect() { playSound(523, 0.08, 'sine'); setTimeout(() => playSound(784, 0.1, 'sine'), 60); }
+function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.2, 'sawtooth', 0.15), 100); setTimeout(() => playSound(80, 0.4, 'sawtooth', 0.15), 250); }
+function sfxRegion() { playSound(523, 0.12, 'sine', 0.1); setTimeout(() => playSound(659, 0.12, 'sine', 0.1), 100); setTimeout(() => playSound(784, 0.15, 'sine', 0.1), 200); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+const REGIONS = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-south-1', 'ap-northeast-1', 'sa-east-1'];
+
+const weapons = [
+    { name: 'TERMINATE', desc: 'Standard instance termination. Single shot.', region: 1 },
+    { name: 'FORCE STOP', desc: 'Dual termination signal. Two shots at once.', region: 3 },
+    { name: 'AUTO-SCALE', desc: 'Spread shot. Three-way termination.', region: 4 },
+    { name: 'HYPERSCALE', desc: 'SHIFT: Brief invincibility burst.', region: 1 },
+    { name: 'LAMBDA NUKE', desc: 'Screen clear. Serverless annihilation.', region: 6 }
+];
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let score = 0, lives = 3, region = 0, destroyed = 0;
+let hyperscaleCharge = 0, hyperscaleActive = 0;
+
+// Ship (free-rotating like Asteroids)
+const ship = { x: W/2, y: H/2, vx: 0, vy: 0, angle: -Math.PI/2, thrusting: false };
+let bullets = [];
+let asteroids = [];
+let particles = [];
+let stars = [];
+let powerups = [];
+let shootCooldown = 0;
+let regionTransition = 0;
+let invulnTimer = 0;
+
+// Stars
+for (let i = 0; i < 100; i++) {
+    stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2 + 0.5, b: Math.random() });
+}
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Asteroid (cloud debris) types
+const DEBRIS_TYPES = [
+    { label: 'EC2', color: '#f97316', points: 100 },
+    { label: 'RDS', color: '#3b82f6', points: 150 },
+    { label: 'S3', color: '#22c55e', points: 80 },
+    { label: 'ECS', color: '#8b5cf6', points: 120 },
+    { label: 'COST', color: '#ef4444', points: 200 },
+    { label: 'NAT', color: '#f59e0b', points: 180 }
+];
+
+function spawnAsteroid(size, x, y) {
+    const type = DEBRIS_TYPES[Math.floor(Math.random() * DEBRIS_TYPES.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (0.5 + Math.random() * 1.5) * (1 + region * 0.15);
+    const s = size || (Math.random() < 0.3 ? 3 : Math.random() < 0.6 ? 2 : 1);
+    const radii = [15, 25, 40];
+    asteroids.push({
+        x: x !== undefined ? x : Math.random() * W,
+        y: y !== undefined ? y : Math.random() * H,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: radii[s - 1],
+        size: s,
+        label: type.label,
+        color: type.color,
+        points: type.points * s,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.03,
+        vertices: generateVertices(radii[s - 1])
+    });
+}
+
+function generateVertices(radius) {
+    const count = 8 + Math.floor(Math.random() * 4);
+    const verts = [];
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const r = radius * (0.7 + Math.random() * 0.3);
+        verts.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+    }
+    return verts;
+}
+
+function spawnWave() {
+    const count = 4 + region * 2;
+    for (let i = 0; i < count; i++) {
+        // Spawn away from ship
+        let x, y;
+        do {
+            x = Math.random() * W;
+            y = Math.random() * H;
+        } while (Math.hypot(x - ship.x, y - ship.y) < 150);
+        spawnAsteroid(3, x, y);
+    }
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    score = 0; lives = 3; region = 0; destroyed = 0;
+    hyperscaleCharge = 0; hyperscaleActive = 0;
+    ship.x = W/2; ship.y = H/2; ship.vx = 0; ship.vy = 0; ship.angle = -Math.PI/2;
+    bullets = []; asteroids = []; particles = []; powerups = [];
+    invulnTimer = 120;
+    spawnWave();
+    sfxRegion();
+}
+function resetGame() { startGame(); }
+
+function spawnParticles(x, y, color, count = 8) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 25 + Math.random() * 20, maxLife: 45, color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    document.getElementById('movesPanel').style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        weapons.forEach(w => {
+            const locked = region + 1 < w.region;
+            html += `<div class="move-entry ${locked ? 'move-locked' : ''}">
+                <div class="move-name">${w.name} ${locked ? '(Region ' + w.region + ')' : '✓'}</div>
+                <div class="move-desc">${w.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// Demo AI
+function demoAI() {
+    const nearest = asteroids.reduce((best, a) => {
+        const d = Math.hypot(a.x - ship.x, a.y - ship.y);
+        return (!best || d < best.d) ? { a, d } : best;
+    }, null);
+    if (nearest && nearest.d < 250) {
+        // Aim at nearest
+        const targetAngle = Math.atan2(nearest.a.y - ship.y, nearest.a.x - ship.x);
+        const diff = targetAngle - ship.angle;
+        ship.angle += Math.sign(diff) * 0.05;
+        if (Math.abs(diff) < 0.3 && Math.random() < 0.1) {
+            const cos = Math.cos(ship.angle), sin = Math.sin(ship.angle);
+            bullets.push({ x: ship.x + cos * 18, y: ship.y + sin * 18, vx: cos * 8, vy: sin * 8, life: 60 });
+            sfxShoot();
+        }
+    }
+    // Thrust occasionally
+    if (Math.random() < 0.03) {
+        ship.vx += Math.cos(ship.angle) * 0.3;
+        ship.vy += Math.sin(ship.angle) * 0.3;
+    }
+}
+
+function fireWeapon() {
+    if (shootCooldown > 0) return;
+    sfxShoot();
+    const cos = Math.cos(ship.angle), sin = Math.sin(ship.angle);
+    if (region >= 3) {
+        // Spread
+        for (let a = -0.2; a <= 0.2; a += 0.2) {
+            const c2 = Math.cos(ship.angle + a), s2 = Math.sin(ship.angle + a);
+            bullets.push({ x: ship.x + c2 * 18, y: ship.y + s2 * 18, vx: c2 * 8, vy: s2 * 8, life: 50 });
+        }
+        shootCooldown = 10;
+    } else if (region >= 2) {
+        // Dual
+        const perp = Math.PI / 2;
+        bullets.push({ x: ship.x + Math.cos(ship.angle + perp) * 6, y: ship.y + Math.sin(ship.angle + perp) * 6, vx: cos * 8, vy: sin * 8, life: 50 });
+        bullets.push({ x: ship.x + Math.cos(ship.angle - perp) * 6, y: ship.y + Math.sin(ship.angle - perp) * 6, vx: cos * 8, vy: sin * 8, life: 50 });
+        shootCooldown = 8;
+    } else {
+        bullets.push({ x: ship.x + cos * 18, y: ship.y + sin * 18, vx: cos * 8, vy: sin * 8, life: 50 });
+        shootCooldown = 7;
+    }
+}
+
+function activateHyperscale() {
+    if (hyperscaleCharge < 100) return;
+    hyperscaleCharge = 0;
+    hyperscaleActive = 180;
+    if (region >= 5) {
+        // Lambda nuke: destroy everything
+        asteroids.forEach(a => {
+            spawnParticles(a.x, a.y, a.color, 8);
+            score += a.points;
+        });
+        asteroids = [];
+        sfxExplode();
+    }
+}
+
+function update() {
+    if (regionTransition > 0) {
+        regionTransition--;
+        if (regionTransition === 0) { spawnWave(); sfxRegion(); }
+        return;
+    }
+
+    if (demoMode) {
+        demoAI();
+        if (asteroids.length === 0) spawnWave();
+    }
+
+    if (!gameRunning && !demoMode) return;
+
+    // Timers
+    if (invulnTimer > 0) invulnTimer--;
+    if (hyperscaleActive > 0) hyperscaleActive--;
+    if (shootCooldown > 0) shootCooldown--;
+
+    // Ship controls
+    if (!demoMode) {
+        if (keys['ArrowLeft'] || keys['a']) ship.angle -= 0.06;
+        if (keys['ArrowRight'] || keys['d']) ship.angle += 0.06;
+        ship.thrusting = keys['ArrowUp'] || keys['w'];
+        if (ship.thrusting) {
+            ship.vx += Math.cos(ship.angle) * 0.12;
+            ship.vy += Math.sin(ship.angle) * 0.12;
+            if (Math.random() < 0.2) sfxThrust();
+        }
+        if (keys[' ']) fireWeapon();
+        if (keys['Shift']) activateHyperscale();
+    }
+
+    // Ship physics
+    ship.x += ship.vx;
+    ship.y += ship.vy;
+    ship.vx *= 0.995;
+    ship.vy *= 0.995;
+    // Wrap
+    if (ship.x < 0) ship.x = W;
+    if (ship.x > W) ship.x = 0;
+    if (ship.y < 0) ship.y = H;
+    if (ship.y > H) ship.y = 0;
+
+    // Bullets
+    bullets.forEach(b => { b.x += b.vx; b.y += b.vy; b.life--; });
+    bullets = bullets.filter(b => b.life > 0 && b.x >= -10 && b.x <= W + 10 && b.y >= -10 && b.y <= H + 10);
+
+    // Asteroids move
+    asteroids.forEach(a => {
+        a.x += a.vx;
+        a.y += a.vy;
+        a.rotation += a.rotSpeed;
+        // Wrap
+        if (a.x < -a.radius) a.x = W + a.radius;
+        if (a.x > W + a.radius) a.x = -a.radius;
+        if (a.y < -a.radius) a.y = H + a.radius;
+        if (a.y > H + a.radius) a.y = -a.radius;
+    });
+
+    // Bullet-asteroid collisions
+    bullets.forEach(b => {
+        asteroids.forEach(a => {
+            if (Math.hypot(b.x - a.x, b.y - a.y) < a.radius) {
+                b.life = 0;
+                destroyed++;
+                score += a.points;
+                hyperscaleCharge = Math.min(100, hyperscaleCharge + 5);
+                spawnParticles(a.x, a.y, a.color, a.size * 4);
+                sfxHit();
+                // Split
+                if (a.size > 1) {
+                    for (let i = 0; i < 2; i++) {
+                        spawnAsteroid(a.size - 1, a.x, a.y);
+                    }
+                }
+                // Powerup chance
+                if (Math.random() < 0.08) {
+                    powerups.push({ x: a.x, y: a.y, type: 'life', vy: 0.5, timer: 300 });
+                }
+                a.radius = 0; // mark dead
+            }
+        });
+    });
+    asteroids = asteroids.filter(a => a.radius > 0);
+
+    // Ship-asteroid collisions
+    if (!demoMode && invulnTimer <= 0 && hyperscaleActive <= 0) {
+        asteroids.forEach(a => {
+            if (Math.hypot(ship.x - a.x, ship.y - a.y) < a.radius + 12) {
+                lives--;
+                invulnTimer = 120;
+                ship.vx = 0; ship.vy = 0;
+                spawnParticles(ship.x, ship.y, '#06b6d4', 15);
+                sfxDeath();
+                if (lives <= 0) {
+                    gameRunning = false;
+                    gameOver = true;
+                }
+            }
+        });
+    }
+
+    // Powerups
+    powerups.forEach(p => { p.timer--; });
+    powerups = powerups.filter(p => {
+        if (p.timer <= 0) return false;
+        if (Math.hypot(p.x - ship.x, p.y - ship.y) < 25) {
+            if (p.type === 'life' && lives < 5) lives++;
+            sfxCollect();
+            return false;
+        }
+        return true;
+    });
+
+    // Particles
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vx *= 0.97; p.vy *= 0.97; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+
+    // Region complete
+    if (asteroids.length === 0 && !demoMode && !regionTransition) {
+        region = Math.min(region + 1, REGIONS.length - 1);
+        regionTransition = 90;
+    }
+
+    // UI
+    document.getElementById('scoreDisplay').textContent = `$${score}`;
+    document.getElementById('regionDisplay').textContent = REGIONS[region];
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    document.getElementById('loreWave').textContent = `REGION: ${REGIONS[region]}`;
+    document.getElementById('loreScore').textContent = `COST SAVED: $${score}`;
+    const uptime = Math.max(0, 99.99 - (3 - lives) * 5).toFixed(2);
+    document.getElementById('loreSLA').textContent = `UPTIME: ${uptime}%`;
+}
+
+function drawStars() {
+    stars.forEach(s => {
+        s.b += 0.015;
+        ctx.fillStyle = `rgba(6,182,212,${0.2 + Math.sin(s.b) * 0.2})`;
+        ctx.fillRect(s.x, s.y, s.s, s.s);
+    });
+}
+
+function drawShip() {
+    const { x, y, angle } = ship;
+    const flash = invulnTimer > 0 && Math.sin(invulnTimer * 0.3) > 0;
+    const hyper = hyperscaleActive > 0;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    // Ship glow
+    if (hyper) {
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 20;
+    }
+
+    // Ship body
+    ctx.fillStyle = flash ? 'rgba(6,182,212,0.3)' : (hyper ? '#22d3ee' : '#06b6d4');
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(-12, -10);
+    ctx.lineTo(-8, 0);
+    ctx.lineTo(-12, 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cockpit
+    ctx.fillStyle = '#67e8f9';
+    ctx.beginPath();
+    ctx.moveTo(10, 0);
+    ctx.lineTo(2, -4);
+    ctx.lineTo(2, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // Thrust flame
+    if (ship.thrusting || demoMode) {
+        ctx.fillStyle = '#f97316';
+        const flicker = 4 + Math.random() * 8;
+        ctx.beginPath();
+        ctx.moveTo(-8, -4);
+        ctx.lineTo(-8 - flicker, 0);
+        ctx.lineTo(-8, 4);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+function drawAsteroid(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.rotation);
+
+    // Cloud debris shape
+    ctx.fillStyle = a.color;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.moveTo(a.vertices[0].x, a.vertices[0].y);
+    for (let i = 1; i < a.vertices.length; i++) {
+        ctx.lineTo(a.vertices[i].x, a.vertices[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = a.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = a.color;
+    ctx.font = `bold ${8 + a.size * 2}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(a.label, 0, 0);
+
+    ctx.restore();
+}
+
+function drawBullets() {
+    bullets.forEach(b => {
+        ctx.fillStyle = '#67e8f9';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 6;
+        ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+        ctx.shadowBlur = 0;
+    });
+}
+
+function drawPowerups() {
+    powerups.forEach(p => {
+        const pulse = 0.7 + Math.sin(Date.now() * 0.008) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('♥', p.x, p.y);
+        ctx.globalAlpha = 1;
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+}
+
+function drawHyperscaleMeter() {
+    const mw = 120, mh = 8;
+    const mx = W - mw - 10, my = H - 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(mx, my, mw, mh);
+    ctx.fillStyle = hyperscaleCharge >= 100 ? '#f59e0b' : '#164e63';
+    ctx.fillRect(mx, my, mw * (hyperscaleCharge / 100), mh);
+    ctx.strokeStyle = '#06b6d4';
+    ctx.strokeRect(mx, my, mw, mh);
+    ctx.fillStyle = hyperscaleCharge >= 100 ? '#f59e0b' : '#0891b2';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'right';
+    ctx.fillText(hyperscaleCharge >= 100 ? 'SHIFT: HYPERSCALE READY' : `HYPERSCALE: ${hyperscaleCharge}%`, mx + mw, my - 4);
+}
+
+function drawOverlays() {
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(2,10,24,0.6)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('CLOUD DESTROYER', W/2, H/2 - 30);
+        ctx.fillStyle = '#22d3ee';
+        ctx.font = '15px Courier New';
+        ctx.fillText('Navigate the multi-region outage field', W/2, H/2 + 10);
+        ctx.fillStyle = '#0891b2';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO DEPLOY ]', W/2, H/2 + 50);
+    }
+    if (regionTransition > 0) {
+        const alpha = regionTransition > 60 ? 1 : regionTransition / 60;
+        ctx.fillStyle = `rgba(2,10,24,${alpha * 0.7})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`MIGRATING TO`, W/2, H/2 - 20);
+        ctx.fillStyle = '#22d3ee';
+        ctx.font = 'bold 28px Courier New';
+        ctx.fillText(REGIONS[region], W/2, H/2 + 20);
+    }
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(2,10,24,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 42px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('TOTAL OUTAGE', W/2, H/2 - 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Courier New';
+        ctx.fillText(`Cost Saved: $${score}`, W/2, H/2);
+        ctx.fillText(`Instances Terminated: ${destroyed}`, W/2, H/2 + 30);
+        ctx.fillText(`Final Region: ${REGIONS[region]}`, W/2, H/2 + 60);
+        ctx.fillStyle = '#0891b2';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO REDEPLOY ]', W/2, H/2 + 100);
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#020a18';
+    ctx.fillRect(0, 0, W, H);
+    drawStars();
+    drawBullets();
+    asteroids.forEach(drawAsteroid);
+    drawShip();
+    drawPowerups();
+    drawParticles();
+    if (gameRunning || demoMode) drawHyperscaleMeter();
+    drawOverlays();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// Init demo
+spawnWave();
+gameLoop();
+</script>
+</body>
+</html>

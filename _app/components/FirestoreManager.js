@@ -796,6 +796,174 @@ const FirestoreManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // BIDIRECTIONAL SYNC (Cross-Device Progress)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Bidirectional sync: merge cloud profile ↔ localStorage
+     * Called on every auth state change (dashboard load, sign-in, etc.)
+     * Ensures progress from all devices is merged and consistent.
+     *
+     * @param {string} uid - Firebase UID
+     * @returns {object} - { synced, modulesCount, added }
+     */
+    async function syncBidirectional(uid) {
+        if (!initialized) await init();
+        if (!db) return { synced: false, reason: 'db_unavailable' };
+
+        try {
+            // 1. Fetch cloud profile
+            const cloudProfile = await getUserProfile(uid);
+            if (!cloudProfile) {
+                console.log('[FirestoreManager] No cloud profile for bidirectional sync');
+                return { synced: false, reason: 'no_profile' };
+            }
+
+            // 2. Read local progress (the nested object the dashboard reads)
+            const localProgress = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+            let addedToLocal = 0;
+            let addedToCloud = 0;
+
+            // 3. Cloud → Local: add cloud completions missing from localStorage
+            const cloudModules = Array.isArray(cloudProfile.modulesCompleted) ? cloudProfile.modulesCompleted : [];
+            const cloudLabs = Array.isArray(cloudProfile.labsCompleted) ? cloudProfile.labsCompleted : [];
+
+            cloudModules.forEach(moduleId => {
+                const { house, key } = parseModuleId(moduleId);
+                if (!house || !key) return;
+                if (!localProgress[house]) localProgress[house] = {};
+                if (!localProgress[house][key] || !localProgress[house][key].completed) {
+                    localProgress[house][key] = {
+                        completed: true,
+                        restoredFromCloud: true,
+                        date: new Date().toISOString()
+                    };
+                    addedToLocal++;
+                }
+            });
+
+            cloudLabs.forEach(labId => {
+                const { house, key } = parseModuleId(labId);
+                if (!house || !key) return;
+                if (!localProgress[house]) localProgress[house] = {};
+                if (!localProgress[house][key] || !localProgress[house][key].completed) {
+                    localProgress[house][key] = {
+                        completed: true,
+                        restoredFromCloud: true,
+                        date: new Date().toISOString()
+                    };
+                    addedToLocal++;
+                }
+            });
+
+            // Cloud quizzes → local quiz_scores
+            const cloudQuizzes = cloudProfile.quizzes || {};
+            const localQuizzes = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.quizScores) || '{}');
+            const mergedQuizzes = mergeQuizScores(cloudQuizzes, localQuizzes);
+
+            // Cloud quizzes → local progress entries
+            Object.entries(cloudQuizzes).forEach(([quizId, quizData]) => {
+                const { house, key } = parseModuleId(quizId);
+                if (!house || !key) return;
+                if (!localProgress[house]) localProgress[house] = {};
+                if (!localProgress[house][key] || !localProgress[house][key].completed) {
+                    if (quizData.score >= 70 || quizData.passed) {
+                        localProgress[house][key] = {
+                            completed: true,
+                            score: quizData.score,
+                            restoredFromCloud: true,
+                            date: quizData.passedAt || new Date().toISOString()
+                        };
+                        addedToLocal++;
+                    }
+                }
+            });
+
+            // 4. Local → Cloud: collect all local completions into module ID sets
+            const allModuleIds = new Set(cloudModules);
+            const allLabIds = new Set(cloudLabs);
+
+            Object.entries(localProgress).forEach(([house, modules]) => {
+                if (typeof modules !== 'object' || modules === null) return;
+                Object.entries(modules).forEach(([key, data]) => {
+                    if (data && data.completed) {
+                        const fullId = `${house}-${key}`;
+                        if (!allModuleIds.has(fullId)) addedToCloud++;
+                        allModuleIds.add(fullId);
+                    }
+                });
+            });
+
+            // 5. Merge scalar values (take max)
+            const localXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
+            const mergedXP = Math.max(cloudProfile.xp || 0, localXP);
+
+            const localStreak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0');
+            const mergedStreak = Math.max(cloudProfile.streak || 0, localStreak);
+
+            // Merge achievements (union)
+            const localAchievements = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.achievements) || '[]');
+            const cloudAchievements = cloudProfile.achievements || [];
+            // Normalize: both arrays may contain strings or objects with .id
+            const normalizeAch = arr => arr.map(a => typeof a === 'string' ? a : (a?.id || '')).filter(Boolean);
+            const mergedAchievementIds = [...new Set([...normalizeAch(localAchievements), ...normalizeAch(cloudAchievements)])];
+
+            // 6. Write merged data to localStorage
+            localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(localProgress));
+            localStorage.setItem(LOCALSTORAGE_KEYS.xp, mergedXP.toString());
+            localStorage.setItem(LOCALSTORAGE_KEYS.streak, mergedStreak.toString());
+            localStorage.setItem(LOCALSTORAGE_KEYS.achievements, JSON.stringify(mergedAchievementIds));
+            localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(mergedQuizzes));
+
+            // Restore house if missing locally
+            if (cloudProfile.house && !localStorage.getItem(LOCALSTORAGE_KEYS.house)) {
+                localStorage.setItem(LOCALSTORAGE_KEYS.house, cloudProfile.house);
+            }
+
+            // 7. Write merged data to Firestore
+            await setUserProfile(uid, {
+                modulesCompleted: [...allModuleIds],
+                labsCompleted: [...allLabIds],
+                xp: mergedXP,
+                streak: mergedStreak,
+                achievements: mergedAchievementIds,
+                quizzes: mergedQuizzes
+            });
+
+            console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
+
+            // Dispatch event so dashboard can re-render
+            window.dispatchEvent(new CustomEvent('hexworth:cloudSyncComplete', {
+                detail: { addedToLocal, addedToCloud, totalModules: allModuleIds.size }
+            }));
+
+            return { synced: true, modulesCount: allModuleIds.size, addedToLocal, addedToCloud };
+        } catch (error) {
+            console.error('[FirestoreManager] Bidirectional sync error:', error);
+            return { synced: false, reason: 'error', error: error.message };
+        }
+    }
+
+    /**
+     * Parse a module ID like "shield-security-fundamentals" into { house, key }
+     * Handles all known house prefixes (single-word: web, shield, forge, etc.)
+     */
+    function parseModuleId(moduleId) {
+        if (!moduleId || typeof moduleId !== 'string') return { house: null, key: null };
+        const knownHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+        const parts = moduleId.split('-');
+        if (parts.length < 2) return { house: null, key: null };
+
+        // Check if first segment is a known house
+        if (knownHouses.includes(parts[0])) {
+            return { house: parts[0], key: parts.slice(1).join('-') };
+        }
+
+        // Fallback: first segment as house
+        return { house: parts[0], key: parts.slice(1).join('-') || moduleId };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // NEW USER SETUP
     // ═══════════════════════════════════════════════════════════════
 
@@ -840,6 +1008,10 @@ const FirestoreManager = (function() {
         // Try to migrate localStorage data
         const migration = await migrateFromLocalStorage(uid, email);
 
+        // Bidirectional sync: merge cloud ↔ local so all devices see the same data
+        const syncResult = await syncBidirectional(uid);
+        console.log('[FirestoreManager] Post-init sync:', syncResult);
+
         // Recalculate XP if it's 0 (fix for users who migrated before XP calculation was fixed)
         const currentProfile = await getUserProfile(uid);
         if (currentProfile && (currentProfile.xp === 0 || !currentProfile.xp)) {
@@ -853,7 +1025,8 @@ const FirestoreManager = (function() {
         return {
             profile: await getUserProfile(uid),  // Refresh after potential migration
             needsCallsign,
-            migration
+            migration,
+            syncResult
         };
     }
 
@@ -940,6 +1113,7 @@ const FirestoreManager = (function() {
         getLocalStorageProgress,
         migrateFromLocalStorage,
         restoreFromCloud,
+        syncBidirectional,
 
         // Grandfathering
         grandfatherUser,
@@ -953,7 +1127,10 @@ const FirestoreManager = (function() {
         calculateLevel,
 
         // New User
-        initializeNewUser
+        initializeNewUser,
+
+        // DB access (for components that need direct Firestore queries)
+        getDb: () => db
     };
 
 })();

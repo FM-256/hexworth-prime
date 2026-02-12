@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Centipede - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a14;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #ec4899; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100;
+        }
+        .back-link:hover { color: #f472b6; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #1a0a18 0%, #0a0a14 100%);
+            border: 2px solid #831843;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #be185d;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 600px; overflow-y: auto;
+        }
+        .lore-title { color: #ec4899; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #831843; padding-bottom: 8px; }
+        .lore-section h3 { color: #f472b6; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #ec4899; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #ec4899; display: block;
+            background: #0a0a14; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #ec4899; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #ec4899; color: #0a0a14; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #db2777; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10,10,20,0.95); border: 2px solid #ec4899;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #ec4899; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #831843; }
+        .move-entry .move-name { color: #f472b6; font-weight: bold; }
+        .move-entry .move-desc { color: #be185d; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.history.back()">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">LOG CENTIPEDE</div>
+            <div class="lore-section">
+                <h3>SIEM ALERT</h3>
+                <p>A massive log centipede is crawling through your SIEM dashboard. Each segment is a suspicious log entry. Shoot segments to split the chain. Clear them all before they reach your analyst station.</p>
+            </div>
+            <div class="lore-section">
+                <h3>THREAT INTEL</h3>
+                <p>Log entries snake through the mushroom field (log sources). Shooting a segment splits the centipede. Spiders (APTs) descend from above. Fleas (false positives) bounce unpredictably.</p>
+            </div>
+            <div class="lore-section">
+                <h3>SOC STATUS</h3>
+                <p id="loreWave">WAVE: 1</p>
+                <p id="loreScore">ALERTS RESOLVED: 0</p>
+                <p id="loreLogs">LOGS PROCESSED: 0</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>← → ↑ ↓</span> Move cursor</p>
+                <p><span>SPACE</span> Fire query</p>
+                <p><span>SHIFT</span> Log purge</p>
+                <p><span>?</span> Show queries</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div id="ui">
+                <span id="scoreDisplay">SCORE: 0</span>
+                <span id="waveDisplay">WAVE 1</span>
+                <span id="livesDisplay">♥♥♥</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">← → ↑ ↓ MOVE | SPACE FIRE | SHIFT LOG PURGE | ? QUERIES</div>
+    <div id="movesPanel">
+        <h2>👁 QUERY TYPES</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#be185d;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CELL = 20;
+const GRID_W = W / CELL, GRID_H = H / CELL;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.1) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxShoot() { playSound(800, 0.06, 'square', 0.08); }
+function sfxHit() { playSound(300, 0.1, 'sawtooth', 0.1); }
+function sfxMushroom() { playSound(500, 0.05); }
+function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.2, 'sawtooth', 0.12), 100); }
+function sfxWave() { playSound(523, 0.12, 'sine', 0.1); setTimeout(() => playSound(659, 0.12, 'sine', 0.1), 100); setTimeout(() => playSound(784, 0.15, 'sine', 0.1), 200); }
+function sfxPurge() { playSound(440, 0.08); setTimeout(() => playSound(660, 0.08), 50); setTimeout(() => playSound(880, 0.12), 100); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+const QUERIES = [
+    { name: 'SELECT *', desc: 'Standard single shot query. Resolves one log.', wave: 1 },
+    { name: 'JOIN', desc: 'Piercing shot that hits two segments.', wave: 3 },
+    { name: 'GROUP BY', desc: 'Area damage around impact point.', wave: 5 },
+    { name: 'LOG PURGE', desc: 'SHIFT: Clears all logs in your zone.', wave: 1 },
+    { name: 'DROP TABLE', desc: 'Nuclear option. Destroys everything. Very rare.', wave: 8 }
+];
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let score = 0, lives = 3, wave = 1, logsProcessed = 0;
+let purgeCharge = 0;
+
+// Player (analyst cursor)
+const player = { x: W/2, y: H - 40, speed: 4 };
+let bullets = [];
+let centipedes = [];
+let mushrooms = [];
+let spiders = [];
+let fleas = [];
+let particles = [];
+let shootCooldown = 0;
+let waveTransition = 0;
+
+// Log types for segments
+const LOG_TYPES = [
+    { label: 'WARN', color: '#f59e0b' },
+    { label: 'ERR', color: '#ef4444' },
+    { label: 'CRIT', color: '#dc2626' },
+    { label: 'INFO', color: '#3b82f6' },
+    { label: 'AUTH', color: '#8b5cf6' },
+    { label: 'SYS', color: '#22c55e' }
+];
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Mushrooms (log sources) - grid-based obstacles
+function generateMushrooms() {
+    mushrooms = [];
+    const count = 20 + wave * 5;
+    for (let i = 0; i < count; i++) {
+        const gx = Math.floor(Math.random() * GRID_W);
+        const gy = 2 + Math.floor(Math.random() * (GRID_H - 6));
+        if (!mushrooms.some(m => m.gx === gx && m.gy === gy)) {
+            mushrooms.push({ gx, gy, x: gx * CELL, y: gy * CELL, hp: 4 });
+        }
+    }
+}
+
+// Centipede
+function spawnCentipede(length, y, dir) {
+    const segments = [];
+    const type = LOG_TYPES[Math.floor(Math.random() * LOG_TYPES.length)];
+    for (let i = 0; i < length; i++) {
+        const gx = dir > 0 ? -i : GRID_W + i;
+        segments.push({
+            gx, gy: Math.floor(y / CELL),
+            x: gx * CELL, y: Math.floor(y / CELL) * CELL,
+            dir, type, isHead: i === 0,
+            moveTimer: 0
+        });
+    }
+    centipedes.push(segments);
+}
+
+function spawnWave() {
+    const length = 10 + wave * 2;
+    spawnCentipede(length, CELL * 2, 1);
+    if (wave >= 3) spawnCentipede(Math.floor(length / 2), CELL * 4, -1);
+    if (wave >= 5) spawnCentipede(Math.floor(length / 3), CELL * 6, 1);
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    score = 0; lives = 3; wave = 1; logsProcessed = 0;
+    purgeCharge = 0;
+    player.x = W / 2;
+    player.y = H - 40;
+    bullets = [];
+    centipedes = [];
+    spiders = [];
+    fleas = [];
+    particles = [];
+    generateMushrooms();
+    spawnWave();
+    sfxWave();
+}
+function resetGame() { startGame(); }
+
+function spawnParticles(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            life: 20 + Math.random() * 10, maxLife: 30, color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    document.getElementById('movesPanel').style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        QUERIES.forEach(q => {
+            const locked = wave < q.wave;
+            html += `<div class="move-entry ${locked ? 'move-locked' : ''}">
+                <div class="move-name">${q.name} ${locked ? '(Wave ' + q.wave + ')' : '✓'}</div>
+                <div class="move-desc">${q.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// Demo AI
+function demoAI() {
+    const allSegs = centipedes.flat();
+    if (allSegs.length > 0) {
+        const nearest = allSegs.reduce((best, s) => {
+            const d = Math.abs(s.x - player.x);
+            return (!best || d < best.d) ? { s, d } : best;
+        }, null);
+        if (nearest) {
+            if (player.x < nearest.s.x - 5) player.x += player.speed * 0.6;
+            else if (player.x > nearest.s.x + 5) player.x -= player.speed * 0.6;
+        }
+    }
+    if (Math.random() < 0.1) {
+        bullets.push({ x: player.x, y: player.y - 10, vy: -8, piercing: false });
+        sfxShoot();
+    }
+}
+
+function fireBullet() {
+    if (shootCooldown > 0) return;
+    sfxShoot();
+    if (wave >= 3) {
+        // Piercing shot
+        bullets.push({ x: player.x, y: player.y - 10, vy: -8, piercing: true });
+        shootCooldown = 6;
+    } else {
+        bullets.push({ x: player.x, y: player.y - 10, vy: -8, piercing: false });
+        shootCooldown = 5;
+    }
+}
+
+function activatePurge() {
+    if (purgeCharge < 100) return;
+    purgeCharge = 0;
+    sfxPurge();
+    // Kill everything in player zone (bottom quarter)
+    centipedes.forEach(segs => {
+        for (let i = segs.length - 1; i >= 0; i--) {
+            if (segs[i].y > H * 0.7) {
+                spawnParticles(segs[i].x + CELL/2, segs[i].y + CELL/2, segs[i].type.color, 4);
+                score += 10;
+                logsProcessed++;
+                segs.splice(i, 1);
+            }
+        }
+    });
+    centipedes = centipedes.filter(s => s.length > 0);
+    fleas = fleas.filter(f => f.y < H * 0.7);
+    spiders = spiders.filter(s => s.y < H * 0.7);
+}
+
+function update() {
+    if (waveTransition > 0) {
+        waveTransition--;
+        if (waveTransition === 0) { spawnWave(); sfxWave(); }
+        return;
+    }
+
+    if (demoMode) {
+        demoAI();
+        const totalSegs = centipedes.reduce((sum, c) => sum + c.length, 0);
+        if (totalSegs === 0) {
+            wave = ((wave) % 3) + 1;
+            generateMushrooms();
+            spawnWave();
+        }
+    }
+
+    if (!gameRunning && !demoMode) return;
+
+    // Player movement
+    if (!demoMode) {
+        if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+        if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+        if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
+        if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+        if (keys[' ']) fireBullet();
+        if (keys['Shift']) activatePurge();
+    }
+    player.x = Math.max(10, Math.min(W - 10, player.x));
+    player.y = Math.max(H * 0.7, Math.min(H - 10, player.y));
+    if (shootCooldown > 0) shootCooldown--;
+
+    // Bullets
+    bullets.forEach(b => { b.y += b.vy; });
+    bullets = bullets.filter(b => b.y > -10);
+
+    // Centipede movement
+    const moveRate = Math.max(2, 6 - Math.floor(wave / 2));
+    centipedes.forEach(segs => {
+        segs.forEach(s => {
+            s.moveTimer++;
+            if (s.moveTimer < moveRate) return;
+            s.moveTimer = 0;
+
+            const nextX = s.gx + s.dir;
+            // Check mushroom or wall
+            const blocked = nextX < 0 || nextX >= GRID_W ||
+                mushrooms.some(m => m.gx === nextX && m.gy === s.gy && m.hp > 0);
+
+            if (blocked) {
+                s.gy++;
+                s.dir *= -1;
+            } else {
+                s.gx = nextX;
+            }
+            s.x = s.gx * CELL;
+            s.y = s.gy * CELL;
+        });
+    });
+
+    // Bullet vs centipede
+    bullets.forEach(b => {
+        let hit = false;
+        centipedes.forEach((segs, ci) => {
+            for (let i = 0; i < segs.length; i++) {
+                const s = segs[i];
+                if (Math.abs(b.x - (s.x + CELL/2)) < CELL/2 && Math.abs(b.y - (s.y + CELL/2)) < CELL/2) {
+                    if (!b.piercing || !hit) {
+                        // Hit segment
+                        spawnParticles(s.x + CELL/2, s.y + CELL/2, s.type.color, 6);
+                        score += s.isHead ? 100 : 50;
+                        logsProcessed++;
+                        purgeCharge = Math.min(100, purgeCharge + 5);
+                        sfxHit();
+
+                        // Spawn mushroom where hit
+                        if (!mushrooms.some(m => m.gx === s.gx && m.gy === s.gy)) {
+                            mushrooms.push({ gx: s.gx, gy: s.gy, x: s.gx * CELL, y: s.gy * CELL, hp: 4 });
+                        }
+
+                        // Split centipede
+                        if (i > 0 && i < segs.length - 1) {
+                            const newChain = segs.splice(i + 1);
+                            if (newChain.length > 0) {
+                                newChain[0].isHead = true;
+                                centipedes.push(newChain);
+                            }
+                        }
+                        segs.splice(i, 1);
+                        if (segs.length > 0) segs[0].isHead = true;
+
+                        hit = true;
+                        if (!b.piercing) b.y = -100;
+                        break;
+                    }
+                }
+            }
+        });
+        centipedes = centipedes.filter(s => s.length > 0);
+    });
+
+    // Bullet vs mushroom
+    bullets.forEach(b => {
+        mushrooms.forEach(m => {
+            if (m.hp <= 0) return;
+            if (Math.abs(b.x - (m.x + CELL/2)) < CELL/2 && Math.abs(b.y - (m.y + CELL/2)) < CELL/2) {
+                m.hp--;
+                b.y = -100;
+                sfxMushroom();
+                if (m.hp <= 0) spawnParticles(m.x + CELL/2, m.y + CELL/2, '#ec4899', 3);
+            }
+        });
+    });
+
+    // Spawn spider occasionally
+    if (Math.random() < 0.003 * wave && spiders.length < 2) {
+        spiders.push({
+            x: Math.random() < 0.5 ? -20 : W + 20,
+            y: H * 0.5 + Math.random() * H * 0.3,
+            vx: (Math.random() < 0.5 ? 1 : -1) * (1.5 + Math.random()),
+            vy: Math.sin(Math.random() * Math.PI * 2) * 2,
+            hp: 2
+        });
+    }
+
+    // Spider movement
+    spiders.forEach(s => {
+        s.x += s.vx;
+        s.y += Math.sin(Date.now() * 0.005 + s.x) * 1.5;
+        // Remove nearby mushrooms
+        mushrooms.forEach(m => {
+            if (m.hp > 0 && Math.abs(m.x - s.x) < CELL && Math.abs(m.y - s.y) < CELL) {
+                m.hp = 0;
+            }
+        });
+    });
+    spiders = spiders.filter(s => s.x > -40 && s.x < W + 40);
+
+    // Bullet vs spider
+    bullets.forEach(b => {
+        spiders.forEach(s => {
+            if (Math.abs(b.x - s.x) < 15 && Math.abs(b.y - s.y) < 15) {
+                s.hp--;
+                b.y = -100;
+                if (s.hp <= 0) {
+                    score += 300;
+                    spawnParticles(s.x, s.y, '#8b5cf6', 8);
+                    sfxHit();
+                    s.x = -100;
+                }
+            }
+        });
+    });
+
+    // Spawn flea (false positive) occasionally
+    if (Math.random() < 0.002 * wave && fleas.length < 2) {
+        fleas.push({
+            x: Math.random() * W,
+            y: -10,
+            vy: 4 + Math.random() * 2
+        });
+    }
+
+    // Flea movement - drops straight down, spawns mushrooms
+    fleas.forEach(f => {
+        f.y += f.vy;
+        if (Math.random() < 0.05) {
+            const gx = Math.floor(f.x / CELL);
+            const gy = Math.floor(f.y / CELL);
+            if (gy >= 0 && gy < GRID_H && !mushrooms.some(m => m.gx === gx && m.gy === gy)) {
+                mushrooms.push({ gx, gy, x: gx * CELL, y: gy * CELL, hp: 4 });
+            }
+        }
+    });
+    fleas = fleas.filter(f => f.y < H + 10);
+
+    // Bullet vs flea
+    bullets.forEach(b => {
+        fleas.forEach(f => {
+            if (Math.abs(b.x - f.x) < 10 && Math.abs(b.y - f.y) < 10) {
+                score += 200;
+                spawnParticles(f.x, f.y, '#f59e0b', 6);
+                sfxHit();
+                f.y = H + 100;
+                b.y = -100;
+            }
+        });
+    });
+
+    // Centipede reaching player zone
+    if (!demoMode) {
+        const allSegs = centipedes.flat();
+        allSegs.forEach(s => {
+            if (Math.abs(s.x + CELL/2 - player.x) < 15 && Math.abs(s.y + CELL/2 - player.y) < 15) {
+                lives--;
+                spawnParticles(player.x, player.y, '#ec4899', 12);
+                sfxDeath();
+                player.x = W / 2;
+                player.y = H - 40;
+                if (lives <= 0) { gameRunning = false; gameOver = true; }
+            }
+        });
+        // Spider collision
+        spiders.forEach(s => {
+            if (Math.abs(s.x - player.x) < 15 && Math.abs(s.y - player.y) < 15) {
+                lives--;
+                sfxDeath();
+                spawnParticles(player.x, player.y, '#ec4899', 12);
+                player.x = W / 2;
+                player.y = H - 40;
+                if (lives <= 0) { gameRunning = false; gameOver = true; }
+            }
+        });
+        // Flea collision
+        fleas.forEach(f => {
+            if (Math.abs(f.x - player.x) < 10 && Math.abs(f.y - player.y) < 12) {
+                lives--;
+                sfxDeath();
+                spawnParticles(player.x, player.y, '#ec4899', 10);
+                player.x = W / 2;
+                player.y = H - 40;
+                if (lives <= 0) { gameRunning = false; gameOver = true; }
+            }
+        });
+    }
+
+    // Centipede segments past bottom respawn at top
+    centipedes.forEach(segs => {
+        segs.forEach(s => {
+            if (s.gy >= GRID_H) {
+                s.gy = 0;
+                s.y = 0;
+            }
+        });
+    });
+
+    // Wave complete
+    const totalSegs = centipedes.reduce((sum, c) => sum + c.length, 0);
+    if (totalSegs === 0 && !demoMode && !waveTransition) {
+        wave++;
+        waveTransition = 90;
+        generateMushrooms();
+    }
+
+    // Particles
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+
+    // UI
+    document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
+    document.getElementById('waveDisplay').textContent = `WAVE ${wave}`;
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    document.getElementById('loreWave').textContent = `WAVE: ${wave}`;
+    document.getElementById('loreScore').textContent = `ALERTS RESOLVED: ${score}`;
+    document.getElementById('loreLogs').textContent = `LOGS PROCESSED: ${logsProcessed}`;
+}
+
+function draw() {
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, W, H);
+
+    // SIEM grid
+    ctx.strokeStyle = 'rgba(131,24,67,0.1)';
+    for (let x = 0; x < GRID_W; x++) {
+        ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, H); ctx.stroke();
+    }
+    for (let y = 0; y < GRID_H; y++) {
+        ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(W, y * CELL); ctx.stroke();
+    }
+
+    // Player zone indicator
+    ctx.fillStyle = 'rgba(236,72,153,0.03)';
+    ctx.fillRect(0, H * 0.7, W, H * 0.3);
+
+    // Mushrooms (log sources)
+    mushrooms.forEach(m => {
+        if (m.hp <= 0) return;
+        const alpha = m.hp / 4;
+        ctx.fillStyle = `rgba(236,72,153,${alpha * 0.4})`;
+        ctx.fillRect(m.x + 2, m.y + 2, CELL - 4, CELL - 4);
+        ctx.fillStyle = `rgba(236,72,153,${alpha * 0.7})`;
+        // Log source icon (diamond shape)
+        ctx.fillRect(m.x + CELL/2 - 3, m.y + 3, 6, 3);
+        ctx.fillRect(m.x + 3, m.y + 6, CELL - 6, CELL - 12);
+        ctx.fillRect(m.x + CELL/2 - 3, m.y + CELL - 6, 6, 3);
+    });
+
+    // Centipedes
+    centipedes.forEach(segs => {
+        segs.forEach(s => {
+            ctx.fillStyle = s.type.color;
+            ctx.fillRect(s.x + 1, s.y + 1, CELL - 2, CELL - 2);
+            // Label
+            ctx.fillStyle = '#0a0a14';
+            ctx.font = 'bold 7px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(s.type.label, s.x + CELL/2, s.y + CELL/2);
+            // Head indicator
+            if (s.isHead) {
+                ctx.fillStyle = '#ffffff';
+                const ex = s.dir > 0 ? CELL - 5 : 3;
+                ctx.fillRect(s.x + ex, s.y + CELL/2 - 2, 3, 3);
+            }
+            // Legs animation
+            const leg = Math.sin(Date.now() * 0.01 + s.gx) > 0;
+            ctx.fillStyle = s.type.color;
+            if (leg) {
+                ctx.fillRect(s.x + 3, s.y + CELL - 1, 3, 3);
+                ctx.fillRect(s.x + CELL - 6, s.y + CELL - 1, 3, 3);
+            } else {
+                ctx.fillRect(s.x + 6, s.y + CELL - 1, 3, 3);
+                ctx.fillRect(s.x + CELL - 9, s.y + CELL - 1, 3, 3);
+            }
+        });
+    });
+
+    // Spiders (APTs)
+    spiders.forEach(s => {
+        ctx.fillStyle = '#8b5cf6';
+        ctx.fillRect(s.x - 10, s.y - 8, 20, 16);
+        ctx.fillRect(s.x - 14, s.y - 2, 28, 4);
+        // Legs
+        const wiggle = Math.sin(Date.now() * 0.01) * 3;
+        ctx.fillRect(s.x - 16, s.y + wiggle, 4, 4);
+        ctx.fillRect(s.x + 12, s.y - wiggle, 4, 4);
+        // Eyes
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(s.x - 4, s.y - 5, 3, 3);
+        ctx.fillRect(s.x + 1, s.y - 5, 3, 3);
+        // Label
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '7px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('APT', s.x, s.y + 18);
+    });
+
+    // Fleas (false positives)
+    fleas.forEach(f => {
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(f.x - 4, f.y - 6, 8, 12);
+        ctx.fillStyle = '#0a0a14';
+        ctx.font = 'bold 8px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('FP', f.x, f.y + 2);
+    });
+
+    // Bullets
+    bullets.forEach(b => {
+        ctx.fillStyle = b.piercing ? '#f472b6' : '#ec4899';
+        ctx.shadowColor = '#ec4899';
+        ctx.shadowBlur = 6;
+        ctx.fillRect(b.x - 2, b.y - 5, 4, 10);
+        ctx.shadowBlur = 0;
+    });
+
+    // Player (cursor/analyst)
+    ctx.fillStyle = '#ec4899';
+    ctx.shadowColor = '#ec4899';
+    ctx.shadowBlur = 10;
+    // Arrow cursor shape
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y - 12);
+    ctx.lineTo(player.x - 8, player.y + 6);
+    ctx.lineTo(player.x - 2, player.y + 4);
+    ctx.lineTo(player.x - 4, player.y + 12);
+    ctx.lineTo(player.x + 2, player.y + 12);
+    ctx.lineTo(player.x + 4, player.y + 4);
+    ctx.lineTo(player.x + 8, player.y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Purge meter
+    if (gameRunning || demoMode) {
+        const mw = 100, mh = 6;
+        const mx = W - mw - 10, my = H - 16;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.fillStyle = purgeCharge >= 100 ? '#f59e0b' : '#831843';
+        ctx.fillRect(mx, my, mw * (purgeCharge / 100), mh);
+        ctx.strokeStyle = '#ec4899';
+        ctx.strokeRect(mx, my, mw, mh);
+        if (purgeCharge >= 100) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = '9px Courier New';
+            ctx.textAlign = 'right';
+            ctx.fillText('SHIFT: PURGE READY', mx + mw, my - 4);
+        }
+    }
+
+    // Particles
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    // Overlays
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(10,10,20,0.6)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#ec4899';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('LOG CENTIPEDE', W/2, H/2 - 25);
+        ctx.fillStyle = '#f472b6';
+        ctx.font = '15px Courier New';
+        ctx.fillText('Hunt the threat chain through your SIEM', W/2, H/2 + 10);
+        ctx.fillStyle = '#be185d';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO INVESTIGATE ]', W/2, H/2 + 50);
+    }
+    if (waveTransition > 0) {
+        const alpha = waveTransition > 60 ? 1 : waveTransition / 60;
+        ctx.fillStyle = `rgba(10,10,20,${alpha * 0.7})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ec4899';
+        ctx.font = 'bold 48px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`WAVE ${wave}`, W/2, H/2 - 10);
+        ctx.fillStyle = '#f472b6';
+        ctx.font = '18px Courier New';
+        const names = ['', 'LOG TRICKLE', 'EVENT STREAM', 'ALERT FLOOD', 'LOG TSUNAMI', 'SIEM OVERLOAD', 'DATA BREACH', 'FULL COMPROMISE', 'NATION STATE', 'ZERO DAY CASCADE', 'EXTINCTION EVENT'];
+        ctx.fillText(names[Math.min(wave, names.length - 1)] || `SEVERITY ${wave}`, W/2, H/2 + 25);
+    }
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(10,10,20,0.85)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('SOC OVERWHELMED', W/2, H/2 - 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '18px Courier New';
+        ctx.fillText(`Score: ${score}`, W/2, H/2 - 5);
+        ctx.fillText(`Waves Cleared: ${wave - 1}`, W/2, H/2 + 25);
+        ctx.fillText(`Logs Processed: ${logsProcessed}`, W/2, H/2 + 55);
+        ctx.fillStyle = '#be185d';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO REOPEN CASE ]', W/2, H/2 + 90);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+generateMushrooms();
+spawnWave();
+gameLoop();
+</script>
+</body>
+</html>

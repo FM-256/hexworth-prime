@@ -62,12 +62,46 @@ const ModuleProgress = (function() {
             });
         }
 
-        // Give FirebaseAuth time to initialize (it dynamically imports SDKs)
-        if (typeof FirebaseAuth !== 'undefined') {
+        // Initialize FirebaseAuth and wait for auth state to resolve
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.init) {
             await FirebaseAuth.init();
+            // Wait for auth state callback (up to 5s) if user not yet available
+            if (!FirebaseAuth.getUser()) {
+                await new Promise(resolve => {
+                    const handler = () => {
+                        window.removeEventListener('firebaseAuthStateChanged', handler);
+                        resolve();
+                    };
+                    window.addEventListener('firebaseAuthStateChanged', handler);
+                    setTimeout(() => {
+                        window.removeEventListener('firebaseAuthStateChanged', handler);
+                        resolve();
+                    }, 5000);
+                });
+            }
         }
 
         return typeof ProgressManager !== 'undefined' && ProgressManager.syncToFirestore;
+    }
+
+    /**
+     * Push completion to user's Firestore profile for cross-device sync.
+     * Non-blocking, fails silently if offline or not signed in.
+     */
+    function pushToUserProfile(houseId, moduleId, type, metadata = {}) {
+        try {
+            if (typeof FirestoreManager === 'undefined' || typeof FirebaseAuth === 'undefined') return;
+            const user = FirebaseAuth.getUser();
+            if (!user) return;
+            const fullId = `${houseId}-${moduleId}`;
+            if (type === 'quiz' && metadata.score != null) {
+                FirestoreManager.passQuiz(user.uid, fullId, metadata.score, houseId).catch(() => {});
+            } else {
+                FirestoreManager.completeModule(user.uid, fullId, houseId).catch(() => {});
+            }
+        } catch (e) {
+            // Silent fail - local progress is already saved
+        }
     }
 
     function tryFirestoreSync(moduleId, houseId, moduleType, metadata) {
@@ -127,6 +161,9 @@ const ModuleProgress = (function() {
 
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
+
+        // Push to user's Firestore profile (cross-device sync)
+        pushToUserProfile(houseId, moduleId, 'module');
 
         // Update completion counter
         const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
@@ -205,6 +242,11 @@ const ModuleProgress = (function() {
 
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(quizId, houseId, 'quiz', { score });
+
+        // Push to user's Firestore profile (cross-device sync)
+        if (passed) {
+            pushToUserProfile(houseId, quizId, 'quiz', { score });
+        }
 
         // Update quiz counter if passed
         if (passed) {
