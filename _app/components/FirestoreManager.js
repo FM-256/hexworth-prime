@@ -890,6 +890,13 @@ const FirestoreManager = (function() {
                         const fullId = `${house}-${key}`;
                         if (!allModuleIds.has(fullId)) addedToCloud++;
                         allModuleIds.add(fullId);
+                        // Also classify as lab if LearningPaths confirms it
+                        if (typeof LearningPaths !== 'undefined' && LearningPaths.getModule) {
+                            const mod = LearningPaths.getModule(fullId);
+                            if (mod && mod.type === 'lab') {
+                                allLabIds.add(fullId);
+                            }
+                        }
                     }
                 });
             });

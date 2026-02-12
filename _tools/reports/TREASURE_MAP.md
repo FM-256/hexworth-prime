@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-12 9:27:33 PM
+                    Scanned: 2026-02-12 9:54:45 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1235 |
 | Directories | 460 |
 | Content Files | 1235 |
-| Scan Duration | 214ms |
+| Scan Duration | 156ms |
 
 ### Content by Type
 
@@ -29,10 +29,10 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 1 |
+| Critical | 0 |
 | Warning | 882 |
 | Info | 398 |
-| **Total** | **1689** |
+| **Total** | **1688** |
 
 ### Sync Status
 
@@ -2597,11 +2597,6 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
-
-### CRITICAL (1)
-
-**[REG-ORPHAN-001]** Registry declares 'forge-aplus-jeopardy' but file is missing: houses/forge/games/forge-aplus-jeopardy.applet.html
-  Fix: Remove entry 'forge-aplus-jeopardy' from content-registry.js OR restore the missing file
 
 ### WARNING (882)
 

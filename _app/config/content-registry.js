@@ -7509,7 +7509,7 @@ const ContentRegistry = {
             topics: ['systems'],
             paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
-                applet: 'houses/forge/games/forge-aplus-jeopardy.applet.html'
+                applet: 'houses/forge/reviews/forge-aplus-jeopardy.applet.html'
             },
             prerequisites: [],
             objectives: []
