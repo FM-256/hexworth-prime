@@ -28,6 +28,7 @@ const GameTracker = (function () {
         key:     { title: "Don't Leak the Key",       house: 'key',    icon: '🔑' },
         bill:    { title: "Don't Check the Bill",     house: 'cloud',  icon: '☁️' },
         printer: { title: "Don't Anger the Printer",  house: 'forge',  icon: '🔨' },
+        sqli:    { title: "SQL Injection Defense",    house: 'shield', icon: '🛡️' },
     };
 
     // ── persistence ──────────────────────────────────────────────
