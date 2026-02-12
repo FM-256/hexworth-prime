@@ -367,12 +367,8 @@ const FirestoreManager = (function() {
             // Streak
             data.streak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0');
 
-            // XP calculation - combine multiple sources
+            // XP calculation - read stored XP as-is (discovery points tracked separately)
             let totalXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
-
-            // Add discovery points from achievements
-            const discoveryPoints = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.discoveryPoints) || '0');
-            totalXP += discoveryPoints;
 
             // If XP is still 0, calculate from progress data
             if (totalXP === 0) {
@@ -1044,12 +1040,18 @@ const FirestoreManager = (function() {
             console.log('[FirestoreManager] Created new user profile');
         }
 
-        // Try to migrate localStorage data
-        const migration = await migrateFromLocalStorage(uid, email);
+        // Try to migrate localStorage data (once only)
+        let migration = null;
+        if (!localStorage.getItem('hexworth_migrated_to_firestore')) {
+            migration = await migrateFromLocalStorage(uid, email);
+            localStorage.setItem('hexworth_migrated_to_firestore', 'true');
+            console.log('[FirestoreManager] Migration complete, flag set');
+        } else {
+            console.log('[FirestoreManager] Migration already completed, skipping');
+        }
 
-        // Bidirectional sync: merge cloud ↔ local so all devices see the same data
-        const syncResult = await syncBidirectional(uid);
-        console.log('[FirestoreManager] Post-init sync:', syncResult);
+        // syncBidirectional is called by the dashboard's firebaseAuthStateChanged handler
+        const syncResult = null;
 
         // Recalculate XP if it's 0 (fix for users who migrated before XP calculation was fixed)
         const currentProfile = await getUserProfile(uid);
@@ -1091,10 +1093,6 @@ const FirestoreManager = (function() {
         if (Array.isArray(localData.achievements)) {
             totalXP += localData.achievements.length * 15;
         }
-
-        // Discovery points
-        const discoveryPoints = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.discoveryPoints) || '0');
-        totalXP += discoveryPoints;
 
         // Streak bonus
         totalXP += (localData.streak || 0) * 10;
