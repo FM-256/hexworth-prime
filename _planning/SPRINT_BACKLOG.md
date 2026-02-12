@@ -1379,4 +1379,64 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ---
 
+### F-13: Certification Path Build-Out (All Houses)
+**Status:** Planned
+**Priority:** High
+**Rationale:** 12 cert path cards across 7 houses navigate to `path-view.html` but have no matching entries in `LearningPaths.js`. Only Script House paths work (`comptia-linux`, `linux-mastery`, `devops-fundamentals`). All others 404. Each needs a LearningPaths entry mapping existing content + identifying gaps.
+
+**Broken cert path cards (12 total):**
+
+| House | Path ID | Card Label | Cert |
+|-------|---------|------------|------|
+| Shield | `security-plus` | Security Fundamentals | CompTIA Security+ SY0-701 |
+| Shield | `cysa-plus` | Security Analysis | CompTIA CySA+ CS0-003 |
+| Shield | `casp-plus` | Security Architecture | CompTIA CASP+ CAS-004 |
+| Key | `cryptography-track` | Cryptography Track | Primary Learning Path |
+| Key | `security-plus-crypto` | Security+ Crypto Domain | CompTIA Security+ |
+| Web | `comptia-network` | Network Fundamentals | CompTIA Network+ N10-009 |
+| Web | `ccna` | Cisco Networking | Cisco CCNA 200-301 |
+| Cloud | `aws-ccp` | Cloud Fundamentals | AWS Cloud Practitioner |
+| Cloud | `azure-fundamentals` | Azure Fundamentals | Microsoft AZ-900 |
+| Code | `aws-developer` | AWS Developer | AWS Developer Associate |
+| Eye | `cysa-plus` | Security Analysis | CompTIA CySA+ CS0-003 |
+| Eye | `security-operations` | Security Operations | SOC Analyst Path |
+
+**Goals per path:**
+- [ ] Create LearningPaths.js entry with cert domain/objective structure
+- [ ] Map existing house content (presentations, labs, quizzes) to cert domains
+- [ ] Identify content gaps and build missing modules
+- [ ] Wire path-view.html to correctly load and display each certification path
+- [ ] Add progress tracking per domain/objective
+
+**Suggested build order (by existing content density):**
+1. `security-plus` (Shield has most content already)
+2. `comptia-network` (Web has Network+ aligned content)
+3. `cryptography-track` + `security-plus-crypto` (Key house)
+4. `aws-ccp` + `azure-fundamentals` (Cloud house — WSA content maps well)
+5. `cysa-plus` + `security-operations` (Shield/Eye — shared CySA+ path)
+6. `ccna` (Web — needs Cisco-specific content)
+7. `aws-developer` (Code house)
+8. `casp-plus` (Shield — advanced, build last)
+
+**Scope:** LearningPaths.js, path-view.html, all house content directories
+
+---
+
+### F-14: STRIDE Threat Modeler Audit & Rebuild (Eye House)
+**Status:** Planned
+**Priority:** Medium
+**Rationale:** The STRIDE Threat Modeler (`houses/eye/games/threat-modeler.html`) is categorized as a lab but its purpose and quality are unclear. Needs a full audit to determine what it does, whether it's functional, and how to improve it into a proper STRIDE methodology training tool.
+
+**Goals:**
+- [ ] Audit current implementation — what does it actually do?
+- [ ] Determine if it's a tool, lab, or interactive tutorial
+- [ ] Fix any broken functionality
+- [ ] Enhance into a proper STRIDE threat modeling workflow (identify assets → map threats → categorize by S/T/R/I/D/E → generate report)
+- [ ] Add educational content explaining each STRIDE category with examples
+- [ ] Ensure it fits Eye House theming and educational goals
+
+**Scope:** `houses/eye/games/threat-modeler.html`
+
+---
+
 *Last Updated: February 11, 2026*
