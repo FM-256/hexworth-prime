@@ -306,7 +306,8 @@
     const player = {
         x: 100, y: GROUND_Y - 20, width: 20, height: 20,
         velocityY: 0, isJumping: false, hasDoubleJumped: false,
-        isDucking: false, bitState: '1', frame: 0, shielded: false
+        isDucking: false, bitState: '1', frame: 0, shielded: false,
+        walkFrame: 0
     };
 
     // ===== AUDIO ENGINE =====
@@ -362,7 +363,7 @@
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
 
-        // Circuit traces (far layer)
+        // Circuit traces (far layer) - more detailed
         ctx.strokeStyle = lvl.traceColor;
         ctx.lineWidth = 1;
         ctx.globalAlpha = 0.3;
@@ -375,10 +376,23 @@
             ctx.lineTo(baseX + 40, baseY + 20);
             ctx.lineTo(baseX + 80, baseY + 20);
             ctx.stroke();
-            // Via hole
+            // Via hole with glow
+            ctx.save();
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = lvl.traceColor;
             ctx.beginPath();
             ctx.arc(baseX + 82, baseY + 20, 3, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fill();
+            ctx.restore();
+            // Add component silhouettes
+            if (i % 2 === 0) {
+                ctx.globalAlpha = 0.15;
+                ctx.fillStyle = lvl.traceColor;
+                ctx.fillRect(baseX + 20, baseY - 8, 12, 8);
+                ctx.globalAlpha = 0.3;
+            }
         }
         ctx.globalAlpha = 1;
 
@@ -455,11 +469,25 @@
     }
 
     // ===== PLAYER =====
+    function drawRoundedRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+    }
+
     function drawPlayer() {
         const px = player.x, py = player.y;
         const h = player.isDucking ? 10 : 20;
 
-        // Shield / invincibility effects
+        // Shield / invincibility effects with hex pattern
         let showShield = player.shielded || invincible;
         let shieldAlpha = 1;
         if (shieldFadeTimer > 0) {
@@ -471,15 +499,30 @@
 
         if (showShield) {
             ctx.save();
-            ctx.globalAlpha = shieldAlpha * 0.4;
+            // Hex pattern shield
+            ctx.globalAlpha = shieldAlpha * 0.3;
             ctx.fillStyle = '#00bfff';
             ctx.beginPath();
             ctx.arc(px + 10, py + h/2, 18, 0, Math.PI * 2);
             ctx.fill();
-            ctx.globalAlpha = shieldAlpha * 0.8;
+
+            ctx.globalAlpha = shieldAlpha * 0.6;
             ctx.strokeStyle = '#00bfff';
             ctx.lineWidth = 2;
-            ctx.stroke();
+            const hexRadius = 18;
+            const hexX = px + 10;
+            const hexY = py + h/2;
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i + gameFrame * 0.02;
+                const x1 = hexX + hexRadius * Math.cos(angle);
+                const y1 = hexY + hexRadius * Math.sin(angle);
+                const x2 = hexX + hexRadius * Math.cos(angle + Math.PI / 3);
+                const y2 = hexY + hexRadius * Math.sin(angle + Math.PI / 3);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
             ctx.restore();
         }
 
@@ -491,31 +534,77 @@
         ctx.fillStyle = grad;
         ctx.fillRect(px-glowR+10, py+h/2-glowR, glowR*2, glowR*2);
 
-        // Body
+        // Body (microchip style)
         ctx.fillStyle = '#f97316';
         if (player.isDucking) {
-            // Flat compressed bit
-            ctx.fillRect(px, py + 10, 24, 10);
+            // Flat compressed chip with visible traces
+            drawRoundedRect(px, py + 10, 24, 10, 2);
+            ctx.fill();
+            // Circuit traces on top
+            ctx.strokeStyle = '#0a0a0a';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px + 4, py + 12);
+            ctx.lineTo(px + 20, py + 12);
+            ctx.moveTo(px + 4, py + 16);
+            ctx.lineTo(px + 20, py + 16);
+            ctx.stroke();
             ctx.fillStyle = '#0a0a0a';
-            ctx.font = 'bold 8px monospace';
+            ctx.font = 'bold 7px monospace';
             ctx.textAlign = 'center';
             ctx.fillText('ZIP', px + 12, py + 18);
         } else {
-            ctx.fillRect(px + 2, py, 16, 20);
-            // Bit display
+            // Microchip body with rounded corners
+            drawRoundedRect(px + 2, py, 16, 20, 3);
+            ctx.fill();
+
+            // IC package pins (animated walking)
+            player.walkFrame = (player.walkFrame + 0.15) % (Math.PI * 2);
+            ctx.fillStyle = '#b87333';
+            // Left pins
+            for (let i = 0; i < 4; i++) {
+                const pinY = py + 4 + i * 5;
+                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i) * 1 : 0;
+                ctx.fillRect(px - 2 + pinOffset, pinY, 4, 2);
+            }
+            // Right pins
+            for (let i = 0; i < 4; i++) {
+                const pinY = py + 4 + i * 5;
+                const pinOffset = !player.isJumping ? Math.sin(player.walkFrame + i + Math.PI) * 1 : 0;
+                ctx.fillRect(px + 18 - pinOffset, pinY, 4, 2);
+            }
+
+            // LED eye
+            ctx.fillStyle = '#00ff41';
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = '#00ff41';
+            ctx.beginPath();
+            ctx.arc(px + 10, py + 6, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Bit display screen
             player.frame++;
             if (player.frame % 15 === 0) player.bitState = player.bitState === '1' ? '0' : '1';
             ctx.fillStyle = '#0a0a0a';
-            ctx.font = 'bold 12px monospace';
+            ctx.fillRect(px + 5, py + 10, 10, 8);
+            ctx.fillStyle = player.bitState === '1' ? '#00ff41' : '#ff4444';
+            ctx.font = 'bold 10px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(player.bitState, px + 10, py + 14);
-            // Antenna / signal pins
+            ctx.fillText(player.bitState, px + 10, py + 17);
+
+            // Antenna pins with signal glow
             ctx.fillStyle = '#b87333';
             ctx.fillRect(px + 4, py - 4, 2, 5);
             ctx.fillRect(px + 14, py - 4, 2, 5);
-            // Legs (pins)
-            ctx.fillRect(px + 4, py + 20, 2, 4);
-            ctx.fillRect(px + 14, py + 20, 2, 4);
+            // Signal emitter glow
+            ctx.fillStyle = 'rgba(249,115,22,0.5)';
+            ctx.beginPath();
+            ctx.arc(px + 5, py - 4, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(px + 15, py - 4, 2, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         // Ability visual
@@ -523,7 +612,10 @@
             ctx.globalAlpha = 0.5;
             ctx.fillStyle = '#f97316';
             for (let i = 1; i <= 3; i++) {
-                ctx.fillRect(px - i * 12, py + 4, 8, h - 8);
+                const trailAlpha = 0.5 - i * 0.12;
+                ctx.globalAlpha = trailAlpha;
+                drawRoundedRect(px - i * 12, py + 4, 8, h - 8, 2);
+                ctx.fill();
             }
             ctx.globalAlpha = 1;
         }
@@ -543,11 +635,15 @@
             ctx.globalAlpha = 1;
         }
 
-        // Running sparks
+        // Running sparks (circular particles)
         if (!player.isJumping && gameRunning && gameFrame % 4 === 0) {
             particles.push({
-                x: px + 10, y: py + h, vx: -Math.random()*2-1, vy: -Math.random()*1.5,
-                life: 12, color: '#f97316', size: 2
+                x: px + 10, y: py + h,
+                vx: -Math.random()*2-1,
+                vy: -Math.random()*2-0.5,
+                life: 15,
+                color: '#f97316',
+                size: 1.5 + Math.random()
             });
         }
 
@@ -597,20 +693,34 @@
             ctx.save();
             switch(this.type) {
                 case 'bad_sector':
+                    // Damaged hard drive platter with scratch marks
                     ctx.fillStyle = '#1a0000';
-                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                    drawRoundedRect(this.x, this.y, this.w, this.h, 3);
+                    ctx.fill();
+                    // Scratch marks
                     ctx.strokeStyle = '#ff0000';
                     ctx.lineWidth = 2;
-                    ctx.strokeRect(this.x, this.y, this.w, this.h);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 5, this.y + 8);
+                    ctx.lineTo(this.x + this.w - 5, this.y + 8);
+                    ctx.moveTo(this.x + 5, this.y + 16);
+                    ctx.lineTo(this.x + this.w - 5, this.y + 16);
+                    ctx.stroke();
+                    // Warning light
+                    ctx.fillStyle = Math.sin(this.frame * 0.2) > 0 ? '#ff0000' : '#660000';
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.w/2, this.y + this.h/2, 4, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.fillStyle = '#ff0000';
-                    ctx.font = '9px monospace';
+                    ctx.font = '8px monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText('BAD', this.x + this.w/2, this.y + this.h/2 + 3);
+                    ctx.fillText('BAD', this.x + this.w/2, this.y + 7);
                     break;
                 case 'power_surge':
+                    // Enhanced lightning with brighter glow
                     ctx.strokeStyle = '#00ffff';
-                    ctx.lineWidth = 3;
-                    ctx.shadowBlur = 10;
+                    ctx.lineWidth = 4;
+                    ctx.shadowBlur = 15;
                     ctx.shadowColor = '#00ffff';
                     ctx.beginPath();
                     ctx.moveTo(this.x, this.y + this.h/2);
@@ -619,28 +729,64 @@
                     }
                     ctx.lineTo(this.x + this.w, this.y + this.h/2);
                     ctx.stroke();
+                    // Electrical arc from ground
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.w/2, GROUND_Y);
+                    ctx.lineTo(this.x + this.w/2 + (Math.random()-0.5)*10, this.y + this.h);
+                    ctx.stroke();
                     break;
                 case 'static':
+                    // More jagged lightning with branches and crackle
                     ctx.strokeStyle = '#ffff00';
                     ctx.lineWidth = 3;
-                    ctx.shadowBlur = 12;
+                    ctx.shadowBlur = 15;
                     ctx.shadowColor = '#ffff00';
                     ctx.beginPath();
                     ctx.moveTo(this.x + 6, this.y);
-                    ctx.lineTo(this.x + 2, this.y + 20);
+                    ctx.lineTo(this.x + 2, this.y + 15);
+                    // Branch 1
+                    ctx.moveTo(this.x + 2, this.y + 15);
+                    ctx.lineTo(this.x - 5, this.y + 20);
+                    ctx.moveTo(this.x + 2, this.y + 15);
                     ctx.lineTo(this.x + 10, this.y + 20);
-                    ctx.lineTo(this.x + 4, this.y + 40);
-                    ctx.lineTo(this.x + 10, this.y + 40);
+                    ctx.lineTo(this.x + 4, this.y + 35);
+                    // Branch 2
+                    ctx.moveTo(this.x + 4, this.y + 35);
+                    ctx.lineTo(this.x + 12, this.y + 35);
+                    ctx.moveTo(this.x + 4, this.y + 35);
+                    ctx.lineTo(this.x + 10, this.y + 45);
                     ctx.lineTo(this.x + 6, this.y + 60);
                     ctx.stroke();
+                    // Sparking particles
+                    if (this.frame % 3 === 0) {
+                        particles.push({
+                            x: this.x + 6, y: this.y + 30,
+                            vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                            life: 10, color: '#ffff00', size: 1
+                        });
+                    }
                     break;
                 case 'corrupt_mem':
+                    // Corrupted RAM stick with glitching pixels and broken traces
                     const gx = this.x + (this.glitch || 0);
                     ctx.fillStyle = Math.random() > 0.5 ? '#ff00ff' : '#00ff00';
-                    ctx.fillRect(gx, this.y, this.w, this.h);
-                    ctx.fillStyle = '#000';
+                    drawRoundedRect(gx, this.y, this.w, this.h, 2);
+                    ctx.fill();
+                    // Broken traces
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 5; i++) {
+                        const yPos = this.y + Math.random()*this.h;
+                        ctx.beginPath();
+                        ctx.moveTo(gx, yPos);
+                        ctx.lineTo(gx + this.w, yPos);
+                        ctx.stroke();
+                    }
+                    // Glitch squares
+                    ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
                     for (let i = 0; i < 4; i++) {
-                        ctx.fillRect(gx, this.y + Math.random()*this.h, this.w, 2);
+                        ctx.fillRect(gx + Math.random()*this.w, this.y + Math.random()*this.h, 4, 4);
                     }
                     ctx.fillStyle = '#fff';
                     ctx.font = '8px monospace';
@@ -648,58 +794,131 @@
                     ctx.fillText('ERR', gx + this.w/2, this.y + this.h/2 + 3);
                     break;
                 case 'thermal':
-                    ctx.globalAlpha = 0.3 + Math.sin(this.frame * 0.08) * 0.15;
+                    // Heat waves rising with gradient
+                    ctx.globalAlpha = 0.4 + Math.sin(this.frame * 0.08) * 0.2;
                     const tg = ctx.createLinearGradient(this.x, this.y + this.h, this.x, this.y);
                     tg.addColorStop(0, '#ff4400');
-                    tg.addColorStop(0.5, '#ff8800');
-                    tg.addColorStop(1, 'rgba(255,136,0,0)');
+                    tg.addColorStop(0.4, '#ff8800');
+                    tg.addColorStop(0.8, '#ffaa00');
+                    tg.addColorStop(1, 'rgba(255,170,0,0)');
                     ctx.fillStyle = tg;
                     ctx.fillRect(this.x, this.y, this.w, this.h);
+                    // Animated heat wave lines
+                    ctx.strokeStyle = 'rgba(255,136,0,0.6)';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 5; i++) {
+                        const waveY = this.y + this.h - i * 10;
+                        const waveOffset = Math.sin(this.frame * 0.1 + i) * 4;
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, waveY);
+                        for (let j = 0; j < this.w; j += 8) {
+                            ctx.lineTo(this.x + j, waveY + Math.sin((this.frame + j) * 0.15) * 3);
+                        }
+                        ctx.stroke();
+                    }
                     ctx.fillStyle = '#ff4400';
-                    ctx.globalAlpha = 0.7;
+                    ctx.globalAlpha = 0.8;
                     ctx.font = '9px monospace';
                     ctx.textAlign = 'center';
                     ctx.fillText('HOT!', this.x + this.w/2, this.y + this.h - 8);
                     break;
                 case 'short_circuit':
+                    // Electrical arc between two points with sparking
                     ctx.fillStyle = '#00ffff';
-                    ctx.shadowBlur = 8;
+                    ctx.shadowBlur = 12;
                     ctx.shadowColor = '#00ffff';
                     ctx.beginPath();
                     ctx.arc(this.x + 8, this.y + 8, 8 + Math.sin(this.frame*0.3)*2, 0, Math.PI*2);
                     ctx.fill();
+                    // Arc animation
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 8, this.y);
+                    ctx.quadraticCurveTo(
+                        this.x + 8 + Math.sin(this.frame*0.2)*8,
+                        this.y + 8,
+                        this.x + 8,
+                        this.y + 16
+                    );
+                    ctx.stroke();
+                    // Sparking particles
+                    if (this.frame % 2 === 0) {
+                        particles.push({
+                            x: this.x + 8, y: this.y + 8,
+                            vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3,
+                            life: 8, color: '#00ffff', size: 1.5
+                        });
+                    }
                     ctx.fillStyle = '#fff';
-                    ctx.font = '8px monospace';
+                    ctx.font = '7px monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText('ZAP', this.x + 8, this.y + 11);
+                    ctx.fillText('ZAP', this.x + 8, this.y + 10);
                     break;
                 case 'kernel_panic':
+                    // BSOD/crash screen with scan lines and glitch
                     ctx.fillStyle = '#ff006690';
                     ctx.fillRect(this.x, this.y, this.w, this.h);
+                    // Scan lines
+                    ctx.strokeStyle = '#ff0066';
+                    ctx.lineWidth = 1;
+                    ctx.globalAlpha = 0.3;
+                    for (let i = 0; i < this.h; i += 4) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, this.y + i);
+                        ctx.lineTo(this.x + this.w, this.y + i);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    // Glitch distortion
+                    if (Math.random() < 0.1) {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(this.x + Math.random()*this.w, this.y + Math.random()*this.h, 5, 2);
+                    }
                     ctx.strokeStyle = '#ff0066';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(this.x, this.y, this.w, this.h);
                     ctx.fillStyle = '#ff0066';
                     ctx.font = 'bold 10px monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText('PANIC', this.x + this.w/2, this.y + this.h/2);
-                    ctx.fillText('!!!', this.x + this.w/2, this.y + this.h/2 + 14);
+                    ctx.fillText('KERNEL', this.x + this.w/2, this.y + this.h/2 - 5);
+                    ctx.fillText('PANIC', this.x + this.w/2, this.y + this.h/2 + 8);
+                    ctx.fillText('!!!', this.x + this.w/2, this.y + this.h/2 + 20);
                     break;
                 case 'malware':
+                    // Segmented worm with glowing eyes
+                    ctx.fillStyle = '#8b00ff';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#8b00ff';
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(this.x + 9, this.y + 9, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = '#ff0000';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 6, this.y + 7, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(this.x + 12, this.y + 7, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Segmented body with undulating motion
                     ctx.fillStyle = '#8b00ff';
                     ctx.shadowBlur = 6;
                     ctx.shadowColor = '#8b00ff';
-                    ctx.fillRect(this.x, this.y, this.w, this.h);
-                    // Worm segments
-                    for (let i = 1; i <= 3; i++) {
-                        ctx.globalAlpha = 0.5 - i*0.12;
-                        ctx.fillRect(this.x + i*14, this.y + Math.sin(this.frame*0.1+i)*4, 12, 14);
+                    for (let i = 1; i <= 4; i++) {
+                        const segX = this.x + i * 12;
+                        const segY = this.y + Math.sin(this.frame*0.12+i*0.5)*5;
+                        const segSize = 10 - i;
+                        ctx.globalAlpha = 0.8 - i*0.15;
+                        ctx.beginPath();
+                        ctx.arc(segX, segY + 9, segSize, 0, Math.PI * 2);
+                        ctx.fill();
                     }
                     ctx.globalAlpha = 1;
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '8px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('WORM', this.x + 9, this.y + 12);
+                    ctx.shadowBlur = 0;
                     break;
             }
             ctx.restore();
@@ -733,12 +952,19 @@
         ctx.fillRect(f.x + 2, f.y, 3, 40);
         if (!f.collected) {
             const wave = Math.sin(gameFrame * 0.1) * 3;
+            // Glow effect when near
+            const dist = Math.abs(player.x - f.x);
+            if (dist < 100) {
+                ctx.shadowBlur = 15 * (1 - dist/100);
+                ctx.shadowColor = '#f97316';
+            }
             ctx.fillStyle = '#f97316';
             ctx.beginPath();
             ctx.moveTo(f.x + 5, f.y);
             ctx.lineTo(f.x + 25 + wave, f.y + 8);
             ctx.lineTo(f.x + 5, f.y + 16);
             ctx.fill();
+            ctx.shadowBlur = 0;
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 7px monospace';
             ctx.textAlign = 'center';
@@ -751,20 +977,35 @@
     function updateParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
-            p.x += p.vx; p.y += p.vy; p.life--;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.15; // Gravity
+            p.life--;
+            // Fade alpha and size
+            const lifePct = p.life / 20;
+            p.size = Math.max(0.5, (p.size || 2) * lifePct);
             if (p.life <= 0) { particles.splice(i, 1); continue; }
-            ctx.globalAlpha = p.life / 20;
+            ctx.globalAlpha = lifePct;
             ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, p.size || 2, p.size || 2);
+            // Draw as circle
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
 
     function burstParticles(x, y, color, count) {
         for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = 2 + Math.random() * 3;
             particles.push({
-                x, y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
-                life: 15 + Math.random()*10, color, size: 2 + Math.random()*2
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 18 + Math.random()*12,
+                color,
+                size: 1.5 + Math.random()*2
             });
         }
     }
@@ -983,17 +1224,23 @@
         ctx.fillStyle = '#f97316';
         ctx.fillRect(W/2 - 80, 32, 160 * progress, 6);
 
-        // Level transition text
+        // Level transition text with CRT glitch
         if (levelTransition > 0) {
             levelTransition--;
             ctx.save();
             ctx.globalAlpha = Math.min(1, levelTransition / 30);
+            // CRT glitch effect
+            if (levelTransition > 90 && Math.random() < 0.3) {
+                ctx.fillStyle = 'rgba(249,115,22,0.3)';
+                ctx.fillRect(W/2 - 150 + Math.random()*10, H/2 + 20, 300, 2);
+            }
             ctx.fillStyle = '#f97316';
             ctx.font = 'bold 28px monospace';
             ctx.textAlign = 'center';
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#f97316';
-            ctx.fillText(`ENTERING: ${levelTransitionText}`, W/2, H/2 + 40);
+            const glitchX = levelTransition > 90 ? (Math.random()-0.5)*4 : 0;
+            ctx.fillText(`ENTERING: ${levelTransitionText}`, W/2 + glitchX, H/2 + 40);
             ctx.restore();
         }
 
@@ -1016,6 +1263,24 @@
         ctx.save();
         ctx.fillStyle = 'rgba(10,0,0,0.85)';
         ctx.fillRect(0, 0, W, H);
+
+        // Scanline overlay
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 1;
+        for (let y = 0; y < H; y += 4) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Glitch distortion
+        if (Math.random() < 0.2) {
+            ctx.fillStyle = 'rgba(255,0,0,0.1)';
+            ctx.fillRect(Math.random()*W, H/2-60, 100, 20);
+        }
 
         ctx.fillStyle = '#ff4444';
         ctx.font = 'bold 42px monospace';
@@ -1125,7 +1390,7 @@
             if (!flagObj.collected && Math.abs(flagObj.x - player.x) < 20 && Math.abs(flagObj.y - player.y) < 40) {
                 flagObj.collected = true;
                 flagCollected = true;
-                burstParticles(flagObj.x, flagObj.y, '#f97316', 15);
+                burstParticles(flagObj.x, flagObj.y, '#f97316', 20);
                 playCheckpoint();
             }
             drawFlag();

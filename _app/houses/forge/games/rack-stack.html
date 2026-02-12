@@ -191,13 +191,13 @@ function toggleMute() { muted = !muted; document.getElementById('muteBtn').textC
 
 // Piece definitions - hardware themed
 const PIECES = [
-    { name: '1U Server', shape: [[1,1,1,1]], color: '#3b82f6', darkColor: '#1e40af' },       // I - long server
-    { name: 'L-Bracket', shape: [[1,0],[1,0],[1,1]], color: '#f97316', darkColor: '#c2410c' }, // L
-    { name: 'J-Bracket', shape: [[0,1],[0,1],[1,1]], color: '#8b5cf6', darkColor: '#6d28d9' }, // J
-    { name: 'Power Supply', shape: [[1,1],[1,1]], color: '#f59e0b', darkColor: '#d97706' },    // O - PSU
-    { name: 'Switch', shape: [[0,1,1],[1,1,0]], color: '#22c55e', darkColor: '#15803d' },      // S
-    { name: 'Router', shape: [[1,1,0],[0,1,1]], color: '#ef4444', darkColor: '#b91c1c' },      // Z
-    { name: 'NAS Unit', shape: [[0,1,0],[1,1,1]], color: '#06b6d4', darkColor: '#0e7490' }     // T - storage
+    { name: '1U Server', type: 'server', shape: [[1,1,1,1]], color: '#3b82f6', darkColor: '#1e40af' },
+    { name: 'L-Bracket', type: 'lbracket', shape: [[1,0],[1,0],[1,1]], color: '#f97316', darkColor: '#c2410c' },
+    { name: 'J-Bracket', type: 'jbracket', shape: [[0,1],[0,1],[1,1]], color: '#8b5cf6', darkColor: '#6d28d9' },
+    { name: 'Power Supply', type: 'psu', shape: [[1,1],[1,1]], color: '#f59e0b', darkColor: '#d97706' },
+    { name: 'Switch', type: 'switch', shape: [[0,1,1],[1,1,0]], color: '#22c55e', darkColor: '#15803d' },
+    { name: 'Router', type: 'router', shape: [[1,1,0],[0,1,1]], color: '#ef4444', darkColor: '#b91c1c' },
+    { name: 'NAS Unit', type: 'nas', shape: [[0,1,0],[1,1,1]], color: '#06b6d4', darkColor: '#0e7490' }
 ];
 
 // Component info for ? panel
@@ -219,6 +219,8 @@ let gameRunning = false, gameOver = false, demoMode = true;
 let clearAnimation = 0, clearRows = [];
 let lockDelay = 0, lockDelayMax = 30;
 let movesPanelOpen = false;
+let lockFlash = 0;
+let comboFloaters = [];
 
 function createBoard() {
     board = [];
@@ -233,6 +235,7 @@ function randomPiece() {
         shape: p.shape.map(r => [...r]),
         color: p.color,
         darkColor: p.darkColor,
+        type: p.type,
         name: p.name,
         x: Math.floor(COLS / 2) - Math.floor(p.shape[0].length / 2),
         y: 0
@@ -255,6 +258,7 @@ function nextFromBag() {
         shape: p.shape.map(r => [...r]),
         color: p.color,
         darkColor: p.darkColor,
+        type: p.type,
         name: p.name,
         x: Math.floor(COLS / 2) - Math.floor(p.shape[0].length / 2),
         y: 0
@@ -332,10 +336,15 @@ function lockPiece() {
             const by = currentPiece.y + r;
             const bx = currentPiece.x + c;
             if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
-                board[by][bx] = { color: currentPiece.color, darkColor: currentPiece.darkColor };
+                board[by][bx] = {
+                    color: currentPiece.color,
+                    darkColor: currentPiece.darkColor,
+                    type: currentPiece.type
+                };
             }
         }
     }
+    lockFlash = 8;
     sfxDrop();
     checkLines();
     spawnPiece();
@@ -357,6 +366,18 @@ function checkLines() {
         lines += clearRows.length;
         level = Math.floor(lines / 10) + 1;
         dropInterval = Math.max(2, 48 - (level - 1) * 4);
+
+        // Add combo floater
+        if (combo > 0) {
+            comboFloaters.push({
+                text: `+COMBO x${combo + 1}`,
+                x: COLS * CELL / 2,
+                y: ROWS * CELL / 2,
+                life: 40,
+                combo: combo
+            });
+        }
+
         if (clearRows.length === 4) sfxTetris(); else sfxClear();
     } else {
         combo = -1;
@@ -394,12 +415,24 @@ function holdCurrentPiece() {
     canHold = false;
     if (holdPiece) {
         const temp = holdPiece;
-        holdPiece = { shape: currentPiece.shape, color: currentPiece.color, darkColor: currentPiece.darkColor, name: currentPiece.name };
+        holdPiece = {
+            shape: currentPiece.shape,
+            color: currentPiece.color,
+            darkColor: currentPiece.darkColor,
+            type: currentPiece.type,
+            name: currentPiece.name
+        };
         currentPiece = temp;
         currentPiece.x = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
         currentPiece.y = 0;
     } else {
-        holdPiece = { shape: currentPiece.shape, color: currentPiece.color, darkColor: currentPiece.darkColor, name: currentPiece.name };
+        holdPiece = {
+            shape: currentPiece.shape,
+            color: currentPiece.color,
+            darkColor: currentPiece.darkColor,
+            type: currentPiece.type,
+            name: currentPiece.name
+        };
         spawnPiece();
     }
     sfxMove();
@@ -455,6 +488,7 @@ function startGame() {
     bag = [];
     nextPieces = [];
     holdPiece = null;
+    comboFloaters = [];
     fillNextQueue();
     spawnPiece();
 }
@@ -495,6 +529,15 @@ function update() {
         if (clearAnimation === 0) removeClearedRows();
         return;
     }
+
+    if (lockFlash > 0) lockFlash--;
+
+    // Update combo floaters
+    comboFloaters = comboFloaters.filter(f => {
+        f.life--;
+        f.y -= 1;
+        return f.life > 0;
+    });
 
     if (demoMode) {
         demoAI();
@@ -546,48 +589,394 @@ function update() {
     document.getElementById('loreScore').textContent = `EFFICIENCY: ${score}`;
 }
 
-// Draw
-function drawCell(context, x, y, size, color, darkColor) {
-    context.fillStyle = darkColor || color;
-    context.fillRect(x, y, size, size);
-    context.fillStyle = color;
-    context.fillRect(x + 1, y + 1, size - 2, size - 2);
-    // Highlight
-    context.fillStyle = 'rgba(255,255,255,0.15)';
-    context.fillRect(x + 1, y + 1, size - 2, 3);
-    context.fillRect(x + 1, y + 1, 3, size - 2);
-    // Inner detail (rack screw)
-    context.fillStyle = 'rgba(0,0,0,0.3)';
-    context.fillRect(x + size/2 - 2, y + size/2 - 2, 4, 4);
+// Hardware-specific cell drawing functions
+function drawServerCell(ctx, x, y, size, color, darkColor) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Chrome top edge
+    ctx.fillStyle = 'rgba(200,220,255,0.4)';
+    ctx.fillRect(x + 1, y + 1, size - 2, 2);
+
+    // LED indicators (left side)
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    ctx.arc(x + 5, y + size/2 - 3, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 5, y + size/2 + 3, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ventilation lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+        const vy = y + 10 + i * 4;
+        ctx.beginPath();
+        ctx.moveTo(x + 10, vy);
+        ctx.lineTo(x + size - 10, vy);
+        ctx.stroke();
+    }
+
+    // Power button (right side)
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x + size - 6, y + size/2, 2, 0, Math.PI * 2);
+    ctx.stroke();
+}
+
+function drawBracketCell(ctx, x, y, size, color, darkColor, mirror = false) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Chrome edge
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(x + 1, y + 1, size - 2, 2);
+
+    // Screw holes
+    const screwPositions = mirror ?
+        [[x + size - 6, y + 5], [x + 6, y + size - 5]] :
+        [[x + 6, y + 5], [x + size - 6, y + size - 5]];
+
+    screwPositions.forEach(([sx, sy]) => {
+        // Dark center
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Chrome ring
+        ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+    });
+
+    // Crosshatch texture
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + 5 + i * 8, y);
+        ctx.lineTo(x, y + 5 + i * 8);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + size - 5 - i * 8, y + size);
+        ctx.lineTo(x + size, y + size - 5 - i * 8);
+        ctx.stroke();
+    }
+}
+
+function drawPSUCell(ctx, x, y, size, color, darkColor) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Heavier border
+    ctx.strokeStyle = darkColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+
+    // Power socket (rectangular indent)
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(x + size - 12, y + size/2 - 4, 8, 8);
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + size - 12, y + size/2 - 4, 8, 8);
+
+    // Power LED
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    ctx.arc(x + 5, y + 5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warning stripe
+    ctx.strokeStyle = 'rgba(255,200,0,0.3)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + 5 + i * 6, y);
+        ctx.lineTo(x + i * 6, y + 5);
+        ctx.stroke();
+    }
+}
+
+function drawSwitchCell(ctx, x, y, size, color, darkColor) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Chrome top
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(x + 1, y + 1, size - 2, 2);
+
+    // Port row at bottom
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    for (let i = 0; i < 5; i++) {
+        const px = x + 4 + i * 4.5;
+        ctx.fillRect(px, y + size - 8, 3, 4);
+    }
+
+    // Activity LEDs above ports
+    for (let i = 0; i < 5; i++) {
+        const px = x + 4.5 + i * 4.5;
+        const ledColor = i % 2 === 0 ? '#00ff00' : '#ffaa00';
+        ctx.fillStyle = ledColor;
+        ctx.beginPath();
+        ctx.arc(px + 1, y + size - 11, 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Status bar at top
+    ctx.fillStyle = 'rgba(0,255,0,0.3)';
+    ctx.fillRect(x + 4, y + 4, size - 8, 2);
+}
+
+function drawRouterCell(ctx, x, y, size, color, darkColor) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Chrome edge
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(x + 1, y + 1, size - 2, 2);
+
+    // Antenna stub (top cells only - we'll draw it always for simplicity)
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x + size/2 - 1, y + 2, 2, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(x + size/2 - 0.5, y + 2, 1, 6);
+
+    // Status LED
+    const blink = Math.sin(Date.now() * 0.01) > 0;
+    ctx.fillStyle = blink ? '#ff0000' : '#660000';
+    ctx.beginPath();
+    ctx.arc(x + 5, y + size/2, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // WAN/LAN labels (tiny text)
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '6px monospace';
+    ctx.fillText('WAN', x + size - 18, y + size - 5);
+
+    // Circuit traces
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + 10);
+    ctx.lineTo(x + 15, y + 10);
+    ctx.lineTo(x + 15, y + size - 10);
+    ctx.stroke();
+}
+
+function drawNASCell(ctx, x, y, size, color, darkColor) {
+    // Gradient background
+    const grad = ctx.createLinearGradient(x, y + size, x, y);
+    grad.addColorStop(0, darkColor);
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, size, size);
+
+    // Chrome edge
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(x + 1, y + 1, size - 2, 2);
+
+    // Drive bay slots
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    for (let i = 0; i < 2; i++) {
+        const dx = x + 5 + i * 9;
+        ctx.fillRect(dx, y + size/2 - 3, 7, 6);
+        // Drive detail
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(dx, y + size/2 - 3, 7, 6);
+    }
+
+    // Drive activity LED
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    ctx.arc(x + size - 5, y + size/2, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Capacity bar
+    const barGrad = ctx.createLinearGradient(x + 4, y + size - 6, x + size - 4, y + size - 6);
+    barGrad.addColorStop(0, darkColor);
+    barGrad.addColorStop(0.7, color);
+    barGrad.addColorStop(1, 'rgba(0,200,200,0.5)');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(x + 4, y + size - 6, size - 8, 2);
+}
+
+// Main cell drawing dispatcher
+function drawCell(context, x, y, size, color, darkColor, type) {
+    if (!type) {
+        // Fallback to basic cell
+        context.fillStyle = darkColor || color;
+        context.fillRect(x, y, size, size);
+        context.fillStyle = color;
+        context.fillRect(x + 1, y + 1, size - 2, size - 2);
+        context.fillStyle = 'rgba(255,255,255,0.15)';
+        context.fillRect(x + 1, y + 1, size - 2, 3);
+        return;
+    }
+
+    switch(type) {
+        case 'server':
+            drawServerCell(context, x, y, size, color, darkColor);
+            break;
+        case 'lbracket':
+            drawBracketCell(context, x, y, size, color, darkColor, false);
+            break;
+        case 'jbracket':
+            drawBracketCell(context, x, y, size, color, darkColor, true);
+            break;
+        case 'psu':
+            drawPSUCell(context, x, y, size, color, darkColor);
+            break;
+        case 'switch':
+            drawSwitchCell(context, x, y, size, color, darkColor);
+            break;
+        case 'router':
+            drawRouterCell(context, x, y, size, color, darkColor);
+            break;
+        case 'nas':
+            drawNASCell(context, x, y, size, color, darkColor);
+            break;
+        default:
+            // Generic fallback
+            const grad = context.createLinearGradient(x, y + size, x, y);
+            grad.addColorStop(0, darkColor);
+            grad.addColorStop(1, color);
+            context.fillStyle = grad;
+            context.fillRect(x, y, size, size);
+    }
 }
 
 function drawBoard() {
-    // Rack frame
+    // Rack background with subtle crosshatch
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
-    // Grid lines (rack rails)
-    ctx.strokeStyle = 'rgba(124,58,10,0.2)';
+
+    // Crosshatch pattern
+    ctx.strokeStyle = 'rgba(40,40,40,0.3)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < COLS * 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * 20, 0);
+        ctx.lineTo(0, i * 20);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(COLS * CELL - i * 20, ROWS * CELL);
+        ctx.lineTo(COLS * CELL, ROWS * CELL - i * 20);
+        ctx.stroke();
+    }
+
+    // Rack rails with metallic gradient
+    const railGrad = ctx.createLinearGradient(0, 0, 3, 0);
+    railGrad.addColorStop(0, 'rgba(80,60,30,0.4)');
+    railGrad.addColorStop(0.5, 'rgba(120,100,60,0.5)');
+    railGrad.addColorStop(1, 'rgba(80,60,30,0.4)');
+
+    for (let r = 0; r < ROWS; r++) {
+        // Left rail
+        ctx.fillStyle = railGrad;
+        ctx.fillRect(0, r * CELL, 3, CELL);
+        // Right rail
+        ctx.fillRect(COLS * CELL - 3, r * CELL, 3, CELL);
+
+        // Mounting holes every 2 rows
+        if (r % 2 === 0) {
+            // Left holes
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.beginPath();
+            ctx.arc(1.5, r * CELL + CELL/2, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(200,200,200,0.3)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+
+            // Right holes
+            ctx.beginPath();
+            ctx.arc(COLS * CELL - 1.5, r * CELL + CELL/2, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // Unit markers
+        if (r % 2 === 0 && r > 0) {
+            ctx.fillStyle = 'rgba(120,100,60,0.4)';
+            ctx.font = '7px monospace';
+            ctx.fillText(`${r/2}U`, 5, r * CELL + CELL/2 + 2);
+        }
+    }
+
+    // Rack top/bottom caps
+    ctx.fillStyle = 'rgba(100,80,40,0.3)';
+    ctx.fillRect(3, 0, COLS * CELL - 6, 2);
+    ctx.fillRect(3, ROWS * CELL - 2, COLS * CELL - 6, 2);
+
+    // Grid lines (subtle)
+    ctx.strokeStyle = 'rgba(124,58,10,0.1)';
+    ctx.lineWidth = 0.5;
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             ctx.strokeRect(c * CELL, r * CELL, CELL, CELL);
         }
     }
-    // Rack rail markers
-    ctx.fillStyle = 'rgba(124,58,10,0.15)';
-    for (let r = 0; r < ROWS; r++) {
-        ctx.fillRect(0, r * CELL, 3, CELL);
-        ctx.fillRect(COLS * CELL - 3, r * CELL, 3, CELL);
-    }
+
     // Placed blocks
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             if (board[r][c]) {
-                // Clear animation flash
+                // Clear animation
                 if (clearRows.includes(r)) {
-                    ctx.fillStyle = `rgba(249,115,22,${clearAnimation / 20})`;
-                    ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+                    // Phase 1: Bright flash sweep
+                    if (clearAnimation > 10) {
+                        const sweepPos = (20 - clearAnimation) / 10;
+                        const dist = Math.abs(c / COLS - sweepPos);
+                        const intensity = Math.max(0, 1 - dist * 5);
+                        ctx.fillStyle = `rgba(255,255,255,${intensity * 0.8})`;
+                        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+                    } else {
+                        // Phase 2: Particle dissolve
+                        const alpha = clearAnimation / 10;
+                        ctx.fillStyle = board[r][c].color;
+                        ctx.globalAlpha = alpha;
+                        drawCell(ctx, c * CELL, r * CELL, CELL, board[r][c].color, board[r][c].darkColor, board[r][c].type);
+                        ctx.globalAlpha = 1;
+
+                        // Floating particles
+                        for (let p = 0; p < 3; p++) {
+                            const px = c * CELL + Math.random() * CELL;
+                            const py = r * CELL - (10 - clearAnimation) * 2 + p * 5;
+                            ctx.fillStyle = `rgba(249,115,22,${alpha})`;
+                            ctx.fillRect(px, py, 2, 2);
+                        }
+                    }
                 } else {
-                    drawCell(ctx, c * CELL, r * CELL, CELL, board[r][c].color, board[r][c].darkColor);
+                    drawCell(ctx, c * CELL, r * CELL, CELL, board[r][c].color, board[r][c].darkColor, board[r][c].type);
+
+                    // Lock flash effect
+                    if (lockFlash > 0) {
+                        ctx.fillStyle = `rgba(255,255,255,${lockFlash / 16})`;
+                        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+                    }
                 }
             }
         }
@@ -598,17 +987,24 @@ function drawGhost() {
     if (!currentPiece || !gameRunning) return;
     const gy = getGhostY();
     if (gy === currentPiece.y) return;
-    ctx.globalAlpha = 0.2;
+
+    // Dashed outline with pulsing glow
+    const pulse = 0.3 + Math.sin(Date.now() * 0.005) * 0.15;
+    ctx.strokeStyle = `rgba(249,115,22,${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = -Date.now() * 0.05;
+
     for (let r = 0; r < currentPiece.shape.length; r++) {
         for (let c = 0; c < currentPiece.shape[r].length; c++) {
             if (!currentPiece.shape[r][c]) continue;
             const x = (currentPiece.x + c) * CELL;
             const y = (gy + r) * CELL;
-            ctx.fillStyle = currentPiece.color;
-            ctx.fillRect(x, y, CELL, CELL);
+            ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
         }
     }
-    ctx.globalAlpha = 1;
+
+    ctx.setLineDash([]);
 }
 
 function drawCurrentPiece() {
@@ -618,7 +1014,7 @@ function drawCurrentPiece() {
             if (!currentPiece.shape[r][c]) continue;
             const x = (currentPiece.x + c) * CELL;
             const y = (currentPiece.y + r) * CELL;
-            if (y >= 0) drawCell(ctx, x, y, CELL, currentPiece.color, currentPiece.darkColor);
+            if (y >= 0) drawCell(ctx, x, y, CELL, currentPiece.color, currentPiece.darkColor, currentPiece.type);
         }
     }
 }
@@ -628,37 +1024,90 @@ function drawSmallPiece(context, piece, ox, oy, cellSize) {
     for (let r = 0; r < piece.shape.length; r++) {
         for (let c = 0; c < piece.shape[r].length; c++) {
             if (!piece.shape[r][c]) continue;
-            drawCell(context, ox + c * cellSize, oy + r * cellSize, cellSize, piece.color, piece.darkColor);
+            drawCell(context, ox + c * cellSize, oy + r * cellSize, cellSize, piece.color, piece.darkColor, piece.type);
         }
     }
 }
 
 function drawNextPieces() {
-    nctx.fillStyle = '#0a0500';
+    // Monitor screen background with CRT effect
+    nctx.fillStyle = '#000000';
     nctx.fillRect(0, 0, 100, 280);
+
+    // CRT curve illusion (brighter center)
+    const crtGrad = nctx.createRadialGradient(50, 140, 0, 50, 140, 100);
+    crtGrad.addColorStop(0, 'rgba(10,40,10,0.15)');
+    crtGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+    nctx.fillStyle = crtGrad;
+    nctx.fillRect(0, 0, 100, 280);
+
     nextPieces.forEach((p, i) => {
         const cols = p.shape[0].length;
         const rows = p.shape.length;
         const ox = (100 - cols * 18) / 2;
         const oy = 10 + i * 90 + (3 - rows) * 9;
+
+        // Glow around piece
+        nctx.shadowColor = p.color;
+        nctx.shadowBlur = 8;
         drawSmallPiece(nctx, p, ox, oy, 18);
+        nctx.shadowBlur = 0;
+
+        // Piece name label
+        nctx.fillStyle = 'rgba(249,115,22,0.6)';
+        nctx.font = '8px monospace';
+        nctx.textAlign = 'center';
+        nctx.fillText(p.name.substring(0, 10), 50, oy + rows * 18 + 12);
     });
 }
 
 function drawHoldPiece() {
-    hctx.fillStyle = '#0a0500';
+    // Monitor screen background
+    hctx.fillStyle = '#000000';
     hctx.fillRect(0, 0, 100, 60);
+
+    const crtGrad = hctx.createRadialGradient(50, 30, 0, 50, 30, 50);
+    crtGrad.addColorStop(0, 'rgba(10,40,10,0.15)');
+    crtGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+    hctx.fillStyle = crtGrad;
+    hctx.fillRect(0, 0, 100, 60);
+
     if (holdPiece) {
         const cols = holdPiece.shape[0].length;
         const rows = holdPiece.shape.length;
         const ox = (100 - cols * 14) / 2;
         const oy = (60 - rows * 14) / 2;
+
+        if (!canHold) {
+            // Red tint overlay
+            hctx.fillStyle = 'rgba(200,0,0,0.3)';
+            hctx.fillRect(0, 0, 100, 60);
+            hctx.fillStyle = '#ff0000';
+            hctx.font = 'bold 10px monospace';
+            hctx.textAlign = 'center';
+            hctx.fillText('LOCKED', 50, 10);
+        } else {
+            hctx.shadowColor = holdPiece.color;
+            hctx.shadowBlur = 6;
+        }
+
         drawSmallPiece(hctx, holdPiece, ox, oy, 14);
+        hctx.shadowBlur = 0;
     }
 }
 
 function drawOverlays() {
+    // Demo mode overlay with falling binary
     if (demoMode) {
+        // Falling binary background
+        ctx.fillStyle = 'rgba(0,200,0,0.1)';
+        ctx.font = '12px monospace';
+        for (let i = 0; i < 8; i++) {
+            const x = i * 40 + (Date.now() * 0.02 % 40);
+            const y = (Date.now() * 0.1 + i * 80) % (ROWS * CELL + 40);
+            ctx.fillText(Math.random() > 0.5 ? '1' : '0', x, y);
+        }
+
         ctx.fillStyle = 'rgba(10,10,10,0.7)';
         ctx.fillRect(0, ROWS * CELL / 2 - 70, COLS * CELL, 140);
         ctx.fillStyle = '#f97316';
@@ -673,9 +1122,26 @@ function drawOverlays() {
         const blink = Math.sin(Date.now() * 0.004) > 0;
         if (blink) ctx.fillText('[ PRESS SPACE ]', COLS * CELL / 2, ROWS * CELL / 2 + 40);
     }
+
+    // Game over with rack overheating visual
     if (gameOver) {
         ctx.fillStyle = 'rgba(10,10,10,0.85)';
         ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+
+        // Red overheating glow at top
+        const heatGrad = ctx.createLinearGradient(0, 0, 0, 100);
+        heatGrad.addColorStop(0, 'rgba(255,0,0,0.4)');
+        heatGrad.addColorStop(1, 'rgba(255,0,0,0)');
+        ctx.fillStyle = heatGrad;
+        ctx.fillRect(0, 0, COLS * CELL, 100);
+
+        // Warning flasher
+        const flasher = Math.sin(Date.now() * 0.008) > 0;
+        if (flasher) {
+            ctx.fillStyle = 'rgba(255,0,0,0.2)';
+            ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+        }
+
         ctx.fillStyle = '#ef4444';
         ctx.font = 'bold 26px Courier New';
         ctx.textAlign = 'center';
@@ -690,6 +1156,26 @@ function drawOverlays() {
         const blink = Math.sin(Date.now() * 0.004) > 0;
         if (blink) ctx.fillText('[ PRESS SPACE ]', COLS * CELL / 2, ROWS * CELL / 2 + 85);
     }
+
+    // Combo floaters
+    comboFloaters.forEach(f => {
+        const alpha = f.life / 40;
+        let color;
+        if (f.combo === 0) color = '#ffffff';
+        else if (f.combo === 1) color = '#ffff00';
+        else if (f.combo === 2) color = '#ff9900';
+        else color = '#ff0000';
+
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.font = 'bold 14px Courier New';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8;
+        ctx.fillText(f.text, f.x, f.y);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+    });
 }
 
 function draw() {

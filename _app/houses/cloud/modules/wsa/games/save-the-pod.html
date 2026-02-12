@@ -490,25 +490,21 @@
 
         const SFX = {
             move() {
-                // Soft water swoosh
                 playNoise(0.08, 0.04);
                 playTone(300, 0.06, 'sine', 0.03);
             },
             deliver() {
-                // Cheerful ascending chime
                 playTone(523, 0.12, 'sine', 0.15);
                 setTimeout(() => playTone(659, 0.12, 'sine', 0.15), 80);
                 setTimeout(() => playTone(784, 0.2, 'sine', 0.18), 160);
             },
             death() {
-                // Splash + descending tone
                 playNoise(0.4, 0.15);
                 playTone(400, 0.15, 'sawtooth', 0.1);
                 setTimeout(() => playTone(250, 0.2, 'sawtooth', 0.08), 100);
                 setTimeout(() => playTone(150, 0.3, 'sawtooth', 0.06), 200);
             },
             levelComplete() {
-                // Victory fanfare
                 const notes = [523, 659, 784, 1047];
                 notes.forEach((f, i) => {
                     setTimeout(() => playTone(f, 0.25, 'square', 0.1), i * 120);
@@ -523,19 +519,16 @@
                 setTimeout(() => playTone(880, 0.15, 'sine', 0.08), 150);
             },
             combo() {
-                // Ascending sparkle
                 const base = 600 + Math.min(gameState.combo, 10) * 50;
                 playTone(base, 0.15, 'sine', 0.1);
                 setTimeout(() => playTone(base * 1.25, 0.12, 'sine', 0.08), 60);
             },
             thunder() {
-                // Low rumble for boss
                 playNoise(0.6, 0.12);
                 playTone(60, 0.5, 'sawtooth', 0.08);
                 setTimeout(() => playTone(40, 0.4, 'sawtooth', 0.06), 200);
             },
             gameOver() {
-                // Somber descending
                 const notes = [392, 349, 330, 262];
                 notes.forEach((f, i) => {
                     setTimeout(() => playTone(f, 0.35, 'sine', 0.12), i * 200);
@@ -605,6 +598,33 @@
         let touchStartX = 0;
         let touchStartY = 0;
 
+        // Particle systems for enhanced visuals
+        let waterParticles = [];
+        let cloudParticles = [];
+        let spoutParticles = [];
+
+        // Initialize ambient water bubbles
+        for (let i = 0; i < 30; i++) {
+            waterParticles.push({
+                x: Math.random() * CANVAS_W,
+                y: Math.random() * CANVAS_H,
+                size: Math.random() * 2 + 1,
+                speed: Math.random() * 0.3 + 0.1,
+                opacity: Math.random() * 0.3 + 0.1
+            });
+        }
+
+        // Initialize background clouds
+        for (let i = 0; i < 8; i++) {
+            cloudParticles.push({
+                x: Math.random() * CANVAS_W,
+                y: Math.random() * 60,
+                size: Math.random() * 40 + 30,
+                speed: Math.random() * 0.05 + 0.02,
+                opacity: Math.random() * 0.15 + 0.05
+            });
+        }
+
         function loadSave() {
             try {
                 const data = localStorage.getItem(STORAGE_KEY);
@@ -666,6 +686,7 @@
                 targetX: demo ? 5 * CELL_SIZE : 10 * CELL_SIZE,
                 targetY: demo ? 7 * CELL_SIZE : 13 * CELL_SIZE,
                 spoutTimer: 0,
+                swimPhase: 0,
                 demo
             };
         }
@@ -677,70 +698,251 @@
             const x = w.x + CELL_SIZE / 2;
             const y = w.y + CELL_SIZE / 2;
 
+            // Subtle swimming oscillation
+            w.swimPhase += 0.05;
+            const swimOffset = Math.sin(w.swimPhase) * 2;
+
+            // Shield bubble effect when invincible
             if (gameState.invincible) {
                 const shieldGlow = Math.sin(Date.now() / 100) * 0.5 + 0.5;
-                ctx.fillStyle = `rgba(0, 212, 255, ${shieldGlow * 0.3})`;
+
+                // Outer glow
+                const gradient = ctx.createRadialGradient(x, y, CELL_SIZE * 0.3, x, y, CELL_SIZE * 0.65);
+                gradient.addColorStop(0, `rgba(0, 212, 255, ${shieldGlow * 0.4})`);
+                gradient.addColorStop(0.7, `rgba(0, 212, 255, ${shieldGlow * 0.2})`);
+                gradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+                ctx.fillStyle = gradient;
                 ctx.beginPath();
-                ctx.arc(x, y, CELL_SIZE * 0.6, 0, Math.PI * 2);
+                ctx.arc(x, y, CELL_SIZE * 0.65, 0, Math.PI * 2);
                 ctx.fill();
-            }
 
-            ctx.fillStyle = '#1e90ff';
-            ctx.beginPath();
-            ctx.ellipse(x, y, CELL_SIZE * 0.4, CELL_SIZE * 0.3, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#87ceeb';
-            ctx.beginPath();
-            ctx.ellipse(x, y + CELL_SIZE * 0.1, CELL_SIZE * 0.25, CELL_SIZE * 0.15, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#1e90ff';
-            ctx.beginPath();
-            ctx.moveTo(x - CELL_SIZE * 0.35, y);
-            ctx.lineTo(x - CELL_SIZE * 0.55, y - CELL_SIZE * 0.15);
-            ctx.lineTo(x - CELL_SIZE * 0.55, y + CELL_SIZE * 0.15);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = 'white';
-            ctx.beginPath();
-            ctx.arc(x + CELL_SIZE * 0.15, y - CELL_SIZE * 0.08, CELL_SIZE * 0.08, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'black';
-            ctx.beginPath();
-            ctx.arc(x + CELL_SIZE * 0.17, y - CELL_SIZE * 0.08, CELL_SIZE * 0.04, 0, Math.PI * 2);
-            ctx.fill();
-
-            w.spoutTimer++;
-            if (w.spoutTimer % 120 < 20) {
-                const spoutAlpha = 1 - (w.spoutTimer % 120) / 20;
-                ctx.strokeStyle = `rgba(135, 206, 235, ${spoutAlpha})`;
+                // Bubble shine highlight
+                ctx.strokeStyle = `rgba(255, 255, 255, ${shieldGlow * 0.6})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(x + CELL_SIZE * 0.1, y - CELL_SIZE * 0.3);
-                ctx.quadraticCurveTo(x + CELL_SIZE * 0.15, y - CELL_SIZE * 0.5, x + CELL_SIZE * 0.2, y - CELL_SIZE * 0.6);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(x, y - CELL_SIZE * 0.3);
-                ctx.quadraticCurveTo(x - CELL_SIZE * 0.05, y - CELL_SIZE * 0.5, x - CELL_SIZE * 0.1, y - CELL_SIZE * 0.6);
+                ctx.arc(x - CELL_SIZE * 0.15, y - CELL_SIZE * 0.15, CELL_SIZE * 0.5, Math.PI * 0.8, Math.PI * 1.4);
                 ctx.stroke();
             }
 
+            // Water reflection below whale (semi-transparent flipped)
+            ctx.save();
+            ctx.globalAlpha = alpha * 0.15;
+            ctx.translate(x, y * 2);
+            ctx.scale(1, -1);
+            ctx.translate(-x, -y);
+            drawWhaleBody(x, y + swimOffset, null);
+            ctx.restore();
+            ctx.globalAlpha = alpha;
+
+            // Main whale body
+            drawWhaleBody(x, y + swimOffset, w);
+
+            // Container on back when carrying
             if (currentContainer && !w.demo) {
-                ctx.fillStyle = `hsl(${currentContainer.charCodeAt(0) * 137.5 % 360}, 70%, 50%)`;
-                ctx.fillRect(x - CELL_SIZE * 0.15, y - CELL_SIZE * 0.45, CELL_SIZE * 0.3, CELL_SIZE * 0.25);
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x - CELL_SIZE * 0.15, y - CELL_SIZE * 0.45, CELL_SIZE * 0.3, CELL_SIZE * 0.25);
-
-                ctx.fillStyle = 'white';
-                ctx.font = '8px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(currentContainer.substring(0, 4), x, y - CELL_SIZE * 0.28);
+                drawContainer3D(x, y + swimOffset - CELL_SIZE * 0.4, currentContainer);
             }
 
             ctx.globalAlpha = 1;
+        }
+
+        function drawWhaleBody(x, y, w) {
+            // Main body with gradient (streamlined whale shape)
+            const bodyGradient = ctx.createRadialGradient(x - CELL_SIZE * 0.1, y - CELL_SIZE * 0.05, CELL_SIZE * 0.1, x, y, CELL_SIZE * 0.5);
+            bodyGradient.addColorStop(0, '#2c6bb3');
+            bodyGradient.addColorStop(0.5, '#1e5a9a');
+            bodyGradient.addColorStop(1, '#0d3b66');
+            ctx.fillStyle = bodyGradient;
+
+            // Proper whale silhouette
+            ctx.beginPath();
+            ctx.ellipse(x, y, CELL_SIZE * 0.45, CELL_SIZE * 0.32, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head bulge
+            ctx.beginPath();
+            ctx.ellipse(x + CELL_SIZE * 0.3, y - CELL_SIZE * 0.05, CELL_SIZE * 0.2, CELL_SIZE * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Belly (lighter gradient underneath)
+            const bellyGradient = ctx.createLinearGradient(x, y - CELL_SIZE * 0.2, x, y + CELL_SIZE * 0.25);
+            bellyGradient.addColorStop(0, 'rgba(135, 180, 220, 0)');
+            bellyGradient.addColorStop(1, 'rgba(180, 210, 235, 0.8)');
+            ctx.fillStyle = bellyGradient;
+            ctx.beginPath();
+            ctx.ellipse(x, y + CELL_SIZE * 0.08, CELL_SIZE * 0.3, CELL_SIZE * 0.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Baleen grooves (subtle lines on belly)
+            ctx.strokeStyle = 'rgba(100, 140, 180, 0.3)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x - CELL_SIZE * 0.15 + i * 8, y + CELL_SIZE * 0.05);
+                ctx.lineTo(x - CELL_SIZE * 0.15 + i * 8, y + CELL_SIZE * 0.18);
+                ctx.stroke();
+            }
+
+            // Dorsal fin (small fin on back)
+            const finGradient = ctx.createLinearGradient(x - CELL_SIZE * 0.1, y - CELL_SIZE * 0.32, x - CELL_SIZE * 0.1, y - CELL_SIZE * 0.22);
+            finGradient.addColorStop(0, '#1e5a9a');
+            finGradient.addColorStop(1, '#0d3b66');
+            ctx.fillStyle = finGradient;
+            ctx.beginPath();
+            ctx.moveTo(x - CELL_SIZE * 0.1, y - CELL_SIZE * 0.32);
+            ctx.lineTo(x - CELL_SIZE * 0.05, y - CELL_SIZE * 0.25);
+            ctx.lineTo(x - CELL_SIZE * 0.08, y - CELL_SIZE * 0.22);
+            ctx.closePath();
+            ctx.fill();
+
+            // Tail fluke (proper forked tail with gradient and wave)
+            const tailWave = Math.sin(Date.now() / 200) * 0.1;
+            const tailGradient = ctx.createLinearGradient(x - CELL_SIZE * 0.45, y, x - CELL_SIZE * 0.65, y);
+            tailGradient.addColorStop(0, '#1e5a9a');
+            tailGradient.addColorStop(1, '#0d3b66');
+            ctx.fillStyle = tailGradient;
+
+            // Upper fluke
+            ctx.beginPath();
+            ctx.moveTo(x - CELL_SIZE * 0.42, y);
+            ctx.quadraticCurveTo(
+                x - CELL_SIZE * 0.52, y - CELL_SIZE * 0.15 + tailWave,
+                x - CELL_SIZE * 0.58, y - CELL_SIZE * 0.18 + tailWave
+            );
+            ctx.lineTo(x - CELL_SIZE * 0.48, y - CELL_SIZE * 0.05);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#0d3b66';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Lower fluke
+            ctx.beginPath();
+            ctx.moveTo(x - CELL_SIZE * 0.42, y);
+            ctx.quadraticCurveTo(
+                x - CELL_SIZE * 0.52, y + CELL_SIZE * 0.15 - tailWave,
+                x - CELL_SIZE * 0.58, y + CELL_SIZE * 0.18 - tailWave
+            );
+            ctx.lineTo(x - CELL_SIZE * 0.48, y + CELL_SIZE * 0.05);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Eye (larger, friendlier with highlight)
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.ellipse(x + CELL_SIZE * 0.2, y - CELL_SIZE * 0.12, CELL_SIZE * 0.1, CELL_SIZE * 0.09, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.arc(x + CELL_SIZE * 0.22, y - CELL_SIZE * 0.11, CELL_SIZE * 0.05, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(x + CELL_SIZE * 0.24, y - CELL_SIZE * 0.13, CELL_SIZE * 0.02, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth line (subtle curved smile)
+            ctx.strokeStyle = 'rgba(13, 59, 102, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + CELL_SIZE * 0.35, y + CELL_SIZE * 0.05);
+            ctx.quadraticCurveTo(x + CELL_SIZE * 0.25, y + CELL_SIZE * 0.08, x + CELL_SIZE * 0.15, y + CELL_SIZE * 0.06);
+            ctx.stroke();
+
+            // Spout particles (much better water spout)
+            if (w && w.spoutTimer % 120 < 40) {
+                const spoutProgress = (w.spoutTimer % 120) / 40;
+
+                // Create particle spray if not already in array
+                if (w.spoutTimer % 120 === 0) {
+                    for (let i = 0; i < 12; i++) {
+                        spoutParticles.push({
+                            x: x + CELL_SIZE * 0.05,
+                            y: y - CELL_SIZE * 0.3,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: -3 - Math.random() * 2,
+                            life: 40,
+                            maxLife: 40,
+                            size: Math.random() * 3 + 2
+                        });
+                    }
+                }
+            }
+        }
+
+        function drawContainer3D(x, y, containerName) {
+            const cw = CELL_SIZE * 0.35;
+            const ch = CELL_SIZE * 0.28;
+
+            // Container color based on name hash
+            const hue = containerName.charCodeAt(0) * 137.5 % 360;
+            const baseColor = `hsl(${hue}, 70%, 45%)`;
+            const darkColor = `hsl(${hue}, 70%, 30%)`;
+            const lightColor = `hsl(${hue}, 70%, 60%)`;
+
+            // Shadow underneath
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(x - cw/2 + 2, y + 2, cw, ch);
+
+            // Main container face
+            const containerGrad = ctx.createLinearGradient(x - cw/2, y, x + cw/2, y);
+            containerGrad.addColorStop(0, darkColor);
+            containerGrad.addColorStop(0.5, baseColor);
+            containerGrad.addColorStop(1, darkColor);
+            ctx.fillStyle = containerGrad;
+            ctx.fillRect(x - cw/2, y, cw, ch);
+
+            // Corrugated ridges (vertical lines)
+            ctx.strokeStyle = darkColor;
+            ctx.lineWidth = 1;
+            for (let i = 1; i < 6; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x - cw/2 + i * (cw / 6), y);
+                ctx.lineTo(x - cw/2 + i * (cw / 6), y + ch);
+                ctx.stroke();
+            }
+
+            // Top edge highlight
+            ctx.strokeStyle = lightColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - cw/2, y);
+            ctx.lineTo(x + cw/2, y);
+            ctx.stroke();
+
+            // Door handles (right side)
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x + cw/2 - 4, y + ch/3, 3, 3);
+            ctx.fillRect(x + cw/2 - 4, y + ch*2/3, 3, 3);
+
+            // Container label text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 7px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(containerName.substring(0, 6).toUpperCase(), x, y + ch/2 + 2);
+
+            // Side face (3D effect)
+            ctx.fillStyle = darkColor;
+            ctx.beginPath();
+            ctx.moveTo(x + cw/2, y);
+            ctx.lineTo(x + cw/2 + 4, y - 3);
+            ctx.lineTo(x + cw/2 + 4, y + ch - 3);
+            ctx.lineTo(x + cw/2, y + ch);
+            ctx.closePath();
+            ctx.fill();
+
+            // Top face (3D effect)
+            ctx.fillStyle = lightColor;
+            ctx.beginPath();
+            ctx.moveTo(x - cw/2, y);
+            ctx.lineTo(x - cw/2 + 4, y - 3);
+            ctx.lineTo(x + cw/2 + 4, y - 3);
+            ctx.lineTo(x + cw/2, y);
+            ctx.closePath();
+            ctx.fill();
         }
 
         function moveWhale(dx, dy) {
@@ -835,93 +1037,410 @@
             const y = obs.row * CELL_SIZE + CELL_SIZE / 2;
 
             if (obs.type === 'ship') {
-                ctx.fillStyle = obs.color;
-                ctx.fillRect(obs.x, y - 12, obs.width, 24);
+                // Proper ship hull shape
+                const hullGradient = ctx.createLinearGradient(obs.x, y - 18, obs.x, y + 18);
+                hullGradient.addColorStop(0, '#34495e');
+                hullGradient.addColorStop(0.3, '#2c3e50');
+                hullGradient.addColorStop(1, '#1a252f');
+                ctx.fillStyle = hullGradient;
 
-                ctx.fillStyle = obs.containerColor;
+                // Hull with bow (pointed front)
+                ctx.beginPath();
+                if (obs.speed > 0) {
+                    // Moving right - bow on right
+                    ctx.moveTo(obs.x, y - 10);
+                    ctx.lineTo(obs.x + obs.width - 15, y - 14);
+                    ctx.lineTo(obs.x + obs.width, y);
+                    ctx.lineTo(obs.x + obs.width - 15, y + 14);
+                    ctx.lineTo(obs.x, y + 10);
+                } else {
+                    // Moving left - bow on left
+                    ctx.moveTo(obs.x, y);
+                    ctx.lineTo(obs.x + 15, y - 14);
+                    ctx.lineTo(obs.x + obs.width, y - 10);
+                    ctx.lineTo(obs.x + obs.width, y + 10);
+                    ctx.lineTo(obs.x + 15, y + 14);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Waterline (red below-water paint)
+                ctx.fillStyle = '#8b3a3a';
+                ctx.fillRect(obs.x, y + 8, obs.width - 15, 6);
+
+                // Bridge/cabin with windows
+                const bridgeX = obs.speed > 0 ? obs.x + obs.width - 30 : obs.x + 5;
+                const bridgeGradient = ctx.createLinearGradient(bridgeX, y - 35, bridgeX + 25, y - 20);
+                bridgeGradient.addColorStop(0, '#405060');
+                bridgeGradient.addColorStop(1, '#2c3e50');
+                ctx.fillStyle = bridgeGradient;
+                ctx.fillRect(bridgeX, y - 35, 25, 20);
+
+                // Windows (small lit rectangles)
+                ctx.fillStyle = '#ffffaa';
                 for (let i = 0; i < 3; i++) {
-                    const cx = obs.x + (i + 0.5) * (obs.width / 4);
-                    ctx.fillRect(cx - 8, y - 24, 16, 12);
+                    ctx.fillRect(bridgeX + 3 + i * 7, y - 30, 5, 4);
                 }
 
-                ctx.fillStyle = '#34495e';
-                const bridgeX = obs.speed > 0 ? obs.x + obs.width - 20 : obs.x;
-                ctx.fillRect(bridgeX, y - 30, 20, 18);
+                // Container stacks (3D-ish with shadows and colors)
+                for (let i = 0; i < 3; i++) {
+                    const cx = obs.x + (i + 0.8) * (obs.width / 4);
+                    const stackHeight = 2 + Math.floor(Math.random() * 2);
 
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = 2;
+                    for (let j = 0; j < stackHeight; j++) {
+                        const hue = (i * 60 + j * 30) % 360;
+                        const containerGrad = ctx.createLinearGradient(cx - 10, y - 28 - j * 14, cx + 10, y - 28 - j * 14);
+                        containerGrad.addColorStop(0, `hsl(${hue}, 60%, 35%)`);
+                        containerGrad.addColorStop(0.5, `hsl(${hue}, 60%, 50%)`);
+                        containerGrad.addColorStop(1, `hsl(${hue}, 60%, 35%)`);
+                        ctx.fillStyle = containerGrad;
+                        ctx.fillRect(cx - 10, y - 28 - j * 14, 20, 12);
+
+                        // Corrugated texture lines
+                        ctx.strokeStyle = `hsl(${hue}, 60%, 25%)`;
+                        ctx.lineWidth = 1;
+                        for (let k = 1; k < 4; k++) {
+                            ctx.beginPath();
+                            ctx.moveTo(cx - 10 + k * 5, y - 28 - j * 14);
+                            ctx.lineTo(cx - 10 + k * 5, y - 16 - j * 14);
+                            ctx.stroke();
+                        }
+
+                        // Shadow underneath
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                        ctx.fillRect(cx - 10, y - 16 - j * 14, 20, 2);
+                    }
+                }
+
+                // Smokestack with puff
+                const stackX = obs.speed > 0 ? obs.x + obs.width - 40 : obs.x + 15;
+                ctx.fillStyle = '#cc5533';
+                ctx.fillRect(stackX, y - 40, 6, 15);
+
+                // Smoke puff particles
+                const smokePulse = Math.sin(Date.now() / 300) * 0.5 + 0.5;
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillStyle = `rgba(100, 100, 100, ${0.4 - i * 0.1 - smokePulse * 0.2})`;
+                    ctx.beginPath();
+                    ctx.arc(stackX + 3 + i * 3, y - 42 - i * 8, 4 + i * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Running lights (green starboard, red port)
+                if (obs.speed > 0) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width - 5, y - 8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + 5, y - 8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Wake effect (V-shaped foam trail with bubbles)
                 const wakeX = obs.speed > 0 ? obs.x : obs.x + obs.width;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(wakeX, y - 10);
-                ctx.lineTo(wakeX - obs.speed * 3, y - 15);
-                ctx.moveTo(wakeX, y + 10);
-                ctx.lineTo(wakeX - obs.speed * 3, y + 15);
+                ctx.moveTo(wakeX, y - 8);
+                ctx.lineTo(wakeX - obs.speed * 8, y - 18);
+                ctx.moveTo(wakeX, y + 8);
+                ctx.lineTo(wakeX - obs.speed * 8, y + 18);
                 ctx.stroke();
+
+                // Foam bubbles in wake
+                for (let i = 0; i < 6; i++) {
+                    const bubbleX = wakeX - obs.speed * (2 + i * 1.5);
+                    const bubbleY = y + (Math.sin(Date.now() / 200 + i) * 12);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.4 - i * 0.05})`;
+                    ctx.beginPath();
+                    ctx.arc(bubbleX, bubbleY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
             } else if (obs.type === 'debris') {
                 if (obs.subtype === 'crate') {
-                    ctx.fillStyle = '#8b4513';
-                    ctx.fillRect(obs.x, y - 15, obs.width, 30);
-                    ctx.strokeStyle = '#654321';
+                    // Wooden crate with plank texture and metal brackets
+                    const crateGrad = ctx.createLinearGradient(obs.x, y - 18, obs.x, y + 18);
+                    crateGrad.addColorStop(0, '#a0826d');
+                    crateGrad.addColorStop(0.5, '#8b7355');
+                    crateGrad.addColorStop(1, '#6d5c4d');
+                    ctx.fillStyle = crateGrad;
+                    ctx.fillRect(obs.x, y - 18, obs.width, 36);
+
+                    // Plank lines
+                    ctx.strokeStyle = '#5d4e42';
+                    ctx.lineWidth = 2;
+                    for (let i = 1; i < 4; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(obs.x + i * (obs.width / 4), y - 18);
+                        ctx.lineTo(obs.x + i * (obs.width / 4), y + 18);
+                        ctx.stroke();
+                    }
+                    for (let i = 1; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(obs.x, y - 18 + i * 12);
+                        ctx.lineTo(obs.x + obs.width, y - 18 + i * 12);
+                        ctx.stroke();
+                    }
+
+                    // Metal corner brackets
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(obs.x, y - 18, 4, 8);
+                    ctx.fillRect(obs.x + obs.width - 4, y - 18, 4, 8);
+                    ctx.fillRect(obs.x, y + 10, 4, 8);
+                    ctx.fillRect(obs.x + obs.width - 4, y + 10, 4, 8);
+
+                    // Rope cross-pattern
+                    ctx.strokeStyle = '#8b7355';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(obs.x, y);
-                    ctx.lineTo(obs.x + obs.width, y);
-                    ctx.moveTo(obs.x + obs.width / 2, y - 15);
-                    ctx.lineTo(obs.x + obs.width / 2, y + 15);
+                    ctx.moveTo(obs.x, y - 18);
+                    ctx.lineTo(obs.x + obs.width, y + 18);
+                    ctx.moveTo(obs.x + obs.width, y - 18);
+                    ctx.lineTo(obs.x, y + 18);
                     ctx.stroke();
+
+                    // FRAGILE stencil
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+                    ctx.font = 'bold 9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('FRAGILE', obs.x + obs.width / 2, y + 3);
+
                 } else if (obs.subtype === 'barrel') {
-                    ctx.fillStyle = '#708090';
-                    ctx.beginPath();
-                    ctx.ellipse(obs.x + obs.width / 2, y, obs.width / 2, 15, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#556677';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(obs.x + obs.width / 2, y - 15);
-                    ctx.lineTo(obs.x + obs.width / 2, y + 15);
-                    ctx.stroke();
-                } else {
-                    ctx.fillStyle = '#cc3333';
-                    ctx.fillRect(obs.x, y - 15, obs.width, 30);
-                    ctx.strokeStyle = '#992222';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(obs.x, y - 15, obs.width, 30);
-                }
-            } else if (obs.type === 'current') {
-                if (obs.subtype === 'turtle') {
-                    ctx.fillStyle = '#228b22';
+                    // Oil drum with metallic gradient and rivets
+                    const barrelGrad = ctx.createRadialGradient(obs.x + obs.width / 2 - 5, y - 5, 5, obs.x + obs.width / 2, y, obs.width / 2 + 5);
+                    barrelGrad.addColorStop(0, '#95a5a6');
+                    barrelGrad.addColorStop(0.5, '#7f8c8d');
+                    barrelGrad.addColorStop(1, '#5d6d6e');
+                    ctx.fillStyle = barrelGrad;
                     ctx.beginPath();
                     ctx.ellipse(obs.x + obs.width / 2, y, obs.width / 2, 18, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = '#1a6b1a';
+
+                    // Riveted bands at top and bottom
+                    ctx.strokeStyle = '#4a5859';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + obs.width / 2, y - 12, obs.width / 2, 3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + obs.width / 2, y + 12, obs.width / 2, 3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Rivets (small dots)
+                    ctx.fillStyle = '#2c3e50';
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const rx = obs.x + obs.width / 2 + Math.cos(angle) * (obs.width / 2 - 2);
+                        const ry = y - 12 + Math.sin(angle) * 2;
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Hazard stripe
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.fillRect(obs.x, y - 3, obs.width, 6);
+                    ctx.fillStyle = '#000';
+                    for (let i = 0; i < obs.width / 8; i++) {
+                        if (i % 2 === 0) {
+                            ctx.fillRect(obs.x + i * 8, y - 3, 8, 6);
+                        }
+                    }
+
+                    // Rust spots
+                    ctx.fillStyle = 'rgba(139, 69, 19, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width * 0.3, y + 8, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width * 0.7, y - 10, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else {
+                    // Floating shipping container (partially submerged)
+                    const hue = Math.abs(obs.x) % 360;
+                    const submergedGrad = ctx.createLinearGradient(obs.x, y - 12, obs.x, y + 18);
+                    submergedGrad.addColorStop(0, `hsl(${hue}, 60%, 45%)`);
+                    submergedGrad.addColorStop(0.6, `hsl(${hue}, 60%, 35%)`);
+                    submergedGrad.addColorStop(0.6, `hsl(${hue}, 50%, 25%)`);
+                    submergedGrad.addColorStop(1, `hsl(${hue}, 40%, 20%)`);
+                    ctx.fillStyle = submergedGrad;
+                    ctx.fillRect(obs.x, y - 12, obs.width, 30);
+
+                    // Waterline
+                    ctx.strokeStyle = 'rgba(0, 100, 150, 0.7)';
                     ctx.lineWidth = 2;
-                    for (let i = 0; i < 3; i++) {
-                        for (let j = 0; j < 2; j++) {
-                            const sx = obs.x + obs.width / 4 + i * obs.width / 6;
-                            const sy = y - 10 + j * 10;
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, y + 6);
+                    ctx.lineTo(obs.x + obs.width, y + 6);
+                    ctx.stroke();
+
+                    // Corrugated sides
+                    ctx.strokeStyle = `hsl(${hue}, 60%, 25%)`;
+                    ctx.lineWidth = 1;
+                    for (let i = 1; i < 8; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(obs.x + i * (obs.width / 8), y - 12);
+                        ctx.lineTo(obs.x + i * (obs.width / 8), y + 18);
+                        ctx.stroke();
+                    }
+
+                    // Dented/damaged look
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + obs.width * 0.6, y - 5, 8, 6, 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            } else if (obs.type === 'current') {
+                if (obs.subtype === 'turtle') {
+                    // Actual turtle shape with domed shell and scutes
+                    const turtleGrad = ctx.createRadialGradient(obs.x + obs.width / 2, y - 5, 10, obs.x + obs.width / 2, y, obs.width / 2);
+                    turtleGrad.addColorStop(0, '#3d7c3f');
+                    turtleGrad.addColorStop(0.7, '#2d5a2e');
+                    turtleGrad.addColorStop(1, '#1d3a1e');
+                    ctx.fillStyle = turtleGrad;
+
+                    // Domed shell
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + obs.width / 2, y, obs.width / 2, 20, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Hexagonal scute pattern on shell
+                    ctx.strokeStyle = '#1d3a1e';
+                    ctx.lineWidth = 2;
+                    const scuteRows = 2;
+                    const scuteCols = 3;
+                    for (let i = 0; i < scuteRows; i++) {
+                        for (let j = 0; j < scuteCols; j++) {
+                            const sx = obs.x + obs.width / 4 + j * (obs.width / 6);
+                            const sy = y - 10 + i * 10;
                             ctx.strokeRect(sx, sy, obs.width / 8, 8);
                         }
                     }
+
+                    // Head poking out
+                    ctx.fillStyle = '#4a8a4d';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width + 5, y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.width + 7, y - 2, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Flippers on sides
+                    ctx.fillStyle = '#3d7c3f';
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + 5, y, 8, 4, -0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + obs.width - 5, y, 8, 4, 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+
                 } else if (obs.subtype === 'dock') {
-                    ctx.fillStyle = '#8b6914';
-                    ctx.fillRect(obs.x, y - 12, obs.width, 24);
-                    ctx.strokeStyle = '#654321';
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < obs.width / 10; i++) {
+                    // Wooden log raft - multiple logs bound with rope
+                    for (let i = 0; i < 3; i++) {
+                        const logY = y - 12 + i * 12;
+                        const logGrad = ctx.createLinearGradient(obs.x, logY, obs.x, logY + 10);
+                        logGrad.addColorStop(0, '#8b6914');
+                        logGrad.addColorStop(0.5, '#6d5a0d');
+                        logGrad.addColorStop(1, '#4a3c09');
+                        ctx.fillStyle = logGrad;
+                        ctx.fillRect(obs.x, logY, obs.width, 10);
+
+                        // Bark texture (dark lines)
+                        ctx.strokeStyle = '#3a2f07';
+                        ctx.lineWidth = 1;
+                        for (let j = 0; j < obs.width / 15; j++) {
+                            ctx.beginPath();
+                            ctx.moveTo(obs.x + j * 15, logY);
+                            ctx.lineTo(obs.x + j * 15, logY + 10);
+                            ctx.stroke();
+                        }
+
+                        // Wood grain
+                        ctx.strokeStyle = 'rgba(58, 47, 7, 0.3)';
                         ctx.beginPath();
-                        ctx.moveTo(obs.x + i * 10, y - 12);
-                        ctx.lineTo(obs.x + i * 10, y + 12);
+                        ctx.moveTo(obs.x, logY + 5);
+                        for (let x = 0; x < obs.width; x += 8) {
+                            ctx.lineTo(obs.x + x, logY + 5 + Math.sin(x / 5) * 2);
+                        }
                         ctx.stroke();
                     }
+
+                    // Rope binding (cross pattern with knots)
+                    ctx.strokeStyle = '#654321';
+                    ctx.lineWidth = 3;
+                    for (let i = 0; i < 3; i++) {
+                        const ropeX = obs.x + (i + 1) * (obs.width / 4);
+                        ctx.beginPath();
+                        ctx.moveTo(ropeX, y - 12);
+                        ctx.lineTo(ropeX, y + 18);
+                        ctx.stroke();
+
+                        // Knot details
+                        ctx.fillStyle = '#543210';
+                        ctx.beginPath();
+                        ctx.arc(ropeX, y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
                 } else {
-                    ctx.fillStyle = '#b0e0e6';
+                    // Ice floe - irregular polygonal shape with translucent look
+                    const iceGrad = ctx.createRadialGradient(obs.x + obs.width / 2, y, 5, obs.x + obs.width / 2, y, obs.width / 2);
+                    iceGrad.addColorStop(0, 'rgba(230, 245, 255, 0.95)');
+                    iceGrad.addColorStop(0.7, 'rgba(180, 210, 235, 0.9)');
+                    iceGrad.addColorStop(1, 'rgba(150, 190, 220, 0.85)');
+                    ctx.fillStyle = iceGrad;
+
+                    // Irregular polygon shape
                     ctx.beginPath();
-                    ctx.ellipse(obs.x + obs.width / 2, y, obs.width / 2, 16, 0, 0, Math.PI * 2);
+                    ctx.moveTo(obs.x + obs.width * 0.1, y - 10);
+                    ctx.lineTo(obs.x + obs.width * 0.4, y - 16);
+                    ctx.lineTo(obs.x + obs.width * 0.7, y - 14);
+                    ctx.lineTo(obs.x + obs.width * 0.95, y - 8);
+                    ctx.lineTo(obs.x + obs.width * 0.9, y + 6);
+                    ctx.lineTo(obs.x + obs.width * 0.6, y + 12);
+                    ctx.lineTo(obs.x + obs.width * 0.3, y + 14);
+                    ctx.lineTo(obs.x + obs.width * 0.05, y + 8);
+                    ctx.closePath();
                     ctx.fill();
+
+                    // Ice cracks
+                    ctx.strokeStyle = 'rgba(100, 150, 200, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + obs.width * 0.3, y - 12);
+                    ctx.lineTo(obs.x + obs.width * 0.5, y);
+                    ctx.lineTo(obs.x + obs.width * 0.7, y + 10);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + obs.width * 0.6, y - 10);
+                    ctx.lineTo(obs.x + obs.width * 0.4, y + 5);
+                    ctx.stroke();
+
+                    // Sparkle highlights
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    for (let i = 0; i < 5; i++) {
+                        const sparkleX = obs.x + (0.2 + Math.random() * 0.6) * obs.width;
+                        const sparkleY = y - 10 + Math.random() * 20;
+                        ctx.beginPath();
+                        ctx.arc(sparkleX, sparkleY, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Outer glow/highlight arc
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(obs.x + obs.width / 2, y, obs.width / 3, 0, Math.PI * 2);
+                    ctx.arc(obs.x + obs.width / 2, y, obs.width / 3, -Math.PI * 0.8, -Math.PI * 0.2);
                     ctx.stroke();
                 }
             }
@@ -945,18 +1464,94 @@
         function drawHarbor() {
             harbor.forEach(bay => {
                 const glow = Math.sin(Date.now() / 500) * 0.3 + 0.7;
-                ctx.strokeStyle = bay.filled ? `rgba(0, 255, 0, ${glow})` : `rgba(0, 212, 255, ${glow})`;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(bay.x, bay.y - 15, bay.width, 30);
+
+                // Dock pylons on each side
+                ctx.fillStyle = '#3d2f1f';
+                ctx.fillRect(bay.x - 4, bay.y - 20, 6, 40);
+                ctx.fillRect(bay.x + bay.width - 2, bay.y - 20, 6, 40);
+
+                // Pylon caps
+                ctx.fillStyle = '#2d1f0f';
+                ctx.fillRect(bay.x - 5, bay.y - 22, 8, 3);
+                ctx.fillRect(bay.x + bay.width - 3, bay.y - 22, 8, 3);
+
+                // Crane silhouette above bay
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(bay.x + bay.width / 2 - 10, bay.y - 25);
+                ctx.lineTo(bay.x + bay.width / 2 - 10, bay.y - 45);
+                ctx.lineTo(bay.x + bay.width / 2 + 20, bay.y - 45);
+                ctx.stroke();
+
+                // Crane hook
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(bay.x + bay.width / 2 + 15, bay.y - 45);
+                ctx.lineTo(bay.x + bay.width / 2 + 15, bay.y - 30);
+                ctx.stroke();
 
                 if (bay.filled) {
-                    ctx.fillStyle = `hsl(${bay.container.charCodeAt(0) * 137.5 % 360}, 70%, 50%)`;
-                    ctx.fillRect(bay.x + 5, bay.y - 10, bay.width - 10, 20);
+                    // Filled bay - show delivered container
+                    ctx.strokeStyle = `rgba(0, 255, 0, ${glow})`;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(bay.x, bay.y - 18, bay.width, 36);
 
-                    ctx.fillStyle = 'white';
-                    ctx.font = '10px monospace';
+                    // Concrete dock surface
+                    ctx.fillStyle = '#4a4a4a';
+                    ctx.fillRect(bay.x, bay.y + 18, bay.width, 8);
+
+                    // Container properly placed
+                    const hue = bay.container.charCodeAt(0) * 137.5 % 360;
+                    const containerGrad = ctx.createLinearGradient(bay.x + 10, bay.y - 10, bay.x + bay.width - 10, bay.y - 10);
+                    containerGrad.addColorStop(0, `hsl(${hue}, 70%, 35%)`);
+                    containerGrad.addColorStop(0.5, `hsl(${hue}, 70%, 50%)`);
+                    containerGrad.addColorStop(1, `hsl(${hue}, 70%, 35%)`);
+                    ctx.fillStyle = containerGrad;
+                    ctx.fillRect(bay.x + 10, bay.y - 12, bay.width - 20, 24);
+
+                    // DELIVERED stamp
+                    ctx.fillStyle = `rgba(0, 255, 0, ${glow * 0.8})`;
+                    ctx.font = 'bold 11px monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText('✓', bay.x + bay.width / 2, bay.y + 5);
+                    ctx.fillText('DELIVERED', bay.x + bay.width / 2, bay.y + 2);
+
+                    // Green glow ring
+                    ctx.strokeStyle = `rgba(0, 255, 0, ${glow * 0.4})`;
+                    ctx.lineWidth = 6;
+                    ctx.strokeRect(bay.x + 5, bay.y - 16, bay.width - 10, 32);
+
+                } else {
+                    // Empty bay - guide beacon
+                    ctx.strokeStyle = `rgba(0, 212, 255, ${glow})`;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(bay.x, bay.y - 18, bay.width, 36);
+
+                    // Concrete dock surface
+                    ctx.fillStyle = '#4a4a4a';
+                    ctx.fillRect(bay.x, bay.y + 18, bay.width, 8);
+
+                    // Yellow safety line markings
+                    ctx.strokeStyle = '#ffcc00';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 4]);
+                    ctx.strokeRect(bay.x + 2, bay.y - 16, bay.width - 4, 32);
+                    ctx.setLineDash([]);
+
+                    // Pulsing beacon light to guide player
+                    const beaconPulse = Math.sin(Date.now() / 400) * 0.5 + 0.5;
+                    ctx.fillStyle = `rgba(0, 212, 255, ${beaconPulse * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(bay.x + bay.width / 2, bay.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Beacon glow ring
+                    ctx.strokeStyle = `rgba(0, 212, 255, ${beaconPulse * 0.3})`;
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(bay.x + bay.width / 2, bay.y, 15 + beaconPulse * 5, 0, Math.PI * 2);
+                    ctx.stroke();
                 }
             });
         }
@@ -1190,56 +1785,242 @@
         }
 
         function drawWater() {
+            // Update and draw parallax clouds in background
+            cloudParticles.forEach(cloud => {
+                cloud.x += cloud.speed;
+                if (cloud.x > CANVAS_W + 50) cloud.x = -50;
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${cloud.opacity})`;
+                ctx.beginPath();
+                ctx.ellipse(cloud.x, cloud.y, cloud.size, cloud.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
             for (let row = 0; row < ROWS; row++) {
                 const y = row * CELL_SIZE;
 
                 if (row >= 12) {
-                    ctx.fillStyle = '#8b6914';
+                    // Wooden dock with plank texture
+                    const dockGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
+                    dockGrad.addColorStop(0, '#9b7653');
+                    dockGrad.addColorStop(0.5, '#8b6914');
+                    dockGrad.addColorStop(1, '#6d5a0d');
+                    ctx.fillStyle = dockGrad;
                     ctx.fillRect(0, y, CANVAS_W, CELL_SIZE);
-                    ctx.strokeStyle = '#654321';
-                    ctx.lineWidth = 1;
+
+                    // Plank lines
+                    ctx.strokeStyle = '#5d4e42';
+                    ctx.lineWidth = 2;
                     for (let i = 0; i < COLS; i++) {
                         ctx.beginPath();
                         ctx.moveTo(i * CELL_SIZE, y);
                         ctx.lineTo(i * CELL_SIZE, y + CELL_SIZE);
                         ctx.stroke();
                     }
+
+                    // Rope coils and bollard posts
+                    if (row === 12) {
+                        for (let i = 0; i < 5; i++) {
+                            const postX = 100 + i * 150;
+                            // Bollard post
+                            ctx.fillStyle = '#2c2c2c';
+                            ctx.fillRect(postX - 5, y + 5, 10, 20);
+                            ctx.fillStyle = '#1a1a1a';
+                            ctx.beginPath();
+                            ctx.arc(postX, y + 5, 6, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            // Rope coil nearby
+                            ctx.strokeStyle = '#654321';
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            ctx.arc(postX + 20, y + 15, 8, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.arc(postX + 20, y + 15, 5, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    }
+
                 } else if (row === 7) {
+                    // Median buoy zone
                     ctx.fillStyle = '#003366';
                     ctx.fillRect(0, y, CANVAS_W, CELL_SIZE);
+
+                    // Proper buoy markers (tall cone shape with reflective stripe)
                     for (let i = 0; i < 5; i++) {
                         const buoyX = i * (CANVAS_W / 5) + CANVAS_W / 10;
-                        ctx.fillStyle = '#ff6600';
+                        const buoyY = y + CELL_SIZE / 2;
+
+                        // Chain link to water
+                        ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+                        ctx.lineWidth = 2;
                         ctx.beginPath();
-                        ctx.arc(buoyX, y + CELL_SIZE / 2, 8, 0, Math.PI * 2);
+                        ctx.moveTo(buoyX, buoyY + 12);
+                        ctx.lineTo(buoyX, buoyY + 30);
+                        ctx.stroke();
+
+                        // Buoy body (cone/cylinder)
+                        const buoyGrad = ctx.createLinearGradient(buoyX - 10, buoyY - 15, buoyX + 10, buoyY - 15);
+                        buoyGrad.addColorStop(0, '#cc5500');
+                        buoyGrad.addColorStop(0.5, '#ff6600');
+                        buoyGrad.addColorStop(1, '#cc5500');
+                        ctx.fillStyle = buoyGrad;
+                        ctx.beginPath();
+                        ctx.moveTo(buoyX - 8, buoyY - 15);
+                        ctx.lineTo(buoyX - 10, buoyY + 10);
+                        ctx.lineTo(buoyX + 10, buoyY + 10);
+                        ctx.lineTo(buoyX + 8, buoyY - 15);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // Reflective stripe
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        ctx.fillRect(buoyX - 9, buoyY - 2, 18, 4);
+
+                        // Top cap
+                        ctx.fillStyle = '#993300';
+                        ctx.beginPath();
+                        ctx.ellipse(buoyX, buoyY - 15, 8, 3, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
+
                 } else {
-                    const shimmer = Math.sin(Date.now() / 500 + row) * 10;
-                    ctx.fillStyle = row <= 1 ? '#004466' : '#001a33';
+                    // Water zones with multiple layered wave patterns (parallax)
+                    const baseDepth = row <= 1 ? '#002244' : '#001633';
+                    const deepDepth = row <= 1 ? '#001a33' : '#000d1a';
+
+                    const waterGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
+                    waterGrad.addColorStop(0, baseDepth);
+                    waterGrad.addColorStop(1, deepDepth);
+                    ctx.fillStyle = waterGrad;
                     ctx.fillRect(0, y, CANVAS_W, CELL_SIZE);
 
-                    ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
+                    // Multiple wave layers at different speeds (parallax)
+                    const time = Date.now() / 1000;
+
+                    // Layer 1: Fast subtle waves
+                    ctx.strokeStyle = 'rgba(0, 150, 200, 0.08)';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    for (let x = 0; x < CANVAS_W; x += 20) {
-                        const waveY = y + CELL_SIZE / 2 + Math.sin(x / 50 + Date.now() / 1000) * 3 + shimmer;
+                    for (let x = 0; x < CANVAS_W; x += 15) {
+                        const waveY = y + CELL_SIZE / 3 + Math.sin(x / 30 + time * 2 + row) * 2;
                         if (x === 0) ctx.moveTo(x, waveY);
                         else ctx.lineTo(x, waveY);
                     }
                     ctx.stroke();
+
+                    // Layer 2: Medium waves
+                    ctx.strokeStyle = 'rgba(0, 180, 230, 0.12)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    for (let x = 0; x < CANVAS_W; x += 20) {
+                        const waveY = y + CELL_SIZE / 2 + Math.sin(x / 50 + time * 1.5 + row * 0.5) * 3;
+                        if (x === 0) ctx.moveTo(x, waveY);
+                        else ctx.lineTo(x, waveY);
+                    }
+                    ctx.stroke();
+
+                    // Layer 3: Slow large waves
+                    ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let x = 0; x < CANVAS_W; x += 25) {
+                        const waveY = y + CELL_SIZE * 0.7 + Math.sin(x / 70 + time + row * 0.3) * 4;
+                        if (x === 0) ctx.moveTo(x, waveY);
+                        else ctx.lineTo(x, waveY);
+                    }
+                    ctx.stroke();
+
+                    // Foam/whitecaps on wave crests (occasional)
+                    if (Math.sin(time * 2 + row) > 0.8) {
+                        for (let i = 0; i < 3; i++) {
+                            const foamX = (time * 50 + i * 200 + row * 100) % CANVAS_W;
+                            const foamY = y + CELL_SIZE / 2 + Math.sin(foamX / 50 + time) * 3;
+                            const foamAlpha = Math.sin(time * 3 + i) * 0.2 + 0.2;
+                            ctx.fillStyle = `rgba(255, 255, 255, ${foamAlpha})`;
+                            ctx.beginPath();
+                            ctx.arc(foamX, foamY, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+
+                    // Harbor zone fog/mist at top edge
+                    if (row === 0) {
+                        const fogGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
+                        fogGrad.addColorStop(0, 'rgba(150, 180, 200, 0.15)');
+                        fogGrad.addColorStop(1, 'rgba(150, 180, 200, 0)');
+                        ctx.fillStyle = fogGrad;
+                        ctx.fillRect(0, y, CANVAS_W, CELL_SIZE / 2);
+                    }
                 }
             }
+
+            // Update and draw ambient water bubbles (rising)
+            waterParticles.forEach(bubble => {
+                bubble.y -= bubble.speed;
+                if (bubble.y < 0) {
+                    bubble.y = CANVAS_H;
+                    bubble.x = Math.random() * CANVAS_W;
+                }
+
+                // Only draw bubbles in water zones (not dock)
+                if (bubble.y < CELL_SIZE * 12) {
+                    ctx.fillStyle = `rgba(135, 206, 235, ${bubble.opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Screen vignette (darker at edges)
+            const vignetteGrad = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, CANVAS_H * 0.3, CANVAS_W / 2, CANVAS_H / 2, CANVAS_H * 0.8);
+            vignetteGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vignetteGrad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+            ctx.fillStyle = vignetteGrad;
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         }
 
         function drawBossEffects() {
             const level = LEVELS[gameState.level];
             if (!level.isBoss || gameState.mode !== 'playing') return;
 
-            gameState.bossFog = Math.sin(Date.now() / 1000) * 0.2 + 0.3;
-            ctx.fillStyle = `rgba(50, 50, 80, ${gameState.bossFog})`;
-            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            // Animated diagonal rain streaks
+            ctx.strokeStyle = 'rgba(180, 200, 220, 0.3)';
+            ctx.lineWidth = 1;
+            const rainOffset = (Date.now() / 30) % 40;
+            for (let i = 0; i < 50; i++) {
+                const rx = (i * 40 - rainOffset) % CANVAS_W;
+                const ry1 = 0;
+                const ry2 = CANVAS_H;
+                ctx.beginPath();
+                ctx.moveTo(rx, ry1);
+                ctx.lineTo(rx - 20, ry2);
+                ctx.stroke();
+            }
 
+            // Rolling fog clouds with parallax
+            gameState.bossFog = Math.sin(Date.now() / 1000) * 0.15 + 0.25;
+            const fogOffset1 = (Date.now() / 50) % CANVAS_W;
+            const fogOffset2 = (Date.now() / 80) % CANVAS_W;
+
+            for (let i = 0; i < 5; i++) {
+                const fx1 = (i * 200 + fogOffset1) % CANVAS_W;
+                const fy1 = 100 + Math.sin(Date.now() / 1000 + i) * 30;
+                ctx.fillStyle = `rgba(70, 70, 90, ${gameState.bossFog * 0.6})`;
+                ctx.beginPath();
+                ctx.ellipse(fx1, fy1, 80, 40, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const fx2 = (i * 180 + fogOffset2) % CANVAS_W;
+                const fy2 = 150 + Math.sin(Date.now() / 800 + i * 0.5) * 40;
+                ctx.fillStyle = `rgba(60, 60, 80, ${gameState.bossFog * 0.4})`;
+                ctx.beginPath();
+                ctx.ellipse(fx2, fy2, 70, 35, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Lightning with jagged bolts
             if (Math.random() < 0.01) {
                 SFX.thunder();
                 gameState.bossLightning = 15;
@@ -1248,8 +2029,50 @@
 
             if (gameState.bossLightning > 0) {
                 gameState.bossLightning--;
+
+                // Jagged lightning bolt
+                if (gameState.bossLightning > 10) {
+                    const boltX = Math.random() * CANVAS_W;
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${gameState.bossLightning / 15})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(boltX, 0);
+                    let currentX = boltX;
+                    let currentY = 0;
+                    for (let i = 0; i < 8; i++) {
+                        currentX += (Math.random() - 0.5) * 40;
+                        currentY += CANVAS_H / 8;
+                        ctx.lineTo(currentX, currentY);
+
+                        // Branch
+                        if (Math.random() > 0.6) {
+                            const branchX = currentX + (Math.random() - 0.5) * 60;
+                            const branchY = currentY + 30;
+                            ctx.moveTo(currentX, currentY);
+                            ctx.lineTo(branchX, branchY);
+                            ctx.moveTo(currentX, currentY);
+                        }
+                    }
+                    ctx.stroke();
+                }
+
+                // Screen flash
                 ctx.fillStyle = `rgba(255, 255, 255, ${gameState.bossLightning / 15 * 0.4})`;
                 ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            }
+
+            // Larger aggressive waves during boss
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 3;
+            for (let row = 2; row < 12; row++) {
+                const y = row * CELL_SIZE + CELL_SIZE / 2;
+                ctx.beginPath();
+                for (let x = 0; x < CANVAS_W; x += 20) {
+                    const waveY = y + Math.sin(x / 30 + Date.now() / 200 + row) * 8;
+                    if (x === 0) ctx.moveTo(x, waveY);
+                    else ctx.lineTo(x, waveY);
+                }
+                ctx.stroke();
             }
         }
 
@@ -1259,21 +2082,57 @@
             gameState.splash.timer++;
             const progress = gameState.splash.timer / gameState.splash.maxTimer;
             const alpha = 1 - progress;
-            const radius = progress * 40;
 
-            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            // Ring of foam expanding
+            const foamRadius = progress * 50;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.arc(gameState.splash.x, gameState.splash.y, radius, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.arc(gameState.splash.x, gameState.splash.y, foamRadius, 0, Math.PI * 2);
+            ctx.stroke();
 
+            ctx.strokeStyle = `rgba(180, 220, 255, ${alpha * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(gameState.splash.x, gameState.splash.y, foamRadius * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Water droplet particles arcing outward with gravity
+            const numDroplets = 16;
+            for (let i = 0; i < numDroplets; i++) {
+                const angle = (i / numDroplets) * Math.PI * 2;
+                const speed = 3 + Math.random();
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed - 2; // Initial upward velocity
+
+                // Apply gravity over time
+                const t = progress;
+                const px = gameState.splash.x + vx * t * 50;
+                const py = gameState.splash.y + vy * t * 50 + 0.5 * 9.8 * t * t * 100; // gravity
+
+                const dropletAlpha = alpha * (1 - t * 0.5);
+                const dropletSize = 3 - t * 2;
+
+                if (dropletSize > 0) {
+                    // Droplet with gradient
+                    const dropletGrad = ctx.createRadialGradient(px, py, 0, px, py, dropletSize);
+                    dropletGrad.addColorStop(0, `rgba(200, 230, 255, ${dropletAlpha})`);
+                    dropletGrad.addColorStop(1, `rgba(135, 206, 235, ${dropletAlpha * 0.5})`);
+                    ctx.fillStyle = dropletGrad;
+                    ctx.beginPath();
+                    ctx.arc(px, py, dropletSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Small bubbles rising from impact
             for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                const dist = radius * 1.5;
-                const px = gameState.splash.x + Math.cos(angle) * dist;
-                const py = gameState.splash.y + Math.sin(angle) * dist;
-                ctx.fillStyle = `rgba(135, 206, 235, ${alpha * 0.7})`;
+                const bubbleX = gameState.splash.x + (Math.random() - 0.5) * 20;
+                const bubbleY = gameState.splash.y + progress * 30 - i * 5;
+                const bubbleAlpha = alpha * 0.6;
+                ctx.fillStyle = `rgba(200, 230, 255, ${bubbleAlpha})`;
                 ctx.beginPath();
-                ctx.arc(px, py, 4, 0, Math.PI * 2);
+                ctx.arc(bubbleX, bubbleY, 2, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -1292,23 +2151,20 @@
         }
 
         let demoMoveTimer = 0;
-        let demoDirection = -1; // -1 = going up, 1 = going down
+        let demoDirection = -1;
 
         function updateDemo(dt) {
             if (!whale || !whale.demo) return;
 
             whale.spoutTimer++;
 
-            // Move one cell every ~400ms
             demoMoveTimer += dt * 1000;
             if (demoMoveTimer >= 400) {
                 demoMoveTimer = 0;
 
-                // Reverse at boundaries
                 if (whale.gridY <= 2) demoDirection = 1;
                 if (whale.gridY >= 13) demoDirection = -1;
 
-                // Sometimes dodge left/right
                 if (Math.random() < 0.2) {
                     const dx = Math.random() > 0.5 ? 1 : -1;
                     const newX = whale.gridX + dx;
@@ -1406,6 +2262,25 @@
                     whale.spoutTimer++;
                 }
                 drawWhale(whale);
+            }
+
+            // Update and draw spout particles
+            for (let i = spoutParticles.length - 1; i >= 0; i--) {
+                const p = spoutParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15; // gravity
+                p.life--;
+
+                if (p.life <= 0) {
+                    spoutParticles.splice(i, 1);
+                } else {
+                    const alpha = p.life / p.maxLife;
+                    ctx.fillStyle = `rgba(135, 206, 235, ${alpha * 0.7})`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
 
             drawSplash();

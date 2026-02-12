@@ -339,12 +339,22 @@
                 speed: 0.3 + Math.random() * 0.5,
                 layer: Math.random() < 0.4 ? 0 : 1,
                 neonY: Math.random() * 0.6 + 0.2,
-                windowRows: 3 + Math.floor(Math.random() * 6)
+                windowRows: 3 + Math.floor(Math.random() * 6),
+                antennaX: Math.random() * 0.8 + 0.1,
+                hasSpotlight: Math.random() < 0.3,
+                spotlightAngle: Math.random() * Math.PI * 2
             });
         }
         rainDrops = [];
         for (let i = 0; i < 40; i++) {
-            rainDrops.push({ x: Math.random() * W, y: Math.random() * GROUND_Y, speed: 4 + Math.random() * 4, len: 4 + Math.random() * 8 });
+            rainDrops.push({
+                x: Math.random() * W,
+                y: Math.random() * GROUND_Y,
+                speed: 4 + Math.random() * 4,
+                len: 4 + Math.random() * 8,
+                size: Math.random() > 0.7 ? 12 : 10,
+                bright: Math.random() < 0.1
+            });
         }
     }
 
@@ -362,12 +372,19 @@
         const spdMul = worldFrozen ? 0 : (abilityActive === 'slow' ? 0.3 : 1);
 
         // Digital rain
-        ctx.globalAlpha = 0.15;
-        ctx.fillStyle = lvl.neonColor;
         ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
         rainDrops.forEach(r => {
             r.y += r.speed * spdMul;
-            if (r.y > GROUND_Y) { r.y = -10; r.x = Math.random() * W; }
+            if (r.y > GROUND_Y) {
+                r.y = -10;
+                r.x = Math.random() * W;
+                r.bright = Math.random() < 0.1;
+                r.size = Math.random() > 0.7 ? 12 : 10;
+            }
+            ctx.globalAlpha = r.bright ? 0.4 : 0.15;
+            ctx.fillStyle = r.bright ? '#ffffff' : lvl.neonColor;
+            ctx.font = r.size + 'px monospace';
             ctx.fillText(Math.random() > 0.5 ? '1' : '0', r.x, r.y);
         });
         ctx.globalAlpha = 1;
@@ -375,7 +392,12 @@
         // Buildings (parallax)
         buildings.forEach(b => {
             b.x -= b.speed * gameSpeed * 0.12 * spdMul;
-            if (b.x + b.width < -10) { b.x = W + Math.random() * 100; b.height = 80 + Math.random() * 180; }
+            if (b.x + b.width < -10) {
+                b.x = W + Math.random() * 100;
+                b.height = 80 + Math.random() * 180;
+                b.antennaX = Math.random() * 0.8 + 0.1;
+                b.hasSpotlight = Math.random() < 0.3;
+            }
 
             const bTop = GROUND_Y - b.height;
             const alpha = b.layer === 0 ? 0.15 : 0.3;
@@ -390,21 +412,81 @@
             ctx.globalAlpha = alpha * 0.8;
             ctx.fillRect(b.x, bTop + b.height * b.neonY, b.width, 2);
 
-            // Windows
+            // Windows with variation
             ctx.globalAlpha = alpha * 0.5;
             for (let r = 0; r < b.windowRows; r++) {
                 for (let c = 0; c < 3; c++) {
-                    const lit = Math.sin(gameFrame * 0.01 + b.x + r + c) > 0;
+                    const flicker = Math.sin(gameFrame * 0.05 + b.x + r + c) > -0.3;
+                    const lit = flicker && Math.sin(gameFrame * 0.01 + b.x + r + c) > 0;
                     ctx.fillStyle = lit ? '#fbbf24' : '#0a0a0a';
                     ctx.fillRect(b.x + 4 + c * (b.width / 3 - 2), bTop + 8 + r * 18, 8, 6);
                 }
             }
+
+            // Rooftop antenna
+            ctx.globalAlpha = alpha * 0.6;
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const antX = b.x + b.width * b.antennaX;
+            ctx.moveTo(antX, bTop);
+            ctx.lineTo(antX, bTop - 12);
+            ctx.stroke();
+            ctx.fillStyle = lvl.neonColor;
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.beginPath();
+            ctx.arc(antX, bTop - 14, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Spotlight sweep
+            if (b.hasSpotlight) {
+                b.spotlightAngle += 0.01 * spdMul;
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.1;
+                ctx.fillStyle = lvl.neonColor;
+                ctx.translate(antX, bTop - 14);
+                ctx.rotate(b.spotlightAngle);
+                ctx.fillRect(-3, 0, 6, 80);
+                ctx.restore();
+            }
+
             ctx.globalAlpha = 1;
         });
 
         // Ground - cracked street
         ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+        // Ground cracks and manholes
+        ctx.strokeStyle = '#0a0a0a';
+        ctx.lineWidth = 2;
+        const crackOffset = (gameFrame * 2 * spdMul) % 200;
+        for (let i = 0; i < 6; i++) {
+            const cx = (i * 200 - crackOffset) % W;
+            ctx.beginPath();
+            ctx.moveTo(cx, GROUND_Y + 5);
+            ctx.lineTo(cx + 20 + Math.random() * 10, GROUND_Y + 15);
+            ctx.lineTo(cx + 30, GROUND_Y + 25);
+            ctx.stroke();
+        }
+
+        // Manhole covers
+        const mhOffset = (gameFrame * 2 * spdMul) % 300;
+        for (let i = 0; i < 4; i++) {
+            const mx = (i * 300 - mhOffset) % W;
+            ctx.fillStyle = '#0a0a0a';
+            ctx.beginPath();
+            ctx.arc(mx, GROUND_Y + 25, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#2a2a2a';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(mx, GROUND_Y + 25, 10, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(mx, GROUND_Y + 25, 6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         // Road line
         ctx.strokeStyle = lvl.neonColor;
@@ -460,36 +542,140 @@
             ctx.restore();
         }
 
+        ctx.save();
+
         if (player.isDucking) {
-            // Crouched agent
-            ctx.fillStyle = '#60a5fa';
-            ctx.fillRect(px, py + 10, 22, 14);
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(px + 6, py + 10, 10, 5); // visor
-        } else {
-            // Body
-            ctx.fillStyle = '#60a5fa';
-            ctx.fillRect(px + 6, py + 8, 8, h - 8);
-            // Head
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(px + 5, py + 2, 10, 8);
-            // Visor
-            ctx.fillStyle = '#ef4444';
-            ctx.fillRect(px + 6, py + 5, 8, 3);
-            // Headset
+            // Crouched pose with shield arm forward
+            // Body (crouched)
+            const grad = ctx.createLinearGradient(px, py + 10, px, py + 24);
+            grad.addColorStop(0, '#4a90e2');
+            grad.addColorStop(1, '#1e3a8a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(px + 2, py + 12, 18, 12, 2);
+            ctx.fill();
+
+            // Shield arm forward
+            ctx.fillStyle = '#4a90e2';
+            ctx.beginPath();
+            ctx.ellipse(px, py + 16, 4, 6, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head (tilted down)
+            ctx.fillStyle = '#d4a574';
+            ctx.beginPath();
+            ctx.ellipse(px + 14, py + 10, 6, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Visor (glowing red line)
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(px + 9, py + 11);
+            ctx.lineTo(px + 19, py + 11);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Tactical boots
             ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(px + 4, py + 4, 2, 4);
-            ctx.fillRect(px + 14, py + 4, 2, 4);
-            // Arms
-            const armOff = Math.sin(player.animFrame * 0.3) * 2;
-            ctx.fillStyle = '#60a5fa';
-            ctx.fillRect(px + 4, py + 12 + armOff, 3, 6);
-            ctx.fillRect(px + 13, py + 12 - armOff, 3, 6);
-            // Legs
-            const legOff = Math.sin(player.animFrame * 0.3) * 3;
-            ctx.fillRect(px + 6, py + h - 6, 3, 6 + legOff);
-            ctx.fillRect(px + 11, py + h - 6, 3, 6 - legOff);
+            ctx.fillRect(px + 4, py + 22, 4, 3);
+            ctx.fillRect(px + 12, py + 22, 4, 3);
+
+        } else {
+            // Standing/running pose
+            // Body with armor gradient
+            const grad = ctx.createLinearGradient(px + 6, py + 8, px + 6, py + 8 + h - 8);
+            grad.addColorStop(0, '#4a90e2');
+            grad.addColorStop(0.5, '#3b82f6');
+            grad.addColorStop(1, '#1e3a8a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(px + 6, py + 8, 8, h - 8, 2);
+            ctx.fill();
+
+            // Chest plate highlight
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+            ctx.fillRect(px + 7, py + 10, 6, 4);
+
+            // Head (rounded)
+            ctx.fillStyle = '#d4a574';
+            ctx.beginPath();
+            ctx.ellipse(px + 10, py + 5, 6, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Visor (glowing red line across eyes)
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(px + 5, py + 5);
+            ctx.lineTo(px + 15, py + 5);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Headset/comms
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(px + 3, py + 4, 2, 4);
+            ctx.fillRect(px + 15, py + 4, 2, 4);
+            // Antenna nub
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(px + 16, py + 3, 1, 3);
+
+            // Arms with arc motion (proper swing)
+            const armSwing = Math.sin(player.animFrame * 0.3);
+            const leftArmAngle = armSwing * 0.4;
+            const rightArmAngle = -armSwing * 0.4;
+
+            ctx.fillStyle = '#4a90e2';
+            // Left arm
+            ctx.save();
+            ctx.translate(px + 6, py + 12);
+            ctx.rotate(leftArmAngle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 2, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Right arm
+            ctx.save();
+            ctx.translate(px + 14, py + 12);
+            ctx.rotate(rightArmAngle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 2, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Legs with proper stride
+            const legStride = Math.sin(player.animFrame * 0.3);
+            const leftLegY = legStride * 3;
+            const rightLegY = -legStride * 3;
+
+            ctx.fillStyle = '#1e3a8a';
+            // Left leg
+            ctx.fillRect(px + 7, py + h - 6 + leftLegY, 3, 6 - leftLegY);
+            // Right leg
+            ctx.fillRect(px + 10, py + h - 6 + rightLegY, 3, 6 - rightLegY);
+
+            // Tactical boots
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(px + 6, py + h + leftLegY - 1, 4, 3);
+            ctx.fillRect(px + 10, py + h + rightLegY - 1, 4, 3);
+
+            // Holographic HUD display (tiny floating icons near head)
+            if (gameFrame % 60 < 30) {
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = '#60a5fa';
+                ctx.font = '6px monospace';
+                ctx.fillText('>', px + 18, py + 3);
+                ctx.fillText('●', px + 20, py + 7);
+                ctx.globalAlpha = 1;
+            }
         }
+
+        ctx.restore();
 
         // Ability visuals
         if (abilityActive === 'dash') {
@@ -508,10 +694,19 @@
             ctx.stroke();
         }
 
-        // Trail
-        if (!player.isJumping && gameRunning && gameFrame % 4 === 0) {
-            particles.push({ x: px + 10, y: py + h, vx: -Math.random()*2-0.5, vy: -Math.random(),
-                life: 10, color: '#60a5fa', size: 2 });
+        // Data stream particle trail
+        if (gameRunning && gameFrame % 4 === 0) {
+            const sz = 2 + Math.random() * 2;
+            particles.push({
+                x: px + 10,
+                y: py + h - 5,
+                vx: -Math.random()*2-0.5,
+                vy: -Math.random()*2,
+                life: 10 + Math.random() * 10,
+                color: Math.random() > 0.5 ? '#60a5fa' : '#4a90e2',
+                size: sz,
+                alpha: 0.8
+            });
         }
     }
 
@@ -563,103 +758,368 @@
             ctx.save();
             switch(this.type) {
                 case 'ransomware':
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(this.x + 4, this.y + 2, 20, 26);
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(this.x + 8, this.y + 8, 5, 6);
-                    ctx.fillRect(this.x + 17, this.y + 8, 5, 6);
-                    ctx.fillRect(this.x + 10, this.y + 18, 8, 5);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '7px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('$$$', this.x + this.w/2, this.y + this.h - 2);
-                    break;
-                case 'phishing':
-                    ctx.fillStyle = '#64748b';
-                    ctx.fillRect(this.x + 14, 0, 2, this.y + 8);
-                    ctx.fillStyle = '#fbbf24';
+                    // Padlock skull
+                    // Skull face
+                    ctx.fillStyle = '#8a1c1c';
                     ctx.beginPath();
-                    ctx.arc(this.x + 15, this.y + 14, 8, 0.5 * Math.PI, 2 * Math.PI);
+                    ctx.ellipse(this.x + 14, this.y + 8, 10, 9, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillRect(this.x + 18, this.y + 8, 8, 3);
+
+                    // Eye sockets (glowing red)
+                    ctx.fillStyle = '#ff0000';
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 9, this.y + 7, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(this.x + 19, this.y + 7, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Teeth with $ symbols
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 8px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('$$$', this.x + 14, this.y + 15);
+
+                    // Lock body
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(this.x + 7, this.y + 16, 14, 12);
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 14, this.y + 22, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillRect(this.x + 13, this.y + 22, 2, 4);
                     break;
+
+                case 'phishing':
+                    // Dangling hook with email envelope
+                    // Fishing line
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 15, 0);
+                    ctx.lineTo(this.x + 15, this.y + 8);
+                    ctx.stroke();
+
+                    // Email envelope bait
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fillRect(this.x + 6, this.y + 10, 18, 12);
+                    ctx.strokeStyle = '#b45309';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 6, this.y + 10);
+                    ctx.lineTo(this.x + 15, this.y + 16);
+                    ctx.lineTo(this.x + 24, this.y + 10);
+                    ctx.stroke();
+
+                    // Hook (glinting)
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x + 15, this.y + 8, 6, 0.5 * Math.PI, 1.8 * Math.PI);
+                    ctx.stroke();
+
+                    // Hook point glint
+                    if (this.frame % 40 < 5) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowBlur = 4;
+                        ctx.shadowColor = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(this.x + 20, this.y + 10, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                    break;
+
                 case 'zeroday':
-                    const alpha = 0.25 + Math.sin(this.frame * 0.2) * 0.15;
-                    ctx.globalAlpha = alpha;
+                    // Glitching void with noise pattern
+                    const baseAlpha = 0.25 + Math.sin(this.frame * 0.2) * 0.15;
+
+                    // Noise pattern background
+                    ctx.globalAlpha = baseAlpha;
                     ctx.fillStyle = '#8b5cf6';
                     for (let i = 0; i < this.w; i += 4) {
                         for (let j = 0; j < this.h; j += 4) {
                             if (Math.random() > 0.4) ctx.fillRect(this.x + i, this.y + j, 3, 3);
                         }
                     }
-                    ctx.globalAlpha = 0.6;
+
+                    // Distortion waves emanating outward
+                    ctx.globalAlpha = 0.2;
+                    for (let r = 0; r < 3; r++) {
+                        const radius = 12 + r * 8 + (this.frame % 30);
+                        ctx.strokeStyle = '#a78bfa';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(this.x + this.w/2, this.y + this.h/2, radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+
+                    // 0DAY text
+                    ctx.globalAlpha = 0.7;
                     ctx.fillStyle = '#fff';
-                    ctx.font = '8px monospace';
+                    ctx.font = 'bold 8px monospace';
                     ctx.textAlign = 'center';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = '#8b5cf6';
                     ctx.fillText('0DAY', this.x + this.w/2, this.y + this.h/2 + 3);
+                    ctx.shadowBlur = 0;
                     break;
+
                 case 'ddos':
+                    // Tsunami wall of packets with forward push
                     ctx.fillStyle = '#3b82f6';
+
+                    // Wave columns
                     for (let i = 0; i < 6; i++) {
                         const wy = this.y + Math.sin((this.frame + i * 8) * 0.2) * 6;
-                        ctx.fillRect(this.x + i * 7, wy, 5, this.h - (wy - this.y));
+                        const wh = this.h - (wy - this.y);
+
+                        // Column
+                        ctx.fillRect(this.x + i * 7, wy, 5, wh);
+
+                        // Arrow/packet on top
+                        ctx.fillStyle = '#60a5fa';
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + i * 7 + 2.5, wy - 4);
+                        ctx.lineTo(this.x + i * 7 + 6, wy);
+                        ctx.lineTo(this.x + i * 7 + 2.5, wy + 2);
+                        ctx.lineTo(this.x + i * 7 - 1, wy);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.fillStyle = '#3b82f6';
                     }
+
+                    // Forward motion lines
+                    ctx.globalAlpha = 0.4;
+                    ctx.strokeStyle = '#60a5fa';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.x - 10 - i * 8, this.y + 10 + i * 10);
+                        ctx.lineTo(this.x, this.y + 10 + i * 10);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+
+                    // Label
                     ctx.fillStyle = '#fff';
                     ctx.font = '8px monospace';
                     ctx.textAlign = 'center';
                     ctx.fillText('DDoS', this.x + this.w/2, this.y + this.h/2);
                     break;
+
                 case 'insider':
-                    ctx.fillStyle = this.revealed ? '#ef4444' : '#10b981';
-                    ctx.fillRect(this.x + 6, this.y + 2, 10, 8);
+                    // Person silhouette that flips from green (friendly) to red (threat)
+                    const isHostile = this.revealed;
+                    const bodyColor = isHostile ? '#ef4444' : '#10b981';
+
+                    // Head
+                    ctx.fillStyle = bodyColor;
+                    ctx.beginPath();
+                    ctx.arc(this.x + 11, this.y + 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Body
                     ctx.fillRect(this.x + 6, this.y + 10, 10, 14);
-                    ctx.fillRect(this.x + 4, this.y + 14, 3, 8);
-                    ctx.fillRect(this.x + 15, this.y + 14, 3, 8);
-                    ctx.fillStyle = this.revealed ? '#fff' : '#000';
-                    ctx.fillRect(this.x + 8, this.y + 5, 2, 2);
-                    ctx.fillRect(this.x + 12, this.y + 5, 2, 2);
+
+                    // Arms
+                    ctx.fillRect(this.x + 3, this.y + 14, 3, 8);
+                    ctx.fillRect(this.x + 16, this.y + 14, 3, 8);
+
+                    // Legs
+                    ctx.fillRect(this.x + 6, this.y + 22, 4, 4);
+                    ctx.fillRect(this.x + 12, this.y + 22, 4, 4);
+
+                    // Face expression
+                    ctx.fillStyle = isHostile ? '#fff' : '#000';
+                    // Eyes
+                    ctx.fillRect(this.x + 8, this.y + 4, 2, 2);
+                    ctx.fillRect(this.x + 12, this.y + 4, 2, 2);
+
+                    // Mouth (smile vs grimace)
+                    if (isHostile) {
+                        // Grimace (straight line)
+                        ctx.fillRect(this.x + 8, this.y + 8, 6, 1);
+                    } else {
+                        // Smile (arc)
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(this.x + 11, this.y + 7, 3, 0, Math.PI);
+                        ctx.stroke();
+                    }
+
+                    // Flip effect when revealing
+                    if (this.revealed && this.frame - this.revealFrame < 10) {
+                        ctx.globalAlpha = 0.5;
+                        ctx.fillStyle = '#ff0000';
+                        ctx.fillRect(this.x, this.y, this.w, this.h);
+                        ctx.globalAlpha = 1;
+                    }
+                    if (this.revealed && !this.revealFrame) this.revealFrame = this.frame;
                     break;
+
                 case 'apt':
+                    // Stealth drone with angular faceted body
                     ctx.fillStyle = '#7c3aed';
-                    ctx.fillRect(this.x + 2, this.y + 2, this.w - 4, this.h - 4);
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(this.x + 8, this.y + 8, 4, 4);
-                    ctx.fillRect(this.x + 16, this.y + 8, 4, 4);
-                    ctx.fillRect(this.x + 10, this.y + 16, 8, 3);
+
+                    // Faceted body (diamond shape)
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.w/2, this.y);
+                    ctx.lineTo(this.x + this.w, this.y + this.h/2);
+                    ctx.lineTo(this.x + this.w/2, this.y + this.h);
+                    ctx.lineTo(this.x, this.y + this.h/2);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Highlight facets
+                    ctx.fillStyle = '#9333ea';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.w/2, this.y);
+                    ctx.lineTo(this.x + this.w * 0.75, this.y + this.h * 0.25);
+                    ctx.lineTo(this.x + this.w/2, this.y + this.h/2);
+                    ctx.lineTo(this.x + this.w * 0.25, this.y + this.h * 0.25);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Targeting eye (glowing)
+                    ctx.fillStyle = '#ff0000';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.w/2, this.y + this.h/2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Rotating scan beam
+                    const scanAngle = (this.frame * 0.1) % (Math.PI * 2);
+                    ctx.save();
+                    ctx.translate(this.x + this.w/2, this.y + this.h/2);
+                    ctx.rotate(scanAngle);
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = '#c084fc';
+                    ctx.fillRect(0, -1, 20, 2);
+                    ctx.globalAlpha = 1;
+                    ctx.restore();
+
+                    // APT label
                     ctx.fillStyle = '#c084fc';
                     ctx.font = '7px monospace';
                     ctx.textAlign = 'center';
                     ctx.fillText('APT', this.x + this.w/2, this.y + this.h - 2);
                     break;
+
                 case 'supply_chain':
+                    // Connected chain links with cascading infection
                     for (let l = 0; l < this.links; l++) {
-                        ctx.fillStyle = l === 0 ? '#ef4444' : '#f9731688';
-                        ctx.fillRect(this.x + l * 20, this.y, 18, this.h);
-                        ctx.strokeStyle = '#f97316';
+                        const linkX = this.x + l * 20;
+                        const infectionProgress = Math.max(0, (this.frame - l * 20) / 60);
+                        const infected = infectionProgress > 0;
+
+                        // Box/package
+                        ctx.fillStyle = infected ? `rgba(239, 68, 68, ${Math.min(1, infectionProgress)})` : '#f97316';
+                        ctx.fillRect(linkX, this.y, 18, this.h);
+
+                        // Package detail
+                        ctx.strokeStyle = infected ? '#7f1d1d' : '#9a3412';
                         ctx.lineWidth = 1;
+                        ctx.strokeRect(linkX + 2, this.y + 2, 14, this.h - 4);
+                        ctx.beginPath();
+                        ctx.moveTo(linkX + 9, this.y);
+                        ctx.lineTo(linkX + 9, this.y + this.h);
+                        ctx.stroke();
+
+                        // Cascading infection glow
+                        if (infected && infectionProgress < 1) {
+                            ctx.globalAlpha = 0.5;
+                            ctx.fillStyle = '#ff0000';
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#ff0000';
+                            ctx.fillRect(linkX, this.y, 18, this.h);
+                            ctx.shadowBlur = 0;
+                            ctx.globalAlpha = 1;
+                        }
+
+                        // Arrow connection to next link
                         if (l < this.links - 1) {
+                            ctx.strokeStyle = '#f97316';
+                            ctx.lineWidth = 2;
                             ctx.beginPath();
-                            ctx.moveTo(this.x + l * 20 + 18, this.y + this.h/2);
-                            ctx.lineTo(this.x + (l+1) * 20, this.y + this.h/2);
+                            ctx.moveTo(linkX + 18, this.y + this.h/2);
+                            ctx.lineTo(linkX + 20, this.y + this.h/2);
                             ctx.stroke();
+
+                            // Arrow head
+                            ctx.fillStyle = '#f97316';
+                            ctx.beginPath();
+                            ctx.moveTo(linkX + 20, this.y + this.h/2);
+                            ctx.lineTo(linkX + 17, this.y + this.h/2 - 2);
+                            ctx.lineTo(linkX + 17, this.y + this.h/2 + 2);
+                            ctx.closePath();
+                            ctx.fill();
                         }
                     }
+
+                    // Label
                     ctx.fillStyle = '#fff';
                     ctx.font = '7px monospace';
                     ctx.textAlign = 'center';
                     ctx.fillText('SUPPLY', this.x + this.w/2, this.y + 14);
                     break;
+
                 case 'cryptojack':
+                    // Spinning bitcoin miner with CPU chip and heat waves
+                    const spin = (this.frame * 0.1) % (Math.PI * 2);
+
+                    // Heat waves rising
+                    ctx.strokeStyle = 'rgba(234, 179, 8, 0.3)';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        const waveY = this.y - 10 - (this.frame % 40) + i * 10;
+                        if (waveY > this.y - 50) {
+                            ctx.beginPath();
+                            ctx.moveTo(this.x + 5, waveY);
+                            ctx.quadraticCurveTo(this.x + 9, waveY - 5, this.x + 13, waveY);
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Spinning coin
+                    ctx.save();
+                    ctx.translate(this.x + 9, this.y + 9);
+                    ctx.rotate(spin);
+
+                    // Coin body (ellipse for 3D spin effect)
+                    const coinScale = Math.abs(Math.cos(spin));
                     ctx.fillStyle = '#eab308';
-                    ctx.shadowBlur = 6;
+                    ctx.shadowBlur = 8;
                     ctx.shadowColor = '#eab308';
                     ctx.beginPath();
-                    ctx.arc(this.x + 9, this.y + 9, 9 + Math.sin(this.frame*0.2)*2, 0, Math.PI*2);
+                    ctx.ellipse(0, 0, 9 * coinScale, 9, 0, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = '#000';
-                    ctx.font = 'bold 10px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('$', this.x + 9, this.y + 13);
+                    ctx.shadowBlur = 0;
+
+                    // CPU chip overlay
+                    if (coinScale > 0.5) {
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.fillRect(-4, -4, 8, 8);
+                        ctx.strokeStyle = '#eab308';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(-4, -4, 8, 8);
+
+                        // $ symbol
+                        ctx.fillStyle = '#eab308';
+                        ctx.font = 'bold 8px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('$', 0, 0);
+                    }
+
+                    ctx.restore();
                     break;
             }
             ctx.restore();
@@ -707,18 +1167,36 @@
     function updateParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
-            p.x += p.vx; p.y += p.vy; p.life--;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.15; // Gravity
+            p.life--;
             if (p.life <= 0) { particles.splice(i, 1); continue; }
-            ctx.globalAlpha = p.life / 15;
+
+            const lifeRatio = p.life / 20;
+            ctx.globalAlpha = (p.alpha || 1) * lifeRatio;
             ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, p.size || 2, p.size || 2);
+
+            // Draw as circle
+            const currentSize = (p.size || 2) * lifeRatio;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, currentSize / 2, 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
     function burstParticles(x, y, color, count) {
         for (let i = 0; i < count; i++) {
-            particles.push({ x, y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
-                life: 12 + Math.random()*8, color, size: 2 + Math.random()*2 });
+            const size = 2 + Math.random() * 3;
+            particles.push({
+                x, y,
+                vx: (Math.random()-0.5)*6,
+                vy: (Math.random()-0.5)*6 - 2,
+                life: 12 + Math.random()*8,
+                color,
+                size,
+                alpha: 0.8 + Math.random() * 0.2
+            });
         }
     }
 
