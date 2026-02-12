@@ -1,19 +1,29 @@
 /**
- * GameScoreboard.js - Post-game score overlay
+ * GameScoreboard.js - Persistent high score widget for all games
  *
- * Listens for GameTracker events and shows a slide-in panel with:
- *   - Current score + result
- *   - Top 3 high scores leaderboard (gold / silver / bronze)
- *   - "NEW HIGH SCORE" or "NEW TOP 3" callouts
+ * Auto-detects the game ID from the page, then renders a fixed scoreboard
+ * panel showing top 3 high scores. Updates live after each game-over.
  *
- * Auto-dismisses after 8 seconds. Click panel or close button to dismiss early.
- * Only appears for score-based games (skips "Don't..." survival games).
+ * Requires: GameTracker.js loaded before this script.
  */
 const GameScoreboard = (function () {
 
-    let _panel = null;
-    let _dismissTimer = null;
+    let _widget = null;
+    let _gameId = null;
+    let _collapsed = false;
     let _cssInjected = false;
+    let _flashTimer = null;
+
+    // ── Auto-detect game ID ────────────────────────────────────────
+
+    function _detectGameId() {
+        var scripts = document.querySelectorAll('script:not([src])');
+        for (var i = 0; i < scripts.length; i++) {
+            var match = scripts[i].textContent.match(/GameTracker\.record\s*\(\s*['"]([^'"]+)['"]/);
+            if (match) return match[1];
+        }
+        return null;
+    }
 
     // ── CSS ────────────────────────────────────────────────────────
 
@@ -21,67 +31,128 @@ const GameScoreboard = (function () {
         if (_cssInjected) return;
         _cssInjected = true;
 
-        const style = document.createElement('style');
+        var style = document.createElement('style');
         style.textContent = `
-            .gs-panel {
+            .gs-widget {
                 position: fixed;
-                bottom: 20px;
-                right: -400px;
-                width: 340px;
-                background: rgba(10, 10, 20, 0.95);
-                border: 1px solid rgba(255, 215, 0, 0.3);
-                border-radius: 12px;
-                padding: 20px;
-                font-family: 'Courier New', monospace;
-                color: #e0e0e0;
-                z-index: 99999;
-                box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.1);
-                transition: right 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-                cursor: pointer;
-            }
-            .gs-panel.gs-visible {
-                right: 20px;
-            }
-            .gs-close {
-                position: absolute;
-                top: 8px;
+                top: 12px;
                 right: 12px;
-                background: none;
-                border: none;
-                color: #888;
-                font-size: 18px;
+                width: 220px;
+                background: rgba(8, 8, 18, 0.92);
+                border: 1px solid rgba(255, 215, 0, 0.25);
+                border-radius: 10px;
+                font-family: 'Courier New', monospace;
+                color: #ccc;
+                z-index: 99990;
+                box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+                overflow: hidden;
+                transition: border-color 0.3s, box-shadow 0.3s;
+                user-select: none;
+            }
+            .gs-widget.gs-flash {
+                border-color: rgba(255, 215, 0, 0.8);
+                box-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 25px rgba(255, 215, 0, 0.3);
+            }
+            .gs-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 12px 8px;
                 cursor: pointer;
-                padding: 2px 6px;
-                line-height: 1;
+                background: rgba(255, 215, 0, 0.06);
+                border-bottom: 1px solid rgba(255, 215, 0, 0.12);
             }
-            .gs-close:hover { color: #fff; }
-            .gs-title {
-                font-size: 13px;
-                color: #888;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                margin-bottom: 8px;
-            }
-            .gs-score-line {
-                font-size: 28px;
+            .gs-header:hover { background: rgba(255, 215, 0, 0.1); }
+            .gs-header-title {
+                font-size: 11px;
                 font-weight: bold;
-                color: #fff;
-                margin-bottom: 4px;
+                color: #FFD700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
             }
-            .gs-result {
-                font-size: 12px;
-                color: #aaa;
-                margin-bottom: 16px;
+            .gs-toggle {
+                font-size: 14px;
+                color: #666;
+                transition: transform 0.2s;
+            }
+            .gs-widget.gs-collapsed .gs-toggle { transform: rotate(180deg); }
+            .gs-widget.gs-collapsed .gs-body { display: none; }
+            .gs-body {
+                padding: 10px 12px 12px;
+            }
+            .gs-row {
+                display: flex;
+                align-items: center;
+                padding: 5px 4px;
+                border-radius: 4px;
+                margin-bottom: 2px;
+                font-size: 13px;
+                transition: background 0.3s;
+            }
+            .gs-row.gs-highlight {
+                background: rgba(255, 215, 0, 0.12);
+                animation: gs-row-flash 1.5s ease-out;
+            }
+            @keyframes gs-row-flash {
+                0% { background: rgba(255, 215, 0, 0.35); }
+                100% { background: rgba(255, 215, 0, 0.12); }
+            }
+            .gs-medal {
+                width: 22px;
+                font-size: 14px;
+                flex-shrink: 0;
+                text-align: center;
+            }
+            .gs-rank-1 .gs-medal { color: #FFD700; }
+            .gs-rank-2 .gs-medal { color: #C0C0C0; }
+            .gs-rank-3 .gs-medal { color: #CD7F32; }
+            .gs-row-score {
+                flex: 1;
+                text-align: right;
+                font-weight: bold;
+                font-size: 14px;
+                color: #fff;
+                padding-right: 8px;
+            }
+            .gs-row-date {
+                font-size: 10px;
+                color: #555;
+                width: 40px;
+                text-align: right;
+            }
+            .gs-empty {
+                color: #444;
+                font-size: 11px;
+                text-align: center;
+                padding: 12px 0;
+                font-style: italic;
+            }
+            .gs-slot-empty .gs-row-score {
+                color: #333;
+                font-weight: normal;
+            }
+            .gs-slot-empty .gs-medal { color: #333; }
+            .gs-stats {
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid rgba(255,255,255,0.06);
+                font-size: 10px;
+                color: #555;
+                display: flex;
+                justify-content: space-between;
+            }
+            .gs-badge-bar {
+                text-align: center;
+                padding: 6px 0 2px;
             }
             .gs-badge {
                 display: inline-block;
-                padding: 3px 10px;
-                border-radius: 4px;
-                font-size: 12px;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 10px;
                 font-weight: bold;
                 letter-spacing: 1px;
-                margin-bottom: 14px;
-                animation: gs-pulse 1s ease-in-out 3;
+                animation: gs-badge-pulse 0.8s ease-in-out 3;
             }
             .gs-badge-gold {
                 background: linear-gradient(135deg, #FFD700, #FFA500);
@@ -91,193 +162,127 @@ const GameScoreboard = (function () {
                 background: linear-gradient(135deg, #C0C0C0, #8a8a8a);
                 color: #1a1a1a;
             }
-            @keyframes gs-pulse {
+            @keyframes gs-badge-pulse {
                 0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.05); }
-            }
-            .gs-divider {
-                border: none;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                margin: 12px 0;
-            }
-            .gs-lb-title {
-                font-size: 11px;
-                color: #888;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                margin-bottom: 8px;
-            }
-            .gs-lb-row {
-                display: flex;
-                align-items: center;
-                padding: 6px 0;
-                font-size: 14px;
-            }
-            .gs-lb-rank {
-                width: 28px;
-                font-weight: bold;
-                flex-shrink: 0;
-            }
-            .gs-lb-rank-1 { color: #FFD700; }
-            .gs-lb-rank-2 { color: #C0C0C0; }
-            .gs-lb-rank-3 { color: #CD7F32; }
-            .gs-lb-score {
-                flex: 1;
-                text-align: right;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-            }
-            .gs-lb-date {
-                width: 80px;
-                text-align: right;
-                font-size: 11px;
-                color: #666;
-                flex-shrink: 0;
-                margin-left: 8px;
-            }
-            .gs-lb-empty {
-                color: #555;
-                font-style: italic;
-                font-size: 12px;
-                padding: 8px 0;
-            }
-            .gs-lb-you {
-                background: rgba(255, 215, 0, 0.08);
-                border-radius: 4px;
-                margin: 0 -6px;
-                padding: 6px 6px;
-            }
-            .gs-dismiss-bar {
-                height: 3px;
-                background: rgba(255, 215, 0, 0.4);
-                border-radius: 2px;
-                margin-top: 14px;
-                animation: gs-shrink 8s linear forwards;
-            }
-            @keyframes gs-shrink {
-                from { width: 100%; }
-                to { width: 0%; }
+                50% { transform: scale(1.08); }
             }
         `;
         document.head.appendChild(style);
     }
 
-    // ── DOM ─────────────────────────────────────────────────────────
+    // ── Build widget ───────────────────────────────────────────────
 
-    function _createPanel() {
-        if (_panel) _panel.remove();
+    function _createWidget() {
+        if (_widget) _widget.remove();
 
-        const div = document.createElement('div');
-        div.className = 'gs-panel';
-        div.innerHTML = `
-            <button class="gs-close" title="Close">&times;</button>
-            <div class="gs-title"></div>
-            <div class="gs-score-line"></div>
-            <div class="gs-result"></div>
-            <div class="gs-badge-area"></div>
-            <hr class="gs-divider">
-            <div class="gs-lb-title">LEADERBOARD</div>
-            <div class="gs-lb-list"></div>
-            <div class="gs-dismiss-bar"></div>
-        `;
+        var div = document.createElement('div');
+        div.className = 'gs-widget';
+        div.innerHTML =
+            '<div class="gs-header">' +
+                '<span class="gs-header-title">HIGH SCORES</span>' +
+                '<span class="gs-toggle">&#9650;</span>' +
+            '</div>' +
+            '<div class="gs-body">' +
+                '<div class="gs-badge-bar"></div>' +
+                '<div class="gs-list"></div>' +
+                '<div class="gs-stats"></div>' +
+            '</div>';
 
-        div.addEventListener('click', _hide);
-        div.querySelector('.gs-close').addEventListener('click', function (e) {
-            e.stopPropagation();
-            _hide();
+        div.querySelector('.gs-header').addEventListener('click', function () {
+            _collapsed = !_collapsed;
+            div.classList.toggle('gs-collapsed', _collapsed);
         });
 
         document.body.appendChild(div);
-        _panel = div;
-        return div;
+        _widget = div;
+        _populateScores();
     }
 
-    // ── Show / Hide ────────────────────────────────────────────────
+    // ── Populate / refresh scores ──────────────────────────────────
 
-    function _show(detail) {
-        // Only show for score-based games
-        if (detail.score == null) return;
+    function _populateScores(highlightScore) {
+        if (!_widget || !_gameId) return;
+        if (typeof GameTracker === 'undefined') return;
 
-        _injectCSS();
-        const panel = _createPanel();
+        var topScores = GameTracker.getTopScores(_gameId);
+        var stats = GameTracker.getGameStats(_gameId);
+        var listEl = _widget.querySelector('.gs-list');
+        var statsEl = _widget.querySelector('.gs-stats');
+        var medals = ['#1', '#2', '#3'];
+        var html = '';
 
-        // Game title
-        const reg = (typeof GameTracker !== 'undefined') ? GameTracker.GAME_REGISTRY : {};
-        const meta = reg[detail.gameId] || {};
-        panel.querySelector('.gs-title').textContent =
-            (meta.icon || '') + ' ' + (meta.title || detail.gameId);
+        for (var i = 0; i < 3; i++) {
+            var entry = topScores[i];
+            var isEmpty = !entry;
+            var isHighlight = !isEmpty && highlightScore != null
+                && entry.score === highlightScore
+                && Math.abs(entry.date - Date.now()) < 5000;
+            var cls = 'gs-row gs-rank-' + (i + 1);
+            if (isEmpty) cls += ' gs-slot-empty';
+            if (isHighlight) cls += ' gs-highlight';
 
-        // Current score
-        panel.querySelector('.gs-score-line').textContent =
-            _formatScore(detail.score);
-
-        // Result text
-        const resultText = detail.result === 'success' ? 'COMPLETED' :
-            detail.result === 'failure' ? 'GAME OVER' :
-            detail.result ? detail.result.toUpperCase() : '';
-        panel.querySelector('.gs-result').textContent = resultText;
-
-        // Top 3 leaderboard
-        const topScores = (typeof GameTracker !== 'undefined')
-            ? GameTracker.getTopScores(detail.gameId)
-            : [];
-
-        const listEl = panel.querySelector('.gs-lb-list');
-        if (topScores.length === 0) {
-            listEl.innerHTML = '<div class="gs-lb-empty">No scores yet</div>';
-        } else {
-            listEl.innerHTML = topScores.map(function (entry, i) {
-                const rank = i + 1;
-                const isYou = entry.score === detail.score
-                    && Math.abs(entry.date - Date.now()) < 5000;
-                const medals = ['', '#1', '#2', '#3'];
-                return `
-                    <div class="gs-lb-row ${isYou ? 'gs-lb-you' : ''}">
-                        <span class="gs-lb-rank gs-lb-rank-${rank}">${medals[rank]}</span>
-                        <span class="gs-lb-score">${_formatScore(entry.score)}</span>
-                        <span class="gs-lb-date">${_formatDate(entry.date)}</span>
-                    </div>
-                `;
-            }).join('');
+            html += '<div class="' + cls + '">' +
+                '<span class="gs-medal">' + medals[i] + '</span>' +
+                '<span class="gs-row-score">' + (isEmpty ? '---' : _formatScore(entry.score)) + '</span>' +
+                '<span class="gs-row-date">' + (isEmpty ? '' : _formatDate(entry.date)) + '</span>' +
+            '</div>';
         }
 
-        // Slide in
-        requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-                panel.classList.add('gs-visible');
-            });
-        });
+        listEl.innerHTML = html;
 
-        // Auto-dismiss after 8s
-        clearTimeout(_dismissTimer);
-        _dismissTimer = setTimeout(_hide, 8000);
+        if (stats && stats.plays > 0) {
+            statsEl.innerHTML =
+                '<span>PLAYS: ' + stats.plays + '</span>' +
+                '<span>WINS: ' + stats.wins + '</span>';
+        } else {
+            statsEl.innerHTML = '<span style="margin:0 auto">NO PLAYS YET</span>';
+        }
     }
 
-    function _showHighScoreBadge(detail) {
-        if (!_panel) return;
+    // ── Flash + badge on new score ─────────────────────────────────
 
-        const badgeArea = _panel.querySelector('.gs-badge-area');
-        if (!badgeArea) return;
+    function _onGameRecorded(e) {
+        var detail = e.detail;
+        if (!_widget || detail.score == null) return;
 
-        const badge = document.createElement('div');
-        if (detail.rank === 1) {
+        // Expand if collapsed
+        if (_collapsed) {
+            _collapsed = false;
+            _widget.classList.remove('gs-collapsed');
+        }
+
+        _populateScores(detail.score);
+
+        // Flash the widget border
+        _widget.classList.add('gs-flash');
+        clearTimeout(_flashTimer);
+        _flashTimer = setTimeout(function () {
+            if (_widget) _widget.classList.remove('gs-flash');
+        }, 3000);
+    }
+
+    function _onHighScore(e) {
+        if (!_widget) return;
+        var badgeBar = _widget.querySelector('.gs-badge-bar');
+        if (!badgeBar) return;
+
+        var badge = document.createElement('span');
+        if (e.detail.rank === 1) {
             badge.className = 'gs-badge gs-badge-gold';
             badge.textContent = 'NEW HIGH SCORE!';
-        } else if (detail.rank <= 3) {
+        } else if (e.detail.rank <= 3) {
             badge.className = 'gs-badge gs-badge-top3';
             badge.textContent = 'NEW TOP 3!';
+        } else {
+            return;
         }
-        badgeArea.appendChild(badge);
-    }
+        badgeBar.innerHTML = '';
+        badgeBar.appendChild(badge);
 
-    function _hide() {
-        clearTimeout(_dismissTimer);
-        if (_panel) {
-            _panel.classList.remove('gs-visible');
-            var p = _panel;
-            setTimeout(function () { p.remove(); }, 500);
-            _panel = null;
-        }
+        // Clear badge after 6s
+        setTimeout(function () {
+            if (badgeBar) badgeBar.innerHTML = '';
+        }, 6000);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
@@ -290,20 +295,20 @@ const GameScoreboard = (function () {
     function _formatDate(ts) {
         if (!ts) return '';
         var d = new Date(ts);
-        var m = d.getMonth() + 1;
-        var day = d.getDate();
-        return m + '/' + day;
+        return (d.getMonth() + 1) + '/' + d.getDate();
     }
 
     // ── Init ────────────────────────────────────────────────────────
 
     function init() {
-        window.addEventListener('hexworth:gameRecorded', function (e) {
-            _show(e.detail);
-        });
-        window.addEventListener('hexworth:newHighScore', function (e) {
-            _showHighScoreBadge(e.detail);
-        });
+        _gameId = _detectGameId();
+        if (!_gameId) return; // Not a tracked game page
+
+        _injectCSS();
+        _createWidget();
+
+        window.addEventListener('hexworth:gameRecorded', _onGameRecorded);
+        window.addEventListener('hexworth:newHighScore', _onHighScore);
     }
 
     // Auto-init on load

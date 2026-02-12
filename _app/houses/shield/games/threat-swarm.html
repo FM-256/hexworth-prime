@@ -339,6 +339,9 @@ function startGame() {
     divers = [];
     capturedAllies = [];
     exhaustParticles = [];
+    diveTimer = 0;
+    shootCooldown = 0;
+    player.hitRecently = 0;
     spawnStage();
     sfxStage();
 }
@@ -612,14 +615,16 @@ function update() {
     }
 
     // Collisions: enemy bullets / divers vs player
-    if (!demoMode) {
+    if (!demoMode && player.hitRecently <= 0) {
         enemyBullets.forEach(b => {
+            if (player.hitRecently > 0 || lives <= 0) return;
             if (Math.abs(b.x - player.x) < 18 && Math.abs(b.y - player.y) < 18) {
                 b.y = H + 100;
                 playerHit();
             }
         });
         enemies.forEach(e => {
+            if (player.hitRecently > 0 || lives <= 0) return;
             if (!e.alive || e.state !== 'diving') return;
             if (Math.abs((e.x + e.w/2) - player.x) < 25 && Math.abs((e.y + e.h/2) - player.y) < 25) {
                 e.alive = false;
@@ -630,13 +635,18 @@ function update() {
     }
 
     function playerHit() {
+        if (lives <= 0 || player.hitRecently > 0) return;
         lives--;
         player.hitRecently = 60;
         spawnParticles(player.x, player.y, '#a855f7', 20);
         sfxDeath();
         // Lose wingmen
         if (capturedAllies.length > 0) capturedAllies.pop();
-        if (lives <= 0) { gameRunning = false; gameOver = true; }
+        if (lives <= 0) {
+            gameRunning = false;
+            gameOver = true;
+            if (typeof GameTracker !== 'undefined') GameTracker.record('threatswarm', { score: score, result: 'failure' });
+        }
     }
 
     // Particles with gravity
@@ -665,7 +675,7 @@ function update() {
     // UI
     document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
     document.getElementById('stageDisplay').textContent = `STAGE ${stage}`;
-    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, 3 - lives));
     document.getElementById('loreWave').textContent = `STAGE: ${stage}`;
     document.getElementById('loreScore').textContent = `THREATS NEUTRALIZED: ${score}`;
     document.getElementById('loreCaptured').textContent = `INTEL CAPTURED: ${captured}`;
@@ -1250,5 +1260,7 @@ function gameLoop() {
 spawnStage();
 gameLoop();
 </script>
+<script src="../../../components/GameTracker.js"></script>
+<script src="../../../components/GameScoreboard.js"></script>
 </body>
 </html>

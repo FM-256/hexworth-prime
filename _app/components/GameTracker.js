@@ -18,6 +18,7 @@ const GameTracker = (function () {
     const STORAGE_KEY = 'hexworth_game_tracker';
 
     const GAME_REGISTRY = {
+        // "Don't..." survival games
         domain:  { title: "Don't Lose Your Domain",   house: 'cloud',  icon: '☁️' },
         brick:   { title: "Don't Brick the PC",       house: 'forge',  icon: '🔨' },
         phished: { title: "Don't Get Phished",        house: 'shield', icon: '🛡️' },
@@ -29,6 +30,54 @@ const GameTracker = (function () {
         bill:    { title: "Don't Check the Bill",     house: 'cloud',  icon: '☁️' },
         printer: { title: "Don't Anger the Printer",  house: 'forge',  icon: '🔨' },
         sqli:    { title: "SQL Injection Defense",    house: 'shield', icon: '🛡️' },
+        // Score-based games
+        adpath:       { title: "AD Attack Path",       house: 'cloud',  icon: '☁️' },
+        firewall:     { title: "Firewall Builder",     house: 'key',    icon: '🔑' },
+        iam:          { title: "IAM Debugger",          house: 'cloud',  icon: '☁️' },
+        cron:         { title: "Cron Builder",          house: 'script', icon: '☠️' },
+        timeline:     { title: "Incident Timeline",    house: 'eye',    icon: '👁️' },
+        patch:        { title: "Patch Tuesday",         house: 'script', icon: '☠️' },
+        'threat-modeler': { title: "STRIDE Threat Modeler", house: 'eye', icon: '👁️' },
+        backup:       { title: "Backup or Bust",       house: 'forge',  icon: '🔨' },
+        memforensics: { title: "Memory Forensics",     house: 'eye',    icon: '👁️' },
+        docker:       { title: "Docker Escape",        house: 'code',   icon: '💻' },
+        cloudarch:    { title: "Cloud Architect",       house: 'cloud',  icon: '☁️' },
+        k8s:          { title: "Kubernetes Rescue",     house: 'code',   icon: '💻' },
+        api:          { title: "API Interceptor",       house: 'web',    icon: '🕸️' },
+        netarchitect: { title: "Network Architect",     house: 'web',    icon: '🕸️' },
+        wireless:     { title: "Wireless Warzone",      house: 'web',    icon: '🕸️' },
+        packetsniffer: { title: "Packet Sniffer",       house: 'web',    icon: '🕸️' },
+        packetinvaders: { title: "Packet Invaders",    house: 'web',    icon: '🕸️' },
+        malware:      { title: "Malware Zoo",           house: 'shield', icon: '🛡️' },
+        raid:         { title: "RAID Calculator",       house: 'forge',  icon: '🔨' },
+        // Arcade games
+        threatswarm:  { title: "Threat Swarm",          house: 'shield', icon: '🛡️' },
+        cryptopong:   { title: "Crypto Pong",           house: 'key',    icon: '🔑' },
+        buildbreaker: { title: "Build Breaker",         house: 'code',   icon: '💻' },
+        clouddestroyer: { title: "Cloud Destroyer",     house: 'cloud',  icon: '☁️' },
+        cloudhop:     { title: "Cloud Hop",             house: 'cloud',  icon: '☁️' },
+        threatrunner: { title: "Threat Runner",         house: 'shield', icon: '🛡️' },
+        packetrun:    { title: "Packet Run",            house: 'web',    icon: '🕸️' },
+        pipesnake:    { title: "Pipe Snake",            house: 'script', icon: '☠️' },
+        logcentipede: { title: "Log Centipede",         house: 'eye',    icon: '👁️' },
+        bitdash:      { title: "Bit Dash",              house: 'forge',  icon: '🔨' },
+        chipmatch:    { title: "Chip Match",            house: 'forge',  icon: '🔨' },
+        rackstack:    { title: "Rack Stack",            house: 'forge',  icon: '🔨' },
+        cipherbubbles: { title: "Cipher Bubbles",       house: 'key',    icon: '🔑' },
+        // Review/quiz games
+        regexrunner:  { title: "Regex Runner",          house: 'script', icon: '☠️' },
+        permission:   { title: "Permission Puzzle",     house: 'script', icon: '☠️' },
+        terminalv:    { title: "Terminal Velocity",     house: 'script', icon: '☠️' },
+        dnsrace:      { title: "DNS Resolver Race",     house: 'web',    icon: '🕸️' },
+        subnets:      { title: "Subnet Siege",          house: 'web',    icon: '🕸️' },
+        protostack:   { title: "Protocol Stack",        house: 'web',    icon: '🕸️' },
+        binaryblitz:  { title: "Binary Blitz",          house: 'forge',  icon: '🔨' },
+        hashcracker:  { title: "Hash Cracker",          house: 'key',    icon: '🔑' },
+        logdetective: { title: "Log Detective",         house: 'eye',    icon: '👁️' },
+        pipeline:     { title: "Pipeline Panic",        house: 'code',   icon: '💻' },
+        gitbisect:    { title: "Git Bisect",            house: 'code',   icon: '💻' },
+        ciphercracker: { title: "Cipher Cracker",       house: 'key',    icon: '🔑' },
+        fsck:         { title: "FSCK",                  house: 'forge',  icon: '🔨' },
     };
 
     // ── persistence ──────────────────────────────────────────────
@@ -116,9 +165,29 @@ const GameTracker = (function () {
             time: details.timeElapsed,
             commands: details.commandsUsed,
             achievements: details.achievementsEarned,
+            score: details.score != null ? details.score : undefined,
             date: now
         });
         if (entry.history.length > 10) entry.history.shift();
+
+        // ── Top 3 high scores ──────────────────────────────────────
+        let isNewHighScore = false;
+        let highScoreRank = null;
+
+        if (details.score != null) {
+            if (!Array.isArray(entry.topScores)) entry.topScores = [];
+
+            entry.topScores.push({ score: details.score, date: now });
+            entry.topScores.sort((a, b) => b.score - a.score);
+            entry.topScores = entry.topScores.slice(0, 3);
+
+            // Determine rank (1-based) of the score we just pushed
+            const rank = entry.topScores.findIndex(s => s.score === details.score && s.date === now);
+            if (rank !== -1) {
+                highScoreRank = rank + 1;
+                isNewHighScore = highScoreRank === 1;
+            }
+        }
 
         // Update aggregate stats
         data._aggregate = _computeAggregate(data);
@@ -129,6 +198,13 @@ const GameTracker = (function () {
         window.dispatchEvent(new CustomEvent('hexworth:gameRecorded', {
             detail: { gameId, ...details, aggregate: data._aggregate }
         }));
+
+        // Fire high score event when a new score enters top 3
+        if (highScoreRank != null) {
+            window.dispatchEvent(new CustomEvent('hexworth:newHighScore', {
+                detail: { gameId, score: details.score, rank: highScoreRank }
+            }));
+        }
     }
 
     /**
@@ -207,6 +283,28 @@ const GameTracker = (function () {
     }
 
     /**
+     * Get top 3 high scores for a game.
+     * @param {string} gameId
+     * @returns {Array<{score: number, date: number}>}
+     */
+    function getTopScores(gameId) {
+        const data = _load();
+        return (data[gameId] && Array.isArray(data[gameId].topScores))
+            ? data[gameId].topScores
+            : [];
+    }
+
+    /**
+     * Get the highest score for a game.
+     * @param {string} gameId
+     * @returns {number|null}
+     */
+    function getHighScore(gameId) {
+        const scores = getTopScores(gameId);
+        return scores.length > 0 ? scores[0].score : null;
+    }
+
+    /**
      * Clear all tracking data.
      */
     function reset() {
@@ -277,6 +375,8 @@ const GameTracker = (function () {
         getGamesWon,
         getGamesUnplayed,
         hasWonAll,
+        getTopScores,
+        getHighScore,
         reset,
         formatTime,
         GAME_REGISTRY

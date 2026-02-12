@@ -333,8 +333,15 @@
             </div>
 
             <p style="color: #64748b; font-size: 10px; text-align: center; margin-top: 6px;">Touch: Tap=Jump, Swipe=Move</p>
+
+            <div class="section-label">Scroll Mode</div>
+            <div style="display: flex; justify-content: center; gap: 6px; margin: 4px 0 8px;">
+                <button id="modeHoriz" class="btn" style="padding: 6px 14px; font-size: 11px; margin: 0;" onclick="setScrollMode('horizontal')">&#8594; LATERAL</button>
+                <button id="modeVert" class="btn" style="padding: 6px 14px; font-size: 11px; margin: 0; background: #1e293b; color: #64748b;" onclick="setScrollMode('vertical')">&#8593; VERTICAL</button>
+            </div>
+
             <div style="text-align: center;">
-                <button class="btn" style="margin-top: 10px; padding: 10px 24px; font-size: 16px;" onclick="startGame()">DEPLOY</button>
+                <button class="btn" style="margin-top: 6px; padding: 10px 24px; font-size: 16px;" onclick="startGame()">DEPLOY</button>
             </div>
         </div>
 
@@ -376,6 +383,24 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
+
+        // Scroll Mode: 'horizontal' (lateral) or 'vertical' (upward)
+        let scrollMode = 'horizontal';
+
+        function setScrollMode(mode) {
+            scrollMode = mode;
+            const hBtn = document.getElementById('modeHoriz');
+            const vBtn = document.getElementById('modeVert');
+            if (mode === 'horizontal') {
+                hBtn.style.background = '#06b6d4'; hBtn.style.color = '#0a0a0a';
+                vBtn.style.background = '#1e293b'; vBtn.style.color = '#64748b';
+            } else {
+                vBtn.style.background = '#06b6d4'; vBtn.style.color = '#0a0a0a';
+                hBtn.style.background = '#1e293b'; hBtn.style.color = '#64748b';
+            }
+            // Restart demo in new mode
+            if (demoMode) startDemo();
+        }
 
         // Game State
         let gameRunning = false;
@@ -1026,7 +1051,8 @@
             }
 
             update() {
-                this.x -= speed;
+                if (scrollMode === 'vertical') this.y -= speed;
+                else this.x -= speed;
 
                 if (this.crumbling) {
                     this.crumbleTimer++;
@@ -1129,7 +1155,8 @@
 
             update() {
                 this.age++;
-                this.x -= this.speed;
+                if (scrollMode === 'vertical') this.y -= this.speed;
+                else this.x -= this.speed;
 
                 if (this.type === 'cost') {
                     // Cost spike chases player (slow)
@@ -1144,9 +1171,12 @@
 
                 if (this.type === 'billing') {
                     // Zigzag bounce across screen
-                    this.y += this.zigDir * 2.5;
-                    if (this.y < 60 || this.y > canvas.height - 60) {
-                        this.zigDir *= -1;
+                    if (scrollMode === 'vertical') {
+                        this.x += this.zigDir * 2.5;
+                        if (this.x < 60 || this.x > canvas.width - 60) this.zigDir *= -1;
+                    } else {
+                        this.y += this.zigDir * 2.5;
+                        if (this.y < 60 || this.y > canvas.height - 60) this.zigDir *= -1;
                     }
                 }
 
@@ -1167,8 +1197,9 @@
                 }
 
                 if (this.type === 'outage') {
-                    // Slow drift across screen
-                    this.y += Math.sin(this.age * 0.03) * 0.8;
+                    // Slow drift across screen (perpendicular to scroll)
+                    if (scrollMode === 'vertical') this.x += Math.sin(this.age * 0.03) * 0.8;
+                    else this.y += Math.sin(this.age * 0.03) * 0.8;
                 }
 
                 if (this.type === 'ddos') {
@@ -1342,7 +1373,8 @@
             }
 
             update() {
-                this.x -= speed;
+                if (scrollMode === 'vertical') this.y -= speed;
+                else this.x -= speed;
                 this.bobOffset = Math.sin(gameFrame * 0.1) * 3;
             }
 
@@ -1535,8 +1567,8 @@
                 ctx.fillStyle = '#ffffff';
                 const starCount = demoMode ? 10 : Math.min(50, 20 + (currentLevel - 3) * 10);
                 for (let i = 0; i < starCount; i++) {
-                    const x = (i * 137 + gameFrame * 0.5) % canvas.width;
-                    const y = (i * 97) % canvas.height;
+                    const x = scrollMode === 'vertical' ? (i * 137) % canvas.width : (i * 137 + gameFrame * 0.5) % canvas.width;
+                    const y = scrollMode === 'vertical' ? (i * 97 + gameFrame * 0.5) % canvas.height : (i * 97) % canvas.height;
                     ctx.globalAlpha = 0.3 + Math.random() * 0.4;
                     ctx.fillRect(x, y, 2, 2);
                 }
@@ -1548,15 +1580,14 @@
             ctx.fillStyle = `${lvl.accent}44`;
             const icons = ['S3', 'λ', 'VM', 'DB', 'K8s', 'IAM', 'VPC', 'CDN'];
             for (let i = 0; i < 5; i++) {
-                const x = (i * 200 + gameFrame * 0.3) % canvas.width;
-                const y = 50 + Math.sin(gameFrame * 0.05 + i) * 30;
+                const x = scrollMode === 'vertical' ? 50 + Math.sin(gameFrame * 0.05 + i) * 30 + i * 140 : (i * 200 + gameFrame * 0.3) % canvas.width;
+                const y = scrollMode === 'vertical' ? (i * 150 + gameFrame * 0.3) % canvas.height : 50 + Math.sin(gameFrame * 0.05 + i) * 30;
                 ctx.fillText(icons[(i + currentLevel) % icons.length], x, y);
             }
         }
 
-        // Get reachable Y for next platform based on last platform
+        // Get reachable Y for next platform (horizontal mode)
         function getReachableY() {
-            // Find the rightmost non-crumbling platform
             let lastY = 350;
             let bestX = -1;
             for (const p of platforms) {
@@ -1565,16 +1596,29 @@
                     lastY = p.y;
                 }
             }
-
-            // Jump physics: v0=-12, gravity=0.6
-            // Max jump height: ~110px up
-            // Can fall further: ~180px down (gravity helps)
             const maxUp = 100;
             const maxDown = 170;
-
             const minY = Math.max(80, lastY - maxUp);
             const maxY = Math.min(canvas.height - 60, lastY + maxDown);
             return minY + Math.random() * (maxY - minY);
+        }
+
+        // Get reachable X for next platform (vertical mode)
+        function getReachableX() {
+            const lvl = getCurrentLevel();
+            let lastX = canvas.width / 2;
+            let bestY = -1;
+            for (const p of platforms) {
+                if (!p.crumbling && p.y > bestY && p.y < canvas.height) {
+                    bestY = p.y;
+                    lastX = p.x + p.width / 2;
+                }
+            }
+            const maxReach = 220;
+            const pw = lvl.platformWidth;
+            const minX = Math.max(10, lastX - maxReach);
+            const maxX = Math.min(canvas.width - pw - 10, lastX + maxReach);
+            return minX + Math.random() * Math.max(50, maxX - minX);
         }
 
         // Spawn Platform
@@ -1590,8 +1634,11 @@
 
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
             const width = lvl.platformWidth + Math.floor(Math.random() * 20) - 10;
-            const y = getReachableY();
-            platforms.push(new Platform(canvas.width, y, width, provider));
+            if (scrollMode === 'vertical') {
+                platforms.push(new Platform(getReachableX(), canvas.height, width, provider));
+            } else {
+                platforms.push(new Platform(canvas.width, getReachableY(), width, provider));
+            }
         }
 
         // Spawn Flag Platform (checkpoint to next level)
@@ -1599,8 +1646,11 @@
             const lvl = getCurrentLevel();
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
             const width = lvl.platformWidth + 40;
-            const y = getReachableY();
-            platforms.push(new Platform(canvas.width, y, width, provider, true));
+            if (scrollMode === 'vertical') {
+                platforms.push(new Platform(getReachableX(), canvas.height, width, provider, true));
+            } else {
+                platforms.push(new Platform(canvas.width, getReachableY(), width, provider, true));
+            }
             flagSpawned = true;
         }
 
@@ -1650,21 +1700,31 @@
 
             // Some types spawn from screen edge, not on platforms
             if (type === 'billing' || type === 'outage') {
-                const y = 80 + Math.random() * (canvas.height - 200);
-                obstacles.push(new Obstacle(canvas.width + 20, y, type));
+                if (scrollMode === 'vertical') {
+                    obstacles.push(new Obstacle(80 + Math.random() * (canvas.width - 200), canvas.height + 20, type));
+                } else {
+                    obstacles.push(new Obstacle(canvas.width + 20, 80 + Math.random() * (canvas.height - 200), type));
+                }
                 return;
             }
 
             if (type === 'ddos') {
-                // Spawns as a spread cluster from the right
-                obstacles.push(new Obstacle(canvas.width + 20, 100 + Math.random() * 300, type));
+                if (scrollMode === 'vertical') {
+                    obstacles.push(new Obstacle(100 + Math.random() * (canvas.width - 200), canvas.height + 20, type));
+                } else {
+                    obstacles.push(new Obstacle(canvas.width + 20, 100 + Math.random() * 300, type));
+                }
                 return;
             }
 
             if (type === 'cryptominer') {
-                // Spawns off-screen, rushes toward player
-                const side = Math.random() > 0.5 ? canvas.width + 20 : -30;
-                obstacles.push(new Obstacle(side, 100 + Math.random() * 300, type));
+                if (scrollMode === 'vertical') {
+                    const side = Math.random() > 0.5 ? canvas.height + 20 : -30;
+                    obstacles.push(new Obstacle(100 + Math.random() * (canvas.width - 200), side, type));
+                } else {
+                    const side = Math.random() > 0.5 ? canvas.width + 20 : -30;
+                    obstacles.push(new Obstacle(side, 100 + Math.random() * 300, type));
+                }
                 return;
             }
 
@@ -1693,20 +1753,28 @@
 
         // Demo AI - Automated player for background demo
         function demoAI() {
-            // Find best platform to target
             let targetPlatform = null;
             let bestScore = -Infinity;
 
-            platforms.forEach(p => {
-                if (p.crumbling) return;
-                const ahead = p.x + p.width / 2 - player.x;
-                if (ahead < -30) return;
-                const s = -Math.abs(ahead - 150) - Math.abs(p.y - player.y) * 0.5;
-                if (s > bestScore) {
-                    bestScore = s;
-                    targetPlatform = p;
-                }
-            });
+            if (scrollMode === 'vertical') {
+                // Vertical: target platforms below (higher Y) that are reachable
+                platforms.forEach(p => {
+                    if (p.crumbling) return;
+                    const below = p.y - player.y;
+                    if (below < -30) return;
+                    const s = -Math.abs(below - 100) - Math.abs(p.x + p.width / 2 - player.x - player.width / 2) * 0.5;
+                    if (s > bestScore) { bestScore = s; targetPlatform = p; }
+                });
+            } else {
+                // Horizontal: target platforms ahead (higher X)
+                platforms.forEach(p => {
+                    if (p.crumbling) return;
+                    const ahead = p.x + p.width / 2 - player.x;
+                    if (ahead < -30) return;
+                    const s = -Math.abs(ahead - 150) - Math.abs(p.y - player.y) * 0.5;
+                    if (s > bestScore) { bestScore = s; targetPlatform = p; }
+                });
+            }
 
             // Horizontal movement toward target
             keys.left = false;
@@ -1715,7 +1783,7 @@
                 const targetX = targetPlatform.x + targetPlatform.width / 2;
                 if (targetX > player.x + player.width + 5) keys.right = true;
                 else if (targetX < player.x - 5) keys.left = true;
-            } else {
+            } else if (scrollMode !== 'vertical') {
                 keys.right = true;
             }
 
@@ -1730,15 +1798,24 @@
                     Math.abs(player.y + player.height - p.y) < 8
                 );
 
-                if (!current || current.x < 120 || current.crumbling) {
-                    keys.space = true;
-                    keys.up = true;
-                } else if (targetPlatform && targetPlatform.y < player.y - 20) {
-                    keys.space = true;
-                    keys.up = true;
-                } else if (Math.random() < 0.015) {
-                    keys.space = true;
-                    keys.up = true;
+                if (scrollMode === 'vertical') {
+                    // Jump when platform nears top of screen
+                    if (!current || current.y < 120 || current.crumbling) {
+                        keys.space = true; keys.up = true;
+                    } else if (targetPlatform && targetPlatform !== current) {
+                        keys.space = true; keys.up = true;
+                    } else if (Math.random() < 0.015) {
+                        keys.space = true; keys.up = true;
+                    }
+                } else {
+                    // Jump when platform nears left edge
+                    if (!current || current.x < 120 || current.crumbling) {
+                        keys.space = true; keys.up = true;
+                    } else if (targetPlatform && targetPlatform.y < player.y - 20) {
+                        keys.space = true; keys.up = true;
+                    } else if (Math.random() < 0.015) {
+                        keys.space = true; keys.up = true;
+                    }
                 }
             }
         }
@@ -2012,7 +2089,9 @@
 
             // Check for missed flag (scrolled off screen)
             if (flagSpawned) {
-                const flagExists = platforms.some(p => p.isFlag && p.x + p.width > 0);
+                const flagExists = scrollMode === 'vertical'
+                    ? platforms.some(p => p.isFlag && p.y + p.height > 0)
+                    : platforms.some(p => p.isFlag && p.x + p.width > 0);
                 if (!flagExists) {
                     // Flag missed — need 10 more hops for next one
                     flagSpawned = false;
@@ -2024,7 +2103,7 @@
             if (player.y > canvas.height) {
                 if (demoMode) {
                     player.y = 100;
-                    player.x = 200;
+                    player.x = scrollMode === 'vertical' ? canvas.width / 2 - player.width / 2 : 200;
                     player.velocityY = 0;
                     player.velocityX = 0;
                 } else if (countdownActive || shieldActive || shieldFadeTimer > 0) {
@@ -2040,7 +2119,7 @@
 
             // Update platforms
             platforms.forEach(platform => platform.update());
-            platforms = platforms.filter(p => p.x + p.width > 0 && p.opacity > 0);
+            platforms = platforms.filter(p => (scrollMode === 'vertical' ? p.y + p.height > 0 : p.x + p.width > 0) && p.opacity > 0);
 
             // Spawn platforms
             platformSpawnTimer++;
@@ -2054,7 +2133,9 @@
             // Obstacles & powerups (only during actual play)
             if (!demoMode && !countdownActive && gameRunning) {
                 obstacles.forEach(obstacle => obstacle.update());
-                obstacles = obstacles.filter(o => o.x + o.width > -60 && o.x < canvas.width + 60);
+                obstacles = obstacles.filter(o => scrollMode === 'vertical'
+                    ? (o.y + o.height > -60 && o.y < canvas.height + 60)
+                    : (o.x + o.width > -60 && o.x < canvas.width + 60));
 
                 if (Math.random() < lvl.obstacleChance && gameFrame > 120) {
                     spawnObstacle();
@@ -2095,7 +2176,7 @@
                 });
 
                 powerups.forEach(powerup => powerup.update());
-                powerups = powerups.filter(p => p.x + p.width > 0);
+                powerups = powerups.filter(p => scrollMode === 'vertical' ? p.y + p.height > 0 : p.x + p.width > 0);
 
                 powerupTimer++;
                 if (powerupTimer > 600 && Math.random() < 0.02) {
@@ -2153,16 +2234,26 @@
                 gameOver();
             } else {
                 // Find a safe landing platform (prefer center-ish, non-crumbling)
-                const safePlatforms = platforms.filter(p => !p.crumbling && !p.isFlag && p.x > 50 && p.x < canvas.width - 100);
-                let target = safePlatforms.length > 0
-                    ? safePlatforms.reduce((best, p) => Math.abs(p.x - canvas.width / 3) < Math.abs(best.x - canvas.width / 3) ? p : best)
-                    : null;
+                let safePlatforms, target;
+                if (scrollMode === 'vertical') {
+                    safePlatforms = platforms.filter(p => !p.crumbling && !p.isFlag && p.y > canvas.height / 4 && p.y < canvas.height * 3 / 4);
+                    target = safePlatforms.length > 0
+                        ? safePlatforms.reduce((best, p) => Math.abs(p.y - canvas.height / 2) < Math.abs(best.y - canvas.height / 2) ? p : best)
+                        : null;
+                } else {
+                    safePlatforms = platforms.filter(p => !p.crumbling && !p.isFlag && p.x > 50 && p.x < canvas.width - 100);
+                    target = safePlatforms.length > 0
+                        ? safePlatforms.reduce((best, p) => Math.abs(p.x - canvas.width / 3) < Math.abs(best.x - canvas.width / 3) ? p : best)
+                        : null;
+                }
 
                 // If no safe platform, spawn one
                 if (!target) {
                     const lvl = getCurrentLevel();
                     const provider = cloudProviders[Math.floor(Math.random() * 3)];
-                    target = new Platform(canvas.width / 3, 350, lvl.platformWidth + 30, provider);
+                    target = scrollMode === 'vertical'
+                        ? new Platform(canvas.width / 3, canvas.height / 2, lvl.platformWidth + 30, provider)
+                        : new Platform(canvas.width / 3, 350, lvl.platformWidth + 30, provider);
                     platforms.push(target);
                 }
 
@@ -2457,7 +2548,7 @@
             dashWasPressed = false;
             abilityEffects = [];
 
-            player.x = 100;
+            player.x = scrollMode === 'vertical' ? 200 : 100;
             player.y = 300;
             player.velocityY = 0;
             player.velocityX = 0;
@@ -2475,9 +2566,17 @@
             document.getElementById('highScore').textContent = highScore;
 
             // Spawn generous runway of platforms
-            for (let i = 0; i < 7; i++) {
-                const provider = cloudProviders[i % 3];
-                platforms.push(new Platform(100 + i * 120, 400, LEVELS[0].platformWidth, provider));
+            if (scrollMode === 'vertical') {
+                for (let i = 0; i < 7; i++) {
+                    const provider = cloudProviders[i % 3];
+                    const x = 80 + ((i * 97) % (canvas.width - LEVELS[0].platformWidth - 60));
+                    platforms.push(new Platform(x, 350 + i * 75, LEVELS[0].platformWidth, provider));
+                }
+            } else {
+                for (let i = 0; i < 7; i++) {
+                    const provider = cloudProviders[i % 3];
+                    platforms.push(new Platform(100 + i * 120, 400, LEVELS[0].platformWidth, provider));
+                }
             }
 
             // Begin The Prime countdown
@@ -2505,6 +2604,7 @@
             gameRunning = false;
             stopBackgroundMusic();
             playSound('gameover');
+            if (typeof GameTracker !== 'undefined') GameTracker.record('cloudhop', { score: score, result: 'failure' });
 
             const lvl = getCurrentLevel();
             document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Level ${currentLevel + 1})`;
@@ -2615,17 +2715,28 @@
             obstacles = [];
             powerups = [];
             particles = [];
-            player.x = 100;
-            player.y = 300;
-            player.velocityY = 0;
-            player.velocityX = 0;
             playerTrail = [];
 
-            // Seed initial platforms for demo
-            for (let i = 0; i < 6; i++) {
-                const provider = cloudProviders[i % 3];
-                platforms.push(new Platform(100 + i * 150, 350 + Math.sin(i) * 60, 100, provider));
+            if (scrollMode === 'vertical') {
+                player.x = 200;
+                player.y = 250;
+                // Seed platforms ascending vertically
+                for (let i = 0; i < 6; i++) {
+                    const provider = cloudProviders[i % 3];
+                    const x = 100 + Math.sin(i * 1.5) * 200 + 200;
+                    platforms.push(new Platform(x, 300 + i * 90, 100, provider));
+                }
+            } else {
+                player.x = 100;
+                player.y = 300;
+                // Seed platforms spread horizontally
+                for (let i = 0; i < 6; i++) {
+                    const provider = cloudProviders[i % 3];
+                    platforms.push(new Platform(100 + i * 150, 350 + Math.sin(i) * 60, 100, provider));
+                }
             }
+            player.velocityY = 0;
+            player.velocityX = 0;
         }
 
         // Load high score
@@ -2639,5 +2750,7 @@
 
     <script src="../../../components/FluxCapacitor.js"></script>
     <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/GameTracker.js"></script>
+    <script src="../../../components/GameScoreboard.js"></script>
 </body>
 </html>
