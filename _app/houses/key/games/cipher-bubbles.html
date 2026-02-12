@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cipher Bubbles - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f0a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #eab308; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100; transition: color 0.3s;
+        }
+        .back-link:hover { color: #fbbf24; }
+        #gameWrapper { display: flex; align-items: center; justify-content: center; gap: 0; }
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #1a0f00 0%, #0f0a1a 100%);
+            border: 2px solid #92400e;
+            border-right: none;
+            padding: 16px; font-size: 11px; color: #d97706;
+            display: flex; flex-direction: column; gap: 12px;
+            height: 500px; overflow-y: auto;
+        }
+        .lore-title { color: #eab308; font-size: 14px; font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #92400e; padding-bottom: 8px; }
+        .lore-section h3 { color: #fbbf24; font-size: 11px; margin-bottom: 4px; }
+        .lore-section p { line-height: 1.5; }
+        .lore-keys span { color: #eab308; font-weight: bold; }
+        #gameContainer { position: relative; }
+        #gameCanvas {
+            border: 3px solid #eab308; display: block;
+            background: #0f0a1a; image-rendering: pixelated;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between;
+            font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #controls { text-align: center; margin-top: 15px; color: #eab308; font-size: 13px; }
+        #muteBtn {
+            position: absolute; top: 10px; right: 10px;
+            background: #eab308; color: #0f0a1a; border: none;
+            padding: 8px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold; z-index: 10;
+        }
+        #muteBtn:hover { background: #d97706; }
+        #movesPanel {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15,10,26,0.95); border: 2px solid #eab308;
+            padding: 24px; z-index: 200; min-width: 320px; max-height: 80vh; overflow-y: auto;
+        }
+        #movesPanel h2 { color: #eab308; margin-bottom: 12px; text-align: center; }
+        .move-entry { margin-bottom: 10px; padding: 8px; border: 1px solid #92400e; }
+        .move-entry .move-name { color: #fbbf24; font-weight: bold; }
+        .move-entry .move-desc { color: #d97706; font-size: 11px; margin-top: 4px; }
+        .move-locked { opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.location.href = '../index.html'">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">CIPHER BUBBLES</div>
+            <div class="lore-section">
+                <h3>MISSION BRIEF</h3>
+                <p>Rogue ciphertexts are flooding the crypto lab. Trap them in encryption bubbles and pop them before they escape. Each wave brings stronger encryption algorithms.</p>
+            </div>
+            <div class="lore-section">
+                <h3>ENEMIES IDENTIFIED</h3>
+                <p><span style="color:#22c55e">ROT13</span> - Basic, slow, easily cracked<br>
+                <span style="color:#3b82f6">XOR</span> - Fast, erratic movement<br>
+                <span style="color:#eab308">AES</span> - Armored, takes 2 pops<br>
+                <span style="color:#a855f7">RSA</span> - Heavy, slow but tough<br>
+                <span style="color:#6b7280">MD5</span> - Deprecated, crumbles</p>
+            </div>
+            <div class="lore-section">
+                <h3>LAB STATUS</h3>
+                <p id="loreWave">WAVE: 1</p>
+                <p id="loreScore">DECRYPTED: 0</p>
+                <p id="loreCombo">COMBO: 0</p>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>← →</span> Move</p>
+                <p><span>↑</span> Jump</p>
+                <p><span>SPACE</span> Shoot bubble</p>
+                <p><span>?</span> Show ciphers</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="700" height="500"></canvas>
+            <div id="ui">
+                <span id="scoreDisplay" style="color:#eab308;">SCORE: 0</span>
+                <span id="waveDisplay">WAVE 1</span>
+                <span id="livesDisplay" style="color:#ef4444;">♥♥♥</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">← → MOVE | ↑ JUMP | SPACE SHOOT | ? CIPHER INFO</div>
+    <div id="movesPanel">
+        <h2>🔐 CIPHER DATABASE</h2>
+        <div id="movesList"></div>
+        <p style="text-align:center;color:#d97706;margin-top:12px;font-size:11px;">Press ? to close</p>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, dur, type = 'square', vol = 0.12) {
+    if (muted) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxShoot() { playSound(523, 0.1, 'sine', 0.1); }
+function sfxJump() { playSound(330, 0.08, 'square', 0.08); }
+function sfxTrap() { playSound(880, 0.12, 'sine', 0.1); }
+function sfxPop() { playSound(660, 0.15, 'triangle', 0.12); }
+function sfxEscape() { playSound(220, 0.2, 'sawtooth', 0.1); }
+function sfxWave() { playSound(523, 0.15, 'sine', 0.1); setTimeout(() => playSound(659, 0.15, 'sine', 0.1), 100); setTimeout(() => playSound(784, 0.2, 'sine', 0.1), 200); }
+function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.12); setTimeout(() => playSound(200, 0.15, 'sawtooth', 0.12), 80); setTimeout(() => playSound(100, 0.25, 'sawtooth', 0.12), 160); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+// Cipher types
+const CIPHER_TYPES = {
+    rot13: { color: '#22c55e', points: 10, hp: 1, speed: 0.8, label: 'ROT13', desc: 'Caesar cipher variant. Basic substitution.', wave: 1 },
+    xor: { color: '#3b82f6', points: 20, hp: 1, speed: 1.5, label: 'XOR', desc: 'Bitwise exclusive OR. Fast and erratic.', wave: 2 },
+    aes: { color: '#eab308', points: 30, hp: 2, speed: 1.0, label: 'AES', desc: 'Advanced Encryption Standard. Armored.', wave: 3 },
+    rsa: { color: '#a855f7', points: 50, hp: 3, speed: 0.6, label: 'RSA', desc: 'Public-key cryptography. Heavy and tough.', wave: 5 },
+    md5: { color: '#6b7280', points: 15, hp: 1, speed: 1.2, label: 'MD5', desc: 'Deprecated hash. Crumbles easily.', wave: 4 }
+};
+
+// Game state
+let gameRunning = false, demoMode = true, gameOver = false;
+let score = 0, lives = 3, wave = 1, combo = 0, maxCombo = 0;
+let waveTransition = 0;
+
+// Player (crypto-bot)
+const player = {
+    x: 100, y: 0, w: 24, h: 28,
+    vx: 0, vy: 0, speed: 3.5,
+    onGround: false, jumpPower: -11, facingRight: true,
+    shootCooldown: 0
+};
+
+// Game entities
+let platforms = [];
+let enemies = [];
+let bubbles = [];
+let shots = [];
+let particles = [];
+let floatingTexts = [];
+
+// Background elements (hex rain)
+let hexChars = [];
+for (let i = 0; i < 40; i++) {
+    hexChars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        char: Math.random().toString(16).charAt(2).toUpperCase(),
+        speed: 0.3 + Math.random() * 0.5,
+        alpha: 0.1 + Math.random() * 0.15
+    });
+}
+
+// Create platforms (circuit board style)
+function createPlatforms() {
+    platforms = [
+        { x: 0, y: H - 30, w: W, h: 30 }, // Floor
+        { x: 100, y: 380, w: 120, h: 12 },
+        { x: 300, y: 320, w: 150, h: 12 },
+        { x: 500, y: 260, w: 140, h: 12 },
+        { x: 50, y: 240, w: 130, h: 12 },
+        { x: 250, y: 180, w: 160, h: 12 },
+        { x: 480, y: 140, w: 150, h: 12 },
+        { x: 120, y: 100, w: 140, h: 12 }
+    ];
+}
+
+// Spawn wave
+function spawnWave() {
+    enemies = [];
+    const types = ['rot13'];
+    if (wave >= 2) types.push('xor');
+    if (wave >= 3) types.push('aes');
+    if (wave >= 4) types.push('md5');
+    if (wave >= 5) types.push('rsa');
+
+    const count = Math.min(3 + wave * 2, 15);
+    for (let i = 0; i < count; i++) {
+        const type = types[Math.floor(Math.random() * types.length)];
+        const ct = CIPHER_TYPES[type];
+        const plat = platforms[1 + Math.floor(Math.random() * (platforms.length - 1))];
+        enemies.push({
+            x: plat.x + Math.random() * (plat.w - 20),
+            y: plat.y - 24,
+            w: 20, h: 20,
+            vx: (Math.random() < 0.5 ? -1 : 1) * ct.speed,
+            vy: 0,
+            type, color: ct.color,
+            hp: ct.hp, maxHp: ct.hp,
+            points: ct.points,
+            label: ct.label,
+            onGround: false,
+            dir: 1,
+            bubbled: false,
+            escapeTimer: 0
+        });
+    }
+}
+
+// Input
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (['ArrowUp', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+    if (e.key === '?' || e.key === '/') toggleMovesPanel();
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    if (demoMode && (e.key === ' ' || e.key === 'Enter')) startGame();
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) resetGame();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Moves panel
+let movesPanelOpen = false;
+function toggleMovesPanel() {
+    movesPanelOpen = !movesPanelOpen;
+    const panel = document.getElementById('movesPanel');
+    panel.style.display = movesPanelOpen ? 'block' : 'none';
+    if (movesPanelOpen) {
+        let html = '';
+        Object.keys(CIPHER_TYPES).forEach(k => {
+            const c = CIPHER_TYPES[k];
+            const locked = wave < c.wave;
+            html += `<div class="move-entry ${locked ? 'move-locked' : ''}">
+                <div class="move-name" style="color:${c.color}">${c.label} ${locked ? '(Wave ' + c.wave + ')' : '✓'}</div>
+                <div class="move-desc">${c.desc}</div>
+            </div>`;
+        });
+        document.getElementById('movesList').innerHTML = html;
+    }
+}
+
+// Start / Reset
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    demoMode = false;
+    gameRunning = true;
+    gameOver = false;
+    score = 0;
+    lives = 3;
+    wave = 1;
+    combo = 0;
+    maxCombo = 0;
+    player.x = 100;
+    player.y = 0;
+    player.vx = 0;
+    player.vy = 0;
+    enemies = [];
+    bubbles = [];
+    shots = [];
+    particles = [];
+    floatingTexts = [];
+    createPlatforms();
+    spawnWave();
+    waveTransition = 0;
+    sfxWave();
+}
+function resetGame() { startGame(); }
+
+// Particles
+function spawnParticles(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 20 + Math.random() * 15,
+            maxLife: 35,
+            color,
+            size: Math.random() * 3 + 1
+        });
+    }
+}
+
+// Floating text
+function addFloatingText(x, y, text, color) {
+    floatingTexts.push({ x, y, text, color, life: 60, vy: -1 });
+}
+
+// Demo AI
+function demoAI() {
+    // Simple demo movement
+    player.x += Math.sin(Date.now() * 0.001) * 2;
+    if (player.onGround && Math.random() < 0.02) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+    }
+    if (Math.random() < 0.05 && player.shootCooldown === 0) {
+        shots.push({
+            x: player.x + (player.facingRight ? 12 : -12),
+            y: player.y,
+            vy: -5,
+            radius: 16,
+            life: 180,
+            alpha: 0.6
+        });
+        player.shootCooldown = 25;
+        sfxShoot();
+    }
+}
+
+// Physics constants
+const GRAVITY = 0.5;
+const FRICTION = 0.85;
+const MAX_VY = 12;
+
+// Collision detection
+function checkPlatformCollision(obj) {
+    obj.onGround = false;
+    platforms.forEach(p => {
+        if (obj.x + obj.w > p.x && obj.x < p.x + p.w &&
+            obj.y + obj.h > p.y && obj.y + obj.h < p.y + p.h + 10 &&
+            obj.vy >= 0) {
+            obj.y = p.y - obj.h;
+            obj.vy = 0;
+            obj.onGround = true;
+        }
+    });
+}
+
+// Update
+function update() {
+    if (waveTransition > 0) {
+        waveTransition--;
+        if (waveTransition === 0) {
+            spawnWave();
+            sfxWave();
+        }
+        return;
+    }
+
+    if (demoMode) {
+        demoAI();
+    }
+
+    if (!gameRunning && !demoMode) return;
+
+    // Hex rain background
+    hexChars.forEach(h => {
+        h.y += h.speed;
+        if (h.y > H) {
+            h.y = -20;
+            h.x = Math.random() * W;
+            h.char = Math.random().toString(16).charAt(2).toUpperCase();
+        }
+    });
+
+    // Player controls
+    if (!demoMode) {
+        if (keys['ArrowLeft'] || keys['a']) {
+            player.vx = -player.speed;
+            player.facingRight = false;
+        } else if (keys['ArrowRight'] || keys['d']) {
+            player.vx = player.speed;
+            player.facingRight = true;
+        } else {
+            player.vx *= FRICTION;
+        }
+
+        if ((keys['ArrowUp'] || keys['w']) && player.onGround) {
+            player.vy = player.jumpPower;
+            player.onGround = false;
+            sfxJump();
+        }
+
+        if (keys[' '] && player.shootCooldown === 0) {
+            shots.push({
+                x: player.x + (player.facingRight ? 12 : -12),
+                y: player.y,
+                vy: -5,
+                radius: 16,
+                life: 180,
+                alpha: 0.6
+            });
+            player.shootCooldown = 25;
+            sfxShoot();
+        }
+    }
+
+    if (player.shootCooldown > 0) player.shootCooldown--;
+
+    // Player physics
+    player.vy += GRAVITY;
+    player.vy = Math.min(player.vy, MAX_VY);
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // Player bounds
+    player.x = Math.max(0, Math.min(W - player.w, player.x));
+
+    // Player platform collision
+    checkPlatformCollision(player);
+
+    // Shots (bubbles being fired upward)
+    shots.forEach(s => {
+        s.y += s.vy;
+        s.life--;
+    });
+    shots = shots.filter(s => s.life > 0 && s.y > -50);
+
+    // Enemies
+    enemies.forEach(e => {
+        if (e.bubbled) return; // Trapped in bubble
+
+        e.vy += GRAVITY;
+        e.vy = Math.min(e.vy, MAX_VY);
+        e.x += e.vx;
+        e.y += e.vy;
+
+        // Enemy platform collision
+        checkPlatformCollision(e);
+
+        // Change direction at platform edges
+        if (e.onGround) {
+            let onPlatform = false;
+            platforms.forEach(p => {
+                if (e.x + e.w/2 > p.x && e.x + e.w/2 < p.x + p.w) {
+                    onPlatform = true;
+                }
+            });
+            if (!onPlatform || e.x < 0 || e.x + e.w > W) {
+                e.vx *= -1;
+            }
+        }
+
+        // XOR erratic movement
+        if (e.type === 'xor' && Math.random() < 0.02) {
+            e.vx = (Math.random() < 0.5 ? -1 : 1) * CIPHER_TYPES.xor.speed;
+        }
+
+        // Collision with shots (trap in bubble)
+        shots.forEach(s => {
+            const dx = (e.x + e.w/2) - s.x;
+            const dy = (e.y + e.h/2) - s.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < s.radius + e.w/2) {
+                s.life = 0; // Consume shot
+                e.bubbled = true;
+                e.escapeTimer = 180 - wave * 5; // Harder waves = faster escape
+                bubbles.push({
+                    enemy: e,
+                    x: e.x + e.w/2,
+                    y: e.y + e.h/2,
+                    radius: 22,
+                    vy: -0.8,
+                    alpha: 0.7,
+                    escapeTimer: e.escapeTimer
+                });
+                sfxTrap();
+                spawnParticles(s.x, s.y, '#eab308', 4);
+            }
+        });
+    });
+
+    // Bubbles
+    bubbles.forEach(b => {
+        b.y += b.vy;
+        b.x = b.enemy.x + b.enemy.w/2;
+        b.escapeTimer--;
+
+        // Enemy escapes if timer runs out
+        if (b.escapeTimer <= 0) {
+            b.enemy.bubbled = false;
+            b.enemy.vx = (Math.random() < 0.5 ? -1 : 1) * CIPHER_TYPES[b.enemy.type].speed * 1.5;
+            b.alive = false;
+            sfxEscape();
+            spawnParticles(b.x, b.y, b.enemy.color, 8);
+        }
+
+        // Player pops bubble by touching it
+        if (!demoMode) {
+            const dx = player.x + player.w/2 - b.x;
+            const dy = player.y + player.h/2 - b.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < b.radius + player.w/2) {
+                b.enemy.hp--;
+                if (b.enemy.hp <= 0) {
+                    // Enemy destroyed
+                    const points = b.enemy.points * (1 + Math.floor(combo / 5));
+                    score += points;
+                    combo++;
+                    if (combo > maxCombo) maxCombo = combo;
+                    addFloatingText(b.x, b.y, `+${points}`, b.enemy.color);
+                    spawnParticles(b.x, b.y, b.enemy.color, 12);
+                    b.alive = false;
+                    // Remove enemy from array
+                    enemies = enemies.filter(en => en !== b.enemy);
+                    sfxPop();
+                } else {
+                    // Damaged but not destroyed (AES, RSA)
+                    b.enemy.bubbled = false;
+                    b.enemy.vx *= -1;
+                    b.alive = false;
+                    spawnParticles(b.x, b.y, b.enemy.color, 6);
+                    sfxPop();
+                }
+            }
+        }
+
+        // Demo: auto-pop bubbles that reach top
+        if (demoMode && b.y < 50) {
+            b.alive = false;
+            enemies = enemies.filter(en => en !== b.enemy);
+        }
+    });
+    bubbles = bubbles.filter(b => b.alive !== false && b.y > -50);
+
+    // Enemy collision with player
+    if (!demoMode) {
+        enemies.forEach(e => {
+            if (e.bubbled) return;
+            const dx = player.x + player.w/2 - (e.x + e.w/2);
+            const dy = player.y + player.h/2 - (e.y + e.h/2);
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < (player.w + e.w) / 2) {
+                lives--;
+                combo = 0;
+                sfxDeath();
+                spawnParticles(player.x + player.w/2, player.y + player.h/2, '#ef4444', 15);
+                player.x = 100;
+                player.y = 0;
+                player.vx = 0;
+                player.vy = 0;
+                if (lives <= 0) {
+                    gameRunning = false;
+                    gameOver = true;
+                }
+            }
+        });
+    }
+
+    // Particles
+    particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+    });
+    particles = particles.filter(p => p.life > 0);
+
+    // Floating texts
+    floatingTexts.forEach(t => {
+        t.y += t.vy;
+        t.life--;
+    });
+    floatingTexts = floatingTexts.filter(t => t.life > 0);
+
+    // Wave complete
+    if (enemies.length === 0 && bubbles.length === 0 && !demoMode && waveTransition === 0) {
+        wave++;
+        waveTransition = 90;
+        combo = 0;
+        sfxWave();
+    }
+
+    // Demo wave cycling
+    if (demoMode && enemies.length === 0 && bubbles.length === 0) {
+        wave = (wave % 5) + 1;
+        spawnWave();
+    }
+
+    // UI
+    document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
+    document.getElementById('waveDisplay').textContent = `WAVE ${wave}`;
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives);
+    document.getElementById('loreWave').textContent = `WAVE: ${wave}`;
+    document.getElementById('loreScore').textContent = `DECRYPTED: ${score}`;
+    document.getElementById('loreCombo').textContent = `COMBO: ${combo}`;
+}
+
+// Draw
+function draw() {
+    // Background
+    ctx.fillStyle = '#0f0a1a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Hex rain
+    ctx.font = '12px Courier New';
+    ctx.textAlign = 'center';
+    hexChars.forEach(h => {
+        ctx.fillStyle = `rgba(234, 179, 8, ${h.alpha})`;
+        ctx.fillText(h.char, h.x, h.y);
+    });
+
+    // Platforms (circuit board style)
+    platforms.forEach(p => {
+        // Main platform
+        ctx.fillStyle = '#1a1520';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Top surface
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(p.x, p.y, p.w, 2);
+        // Circuit traces
+        ctx.strokeStyle = '#92400e';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < p.w; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(p.x + i, p.y + 2);
+            ctx.lineTo(p.x + i + 10, p.y + p.h);
+            ctx.stroke();
+        }
+    });
+
+    // Player (crypto-bot)
+    const px = player.x + player.w/2;
+    const py = player.y + player.h/2;
+
+    // Body
+    ctx.fillStyle = '#eab308';
+    ctx.shadowColor = '#eab308';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(player.x + 4, player.y + 8, player.w - 8, player.h - 12);
+    ctx.shadowBlur = 0;
+
+    // Head
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(player.x + 6, player.y, player.w - 12, 10);
+
+    // Eyes
+    ctx.fillStyle = '#0f0a1a';
+    if (player.facingRight) {
+        ctx.fillRect(player.x + 14, player.y + 2, 3, 3);
+        ctx.fillRect(player.x + 18, player.y + 2, 2, 2);
+    } else {
+        ctx.fillRect(player.x + 5, player.y + 2, 3, 3);
+        ctx.fillRect(player.x + 10, player.y + 2, 2, 2);
+    }
+
+    // Antenna
+    ctx.strokeStyle = '#eab308';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, player.y);
+    ctx.lineTo(px, player.y - 6);
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(px - 2, player.y - 8, 4, 4);
+
+    // Legs
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(player.x + 6, player.y + player.h - 6, 4, 6);
+    ctx.fillRect(player.x + player.w - 10, player.y + player.h - 6, 4, 6);
+
+    // Shots (bubbles being fired)
+    shots.forEach(s => {
+        ctx.globalAlpha = s.alpha;
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(234, 179, 8, 0.1)';
+        ctx.fill();
+        // Crypto symbol
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔐', s.x, s.y);
+        ctx.globalAlpha = 1;
+    });
+
+    // Enemies
+    enemies.forEach(e => {
+        if (e.bubbled) return; // Don't draw if in bubble
+
+        // Enemy body (pixel cipher sprite)
+        ctx.fillStyle = e.color;
+        ctx.shadowColor = e.color;
+        ctx.shadowBlur = 6;
+        ctx.fillRect(e.x + 3, e.y + 3, e.w - 6, e.h - 6);
+        ctx.shadowBlur = 0;
+
+        // Eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(e.x + 5, e.y + 6, 3, 3);
+        ctx.fillRect(e.x + e.w - 8, e.y + 6, 3, 3);
+
+        // Pupils
+        ctx.fillStyle = '#000000';
+        const pupilX = e.vx > 0 ? 1 : -1;
+        ctx.fillRect(e.x + 6 + pupilX, e.y + 7, 1, 1);
+        ctx.fillRect(e.x + e.w - 7 + pupilX, e.y + 7, 1, 1);
+
+        // Label
+        ctx.fillStyle = e.color;
+        ctx.font = '8px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(e.label, e.x + e.w/2, e.y - 4);
+
+        // HP bar for tough enemies
+        if (e.maxHp > 1) {
+            const barW = e.w;
+            const barH = 3;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(e.x, e.y + e.h + 2, barW, barH);
+            ctx.fillStyle = e.color;
+            ctx.fillRect(e.x, e.y + e.h + 2, barW * (e.hp / e.maxHp), barH);
+        }
+    });
+
+    // Bubbles (with trapped enemies)
+    bubbles.forEach(b => {
+        // Bubble sphere
+        ctx.globalAlpha = b.alpha;
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Gradient fill
+        const grad = ctx.createRadialGradient(b.x - 5, b.y - 5, 0, b.x, b.y, b.radius);
+        grad.addColorStop(0, 'rgba(234, 179, 8, 0.2)');
+        grad.addColorStop(1, 'rgba(234, 179, 8, 0.05)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+
+        // Enemy inside bubble
+        const e = b.enemy;
+        ctx.fillStyle = e.color;
+        ctx.fillRect(e.x + 3, e.y + 3, e.w - 6, e.h - 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(e.x + 5, e.y + 6, 3, 3);
+        ctx.fillRect(e.x + e.w - 8, e.y + 6, 3, 3);
+
+        // Escape timer warning
+        if (b.escapeTimer < 60) {
+            const blink = Math.sin(Date.now() * 0.02) > 0;
+            if (blink) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius + 2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    });
+
+    // Particles
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    // Floating texts
+    floatingTexts.forEach(t => {
+        ctx.globalAlpha = t.life / 60;
+        ctx.fillStyle = t.color;
+        ctx.font = 'bold 14px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(t.text, t.x, t.y);
+    });
+    ctx.globalAlpha = 1;
+
+    // Combo counter
+    if (combo > 0 && gameRunning) {
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'left';
+        ctx.fillText(`COMBO x${combo}`, 10, H - 10);
+    }
+
+    // Overlays
+    if (demoMode) {
+        ctx.fillStyle = 'rgba(15,10,26,0.7)';
+        ctx.fillRect(0, H/2 - 80, W, 160);
+        ctx.fillStyle = '#eab308';
+        ctx.font = 'bold 36px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('CIPHER BUBBLES', W/2, H/2 - 25);
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '15px Courier New';
+        ctx.fillText('Trap ciphertexts and pop them to decrypt', W/2, H/2 + 10);
+        ctx.fillStyle = '#d97706';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO START ]', W/2, H/2 + 50);
+    }
+
+    if (waveTransition > 0 && !demoMode) {
+        const alpha = waveTransition > 60 ? 1 : waveTransition / 60;
+        ctx.fillStyle = `rgba(15,10,26,${alpha * 0.8})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#eab308';
+        ctx.font = 'bold 48px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(`WAVE ${wave}`, W/2, H/2 - 10);
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '18px Courier New';
+        const waveNames = ['', 'BASIC CIPHERS', 'XOR STORM', 'AES ENCRYPTION', 'HASH FLOOD', 'RSA FORTRESS', 'QUANTUM CHAOS', 'CRYPTO HELL', 'PRIME NUMBERS', 'ZERO KNOWLEDGE', 'UNHACKABLE'];
+        const name = waveNames[Math.min(wave, waveNames.length - 1)] || `CIPHER LEVEL ${wave}`;
+        ctx.fillText(name, W/2, H/2 + 30);
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(15,10,26,0.9)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 42px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('CRYPTO LAB BREACHED', W/2, H/2 - 50);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Courier New';
+        ctx.fillText(`Final Score: ${score}`, W/2, H/2);
+        ctx.fillText(`Waves Completed: ${wave - 1}`, W/2, H/2 + 30);
+        ctx.fillText(`Max Combo: ${maxCombo}`, W/2, H/2 + 60);
+        ctx.fillStyle = '#d97706';
+        ctx.font = '14px Courier New';
+        const blink = Math.sin(Date.now() * 0.004) > 0;
+        if (blink) ctx.fillText('[ PRESS SPACE TO RETRY ]', W/2, H/2 + 100);
+    }
+}
+
+// Game loop
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// Init
+createPlatforms();
+spawnWave();
+gameLoop();
+</script>
+</body>
+</html>

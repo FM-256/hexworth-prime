@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-12 11:50:43 PM
+                    Scanned: 2026-02-12 12:13:02 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1235 |
+| Files Scanned | 1238 |
 | Directories | 460 |
-| Content Files | 1235 |
-| Scan Duration | 200ms |
+| Content Files | 1238 |
+| Scan Duration | 201ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 443 |
+| html | 446 |
 | presentation | 433 |
 | applet | 188 |
 | lab | 157 |
@@ -32,7 +32,7 @@
 | Critical | 0 |
 | Warning | 882 |
 | Info | 398 |
-| **Total** | **1687** |
+| **Total** | **1693** |
 
 ### Sync Status
 
@@ -40,7 +40,7 @@
 |--------|-------|
 | Ready | 577 |
 | Not Ready | 215 |
-| Unknown | 443 |
+| Unknown | 446 |
 
 
 ## FILE HIERARCHY
@@ -783,6 +783,7 @@
 │   │   │           └── 📄 forge-wireless-networking.applet.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 bit-dash.html
+│   │   │   ├── 📄 chip-match.html
 │   │   │   ├── 📄 dont-anger-the-printer.html
 │   │   │   ├── 📄 dont-brick-the-pc.html
 │   │   │   ├── 📄 fsck.html
@@ -826,6 +827,7 @@
 │   │   └── 📁 tutorials
 │   ├── 🏠 key [house:key]
 │   │   ├── 📁 games
+│   │   │   ├── 📄 cipher-bubbles.html
 │   │   │   ├── 📄 cipher-cracker.html
 │   │   │   ├── 📄 crypto-pong.html
 │   │   │   ├── 📄 dont-leak-the-key.html
@@ -1526,6 +1528,7 @@
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 dont-get-phished.html
+│   │   │   ├── 📄 dr-malware.html
 │   │   │   ├── 📄 incident-response.html
 │   │   │   ├── 📄 malware-zoo.html
 │   │   │   ├── 📄 social-engineer.html
