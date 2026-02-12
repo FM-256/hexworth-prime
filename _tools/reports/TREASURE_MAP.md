@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-12 1:10:25 AM
+                    Scanned: 2026-02-12 7:51:47 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1238 |
-| Directories | 460 |
-| Content Files | 1238 |
-| Scan Duration | 198ms |
+| Files Scanned | 1246 |
+| Directories | 468 |
+| Content Files | 1246 |
+| Scan Duration | 181ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 446 |
+| html | 454 |
 | presentation | 433 |
 | applet | 188 |
 | lab | 157 |
@@ -30,17 +30,17 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Warning | 882 |
+| Warning | 881 |
 | Info | 398 |
-| **Total** | **1705** |
+| **Total** | **1620** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 577 |
-| Not Ready | 215 |
-| Unknown | 446 |
+| Ready | 578 |
+| Not Ready | 214 |
+| Unknown | 454 |
 
 
 ## FILE HIERARCHY
@@ -127,6 +127,10 @@
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
 ├── 📁 houses
+│   ├── 📁 aplus-core1
+│   │   └── 📍 index.html
+│   ├── 📁 aplus-core2
+│   │   └── 📍 index.html
 │   ├── 🏠 cloud [house:cloud]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
@@ -387,6 +391,12 @@
 │   │       ├── 📄 code-automation.tool.html
 │   │       ├── 📄 code-sprint.tool.html
 │   │       └── 📄 code-terraform.tool.html
+│   ├── 📁 comptia-linux
+│   │   └── 📍 index.html
+│   ├── 📁 comptia-network
+│   │   └── 📍 index.html
+│   ├── 📁 cryptography-track
+│   │   └── 📍 index.html
 │   ├── 📁 dark-arts
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -406,6 +416,8 @@
 │   │       └── 📁 ctf-leaderboard
 │   │           ├── 📄 dark-arts-sample.tool.html
 │   │           └── 📍 index.html
+│   ├── 📁 devops-fundamentals
+│   │   └── 📍 index.html
 │   ├── 🏠 eye [house:eye]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 cyberops [applets]
@@ -1257,6 +1269,10 @@
 │   │   │   ├── 📄 script-process-management.tool.html
 │   │   │   └── 📄 script-windows-registry.tool.html
 │   │   └── 📁 tutorials
+│   ├── 📁 security-plus
+│   │   └── 📍 index.html
+│   ├── 📁 security-plus-crypto
+│   │   └── 📍 index.html
 │   ├── 🏠 shield [house:shield]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 access [applets]
@@ -2495,7 +2511,7 @@
 | owasp-top10-lab | presentation | ✓ | 1 |
 | password-attacks-lab | applet | ✓ | 1 |
 | privilege-escalation-lab | lab | ✓ | 2 |
-| dark-arts-quiz | quiz | ✓ | 2 |
+| dark-arts | quiz | ✓ | 1 |
 | session-hijacking-lab | applet | ✓ | 1 |
 | social-engineering-advanced | applet | ✓ | 1 |
 | sql-injection-lab | applet | ✓ | 1 |
@@ -2601,7 +2617,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (882)
+### WARNING (881)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -2737,10 +2753,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/privilege-escalation-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -7721,7 +7733,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (738)
+### Unregistered Content (737)
 
 | Path | Type | House |
 |------|------|-------|
@@ -7754,7 +7766,6 @@
 | dark-arts/vault/owasp-top10-lab.html | presentation | - |
 | dark-arts/vault/password-attacks-lab.html | applet | - |
 | dark-arts/vault/privilege-escalation-lab.html | lab | - |
-| dark-arts/vault/quizzes/dark-arts-quiz.html | quiz | - |
 | dark-arts/vault/session-hijacking-lab.html | applet | - |
 | dark-arts/vault/social-engineering-advanced.html | applet | - |
 | dark-arts/vault/sql-injection-lab.html | applet | - |

@@ -781,6 +781,7 @@ class LearningPaths {
             description: 'Master CI/CD, containerization, and infrastructure as code',
             icon: '⚙️',
             color: '#8b5cf6',
+            courseHref: 'houses/devops-fundamentals/index.html',
             modules: [
                 {
                     id: 'devops-git-basics',
@@ -1367,6 +1368,7 @@ class LearningPaths {
             description: 'Complete Linux administration certification prep covering system management, security, scripting, and troubleshooting',
             icon: '🐧',
             color: '#22c55e',
+            courseHref: 'houses/comptia-linux/index.html',
             modules: [
                 // Section 1: Linux Fundamentals
                 {
@@ -1841,6 +1843,7 @@ class LearningPaths {
             description: 'Complete Security+ certification prep covering general security concepts, threats, architecture, operations, and program management',
             icon: '🔐',
             color: '#a855f7',
+            courseHref: 'houses/security-plus/index.html',
             modules: [
                 // Domain 1: General Security Concepts
                 {
@@ -2136,6 +2139,7 @@ class LearningPaths {
             description: 'Complete Network+ certification prep covering networking concepts, implementation, operations, security, and troubleshooting',
             icon: '🌐',
             color: '#3b82f6',
+            courseHref: 'houses/comptia-network/index.html',
             modules: [
                 // Domain 1: Networking Concepts
                 {
@@ -2413,6 +2417,7 @@ class LearningPaths {
             description: 'Master cryptography from fundamentals through post-quantum: symmetric, asymmetric, hashing, PKI, digital signatures, key management, and beyond',
             icon: '🔐',
             color: '#eab308',
+            courseHref: 'houses/cryptography-track/index.html',
             modules: [
                 // Foundation
                 {
@@ -2748,6 +2753,7 @@ class LearningPaths {
             description: 'CompTIA Security+ SY0-701 cryptography objectives: symmetric/asymmetric encryption, hashing, PKI, digital signatures, and key exchange',
             icon: '🛡️',
             color: '#eab308',
+            courseHref: 'houses/security-plus-crypto/index.html',
             modules: [
                 // Crypto Foundations (maps to SY0-701 Domain 1.4)
                 {
