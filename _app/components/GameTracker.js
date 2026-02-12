@@ -373,6 +373,12 @@ const GameTracker = (function () {
         return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
+    // One-time wipe of pre-name scores (v2 migration)
+    if (!localStorage.getItem('hexworth_gt_v2')) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem('hexworth_gt_v2', '1');
+    }
+
     return {
         record,
         getGameStats,
