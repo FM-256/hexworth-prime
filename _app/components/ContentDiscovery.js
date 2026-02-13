@@ -760,34 +760,31 @@
     function applyFilters() {
         const { searchQuery, typeFilter, categoryFilter, currentHouse } = window.discoveryState;
         const hasActiveFilter = searchQuery || typeFilter !== 'all' || categoryFilter !== 'all';
+        const hasCatalog = typeof ContentCatalog !== 'undefined';
 
-        // Search local SAMPLE_MODULES as data (not DOM cards)
         let localResults = [];
-        if (hasActiveFilter && typeof SAMPLE_MODULES !== 'undefined') {
-            localResults = SAMPLE_MODULES.filter(function(module) {
-                let match = true;
-                if (searchQuery) {
-                    const searchText = `${module.title} ${module.description} ${(module.tags || []).join(' ')} ${(module.components || []).join(' ')}`.toLowerCase();
-                    match = searchText.includes(searchQuery);
-                }
-                if (match && typeFilter !== 'all') {
-                    match = module.components && module.components.includes(typeFilter);
-                }
-                if (match && categoryFilter !== 'all') {
-                    match = (module.href || '').includes(categoryFilter) || module.category === categoryFilter;
-                }
-                return match;
-            });
-        }
-
-        // Global search via ContentCatalog (other houses)
         let globalResults = [];
-        if (searchQuery && searchQuery.length >= 2 && typeof ContentCatalog !== 'undefined') {
+
+        if (searchQuery && searchQuery.length >= 2 && hasCatalog) {
+            // Use ContentCatalog.search() for both local and global (multi-term matching + relevance sort)
             const allResults = ContentCatalog.search(searchQuery, {
                 type: typeFilter !== 'all' ? typeFilter : null,
-                limit: 50
+                limit: 100
             });
+            localResults = allResults.filter(m => m.house === currentHouse);
             globalResults = allResults.filter(m => m.house !== currentHouse);
+
+            // Apply category filter to local results (not supported by ContentCatalog.search)
+            if (categoryFilter !== 'all') {
+                localResults = localResults.filter(m => m.category === categoryFilter);
+            }
+        } else if (hasActiveFilter && typeof SAMPLE_MODULES !== 'undefined') {
+            // Pure type/category filter (no search query) — filter SAMPLE_MODULES directly
+            localResults = SAMPLE_MODULES.filter(function(module) {
+                if (typeFilter !== 'all' && (!module.components || !module.components.includes(typeFilter))) return false;
+                if (categoryFilter !== 'all' && module.category !== categoryFilter) return false;
+                return true;
+            });
         }
 
         // Update results count
