@@ -1,6 +1,6 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 12, 2026
+**Last Updated:** February 13, 2026
 **Updated By:** CCode-Opus4.6
 **Version:** 3.11.2 "INTEGRITY"
 
@@ -8,6 +8,7 @@
 
 ## CURRENT STATUS
 
+### 📦 MILESTONE: CONTENTCATALOG CENTRALIZATION COMPLETE! (749 modules, single source of truth, ~2500 lines removed)
 ### 📊 MILESTONE: INSTRUCTOR ANALYTICS COMPLETE! (Real Firestore data, smart ID resolution, all charts wired)
 ### ✅ MILESTONE: A+ CORE 2 & WSA CONTENT AUDIT COMPLETE! (Midterm + 28 files enhanced/created)
 ### 🔧 MILESTONE: INSTRUCTOR DASHBOARD PIPELINE FIXED! (5 cascading bugs — full E2E tracking working)
@@ -40,6 +41,42 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 13, 2026 - CONTENTCATALOG CENTRALIZATION (CCode-Opus4.6)
+
+```
++======================================================================+
+|         CONTENTCATALOG SINGLE SOURCE OF TRUTH                        |
+|         11 files changed, +792/-3944 lines                           |
++======================+================================================+
+|  ContentCatalog.js: 257 → 749 modules (all SAMPLE_MODULES merged)   |
+|                                                                       |
+|  Per-house module counts:                                             |
+|  eye:31  script:158  forge:85  web:100  shield:154                   |
+|  key:44  cloud:74    code:47   dark-arts:56                          |
+|                                                                       |
+|  PHASE 1-2: Migrated all SAMPLE_MODULES into ContentCatalog.js      |
+|    - Added category field to all entries                              |
+|    - Preserved 69 catalog-only entries (vault labs, arcade games)     |
+|    - Node.js build script for programmatic extraction                 |
+|                                                                       |
+|  PHASE 3: Fixed buildSearchIndex() to include components             |
+|    - search("game") now returns 50+ results                          |
+|    - search("presentation"/"lab"/"quiz") all work                    |
+|                                                                       |
+|  PHASE 4: Converted 9 house index pages                              |
+|    - Replaced inline SAMPLE_MODULES arrays with one-liner:           |
+|      ContentCatalog.getHouseModules('house_id')                      |
+|    - ~2500 lines removed across 9 files                              |
+|    - Dark Arts: kept FEH_MODULES + GATES (used by gate UI)           |
+|                                                                       |
+|  PHASE 5: Simplified ContentDiscovery.js search                      |
+|    - applyFilters() uses ContentCatalog.search() for local+global    |
+|    - Multi-term AND matching + relevance sorting                     |
+|                                                                       |
+|  EDUSCAN: CRITICAL:0  HIGH:0  MED:192  LOW:1  WARN:869 (no change)  |
++----------------------------------------------------------------------+
+```
 
 ### February 12, 2026 - SPRINT F-13: CERT PATH LANDING PAGES + BUG FIXES (CCode-Opus4.6)
 
