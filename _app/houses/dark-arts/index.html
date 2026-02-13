@@ -665,6 +665,69 @@
             font-family: 'Segoe UI', sans-serif;
         }
 
+        /* Search bar */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px solid rgba(107, 33, 168, 0.25);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            font-family: 'Segoe UI', sans-serif;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--house-accent);
+            box-shadow: 0 0 15px var(--house-glow);
+        }
+
+        .search-input::placeholder {
+            color: #555;
+        }
+
+        .search-clear {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .search-clear:hover {
+            background: rgba(147, 51, 234, 0.15);
+            color: var(--house-accent);
+            border-color: var(--house-border);
+        }
+
+        .search-hint {
+            font-size: 0.65rem;
+            color: #444;
+            padding: 4px 10px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #555;
+            font-size: 0.9rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
         /* Footer */
         .house-footer {
             text-align: center;
@@ -843,8 +906,16 @@
                 <h2 class="section-title">All Dark Arts Content</h2>
                 <span class="section-count" id="allContentCount">10 modules</span>
             </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search modules by name, description, or category..." oninput="filterModules()">
+                <button class="search-clear" onclick="clearSearch()">Clear</button>
+                <span class="search-hint">Press / to focus</span>
+            </div>
             <div class="module-grid" id="allContentGrid">
                 <!-- All modules listed here for filtering/searching -->
+            </div>
+            <div class="no-results" id="noResults" style="display: none;">
+                No modules match your search.
             </div>
         </section>
     </main>
@@ -1067,7 +1138,7 @@
             const grid = document.getElementById('allContentGrid');
             grid.innerHTML = '';
 
-            FEH_MODULES.forEach(mod => {
+            SAMPLE_MODULES.forEach(mod => {
                 const completed = isModuleCompleted(mod.id);
                 const card = document.createElement('div');
                 card.className = 'module-card';
@@ -1086,6 +1157,8 @@
 
                 grid.appendChild(card);
             });
+
+            document.getElementById('allContentCount').textContent = `${SAMPLE_MODULES.length} modules`;
         }
 
         function updateStats() {
@@ -1128,6 +1201,75 @@
         }
 
         // ============================================
+        // SEARCH & FILTER
+        // ============================================
+
+        // Build SAMPLE_MODULES from FEH_MODULES + extras for ContentDiscovery
+        const SAMPLE_MODULES = FEH_MODULES.map(m => ({
+            id: m.id,
+            title: m.title,
+            description: m.description,
+            icon: m.icon,
+            status: 'available',
+            category: 'feh-course',
+            components: ['presentation'],
+            href: m.href
+        })).concat([
+            { id: 'cyberops-200201', title: 'CyberOps Associate 200-201', description: 'Cisco certification prep: SOC fundamentals, threat analysis, incident response', icon: '🎯', status: 'available', category: 'certifications', components: ['presentation', 'lab', 'quiz'], href: '../eye/modules/cyberops/index.html' },
+            { id: 'five-gates', title: 'Five Gates CTF', description: 'Hex encoding, CSS secrets, steganography, DTMF audio, synthesis challenge', icon: '⚡', status: 'available', category: 'gates', components: ['lab'], href: '../../dark-arts/gate-1.html' },
+            { id: 'the-vault', title: 'The Vault', description: 'Advanced malware analysis, exploit development, red team operations, 40+ tools', icon: '🔒', status: 'available', category: 'vault', components: ['lab', 'tool'], href: '../../dark-arts/vault/index.html' }
+        ]);
+
+        const CATEGORIES = [
+            { id: 'feh-course', name: 'FEH Course', icon: '🎓', description: 'Foundations of Ethical Hacking modules', count: 10, topics: ['hacking', 'pentesting', 'offensive'] },
+            { id: 'certifications', name: 'Certifications', icon: '📜', description: 'Industry certification prep courses', count: 1, topics: ['cyberops', 'cisco', 'ceh'] },
+            { id: 'gates', name: 'Gates', icon: '🚪', description: 'CTF challenges to unlock vault access', count: 1, topics: ['ctf', 'challenges'] },
+            { id: 'vault', name: 'Vault', icon: '💀', description: 'Advanced tools and training labs', count: 1, topics: ['malware', 'exploits', 'tools'] }
+        ];
+
+        let searchText = '';
+
+        function filterModules() {
+            searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            const cards = document.querySelectorAll('#allContentGrid .module-card');
+            let matchCount = 0;
+
+            cards.forEach((card, index) => {
+                const mod = SAMPLE_MODULES[index];
+                if (!mod) return;
+
+                let textMatch = true;
+                if (searchText) {
+                    const searchable = [mod.title, mod.description, ...(mod.components || []), mod.category || ''].join(' ').toLowerCase();
+                    textMatch = searchable.includes(searchText);
+                }
+
+                if (textMatch) {
+                    card.style.display = '';
+                    matchCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            const countEl = document.getElementById('allContentCount');
+            const noResults = document.getElementById('noResults');
+            if (searchText) {
+                countEl.textContent = `${matchCount} results for "${searchText}"`;
+                noResults.style.display = matchCount === 0 ? '' : 'none';
+            } else {
+                countEl.textContent = `${SAMPLE_MODULES.length} modules`;
+                noResults.style.display = 'none';
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchText = '';
+            filterModules();
+        }
+
+        // ============================================
         // INITIALIZATION
         // ============================================
 
@@ -1157,6 +1299,14 @@
             if (getGatesCleared() > 0) {
                 document.getElementById('resetGatesBtn').style.display = 'inline-block';
             }
+
+            // Keyboard shortcut: / to focus search
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+            });
 
             // Console message
             console.log('%c🌑 House of the Dark Arts', 'color: #9333ea; font-size: 14px;');

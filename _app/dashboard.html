@@ -3593,8 +3593,100 @@
                         </div>
                         <span style="color: #6b21a8;">→</span>
                     </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="factionlessSearch" placeholder="Search all houses..." style="
+                            flex: 1; padding: 10px 16px;
+                            background: rgba(15, 15, 20, 0.6);
+                            border: 1px solid rgba(0, 255, 255, 0.15);
+                            border-radius: 8px; color: #e0e0e0;
+                            font-size: 0.85rem; font-family: inherit; outline: none;
+                            transition: border-color 0.3s, box-shadow 0.3s;
+                        " onfocus="this.style.borderColor='rgba(0,255,255,0.4)'; this.style.boxShadow='0 0 15px rgba(0,255,255,0.1)';"
+                          onblur="this.style.borderColor='rgba(0,255,255,0.15)'; this.style.boxShadow='none';">
+                        <button onclick="document.getElementById('factionlessSearch').value=''; factionlessDoSearch();" style="
+                            padding: 8px 14px;
+                            background: rgba(255,255,255,0.05);
+                            border: 1px solid rgba(255,255,255,0.1);
+                            border-radius: 8px; color: #888;
+                            cursor: pointer; font-size: 0.8rem;
+                            transition: all 0.2s;
+                        ">Clear</button>
+                        <span style="font-size: 0.6rem; color: #444;">/ to focus</span>
+                    </div>
+                    <div id="factionlessSearchResults" style="display: none;"></div>
                     <div id="fileTreeContainer"></div>
                 `;
+
+                // Factionless global search logic
+                let factionlessDebounce = null;
+                const searchInput = document.getElementById('factionlessSearch');
+                const searchResults = document.getElementById('factionlessSearchResults');
+                const fileTreeContainer = document.getElementById('fileTreeContainer');
+
+                function factionlessDoSearch() {
+                    const query = searchInput.value.trim();
+                    if (!query) {
+                        searchResults.style.display = 'none';
+                        searchResults.innerHTML = '';
+                        fileTreeContainer.style.display = '';
+                        return;
+                    }
+
+                    if (typeof ContentCatalog === 'undefined') return;
+
+                    const results = ContentCatalog.search(query, { limit: 30 });
+
+                    if (results.length === 0) {
+                        searchResults.style.display = '';
+                        searchResults.innerHTML = '<div style="text-align:center; padding:30px; color:#555; font-size:0.85rem;">No results found.</div>';
+                        fileTreeContainer.style.display = 'none';
+                        return;
+                    }
+
+                    // Group by house
+                    const grouped = {};
+                    results.forEach(r => {
+                        if (!grouped[r.house]) grouped[r.house] = { name: r.houseName, icon: r.houseIcon, color: r.houseColor, items: [] };
+                        grouped[r.house].items.push(r);
+                    });
+
+                    let html = '<div style="font-size:0.7rem; color:#666; margin-bottom:12px; letter-spacing:0.1em;">' + results.length + ' RESULTS</div>';
+
+                    Object.values(grouped).forEach(group => {
+                        html += '<div style="margin-bottom:16px; padding:12px; background:rgba(15,15,20,0.4); border:1px solid rgba(255,255,255,0.05); border-left:3px solid ' + group.color + '; border-radius:6px;">';
+                        html += '<div style="font-size:0.7rem; color:' + group.color + '; letter-spacing:0.15em; margin-bottom:8px;">' + group.icon + ' ' + group.name.toUpperCase() + '</div>';
+                        group.items.forEach(item => {
+                            html += '<a href="' + item.fullHref + '" style="display:block; padding:8px 10px; margin:4px 0; background:rgba(255,255,255,0.02); border-radius:4px; text-decoration:none; transition:background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\'">';
+                            html += '<div style="color:#ddd; font-size:0.85rem;">' + item.icon + ' ' + item.title + '</div>';
+                            html += '<div style="color:#666; font-size:0.7rem; margin-top:2px;">' + item.description + '</div>';
+                            html += '</a>';
+                        });
+                        html += '</div>';
+                    });
+
+                    searchResults.innerHTML = html;
+                    searchResults.style.display = '';
+                    fileTreeContainer.style.display = 'none';
+                }
+
+                // Attach to window for clear button
+                window.factionlessDoSearch = factionlessDoSearch;
+
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(factionlessDebounce);
+                    factionlessDebounce = setTimeout(factionlessDoSearch, 200);
+                });
+
+                // / keyboard shortcut for factionless search
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                        const exploreTab = document.getElementById('exploreTab');
+                        if (exploreTab && exploreTab.style.display !== 'none') {
+                            e.preventDefault();
+                            searchInput.focus();
+                        }
+                    }
+                });
 
                 // Initialize FileTreeExplorer
                 FileTreeExplorer.init('fileTreeContainer');

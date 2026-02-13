@@ -467,6 +467,78 @@
             margin-top: 12px;
         }
 
+        /* Vault search bar */
+        .vault-search {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 600px;
+            margin: 25px auto 0;
+        }
+
+        .vault-search-input {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(15, 8, 20, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            border-radius: 8px;
+            color: #c0a0d0;
+            font-size: 0.85rem;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .vault-search-input:focus {
+            border-color: rgba(140, 100, 170, 0.5);
+            box-shadow: 0 0 20px rgba(120, 80, 150, 0.2);
+        }
+
+        .vault-search-input::placeholder {
+            color: #5a3a6a;
+        }
+
+        .vault-search-clear {
+            padding: 8px 14px;
+            background: rgba(80, 50, 100, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px;
+            color: #6a4a7a;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: 'Georgia', serif;
+            transition: all 0.3s ease;
+        }
+
+        .vault-search-clear:hover {
+            background: rgba(100, 70, 130, 0.25);
+            color: #9a7aaa;
+            border-color: rgba(140, 100, 170, 0.4);
+        }
+
+        .vault-search-hint {
+            font-size: 0.6rem;
+            color: #3a2040;
+            padding: 2px 8px;
+        }
+
+        .vault-search-count {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #5a3a6a;
+            margin-top: 8px;
+            letter-spacing: 0.1em;
+            transition: opacity 0.3s ease;
+        }
+
+        .vault-no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #5a3a6a;
+            font-size: 0.85rem;
+            display: none;
+        }
+
         /* Access denied overlay */
         .access-denied {
             position: fixed;
@@ -652,7 +724,14 @@
             <div class="welcome-icon">🌑</div>
             <h1 class="welcome-title">The Vault</h1>
             <p class="welcome-subtitle">Master the shadows. Ascend through the tiers.</p>
+            <div class="vault-search">
+                <input type="text" id="vaultSearchInput" class="vault-search-input" placeholder="Search tools, labs, modules..." oninput="vaultSearch()">
+                <button class="vault-search-clear" onclick="vaultClearSearch()">Clear</button>
+                <span class="vault-search-hint">/ to focus</span>
+            </div>
+            <div class="vault-search-count" id="vaultSearchCount"></div>
         </section>
+        <div class="vault-no-results" id="vaultNoResults">No modules match your search.</div>
 
         <!-- TIER 1: APPRENTICE -->
         <section class="tier-section" id="tier1">
@@ -1407,9 +1486,92 @@
         }
 
         // ============================================
+        // VAULT SEARCH
+        // ============================================
+        function vaultSearch() {
+            const query = document.getElementById('vaultSearchInput').value.toLowerCase().trim();
+            const allCards = document.querySelectorAll('.module-card');
+            const tierSections = document.querySelectorAll('.tier-section');
+            const gateConstructions = document.querySelectorAll('.gate-construction');
+            const gateUnlocks = document.querySelectorAll('.gate-unlock');
+            const noResults = document.getElementById('vaultNoResults');
+            const countEl = document.getElementById('vaultSearchCount');
+
+            if (!query) {
+                // Reset: show everything, let tier lock state handle visibility
+                allCards.forEach(card => card.style.removeProperty('display'));
+                tierSections.forEach(s => s.style.removeProperty('display'));
+                gateConstructions.forEach(g => g.style.removeProperty('display'));
+                gateUnlocks.forEach(g => g.style.removeProperty('display'));
+                noResults.style.display = 'none';
+                countEl.textContent = '';
+                updateUI(); // Re-apply tier lock states
+                return;
+            }
+
+            let matchCount = 0;
+            let totalVisible = 0;
+
+            tierSections.forEach(section => {
+                const cards = section.querySelectorAll('.module-card');
+                let sectionMatches = 0;
+
+                cards.forEach(card => {
+                    const title = card.querySelector('.module-title');
+                    const desc = card.querySelector('.module-description');
+                    const text = ((title ? title.textContent : '') + ' ' + (desc ? desc.textContent : '')).toLowerCase();
+
+                    if (text.includes(query)) {
+                        card.style.removeProperty('display');
+                        sectionMatches++;
+                        matchCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // Hide entire tier section if no matches
+                if (sectionMatches === 0) {
+                    section.style.display = 'none';
+                } else {
+                    section.style.removeProperty('display');
+                    totalVisible += sectionMatches;
+                }
+
+                // Hide gate unlock/construction cards during search
+                const gateUnlock = section.querySelector('.gate-unlock');
+                if (gateUnlock) gateUnlock.style.display = 'none';
+                const gateCon = section.querySelector('.gate-construction');
+                if (gateCon) gateCon.style.display = 'none';
+            });
+
+            countEl.textContent = `${matchCount} result${matchCount !== 1 ? 's' : ''} for "${query}"`;
+            noResults.style.display = matchCount === 0 ? '' : 'none';
+        }
+
+        function vaultClearSearch() {
+            document.getElementById('vaultSearchInput').value = '';
+            vaultSearch();
+        }
+
+        // ============================================
         // INITIALIZATION
         // ============================================
-        document.addEventListener('DOMContentLoaded', updateUI);
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUI();
+
+            // Keyboard shortcut: / to focus search
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    document.getElementById('vaultSearchInput').focus();
+                }
+                if (e.key === 'Escape' && document.activeElement.id === 'vaultSearchInput') {
+                    vaultClearSearch();
+                    document.activeElement.blur();
+                }
+            });
+        });
 
         // Console message
         console.log('%c🌑 The Vault', 'color: #9a7aaa; font-size: 14px;');
