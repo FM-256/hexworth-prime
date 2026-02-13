@@ -18,11 +18,201 @@
 | **L-** | Linux | Linux tutorials and interactive labs |
 | **MX-** | Matrix | Matrix/Operator path enhancements |
 | **HD-** | Handler Dashboard | Instructor class management system |
+| **R-** | Registration & Rebuild | Content catalog coverage + Hype applet native rebuilds |
 | **CLH-** | CLH Course | Command Line Heroes course (Script House) |
 
 ---
 
 ## Current Sprint
+
+### Sprint F-15: CMMC Domain Applets + OSINT Lab + Career Explorer
+**Status:** ✅ Complete (February 13, 2026)
+**Priority:** High — Eliminated all 201 HIGH EduScan issues from broken Articulate Storyline wrappers
+**Scope:** 4 shared engines, 17 consumer pages, 16 old wrappers deleted, registry + index updated
+
+**Problem:** 16 applets in Shield house were broken Articulate Storyline wrappers — `data/common/script.js` and `data/player/player.js` were never committed. These accounted for all HIGH issues in EduScan.
+
+**Architecture:** Shared renderer pattern (proven by CertPathRenderer.js) — one shared component + tiny consumer HTML pages that pass a domain code.
+
+| Deliverable | File | Details |
+|-------------|------|---------|
+| **NEW** CMMCDomainData.js | `components/CMMCDomainData.js` | All 14 CMMC domains, 110 practices from NIST SP 800-171, 80+ assessment questions (~55KB) |
+| **NEW** CMMCDomainRenderer.js | `components/CMMCDomainRenderer.js` | 4-tab UI (Overview, Practices, Self-Assessment, Resources), level guide with L1/L2/L3 breakdown, FCI/CUI definitions, cross-domain distribution chart, practice filtering, assessment scoring via GameTracker |
+| **NEW** OSINTLabEngine.js | `components/OSINTLabEngine.js` | 5-stage OSINT investigation sim against fictional "MeridianTech Corp" (~680 lines) |
+| **NEW** CareerExplorerEngine.js | `components/CareerExplorerEngine.js` | 4-tab career browser: 8 domains, 28 roles, cert map, NICE framework (~460 lines) |
+| **NEW** 14 CMMC consumer pages | `shield/applets/compliance/cmmc_*/shield-cmmc-*.applet.html` | ~15 lines each, call `CMMCDomainRenderer.init('AC')` etc. |
+| **NEW** OSINT lab page | `shield/applets/threats/osint_challenge/shield-osint-lab.applet.html` | Loads OSINTLabEngine |
+| **NEW** Career explorer page | `shield/applets/fundamentals/career_exploration/shield-career-explorer.applet.html` | Loads CareerExplorerEngine |
+| **UPDATED** content-registry.js | `config/content-registry.js` | 16 entries changed from CloudFront URLs to local paths |
+| **UPDATED** Shield house index | `houses/shield/index.html` | 18 href entries updated, Career status changed to 'available' |
+| **DELETED** 16 old wrappers | Various `shield-*v2.applet.html` files | Broken Articulate shells removed |
+
+**EduScan Results:**
+- HIGH: 201 → 0
+- CRITICAL: 1 → 0
+- Baseline archived: 2026-02-13 (CRITICAL:0, HIGH:0, MED:192, LOW:1, WARN:869)
+
+**Known remaining issues (carry forward to R-8):**
+- `shield-cui-2.applet.html`, `shield-cmmc-frameworkv2.applet.html`, `shield-cmmc-test-knowledge2.applet.html` — 3 non-domain applets still using old Articulate wrappers (CUI overview, CMMC framework overview, CMMC comprehensive quiz). Need new native interactive content.
+
+---
+
+### Sprint HD-6: Persistent Classroom Progress (PROPOSAL)
+**Status:** 📋 Proposed (February 12, 2026)
+**Priority:** High — Instructor visibility into student progress without login dependency
+**Estimated Scope:** 3 phases, ~4-6 deliverables
+
+#### Problem Statement
+
+Currently, student progress lives in two places with a gap between them:
+
+| Storage | Persists? | Visible to Instructor? | Requires Login? |
+|---------|-----------|----------------------|-----------------|
+| **localStorage** | Yes (per-browser, survives deploys) | No | No |
+| **Firestore** (user profile) | Yes (cloud) | Indirectly via dashboard | Yes (Google sign-in) |
+| **Firestore** (class progress) | Yes (cloud) | Yes (instructor dashboard) | Yes (enrolled in class) |
+
+**Gap:** If a student never logs in, or logs in but hasn't joined a class, the instructor sees nothing. Progress exists on the student's device but is invisible to the professor. Additionally, there's no guarantee that progress survives device changes or browser clears without login.
+
+**User Requirements:**
+1. Classroom progress must be capturable for instructor review — even without login
+2. User data must only be refreshed/deleted by the user — deploys must never erase progress
+3. Progress should persist across devices and sessions
+
+#### Architecture Audit (Current State)
+
+The existing pipeline already handles most of this when students ARE logged in:
+```
+Module complete → localStorage (immediate)
+                → FirestoreManager.completeModule() (user profile)
+                → ProgressManager.syncToFirestore() (instructor dashboard)
+                → AssignmentManager.submitProgress() (class/assignment tracking)
+                → AssignmentManager.logActivity() (activity feed)
+```
+
+**What works:** localStorage survives deploys. Firestore data survives everything. Bidirectional sync on login merges local↔cloud.
+
+**What's missing:** No mechanism for anonymous/offline progress to reach the instructor.
+
+#### Proposed Solution: 3-Phase Approach
+
+##### Phase 1: Class Code Without Login (Anonymous Enrollment)
+**Goal:** Students can join a class with just a class code — no Google sign-in required.
+
+| Deliverable | Description |
+|-------------|-------------|
+| **Anonymous class binding** | Store `classId` + `classCode` in localStorage when student enters a code. No auth needed. |
+| **Device fingerprint** | Generate a stable `deviceId` (UUID stored in localStorage) as anonymous student identity |
+| **Anonymous sync endpoint** | New Firestore path: `classes/{classId}/anonymous/{deviceId}` — progress writes don't require auth |
+| **Dashboard: anonymous students** | Instructor sees anonymous students as "Device-XXXX" until they claim an identity |
+| **Claim flow** | When a student later signs in with Google, their anonymous progress merges into their authenticated profile |
+
+**Key design decision:** Use Firestore security rules that allow writes to `classes/{classId}/anonymous/{deviceId}` without auth, but scope writes to only progress data (no reads of other students, no class admin).
+
+##### Phase 2: Auto-Sync on Every Completion
+**Goal:** Every module/quiz/lab completion immediately syncs to the class — no manual step, no login required.
+
+| Deliverable | Description |
+|-------------|-------------|
+| **ProgressSync enhancement** | If `classId` is in localStorage (from Phase 1), sync progress on every completion event — even without Firebase auth |
+| **Offline queue** | If network is down, queue progress events in localStorage. Flush on next successful connection. |
+| **Heartbeat** | Periodic sync (every 5 minutes during active session) catches any missed events |
+| **Conflict resolution** | Same as existing: take max values, union arrays, never delete student data |
+
+##### Phase 3: Progress Protection & Export
+**Goal:** Guarantee student data sovereignty — user controls their data.
+
+| Deliverable | Description |
+|-------------|-------------|
+| **Progress backup/restore** | "Export My Progress" button in settings → JSON file download. "Import Progress" → restore from file. |
+| **Data deletion** | "Clear My Data" button with confirmation — only way to erase progress. Deploys never touch localStorage or Firestore user data. |
+| **Instructor CSV export** | Enhanced export: include anonymous students, merge with authenticated, full grade book format |
+| **Data integrity check** | On app load, verify localStorage keys exist and are valid. If corrupted, attempt Firestore restore before zeroing. |
+
+#### Technical Notes
+
+**Firestore Security Rules (Phase 1):**
+```javascript
+match /classes/{classId}/anonymous/{deviceId} {
+  // Anyone can write their own progress (device-scoped)
+  allow write: if request.resource.data.deviceId == deviceId;
+  // Only class handler can read all anonymous progress
+  allow read: if isClassHandler(classId);
+}
+```
+
+**Data Flow After Phase 1+2:**
+```
+Module complete → localStorage (immediate, always)
+              ↓
+        classId in localStorage?
+         ├─ YES + authenticated → Firestore classes/{id}/progress/{uid}
+         ├─ YES + anonymous    → Firestore classes/{id}/anonymous/{deviceId}
+         └─ NO                 → localStorage only (personal tracking)
+```
+
+**What Deploys CANNOT Touch:**
+- localStorage (browser-side, completely separate from hosting)
+- Firestore data (separate service, not affected by `firebase deploy --only hosting`)
+- This is already true today — no code changes needed for deploy safety
+
+#### Risk Assessment
+
+| Risk | Mitigation |
+|------|------------|
+| Anonymous writes could be abused | Rate limiting via Firestore rules, device-scoped writes only |
+| Device fingerprint changes (new browser/cleared storage) | Progress backup/restore (Phase 3), Firestore merge on login |
+| Stale anonymous entries | Instructor can archive/clean anonymous entries older than N days |
+| Firestore costs from anonymous writes | Progress data is tiny (JSON objects, ~1KB per completion). Even 100 students × 100 completions = 10K writes/semester — well within free tier. |
+
+#### Sprint Sequencing
+
+Phase 1 is the highest-value piece — it solves the core problem (instructor can see progress without student login). Phases 2 and 3 are quality-of-life hardening.
+
+**Recommendation:** Phase 1 as Sprint HD-6, Phase 2 as HD-7, Phase 3 as HD-8. Or combine 1+2 into a single sprint if scope allows.
+
+---
+
+### Sprint F-13: Cert Path Landing Pages + Bug Fixes
+**Status:** ✅ Complete (February 12, 2026)
+
+EduScan reported 8 ASGN-003 HIGH issues because `resolveAssignmentHref()` in dashboard.html generates URLs like `houses/{certPathId}/index.html` for certification paths, but those pages didn't exist. Created dedicated landing pages for all 8 cert paths with shared renderer.
+
+**Delivered:**
+
+| Deliverable | File | Notes |
+|-------------|------|-------|
+| **NEW** Shared Renderer | `components/CertPathRenderer.js` | Dynamic module list, progress tracking, themed UI |
+| **NEW** DevOps Landing | `houses/devops-fundamentals/index.html` | Code House modules |
+| **NEW** Linux+ Landing | `houses/comptia-linux/index.html` | Script House modules |
+| **NEW** A+ Core 1 Landing | `houses/aplus-core1/index.html` | Forge House modules |
+| **NEW** A+ Core 2 Landing | `houses/aplus-core2/index.html` | Forge House modules |
+| **NEW** Security+ Landing | `houses/security-plus/index.html` | Shield House modules |
+| **NEW** Network+ Landing | `houses/comptia-network/index.html` | Web House modules |
+| **NEW** Crypto Track Landing | `houses/cryptography-track/index.html` | Key House modules |
+| **NEW** Sec+ Crypto Landing | `houses/security-plus-crypto/index.html` | Key House modules |
+| courseHref routing | `components/LearningPaths.js` | Added courseHref to 6 paths for runtime routing |
+| Cipher Cracker nav fix | `houses/key/games/cipher-cracker.html` | Back button 404: `../../index.html` → `../index.html` |
+| Tor/Darkweb title fix | `houses/shield/games/tor-darkweb.html` | ASCII art unreadable: added `white-space: pre` + responsive font-size |
+| SQL Injection score fix | `houses/shield/games/sql-injection-defense.html` | GameTracker total: 200 → `rounds.length * 10` |
+
+**EduScan Results:**
+- ASGN-003: 8 → 0
+- HIGH issues: 135 → 127
+- Total issues: 1630 → 1620
+
+**Actionable Notes (Carry Forward):**
+- [ ] Cloud Hop vertical direction — User wants runner to go upward instead of rightward (major mechanic change, needs design discussion)
+- [ ] SQL Injection Defense — User reported "still broken" but code review found no breaking bug; needs live browser testing to reproduce
+- [ ] 127 HIGH issues remain — mostly PATH-001 (broken script paths), HTML-001 (unclosed tags), JS-001 (unbalanced brackets) in Cloud House labs/games
+- [ ] `save-the-pod.html` has severe JS bracket imbalance (off by 5 parens, 10 braces) — likely non-functional
+- [ ] `cloud-cse-module05.lab.html` has unclosed `<script>` tag — page broken
+- [ ] `dont-lose-your-domain.html` references jQuery but no jQuery script loaded
+- [ ] 2 Cloud labs (`cloud-gui.lab.html`, `cloud-ps.lab.html`) reference `../progress.js` but file is at `../modules/wsa/progress.js`
+
+**Next:** Address remaining HIGH issues (Cloud House cleanup sprint), or Cloud Hop vertical runner redesign
+
+---
 
 ### A+ Core 2 & WSA Content Audit + Build
 **Status:** ✅ Complete (February 8, 2026)
@@ -1196,8 +1386,9 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 | Content Audit | 28 | 28 | Core 2 midterm + 11 enhanced presentations + 12 enhanced labs + 3 new WSA M01 files + WSA 404 fix (Feb 8, 2026) |
 | HD-7 | 7 | 7 | Time-on-task analytics: start recording, duration compute, Firestore storage, chart (Feb 9, 2026) |
 | L-0 | 10 | 10 | Linux infrastructure: 2 new visualizers, 2 new components, 5 lab fixes, LinuxTerminal API extension, context callouts (Feb 9, 2026) |
+| F-15 | 20 | 20 | CMMC: 4 engines, 17 consumer pages, 16 old wrappers deleted, registry + index updated, level guide (Feb 13, 2026) |
 
-**Total: ~231 tasks completed**
+**Total: ~251 tasks completed**
 
 ---
 
@@ -1439,4 +1630,275 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ---
 
-*Last Updated: February 11, 2026*
+---
+
+## Content Registration & Rebuild Initiative (R-Series)
+
+**Context:** Comprehensive audit (Feb 13, 2026) revealed 1,176 HTML content files across all houses but only 180 (15%) are discoverable via ContentCatalog. 81 Tumult Hype legacy applets need rebuilding as native HTML/JS. 537 files lack progress tracking. Zero broken content — this is a discoverability and modernization initiative.
+
+**Audit Summary:**
+
+| House | Files on Disk | In ContentCatalog | Hype Applets | Upgrade Effort |
+|-------|:---:|:---:|:---:|---|
+| Script | 322 | 91 (28%) | 0 | Small — already highest quality |
+| Forge | 188 | 31 (16%) | 2 | Small — Core 1/2 complete |
+| Code | 42 | 5 (12%) | 1 | Small — well-structured |
+| Key | 44 | 7 (16%) | 0 | Small-Medium — needs catalog + TLS module |
+| Eye | 132 | 14 (11%) | 0 | Medium — CyberOps needs catalog/tracking |
+| Cloud | 171 | 5 (3%) | 0 | Medium — WSA/CSE need catalog/tracking |
+| Dark Arts | 53 | 0 (0%) | 0 | Medium — vault needs registration + tracking |
+| Web | 100 | 20 (20%) | 13 | Medium-Large — Hype IP applets + lab gap |
+| Shield | 156 | 5 (3%) | 55 | Large — 55 Hype applets to rebuild |
+| **Totals** | **1,176** | **180 (15%)** | **81** | |
+
+**Quality Tiers:**
+- **Tier 1 (Production):** CLH (31), Zero to Python (8), A+ Core 1+2 (24), CMMC Domains (14), WSA (20)
+- **Tier 2 (Good, needs registration):** CyberOps (70+), CSE (8), Key crypto (30+), Code (42), Web tools (22), Dark Arts vault (40+), FEH (10)
+- **Tier 3 (Functional, legacy Hype format):** Shield (55), Web IP suite (13), Forge (2), Code (1)
+
+### Sprint R-1: Content Registration Wave 1 — Code, Key, Forge
+**Status:** ⬜ Backlog
+**Priority:** High — Quick wins, highest ROI per effort
+**Estimated Scope:** ~80 files to register
+
+Register all unregistered content in the three smallest/cleanest houses into ContentCatalog and content-registry.js.
+
+| Task | House | Files | Status |
+|------|-------|:---:|--------|
+| Register Code presentations, labs, quizzes, tools, games | Code | ~37 | ⬜ |
+| Register Key presentations, labs, quizzes, tools, games | Key | ~37 | ⬜ |
+| Register Forge standalone applets (multimeter, RAID, CPU, etc.) | Forge | ~6 | ⬜ |
+| Verify all registered content has correct href paths | All 3 | — | ⬜ |
+| Run EduScan to confirm REG-001 reduction | — | — | ⬜ |
+
+**Expected EduScan Impact:** REG-001 warnings reduced by ~80
+
+---
+
+### Sprint R-2: Content Registration Wave 2 — Cloud, Eye, Web, Dark Arts
+**Status:** ⬜ Backlog
+**Priority:** High — Makes the biggest hidden content libraries visible
+**Estimated Scope:** ~400+ files to register
+**Depends on:** R-1 (establish registration patterns)
+
+| Task | House | Files | Status |
+|------|-------|:---:|--------|
+| Register WSA course (20 modules × 4 components) | Cloud | ~80 | ⬜ |
+| Register CSE course (8 modules × 3 components) | Cloud | ~24 | ⬜ |
+| Register Cloud standalone tools (ch01-ch12) | Cloud | ~15 | ⬜ |
+| Register Cloud games and applets | Cloud | ~10 | ⬜ |
+| Register CyberOps 200-201 weekly modules + applets | Eye | ~70 | ⬜ |
+| Register Eye standalone tools and labs | Eye | ~15 | ⬜ |
+| Register Web presentations, tools, reviews | Web | ~60 | ⬜ |
+| Register Dark Arts vault labs, tools, modules | Dark Arts | ~40 | ⬜ |
+| Register FEH presentations (feh-01 through feh-10) | Dark Arts | ~10 | ⬜ |
+| Fix Eye Week 5 nav (shows "Week 6: Coming Soon" but Week 6-7 exist) | Eye | 1 | ⬜ |
+| Run EduScan to confirm REG-001 reduction | — | — | ⬜ |
+
+**Expected EduScan Impact:** REG-001 warnings reduced by ~500+
+
+---
+
+### Sprint R-3: Progress Tracking Pass
+**Status:** ⬜ Backlog
+**Priority:** Medium — Enables instructor visibility into student activity
+**Estimated Scope:** ~50 highest-priority files
+**Depends on:** R-1, R-2 (content must be registered first)
+
+Add ProgressManager integration to the most impactful untracked content. Focus on files that are already assigned in classes or part of learning paths.
+
+| Task | Scope | Status |
+|------|-------|--------|
+| Add progress tracking to CSE module labs (m01-m08) | Cloud | ⬜ |
+| Add progress tracking to WSA presentations (m01-m05+) | Cloud | ⬜ |
+| Add progress tracking to CyberOps weekly evaluations | Eye | ⬜ |
+| Add progress tracking to Key crypto labs | Key | ⬜ |
+| Add progress tracking to Dark Arts vault labs | Dark Arts | ⬜ |
+| Add progress tracking to Web standalone presentations | Web | ⬜ |
+| Run EduScan to confirm TRACK-002/003 reduction | — | ⬜ |
+
+**Expected EduScan Impact:** TRACK-002/003 warnings reduced by ~200+
+
+---
+
+### Sprint R-4: Shield Hype Rebuild — Crypto Applets (14)
+**Status:** ⬜ Backlog
+**Priority:** Medium — Largest single batch in Shield
+**Estimated Scope:** 14 applets → 1 shared engine + 14 consumer pages
+**Depends on:** R-1 (registration patterns established)
+
+Rebuild Shield house's 14 Tumult Hype crypto applets as native HTML/JS using the shared renderer pattern proven by CMMC.
+
+| Task | Status |
+|------|--------|
+| Audit existing 14 Hype crypto applets — catalog topics, interactivity, content | ⬜ |
+| Design CryptoAppletData.js — data for all 14 crypto topics | ⬜ |
+| Build CryptoAppletRenderer.js — shared interactive renderer | ⬜ |
+| Create 14 consumer HTML pages | ⬜ |
+| Update content-registry.js and Shield house index.html | ⬜ |
+| Delete old Hype directories | ⬜ |
+| Run EduScan to verify no regressions | ⬜ |
+
+**Hype Crypto Topics (14):** AES, Block Ciphers, Caesar Cipher, Crypto Protocols, Diffie-Hellman, Digital Signatures, Hashing, HMAC, Key Exchange, PKI, RSA, Steganography, Stream Ciphers, Symmetric vs Asymmetric
+
+---
+
+### Sprint R-5: Shield Hype Rebuild — Threat Applets (16)
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Estimated Scope:** 16 applets → 1 shared engine + 16 consumer pages
+**Depends on:** R-4 (refine the rebuild pattern)
+
+| Task | Status |
+|------|--------|
+| Audit existing 16 Hype threat applets — catalog topics, interactivity | ⬜ |
+| Design ThreatAppletData.js — data for all 16 threat topics | ⬜ |
+| Build ThreatAppletRenderer.js — shared interactive renderer | ⬜ |
+| Create 16 consumer HTML pages | ⬜ |
+| Update content-registry.js and Shield house index.html | ⬜ |
+| Delete old Hype directories | ⬜ |
+| Run EduScan to verify | ⬜ |
+
+**Hype Threat Topics (16):** APT, Botnets, Buffer Overflow, Cryptojacking, DDoS, DNS Attacks, Insider Threats, IoT Threats, Man-in-the-Middle, Phishing, Privilege Escalation, Ransomware, Rootkits, Social Engineering, Supply Chain, Zero-Day
+
+---
+
+### Sprint R-6: Shield Hype Rebuild — Fundamentals + Network + Remaining (18+)
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Estimated Scope:** ~18 applets → shared engines + consumer pages
+**Depends on:** R-4, R-5
+
+Rebuild remaining Shield Hype applets: fundamentals (~10), network (~8), access (~3), risk (~5), operations, governance.
+
+| Task | Status |
+|------|--------|
+| Audit remaining Shield Hype applets by category | ⬜ |
+| Group by shared-renderer feasibility (may need 2-3 engines) | ⬜ |
+| Build shared engines + consumer pages per group | ⬜ |
+| Update registry and index | ⬜ |
+| Delete old Hype directories | ⬜ |
+| Run EduScan to verify | ⬜ |
+
+---
+
+### Sprint R-7: Web Hype Rebuild — IP Addressing Suite (13)
+**Status:** ⬜ Backlog
+**Priority:** Medium — Core networking tools used across courses
+**Estimated Scope:** 13 applets → 1 shared engine + 13 consumer pages
+**Depends on:** R-4 (shared renderer pattern refined)
+
+Rebuild the entire IP addressing/subnetting Hype applet collection as native interactive tools.
+
+| Task | Status |
+|------|--------|
+| Audit existing 13 Hype IP applets — catalog features and interactivity | ⬜ |
+| Design IPToolsData.js — data for all 13 IP/subnet topics | ⬜ |
+| Build IPToolsRenderer.js — shared interactive renderer with calculators | ⬜ |
+| Create 13 consumer HTML pages | ⬜ |
+| Update content-registry.js and Web house index.html | ⬜ |
+| Delete old Hype directories | ⬜ |
+| Run EduScan to verify | ⬜ |
+
+**Hype IP Topics (13):** Binary IP, CIDR Notation, IPv4 Classes, IPv6 Addressing, NAT/PAT, Network Classes, Private vs Public, Subnet Calculator, Subnet Masks, Subnetting Practice, Supernetting, VLSM, Wildcard Masks
+
+---
+
+### Sprint R-8: Shield Remaining 3 — CUI, Framework, Quiz
+**Status:** ⬜ Backlog
+**Priority:** Medium — Last 3 broken Articulate wrappers from F-15
+**Estimated Scope:** 3 new applets (small)
+
+Build native interactive content for the 3 non-domain Shield applets that still reference missing `data/player/player.js`:
+
+| Task | Status |
+|------|--------|
+| Build CUI Overview applet — what is CUI, categories, marking, handling | ⬜ |
+| Build CMMC Framework Overview applet — history, levels, assessment process, timeline | ⬜ |
+| Build CMMC Comprehensive Quiz — 30-50 questions covering all 14 domains | ⬜ |
+| Update content-registry.js and Shield house index.html | ⬜ |
+| Delete old wrapper files | ⬜ |
+| Run EduScan to verify | ⬜ |
+
+---
+
+### Sprint R-9: Gap Fill — TLS/SSL Module, Web Labs, Eye Nav
+**Status:** ⬜ Backlog
+**Priority:** Low-Medium — New content to fill identified gaps
+**Depends on:** R-1 through R-3 (registration complete)
+
+| Task | House | Status |
+|------|-------|--------|
+| Build TLS/SSL Explained module (marked 'coming-soon' in Key house) | Key | ⬜ |
+| Build 3-5 additional Web house labs (only 2 exist for 100 files) | Web | ⬜ |
+| Fix Eye house CyberOps Week 5 nav → link to existing Week 6-7 | Eye | ⬜ |
+| Rebuild Forge Hype applets (multimeter, hard drive geometry — 2) | Forge | ⬜ |
+| Rebuild Code Hype applet (config management — 1) | Code | ⬜ |
+
+---
+
+### Sprint R-10: Polish + Verify — 100% Catalog Coverage
+**Status:** ⬜ Backlog
+**Priority:** Low — Final cleanup pass
+**Depends on:** R-1 through R-9
+
+| Task | Status |
+|------|--------|
+| Run EduScan full scan — target: 0 CRITICAL, 0 HIGH, REG-001 < 50 | ⬜ |
+| Verify every house index page links to correct local paths (no CloudFront) | ⬜ |
+| Verify ContentCatalog has entries for all registered content | ⬜ |
+| Verify all learning paths in LearningPaths.js resolve to existing files | ⬜ |
+| Archive final EduScan baseline | ⬜ |
+| Cross-reference with F-12 (Centralized Search) — ensure search covers all new catalog entries | ⬜ |
+
+**Target EduScan State:** CRITICAL: 0, HIGH: 0, REG-001: < 50, TRACK: < 100
+
+---
+
+### BUG: Encryption Basics 404
+**Status:** 🐛 Open (February 12, 2026)
+**Priority:** Medium — Broken link from Key House content
+
+**Problem:** "Encryption Basics" returns 404. The file exists at `houses/key/presentations/key-encryption-basics.presentation.html` but multiple references use the wrong path `presentations/encryption-basics.html`:
+- `ContentCatalog.js` line 273 — `href: 'presentations/encryption-basics.html'` (wrong)
+- `TrailHunter.js` line 38 — `'presentations/encryption-basics.html'` (wrong)
+
+**Correct references** (already working):
+- `LearningPaths.js` — `houses/key/presentations/key-encryption-basics.presentation.html`
+- `houses/key/index.html` — `presentations/key-encryption-basics.presentation.html`
+
+**Fix:** Update ContentCatalog.js and TrailHunter.js to use the correct filename.
+
+---
+
+### BUG: Core 2 Duplicate Progress Tracking
+**Status:** 🐛 Open (February 12, 2026)
+**Priority:** High — User-facing confusion, progress appears lost depending on entry point
+
+**Problem:** CompTIA A+ Core 2 content exists at two locations with independent progress tracking:
+
+| View | Path | Storage Keys |
+|------|------|-------------|
+| **Core 2 Applet Hub** | `forge/applets/comptia-aplus/core-2/index.html` | `aplus-core2-progress`, `core2-ch13-quiz`, `core2-ch18-lab`, etc. |
+| **Forge House Index** | `forge/index.html` (module catalog) | `hexworth_progress.forge['forge-windows-editions']`, etc. |
+
+Completing a standalone presentation (e.g., `forge-windows-editions.presentation.html`) from the Forge house index writes to `hexworth_progress.forge` but NOT to `aplus-core2-progress`. The Core 2 applet hub shows 0 completions while Forge house index shows 13-15.
+
+**Root Cause:** Content was built at two different times. Standalone modules at forge root came first, then the comprehensive Core 2 applet hub was built later. They were never wired together.
+
+**Fix Options:**
+1. **Sync both systems** — Make the applet hub check both key sets bidirectionally
+2. **Consolidate to one path** — Make one the canonical entry and redirect/remove the other
+3. **Bridge layer** — Add a progress adapter that normalizes reads/writes across both key patterns
+
+**Also found during Core 2 QC:**
+- 3 broken tool paths in chapter indexes (ch15, ch16, ch17) — wrong relative paths
+- 7 broken back-link paths in quizzes (ch18-ch24) — missing `../../`
+- 7 broken lab links in presentations — wrong filename format
+- Missing emoji icons in ch21-ch24
+
+**Scope:** `houses/forge/applets/comptia-aplus/core-2/`, `houses/forge/presentations/`, `houses/forge/labs/`, `houses/forge/quizzes/`
+
+---
+
+*Last Updated: February 13, 2026*

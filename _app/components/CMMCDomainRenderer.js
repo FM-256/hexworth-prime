@@ -157,7 +157,61 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 .cmmc-back{display:inline-flex;align-items:center;gap:.4rem;color:#64748b;text-decoration:none;font-size:.82rem;margin-bottom:1rem;transition:color .2s}
 .cmmc-back:hover{color:${domain.color}}
 
+/* Level Guide Cards */
+.cmmc-level-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem}
+.cmmc-level-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem;transition:all .2s}
+.cmmc-level-card.active{border-color:${domain.color}44;background:${domain.color}08}
+.cmmc-lc-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;letter-spacing:.5px;margin-bottom:.5rem}
+.cmmc-lc-badge.l1{background:#22c55e22;color:#22c55e;border:1px solid #22c55e44}
+.cmmc-lc-badge.l2{background:#eab30822;color:#eab308;border:1px solid #eab30844}
+.cmmc-lc-badge.l3{background:#a855f722;color:#a855f7;border:1px solid #a855f744}
+.cmmc-lc-name{font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:.35rem}
+.cmmc-lc-stat{font-size:.78rem;color:#64748b;margin-bottom:.5rem}
+.cmmc-lc-protects{font-size:.82rem;color:#94a3b8;margin-bottom:.5rem}
+.cmmc-lc-key{color:#64748b;font-size:.75rem}
+.cmmc-lc-desc{font-size:.82rem;color:#94a3b8;line-height:1.5;margin-bottom:.5rem}
+.cmmc-lc-who{font-size:.82rem;color:#94a3b8}
+
+/* FCI/CUI Explainer */
+.cmmc-fci-cui{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}
+.cmmc-fci-cui-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:1rem;border-left:3px solid #22c55e44}
+.cmmc-fci-cui-card.cui{border-left-color:#eab30844}
+.cmmc-fci-cui-label{font-size:.82rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem}
+.cmmc-fci-cui-text{font-size:.8rem;color:#94a3b8;line-height:1.5}
+
+/* Callout Box */
+.cmmc-callout{display:flex;gap:1rem;align-items:flex-start;background:${domain.color}0a;border:1px solid ${domain.color}33;border-radius:10px;padding:1.25rem;margin-top:1rem}
+.cmmc-callout-icon{font-size:1.5rem;flex-shrink:0}
+.cmmc-callout-title{font-size:.9rem;font-weight:600;color:${domain.color};margin-bottom:.35rem}
+.cmmc-callout-text{font-size:.85rem;color:#94a3b8;line-height:1.6}
+.cmmc-callout-text strong{color:#e2e8f0}
+
+/* Distribution Chart */
+.cmmc-dist-chart{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:.75rem 1rem;overflow:hidden}
+.cmmc-dist-row{display:flex;align-items:center;gap:.5rem;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.cmmc-dist-row:last-child{border-bottom:none}
+.cmmc-dist-row.current{background:${domain.color}0a;border-radius:6px;padding:4px .5rem;margin:0 -.5rem}
+.cmmc-dist-label{width:28px;font-size:.72rem;font-weight:700;color:#94a3b8;text-decoration:none;font-family:monospace;letter-spacing:.3px;flex-shrink:0}
+.cmmc-dist-label:hover{color:${domain.color}}
+.cmmc-dist-row.current .cmmc-dist-label{color:${domain.color}}
+.cmmc-dist-bar-wrap{flex:1;display:flex;height:20px;gap:1px;align-items:center}
+.cmmc-dist-bar{height:100%;border-radius:3px;font-size:.65rem;font-weight:600;display:flex;align-items:center;justify-content:center;min-width:0;transition:width .3s}
+.cmmc-dist-bar.l1{background:#22c55e33;color:#22c55e}
+.cmmc-dist-bar.l2{background:#eab30833;color:#eab308}
+.cmmc-dist-total{font-size:.72rem;color:#64748b;width:22px;text-align:right;flex-shrink:0}
+.cmmc-dist-legend{display:flex;gap:1.25rem;margin-bottom:.75rem}
+.cmmc-dist-legend-item{display:flex;align-items:center;gap:.35rem;font-size:.75rem;color:#94a3b8}
+.cmmc-dist-swatch{width:12px;height:12px;border-radius:3px}
+.cmmc-dist-swatch.l1{background:#22c55e33;border:1px solid #22c55e66}
+.cmmc-dist-swatch.l2{background:#eab30833;border:1px solid #eab30866}
+.cmmc-dist-name{font-size:.7rem;color:#64748b;margin-left:.25rem;display:none}
+.cmmc-dist-row:hover .cmmc-dist-name{display:inline}
+
 /* Responsive */
+@media(max-width:768px){
+    .cmmc-level-cards{grid-template-columns:1fr}
+    .cmmc-fci-cui{grid-template-columns:1fr}
+}
 @media(max-width:640px){
     #cmmc-root{padding:.75rem}
     .cmmc-header{padding:1rem 1.25rem}
@@ -235,11 +289,132 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             return d ? `<a class="cmmc-related-link" href="${domainHref(code)}">${d.icon} ${d.name} (${code})</a>` : '';
         }).join(' ');
 
+        // Calculate level distribution across ALL domains
+        const allCodes = ['AC','AT','AU','CM','IA','IR','MA','MP','PS','PE','RA','CA','SC','SI'];
+        const distData = allCodes.map(code => {
+            const d = CMMCDomainData[code];
+            if (!d) return null;
+            const dl1 = d.practices.filter(p => p.level === 1).length;
+            const dl2 = d.practices.filter(p => p.level === 2).length;
+            return { code, name: d.name, icon: d.icon, l1: dl1, l2: dl2, total: dl1 + dl2, isCurrent: code === domain.code };
+        }).filter(Boolean);
+        const totalL1 = distData.reduce((s, d) => s + d.l1, 0);
+        const totalL2 = distData.reduce((s, d) => s + d.l2, 0);
+        const domainL1 = domain.practices.filter(p => p.level === 1).length;
+        const domainL2 = domain.practices.filter(p => p.level === 2).length;
+        const hasL1 = domainL1 > 0;
+        const hasL2 = domainL2 > 0;
+        const domainsWithNoL1 = distData.filter(d => d.l1 === 0).length;
+
+        // Contextual explanation for THIS domain
+        let contextText = '';
+        if (domainL1 === 0) {
+            contextText = `<strong>${domain.name}</strong> has <strong>no Level 1 practices</strong> — all ${domainL2} practices are Level 2. This means organizations only pursuing Level 1 certification (basic FCI protection) do not need to implement ${domain.name} controls. These requirements apply at Level 2 and above, when the organization handles CUI.`;
+        } else if (domainL1 > 0 && domainL2 > 0) {
+            contextText = `<strong>${domain.name}</strong> spans both certification levels: <strong>${domainL1} Level 1</strong> practice${domainL1 > 1 ? 's' : ''} establish basic FCI safeguards, while <strong>${domainL2} additional Level 2</strong> practice${domainL2 > 1 ? 's' : ''} add the controls needed for CUI protection. An organization pursuing any CMMC level will need to address this domain.`;
+        } else {
+            contextText = `All <strong>${domainL1}</strong> practice${domainL1 > 1 ? 's' : ''} in <strong>${domain.name}</strong> are Level 1 fundamentals, required at every CMMC certification level.`;
+        }
+
+        // Distribution bar chart
+        const maxPractices = Math.max(...distData.map(d => d.total));
+        const distHTML = distData.map(d => {
+            const l1Pct = maxPractices ? (d.l1 / maxPractices * 100) : 0;
+            const l2Pct = maxPractices ? (d.l2 / maxPractices * 100) : 0;
+            const highlight = d.isCurrent ? ' current' : '';
+            return `<div class="cmmc-dist-row${highlight}">
+                <a class="cmmc-dist-label" href="${domainHref(d.code)}">${d.code}</a>
+                <div class="cmmc-dist-bar-wrap">
+                    ${d.l1 > 0 ? `<div class="cmmc-dist-bar l1" style="width:${l1Pct}%" title="${d.l1} Level 1 practices">${d.l1}</div>` : ''}
+                    <div class="cmmc-dist-bar l2" style="width:${l2Pct}%" title="${d.l2} Level 2 practices">${d.l2}</div>
+                </div>
+                <span class="cmmc-dist-total">${d.total}</span>
+                <span class="cmmc-dist-name">${d.name}</span>
+            </div>`;
+        }).join('');
+
         panel.innerHTML = `
             <h3 style="color:#fff;font-size:1.1rem;margin-bottom:.5rem">Key Concepts</h3>
             <div class="cmmc-concepts">${concepts}</div>
 
-            <div style="margin-top:1.5rem">
+            <!-- CMMC Level Guide -->
+            <div style="margin-top:1.75rem">
+                <h3 style="color:#fff;font-size:1.1rem;margin-bottom:.75rem">Understanding CMMC Levels</h3>
+                <p style="color:#94a3b8;font-size:.85rem;line-height:1.6;margin-bottom:1rem">
+                    CMMC 2.0 (Cybersecurity Maturity Model Certification) organizes cybersecurity requirements into
+                    <strong style="color:#e2e8f0">three maturity levels</strong>. These levels are not difficulty ratings —
+                    they are <strong style="color:#e2e8f0">compliance tiers</strong> that determine which security controls
+                    an organization must implement based on the sensitivity of the data they handle. Not every domain has
+                    practices at every level.
+                </p>
+
+                <div class="cmmc-level-cards">
+                    <div class="cmmc-level-card${hasL1 ? ' active' : ''}">
+                        <div class="cmmc-lc-badge l1">Level 1</div>
+                        <div class="cmmc-lc-name">Foundational</div>
+                        <div class="cmmc-lc-stat">${totalL1} practices across all domains</div>
+                        <div class="cmmc-lc-protects"><span class="cmmc-lc-key">Protects:</span> FCI</div>
+                        <div class="cmmc-lc-desc">Basic cyber hygiene — the minimum bar for any DoD contractor. Covers fundamental safeguards like limiting system access, verifying user identity, and controlling physical entry. Self-assessment only; no third-party audit required.</div>
+                        <div class="cmmc-lc-who"><span class="cmmc-lc-key">Who needs it:</span> All DoD contractors handling Federal Contract Information</div>
+                    </div>
+                    <div class="cmmc-level-card${hasL2 ? ' active' : ''}">
+                        <div class="cmmc-lc-badge l2">Level 2</div>
+                        <div class="cmmc-lc-name">Advanced</div>
+                        <div class="cmmc-lc-stat">110 practices (all of NIST SP 800-171)</div>
+                        <div class="cmmc-lc-protects"><span class="cmmc-lc-key">Protects:</span> CUI</div>
+                        <div class="cmmc-lc-desc">Comprehensive security program aligned with NIST SP 800-171 Rev 2. Encompasses all Level 1 practices plus advanced controls for configuration management, incident response, risk assessment, and more. Requires third-party assessment by a C3PAO for critical CUI programs.</div>
+                        <div class="cmmc-lc-who"><span class="cmmc-lc-key">Who needs it:</span> Contractors handling Controlled Unclassified Information on DoD programs</div>
+                    </div>
+                    <div class="cmmc-level-card">
+                        <div class="cmmc-lc-badge l3">Level 3</div>
+                        <div class="cmmc-lc-name">Expert</div>
+                        <div class="cmmc-lc-stat">110+ practices (adds NIST SP 800-172)</div>
+                        <div class="cmmc-lc-protects"><span class="cmmc-lc-key">Protects:</span> CUI against APTs</div>
+                        <div class="cmmc-lc-desc">Enhanced security designed to resist Advanced Persistent Threats — nation-state adversaries. Adds penetration-resistant architecture, threat hunting, and advanced incident response capabilities beyond Level 2. Government-led assessment required (DIBCAC).</div>
+                        <div class="cmmc-lc-who"><span class="cmmc-lc-key">Who needs it:</span> Contractors on the highest-priority DoD programs</div>
+                    </div>
+                </div>
+
+                <!-- FCI vs CUI -->
+                <div class="cmmc-fci-cui">
+                    <div class="cmmc-fci-cui-card">
+                        <div class="cmmc-fci-cui-label">FCI — Federal Contract Information</div>
+                        <div class="cmmc-fci-cui-text">Information provided by or generated for the government under contract, not intended for public release. Think contract schedules, pricing data, or contractor employee lists assigned to a project. Less sensitive — Level 1 is sufficient.</div>
+                    </div>
+                    <div class="cmmc-fci-cui-card cui">
+                        <div class="cmmc-fci-cui-label">CUI — Controlled Unclassified Information</div>
+                        <div class="cmmc-fci-cui-text">Government-created or owned information that laws or policies require safeguarding. More sensitive than FCI — think technical drawings for military systems, vulnerability scan results, or personnel security data. Requires Level 2 or higher.</div>
+                    </div>
+                </div>
+
+                <!-- Contextual callout for this domain -->
+                <div class="cmmc-callout">
+                    <div class="cmmc-callout-icon">${domain.icon}</div>
+                    <div>
+                        <div class="cmmc-callout-title">What This Means for ${domain.name}</div>
+                        <div class="cmmc-callout-text">${contextText}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Practice Distribution Chart -->
+            <div style="margin-top:1.75rem">
+                <h3 style="color:#fff;font-size:1.1rem;margin-bottom:.75rem">Practice Distribution Across All Domains</h3>
+                <p style="color:#94a3b8;font-size:.82rem;line-height:1.5;margin-bottom:.75rem">
+                    Of the 110 total CMMC practices, only <strong style="color:#22c55e">${totalL1} are Level 1</strong> (green)
+                    while <strong style="color:#eab308">${totalL2} are Level 2</strong> (yellow).
+                    ${domainsWithNoL1} of 14 domains have zero Level 1 practices — their requirements only apply
+                    when an organization pursues Level 2 certification.
+                </p>
+                <div class="cmmc-dist-legend">
+                    <span class="cmmc-dist-legend-item"><span class="cmmc-dist-swatch l1"></span>Level 1 (FCI)</span>
+                    <span class="cmmc-dist-legend-item"><span class="cmmc-dist-swatch l2"></span>Level 2 (CUI)</span>
+                </div>
+                <div class="cmmc-dist-chart">${distHTML}</div>
+            </div>
+
+            <!-- Practice Breakdown -->
+            <div style="margin-top:1.75rem">
                 <h3 style="color:#fff;font-size:1.1rem;margin-bottom:.75rem">Practice Breakdown</h3>
                 ${domain.practices.map(p => `
                     <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0">
@@ -250,6 +425,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
                 `).join('')}
             </div>
 
+            <!-- Related Domains -->
             <div class="cmmc-related" style="margin-top:1.5rem">
                 <h3 style="color:#fff;font-size:1.1rem;margin-bottom:.75rem">Related Domains</h3>
                 <div style="display:flex;gap:.5rem;flex-wrap:wrap">${related}</div>
