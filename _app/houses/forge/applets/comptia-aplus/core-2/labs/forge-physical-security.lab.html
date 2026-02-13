@@ -20,14 +20,15 @@
         .task-item { background: rgba(220, 38, 38, 0.05); border: 1px solid rgba(220, 38, 38, 0.1); border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; }
         .task-item:hover { background: rgba(220, 38, 38, 0.1); }
         .task-item.active { border-color: #dc2626; background: rgba(220, 38, 38, 0.15); }
-        .task-item.completed { border-color: #34d399; }
+        .task-item.completed { border-color: #34d399; animation: task-complete-pulse 1s ease-out; }
         .task-item.completed::before { content: 'Done '; color: #34d399; }
+        @keyframes task-complete-pulse { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); } 50% { box-shadow: 0 0 20px 10px rgba(52, 211, 153, 0.3); } 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); } }
         .task-title { font-size: 0.9rem; color: #e8d5f5; margin-bottom: 5px; }
         .task-desc { font-size: 0.75rem; color: #8b7a9e; }
         .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; }
         .terminal-header { padding: 10px 20px; background: rgba(20, 15, 30, 0.9); border-bottom: 1px solid rgba(220, 38, 38, 0.2); }
         .terminal-title { color: #f87171; font-size: 0.85rem; }
-        .terminal-output { flex: 1; padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
+        .terminal-output { flex: 1; padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; scroll-behavior: smooth; }
         .output-line { margin-bottom: 5px; }
         .output-line.command { color: #34d399; }
         .output-line.error { color: #f87171; }
@@ -37,12 +38,27 @@
         .terminal-input-area { padding: 15px 20px; background: rgba(15, 12, 20, 0.9); border-top: 1px solid rgba(220, 38, 38, 0.2); display: flex; gap: 10px; }
         .prompt { color: #34d399; font-weight: bold; }
         .terminal-input { flex: 1; background: transparent; border: none; color: #e8d5f5; font-family: inherit; font-size: 0.9rem; outline: none; }
+        .prompt::after { content: ''; display: inline-block; width: 8px; height: 16px; background: #34d399; margin-left: 4px; animation: cursor-blink 1s step-end infinite; }
+        @keyframes cursor-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
         .hint-box { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 15px; margin-top: 15px; }
         .hint-box h4 { color: #fbbf24; font-size: 0.85rem; margin-bottom: 8px; }
         .hint-box p { font-size: 0.8rem; }
         .nav-links { padding: 15px 20px; background: rgba(10, 10, 15, 0.9); border-top: 1px solid rgba(220, 38, 38, 0.2); display: flex; gap: 15px; }
         .nav-link { padding: 8px 16px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 6px; color: #f87171; text-decoration: none; font-size: 0.85rem; }
         .nav-link.primary { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; }
+        .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+        .status-indicator.online { background: #34d399; animation: pulse-green 2s ease-in-out infinite; }
+        .status-indicator.offline { background: #f87171; animation: blink-red 1s step-end infinite; }
+        @keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes blink-red { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.2; } }
+        .battery-bar { display: inline-block; margin-left: 10px; }
+        .battery-bar .bar-fill { display: inline-block; height: 12px; background: #34d399; vertical-align: middle; }
+        .battery-bar .bar-fill.amber { background: #fbbf24; }
+        .battery-bar .bar-fill.red { background: #f87171; }
+        .battery-bar .bar-empty { display: inline-block; height: 12px; background: rgba(255,255,255,0.1); vertical-align: middle; }
+        .temp-indicator { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 8px; }
+        .temp-indicator.hot { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .temp-indicator.warm { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
     </style>
 </head>
 <body>
@@ -140,6 +156,7 @@
     <script>
         let currentTask = 1, completedTasks = new Set();
         const totalTasks = 13;
+        let accessLogInterval = null;
         const hints = {
             1: "Type 'access-log' to view recent badge reader entries.",
             2: "Type 'badge-config' to configure badge reader access levels.",
@@ -161,9 +178,27 @@
             currentTask = n;
             document.getElementById('hintText').textContent = hints[n];
         }
+        let outputQueue = [];
+        let isStreaming = false;
+
         function addOutput(text, cls = '') {
-            const o = document.getElementById('output'), l = document.createElement('div');
-            l.className = 'output-line ' + cls; l.innerHTML = text; o.appendChild(l); o.scrollTop = o.scrollHeight;
+            outputQueue.push({ text, cls });
+            if (!isStreaming) streamOutput();
+        }
+
+        async function streamOutput() {
+            isStreaming = true;
+            const o = document.getElementById('output');
+            while (outputQueue.length > 0) {
+                const { text, cls } = outputQueue.shift();
+                const l = document.createElement('div');
+                l.className = 'output-line ' + cls;
+                l.innerHTML = text;
+                o.appendChild(l);
+                o.scrollTop = o.scrollHeight;
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 20 + 40)); // 40-60ms
+            }
+            isStreaming = false;
         }
         function completeTask(n) {
             if (!completedTasks.has(n)) {
@@ -208,7 +243,10 @@
                 addOutput('', '');
                 addOutput('Total entries: 17 | Granted: 12 | Denied: 4 | Alert: 1', 'info');
                 addOutput('', '');
+                addOutput('[Live feed monitoring... Ctrl+C to stop]', 'info');
+                addOutput('', '');
                 completeTask(1);
+                startAccessLogFeed();
                 return;
             }
 
@@ -258,18 +296,18 @@
                 addOutput('', '');
                 addOutput('Camera ID    Location              Status    Recording  Resolution  Retention', '');
                 addOutput('──────────────────────────────────────────────────────────────────────────────', '');
-                addOutput('CAM-01       Main Entrance         ONLINE    YES        1080p       90 days', 'success');
-                addOutput('CAM-02       Loading Dock          ONLINE    YES        1080p       90 days', 'success');
-                addOutput('CAM-03       Server Room Entry     ONLINE    YES        4K          120 days', 'success');
-                addOutput('CAM-04       Server Room Interior  OFFLINE   NO         4K          N/A', 'error');
-                addOutput('CAM-05       Parking Lot North     ONLINE    YES        1080p       60 days', 'success');
-                addOutput('CAM-06       Parking Lot South     ONLINE    YES        1080p       60 days', 'success');
-                addOutput('CAM-07       Hallway A             ONLINE    YES        720p        30 days', 'success');
-                addOutput('CAM-08       Emergency Exit A      ONLINE    YES        1080p       90 days', 'success');
-                addOutput('CAM-09       Emergency Exit B      ONLINE    YES        1080p       90 days', 'success');
-                addOutput('CAM-10       Lobby                 ONLINE    YES        1080p       90 days', 'success');
-                addOutput('CAM-11       Network Closet        ONLINE    YES        720p        30 days', 'success');
-                addOutput('CAM-12       Executive Floor       ONLINE    YES        1080p       60 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-01       Main Entrance         ONLINE    YES        1080p       90 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-02       Loading Dock          ONLINE    YES        1080p       90 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-03       Server Room Entry     ONLINE    YES        4K          120 days', 'success');
+                addOutput('<span class="status-indicator offline"></span>CAM-04       Server Room Interior  OFFLINE   NO         4K          N/A', 'error');
+                addOutput('<span class="status-indicator online"></span>CAM-05       Parking Lot North     ONLINE    YES        1080p       60 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-06       Parking Lot South     ONLINE    YES        1080p       60 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-07       Hallway A             ONLINE    YES        720p        30 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-08       Emergency Exit A      ONLINE    YES        1080p       90 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-09       Emergency Exit B      ONLINE    YES        1080p       90 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-10       Lobby                 ONLINE    YES        1080p       90 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-11       Network Closet        ONLINE    YES        720p        30 days', 'success');
+                addOutput('<span class="status-indicator online"></span>CAM-12       Executive Floor       ONLINE    YES        1080p       60 days', 'success');
                 addOutput('', '');
                 addOutput('Total: 12 cameras | Online: 11 | Offline: 1', 'info');
                 addOutput('NVR Storage: 6.2 TB used / 10 TB capacity (62%)', 'info');
@@ -376,11 +414,11 @@
                 addOutput('', '');
                 addOutput('Unit          Type              Capacity    Battery    Load    Status', '');
                 addOutput('───────────────────────────────────────────────────────────────────────', '');
-                addOutput('UPS-MAIN      Online/Double     10kVA       98%        62%     HEALTHY', 'success');
-                addOutput('UPS-SERVER1   Line-Interactive  3kVA        95%        71%     HEALTHY', 'success');
-                addOutput('UPS-SERVER2   Line-Interactive  3kVA        72%        68%     WARNING', 'warning');
-                addOutput('UPS-NETWORK   Standby           1.5kVA      88%        45%     HEALTHY', 'success');
-                addOutput('UPS-WORKST    Standby           0.75kVA     91%        55%     HEALTHY', 'success');
+                addOutput('UPS-MAIN      Online/Double     10kVA       98%        62%     HEALTHY  <span class="battery-bar"><span class="bar-fill" style="width: 98px;">████████████████████</span></span>', 'success');
+                addOutput('UPS-SERVER1   Line-Interactive  3kVA        95%        71%     HEALTHY  <span class="battery-bar"><span class="bar-fill" style="width: 95px;">███████████████████</span></span>', 'success');
+                addOutput('UPS-SERVER2   Line-Interactive  3kVA        72%        68%     WARNING  <span class="battery-bar"><span class="bar-fill amber" style="width: 72px;">██████████████</span><span class="bar-empty" style="width: 28px;">█████</span></span>', 'warning');
+                addOutput('UPS-NETWORK   Standby           1.5kVA      88%        45%     HEALTHY  <span class="battery-bar"><span class="bar-fill" style="width: 88px;">█████████████████</span></span>', 'success');
+                addOutput('UPS-WORKST    Standby           0.75kVA     91%        55%     HEALTHY  <span class="battery-bar"><span class="bar-fill" style="width: 91px;">██████████████████</span></span>', 'success');
                 addOutput('', '');
                 addOutput('Self-Test Results:', 'info');
                 addOutput('  - Battery runtime test: PASSED', 'success');
@@ -447,11 +485,11 @@
                 addOutput('───────────────────────────────────────────────────────────────────', '');
                 addOutput('Server Room A      68°F (20°C)    45%         Normal      OPTIMAL', 'success');
                 addOutput('Server Room B      72°F (22°C)    48%         Normal      OPTIMAL', 'success');
-                addOutput('Network Closet     78°F (26°C)    52%         Reduced     WARNING', 'warning');
+                addOutput('Network Closet     78°F (26°C)    52%         Reduced     WARNING  <span class="temp-indicator warm">▲ HIGH</span>', 'warning');
                 addOutput('UPS Room           70°F (21°C)    44%         Normal      OPTIMAL', 'success');
                 addOutput('Storage Area       65°F (18°C)    40%         Normal      OPTIMAL', 'success');
                 addOutput('Executive Floor    73°F (23°C)    46%         Normal      OPTIMAL', 'success');
-                addOutput('Loading Dock       82°F (28°C)    65%         Open        ALERT', 'error');
+                addOutput('Loading Dock       82°F (28°C)    65%         Open        ALERT    <span class="temp-indicator hot">▲▲ CRITICAL</span>', 'error');
                 addOutput('', '');
                 addOutput('Acceptable Ranges:', 'info');
                 addOutput('  Temperature: 64-75°F (18-24°C)', '');
@@ -765,8 +803,36 @@
             addOutput("Type 'help' for available commands.", 'info');
         }
 
+        function startAccessLogFeed() {
+            if (accessLogInterval) clearInterval(accessLogInterval);
+            const entries = [
+                { time: '16:52:10', badge: 'B-1089', name: 'Sarah Johnson', door: 'Main Entrance', status: 'GRANTED', cls: 'success' },
+                { time: '17:05:33', badge: 'B-1023', name: 'Mike Chen', door: 'Loading Dock', status: 'GRANTED', cls: 'success' },
+                { time: '17:22:45', badge: 'B-UNKNOWN', name: 'TAILGATER', door: 'Server Room', status: 'DENIED', cls: 'error' },
+                { time: '18:10:15', badge: 'B-1098', name: 'Night Guard', door: 'Main Entrance', status: 'GRANTED', cls: 'success' }
+            ];
+            let count = 0;
+            accessLogInterval = setInterval(() => {
+                if (count < entries.length) {
+                    const e = entries[count];
+                    const now = new Date();
+                    const timeStr = now.toTimeString().split(' ')[0];
+                    const line = `${timeStr}    ${e.badge.padEnd(12)}${e.name.padEnd(18)}${e.door.padEnd(15)}${e.status}`;
+                    const o = document.getElementById('output');
+                    const l = document.createElement('div');
+                    l.className = 'output-line ' + e.cls;
+                    l.textContent = line;
+                    o.appendChild(l);
+                    o.scrollTop = o.scrollHeight;
+                    count++;
+                    if (count === entries.length) clearInterval(accessLogInterval);
+                }
+            }, Math.random() * 4000 + 8000); // 8-12 seconds
+        }
+
         document.getElementById('commandInput').addEventListener('keydown', e => {
             if (e.key === 'Enter' && e.target.value.trim()) {
+                if (accessLogInterval) clearInterval(accessLogInterval);
                 processCommand(e.target.value);
                 e.target.value = '';
             }

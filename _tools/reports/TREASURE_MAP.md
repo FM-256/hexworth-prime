@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-12 7:51:47 AM
+                    Scanned: 2026-02-13 8:46:47 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1246 |
-| Directories | 468 |
-| Content Files | 1246 |
-| Scan Duration | 181ms |
+| Files Scanned | 1247 |
+| Directories | 469 |
+| Content Files | 1247 |
+| Scan Duration | 1374ms |
 
 ### Content by Type
 
@@ -22,7 +22,7 @@
 | html | 454 |
 | presentation | 433 |
 | applet | 188 |
-| lab | 157 |
+| lab | 158 |
 | quiz | 14 |
 
 ### Issues Summary
@@ -30,15 +30,15 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Warning | 881 |
-| Info | 398 |
-| **Total** | **1620** |
+| Warning | 883 |
+| Info | 400 |
+| **Total** | **1608** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 578 |
+| Ready | 579 |
 | Not Ready | 214 |
 | Unknown | 454 |
 
@@ -738,8 +738,10 @@
 │   │   │   │   │   │   ├── ❓ forge-ch24.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-core2-midterm.quiz.html
 │   │   │   │   │   │   └── ❓ forge-core2-quiz-ch19-22.quiz.html
-│   │   │   │   │   └── 📁 reference [applets]
-│   │   │   │   │       └── 📄 forge-windows-shortcuts.applet.html
+│   │   │   │   │   ├── 📁 reference [applets]
+│   │   │   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
+│   │   │   │   │   └── 📁 tools [applets]
+│   │   │   │   │       └── 📄 forge-os-core.tool.html
 │   │   │   │   ├── ❓ forge-core2-quiz-ch19-22.applet.html
 │   │   │   │   ├── 📄 forge-os-core.applet.html
 │   │   │   │   └── 📄 forge-windows-shortcuts.applet.html
@@ -2062,7 +2064,8 @@
 | forge-core2-roleplay.lab | presentation | ✓ | 0 |
 | forge-documentation.lab | lab | ✓ | 0 |
 | forge-incident-response.lab | lab | ✓ | 0 |
-| forge-malware.lab | lab | ✓ | 0 |
+| forge-lab-macos-linux.lab | lab | ✓ | 2 |
+| forge-malware.lab | lab | ✓ | 1 |
 | forge-physical-security.lab | lab | ✓ | 1 |
 | forge-security-fundamentals.lab | lab | ✓ | 0 |
 | forge-system-tools.lab | lab | ✓ | 2 |
@@ -2617,7 +2620,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (881)
+### WARNING (883)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -4141,6 +4144,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6143,7 +6154,7 @@
   File: `product-info.html`
   Fix: Add entry to content-registry.js
 
-### INFO (398)
+### INFO (400)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6831,6 +6842,14 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7733,7 +7752,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (737)
+### Unregistered Content (738)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8026,6 +8045,7 @@
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html | presentation | forge |
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-documentation.lab.html | lab | forge |
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html | lab | forge |
+| houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html | lab | forge |
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html | lab | forge |
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html | lab | forge |
 | houses/forge/applets/comptia-aplus/core-2/labs/forge-security-fundamentals.lab.html | lab | forge |

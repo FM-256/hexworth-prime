@@ -60,7 +60,7 @@
         .task-item.completed::before { content: '✓ '; color: #34d399; }
         .task-title { font-size: 0.9rem; color: #e8d5f5; margin-bottom: 5px; }
         .task-desc { font-size: 0.75rem; color: #8b7a9e; }
-        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; }
+        .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; overflow: hidden; min-height: 0; }
         .terminal-header {
             padding: 10px 20px;
             background: rgba(20, 15, 30, 0.9);
@@ -100,6 +100,56 @@
             font-family: inherit;
             font-size: 0.9rem;
             outline: none;
+        }
+        .terminal-input::after {
+            content: '█';
+            color: #34d399;
+            animation: cursor-blink 1s infinite;
+        }
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        .task-item.completed {
+            border-color: #34d399;
+            animation: task-complete-pulse 1s ease-out;
+        }
+        @keyframes task-complete-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+        }
+        .task-count {
+            color: #a78bfa;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+        }
+        .task-count.updated {
+            animation: count-bump 0.4s ease;
+        }
+        @keyframes count-bump {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); color: #34d399; }
+        }
+        .connection-led {
+            width: 8px;
+            height: 8px;
+            background: #34d399;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+            animation: led-pulse 2s ease-in-out infinite;
+        }
+        @keyframes led-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(52, 211, 153, 0.6); }
+            50% { opacity: 0.6; box-shadow: 0 0 4px rgba(52, 211, 153, 0.3); }
+        }
+        .cursor-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #34d399;
+            margin-left: 2px;
+            animation: cursor-blink 1s infinite;
         }
         .hint-box {
             background: rgba(249, 115, 22, 0.1);
@@ -208,6 +258,7 @@
 
         <div class="terminal-panel">
             <div class="terminal-header">
+                <div class="connection-led"></div>
                 <span class="terminal-title">C:\Windows\System32> Command Prompt (Administrator)</span>
             </div>
             <div class="terminal-output" id="output">
@@ -221,6 +272,7 @@
             <div class="terminal-input-area">
                 <span class="prompt">C:\&gt;</span>
                 <input type="text" class="terminal-input" id="commandInput" placeholder="Enter command..." autofocus>
+                <span class="cursor-indicator"></span>
             </div>
             <div class="nav-links">
                 <a href="../../presentations/users-groups.html" class="nav-link">← Review Presentation</a>
@@ -270,14 +322,36 @@
             line.className = 'output-line ' + className;
             line.innerHTML = text;
             output.appendChild(line);
-            output.scrollTop = output.scrollHeight;
+            output.scrollTo({ top: output.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Stream output line by line with delay
+        async function addOutputStreamed(lines, className = '', delayMs = 60) {
+            for (let i = 0; i < lines.length; i++) {
+                addOutput(lines[i], className);
+                if (i < lines.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
         }
 
         function completeTask(taskNum) {
             if (!completedTasks.has(taskNum)) {
                 completedTasks.add(taskNum);
-                document.querySelector(`[data-task="${taskNum}"]`).classList.add('completed');
-                document.getElementById('taskCount').textContent = `${completedTasks.size} / ${totalTasks} tasks`;
+                const taskElement = document.querySelector(`[data-task="${taskNum}"]`);
+                taskElement.classList.add('completed');
+
+                // Trigger pulse animation by removing and re-adding class
+                taskElement.style.animation = 'none';
+                setTimeout(() => {
+                    taskElement.style.animation = '';
+                }, 10);
+
+                // Update counter with animation
+                const counter = document.getElementById('taskCount');
+                counter.classList.add('updated');
+                counter.textContent = `${completedTasks.size} / ${totalTasks} tasks`;
+                setTimeout(() => counter.classList.remove('updated'), 400);
 
                 if (completedTasks.size === totalTasks) {
                     addOutput('', '');
@@ -286,22 +360,24 @@
             }
         }
 
-        function processCommand(cmd) {
+        async function processCommand(cmd) {
             const command = cmd.trim().toLowerCase();
             addOutput(`C:\\&gt; ${cmd}`, 'command');
 
             // Task 1: net user
             if (command === 'net user') {
-                addOutput('', '');
-                addOutput('User accounts for \\\\WORKSTATION', '');
-                addOutput('', '');
-                addOutput('-------------------------------------------------------------------------------', '');
                 let userList = [...users];
                 if (labUserCreated) userList.push('labuser');
-                addOutput(userList.join('                    '), '');
-                addOutput('The command completed successfully.', '');
-                addOutput('', '');
-                addOutput('Total accounts: ' + (users.length + (labUserCreated ? 1 : 0)), 'info');
+                await addOutputStreamed([
+                    '',
+                    'User accounts for \\\\WORKSTATION',
+                    '',
+                    '-------------------------------------------------------------------------------',
+                    userList.join('                    '),
+                    'The command completed successfully.',
+                    '',
+                    'Total accounts: ' + (users.length + (labUserCreated ? 1 : 0))
+                ], 'info', 70);
                 completeTask(1);
                 return;
             }
@@ -359,30 +435,34 @@
 
             // Task 4: net accounts (password policy)
             if (command === 'net accounts') {
-                addOutput('', '');
-                addOutput('Force user logoff how long after time expires?:       Never', '');
-                addOutput('Minimum password age (days):                          0', '');
-                addOutput('Maximum password age (days):                          90', '');
-                addOutput('Minimum password length:                              8', '');
-                addOutput('Length of password history maintained:                 5', '');
-                addOutput('Lockout threshold:                                    ' + (lockoutConfigured ? '5' : '0 (disabled)'), lockoutConfigured ? '' : 'warning');
-                addOutput('Lockout duration (minutes):                           ' + (lockoutConfigured ? '30' : 'N/A'), '');
-                addOutput('Lockout observation window (minutes):                 ' + (lockoutConfigured ? '30' : 'N/A'), '');
-                addOutput('Computer role:                                        WORKSTATION', '');
-                addOutput('The command completed successfully.', '');
-                addOutput('', '');
+                await addOutputStreamed([
+                    '',
+                    'Force user logoff how long after time expires?:       Never',
+                    'Minimum password age (days):                          0',
+                    'Maximum password age (days):                          90',
+                    'Minimum password length:                              8',
+                    'Length of password history maintained:                 5',
+                    'Lockout threshold:                                    ' + (lockoutConfigured ? '5' : '0 (disabled)'),
+                    'Lockout duration (minutes):                           ' + (lockoutConfigured ? '30' : 'N/A'),
+                    'Lockout observation window (minutes):                 ' + (lockoutConfigured ? '30' : 'N/A'),
+                    'Computer role:                                        WORKSTATION',
+                    'The command completed successfully.',
+                    ''
+                ], '', 60);
                 if (!lockoutConfigured) {
                     addOutput('WARNING: Account lockout is DISABLED. This is a security risk!', 'warning');
                     addOutput('Attackers could attempt unlimited password guesses.', 'warning');
                 }
-                addOutput('', '');
-                addOutput('Password Policy Best Practices (CompTIA A+):', 'info');
-                addOutput('  - Minimum length: 8+ characters', '');
-                addOutput('  - Complexity: Upper, lower, numbers, symbols', '');
-                addOutput('  - History: Remember last 5-24 passwords', '');
-                addOutput('  - Max age: 60-90 days', '');
-                addOutput('  - Lockout: 3-5 failed attempts', '');
-                addOutput('', '');
+                await addOutputStreamed([
+                    '',
+                    'Password Policy Best Practices (CompTIA A+):',
+                    '  - Minimum length: 8+ characters',
+                    '  - Complexity: Upper, lower, numbers, symbols',
+                    '  - History: Remember last 5-24 passwords',
+                    '  - Max age: 60-90 days',
+                    '  - Lockout: 3-5 failed attempts',
+                    ''
+                ], 'info', 50);
                 completeTask(4);
                 return;
             }
@@ -404,39 +484,43 @@
 
             // Task 6: net localgroup (list all groups)
             if (command === 'net localgroup') {
-                addOutput('', '');
-                addOutput('Aliases for \\\\WORKSTATION', '');
-                addOutput('', '');
-                addOutput('-------------------------------------------------------------------------------', '');
-                addOutput('*Access Control Assistance Operators', '');
-                addOutput('*Administrators', '');
-                addOutput('*Backup Operators', '');
-                addOutput('*Cryptographic Operators', '');
-                addOutput('*Device Owners', '');
-                addOutput('*Distributed COM Users', '');
-                addOutput('*Event Log Readers', '');
-                addOutput('*Guests', '');
-                addOutput('*Hyper-V Administrators', '');
-                addOutput('*IIS_IUSRS', '');
-                addOutput('*Network Configuration Operators', '');
-                addOutput('*Performance Log Users', '');
-                addOutput('*Performance Monitor Users', '');
-                addOutput('*Power Users', '');
-                addOutput('*Remote Desktop Users', '');
-                addOutput('*Remote Management Users', '');
-                addOutput('*Replicator', '');
-                addOutput('*System Managed Accounts Group', '');
-                addOutput('*Users', '');
-                addOutput('The command completed successfully.', '');
-                addOutput('', '');
-                addOutput('Key Groups for CompTIA A+:', 'info');
-                addOutput('  Administrators     - Full system control', '');
-                addOutput('  Users              - Standard user access', '');
-                addOutput('  Power Users        - Legacy elevated permissions', '');
-                addOutput('  Remote Desktop     - Can connect via RDP', '');
-                addOutput('  Backup Operators   - Can backup/restore files', '');
-                addOutput('  Guests             - Very limited temporary access', '');
-                addOutput('', '');
+                await addOutputStreamed([
+                    '',
+                    'Aliases for \\\\WORKSTATION',
+                    '',
+                    '-------------------------------------------------------------------------------',
+                    '*Access Control Assistance Operators',
+                    '*Administrators',
+                    '*Backup Operators',
+                    '*Cryptographic Operators',
+                    '*Device Owners',
+                    '*Distributed COM Users',
+                    '*Event Log Readers',
+                    '*Guests',
+                    '*Hyper-V Administrators',
+                    '*IIS_IUSRS',
+                    '*Network Configuration Operators',
+                    '*Performance Log Users',
+                    '*Performance Monitor Users',
+                    '*Power Users',
+                    '*Remote Desktop Users',
+                    '*Remote Management Users',
+                    '*Replicator',
+                    '*System Managed Accounts Group',
+                    '*Users',
+                    'The command completed successfully.',
+                    ''
+                ], '', 55);
+                await addOutputStreamed([
+                    'Key Groups for CompTIA A+:',
+                    '  Administrators     - Full system control',
+                    '  Users              - Standard user access',
+                    '  Power Users        - Legacy elevated permissions',
+                    '  Remote Desktop     - Can connect via RDP',
+                    '  Backup Operators   - Can backup/restore files',
+                    '  Guests             - Very limited temporary access',
+                    ''
+                ], 'info', 50);
                 completeTask(6);
                 return;
             }
@@ -486,26 +570,30 @@
 
             // Task 9: icacls view
             if (command.includes('icacls') && command.includes('testfolder') && !command.includes('/grant') && !command.includes('/inheritance')) {
-                addOutput('', '');
-                addOutput('C:\\TestFolder', '');
-                addOutput('  NT AUTHORITY\\SYSTEM:(OI)(CI)(F)', '');
-                addOutput('  BUILTIN\\Administrators:(OI)(CI)(F)', '');
-                addOutput('  BUILTIN\\Users:(OI)(CI)(RX)', '');
-                addOutput('  CREATOR OWNER:(OI)(CI)(IO)(F)', '');
-                addOutput('', '');
-                addOutput('Successfully processed 1 files; Failed processing 0 files', '');
-                addOutput('', '');
-                addOutput('Permission Key:', 'info');
-                addOutput('  (F)  = Full Control      (M) = Modify', '');
-                addOutput('  (RX) = Read & Execute    (R) = Read', '');
-                addOutput('  (W)  = Write             (D) = Delete', '');
-                addOutput('', '');
-                addOutput('Inheritance Flags:', 'info');
-                addOutput('  (OI) = Object Inherit     - Files in folder inherit', '');
-                addOutput('  (CI) = Container Inherit   - Subfolders inherit', '');
-                addOutput('  (IO) = Inherit Only         - Not applied to this folder', '');
-                addOutput('  (NP) = No Propagate         - Only direct children', '');
-                addOutput('', '');
+                await addOutputStreamed([
+                    '',
+                    'C:\\TestFolder',
+                    '  NT AUTHORITY\\SYSTEM:(OI)(CI)(F)',
+                    '  BUILTIN\\Administrators:(OI)(CI)(F)',
+                    '  BUILTIN\\Users:(OI)(CI)(RX)',
+                    '  CREATOR OWNER:(OI)(CI)(IO)(F)',
+                    '',
+                    'Successfully processed 1 files; Failed processing 0 files',
+                    ''
+                ], '', 65);
+                await addOutputStreamed([
+                    'Permission Key:',
+                    '  (F)  = Full Control      (M) = Modify',
+                    '  (RX) = Read & Execute    (R) = Read',
+                    '  (W)  = Write             (D) = Delete',
+                    '',
+                    'Inheritance Flags:',
+                    '  (OI) = Object Inherit     - Files in folder inherit',
+                    '  (CI) = Container Inherit   - Subfolders inherit',
+                    '  (IO) = Inherit Only         - Not applied to this folder',
+                    '  (NP) = No Propagate         - Only direct children',
+                    ''
+                ], 'info', 50);
                 completeTask(9);
                 return;
             }
@@ -652,12 +740,19 @@
                 return;
             }
 
+            // net user labuser /delete (not supported)
+            if (command.includes('net user labuser') && command.includes('/delete')) {
+                addOutput('This lab does not support deleting users. Focus on creating and managing accounts.', 'warning');
+                return;
+            }
+
             // net user details for other users
             if (command.startsWith('net user ') && !command.includes('/add') && !command.includes('labuser')) {
                 const uname = command.replace('net user ', '').trim();
-                if (users.map(u => u.toLowerCase()).includes(uname)) {
+                const match = users.find(u => u.toLowerCase() === uname);
+                if (match) {
                     addOutput('', '');
-                    addOutput('User name                    ' + uname.charAt(0).toUpperCase() + uname.slice(1), '');
+                    addOutput('User name                    ' + match, '');
                     addOutput('Full Name', '');
                     addOutput('Account active               ' + (uname === 'guest' ? 'No' : 'Yes'), uname === 'guest' ? 'warning' : '');
                     addOutput('Password required            Yes', '');
@@ -721,9 +816,46 @@
                 addOutput('  uac-status                   - Check UAC settings', '');
                 addOutput('', '');
                 addOutput('  UTILITY:', 'warning');
+                addOutput('  dir                          - List directory contents', '');
+                addOutput('  hostname                     - Show computer name', '');
+                addOutput('  ipconfig                     - Show network configuration', '');
+                addOutput('  systeminfo                   - Show system information', '');
                 addOutput('  cls / clear                  - Clear screen', '');
                 addOutput('  help / ?                     - Show this help', '');
                 addOutput('', '');
+                addOutput('  Use Arrow Up/Down for command history.', 'info');
+                addOutput('', '');
+                return;
+            }
+
+            // Generic net localgroup <group> handler
+            if (command.startsWith('net localgroup ') && !command.includes('/add') && !command.includes('/remove')) {
+                const grp = command.replace('net localgroup ', '').trim();
+                const knownGroups = {
+                    'users': ['Administrator', 'DefaultAccount', 'INTERACTIVE', 'Authenticated Users'],
+                    'guests': ['Guest'],
+                    'backup operators': [],
+                    'remote desktop users': [],
+                    'power users': [],
+                    'event log readers': []
+                };
+                if (labUserCreated && knownGroups['users']) knownGroups['users'].push('labuser');
+                const members = knownGroups[grp];
+                if (members !== undefined) {
+                    addOutput('', '');
+                    addOutput('Alias name     ' + grp.charAt(0).toUpperCase() + grp.slice(1), '');
+                    addOutput('', '');
+                    addOutput('Members', '');
+                    addOutput('-------------------------------------------------------------------------------', '');
+                    if (members.length === 0) {
+                        addOutput('(no members)', 'warning');
+                    } else {
+                        members.forEach(m => addOutput(m, ''));
+                    }
+                    addOutput('The command completed successfully.', '');
+                    return;
+                }
+                addOutput(`The group name '${grp}' could not be found.`, 'error');
                 return;
             }
 
@@ -733,17 +865,72 @@
                 return;
             }
 
+            // Common Windows commands — friendly messages
+            if (command === 'dir') {
+                addOutput('Directory of C:\\', '');
+                addOutput('  &lt;DIR&gt;  Windows', '');
+                addOutput('  &lt;DIR&gt;  Users', '');
+                addOutput('  &lt;DIR&gt;  Program Files', '');
+                addOutput('  &lt;DIR&gt;  TestFolder', '');
+                addOutput('  &lt;DIR&gt;  Shares', '');
+                return;
+            }
+            if (command === 'hostname') { addOutput('WORKSTATION', ''); return; }
+            if (command === 'ipconfig') {
+                addOutput('', '');
+                addOutput('Ethernet adapter Ethernet0:', '');
+                addOutput('   IPv4 Address. . . . . : 192.168.1.100', '');
+                addOutput('   Subnet Mask . . . . . : 255.255.255.0', '');
+                addOutput('   Default Gateway . . . : 192.168.1.1', '');
+                return;
+            }
+            if (command === 'systeminfo') {
+                addOutput('', '');
+                addOutput('Host Name:        WORKSTATION', '');
+                addOutput('OS Name:          Microsoft Windows 10 Pro', '');
+                addOutput('OS Version:       10.0.19045', '');
+                addOutput('System Type:      x64-based PC', '');
+                addOutput('', '');
+                addOutput('Tip: This lab focuses on user/group management. Try "help" for lab commands.', 'info');
+                return;
+            }
+            if (command === 'exit') {
+                addOutput('Use the browser back button or navigation links to leave this lab.', 'info');
+                return;
+            }
+            if (command === 'icacls') {
+                addOutput('Usage: icacls &lt;path&gt; [/grant user:perm] [/inheritance:e|d|r]', 'info');
+                addOutput('Try: icacls C:\\TestFolder', 'info');
+                return;
+            }
+
             addOutput(`'${cmd}' is not recognized as an internal or external command.`, 'error');
             addOutput('Type "help" for available commands.', 'warning');
         }
 
-        document.getElementById('commandInput').addEventListener('keydown', (e) => {
+        const cmdHistory = [];
+        let histIdx = 0;
+        const cmdInput = document.getElementById('commandInput');
+
+        cmdInput.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') {
-                const input = e.target;
-                if (input.value.trim()) {
-                    processCommand(input.value);
-                    input.value = '';
+                const val = cmdInput.value.trim();
+                if (val) {
+                    cmdHistory.push(val);
+                    histIdx = cmdHistory.length;
+                    cmdInput.disabled = true;
+                    await processCommand(val);
+                    cmdInput.value = '';
+                    cmdInput.disabled = false;
+                    cmdInput.focus();
                 }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (histIdx > 0) { histIdx--; cmdInput.value = cmdHistory[histIdx]; }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (histIdx < cmdHistory.length - 1) { histIdx++; cmdInput.value = cmdHistory[histIdx]; }
+                else { histIdx = cmdHistory.length; cmdInput.value = ''; }
             }
         });
 

@@ -1494,6 +1494,44 @@ class AchievementSystem {
             secret: true
         },
 
+        // High score achievements
+        game_top3: {
+            id: 'game_top3',
+            name: 'Podium Finish',
+            description: 'Place in the top 3 on any game',
+            icon: '🥉',
+            category: 'games',
+            points: 25,
+            secret: false
+        },
+        game_first_highscore: {
+            id: 'game_first_highscore',
+            name: 'Record Setter',
+            description: 'Set your first #1 high score',
+            icon: '🥇',
+            category: 'games',
+            points: 50,
+            secret: false
+        },
+        game_highscore_5: {
+            id: 'game_highscore_5',
+            name: 'Score Chaser',
+            description: 'Set #1 high score in 5 different games',
+            icon: '🏅',
+            category: 'games',
+            points: 150,
+            secret: false
+        },
+        game_highscore_10: {
+            id: 'game_highscore_10',
+            name: 'Leaderboard Legend',
+            description: 'Set #1 high score in 10 different games',
+            icon: '👑',
+            category: 'games',
+            points: 300,
+            secret: false
+        },
+
         // ═══════════════════════════════════════════════════════════════
         // SEASONAL / LIMITED EDITION
         // ═══════════════════════════════════════════════════════════════
@@ -2630,6 +2668,33 @@ class AchievementSystem {
         return false;
     }
 }
+
+// Listen for high score events from GameTracker
+window.addEventListener('hexworth:newHighScore', (e) => {
+    const { gameId, score, rank } = e.detail;
+
+    // Podium Finish: any top 3 placement
+    if (rank <= 3) {
+        AchievementSystem.unlock('game_top3');
+    }
+
+    // Record Setter: first #1 high score
+    if (rank === 1) {
+        AchievementSystem.unlock('game_first_highscore');
+
+        // Count how many games the player holds a #1 high score in
+        if (typeof GameTracker !== 'undefined') {
+            const registry = GameTracker.getRegistry();
+            let highScoreCount = 0;
+            for (const gid of Object.keys(registry)) {
+                const top = GameTracker.getTopScores(gid);
+                if (top.length > 0) highScoreCount++;
+            }
+            if (highScoreCount >= 5) AchievementSystem.unlock('game_highscore_5');
+            if (highScoreCount >= 10) AchievementSystem.unlock('game_highscore_10');
+        }
+    }
+});
 
 // Make globally available
 window.AchievementSystem = AchievementSystem;

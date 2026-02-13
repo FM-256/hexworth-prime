@@ -56,8 +56,13 @@
         }
         .task-item:hover { background: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.3); }
         .task-item.active { border-color: #dc2626; background: rgba(220, 38, 38, 0.15); }
-        .task-item.completed { border-color: #34d399; }
+        .task-item.completed { border-color: #34d399; animation: taskGlow 0.6s ease-out; }
         .task-item.completed::before { content: '✓ '; color: #34d399; }
+        @keyframes taskGlow {
+            0% { box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+            50% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.5); border-color: #34d399; background: rgba(52, 211, 153, 0.2); }
+            100% { box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+        }
         .task-title { font-size: 0.9rem; color: #e8d5f5; margin-bottom: 5px; }
         .task-desc { font-size: 0.75rem; color: #8b7a9e; }
         .terminal-panel { display: flex; flex-direction: column; background: #0a0a0a; overflow: hidden; min-height: 0; }
@@ -82,7 +87,17 @@
             align-items: center;
             gap: 10px;
         }
-        .prompt { color: #34d399; font-weight: bold; }
+        .prompt { color: #34d399; font-weight: bold; position: relative; }
+        .prompt::after {
+            content: '▌';
+            color: #34d399;
+            animation: cursorBlink 1s infinite;
+            margin-left: 4px;
+        }
+        @keyframes cursorBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
         .terminal-input {
             flex: 1;
             background: transparent;
@@ -157,11 +172,29 @@
             font-size: 3rem;
             background: rgba(52, 211, 153, 0.1);
             animation: stampRotate 0.6s ease-out;
+            position: relative;
         }
         @keyframes stampRotate {
             0% { transform: rotate(-20deg) scale(0.5); opacity: 0; }
             50% { transform: rotate(10deg) scale(1.1); }
             100% { transform: rotate(0deg) scale(1); opacity: 1; }
+        }
+        .completion-stamp::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 120px;
+            height: 120px;
+            transform: translate(-50%, -50%);
+            border: 2px solid #34d399;
+            border-radius: 50%;
+            animation: expandRing 1.5s ease-out infinite;
+            pointer-events: none;
+        }
+        @keyframes expandRing {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
         }
         .completion-title {
             font-size: 1.8rem;
@@ -534,13 +567,47 @@ TIP: Use "help" to see a quick command reference anytime.
             document.getElementById('hintText').textContent = hints[taskNum];
         }
 
-        function addOutput(text, className = '') {
+        function addOutput(text, className = '', streaming = false) {
             const output = document.getElementById('output');
             const line = document.createElement('div');
             line.className = 'output-line ' + className;
             line.innerHTML = text;
             output.appendChild(line);
             output.scrollTop = output.scrollHeight;
+        }
+
+        // Stream output line-by-line with delay
+        async function streamOutput(lines, className = '') {
+            for (const line of lines) {
+                await new Promise(resolve => setTimeout(resolve, 45 + Math.random() * 30)); // 45-75ms delay
+                addOutput(line, className);
+            }
+        }
+
+        // Show animated export progress
+        async function showExportProgress() {
+            const output = document.getElementById('output');
+            const progressLine = document.createElement('div');
+            progressLine.className = 'output-line info';
+            output.appendChild(progressLine);
+
+            const steps = [
+                { percent: 0, bar: '░░░░░░░░░░', text: 'Initializing...' },
+                { percent: 20, bar: '██░░░░░░░░', text: 'Reading policies...' },
+                { percent: 40, bar: '████░░░░░░', text: 'Exporting security settings...' },
+                { percent: 60, bar: '██████░░░░', text: 'Writing file...' },
+                { percent: 80, bar: '████████░░', text: 'Finalizing...' },
+                { percent: 100, bar: '██████████', text: 'Complete!' }
+            ];
+
+            for (const step of steps) {
+                progressLine.innerHTML = `Exporting... [${step.bar}] ${step.percent}% - ${step.text}`;
+                output.scrollTop = output.scrollHeight;
+                await new Promise(resolve => setTimeout(resolve, 280));
+            }
+
+            output.removeChild(progressLine);
+            addOutput('', '');
         }
 
         function completeTask(taskNum) {
@@ -583,17 +650,18 @@ TIP: Use "help" to see a quick command reference anytime.
             if (command === 'secpol.msc' || command === 'secpol') {
                 addOutput('', '');
                 addOutput('[Opening Local Security Policy...]', 'info');
-                addOutput('', '');
-                addOutput('Local Security Policy Console', '');
-                addOutput('├── Account Policies', '');
-                addOutput('│   ├── Password Policy', '');
-                addOutput('│   └── Account Lockout Policy', '');
-                addOutput('├── Local Policies', '');
-                addOutput('│   ├── Audit Policy', '');
-                addOutput('│   ├── User Rights Assignment', '');
-                addOutput('│   └── Security Options', '');
-                addOutput('└── Windows Firewall with Advanced Security', '');
-                completeTask(1);
+                streamOutput([
+                    '',
+                    'Local Security Policy Console',
+                    '├── Account Policies',
+                    '│   ├── Password Policy',
+                    '│   └── Account Lockout Policy',
+                    '├── Local Policies',
+                    '│   ├── Audit Policy',
+                    '│   ├── User Rights Assignment',
+                    '│   └── Security Options',
+                    '└── Windows Firewall with Advanced Security'
+                ]).then(() => completeTask(1));
                 return;
             }
 
@@ -629,18 +697,21 @@ SeBackupPrivilege = *S-1-5-32-544`
                 if (dir && !dir.contents.includes(filename)) {
                     dir.contents.push(filename);
                 }
+                // Animated progress indicator
                 addOutput('', '');
-                addOutput('The task has completed successfully.', 'success');
-                addOutput(`Security configuration exported to: ${filename}`, 'info');
+                showExportProgress().then(() => {
+                    addOutput('The task has completed successfully.', 'success');
+                    addOutput(`Security configuration exported to: ${filename}`, 'info');
 
-                if (filename.toLowerCase() === 'security-export.inf') {
-                    pendingVerification.task6 = true;
-                    addOutput('', '');
-                    addOutput('Verify: Use "cat ' + filename + '" to confirm the export.', 'warning');
-                } else {
-                    addOutput('', '');
-                    addOutput('Note: Task requires exporting to "security-export.inf"', 'warning');
-                }
+                    if (filename.toLowerCase() === 'security-export.inf') {
+                        pendingVerification.task6 = true;
+                        addOutput('', '');
+                        addOutput('Verify: Use "cat ' + filename + '" to confirm the export.', 'warning');
+                    } else {
+                        addOutput('', '');
+                        addOutput('Note: Task requires exporting to "security-export.inf"', 'warning');
+                    }
+                });
                 return;
             }
 
@@ -673,18 +744,21 @@ LockoutDuration = 30
                 if (dir && !dir.contents.includes(filename)) {
                     dir.contents.push(filename);
                 }
+                // Animated progress indicator
                 addOutput('', '');
-                addOutput('The task has completed successfully.', 'success');
-                addOutput(`Configuration exported to: ${filename}`, 'info');
+                showExportProgress().then(() => {
+                    addOutput('The task has completed successfully.', 'success');
+                    addOutput(`Configuration exported to: ${filename}`, 'info');
 
-                if (filename.toLowerCase() === 'policy.txt') {
-                    pendingVerification.task2 = true;
-                    addOutput('', '');
-                    addOutput('Verify: Use "cat ' + filename + '" to confirm the export.', 'warning');
-                } else {
-                    addOutput('', '');
-                    addOutput('Note: Task requires exporting to "policy.txt"', 'warning');
-                }
+                    if (filename.toLowerCase() === 'policy.txt') {
+                        pendingVerification.task2 = true;
+                        addOutput('', '');
+                        addOutput('Verify: Use "cat ' + filename + '" to confirm the export.', 'warning');
+                    } else {
+                        addOutput('', '');
+                        addOutput('Note: Task requires exporting to "policy.txt"', 'warning');
+                    }
+                });
                 return;
             }
 
@@ -721,13 +795,18 @@ LockoutDuration = 30
                 const durationDisplay = lockoutThreshold === 0 ? 'N/A' : '30';
                 const windowDisplay = lockoutThreshold === 0 ? 'N/A' : '30';
 
+                // Create visual gauge for lockout threshold
+                const gaugeColor = lockoutThreshold === 0 ? '#f87171' : '#34d399';
+                const gaugeFill = lockoutThreshold === 0 ? 0 : Math.min(lockoutThreshold, 10);
+                const gaugeBar = `<span style="color: ${gaugeColor};">[${('█'.repeat(gaugeFill) + '░'.repeat(10 - gaugeFill))}]</span>`;
+
                 addOutput('', '');
                 addOutput('Force user logoff how long after time expires?:       Never', '');
                 addOutput('Minimum password age (days):                          1', '');
                 addOutput('Maximum password age (days):                          90', '');
                 addOutput('Minimum password length:                              8', '');
                 addOutput('Length of password history maintained:                24', '');
-                addOutput(`Lockout threshold:                                    ${thresholdDisplay}`, '');
+                addOutput(`Lockout threshold:                                    ${thresholdDisplay} ${gaugeBar}`, '');
                 addOutput(`Lockout duration (minutes):                           ${durationDisplay}`, '');
                 addOutput(`Lockout observation window (minutes):                 ${windowDisplay}`, '');
                 addOutput('Computer role:                                        WORKSTATION', '');
@@ -750,40 +829,42 @@ LockoutDuration = 30
 
             // Task 4: Audit policy
             if (command.includes('auditpol') && command.includes('logon')) {
-                addOutput('', '');
-                addOutput('System audit policy', 'info');
-                addOutput('Category/Subcategory                      Setting', '');
-                addOutput('─────────────────────────────────────────────────────', '');
-                addOutput('Logon/Logoff', '');
-                addOutput('  Logon                                   Success and Failure', '');
-                addOutput('  Logoff                                  Success', '');
-                addOutput('  Account Lockout                         Success', '');
-                addOutput('  Special Logon                           Success', '');
-                completeTask(4);
+                streamOutput([
+                    '',
+                    'System audit policy',
+                    'Category/Subcategory                      Setting',
+                    '─────────────────────────────────────────────────────',
+                    'Logon/Logoff',
+                    '  Logon                                   Success and Failure',
+                    '  Logoff                                  Success',
+                    '  Account Lockout                         Success',
+                    '  Special Logon                           Success'
+                ], 'info').then(() => completeTask(4));
                 return;
             }
 
             // Task 5: gpresult
             if (command.includes('gpresult')) {
-                addOutput('', '');
-                addOutput('RSOP data for WORKSTATION\\Administrator on WORKSTATION', 'info');
-                addOutput('─────────────────────────────────────────────────────────', '');
-                addOutput('', '');
-                addOutput('COMPUTER SETTINGS', '');
-                addOutput('─────────────────', '');
-                addOutput('  CN=WORKSTATION,CN=Computers,DC=local', '');
-                addOutput('  Last time Group Policy was applied: 2/4/2026 at 8:30:00 AM', '');
-                addOutput('', '');
-                addOutput('  Applied Group Policy Objects:', '');
-                addOutput('      Local Group Policy', '');
-                addOutput('', '');
-                addOutput('USER SETTINGS', '');
-                addOutput('─────────────', '');
-                addOutput('  CN=Administrator,CN=Users,DC=local', '');
-                addOutput('', '');
-                addOutput('  Applied Group Policy Objects:', '');
-                addOutput('      Local Group Policy', '');
-                completeTask(5);
+                streamOutput([
+                    '',
+                    'RSOP data for WORKSTATION\\Administrator on WORKSTATION',
+                    '─────────────────────────────────────────────────────────',
+                    '',
+                    'COMPUTER SETTINGS',
+                    '─────────────────',
+                    '  CN=WORKSTATION,CN=Computers,DC=local',
+                    '  Last time Group Policy was applied: 2/4/2026 at 8:30:00 AM',
+                    '',
+                    '  Applied Group Policy Objects:',
+                    '      Local Group Policy',
+                    '',
+                    'USER SETTINGS',
+                    '─────────────',
+                    '  CN=Administrator,CN=Users,DC=local',
+                    '',
+                    '  Applied Group Policy Objects:',
+                    '      Local Group Policy'
+                ], 'info').then(() => completeTask(5));
                 return;
             }
 
@@ -791,17 +872,19 @@ LockoutDuration = 30
             if (command === 'gpedit.msc' || command === 'gpedit') {
                 addOutput('', '');
                 addOutput('[Opening Local Group Policy Editor...]', 'info');
-                addOutput('', '');
-                addOutput('Local Group Policy Editor', '');
-                addOutput('├── Computer Configuration', '');
-                addOutput('│   ├── Software Settings', '');
-                addOutput('│   ├── Windows Settings', '');
-                addOutput('│   │   └── Security Settings', '');
-                addOutput('│   └── Administrative Templates', '');
-                addOutput('└── User Configuration', '');
-                addOutput('    ├── Software Settings', '');
-                addOutput('    ├── Windows Settings', '');
-                addOutput('    └── Administrative Templates', '');
+                streamOutput([
+                    '',
+                    'Local Group Policy Editor',
+                    '├── Computer Configuration',
+                    '│   ├── Software Settings',
+                    '│   ├── Windows Settings',
+                    '│   │   └── Security Settings',
+                    '│   └── Administrative Templates',
+                    '└── User Configuration',
+                    '    ├── Software Settings',
+                    '    ├── Windows Settings',
+                    '    └── Administrative Templates'
+                ]);
                 return;
             }
 

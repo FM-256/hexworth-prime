@@ -105,6 +105,25 @@
         .response-option.selected { background: rgba(34, 197, 94, 0.2); border-color: #4ade80; }
         .response-option.correct { background: rgba(34, 197, 94, 0.3); border-color: #4ade80; }
         .response-option.incorrect { background: rgba(239, 68, 68, 0.2); border-color: #f87171; }
+        .sla-timer { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; margin-left: 15px; }
+        .sla-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .sla-yellow { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .sla-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .ticket-age { font-size: 0.85rem; color: #7a9e8b; margin-top: 5px; }
+        .typing-indicator { display: inline-block; padding: 12px 16px; border-radius: 12px; background: rgba(34, 197, 94, 0.15); margin-bottom: 10px; max-width: 80%; border-bottom-left-radius: 4px; }
+        .typing-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #7a9e8b; margin: 0 2px; animation: typing 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+        .work-note-new { animation: noteSlideIn 0.5s ease-out, noteHighlight 2s ease-out; }
+        @keyframes noteSlideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes noteHighlight { 0% { background: rgba(34, 197, 94, 0.25); } 100% { background: rgba(34, 197, 94, 0.05); } }
+        .task-item.completed { animation: taskPulse 0.6s ease-out; }
+        @keyframes taskPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } 50% { box-shadow: 0 0 20px 5px rgba(34, 197, 94, 0.6); } }
+        .status-transition { animation: statusFlash 0.5s ease-out; }
+        @keyframes statusFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; transform: scale(1.05); } }
+        .field-accepted { animation: fieldGlow 0.4s ease-out; }
+        @keyframes fieldGlow { 0% { border-color: rgba(34, 197, 94, 0.3); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } 50% { border-color: #4ade80; box-shadow: 0 0 10px 2px rgba(34, 197, 94, 0.4); } 100% { border-color: rgba(34, 197, 94, 0.3); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
     </style>
 </head>
 <body>
@@ -251,8 +270,12 @@
 
                     <div class="ticket-display">
                         <div class="ticket-header">
-                            <span class="ticket-id">TKT-2024-00847</span>
-                            <span class="ticket-status status-inprogress">In Progress</span>
+                            <div>
+                                <span class="ticket-id">TKT-2024-00847</span>
+                                <span class="sla-timer sla-green" id="slaTimer">SLA: 4:00:00</span>
+                                <div class="ticket-age" id="ticketAge">Ticket open for: 0 min 0 sec</div>
+                            </div>
+                            <span class="ticket-status status-inprogress" id="ticketStatus">In Progress</span>
                         </div>
                         <div class="ticket-meta">
                             <div class="ticket-meta-item">
@@ -695,6 +718,10 @@
         let workNoteCount = 0;
         const requiredNotes = 3;
         let difficultStep = 0;
+        let slaSeconds = 14400; // 4 hours in seconds
+        let ticketAgeSeconds = 0;
+        let slaInterval = null;
+        let ageInterval = null;
 
         const hints = {
             1: "Document the issue completely. Include the user's name, contact info, department, affected system, category (Access/Permissions), and a detailed description.",
@@ -728,7 +755,11 @@
         function completeTask(n) {
             if (!completedTasks.has(n)) {
                 completedTasks.add(n);
-                document.querySelector(`[data-task="${n}"]`).classList.add('completed');
+                const taskEl = document.querySelector(`[data-task="${n}"]`);
+                taskEl.classList.add('completed');
+                // Re-trigger animation by removing and re-adding class
+                taskEl.style.animation = 'none';
+                setTimeout(() => { taskEl.style.animation = ''; }, 10);
                 document.getElementById('taskCount').textContent = `${completedTasks.size} / ${totalTasks} tasks`;
                 if (completedTasks.size === totalTasks) {
                     setTimeout(() => {
@@ -764,6 +795,55 @@
 
             completeTask(1);
             selectTask(2);
+            startTimers();
+        }
+
+        function startTimers() {
+            // Start SLA countdown
+            slaInterval = setInterval(() => {
+                slaSeconds--;
+                updateSLADisplay();
+                if (slaSeconds <= 0) {
+                    clearInterval(slaInterval);
+                }
+            }, 1000);
+
+            // Start ticket age counter
+            ageInterval = setInterval(() => {
+                ticketAgeSeconds++;
+                updateAgeDisplay();
+            }, 1000);
+        }
+
+        function updateSLADisplay() {
+            const hours = Math.floor(slaSeconds / 3600);
+            const mins = Math.floor((slaSeconds % 3600) / 60);
+            const secs = slaSeconds % 60;
+            const timeStr = `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            const timerEl = document.getElementById('slaTimer');
+            if (timerEl) {
+                timerEl.textContent = `SLA: ${timeStr}`;
+
+                // Update color based on time remaining
+                timerEl.classList.remove('sla-green', 'sla-yellow', 'sla-red');
+                if (slaSeconds > 7200) { // >2 hours
+                    timerEl.classList.add('sla-green');
+                } else if (slaSeconds > 3600) { // 1-2 hours
+                    timerEl.classList.add('sla-yellow');
+                } else { // <1 hour
+                    timerEl.classList.add('sla-red');
+                }
+            }
+        }
+
+        function updateAgeDisplay() {
+            const mins = Math.floor(ticketAgeSeconds / 60);
+            const secs = ticketAgeSeconds % 60;
+            const ageEl = document.getElementById('ticketAge');
+            if (ageEl) {
+                ageEl.textContent = `Ticket open for: ${mins} min ${secs} sec`;
+            }
         }
 
         function addWorkNote() {
@@ -778,7 +858,7 @@
             const timestamp = now.toLocaleString();
 
             const noteHtml = `
-                <div class="work-note">
+                <div class="work-note work-note-new">
                     <div class="work-note-header">
                         <span>IT Support</span>
                         <span>${timestamp}</span>
@@ -788,6 +868,11 @@
             `;
 
             document.getElementById('workNotes').insertAdjacentHTML('beforeend', noteHtml);
+            // Remove animation class after animation completes so it can be triggered again
+            setTimeout(() => {
+                const notes = document.querySelectorAll('.work-note-new');
+                notes.forEach(note => note.classList.remove('work-note-new'));
+            }, 2000);
             document.getElementById('workNoteInput').value = '';
 
             if (workNoteCount >= requiredNotes) {
@@ -800,6 +885,18 @@
                 alert(`Please add at least ${requiredNotes} work notes documenting your troubleshooting.`);
                 return;
             }
+            // Update ticket status with animation
+            const statusEl = document.getElementById('ticketStatus');
+            if (statusEl) {
+                statusEl.classList.add('status-transition');
+                statusEl.classList.remove('status-inprogress');
+                statusEl.classList.add('status-resolved');
+                statusEl.textContent = 'Resolved';
+                setTimeout(() => statusEl.classList.remove('status-transition'), 500);
+            }
+            // Stop timers
+            if (slaInterval) clearInterval(slaInterval);
+            if (ageInterval) clearInterval(ageInterval);
             completeTask(2);
             selectTask(3);
         }
@@ -836,7 +933,23 @@
             });
 
             if (isCorrect) {
-                document.getElementById('closeTicketSection').classList.remove('hidden');
+                // Show typing indicator first
+                const chatContainer = document.querySelector('#task4-form .chat-container');
+                const typingHtml = `
+                    <div class="typing-indicator" id="typingIndicator">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                `;
+                chatContainer.insertAdjacentHTML('beforeend', typingHtml);
+
+                // Show close section after delay
+                setTimeout(() => {
+                    const typing = document.getElementById('typingIndicator');
+                    if (typing) typing.remove();
+                    document.getElementById('closeTicketSection').classList.remove('hidden');
+                }, 1500);
             } else {
                 setTimeout(() => {
                     alert('That response could be more professional. The best response explains what happened, what you did to fix it, and asks the user to verify.');
@@ -908,16 +1021,37 @@
                 return;
             }
 
+            // Show typing indicator before next step
+            const chatId = `difficultyStep${step + 1}`;
+            const nextStep = document.getElementById(chatId);
+            if (nextStep) {
+                const chatContainer = nextStep.querySelector('.chat-container');
+                if (chatContainer) {
+                    const typingHtml = `
+                        <div class="typing-indicator" id="typingStep${step}">
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                        </div>
+                    `;
+                    chatContainer.insertAdjacentHTML('afterbegin', typingHtml);
+                }
+            }
+
             if (step === 1) {
                 setTimeout(() => {
+                    const typing = document.getElementById('typingStep1');
+                    if (typing) typing.remove();
                     document.getElementById('difficultyStep2').classList.remove('hidden');
                     document.getElementById('difficultyStep2').scrollIntoView({ behavior: 'smooth' });
-                }, 500);
+                }, 1500);
             } else if (step === 2) {
                 setTimeout(() => {
+                    const typing = document.getElementById('typingStep2');
+                    if (typing) typing.remove();
                     document.getElementById('difficultyStep3').classList.remove('hidden');
                     document.getElementById('difficultyStep3').scrollIntoView({ behavior: 'smooth' });
-                }, 500);
+                }, 1500);
             } else if (step === 3) {
                 setTimeout(() => {
                     document.getElementById('difficultComplete').classList.remove('hidden');
@@ -946,8 +1080,28 @@
             completeTask(8);
         }
 
+        // Add field glow on input acceptance
+        function addFieldListeners() {
+            const inputs = document.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.add('field-accepted');
+                        setTimeout(() => this.classList.remove('field-accepted'), 400);
+                    }
+                });
+                input.addEventListener('change', function() {
+                    if (this.value.trim() !== '') {
+                        this.classList.add('field-accepted');
+                        setTimeout(() => this.classList.remove('field-accepted'), 400);
+                    }
+                });
+            });
+        }
+
         // Initialize
         showTaskForm(1);
+        addFieldListeners();
         const sopDateEl = document.getElementById('sopDate');
         if (sopDateEl) sopDateEl.value = new Date().toISOString().split('T')[0];
     </script>

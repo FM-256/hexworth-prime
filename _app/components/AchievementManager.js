@@ -926,6 +926,43 @@ const AchievementManager = (function() {
             category: 'regular',
             title: null
         },
+        // High score achievements
+        {
+            id: 'game_top3',
+            icon: '🥉',
+            name: 'Podium Finish',
+            desc: 'Place in the top 3 on any game',
+            points: 25,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_first_highscore',
+            icon: '🥇',
+            name: 'Record Setter',
+            desc: 'Set your first #1 high score',
+            points: 50,
+            category: 'regular',
+            title: 'Record Setter'
+        },
+        {
+            id: 'game_highscore_5',
+            icon: '🏅',
+            name: 'Score Chaser',
+            desc: 'Set #1 high score in 5 different games',
+            points: 150,
+            category: 'regular',
+            title: 'Score Chaser'
+        },
+        {
+            id: 'game_highscore_10',
+            icon: '👑',
+            name: 'Leaderboard Legend',
+            desc: 'Set #1 high score in 10 different games',
+            points: 300,
+            category: 'regular',
+            title: 'Leaderboard Legend'
+        },
         {
             id: 'game_master',
             icon: '🏆',
@@ -1590,3 +1627,27 @@ if (document.readyState === 'loading') {
 } else {
     AchievementManager.checkImplicitAchievements();
 }
+
+// Listen for high score events from GameTracker
+window.addEventListener('hexworth:newHighScore', (e) => {
+    const { rank } = e.detail;
+
+    if (rank <= 3) {
+        AchievementManager.unlock('game_top3');
+    }
+
+    if (rank === 1) {
+        AchievementManager.unlock('game_first_highscore');
+
+        if (typeof GameTracker !== 'undefined') {
+            const registry = GameTracker.getRegistry();
+            let highScoreCount = 0;
+            for (const gid of Object.keys(registry)) {
+                const top = GameTracker.getTopScores(gid);
+                if (top.length > 0) highScoreCount++;
+            }
+            if (highScoreCount >= 5) AchievementManager.unlock('game_highscore_5');
+            if (highScoreCount >= 10) AchievementManager.unlock('game_highscore_10');
+        }
+    }
+});
