@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-13 8:46:47 PM
+                    Scanned: 2026-02-13 11:06:33 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,14 +13,14 @@
 | Files Scanned | 1247 |
 | Directories | 469 |
 | Content Files | 1247 |
-| Scan Duration | 1374ms |
+| Scan Duration | 195ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 454 |
-| presentation | 433 |
+| html | 469 |
+| presentation | 418 |
 | applet | 188 |
 | lab | 158 |
 | quiz | 14 |
@@ -30,17 +30,17 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Warning | 883 |
+| Warning | 869 |
 | Info | 400 |
-| **Total** | **1608** |
+| **Total** | **1462** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 579 |
+| Ready | 564 |
 | Not Ready | 214 |
-| Unknown | 454 |
+| Unknown | 469 |
 
 
 ## FILE HIERARCHY
@@ -1290,13 +1290,13 @@
 │   │   │   │   └── 📄 shield-access-control-models.applet.html
 │   │   │   ├── 📁 compliance [applets]
 │   │   │   │   ├── 📁 cmmc_access_control [applets]
-│   │   │   │   │   └── 📄 shield-acv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ac.applet.html
 │   │   │   │   ├── 📁 cmmc_audit_accountability [applets]
-│   │   │   │   │   └── 📄 shield-auv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-au.applet.html
 │   │   │   │   ├── 📁 cmmc_awareness_training [applets]
-│   │   │   │   │   └── 📄 shield-atv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-at.applet.html
 │   │   │   │   ├── 📁 cmmc_config_management [applets]
-│   │   │   │   │   └── 📄 shield-cmv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-cm.applet.html
 │   │   │   │   ├── 📁 cmmc_cui [applets]
 │   │   │   │   │   ├── 📁 CUI_2.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cui-2.applet.html
@@ -1304,28 +1304,28 @@
 │   │   │   │   │   ├── 📁 CMMCFrameworkv2.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-frameworkv2.applet.html
 │   │   │   │   ├── 📁 cmmc_identification_auth [applets]
-│   │   │   │   │   └── 📄 shield-iav2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ia.applet.html
 │   │   │   │   ├── 📁 cmmc_incident_response [applets]
-│   │   │   │   │   └── 📄 shield-irv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ir.applet.html
 │   │   │   │   ├── 📁 cmmc_maintenance [applets]
-│   │   │   │   │   └── 📄 shield-mav2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ma.applet.html
 │   │   │   │   ├── 📁 cmmc_media_protection [applets]
-│   │   │   │   │   └── 📄 shield-mpv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-mp.applet.html
 │   │   │   │   ├── 📁 cmmc_personnel_security [applets]
-│   │   │   │   │   └── 📄 shield-psv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ps.applet.html
 │   │   │   │   ├── 📁 cmmc_physical_protection [applets]
-│   │   │   │   │   └── 📄 shield-pev2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-pe.applet.html
 │   │   │   │   ├── 📁 cmmc_quiz [applets]
 │   │   │   │   │   ├── 📁 CMMCTestKnowledge2.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-test-knowledge2.applet.html
 │   │   │   │   ├── 📁 cmmc_risk_assessment [applets]
-│   │   │   │   │   └── 📄 shield-rav2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ra.applet.html
 │   │   │   │   ├── 📁 cmmc_security_assessment [applets]
-│   │   │   │   │   └── 📄 shield-cav2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-ca.applet.html
 │   │   │   │   ├── 📁 cmmc_system_comm_protection [applets]
-│   │   │   │   │   └── 📄 shield-scv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-sc.applet.html
 │   │   │   │   ├── 📁 cmmc_system_info_integrity [applets]
-│   │   │   │   │   └── 📄 shield-siv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-si.applet.html
 │   │   │   │   ├── 📁 cui [applets]
 │   │   │   │   ├── 📄 shield-framework-selector.applet.html
 │   │   │   │   └── 📄 shield-laws-regulations.applet.html
@@ -1377,7 +1377,7 @@
 │   │   │   │   └── 📄 shield-checksum-verifier.applet.html
 │   │   │   ├── 📁 fundamentals [applets]
 │   │   │   │   ├── 📁 career_exploration [applets]
-│   │   │   │   │   └── 📍 index.html
+│   │   │   │   │   └── 📄 shield-career-explorer.applet.html
 │   │   │   │   ├── 📁 cybersecurity_controls [applets]
 │   │   │   │   │   ├── 📁 cybersecurity_controls.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cybersecurity-controls.applet.html
@@ -1511,7 +1511,7 @@
 │   │   │       │   ├── 📁 OSINT.hyperesources [applets]
 │   │   │       │   └── 📄 shield-osint.applet.html
 │   │   │       ├── 📁 osint_challenge [applets]
-│   │   │       │   └── 📄 shield-osint-pd-challenge.applet.html
+│   │   │       │   └── 🔬 shield-osint-lab.applet.html
 │   │   │       ├── 📁 pen_testing [applets]
 │   │   │       │   ├── 📁 pen_testing.hyperesources [applets]
 │   │   │       │   └── 📄 shield-pen-testing.applet.html
@@ -2379,23 +2379,9 @@
 | shield-biometrics.applet | presentation | ✓ | 0 |
 | shield-kerberos.applet | presentation | ✓ | 0 |
 | shield-access-control-models.applet | presentation | ✓ | 1 |
-| shield-acv2.applet | presentation | ✓ | 0 |
-| shield-auv2.applet | presentation | ✓ | 0 |
-| shield-atv2.applet | presentation | ✓ | 0 |
-| shield-cmv2.applet | presentation | ✓ | 0 |
 | shield-cui-2.applet | presentation | ✓ | 0 |
 | shield-cmmc-frameworkv2.applet | presentation | ✓ | 0 |
-| shield-iav2.applet | presentation | ✓ | 0 |
-| shield-irv2.applet | presentation | ✓ | 0 |
-| shield-mav2.applet | presentation | ✓ | 0 |
-| shield-mpv2.applet | presentation | ✓ | 0 |
-| shield-psv2.applet | presentation | ✓ | 0 |
-| shield-pev2.applet | presentation | ✓ | 0 |
 | shield-cmmc-test-knowledge2.applet | presentation | ✓ | 0 |
-| shield-rav2.applet | presentation | ✓ | 0 |
-| shield-cav2.applet | presentation | ✓ | 0 |
-| shield-scv2.applet | presentation | ✓ | 0 |
-| shield-siv2.applet | presentation | ✓ | 0 |
 | shield-laws-regulations.applet | presentation | ✓ | 0 |
 | shield-block.applet | presentation | ✓ | 0 |
 | shield-blockchain.applet | presentation | ✓ | 0 |
@@ -2415,7 +2401,6 @@
 | shield-pki.applet | presentation | ✓ | 0 |
 | shield-rsa.applet | presentation | ✓ | 0 |
 | shield-checksum-verifier.applet | presentation | ✓ | 0 |
-| index | presentation | ✓ | 0 |
 | shield-cybersecurity-controls.applet | presentation | ✓ | 0 |
 | shield-dataroles.applet | presentation | ✓ | 0 |
 | shield-cybersecuritydesignprinciples.applet | presentation | ✓ | 0 |
@@ -2620,7 +2605,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (883)
+### WARNING (869)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -5399,22 +5384,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_access_control/shield-acv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_audit_accountability/shield-auv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_awareness_training/shield-atv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_config_management/shield-cmv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -5423,47 +5392,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_identification_auth/shield-iav2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_incident_response/shield-irv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_maintenance/shield-mav2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_media_protection/shield-mpv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_personnel_security/shield-psv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_physical_protection/shield-pev2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_risk_assessment/shield-rav2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_security_assessment/shield-cav2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_system_comm_protection/shield-scv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_system_info_integrity/shield-siv2.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -7752,7 +7681,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (738)
+### Unregistered Content (724)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8335,23 +8264,9 @@
 | houses/shield/applets/access/biometrics/shield-biometrics.applet.html | presentation | shield |
 | houses/shield/applets/access/kerberos/shield-kerberos.applet.html | presentation | shield |
 | houses/shield/applets/access/shield-access-control-models.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_access_control/shield-acv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_audit_accountability/shield-auv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_awareness_training/shield-atv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_config_management/shield-cmv2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_identification_auth/shield-iav2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_incident_response/shield-irv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_maintenance/shield-mav2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_media_protection/shield-mpv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_personnel_security/shield-psv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_physical_protection/shield-pev2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_risk_assessment/shield-rav2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_security_assessment/shield-cav2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_system_comm_protection/shield-scv2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_system_info_integrity/shield-siv2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/shield-laws-regulations.applet.html | presentation | shield |
 | houses/shield/applets/crypto/block_mode/shield-block.applet.html | presentation | shield |
 | houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html | presentation | shield |

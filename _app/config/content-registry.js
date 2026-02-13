@@ -2836,7 +2836,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/ACv2/ACv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_access_control/shield-cmmc-ac.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2852,7 +2852,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/AUv2/AUv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_audit_accountability/shield-cmmc-au.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2868,7 +2868,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/ATv2/ATv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_awareness_training/shield-cmmc-at.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2884,7 +2884,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CMv2/CMv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_config_management/shield-cmmc-cm.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2900,7 +2900,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CUI/CUI_2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2916,7 +2916,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'comptia-network', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/frameworkv2/CMMCFrameworkv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2932,7 +2932,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/IAv2/IAv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_identification_auth/shield-cmmc-ia.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2948,7 +2948,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/IRv2/IRv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_incident_response/shield-cmmc-ir.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2964,7 +2964,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/MAv2/MAv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_maintenance/shield-cmmc-ma.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2980,7 +2980,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/MPv2/MPv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_media_protection/shield-cmmc-mp.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2996,7 +2996,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/PSv2/PSv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_personnel_security/shield-cmmc-ps.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3012,7 +3012,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/PEv2/PEv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_physical_protection/shield-cmmc-pe.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3028,7 +3028,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                quiz: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CMMCTestKnowledge/CMMCTestKnowledge2.html'
+                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3044,7 +3044,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/RAv2/RAv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_risk_assessment/shield-cmmc-ra.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3060,7 +3060,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/CAv2/CAv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_security_assessment/shield-cmmc-ca.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3076,7 +3076,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/SCv2/SCv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_system_comm_protection/shield-cmmc-sc.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3092,7 +3092,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'https://d2hie3dpn9wvbb.cloudfront.net/CMMC/SIv2/SIv2.html'
+                applet: 'houses/shield/applets/compliance/cmmc_system_info_integrity/shield-cmmc-si.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3460,7 +3460,7 @@ const ContentRegistry = {
             topics: ['fundamentals', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/fundamentals/career_exploration/index.html'
+                applet: 'houses/shield/applets/fundamentals/career_exploration/shield-career-explorer.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4180,7 +4180,7 @@ const ContentRegistry = {
             topics: ['threats', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
-                applet: 'houses/shield/applets/threats/osint_challenge/shield-osint-pd-challenge.applet.html'
+                applet: 'houses/shield/applets/threats/osint_challenge/shield-osint-lab.applet.html'
             },
             prerequisites: [],
             objectives: []
