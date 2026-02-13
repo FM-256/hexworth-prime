@@ -8,6 +8,20 @@ const CMMCDomainRenderer = (() => {
     let domain = null;
     let storageKey = '';
 
+    const DOMAIN_PATHS = {
+        AC: 'cmmc_access_control', AU: 'cmmc_audit_accountability', AT: 'cmmc_awareness_training',
+        CM: 'cmmc_config_management', IA: 'cmmc_identification_auth', IR: 'cmmc_incident_response',
+        MA: 'cmmc_maintenance', MP: 'cmmc_media_protection', PS: 'cmmc_personnel_security',
+        PE: 'cmmc_physical_protection', RA: 'cmmc_risk_assessment', CA: 'cmmc_security_assessment',
+        SC: 'cmmc_system_comm_protection', SI: 'cmmc_system_info_integrity'
+    };
+
+    function domainHref(code) {
+        const dir = DOMAIN_PATHS[code];
+        if (!dir) return '#';
+        return '../' + dir + '/shield-cmmc-' + code.toLowerCase() + '.applet.html';
+    }
+
     function getState() {
         try { return JSON.parse(localStorage.getItem(storageKey) || '{}'); }
         catch { return {}; }
@@ -218,7 +232,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         const concepts = domain.keyConcepts.map(c => `<span class="cmmc-concept">${c}</span>`).join('');
         const related = domain.relatedDomains.map(code => {
             const d = CMMCDomainData[code];
-            return d ? `<span class="cmmc-related-link" data-domain="${code}">${d.icon} ${d.name} (${code})</span>` : '';
+            return d ? `<a class="cmmc-related-link" href="${domainHref(code)}">${d.icon} ${d.name} (${code})</a>` : '';
         }).join(' ');
 
         panel.innerHTML = `
@@ -499,13 +513,13 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             ${domain.relatedDomains.map(code => {
                 const d = CMMCDomainData[code];
                 if (!d) return '';
-                return `<div class="cmmc-resource" style="cursor:default">
+                return `<a class="cmmc-resource" href="${domainHref(code)}">
                     <span class="cmmc-resource-icon">${d.icon}</span>
                     <div>
                         <div class="cmmc-resource-title">${d.name} (${code})</div>
                         <div class="cmmc-resource-url">NIST SP 800-171 § ${d.nistSection} · ${d.practices.length} practices</div>
                     </div>
-                </div>`;
+                </a>`;
             }).join('')}
         `;
     }
