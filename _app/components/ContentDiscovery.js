@@ -52,10 +52,15 @@
         // Create and inject the discovery panel
         const discoveryPanel = createDiscoveryPanel();
 
-        // Find the module section and inject before it
-        const moduleSection = document.querySelector('.content-section:last-of-type');
-        if (moduleSection) {
-            moduleSection.insertBefore(discoveryPanel, moduleSection.firstChild.nextSibling);
+        // Inject into explicit anchor if present, otherwise fall back to last content-section
+        const anchor = document.getElementById('discoveryAnchor');
+        if (anchor) {
+            anchor.appendChild(discoveryPanel);
+        } else {
+            const moduleSection = document.querySelector('.content-section:last-of-type');
+            if (moduleSection) {
+                moduleSection.insertBefore(discoveryPanel, moduleSection.firstChild.nextSibling);
+            }
         }
 
         // Initialize filter state
