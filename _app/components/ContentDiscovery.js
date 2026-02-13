@@ -63,6 +63,11 @@
             }
         }
 
+        // Create results container for search/filter output
+        const resultsContainer = document.createElement('div');
+        resultsContainer.id = 'discoveryResultsContainer';
+        discoveryPanel.after(resultsContainer);
+
         // Initialize filter state
         window.discoveryState = {
             searchQuery: '',
@@ -754,117 +759,88 @@
 
     function applyFilters() {
         const { searchQuery, typeFilter, categoryFilter, currentHouse } = window.discoveryState;
-        const moduleCards = document.querySelectorAll('.module-card');
-        let localVisibleCount = 0;
+        const hasActiveFilter = searchQuery || typeFilter !== 'all' || categoryFilter !== 'all';
 
-        // First, filter local house modules
-        moduleCards.forEach((card, index) => {
-            const module = SAMPLE_MODULES[index];
-            if (!module) return;
+        // Search local SAMPLE_MODULES as data (not DOM cards)
+        let localResults = [];
+        if (hasActiveFilter && typeof SAMPLE_MODULES !== 'undefined') {
+            localResults = SAMPLE_MODULES.filter(function(module) {
+                let match = true;
+                if (searchQuery) {
+                    const searchText = `${module.title} ${module.description} ${(module.tags || []).join(' ')} ${(module.components || []).join(' ')}`.toLowerCase();
+                    match = searchText.includes(searchQuery);
+                }
+                if (match && typeFilter !== 'all') {
+                    match = module.components && module.components.includes(typeFilter);
+                }
+                if (match && categoryFilter !== 'all') {
+                    match = (module.href || '').includes(categoryFilter) || module.category === categoryFilter;
+                }
+                return match;
+            });
+        }
 
-            let visible = true;
-
-            // Search filter (local)
-            if (searchQuery) {
-                const searchText = `${module.title} ${module.description} ${(module.tags || []).join(' ')}`.toLowerCase();
-                visible = searchText.includes(searchQuery);
-            }
-
-            // Type filter
-            if (visible && typeFilter !== 'all') {
-                visible = module.components && module.components.includes(typeFilter);
-            }
-
-            // Category filter
-            if (visible && categoryFilter !== 'all') {
-                const href = module.href || module.path || '';
-                visible = href.includes(categoryFilter) || module.category === categoryFilter;
-            }
-
-            // Apply visibility
-            if (visible) {
-                card.classList.remove('discovery-hidden');
-                localVisibleCount++;
-            } else {
-                card.classList.add('discovery-hidden');
-            }
-        });
-
-        // Global search - find results from OTHER houses
+        // Global search via ContentCatalog (other houses)
         let globalResults = [];
         if (searchQuery && searchQuery.length >= 2 && typeof ContentCatalog !== 'undefined') {
             const allResults = ContentCatalog.search(searchQuery, {
                 type: typeFilter !== 'all' ? typeFilter : null,
-                limit: 30
+                limit: 50
             });
-
-            // Filter out current house results (we're showing those locally)
             globalResults = allResults.filter(m => m.house !== currentHouse);
         }
 
         // Update results count
         const countEl = document.getElementById('discoveryResultsCount');
         if (countEl) {
-            if (searchQuery && globalResults.length > 0) {
-                countEl.innerHTML = `<strong>${localVisibleCount}</strong> in this house, <strong>${globalResults.length}</strong> in other houses`;
+            if (!hasActiveFilter) {
+                countEl.innerHTML = `<strong>${SAMPLE_MODULES.length}</strong> modules in this house`;
+            } else if (globalResults.length > 0) {
+                countEl.innerHTML = `<strong>${localResults.length}</strong> in this house, <strong>${globalResults.length}</strong> in other houses`;
             } else {
-                countEl.innerHTML = `Showing <strong>${localVisibleCount}</strong> of ${SAMPLE_MODULES.length} modules`;
+                countEl.innerHTML = `Showing <strong>${localResults.length}</strong> of ${SAMPLE_MODULES.length} modules`;
             }
         }
 
-        // Show global results section
-        renderGlobalResults(globalResults);
-
-        // Show/hide no results message (only if both local and global are empty)
-        handleNoResults(localVisibleCount, globalResults.length);
+        // Render all results into discovery container
+        renderDiscoveryResults(localResults, globalResults);
     }
 
-    function renderGlobalResults(results) {
-        // Remove existing global results section
-        const existing = document.getElementById('globalResultsSection');
-        if (existing) existing.remove();
+    function renderDiscoveryResults(localResults, globalResults) {
+        const container = document.getElementById('discoveryResultsContainer');
+        if (!container) return;
 
-        if (results.length === 0) return;
+        container.innerHTML = '';
+        const hasActiveFilter = window.discoveryState.searchQuery ||
+                                window.discoveryState.typeFilter !== 'all' ||
+                                window.discoveryState.categoryFilter !== 'all';
 
-        // Group results by house
-        const byHouse = {};
-        results.forEach(module => {
-            if (!byHouse[module.house]) {
-                byHouse[module.house] = {
-                    house: module.house,
-                    houseName: module.houseName,
-                    houseIcon: module.houseIcon,
-                    houseColor: module.houseColor,
-                    modules: []
-                };
-            }
-            byHouse[module.house].modules.push(module);
-        });
+        if (!hasActiveFilter) return;
 
-        // Create global results section
-        const section = document.createElement('div');
-        section.id = 'globalResultsSection';
-        section.className = 'global-results-section';
+        if (localResults.length === 0 && globalResults.length === 0) {
+            container.innerHTML = `
+                <div class="discovery-no-results">
+                    <div class="discovery-no-results-icon">🔍</div>
+                    <div class="discovery-no-results-text">No modules found for "${window.discoveryState.searchQuery || 'selected filters'}"</div>
+                    <div class="discovery-no-results-hint">Try different keywords or check spelling</div>
+                    <button class="discovery-clear-btn" onclick="clearDiscoveryFilters()">Clear Search</button>
+                </div>`;
+            return;
+        }
 
-        let html = `
-            <div class="global-results-header">
-                <span class="global-results-title">🌐 Found in Other Houses</span>
-                <span class="global-results-count">${results.length} results</span>
-            </div>
-        `;
+        let html = '';
 
-        // Render each house group
-        Object.values(byHouse).forEach(group => {
+        // Local results (this house)
+        if (localResults.length > 0) {
             html += `
-                <div class="global-house-group">
-                    <div class="global-house-header" style="border-left: 3px solid ${group.houseColor}">
-                        <span class="global-house-icon">${group.houseIcon}</span>
-                        <span class="global-house-name">${group.houseName}</span>
-                        <span class="global-house-count">${group.modules.length}</span>
+                <div style="margin-bottom: 20px;">
+                    <div class="global-results-header">
+                        <span class="global-results-title">📍 This House</span>
+                        <span class="global-results-count">${localResults.length} results</span>
                     </div>
-                    <div class="global-module-list">
-                        ${group.modules.map(m => `
-                            <div class="global-module-item" onclick="navigateToModule('${m.fullHref}')">
+                    <div class="global-module-list" style="padding-left: 0;">
+                        ${localResults.map(m => `
+                            <div class="global-module-item" onclick="window.location.href='${m.href}'">
                                 <span class="global-module-icon">${m.icon}</span>
                                 <div class="global-module-info">
                                     <div class="global-module-title">${m.title}</div>
@@ -874,17 +850,56 @@
                             </div>
                         `).join('')}
                     </div>
-                </div>
-            `;
-        });
-
-        section.innerHTML = html;
-
-        // Insert after module grid
-        const moduleGrid = document.getElementById('moduleGrid');
-        if (moduleGrid && moduleGrid.parentNode) {
-            moduleGrid.parentNode.appendChild(section);
+                </div>`;
         }
+
+        // Global results (other houses)
+        if (globalResults.length > 0) {
+            const byHouse = {};
+            globalResults.forEach(module => {
+                if (!byHouse[module.house]) {
+                    byHouse[module.house] = {
+                        house: module.house,
+                        houseName: module.houseName,
+                        houseIcon: module.houseIcon,
+                        houseColor: module.houseColor,
+                        modules: []
+                    };
+                }
+                byHouse[module.house].modules.push(module);
+            });
+
+            html += `
+                <div class="global-results-section">
+                    <div class="global-results-header">
+                        <span class="global-results-title">🌐 Other Houses</span>
+                        <span class="global-results-count">${globalResults.length} results</span>
+                    </div>
+                    ${Object.values(byHouse).map(group => `
+                        <div class="global-house-group">
+                            <div class="global-house-header" style="border-left: 3px solid ${group.houseColor}">
+                                <span class="global-house-icon">${group.houseIcon}</span>
+                                <span class="global-house-name">${group.houseName}</span>
+                                <span class="global-house-count">${group.modules.length}</span>
+                            </div>
+                            <div class="global-module-list">
+                                ${group.modules.map(m => `
+                                    <div class="global-module-item" onclick="navigateToModule('${m.fullHref}')">
+                                        <span class="global-module-icon">${m.icon}</span>
+                                        <div class="global-module-info">
+                                            <div class="global-module-title">${m.title}</div>
+                                            <div class="global-module-desc">${m.description}</div>
+                                        </div>
+                                        <span class="global-module-arrow">→</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        container.innerHTML = html;
     }
 
     // Global function to navigate to a module in another house
@@ -895,7 +910,7 @@
     };
 
     function applyViewMode() {
-        const moduleGrid = document.getElementById('moduleGrid');
+        const moduleGrid = document.getElementById('hrModuleGrid') || document.getElementById('moduleGrid');
         if (!moduleGrid) return;
 
         if (window.discoveryState.viewMode === 'compact') {
@@ -905,27 +920,7 @@
         }
     }
 
-    function handleNoResults(localCount, globalCount) {
-        const moduleGrid = document.getElementById('moduleGrid');
-        if (!moduleGrid) return;
-
-        // Remove existing no results message
-        const existing = moduleGrid.querySelector('.discovery-no-results');
-        if (existing) existing.remove();
-
-        // Only show "no results" if BOTH local and global have no results
-        if (localCount === 0 && globalCount === 0 && window.discoveryState.searchQuery) {
-            const noResults = document.createElement('div');
-            noResults.className = 'discovery-no-results';
-            noResults.innerHTML = `
-                <div class="discovery-no-results-icon">🔍</div>
-                <div class="discovery-no-results-text">No modules found for "${window.discoveryState.searchQuery}"</div>
-                <div class="discovery-no-results-hint">Try different keywords or check spelling</div>
-                <button class="discovery-clear-btn" onclick="clearDiscoveryFilters()">Clear Search</button>
-            `;
-            moduleGrid.appendChild(noResults);
-        }
-    }
+    // handleNoResults is now integrated into renderDiscoveryResults
 
     // Global function to clear filters
     window.clearDiscoveryFilters = function() {
@@ -943,10 +938,6 @@
         document.querySelectorAll('.discovery-filter-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.type === 'all' || btn.dataset.category === 'all');
         });
-
-        // Remove global results
-        const globalSection = document.getElementById('globalResultsSection');
-        if (globalSection) globalSection.remove();
 
         applyFilters();
     };
@@ -1000,7 +991,8 @@
     function injectFavoriteButtons(currentHouse) {
         if (typeof FavoritesManager === 'undefined') return;
 
-        const moduleCards = document.querySelectorAll('.module-card');
+        // Scope to HouseRenderer's module grid to avoid index mismatch
+        const moduleCards = document.querySelectorAll('#hrModuleGrid .module-card, #moduleGrid .module-card');
         moduleCards.forEach((card, index) => {
             const module = SAMPLE_MODULES[index];
             if (!module) return;
