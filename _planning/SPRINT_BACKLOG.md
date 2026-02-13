@@ -1343,6 +1343,200 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 - Module categories: OWASP, malware, network attacks, etc.
 - Full content structure
 
+### Sprint DA-7: Gates 6 & 7 (Already Built — Untracked)
+**Status:** ✅ Complete (pre-existing, discovered Feb 13, 2026)
+- **Gate 6: Static Analysis Investigation** — 5-step PE binary dissection (hex headers, import table, string analysis, entropy, malware classification). 500 pts with hint deductions. ~1,183 lines.
+- **Gate 7: Operation Shadow Hunt** — Threat attribution challenge. 4 evidence categories (malware metadata, network IOCs, MITRE ATT&CK TTPs, historical intelligence) + final attribution to APT group. 600 pts. ~1,338 lines.
+- **Note:** Both built but never tracked. Gate 7 missing AccessGuard gate. Neither registered in ContentCatalog/content-registry. Registration deferred to R-2.
+
+### Sprint DA-8: Gate 8 — Dynamic Analysis Sandbox
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Depends on:** DA-7 registered, R-2 complete
+**Location:** `_app/dark-arts/vault/gates/gate-8.html`
+**Est. Student Completion Time:** 30-45 minutes
+
+Simulated dynamic analysis environment where the student executes a malware sample in a controlled sandbox and observes its behavior in real-time. Teaches the complementary skill to Gate 6 — static tells you what malware *could* do, dynamic tells you what it *actually does*.
+
+| Task | Status |
+|------|--------|
+| Build sandbox UI — simulated VM desktop with filesystem panel, registry monitor, network capture, process tree | ⬜ |
+| Integrated terminal — command line alongside GUI panels for filesystem exploration | ⬜ |
+| Malware execution timeline — behavioral events fire in sequence (file drops, registry writes, network callbacks, process spawning) | ⬜ |
+| Student must identify and document: dropped files, persistence mechanisms, C2 callouts, evasion techniques | ⬜ |
+| Behavioral indicators vs static indicators — teach the difference | ⬜ |
+| IOC extraction challenge — pull indicators from observed behavior | ⬜ |
+| Discoverable hint system — hidden files in sandbox filesystem (see Hint Architecture below) | ⬜ |
+| Score system — points for each correctly identified behavior, no hint button, no deductions | ⬜ |
+| Gate completion → unlock Tier 4 vault modules | ⬜ |
+
+**Educational Focus:** MITRE ATT&CK execution techniques (T1059, T1547, T1055), behavioral analysis methodology, sandbox evasion awareness
+
+**Hint Architecture — Discoverable Filesystem:**
+No hint buttons. No point deductions. Hints are hidden files in the sandbox filesystem that students find by exploring with the terminal (`ls -la`, `cat`, `find`). Finding hints IS the skill being tested — real analysts dig through documentation, previous case notes, and tool references.
+
+```
+/home/analyst/
+├── notes/
+│   ├── .previous-case-notes.txt          (hidden — needs ls -la)
+│   │   "Last time we saw VirtualAlloc + WriteProcessMemory
+│   │    together, following the TCP stream in Wireshark
+│   │    revealed the C2 protocol structure"
+│   │
+│   └── .supervisor-feedback.txt          (hidden)
+│       "Remember: persistence mechanisms often write to
+│        HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+│        Check registry monitor BEFORE and AFTER execution"
+│
+├── tools/
+│   └── cheatsheet.md
+│       "When analyzing network callbacks, check the
+│        User-Agent string — commodity malware often
+│        reuses default strings from public frameworks"
+│
+└── .sandbox-config/                      (hidden directory)
+    └── evasion-notes.txt
+        "Some samples check for VMware tools, vboxservice,
+         or specific registry keys before executing payload.
+         Compare behavior with/without VM artifacts present"
+```
+
+Students who never open the terminal can still complete the gate — they just work harder. Students who explore get a more realistic analyst experience.
+
+---
+
+### Sprint DA-9: Gate 9 — Reverse Engineering Challenge
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Depends on:** DA-8
+**Location:** `_app/dark-arts/vault/gates/gate-9.html`
+**Est. Student Completion Time:** 40-60 minutes
+
+Assembly-level reverse engineering challenge. Student analyzes disassembled code to understand malware functionality without execution.
+
+| Task | Status |
+|------|--------|
+| Build disassembly viewer — simulated IDA/Ghidra-style interface with x86 assembly | ⬜ |
+| Integrated terminal — explore the RE workstation filesystem for analyst notes and tool docs | ⬜ |
+| Function identification — student maps subroutines to behaviors (encryption routine, C2 protocol, keylogger, etc.) | ⬜ |
+| Control flow analysis — follow conditional branches to understand logic | ⬜ |
+| String decryption challenge — XOR/Caesar encoded strings the student must decode | ⬜ |
+| API call reconstruction — map assembly `call` instructions to Windows API functions | ⬜ |
+| Final report — student writes a malware analysis report summarizing capabilities | ⬜ |
+| Discoverable hint system — hidden files in RE workstation filesystem (see below) | ⬜ |
+| Score system — no hint buttons, no deductions | ⬜ |
+| Gate completion → unlock Tier 5 vault modules | ⬜ |
+
+**Educational Focus:** x86 assembly basics, control flow graphs, string obfuscation, API hashing, malware capabilities classification
+
+**Hint Architecture — Discoverable Filesystem:**
+
+```
+/home/analyst/
+├── reference/
+│   ├── x86-quick-ref.md                  (visible — basic assembly reference card)
+│   ├── .api-hash-lookup.txt              (hidden)
+│   │   "Common API hashing: CRC32 of function name.
+│   │    0x6A4ABC5B = CreateRemoteThread
+│   │    0x54CAAF70 = GetProcAddress
+│   │    Try hashing the constants you see in the disassembly"
+│   │
+│   └── .xor-patterns.txt                 (hidden)
+│       "Single-byte XOR is the most common string obfuscation.
+│        Look for a loop with XOR instruction + incrementing index.
+│        The key byte is usually loaded into a register before the loop"
+│
+├── previous-samples/
+│   └── .sample-2847-notes.txt            (hidden)
+│       "Similar packing observed in 2847. The unpacking stub
+│        always calls VirtualAlloc then copies decrypted payload.
+│        Set breakpoint after the memcpy-equivalent loop"
+│
+└── .ghidra-plugins/                      (hidden directory)
+    └── tips.txt
+        "Ghidra's decompiler view (F5) converts assembly to
+         pseudo-C. Compare both views to confirm your analysis.
+         Focus on function call parameters, not instruction details"
+```
+
+---
+
+### Sprint DA-10: Gate 10 — Full Incident Response Scenario
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Depends on:** DA-9
+**Location:** `_app/dark-arts/vault/gates/gate-10.html`
+**Est. Student Completion Time:** 60-90 minutes
+
+Capstone gate tying together all previous skills. Full incident response scenario from initial alert through containment, eradication, and lessons learned. The student operates as lead analyst coordinating the response.
+
+| Task | Status |
+|------|--------|
+| SIEM alert simulation — student receives initial detection alert with raw log data | ⬜ |
+| Integrated terminal — access to the SOC workstation filesystem with IR playbooks, previous incidents, escalation docs | ⬜ |
+| Triage phase — determine scope, severity, affected systems from network/endpoint logs | ⬜ |
+| Containment decisions — student chooses isolation strategy (network segment, host, account disable) with consequences for wrong choices | ⬜ |
+| Evidence collection — forensic acquisition of memory dumps, disk images, network captures (simulated) | ⬜ |
+| Root cause analysis — combine static analysis (Gate 6), dynamic analysis (Gate 8), and reverse engineering (Gate 9) skills | ⬜ |
+| Eradication + recovery — remove persistence, patch vulnerability, restore services | ⬜ |
+| Lessons learned report — student writes executive summary with timeline, impact, recommendations | ⬜ |
+| Discoverable hint system — hidden files across the SOC workstation (see below) | ⬜ |
+| Scoring based on speed, accuracy, and minimizing business impact — no hint buttons | ⬜ |
+| Gate completion → "Dark Arts Master" achievement + full vault access | ⬜ |
+
+**Educational Focus:** NIST IR lifecycle (SP 800-61), chain of custody, executive communication, incident timeline reconstruction, coordination between teams
+
+**Hint Architecture — Discoverable Filesystem:**
+
+```
+/home/analyst/
+├── playbooks/
+│   ├── ir-playbook-v3.md                 (visible — org's IR procedure doc)
+│   ├── .containment-priority-matrix.txt  (hidden)
+│   │   "Containment priority: credential compromise > lateral
+│   │    movement > C2 active > data staging. Isolate the
+│   │    credential source FIRST, then work outward"
+│   │
+│   └── escalation-contacts.md            (visible — who to call)
+│
+├── previous-incidents/
+│   ├── .incident-2024-017.txt            (hidden)
+│   │   "Similar TTPs observed Nov 2024. Attacker pivoted via
+│   │    SMB admin shares after LSASS dump. Check for scheduled
+│   │    tasks created in the last 72 hours on adjacent hosts"
+│   │
+│   └── .lessons-learned-template.txt     (hidden)
+│       "Executive summary format: 1) What happened (2 sentences)
+│        2) Business impact 3) Root cause 4) What we're doing
+│        about it. Keep it under one page. No jargon."
+│
+├── forensics/
+│   └── .chain-of-custody-checklist.txt   (hidden)
+│       "Before imaging: photograph screen, note running processes,
+│        record time/date, hash everything. Order matters —
+│        volatile evidence (RAM) before non-volatile (disk)"
+│
+└── .senior-analyst-notes/                (hidden directory)
+    └── gut-check.txt
+        "When the timeline doesn't make sense, check for
+         timestomping. Compare $MFT timestamps against
+         USN journal entries. Attackers modify $SI but
+         rarely touch $FN timestamps"
+```
+
+**Gate Progression Summary:**
+
+| Gate | Focus | Hints | Est. Time | Tier Unlock |
+|------|-------|-------|-----------|-------------|
+| 1-5 | CTF entry challenges | Built-in (learning phase) | 10-20 min | Vault access |
+| 6 | Static Analysis | Hint buttons with -50 pt deduction | 20-30 min | Tier 2 |
+| 7 | Threat Attribution | Hint buttons with -25 pt deduction | 30-40 min | Tier 3 |
+| **8** | **Dynamic Analysis** | **Discoverable filesystem — no buttons, no deductions** | **30-45 min** | **Tier 4** |
+| **9** | **Reverse Engineering** | **Discoverable filesystem — no buttons, no deductions** | **40-60 min** | **Tier 5** |
+| **10** | **Incident Response Capstone** | **Discoverable filesystem — no buttons, no deductions** | **60-90 min** | **Dark Arts Master** |
+
+---
+
 ### Sprint F-1: Progress Tracking ✅
 **Completed:** December 25, 2025 (v2.9.0 "Journey")
 - ProgressManager with XP/leveling system
@@ -1553,20 +1747,111 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ## Planned Sprints (Backlog)
 
-### F-12: Centralized Search & Content Organization
+### F-12: Universal Search — Every Page Gets a Search Bar
 **Status:** Planned
 **Priority:** High
-**Rationale:** Each house page has its own basic search that's inconsistent and limited. ContentCatalog + ContentDiscovery exist but aren't wired into house pages consistently. Need a unified, centralized search experience across the entire platform.
+**Rationale:** Search exists in the 9 main house index pages via ContentCatalog + ContentDiscovery, but coverage is incomplete. The Dark Arts Vault (30+ labs/tools), Matrix (doesn't exist yet), and Factionless (dashboard divergent state) have no search at all. ContentDiscovery.js needs to become a true universal component — drop it in anywhere and it works.
 
-**Goals:**
-- [ ] Wire ContentDiscovery into ALL house index pages with consistent UI
-- [ ] Ensure searching "games" or any content type works from any house page
-- [ ] Add global search (accessible from dashboard, searchable across all 9 houses)
-- [ ] Audit and fix house index pages that have stale/broken search implementations
-- [ ] Ensure ContentCatalog module entries are complete and accurate (all 180+ modules indexed with correct types, tags, hrefs)
-- [ ] Consider fuzzy search / tag-based discovery for better discoverability
+#### Current State Audit
 
-**Scope:** ContentCatalog.js, ContentDiscovery.js, all 9 house index.html pages, dashboard.html
+| Location | Has Search? | Implementation | Gap |
+|----------|-------------|----------------|-----|
+| 9 house index pages (Eye, Code, Key, Shield, Script, Cloud, Web, Forge, Dark Arts) | Yes | ContentCatalog + ContentDiscovery + local `filterModules()` | Consistent but ContentDiscovery loads as secondary — local filter does the actual work |
+| Dark Arts Vault (`vault/index.html`) | **No** | No search — 30+ labs/tools in flat grid, 4 tiered module sections | Needs search bar that filters across tiers + tools |
+| Dark Arts house index (`houses/dark-arts/index.html`) | Partial | ContentCatalog + ContentDiscovery loaded but **no visible search input** | Wire up the search bar UI |
+| Dashboard Explore tab | Partial | Custom `exploreSearchInput` — not ContentDiscovery | Should use ContentDiscovery for consistency |
+| Games page (`games.html`) | Custom | Own filter with `search-input` ID | Works but not unified with ContentDiscovery |
+| Matrix / Operator path | **Doesn't exist** | No dedicated page — MX-1 through MX-6 are pending | Page creation is MX-1 scope; search should be wired in from day one |
+| Factionless (dashboard divergent) | **No** | FileTreeExplorer only — no search bar | Needs search across all houses (factionless = access everything) |
+| Cert path landing pages (8) | **No** | CertPathRenderer.js — module list only | Optional — small content sets, search adds less value |
+
+#### Phase 1: Universal Search Component
+
+Upgrade ContentDiscovery.js into a drop-in universal search component that auto-configures based on context.
+
+| Task | Details | Status |
+|------|---------|--------|
+| Refactor ContentDiscovery.js into self-initializing component | Auto-detect page context (house index, vault, dashboard, games). No need for SAMPLE_MODULES — pull from ContentCatalog directly. | ⬜ |
+| Add fuzzy search | Levenshtein distance or simple token matching — "encryptin" finds "Encryption Basics", "nmap" finds "Nmap Scanning Lab" | ⬜ |
+| Add tag-based discovery | ContentCatalog modules already have `tags[]` — surface them as clickable filter chips below search bar | ⬜ |
+| Add content type filter chips | Filter by: presentation, lab, quiz, applet, game, tool — visual chips, AND logic with search text | ⬜ |
+| Add cross-house toggle | "Search this house" vs "Search all houses" toggle. Default: current house. Global shows house badges on results. | ⬜ |
+| Keyboard shortcut | `/` or `Ctrl+K` focuses search bar from anywhere on the page | ⬜ |
+
+#### Phase 2: Wire Search Into Every Page
+
+| Page | Task | Status |
+|------|------|--------|
+| **Dark Arts Vault** (`vault/index.html`) | Add search bar above tier sections. Filters across all tiers + tools section. Results show tier badge + module status. | ⬜ |
+| **Dark Arts house index** (`houses/dark-arts/index.html`) | Wire up visible search input — scripts already loaded, just needs the UI element + `filterModules()` | ⬜ |
+| **Factionless (dashboard divergent)** | Add search bar to factionless explorer section. Uses ContentCatalog global search across all 9 houses. Results grouped by house with house icon badges. | ⬜ |
+| **Matrix page** (when MX-1 creates it) | Include ContentDiscovery from day one. Search across operator-path-specific content. | ⬜ |
+| **Dashboard Explore tab** | Replace custom `exploreSearchInput` with ContentDiscovery component for consistency | ⬜ |
+| **Games page** (`games.html`) | Replace custom filter with ContentDiscovery component filtered to `type: game` | ⬜ |
+| **9 house index pages** | Replace local `filterModules()` with ContentDiscovery component — same UI, unified backend | ⬜ |
+
+#### Phase 3: ContentCatalog Completeness
+
+| Task | Details | Status |
+|------|---------|--------|
+| Audit ContentCatalog entries against actual files | Currently 180 modules indexed — but 1,176+ HTML files exist. After R-1/R-2 registration, re-audit. | ⬜ |
+| Index Dark Arts Vault content | 30+ labs/tools not in ContentCatalog (SQL injection lab, XSS lab, Nmap training, etc.) — add them | ⬜ |
+| Index games | 56 games exist but most aren't in ContentCatalog — add with `type: 'game'` | ⬜ |
+| Verify all hrefs resolve | Every ContentCatalog entry's href must point to an existing file — EduScan REG-001 catches mismatches | ⬜ |
+| Add missing tags | Ensure every module has 3-5 meaningful tags for tag-based discovery | ⬜ |
+
+#### Phase 4: Search UX Polish
+
+| Task | Details | Status |
+|------|---------|--------|
+| Recent searches | Store last 5 searches in localStorage, show as suggestions on focus | ⬜ |
+| "No results" state | Helpful message with suggestions: "Try searching for 'encryption' or 'linux'" + link to browse all | ⬜ |
+| Search analytics | Track what users search for (localStorage counter) — helps identify content gaps | ⬜ |
+| Highlight matches | Bold the matching text in search results | ⬜ |
+| Responsive design | Search bar collapses to icon on mobile, expands on tap | ⬜ |
+
+#### Technical Notes
+
+**ContentDiscovery.js upgrade pattern:**
+```javascript
+// Current: requires SAMPLE_MODULES and CATEGORIES on the page
+// New: auto-detects context and pulls from ContentCatalog
+ContentDiscovery.init({
+    scope: 'house',        // 'house' | 'vault' | 'global' | 'games'
+    house: 'shield',       // auto-detected from URL if not provided
+    container: '#searchArea', // where to inject the search UI
+    showTags: true,        // tag chip filters
+    showTypeFilter: true,  // content type chips
+    globalToggle: true     // show "search all houses" toggle
+});
+```
+
+**Vault-specific search considerations:**
+- Must search across locked AND unlocked tiers (show lock icon on locked results)
+- Tools section content isn't in ContentCatalog yet — needs indexing first
+- Gate entries should not appear in search results (they're challenges, not content)
+
+**Factionless search considerations:**
+- Always global scope (factionless = all houses)
+- Results grouped by house with color-coded badges
+- Should feel like the "power user" search — show everything
+
+#### Dependencies
+
+| Dependency | Required For | Sprint |
+|------------|-------------|--------|
+| Dark Arts Vault content indexed in ContentCatalog | Phase 2 (vault search) | R-2 or this sprint |
+| Games indexed in ContentCatalog | Phase 2 (games search) | R-1/R-2 or this sprint |
+| Matrix page exists | Phase 2 (matrix search) | MX-1 |
+| R-1/R-2 content registration | Phase 3 (completeness audit) | R-1, R-2 |
+
+#### Sprint Sequencing
+
+Phase 1 (component upgrade) and Phase 2 (wire into pages) can be done together — that's the core sprint. Phase 3 depends on R-series registration work. Phase 4 is polish that can come later.
+
+**Recommendation:** Phases 1+2 as Sprint F-12. Phase 3 folds into R-10 (final verification). Phase 4 as optional follow-up or folded into a future UX sprint.
+
+**Scope:** ContentCatalog.js, ContentDiscovery.js, vault/index.html, dashboard.html, games.html, all 9 house index pages, Dark Arts house index
 
 ---
 

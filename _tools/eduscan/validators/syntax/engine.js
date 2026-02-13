@@ -129,7 +129,7 @@ class EngineValidator {
             description: 'Lab environment functionality'
         },
         'PresentationEngine': {
-            patterns: ['PresentationEngine', 'SlideEngine', 'Presentation'],
+            patterns: ['PresentationEngine', 'SlideEngine', 'new Presentation'],
             files: ['components/PresentationEngine.js', 'presentation/engine.js'],
             critical: true,
             contentType: 'presentation',
@@ -497,6 +497,13 @@ class EngineValidator {
                 let globalMatch;
 
                 while ((globalMatch = regex.exec(scriptContent)) !== null) {
+                    // Skip matches that appear inside string literals
+                    // (common false positives: bash examples like '$(date +%s)', or
+                    // English prose like "take a moment." matching Moment.js pattern)
+                    if (this.isInsideStringLiteral(scriptContent, globalMatch.index)) {
+                        continue;
+                    }
+
                     // Check if library is included
                     const isIncluded = info.files.some(f =>
                         includedPaths.includes(f.toLowerCase())
@@ -567,6 +574,51 @@ class EngineValidator {
         }
 
         return issues;
+    }
+
+    /**
+     * Check if a position in script content is inside a string literal.
+     * Walks from start counting unescaped quotes to determine if we're
+     * inside '...', "...", or `...` delimiters.
+     * Used to filter out false positives like bash examples: '$(date +%s)'
+     *
+     * For template literals, `$` is only code when followed by `{` (interpolation).
+     * A `$(` inside a template literal is just literal text, not a function call.
+     */
+    isInsideStringLiteral(scriptContent, position) {
+        const before = scriptContent.substring(0, position);
+
+        // Count unescaped quotes to determine string context
+        let inSingle = false;
+        let inDouble = false;
+        let inTemplate = false;
+
+        for (let i = 0; i < before.length; i++) {
+            const ch = before[i];
+            const prev = i > 0 ? before[i - 1] : '';
+
+            if (prev === '\\') continue; // Skip escaped characters
+
+            if (ch === '`' && !inSingle && !inDouble) {
+                inTemplate = !inTemplate;
+            } else if (ch === "'" && !inDouble && !inTemplate) {
+                inSingle = !inSingle;
+            } else if (ch === '"' && !inSingle && !inTemplate) {
+                inDouble = !inDouble;
+            }
+        }
+
+        // Inside single or double quotes: definitely a string literal
+        if (inSingle || inDouble) return true;
+
+        // Inside a template literal: $ is only special when followed by {
+        // If the char after the $ is not {, it's just literal text
+        if (inTemplate) {
+            const afterDollar = scriptContent[position + 1];
+            if (afterDollar !== '{') return true;
+        }
+
+        return false;
     }
 
     /**

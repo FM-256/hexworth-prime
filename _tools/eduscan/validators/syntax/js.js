@@ -305,31 +305,270 @@ class JSValidator {
     }
 
     /**
-     * Strip strings and comments from code for bracket matching
-     * Improved to handle template literals better
+     * Strip strings and comments from code for bracket matching.
+     * Uses single-pass character-by-character parsing to correctly handle:
+     * - Strings containing // (not treated as comments)
+     * - Template literals with ${...} expressions (nested brackets preserved)
+     * - Multiline comments
+     * - Regex literals (basic heuristic)
+     * - Escaped characters within strings
+     *
+     * Returns code with all string/comment content replaced by spaces,
+     * preserving only structural brackets/parens/braces.
      */
     stripStringsAndComments(code) {
-        let result = code;
+        const result = [];
+        let i = 0;
+        const len = code.length;
 
-        // Remove single-line comments (but not URLs)
-        result = result.replace(/(?<!:)\/\/.*$/gm, '');
+        while (i < len) {
+            const ch = code[i];
+            const next = i + 1 < len ? code[i + 1] : '';
 
-        // Remove multi-line comments
-        result = result.replace(/\/\*[\s\S]*?\*\//g, '');
+            // Single-line comment: // (but must not be inside a string)
+            if (ch === '/' && next === '/') {
+                // Replace rest of line with spaces
+                while (i < len && code[i] !== '\n') {
+                    result.push(' ');
+                    i++;
+                }
+                continue;
+            }
 
-        // Remove template literals (replace with spaces to preserve positions)
-        result = result.replace(/`(?:[^`\\]|\\.)*`/g, match => ' '.repeat(match.length));
+            // Multi-line comment: /* ... */
+            if (ch === '/' && next === '*') {
+                result.push(' '); // /
+                result.push(' '); // *
+                i += 2;
+                while (i < len) {
+                    if (code[i] === '*' && i + 1 < len && code[i + 1] === '/') {
+                        result.push(' '); // *
+                        result.push(' '); // /
+                        i += 2;
+                        break;
+                    }
+                    // Preserve newlines for line mapping
+                    result.push(code[i] === '\n' ? '\n' : ' ');
+                    i++;
+                }
+                continue;
+            }
 
-        // Remove double-quoted strings
-        result = result.replace(/"(?:[^"\\]|\\.)*"/g, match => ' '.repeat(match.length));
+            // Double-quoted string
+            if (ch === '"') {
+                result.push(' ');
+                i++;
+                while (i < len && code[i] !== '"') {
+                    if (code[i] === '\\' && i + 1 < len) {
+                        result.push(' ');
+                        result.push(' ');
+                        i += 2;
+                        continue;
+                    }
+                    result.push(code[i] === '\n' ? '\n' : ' ');
+                    i++;
+                }
+                if (i < len) { result.push(' '); i++; } // closing "
+                continue;
+            }
 
-        // Remove single-quoted strings
-        result = result.replace(/'(?:[^'\\]|\\.)*'/g, match => ' '.repeat(match.length));
+            // Single-quoted string
+            if (ch === "'") {
+                result.push(' ');
+                i++;
+                while (i < len && code[i] !== "'") {
+                    if (code[i] === '\\' && i + 1 < len) {
+                        result.push(' ');
+                        result.push(' ');
+                        i += 2;
+                        continue;
+                    }
+                    result.push(code[i] === '\n' ? '\n' : ' ');
+                    i++;
+                }
+                if (i < len) { result.push(' '); i++; } // closing '
+                continue;
+            }
 
-        // Remove regex literals (simple heuristic - may miss some edge cases)
-        result = result.replace(/\/(?![/*])(?:[^/\\]|\\.)+\/[gimsuvy]*/g, match => ' '.repeat(match.length));
+            // Template literal with ${...} expression support
+            if (ch === '`') {
+                result.push(' ');
+                i++;
+                this._stripTemplateLiteral(code, i, len, result);
+                i = this._lastTemplatePos;
+                continue;
+            }
 
-        return result;
+            // Regex literal (heuristic: / after certain tokens)
+            if (ch === '/' && next !== '/' && next !== '*') {
+                // Check if this is likely a regex by looking at preceding non-space char
+                let prevIdx = result.length - 1;
+                while (prevIdx >= 0 && (result[prevIdx] === ' ' || result[prevIdx] === '\n')) {
+                    prevIdx--;
+                }
+                const prevChar = prevIdx >= 0 ? result[prevIdx] : '';
+                // Regex can follow: = ( [ ! & | ? : ; , { } ~ ^ + - * % < > newline or start
+                const regexPrecedes = '=([!&|?:;,{}~^+-*%<>\n'.includes(prevChar) || prevChar === '' || prevChar === '\n';
+                if (regexPrecedes) {
+                    result.push(' '); // opening /
+                    i++;
+                    while (i < len && code[i] !== '/' && code[i] !== '\n') {
+                        if (code[i] === '\\' && i + 1 < len) {
+                            result.push(' ');
+                            result.push(' ');
+                            i += 2;
+                            continue;
+                        }
+                        result.push(' ');
+                        i++;
+                    }
+                    if (i < len && code[i] === '/') {
+                        result.push(' '); // closing /
+                        i++;
+                        // Skip flags
+                        while (i < len && /[gimsuvy]/.test(code[i])) {
+                            result.push(' ');
+                            i++;
+                        }
+                    }
+                    continue;
+                }
+            }
+
+            // Regular character - keep it
+            result.push(ch);
+            i++;
+        }
+
+        return result.join('');
+    }
+
+    /**
+     * Helper: strip template literal content, handling ${...} expressions.
+     * Expressions inside ${} are kept (brackets preserved for counting).
+     * Everything else (plain template text) is replaced with spaces.
+     */
+    _stripTemplateLiteral(code, start, len, result) {
+        let i = start;
+        while (i < len) {
+            if (code[i] === '\\' && i + 1 < len) {
+                result.push(' ');
+                result.push(' ');
+                i += 2;
+                continue;
+            }
+            if (code[i] === '`') {
+                result.push(' '); // closing backtick
+                i++;
+                this._lastTemplatePos = i;
+                return;
+            }
+            if (code[i] === '$' && i + 1 < len && code[i + 1] === '{') {
+                result.push(' '); // $
+                result.push('{'); // { - KEEP this bracket for counting
+                i += 2;
+                // Parse the expression inside ${...}, respecting nested braces
+                let braceDepth = 1;
+                while (i < len && braceDepth > 0) {
+                    // Recursively handle strings/comments inside expressions
+                    const ch = code[i];
+                    if (ch === '{') {
+                        braceDepth++;
+                        result.push(ch);
+                        i++;
+                    } else if (ch === '}') {
+                        braceDepth--;
+                        result.push(ch); // KEEP closing brace for counting
+                        i++;
+                    } else if (ch === '"' || ch === "'" || ch === '`') {
+                        // String inside expression - strip its contents
+                        if (ch === '`') {
+                            result.push(' ');
+                            i++;
+                            this._stripTemplateLiteral(code, i, len, result);
+                            i = this._lastTemplatePos;
+                        } else {
+                            result.push(' ');
+                            i++;
+                            while (i < len && code[i] !== ch) {
+                                if (code[i] === '\\' && i + 1 < len) {
+                                    result.push(' ');
+                                    result.push(' ');
+                                    i += 2;
+                                    continue;
+                                }
+                                result.push(code[i] === '\n' ? '\n' : ' ');
+                                i++;
+                            }
+                            if (i < len) { result.push(' '); i++; }
+                        }
+                    } else if (ch === '/' && i + 1 < len && code[i + 1] === '/') {
+                        // Single-line comment inside expression
+                        while (i < len && code[i] !== '\n') {
+                            result.push(' ');
+                            i++;
+                        }
+                    } else if (ch === '/' && i + 1 < len && code[i + 1] === '*') {
+                        // Multi-line comment inside expression
+                        result.push(' ');
+                        result.push(' ');
+                        i += 2;
+                        while (i < len) {
+                            if (code[i] === '*' && i + 1 < len && code[i + 1] === '/') {
+                                result.push(' ');
+                                result.push(' ');
+                                i += 2;
+                                break;
+                            }
+                            result.push(code[i] === '\n' ? '\n' : ' ');
+                            i++;
+                        }
+                    } else if (ch === '/' && i + 1 < len && code[i + 1] !== '/' && code[i + 1] !== '*') {
+                        // Possible regex literal inside expression
+                        let prevIdx = result.length - 1;
+                        while (prevIdx >= 0 && (result[prevIdx] === ' ' || result[prevIdx] === '\n')) {
+                            prevIdx--;
+                        }
+                        const prevCh = prevIdx >= 0 ? result[prevIdx] : '';
+                        const isRegex = '=([!&|?:;,{}~^+-*%<>\n'.includes(prevCh) || prevCh === '' || prevCh === '\n';
+                        if (isRegex) {
+                            result.push(' '); // opening /
+                            i++;
+                            while (i < len && code[i] !== '/' && code[i] !== '\n') {
+                                if (code[i] === '\\' && i + 1 < len) {
+                                    result.push(' ');
+                                    result.push(' ');
+                                    i += 2;
+                                    continue;
+                                }
+                                result.push(' ');
+                                i++;
+                            }
+                            if (i < len && code[i] === '/') {
+                                result.push(' '); // closing /
+                                i++;
+                                while (i < len && /[gimsuvy]/.test(code[i])) {
+                                    result.push(' ');
+                                    i++;
+                                }
+                            }
+                        } else {
+                            // Division operator
+                            result.push(ch);
+                            i++;
+                        }
+                    } else {
+                        result.push(ch);
+                        i++;
+                    }
+                }
+                continue;
+            }
+            // Plain template text - replace with space
+            result.push(code[i] === '\n' ? '\n' : ' ');
+            i++;
+        }
+        this._lastTemplatePos = i;
     }
 
     getLineNumber(content, position) {

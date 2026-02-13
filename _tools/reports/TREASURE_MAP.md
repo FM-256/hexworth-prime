@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-13 11:06:33 PM
+                    Scanned: 2026-02-13 11:31:51 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1247 |
+| Files Scanned | 1248 |
 | Directories | 469 |
-| Content Files | 1247 |
-| Scan Duration | 195ms |
+| Content Files | 1248 |
+| Scan Duration | 196ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 469 |
+| html | 475 |
 | presentation | 418 |
-| applet | 188 |
+| applet | 183 |
 | lab | 158 |
 | quiz | 14 |
 
@@ -31,16 +31,16 @@
 |----------|-------|
 | Critical | 0 |
 | Warning | 869 |
-| Info | 400 |
-| **Total** | **1462** |
+| Info | 395 |
+| **Total** | **1457** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 564 |
+| Ready | 559 |
 | Not Ready | 214 |
-| Unknown | 469 |
+| Unknown | 475 |
 
 
 ## FILE HIERARCHY
@@ -75,7 +75,8 @@
 │       ├── 🔬 footprinting-lab.html
 │       ├── 📁 gates
 │       │   ├── 📄 gate-6.html
-│       │   └── 📄 gate-7.html
+│       │   ├── 📄 gate-7.html
+│       │   └── 📄 gate-8.html
 │       ├── 🔬 idor-attack-lab.html
 │       ├── 🔬 ids-evasion-lab.html
 │       ├── 📍 index.html
@@ -1896,7 +1897,6 @@
 | code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
 | git-blame | applet | ✓ | 1 |
 | kubernetes-rescue | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
 | code-docker.lab | presentation | ✓ | 1 |
@@ -1977,7 +1977,6 @@
 | eye-snort-rules.lab | lab | ✓ | 0 |
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
 | alert-triage | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
 | eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | eye-log-basics.presentation | applet | ✓ | 1 |
@@ -2100,7 +2099,6 @@
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
 | raid-calculator | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
@@ -2129,7 +2127,6 @@
 |---------|------|------|--------|
 | cipher-cracker | presentation | ✓ | 0 |
 | dont-leak-the-key | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
 | key-cert.lab | presentation | ✓ | 0 |
@@ -2436,7 +2433,6 @@
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | malware-zoo | lab | ✓ | 1 |
 | social-engineer | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
 | shield-access-control.lab | presentation | ✓ | 0 |
 | shield-compliance.lab | presentation | ✓ | 0 |
 | shield-cryptography.lab | presentation | ✓ | 0 |
@@ -6083,7 +6079,7 @@
   File: `product-info.html`
   Fix: Add entry to content-registry.js
 
-### INFO (400)
+### INFO (395)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6402,10 +6398,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/labs/code-docker.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6607,10 +6599,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/games/alert-triage.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -6846,10 +6834,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6899,10 +6883,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/key/games/dont-leak-the-key.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7395,10 +7375,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/games/social-engineer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)

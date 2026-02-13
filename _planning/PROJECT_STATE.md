@@ -1,6 +1,6 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 12, 2026
 **Updated By:** CCode-Opus4.6
 **Version:** 3.11.2 "INTEGRITY"
 
@@ -40,6 +40,32 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 12, 2026 - SPRINT F-13: CERT PATH LANDING PAGES + BUG FIXES (CCode-Opus4.6)
+
+```
++======================================================================+
+|         SPRINT F-13: CERT PATH LANDING PAGES                         |
+|         10 files created, 4 files modified                           |
++======================+================================================+
+|  8 ASGN-003 HIGH issues resolved (EduScan clean)                    |
+|                                                                       |
+|  CREATED:                                                             |
+|  - CertPathRenderer.js (shared dynamic renderer)                     |
+|  - 8 cert path landing pages at houses/{pathId}/index.html           |
+|    (devops-fundamentals, comptia-linux, aplus-core1, aplus-core2,    |
+|     security-plus, comptia-network, cryptography-track,              |
+|     security-plus-crypto)                                            |
+|                                                                       |
+|  MODIFIED:                                                            |
+|  - LearningPaths.js: Added courseHref to 6 paths for routing         |
+|  - cipher-cracker.html: Fixed back button 404                        |
+|  - tor-darkweb.html: Fixed unreadable ASCII art title                |
+|  - sql-injection-defense.html: Fixed GameTracker score total         |
+|                                                                       |
+|  EDUSCAN: ASGN-003: 8→0 | HIGH: 135→127 | Total: 1630→1620         |
++----------------------------------------------------------------------+
+```
 
 ### February 11, 2026 - INSTRUCTOR ANALYTICS WIRED TO REAL DATA (CCode-Opus4.6)
 

@@ -1147,12 +1147,14 @@ class PathValidator {
 
     /**
      * Resolve a relative path from file directory
+     * Strips querystring and hash fragments before resolving (e.g., script.js?76720)
      */
     resolvePath(targetPath, fileDir) {
-        if (targetPath.startsWith('/')) {
-            return path.join(this.rootPath, targetPath);
+        const cleanPath = targetPath.split('?')[0].split('#')[0];
+        if (cleanPath.startsWith('/')) {
+            return path.join(this.rootPath, cleanPath);
         }
-        return path.resolve(fileDir, targetPath);
+        return path.resolve(fileDir, cleanPath);
     }
 
     /**
