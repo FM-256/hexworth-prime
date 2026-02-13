@@ -27,7 +27,8 @@ const BUCKET_TYPES = {
     DYNAMIC_LOAD: 'DYNAMIC_LOAD',
     STRUCTURAL_DEPTH: 'STRUCTURAL_DEPTH',  // Proactive depth rule violation (undershoot)
     STRUCTURAL_OVERSHOOT: 'STRUCTURAL_OVERSHOOT',  // Too many ../ (overshoot past root)
-    WRONG_ANCHOR: 'WRONG_ANCHOR'  // Path resolves to wrong anchor directory
+    WRONG_ANCHOR: 'WRONG_ANCHOR',  // Path resolves to wrong anchor directory
+    DOUBLED_SEGMENT: 'DOUBLED_SEGMENT'  // Repeated directory segment (e.g., houses/shield/houses/shield/)
 };
 
 // Known anchor directories - common target directories for relative paths
@@ -171,6 +172,9 @@ class PathValidator {
 
         // PROACTIVE: Check structural depth rules first (prevents bugs before they happen)
         issues.push(...this.checkStructuralDepthRules(file));
+
+        // PROACTIVE: Check for doubled path segments (houses/X/houses/X/)
+        issues.push(...this.checkDoubledPathSegments(file));
 
         issues.push(...this.checkScriptPaths(file, absoluteFileDir));
         issues.push(...this.checkLinkPaths(file, absoluteFileDir));
@@ -337,6 +341,102 @@ class PathValidator {
                         }
                     }
                 }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * Check for doubled path segments in href/src attributes.
+     * Catches patterns like houses/shield/houses/shield/ which always produce 404s.
+     * Also detects any repeated consecutive directory segment (e.g., components/foo/components/foo/).
+     *
+     * Code: PATH-DUP-001
+     * Severity: HIGH (always causes 404)
+     */
+    checkDoubledPathSegments(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Extract all href/src values from HTML attributes
+        const attrPattern = /(?:src|href)\s*=\s*["']([^"']+)["']/gi;
+        let match;
+
+        while ((match = attrPattern.exec(content)) !== null) {
+            const refPath = match[1];
+
+            // Skip external URLs and anchors
+            if (/^(https?:|\/\/|data:|javascript:|mailto:|#)/.test(refPath)) continue;
+
+            // Check for doubled directory segments: any segment pair that repeats
+            // e.g., houses/shield/houses/shield/ or components/foo/components/foo/
+            const segments = refPath.replace(/^(\.\.\/)+/, '').split('/');
+            for (let i = 0; i < segments.length - 1; i++) {
+                // Look for a sequence of 2+ segments that repeats starting at position i
+                for (let len = 1; len <= Math.floor((segments.length - i) / 2); len++) {
+                    const chunk = segments.slice(i, i + len).join('/');
+                    const next = segments.slice(i + len, i + len * 2).join('/');
+                    if (chunk === next && chunk.length > 0) {
+                        const line = this.getLineNumber(content, match.index);
+                        const repeated = chunk;
+                        // Build the de-duped path
+                        const prefix = refPath.match(/^((?:\.\.\/)+)/)?.[1] || '';
+                        const deduped = prefix + segments.filter((_, idx) => idx < i || idx >= i + len).join('/');
+
+                        issues.push({
+                            code: 'PATH-DUP-001',
+                            severity: 'high',
+                            category: 'path',
+                            bucket: BUCKET_TYPES.DOUBLED_SEGMENT,
+                            message: `Doubled path segment '${repeated}' — resolves to wrong location (404)`,
+                            file: file.path,
+                            line,
+                            missingPath: refPath,
+                            suggestion: {
+                                path: deduped,
+                                confidence: 1.0,
+                                reason: `Remove repeated '${repeated}' segment`
+                            },
+                            autoFixable: true,
+                            fix: `Change path to: ${deduped}`
+                        });
+                        // Only report first doubled segment per path
+                        break;
+                    }
+                }
+                // Break outer loop too if we found one
+                if (issues.length > 0 && issues[issues.length - 1].missingPath === refPath) break;
+            }
+        }
+
+        // Also check JS string literals that look like navigation paths
+        // Catches: window.location.href = `houses/${id}/${href}` where href already contains houses/
+        const jsNavPattern = /window\.location\.href\s*=\s*[`'"](houses\/[^`'"]+)[`'"]/g;
+        while ((match = jsNavPattern.exec(content)) !== null) {
+            const navPath = match[1];
+            const segments = navPath.split('/');
+            for (let i = 0; i < segments.length - 1; i++) {
+                for (let len = 1; len <= Math.floor((segments.length - i) / 2); len++) {
+                    const chunk = segments.slice(i, i + len).join('/');
+                    const next = segments.slice(i + len, i + len * 2).join('/');
+                    if (chunk === next && chunk.length > 0) {
+                        const line = this.getLineNumber(content, match.index);
+                        issues.push({
+                            code: 'PATH-DUP-001',
+                            severity: 'high',
+                            category: 'path',
+                            bucket: BUCKET_TYPES.DOUBLED_SEGMENT,
+                            message: `JS navigation produces doubled path segment '${chunk}'`,
+                            file: file.path,
+                            line,
+                            missingPath: navPath,
+                            fix: `Check navigation logic — href may already include 'houses/' prefix`
+                        });
+                        break;
+                    }
+                }
+                if (issues.length > 0 && issues[issues.length - 1].missingPath === navPath) break;
             }
         }
 
