@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../../gate-cipher.js"></script>
+    <script>GATE_CIPHER.checkVersion();</script>
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <title>Gate 8: Dynamic Analysis Sandbox - Dark Arts Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0f;
+            color: #b0b0c0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Radioactive ambient glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(180, 200, 0, 0.04) 0%, rgba(120, 140, 0, 0.02) 30%, transparent 60%);
+            pointer-events: none;
+            animation: ambientPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes ambientPulse {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(180, 200, 0, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: drift 15s infinite linear;
+        }
+
+        @keyframes drift {
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) translateX(30px); opacity: 0; }
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            position: relative;
+            z-index: 10;
+            max-width: 600px;
+        }
+
+        /* Radioactive symbol */
+        .gate-symbol {
+            width: 160px;
+            height: 160px;
+            margin: 0 auto 40px;
+            position: relative;
+        }
+
+        .gate-symbol svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 30px rgba(180, 200, 0, 0.3));
+            animation: symbolGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes symbolGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(180, 200, 0, 0.2)); }
+            50% { filter: drop-shadow(0 0 40px rgba(180, 200, 0, 0.5)); }
+        }
+
+        .gate-number {
+            font-size: 0.7rem;
+            letter-spacing: 0.4em;
+            color: #5a5a3a;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .gate-title {
+            font-size: 1.8rem;
+            color: #c8d830;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            text-shadow: 0 0 30px rgba(180, 200, 0, 0.3);
+        }
+
+        .gate-subtitle {
+            font-size: 0.85rem;
+            color: #7a7a5a;
+            letter-spacing: 0.05em;
+            margin-bottom: 40px;
+        }
+
+        /* Under construction banner */
+        .construction-banner {
+            background: rgba(180, 200, 0, 0.06);
+            border: 1px solid rgba(180, 200, 0, 0.15);
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .construction-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(180, 200, 0, 0.03), transparent);
+            animation: scanLine 4s ease-in-out infinite;
+        }
+
+        @keyframes scanLine {
+            0% { left: -50%; }
+            100% { left: 150%; }
+        }
+
+        .construction-icon {
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+
+        .construction-status {
+            font-size: 0.7rem;
+            letter-spacing: 0.3em;
+            color: #c8d830;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            animation: statusBlink 2s ease-in-out infinite;
+        }
+
+        @keyframes statusBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .construction-text {
+            font-size: 0.75rem;
+            color: #6a6a4a;
+            line-height: 1.8;
+        }
+
+        /* Preview details */
+        .preview-section {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .preview-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: #4a4a3a;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .preview-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(180, 200, 0, 0.06);
+        }
+
+        .preview-item:last-child {
+            border-bottom: none;
+        }
+
+        .preview-icon {
+            font-size: 0.9rem;
+            width: 28px;
+            text-align: center;
+            opacity: 0.5;
+        }
+
+        .preview-text {
+            font-size: 0.7rem;
+            color: #5a5a4a;
+            letter-spacing: 0.03em;
+        }
+
+        .preview-text strong {
+            color: #8a8a6a;
+            font-weight: normal;
+        }
+
+        /* Classification badge */
+        .classification {
+            margin-top: 35px;
+            padding: 12px 20px;
+            background: rgba(180, 200, 0, 0.04);
+            border: 1px dashed rgba(180, 200, 0, 0.12);
+            border-radius: 4px;
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            color: #4a4a3a;
+            text-transform: uppercase;
+        }
+
+        /* Return link */
+        .return-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 30px;
+            border: 1px solid rgba(180, 200, 0, 0.15);
+            border-radius: 20px;
+            color: #6a6a4a;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .return-link:hover {
+            border-color: rgba(180, 200, 0, 0.4);
+            color: #c8d830;
+            box-shadow: 0 0 20px rgba(180, 200, 0, 0.1);
+        }
+
+        @media (max-width: 600px) {
+            .gate-symbol { width: 120px; height: 120px; }
+            .gate-title { font-size: 1.3rem; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating particles -->
+    <div class="particle" style="left:10%;animation-delay:0s;animation-duration:12s"></div>
+    <div class="particle" style="left:20%;animation-delay:2s;animation-duration:16s"></div>
+    <div class="particle" style="left:35%;animation-delay:5s;animation-duration:14s"></div>
+    <div class="particle" style="left:50%;animation-delay:1s;animation-duration:18s"></div>
+    <div class="particle" style="left:65%;animation-delay:7s;animation-duration:13s"></div>
+    <div class="particle" style="left:80%;animation-delay:3s;animation-duration:15s"></div>
+    <div class="particle" style="left:90%;animation-delay:6s;animation-duration:17s"></div>
+
+    <div class="container">
+        <!-- Radioactive trefoil SVG -->
+        <div class="gate-symbol">
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer ring -->
+                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(200,216,48,0.15)" stroke-width="2"/>
+                <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(200,216,48,0.08)" stroke-width="1"/>
+                <!-- Trefoil blades -->
+                <path d="M100,100 L100,30 A70,70 0 0,1 160.6,135 Z" fill="rgba(200,216,48,0.25)" stroke="rgba(200,216,48,0.4)" stroke-width="1"/>
+                <path d="M100,100 L160.6,135 A70,70 0 0,1 39.4,135 Z" fill="rgba(200,216,48,0.25)" stroke="rgba(200,216,48,0.4)" stroke-width="1"/>
+                <path d="M100,100 L39.4,135 A70,70 0 0,1 100,30 Z" fill="rgba(200,216,48,0.25)" stroke="rgba(200,216,48,0.4)" stroke-width="1"/>
+                <!-- Inner gaps (cut-outs between blades) -->
+                <circle cx="100" cy="68" r="16" fill="#0a0a0f"/>
+                <circle cx="127.7" cy="116" r="16" fill="#0a0a0f"/>
+                <circle cx="72.3" cy="116" r="16" fill="#0a0a0f"/>
+                <!-- Center circle -->
+                <circle cx="100" cy="100" r="12" fill="rgba(200,216,48,0.3)" stroke="rgba(200,216,48,0.5)" stroke-width="1.5"/>
+                <!-- Gate number in center -->
+                <text x="100" y="105" text-anchor="middle" fill="rgba(200,216,48,0.8)" font-family="Courier New" font-size="14" font-weight="bold">8</text>
+            </svg>
+        </div>
+
+        <div class="gate-number">Gate VIII</div>
+        <h1 class="gate-title">Dynamic Analysis Sandbox</h1>
+        <p class="gate-subtitle">Detonate. Observe. Extract.</p>
+
+        <div class="construction-banner">
+            <div class="construction-icon">&#9888;</div>
+            <div class="construction-status">Containment Lab Under Construction</div>
+            <p class="construction-text">
+                The sandbox environment is being prepared.<br>
+                Detonation chambers, behavioral monitors, and<br>
+                network capture systems are not yet operational.
+            </p>
+        </div>
+
+        <div class="preview-section">
+            <div class="preview-label">Mission Preview</div>
+            <div class="preview-item">
+                <span class="preview-icon">&#9635;</span>
+                <span class="preview-text"><strong>Sandbox VM</strong> &mdash; Execute malware in isolated environment</span>
+            </div>
+            <div class="preview-item">
+                <span class="preview-icon">&#9638;</span>
+                <span class="preview-text"><strong>DNS Server</strong> &mdash; Intercept and analyze resolution requests</span>
+            </div>
+            <div class="preview-item">
+                <span class="preview-icon">&#9670;</span>
+                <span class="preview-text"><strong>C2 Endpoint</strong> &mdash; Capture callback traffic and protocol data</span>
+            </div>
+            <div class="preview-item">
+                <span class="preview-icon">&#9881;</span>
+                <span class="preview-text"><strong>Behavioral IOCs</strong> &mdash; File, registry, network, and process indicators</span>
+            </div>
+            <div class="preview-item">
+                <span class="preview-icon">&#9760;</span>
+                <span class="preview-text"><strong>Evasion Detection</strong> &mdash; Catch sandbox-aware malware techniques</span>
+            </div>
+        </div>
+
+        <div class="classification">
+            Tier IV // Specialist Clearance Required // Est. 30&ndash;45 min
+        </div>
+
+        <a href="../index.html" class="return-link">Return to Vault</a>
+    </div>
+</body>
+</html>
