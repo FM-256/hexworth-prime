@@ -284,6 +284,33 @@ const AchievementManager = (function() {
             style: 'glitch'
         },
         {
+            id: 'the_answer',
+            icon: '🌌',
+            name: 'The Answer',
+            desc: 'Visited exactly 42 pages in one session',
+            points: 42,
+            category: 'secret',
+            title: 'Knower of Answers'
+        },
+        {
+            id: 'world_traveler',
+            icon: '🗺️',
+            name: 'World Traveler',
+            desc: 'Visited all 9 houses in a single session',
+            points: 50,
+            category: 'secret',
+            title: 'the Well-Traveled'
+        },
+        {
+            id: 'source_code',
+            icon: '📜',
+            name: 'Source Code',
+            desc: 'Discovered the hidden credits',
+            points: 30,
+            category: 'secret',
+            title: 'Reader of Credits'
+        },
+        {
             id: 'secret_hunter',
             icon: '🔮',
             name: 'Secret Hunter',

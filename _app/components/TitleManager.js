@@ -368,6 +368,12 @@ const TitleManager = (function() {
         const userName = username || localStorage.getItem('hexworth_username') || 'Student';
         const titleParts = [];
 
+        // Factionless users: delegate to FactionlessTree if available
+        if (typeof FactionlessTree !== 'undefined' && FactionlessTree.isFactionless()) {
+            const fTitle = FactionlessTree.getTitle();
+            return `${userName}, ${fTitle}`;
+        }
+
         // Get skill tiers
         const skillTiers = buildSkillTiers();
 
@@ -399,6 +405,12 @@ const TitleManager = (function() {
 
     function getShortTitle(username = null) {
         const userName = username || localStorage.getItem('hexworth_username') || 'Student';
+
+        // Factionless users: delegate to FactionlessTree if available
+        if (typeof FactionlessTree !== 'undefined' && FactionlessTree.isFactionless()) {
+            const fTitle = FactionlessTree.getTitle();
+            return `${userName}, ${fTitle}`;
+        }
 
         // Priority: Special titles > Cross-house > Highest tier
         const specialTitles = getActiveTitles();
