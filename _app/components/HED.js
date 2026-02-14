@@ -8,17 +8,26 @@
  *
  * Auto-loaded by FluxCapacitor.js on every page.
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 const HED = (function() {
     'use strict';
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
     const STORAGE_KEY = 'hexworth_hed_log';
     const MAX_ENTRIES = 50;
     const MAX_MSG_LEN = 500;
     const MAX_URL_LEN = 200;
+
+    // Cloud reporting
+    const CLOUD_MAX = 10;
+    const CLOUD_PENDING_KEY = 'hexworth_hed_pending';
+    const SESSION_ID = (() => { try { return crypto.randomUUID(); } catch(e) { return 'xxxx-xxxx'.replace(/x/g, () => (Math.random()*16|0).toString(16)); } })();
+
+    let _cloudBuffer = [];
+    let _cloudFlushed = false;
+    const _dedupMap = {};
 
     // Error codes
     const CODE_JS_ERROR       = 'HED-001';
@@ -96,6 +105,7 @@ const HED = (function() {
         log.push(entry);
         while (log.length > MAX_ENTRIES) log.shift();
         writeLog(log);
+        bufferForCloud(code, msg, entry.url, entry.source, entry.timestamp);
 
         // Dispatch event for real-time dashboard updates
         try {
@@ -139,6 +149,86 @@ const HED = (function() {
         record(CODE_CONSOLE_ERROR, msg, '');
         _origConsoleError.apply(console, arguments);
     };
+
+    // Flush cloud buffer on page hide / unload
+    document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') flushToCloud(); });
+    window.addEventListener('beforeunload', flushToCloud);
+    setTimeout(drainPending, 3000);
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLOUD REPORTING (Buffer → Flush → Drain)
+    // ═══════════════════════════════════════════════════════════════
+
+    function bufferForCloud(code, msg, url, source, ts) {
+        if (_cloudFlushed) return;
+        var key = code + '|' + msg;
+        if (_dedupMap[key]) {
+            _dedupMap[key].count++;
+            return;
+        }
+        if (_cloudBuffer.length >= CLOUD_MAX) return;
+        var entry = { code: code, message: msg, url: url, source: source, timestamp: ts, count: 1 };
+        _cloudBuffer.push(entry);
+        _dedupMap[key] = entry;
+    }
+
+    function _buildReport() {
+        if (_cloudBuffer.length === 0) return null;
+        var uid = null;
+        var house = null;
+        try {
+            var cachedUser = localStorage.getItem('hexworth_firebase_user');
+            if (cachedUser) { uid = JSON.parse(cachedUser).uid || null; }
+            house = localStorage.getItem('hexworth_house') || null;
+        } catch (e) {}
+        return {
+            sessionId: SESSION_ID,
+            uid: uid,
+            house: house,
+            userAgent: String(navigator.userAgent || '').substring(0, 200),
+            errors: _cloudBuffer.slice(),
+            errorCount: _cloudBuffer.reduce(function(sum, e) { return sum + e.count; }, 0),
+            reportedAt: null  // replaced by serverTimestamp() on write
+        };
+    }
+
+    function flushToCloud() {
+        if (_cloudFlushed || _cloudBuffer.length === 0) return;
+        _cloudFlushed = true;
+        var report = _buildReport();
+        if (!report) return;
+
+        // Try Firestore if SDK is loaded
+        if (typeof firebase !== 'undefined' && firebase.firestore) {
+            try {
+                report.reportedAt = firebase.firestore.FieldValue.serverTimestamp();
+                firebase.firestore().collection('hed_reports').add(report);
+                try { sessionStorage.removeItem(CLOUD_PENDING_KEY); } catch (e) {}
+                return;
+            } catch (e) { /* fall through to sessionStorage */ }
+        }
+
+        _savePending(report);
+    }
+
+    function _savePending(report) {
+        try {
+            report.reportedAt = new Date().toISOString();
+            sessionStorage.setItem(CLOUD_PENDING_KEY, JSON.stringify(report));
+        } catch (e) {}
+    }
+
+    function drainPending() {
+        try {
+            var raw = sessionStorage.getItem(CLOUD_PENDING_KEY);
+            if (!raw) return;
+            if (typeof firebase === 'undefined' || !firebase.firestore) return;
+            var report = JSON.parse(raw);
+            report.reportedAt = firebase.firestore.FieldValue.serverTimestamp();
+            firebase.firestore().collection('hed_reports').add(report);
+            sessionStorage.removeItem(CLOUD_PENDING_KEY);
+        } catch (e) {}
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
@@ -193,6 +283,7 @@ const HED = (function() {
         clear: clear,
         export: exportLog,
         getStats: getStats,
-        getLog: readLog
+        getLog: readLog,
+        flush: flushToCloud
     };
 })();
