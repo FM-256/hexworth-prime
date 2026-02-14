@@ -35,7 +35,7 @@
                 'applets/crypto/hashing_steganography/encryption_task.html',
                 'applets/crypto/encryption/encryption_jedit_6_1.html',
                 // Key House - Encryption Fundamentals
-                'presentations/encryption-basics.html',
+                'presentations/key-encryption-basics.presentation.html',
                 'presentations/cryptography-fundamentals.html',
                 // Eye House - Traffic Analysis Intro
                 'tools/packet-analyzer.html',
@@ -771,7 +771,7 @@
                 'dns-header-reference': 'DNS Header Reference',
                 'osi-model': 'OSI Model',
                 'encryption_task': 'Encryption Task',
-                'encryption-basics': 'Encryption Basics',
+                'key-encryption-basics': 'Encryption Basics',
                 'packet-analyzer': 'Packet Analyzer',
                 'wireshark-training': 'Wireshark Training',
                 'cpu-architecture': 'CPU Architecture',

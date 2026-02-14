@@ -25,6 +25,14 @@
 
 ## Current Sprint
 
+### Sprint ES-10: ContentCatalog Href Validation
+**Status:** ✅ Complete (February 14, 2026)
+**See:** EduScan section below for full task list
+
+**Next up:** HED-1 (Host Error Detector) or HD-6 (Persistent Classroom Progress)
+
+---
+
 ### Sprint F-15: CMMC Domain Applets + OSINT Lab + Career Explorer
 **Status:** ✅ Complete (February 13, 2026)
 **Priority:** High — Eliminated all 201 HIGH EduScan issues from broken Articulate Storyline wrappers
@@ -826,7 +834,7 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 ## EduScan Content Scanner (ES-Series)
 
 **Location:** `_tools/eduscan/`
-**Status:** 🟢 Phase 4 Complete
+**Status:** 🟢 Phase 5 Complete (ES-10: ContentCatalog validation + 84 dead link fixes)
 **Priority:** Medium — Developer tooling
 **Started:** February 2026
 
@@ -1024,18 +1032,24 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 
 ---
 
-### Sprint ES-10: ContentCatalog Href Validation (PROPOSED)
-**Status:** 📋 Next Up
+### Sprint ES-10: ContentCatalog Href Validation
+**Status:** ✅ Complete (February 13-14, 2026)
 **Priority:** High — Closes the catalog→filesystem blind spot
 **Trigger:** pod-crossing.html 404 found via live site, not detected by EduScan
 
 | Task | Status |
 |------|--------|
-| Parse ContentCatalog.js module entries + hrefs programmatically | ⬜ |
-| CAT-001: Module with status 'available' but href file missing on disk | ⬜ |
-| CAT-002: HTML file exists on disk but not declared in ContentCatalog | ⬜ |
-| Test signature fixture using pod-crossing.html as target case | ⬜ |
-| Integration with existing EduScan pipeline | ⬜ |
+| Parse ContentCatalog.js module entries + hrefs programmatically | ✅ VM sandbox loader |
+| CAT-001: Module with status 'available' but href file missing on disk | ✅ |
+| CAT-002: HTML file exists on disk but not declared in ContentCatalog | ✅ |
+| CAT-003: Module with status 'available' but empty/missing href | ✅ |
+| Test signature fixture — zero-dead-links regression | ✅ |
+| Integration with existing EduScan pipeline | ✅ |
+| Fix all 84 CAT-001 dead hrefs (81 path corrections + 4 coming-soon) | ✅ |
+| Promote PATH-004 anchor href checks from strict to CI profile | ✅ |
+| Fix 60 broken Core 2 cross-links (wrong filenames + wrong depth) | ✅ |
+
+**Baseline after:** CRITICAL:0, HIGH:0, MED:676, LOW:242, SUSPECT:114, WARN:869
 
 ### Sprint HED-1: Host Error Detector — Live Runtime Immune System
 **Status:** 📋 Queued (after ES-10)
@@ -2278,18 +2292,11 @@ Build native interactive content for the 3 non-domain Shield applets that still 
 ---
 
 ### BUG: Encryption Basics 404
-**Status:** 🐛 Open (February 12, 2026)
-**Priority:** Medium — Broken link from Key House content
+**Status:** ✅ Fixed (February 14, 2026)
 
-**Problem:** "Encryption Basics" returns 404. The file exists at `houses/key/presentations/key-encryption-basics.presentation.html` but multiple references use the wrong path `presentations/encryption-basics.html`:
-- `ContentCatalog.js` line 273 — `href: 'presentations/encryption-basics.html'` (wrong)
-- `TrailHunter.js` line 38 — `'presentations/encryption-basics.html'` (wrong)
-
-**Correct references** (already working):
-- `LearningPaths.js` — `houses/key/presentations/key-encryption-basics.presentation.html`
-- `houses/key/index.html` — `presentations/key-encryption-basics.presentation.html`
-
-**Fix:** Update ContentCatalog.js and TrailHunter.js to use the correct filename.
+**Fixed:**
+- ✅ `ContentCatalog.js` — corrected href (ES-10 CAT-001 bulk fix)
+- ✅ `TrailHunter.js` — corrected href (line 38) + display name key (line 774)
 
 ---
 
