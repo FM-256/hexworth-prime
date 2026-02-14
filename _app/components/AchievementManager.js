@@ -967,7 +967,7 @@ const AchievementManager = (function() {
             id: 'game_master',
             icon: '🏆',
             name: 'Game Master',
-            desc: 'Complete all 66 games across the platform',
+            desc: 'Complete all 36 games across the platform (excludes reviews and labs)',
             points: 200,
             category: 'legendary',
             title: 'the Game Master',
@@ -1164,8 +1164,9 @@ const AchievementManager = (function() {
             setTimeout(() => unlock('secret_hunter'), 1500);
         }
 
-        // Game Master: All 10 game achievements
-        const gameIds = ['game_brick','game_printer','game_pod','game_jeopardy','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase','game_subnet','game_terminal','game_cipher','game_triage','game_pipeline','game_protocol','game_dns','game_permissions','game_regex','game_hash','game_logdetective','game_gitbisect','game_binary','game_bill','game_domain','game_deploy','game_troll','game_leak','game_server','game_phished','game_packet','game_packetsniffer','game_netarchitect','game_timeline','game_memforensics','game_firewall','game_docker','game_raid','game_cron','game_iam','game_sqli','game_wireless','game_api','game_threat','game_malware','game_adpath','game_k8s','game_backup','game_patch','game_cloudarch','game_soceng','game_sudo','game_nmap','game_incident','game_gpg','game_grep','game_fsck','game_gitblame','game_awssts','game_tor','game_kill9','game_packetrun','game_bitdash','game_shellsprint','game_threatrunner','game_cloudhop'];
+        // Game Master: All 36 actual games (excludes reviews and labs)
+        // Text Adventures (10) + Pixel Runners (5) + Challenges (5) + Don't Series (10) + Shield Mini-Games (6)
+        const gameIds = ['game_sudo','game_nmap','game_incident','game_gpg','game_grep','game_fsck','game_gitblame','game_awssts','game_tor','game_kill9','game_packetrun','game_bitdash','game_shellsprint','game_threatrunner','game_cloudhop','game_wireless','game_pipeline','game_gitbisect','game_docker','game_adpath','game_packet','game_server','game_leak','game_troll','game_deploy','game_brick','game_printer','game_phished','game_bill','game_domain','game_scramble','game_hangman','game_hatmatch','game_crime','game_cookies','game_ethcase'];
         if (gameIds.every(id => unlocked.includes(id)) && !unlocked.includes('game_master')) {
             setTimeout(() => unlock('game_master'), 1500);
         }

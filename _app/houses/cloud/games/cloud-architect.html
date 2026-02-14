@@ -227,7 +227,7 @@
 
         .placed-service {
             position: absolute;
-            background: #2a2a2a;
+            background: linear-gradient(160deg, #2a2a3a 0%, #222230 100%);
             border: 2px solid #06b6d4;
             border-radius: 8px;
             padding: 12px;
@@ -237,16 +237,50 @@
             user-select: none;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             z-index: 10;
+            transition: all 0.2s ease;
         }
 
         .placed-service:hover {
             border-color: #ff9900;
             box-shadow: 0 6px 20px rgba(255, 153, 0, 0.3);
+            transform: scale(1.05);
         }
 
         .placed-service.connecting {
             border-color: #22c55e;
             animation: pulse 1s infinite;
+        }
+
+        .placed-service.dragging {
+            opacity: 0.8;
+            cursor: grabbing;
+            z-index: 100;
+        }
+
+        .placed-service .remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            background: #ef4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .placed-service:hover .remove-btn {
+            opacity: 1;
+        }
+
+        .placed-service .remove-btn:hover {
+            background: #dc2626;
+            transform: scale(1.2);
         }
 
         @keyframes pulse {
@@ -255,13 +289,28 @@
         }
 
         .connection-line {
-            position: absolute;
-            height: 2px;
-            background: #06b6d4;
-            transform-origin: left center;
-            pointer-events: none;
-            z-index: 5;
+            stroke: #06b6d4;
+            stroke-width: 2;
             opacity: 0.6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .connection-line:hover {
+            stroke: #ff9900;
+            stroke-width: 3;
+            opacity: 1;
+        }
+
+        .connection-line.required {
+            stroke: #22c55e;
+            stroke-dasharray: 5,5;
+            animation: dashMove 1s linear infinite;
+        }
+
+        @keyframes dashMove {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: 10; }
         }
 
         .review-section {
@@ -498,6 +547,63 @@
             text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
         }
 
+        .hint-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .hint-modal.show {
+            display: flex;
+        }
+
+        .hint-content {
+            background: linear-gradient(160deg, #1a1a2e 0%, #141420 100%);
+            border: 2px solid #ff9900;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            animation: modalSlide 0.3s ease-out;
+        }
+
+        .hint-title {
+            color: #ff9900;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .hint-message {
+            color: #e0e0e0;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .hint-close {
+            background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .hint-close:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 153, 0, 0.4);
+        }
+
         @media (max-width: 1200px) {
             .game-container {
                 grid-template-columns: 1fr;
@@ -556,14 +662,19 @@
             <div class="help-text">
                 <strong>How to Play:</strong><br>
                 • Click services to place on canvas<br>
+                • Drag services to organize layout<br>
                 • Click two services to connect them<br>
-                • Double-click to remove a service<br>
+                • Click X button to remove a service<br>
+                • Click connection line to delete it<br>
                 • Run Architecture Review to check
             </div>
 
             <div class="action-buttons">
                 <button class="action-btn" onclick="game.clearCanvas()">🗑️ Clear Canvas</button>
                 <button class="action-btn" onclick="game.showHint()">💡 Show Hint</button>
+                <button class="action-btn" onclick="game.toggleRequiredConnections()">
+                    <span id="connectionToggleText">📍 Show Required Connections</span>
+                </button>
             </div>
         </div>
 
@@ -601,6 +712,7 @@
         </div>
     </div>
 
+    <!-- Completion Modal -->
     <div class="completion-modal" id="completionModal">
         <div class="modal-content">
             <div class="modal-title">🎉 All Levels Complete!</div>
@@ -611,6 +723,15 @@
                 <strong>+50 XP Earned!</strong>
             </div>
             <button class="modal-btn" onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Hint Modal -->
+    <div class="hint-modal" id="hintModal">
+        <div class="hint-content">
+            <div class="hint-title">💡 Hint</div>
+            <div class="hint-message" id="hintMessage"></div>
+            <button class="hint-close" onclick="game.closeHint()">Got it!</button>
         </div>
     </div>
 
@@ -677,6 +798,7 @@
                     cdn: { name: 'Global CDN', test: (services) => services.includes('cloudfront') },
                     dns: { name: 'Custom Domain', test: (services) => services.includes('route53') },
                     storage: { name: 'Object Storage', test: (services) => services.includes('s3') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Cost Efficient', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -700,6 +822,7 @@
                     autoscaling: { name: 'Auto Scaling', test: (services) => services.includes('asg') },
                     database: { name: 'Managed DB', test: (services) => services.includes('rds') },
                     networking: { name: 'VPC Network', test: (services) => services.includes('vpc') && services.includes('subnet') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Within Budget', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -722,6 +845,7 @@
                     serverless: { name: 'Serverless Compute', test: (services) => services.includes('lambda') && !services.includes('ec2') },
                     nosql: { name: 'NoSQL Database', test: (services) => services.includes('dynamodb') },
                     noservers: { name: 'No EC2 Instances', test: (services) => !services.includes('ec2') && !services.includes('asg') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Cost Optimized', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -745,6 +869,7 @@
                     audit: { name: 'Audit Logging', test: (services) => services.includes('cloudtrail') },
                     network: { name: 'Private Network', test: (services) => services.includes('vpc') && services.includes('subnet') },
                     security: { name: 'Security Controls', test: (services) => services.includes('sg') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Within Budget', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -768,6 +893,7 @@
                     autoscaling: { name: 'Auto Scaling', test: (services) => services.includes('asg') },
                     dns: { name: 'DNS Health Checks', test: (services) => services.includes('route53') },
                     database: { name: 'Multi-AZ Database', test: (services) => services.includes('rds') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Within Budget', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -790,6 +916,7 @@
                     serverless: { name: 'Serverless Migration', test: (services) => services.includes('lambda') && !services.includes('ec2') },
                     caching: { name: 'Caching Layer', test: (services) => services.includes('elasticache') },
                     storage: { name: 'S3 Lifecycle', test: (services) => services.includes('s3') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Cost Target Met', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -816,6 +943,7 @@
                     waf: { name: 'Web App Firewall', test: (services) => services.includes('waf') },
                     threat: { name: 'Threat Detection', test: (services) => services.includes('guardduty') },
                     network: { name: 'Private Network', test: (services) => services.includes('vpc') && services.includes('subnet') && services.includes('sg') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Within Budget', test: (cost, budget) => cost <= budget }
                 }
             },
@@ -850,6 +978,7 @@
                     database: { name: 'Managed Database', test: (services) => services.includes('rds') },
                     security: { name: 'Security (WAF+KMS)', test: (services) => services.includes('waf') && services.includes('kms') },
                     monitoring: { name: 'Monitoring', test: (services) => services.includes('cloudwatch') },
+                    connections: { name: 'Proper Connections', test: null },
                     cost: { name: 'Within Budget', test: (cost, budget) => cost <= budget }
                 }
             }
@@ -865,6 +994,7 @@
             levelStartTime: Date.now(),
             connectingService: null,
             completedLevels: new Set(),
+            showingRequiredConnections: false,
 
             init() {
                 this.loadProgress();
@@ -925,6 +1055,8 @@
                 this.currentLevel = levelIndex;
                 this.levelStartTime = Date.now();
                 this.clearCanvas();
+                this.showingRequiredConnections = false;
+                document.getElementById('connectionToggleText').textContent = '📍 Show Required Connections';
 
                 document.getElementById('currentLevel').textContent = level.id;
                 document.getElementById('levelTitle').textContent = level.title;
@@ -945,11 +1077,12 @@
                 placed.className = 'placed-service';
                 placed.dataset.serviceId = service.id;
                 placed.innerHTML = `
+                    <div class="remove-btn" onclick="game.removeServiceById('${service.id}', event)">×</div>
                     <div style="font-size: 24px;">${service.icon}</div>
                     <div style="font-size: 11px; margin-top: 5px; font-weight: 600;">${service.name}</div>
                 `;
 
-                // Random position with some spacing
+                // Random position with some spacing from edges
                 const maxX = canvas.offsetWidth - 120;
                 const maxY = canvas.offsetHeight - 100;
                 const x = Math.random() * maxX + 20;
@@ -957,15 +1090,11 @@
                 placed.style.left = x + 'px';
                 placed.style.top = y + 'px';
 
-                placed.onclick = (e) => {
-                    if (e.detail === 2) {
-                        // Double click to remove
-                        this.removeService(placed);
-                    } else {
-                        // Single click to connect
-                        this.handleServiceClick(placed, service);
-                    }
-                };
+                // Click to connect (ignore if clicking remove button)
+                placed.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('remove-btn')) return;
+                    this.handleServiceClick(placed, service);
+                });
 
                 // Make draggable
                 this.makeDraggable(placed);
@@ -973,34 +1102,63 @@
                 canvas.appendChild(placed);
                 this.placedServices.push({ element: placed, service });
                 this.updateCost();
+
+                if (this.showingRequiredConnections) {
+                    this.redrawConnections();
+                }
             },
 
             makeDraggable(element) {
                 let isDragging = false;
-                let currentX, currentY, initialX, initialY;
+                let offsetX = 0;
+                let offsetY = 0;
 
-                element.addEventListener('mousedown', (e) => {
-                    if (e.target === element || element.contains(e.target)) {
-                        isDragging = true;
-                        initialX = e.clientX - element.offsetLeft;
-                        initialY = e.clientY - element.offsetTop;
-                    }
-                });
+                const onMouseDown = (e) => {
+                    if (e.target.classList.contains('remove-btn')) return;
 
-                document.addEventListener('mousemove', (e) => {
+                    isDragging = true;
+                    element.classList.add('dragging');
+
+                    const rect = element.getBoundingClientRect();
+                    const canvasRect = document.getElementById('architectureCanvas').getBoundingClientRect();
+
+                    offsetX = e.clientX - rect.left;
+                    offsetY = e.clientY - rect.top;
+
+                    e.preventDefault();
+                };
+
+                const onMouseMove = (e) => {
+                    if (!isDragging) return;
+
+                    const canvasRect = document.getElementById('architectureCanvas').getBoundingClientRect();
+
+                    let newX = e.clientX - canvasRect.left - offsetX;
+                    let newY = e.clientY - canvasRect.top - offsetY;
+
+                    // Keep within bounds
+                    const maxX = canvasRect.width - element.offsetWidth;
+                    const maxY = canvasRect.height - element.offsetHeight;
+
+                    newX = Math.max(0, Math.min(newX, maxX));
+                    newY = Math.max(0, Math.min(newY, maxY));
+
+                    element.style.left = newX + 'px';
+                    element.style.top = newY + 'px';
+
+                    this.redrawConnections();
+                };
+
+                const onMouseUp = () => {
                     if (isDragging) {
-                        e.preventDefault();
-                        currentX = e.clientX - initialX;
-                        currentY = e.clientY - initialY;
-                        element.style.left = currentX + 'px';
-                        element.style.top = currentY + 'px';
-                        this.redrawConnections();
+                        isDragging = false;
+                        element.classList.remove('dragging');
                     }
-                });
+                };
 
-                document.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
+                element.addEventListener('mousedown', onMouseDown);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
             },
 
             handleServiceClick(element, service) {
@@ -1033,10 +1191,12 @@
                 const svg = document.getElementById('connectionSvg');
                 svg.innerHTML = '';
 
-                this.connections.forEach(conn => {
+                const canvasRect = document.getElementById('architectureCanvas').getBoundingClientRect();
+
+                // Draw user connections
+                this.connections.forEach((conn, index) => {
                     const fromRect = conn.from.element.getBoundingClientRect();
                     const toRect = conn.to.element.getBoundingClientRect();
-                    const canvasRect = document.getElementById('architectureCanvas').getBoundingClientRect();
 
                     const x1 = fromRect.left + fromRect.width / 2 - canvasRect.left;
                     const y1 = fromRect.top + fromRect.height / 2 - canvasRect.top;
@@ -1048,36 +1208,73 @@
                     line.setAttribute('y1', y1);
                     line.setAttribute('x2', x2);
                     line.setAttribute('y2', y2);
-                    line.setAttribute('stroke', '#06b6d4');
-                    line.setAttribute('stroke-width', '2');
-                    line.setAttribute('opacity', '0.6');
+                    line.setAttribute('class', 'connection-line');
+                    line.style.pointerEvents = 'stroke';
+                    line.dataset.connectionIndex = index;
+
+                    line.addEventListener('click', () => {
+                        this.removeConnection(index);
+                    });
 
                     svg.appendChild(line);
                 });
+
+                // Draw required connections guide (if enabled)
+                if (this.showingRequiredConnections) {
+                    const level = LEVELS[this.currentLevel];
+                    level.requiredConnections.forEach(([fromId, toId]) => {
+                        const fromService = this.placedServices.find(ps => ps.service.id === fromId);
+                        const toService = this.placedServices.find(ps => ps.service.id === toId);
+
+                        if (fromService && toService) {
+                            const fromRect = fromService.element.getBoundingClientRect();
+                            const toRect = toService.element.getBoundingClientRect();
+
+                            const x1 = fromRect.left + fromRect.width / 2 - canvasRect.left;
+                            const y1 = fromRect.top + fromRect.height / 2 - canvasRect.top;
+                            const x2 = toRect.left + toRect.width / 2 - canvasRect.left;
+                            const y2 = toRect.top + toRect.height / 2 - canvasRect.top;
+
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', x1);
+                            line.setAttribute('y1', y1);
+                            line.setAttribute('x2', x2);
+                            line.setAttribute('y2', y2);
+                            line.setAttribute('class', 'connection-line required');
+
+                            svg.appendChild(line);
+                        }
+                    });
+                }
             },
 
-            removeService(element) {
-                const index = this.placedServices.findIndex(ps => ps.element === element);
-                if (index !== -1) {
-                    const serviceId = this.placedServices[index].service.id;
+            removeConnection(index) {
+                this.connections.splice(index, 1);
+                this.redrawConnections();
+            },
 
+            removeServiceById(serviceId, event) {
+                if (event) event.stopPropagation();
+
+                const index = this.placedServices.findIndex(ps => ps.service.id === serviceId);
+                if (index !== -1) {
                     // Remove connections
                     this.connections = this.connections.filter(conn =>
                         conn.from.service.id !== serviceId && conn.to.service.id !== serviceId
                     );
 
+                    this.placedServices[index].element.remove();
                     this.placedServices.splice(index, 1);
-                    element.remove();
                     this.redrawConnections();
                     this.updateCost();
                 }
             },
 
             clearCanvas() {
+                this.placedServices.forEach(ps => ps.element.remove());
                 this.placedServices = [];
                 this.connections = [];
                 this.connectingService = null;
-                document.getElementById('architectureCanvas').innerHTML = '';
                 document.getElementById('connectionSvg').innerHTML = '';
                 this.updateCost();
             },
@@ -1091,6 +1288,19 @@
 
                 const percentage = Math.min((totalCost / budget) * 100, 100);
                 document.getElementById('budgetFill').style.width = percentage + '%';
+            },
+
+            toggleRequiredConnections() {
+                this.showingRequiredConnections = !this.showingRequiredConnections;
+                const toggleText = document.getElementById('connectionToggleText');
+
+                if (this.showingRequiredConnections) {
+                    toggleText.textContent = '📍 Hide Required Connections';
+                } else {
+                    toggleText.textContent = '📍 Show Required Connections';
+                }
+
+                this.redrawConnections();
             },
 
             runArchitectureReview() {
@@ -1110,6 +1320,9 @@
 
                     if (checkId === 'cost') {
                         passed = check.test(totalCost, level.budget);
+                    } else if (checkId === 'connections') {
+                        // Validate required connections
+                        passed = this.validateConnections(level.requiredConnections);
                     } else {
                         passed = check.test(placedServiceIds, level.budget);
                     }
@@ -1141,6 +1354,16 @@
                 if (allPassed) {
                     this.passLevel();
                 }
+            },
+
+            validateConnections(requiredConnections) {
+                // Check if all required connections exist
+                return requiredConnections.every(([fromId, toId]) => {
+                    return this.connections.some(conn =>
+                        (conn.from.service.id === fromId && conn.to.service.id === toId) ||
+                        (conn.from.service.id === toId && conn.to.service.id === fromId)
+                    );
+                });
             },
 
             passLevel() {
@@ -1214,7 +1437,12 @@
 
             showHint() {
                 const level = LEVELS[this.currentLevel];
-                alert('Hint: ' + level.hints);
+                document.getElementById('hintMessage').textContent = level.hints;
+                document.getElementById('hintModal').classList.add('show');
+            },
+
+            closeHint() {
+                document.getElementById('hintModal').classList.remove('show');
             },
 
             startTimer() {
