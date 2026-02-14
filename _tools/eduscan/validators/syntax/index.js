@@ -14,6 +14,8 @@ const PathValidator = require('./paths');
 const LearningPathsValidator = require('./learning-paths');
 const AssignmentLinkValidator = require('./assignment-links');
 const NamingValidator = require('./naming');
+const HeuristicsValidator = require('./heuristics');
+const ContentCatalogValidator = require('./content-catalog');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -52,6 +54,15 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.heuristicsValidator = new HeuristicsValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
+        this.contentCatalogValidator = new ContentCatalogValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
     }
 
     /**
@@ -74,12 +85,15 @@ class SyntaxValidator {
                 learningPathErrors: 0,
                 assignmentLinkErrors: 0,
                 namingErrors: 0,
+                heuristicErrors: 0,
+                contentCatalogErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
                     high: 0,
                     medium: 0,
-                    low: 0
+                    low: 0,
+                    suspect: 0
                 }
             }
         };
@@ -104,6 +118,17 @@ class SyntaxValidator {
             }
         }
 
+        // Run ContentCatalog validation (global, not per-file)
+        const catResults = this.contentCatalogValidator.validate();
+        if (catResults.issues.length > 0) {
+            results.issues.push(...catResults.issues);
+            results.summary.contentCatalogErrors = catResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] ContentCatalog: ${catResults.issues.length} issues`);
+            }
+        }
+        results.summary.contentCatalog = catResults.summary;
+
         for (const file of contentFiles) {
             // Only validate HTML files
             if (!file.path.endsWith('.html')) {
@@ -126,6 +151,7 @@ class SyntaxValidator {
             const engineIssues = this.engineValidator.validate(fileWithContent);
             const pathIssues = this.pathValidator.validate(fileWithContent);
             const namingIssues = this.namingValidator.validate(fileWithContent);
+            const heuristicIssues = this.heuristicsValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -133,6 +159,7 @@ class SyntaxValidator {
             results.issues.push(...engineIssues);
             results.issues.push(...pathIssues);
             results.issues.push(...namingIssues);
+            results.issues.push(...heuristicIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -140,12 +167,18 @@ class SyntaxValidator {
             results.summary.engineErrors += engineIssues.length;
             results.summary.pathErrors += pathIssues.length;
             results.summary.namingErrors += namingIssues.length;
+            results.summary.heuristicErrors += heuristicIssues.length;
         }
+
+        // Post-scan: check for content directories missing index.html
+        const idxIssues = this.checkMissingDirectoryIndexes(contentFiles);
+        results.issues.push(...idxIssues);
+        results.summary.pathErrors += idxIssues.length;
 
         // Sort by severity
         results.issues.sort((a, b) => {
-            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, info: 5 };
-            return (order[a.severity] || 6) - (order[b.severity] || 6);
+            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, suspect: 5, info: 6 };
+            return (order[a.severity] || 7) - (order[b.severity] || 7);
         });
 
         results.summary.totalIssues = results.issues.length;
@@ -166,6 +199,84 @@ class SyntaxValidator {
         }
 
         return results;
+    }
+
+    /**
+     * PATH-IDX-001: Check for content directories missing index.html
+     *
+     * Scans all directories under houses/ and dark-arts/ that contain .html files
+     * and flags any directory that lacks an index.html. These directories produce
+     * 404 errors when users navigate to the directory URL directly.
+     *
+     * @param {Array} contentFiles - All content files from scanner
+     * @returns {Array} Issues found
+     */
+    checkMissingDirectoryIndexes(contentFiles) {
+        const issues = [];
+
+        // Leaf directory patterns that don't need index.html
+        // (content folders that users don't navigate to directly)
+        const leafPatterns = [
+            /\/presentations\/?$/,
+            /\/labs\/?$/,
+            /\/quizzes\/?$/,
+            /\/tools\/?$/,
+            /\/games\/?$/,
+            /\/applets\/[^/]+\/?$/,  // applets/subfolder
+            /\/modules\/[^/]+\/?$/,  // modules/subfolder (e.g., wsa/m01-...)
+            /\/courses\/[^/]+\/?$/,  // courses/subfolder
+            /\/chapters\/[^/]+\/?$/, // chapters/subfolder
+            /\/gates\/?$/,
+            /\/assets\/?$/,
+            /\/styles\/?$/,
+            /\/config\/?$/,
+            /\/components\/?$/
+        ];
+
+        // Collect all unique directories containing HTML content
+        const contentDirs = new Set();
+        for (const file of contentFiles) {
+            if (!file.path.endsWith('.html')) continue;
+            const dir = path.dirname(file.path);
+            // Only check navigable content directories (houses, dark-arts, and their subdirs)
+            if (/^(houses\/|dark-arts\/)/.test(dir)) {
+                // Skip leaf content directories that users don't navigate to directly
+                if (!leafPatterns.some(p => p.test(dir))) {
+                    contentDirs.add(dir);
+                }
+            }
+        }
+
+        // Check each directory for index.html
+        for (const dir of contentDirs) {
+            const absoluteDir = path.isAbsolute(dir)
+                ? dir
+                : path.resolve(this.rootPath, dir);
+            const indexPath = path.join(absoluteDir, 'index.html');
+
+            if (!fs.existsSync(indexPath)) {
+                // Count HTML files in this directory to gauge importance
+                const htmlCount = contentFiles.filter(f =>
+                    path.dirname(f.path) === dir && f.path.endsWith('.html')
+                ).length;
+
+                // Only flag directories with 3+ HTML files (likely section hubs)
+                // or top-level directories (depth ≤ 3, e.g. houses/web/, dark-arts/vault/)
+                const depth = dir.split('/').length;
+                if (htmlCount >= 3 || depth <= 3) {
+                    issues.push({
+                        code: 'PATH-IDX-001',
+                        severity: 'medium',
+                        category: 'path',
+                        message: `Content directory missing index.html: ${dir}/ (${htmlCount} HTML files, no index)`,
+                        file: dir + '/',
+                        fix: `Create ${dir}/index.html or add a redirect`
+                    });
+                }
+            }
+        }
+
+        return issues;
     }
 
     /**

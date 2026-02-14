@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-13 12:26:23 PM
+                    Scanned: 2026-02-14 10:53:37 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,41 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1248 |
+| Files Scanned | 1249 |
 | Directories | 469 |
-| Content Files | 1248 |
-| Scan Duration | 370ms |
+| Content Files | 1249 |
+| Scan Duration | 539ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 475 |
+| html | 476 |
 | presentation | 418 |
 | applet | 183 |
 | lab | 158 |
 | quiz | 14 |
 
+### ContentCatalog Validation
+
+| Metric | Value |
+|--------|-------|
+| Total Modules | 749 |
+| Available | 748 |
+| Missing Hrefs (CAT-001) | 84 |
+| Undeclared Files (CAT-002) | 515 |
+| Empty Hrefs (CAT-003) | 0 |
+
+
 ### Issues Summary
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
+| Critical | 84 |
+| Suspect | 114 |
 | Warning | 869 |
 | Info | 395 |
-| **Total** | **1457** |
+| **Total** | **2451** |
 
 ### Sync Status
 
@@ -40,7 +52,7 @@
 |--------|-------|
 | Ready | 559 |
 | Not Ready | 214 |
-| Unknown | 475 |
+| Unknown | 476 |
 
 
 ## FILE HIERARCHY
@@ -63,6 +75,7 @@
 │   │   ├── 📄 gate-3.html
 │   │   ├── 📄 gate-4.html
 │   │   └── 📄 gate-5.html
+│   ├── 📍 index.html
 │   └── 📁 vault
 │       ├── 📊 botnet-architecture.presentation.html
 │       ├── 🔬 buffer-overflow-lab.html
@@ -2600,6 +2613,802 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
+
+### CRITICAL (84)
+
+**[CAT-001]** Module 'clh-001' href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'clh-001'
+
+**[CAT-001]** Module 'script-clh-001' href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'script-clh-001'
+
+**[CAT-001]** Module 'forge-storage-raid' href 'applets/hardware/forge-raid-level.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-storage-raid'
+
+**[CAT-001]** Module 'forge-cpu-arch-ref' href 'reference/forge-cpu-architecture.applet.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-cpu-arch-ref'
+
+**[CAT-001]** Module 'forge-windows-shortcuts' href 'reference/forge-windows-shortcuts.applet.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-windows-shortcuts'
+
+**[CAT-001]** Module 'forge-core2-roleplay-lab' href 'applets/comptia-aplus/forge-core2-roleplay.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'forge-core2-roleplay-lab'
+
+**[CAT-001]** Module 'web-network-services' href 'applets/visualizers/web-network-services.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-network-services'
+
+**[CAT-001]** Module 'web-exam-flashcards' href 'applets/web-networking-exam-flashcards.exam.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-exam-flashcards'
+
+**[CAT-001]** Module 'web-acl-viz' href 'applets/visualizers/web-acl.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-acl-viz'
+
+**[CAT-001]** Module 'web-cable-viz' href 'applets/visualizers/web-cable.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-cable-viz'
+
+**[CAT-001]** Module 'web-devices-viz' href 'applets/visualizers/web-devices.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-devices-viz'
+
+**[CAT-001]** Module 'web-etherchannel-viz' href 'applets/visualizers/web-etherchannel.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-etherchannel-viz'
+
+**[CAT-001]** Module 'web-fhrp-viz' href 'applets/visualizers/web-fhrp.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-fhrp-viz'
+
+**[CAT-001]** Module 'web-ipv6-viz' href 'applets/visualizers/web-ipv6.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-ipv6-viz'
+
+**[CAT-001]** Module 'web-osi-deep-viz' href 'applets/visualizers/web-osi-deep-dive.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-osi-deep-viz'
+
+**[CAT-001]** Module 'web-osi-viz' href 'applets/visualizers/web-osi.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-osi-viz'
+
+**[CAT-001]** Module 'web-ospf-cost-viz' href 'applets/visualizers/web-ospf-cost.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-ospf-cost-viz'
+
+**[CAT-001]** Module 'web-port-viz' href 'applets/visualizers/web-port.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-port-viz'
+
+**[CAT-001]** Module 'web-qos-viz' href 'applets/visualizers/web-qos.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-qos-viz'
+
+**[CAT-001]** Module 'web-security-viz' href 'applets/visualizers/web-security.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-security-viz'
+
+**[CAT-001]** Module 'web-stp-viz' href 'applets/visualizers/web-stp.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-stp-viz'
+
+**[CAT-001]** Module 'web-subnetting-viz' href 'applets/visualizers/web-subnetting.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-subnetting-viz'
+
+**[CAT-001]** Module 'web-switch-ops-viz' href 'applets/visualizers/web-switch-operations.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-switch-ops-viz'
+
+**[CAT-001]** Module 'web-topology-viz' href 'applets/visualizers/web-topology.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-topology-viz'
+
+**[CAT-001]** Module 'web-troubleshoot-viz' href 'applets/visualizers/web-troubleshooting.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-troubleshoot-viz'
+
+**[CAT-001]** Module 'web-vlan-viz' href 'applets/visualizers/web-vlan.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-vlan-viz'
+
+**[CAT-001]** Module 'web-wireless-arch-viz' href 'applets/visualizers/web-wireless-architecture.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-wireless-arch-viz'
+
+**[CAT-001]** Module 'web-wireless-viz' href 'applets/visualizers/web-wireless.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-wireless-viz'
+
+**[CAT-001]** Module 'web-troubleshooting' href 'applets/visualizers/web-troubleshooting.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-troubleshooting'
+
+**[CAT-001]** Module 'web-networking-ch7-10' href 'applets/networking-quizzes/web-networking-ch7-10.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-networking-ch7-10'
+
+**[CAT-001]** Module 'web-networking-ch7-20' href 'applets/networking-quizzes/web-networking-ch7-20.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-networking-ch7-20'
+
+**[CAT-001]** Module 'web-networking-final' href 'applets/networking-quizzes/web-networking-final-review.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-networking-final'
+
+**[CAT-001]** Module 'web-week3-quiz' href 'applets/networking-quizzes/web-week3.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'web-week3-quiz'
+
+**[CAT-001]** Module 'shield-aaa-simulator' href 'applets/access/shield-aaa-flow.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-aaa-simulator'
+
+**[CAT-001]** Module 'shield-gpg-lab' href 'applets/crypto/shield-gpg-encryption.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-gpg-lab'
+
+**[CAT-001]** Module 'shield-hash-lab' href 'applets/crypto/hashing_steganography/shield-hash.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-hash-lab'
+
+**[CAT-001]** Module 'shield-hash-steg-pres' href 'applets/crypto/hashing_steganography/shield-hash-steg.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-hash-steg-pres'
+
+**[CAT-001]** Module 'shield-hashing-lab' href 'applets/crypto/hashing_steganography/shield-hashing.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-hashing-lab'
+
+**[CAT-001]** Module 'shield-data-lifecycle' href 'applets/fundamentals/shield-data-lifecycle.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-data-lifecycle'
+
+**[CAT-001]** Module 'shield-eh-case' href 'applets/games/ethical_hacking_case/shield-eh-exam-1-a.exam.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-eh-case'
+
+**[CAT-001]** Module 'shield-incident-sim' href 'applets/risk/shield-incident-response.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-incident-sim'
+
+**[CAT-001]** Module 'shield-bia-calculator' href 'applets/risk/shield-bia.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-bia-calculator'
+
+**[CAT-001]** Module 'shield-crisc-calculator' href 'applets/risk/shield-crisc-risk.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-crisc-calculator'
+
+**[CAT-001]** Module 'shield-zero-trust' href 'applets/architecture/shield-zero-trust.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-zero-trust'
+
+**[CAT-001]** Module 'shield-ir-forensics' href 'applets/operations/shield-ir-forensics.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-ir-forensics'
+
+**[CAT-001]** Module 'shield-security-models' href 'applets/architecture/shield-security-models.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-security-models'
+
+**[CAT-001]** Module 'shield-linux-firewall' href 'applets/network/linux-firewall-builder.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'shield-linux-firewall'
+
+**[CAT-001]** Module 'key-cryptanalysis-tool' href 'tools/key-cryptanalysis.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'key-cryptanalysis-tool'
+
+**[CAT-001]** Module 'key-hashing' href 'applets/hashing-lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'key-hashing'
+
+**[CAT-001]** Module 'cloud-models' href 'applets/fundamentals/cloud-ch01-cloud-models.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-models'
+
+**[CAT-001]** Module 'cloud-aws-account' href 'applets/aws/cloud-ch02-aws-account.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-account'
+
+**[CAT-001]** Module 'cloud-aws-security' href 'applets/aws/cloud-ch05-security.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-security'
+
+**[CAT-001]** Module 'cloud-aws-compute' href 'applets/aws/cloud-ch07-compute-services.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-compute'
+
+**[CAT-001]** Module 'cloud-aws-storage' href 'applets/aws/cloud-ch08-storage-services.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-storage'
+
+**[CAT-001]** Module 'cloud-aws-database' href 'applets/aws/cloud-ch09-database-services.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-database'
+
+**[CAT-001]** Module 'cloud-aws-networking' href 'applets/aws/cloud-ch10-vpc-networking.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-networking'
+
+**[CAT-001]** Module 'cloud-aws-services' href 'applets/aws/cloud-aws-service.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-services'
+
+**[CAT-001]** Module 'cloud-aws-practitioner' href 'applets/aws/cloud-ch12-aws-practitioner-final.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-practitioner'
+
+**[CAT-001]** Module 'cloud-support-plans' href 'applets/aws/cloud-ch03-support-plans.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-support-plans'
+
+**[CAT-001]** Module 'cloud-regions' href 'applets/aws/cloud-ch04-aws-regions.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-regions'
+
+**[CAT-001]** Module 'cloud-iam-quiz' href 'applets/aws/cloud-ch05-iam-security.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-iam-quiz'
+
+**[CAT-001]** Module 'cloud-aws-tools' href 'applets/aws/cloud-ch06-aws-tools.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-tools'
+
+**[CAT-001]** Module 'cloud-ec2-visualizer' href 'applets/aws/cloud-ch07-ec2-instance.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-ec2-visualizer'
+
+**[CAT-001]** Module 'cloud-storage-quiz' href 'applets/aws/cloud-ch08-storage.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-storage-quiz'
+
+**[CAT-001]** Module 'cloud-database-quiz' href 'applets/aws/cloud-ch09-database.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-database-quiz'
+
+**[CAT-001]** Module 'cloud-networking-quiz' href 'applets/aws/cloud-ch10-networking.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-networking-quiz'
+
+**[CAT-001]** Module 'cloud-automation' href 'applets/aws/cloud-ch11-automation.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-automation'
+
+**[CAT-001]** Module 'cloud-use-cases' href 'applets/aws/cloud-ch12-use-cases.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-use-cases'
+
+**[CAT-001]** Module 'cloud-fundamentals-quiz' href 'applets/fundamentals/cloud-ch01-cloud-fundamentals.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-fundamentals-quiz'
+
+**[CAT-001]** Module 'cloud-visualizer' href 'applets/fundamentals/cloud-cloud.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-visualizer'
+
+**[CAT-001]** Module 'cse-module01' href 'modules/cse/cloud-cse-module01.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module01'
+
+**[CAT-001]** Module 'cse-module02' href 'modules/cse/cloud-cse-module02.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module02'
+
+**[CAT-001]** Module 'cse-module03' href 'modules/cse/cloud-cse-module03.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module03'
+
+**[CAT-001]** Module 'cse-module04' href 'modules/cse/cloud-cse-module04.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module04'
+
+**[CAT-001]** Module 'cse-module05' href 'modules/cse/cloud-cse-module05.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module05'
+
+**[CAT-001]** Module 'cse-module06' href 'modules/cse/cloud-cse-module06.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module06'
+
+**[CAT-001]** Module 'cse-module07' href 'modules/cse/cloud-cse-module07.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module07'
+
+**[CAT-001]** Module 'cse-module08' href 'modules/cse/cloud-cse-module08.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cse-module08'
+
+**[CAT-001]** Module 'cloud-aws-support' href 'applets/aws/cloud-ch03-support-plans.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-support'
+
+**[CAT-001]** Module 'cloud-aws-regions' href 'applets/aws/cloud-ch04-aws-regions.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-regions'
+
+**[CAT-001]** Module 'cloud-aws-ec2' href 'applets/aws/cloud-ch07-ec2-instance.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-ec2'
+
+**[CAT-001]** Module 'cloud-aws-automation' href 'applets/aws/cloud-ch11-automation.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-automation'
+
+**[CAT-001]** Module 'cloud-aws-use-cases' href 'applets/aws/cloud-ch12-use-cases.tool.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'cloud-aws-use-cases'
+
+**[CAT-001]** Module 'code-pod-crossing' href 'games/pod-crossing.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file or fix the href for module 'code-pod-crossing'
+
+### SUSPECT (114) — heuristic, needs review
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `admin/audit-tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/ctf-leaderboard.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/gate-1.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/gates/gate-2.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/gates/gate-3.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/gates/gate-4.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/gates/gate-5.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/csrf-attack-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/dos-ddos-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/footprinting-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-6.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-7.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/idor-attack-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/ids-evasion-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/jwt-attack-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/malware-analysis-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/modules/incident-response.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/nmap-scanning-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-005]** Duplicate script include: "https://cdn.example.com/lib.js" loaded 2 times (lines 1775, 1810)
+  File: `dark-arts/vault/owasp-top10-lab.html`
+  Fix: Remove duplicate <script src="https://cdn.example.com/lib.js"> tag
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/xss-attacks-lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dashboard.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `games.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `handler-dashboard.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/midterm-outpost/cloud-simulation.module.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/presentations/cloud-concepts.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/code/applets/code-data-format-converter.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-003]** TODO marker in script: print("a3f8c2b (You           Fri 4:54 PM) // TODO: Add auth
+  File: `houses/code/games/dont-deploy-on-friday.html`
+  Fix: Resolve or remove TODO comment
+
+**[HEUR-003]** TODO marker in script: { type: 'deletion', line: '-  // TODO: add pagination' },
+  File: `houses/code/games/git-bisect.html`
+  Fix: Resolve or remove TODO comment
+
+**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 581, 785)
+  File: `houses/code/labs/code-docker.lab.html`
+  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/code/tools/code-api.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/dark-arts/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/eye/labs/eye-correlation.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
+  File: `houses/eye/modules/cyberops/index.html`
+  Fix: Resolve or remove TODO comment
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/eye/tools/eye-correlation.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/eye/tools/eye-packet.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/labs/key-ecc.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/presentations/key-certificates.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/quizzes/key-ecc.quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/tools/key-cert.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/key/tools/key-ecc.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/applets/linux/script-clh-031-blackout.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 249, 337)
+  File: `houses/script/clh/script-clh-012-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/FluxCapacitor.js" loaded 2 times (lines 249, 337)
+  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/FluxCapacitor.js"> tag
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/courses/grep-pipe-mastery/script-blacksite-demo.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
+  File: `houses/script/modules/python/index.html`
+  Fix: Resolve or remove TODO comment
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/presentations/script-scripting-basics.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/quizzes/script-linux-basics.quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/tools/script-log-management.tool.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/presentations/shield-cia-triad.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/presentations/shield-security.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/quizzes/shield-cia-triad.quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-001]** Excessive inline scripts: 15 <script> blocks without src (threshold: 8)
+  File: `houses/web/quizzes/web-networking-ch7-20.quiz.html`
+  Fix: Consider extracting inline scripts to external .js files
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/web/quizzes/web-osi.quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 11051, 11087)
+  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
+  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-001]** Excessive inline scripts: 15 <script> blocks without src (threshold: 8)
+  File: `houses/web/textbook/web-networking-textbook-ch7-20.textbook.html`
+  Fix: Consider extracting inline scripts to external .js files
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `path-view.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `sorting.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `templates/quiz-template.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `terminal.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-001]** Excessive inline scripts: 34 <script> blocks without src (threshold: 8)
+  File: `test-digital-life-debug.html`
+  Fix: Consider extracting inline scripts to external .js files
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `test-digital-life-debug.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `test-digital-life.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `test-rare-only.html`
+  Fix: Remove console.log or replace with proper logging
 
 ### WARNING (869)
 

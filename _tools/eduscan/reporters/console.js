@@ -114,6 +114,7 @@ class ConsoleReporter {
         const high = issues.filter(i => i.severity === 'high').length;
         const medium = issues.filter(i => i.severity === 'medium').length;
         const low = issues.filter(i => i.severity === 'low').length;
+        const suspect = issues.filter(i => i.severity === 'suspect').length;
         const warning = issues.filter(i => i.severity === 'warning').length;
         const autoFixable = issues.filter(i => i.autoFixable).length;
 
@@ -134,6 +135,26 @@ class ConsoleReporter {
         console.log(`    Applets:       ${this.c(String(applets), 'blue')}`);
         console.log('');
 
+        // ContentCatalog summary
+        const catSummary = data.syntax?.summary?.contentCatalog;
+        if (catSummary) {
+            console.log(this.c('  ContentCatalog:', 'bright'));
+            console.log(`    Modules:     ${this.c(String(catSummary.totalModules), 'cyan')} total, ${this.c(String(catSummary.available), 'green')} available`);
+            if (catSummary.missingHrefs > 0) {
+                console.log(`    Missing:     ${this.c(String(catSummary.missingHrefs), 'red', 'bright')} ${this.c('dead links (CAT-001)', 'dim')}`);
+            }
+            if (catSummary.undeclared > 0) {
+                console.log(`    Undeclared:  ${this.c(String(catSummary.undeclared), 'yellow')} ${this.c('files not in catalog (CAT-002)', 'dim')}`);
+            }
+            if (catSummary.emptyHrefs > 0) {
+                console.log(`    Empty hrefs: ${this.c(String(catSummary.emptyHrefs), 'red')} ${this.c('(CAT-003)', 'dim')}`);
+            }
+            if (catSummary.missingHrefs === 0 && catSummary.undeclared === 0 && catSummary.emptyHrefs === 0) {
+                console.log(`    ${this.c('All hrefs valid', 'green')}`);
+            }
+            console.log('');
+        }
+
         console.log(this.c('  Issues by Severity:', 'bright'));
         if (critical > 0) {
             console.log(`    ${this.c('CRITICAL:', 'red', 'bright')} ${critical} ${this.c('(breaks sync/grading)', 'dim')}`);
@@ -146,6 +167,9 @@ class ConsoleReporter {
         }
         if (low > 0) {
             console.log(`    ${this.c('LOW:', 'blue')}      ${low} ${this.c('(hygiene)', 'dim')}`);
+        }
+        if (suspect > 0) {
+            console.log(`    ${this.c('SUSPECT:', 'magenta')}  ${suspect} ${this.c('(heuristic — needs review)', 'dim')}`);
         }
         if (warning > 0) {
             console.log(`    ${this.c('WARNING:', 'yellow')}  ${warning}`);
@@ -189,6 +213,7 @@ class ConsoleReporter {
                 high: 'red',
                 medium: 'yellow',
                 low: 'blue',
+                suspect: 'magenta',
                 warning: 'yellow',
                 info: 'blue'
             }[issue.severity] || 'white';

@@ -180,9 +180,11 @@ class PathValidator {
         issues.push(...this.checkLinkPaths(file, absoluteFileDir));
         issues.push(...this.checkImgPaths(file, absoluteFileDir));
 
-        // Only check anchors and dynamic imports in strict mode
+        // Anchor paths promoted to CI — catches dead <a href> links in all scans
+        issues.push(...this.checkAnchorPaths(file, absoluteFileDir));
+
+        // Dynamic imports still strict-only (noisy, low signal)
         if (this.profile === 'strict') {
-            issues.push(...this.checkAnchorPaths(file, absoluteFileDir));
             issues.push(...this.checkDynamicImports(file, absoluteFileDir));
         }
 

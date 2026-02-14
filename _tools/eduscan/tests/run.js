@@ -17,15 +17,19 @@ const JSValidator     = require(path.join(EDUSCAN_DIR, 'validators/syntax/js'));
 const EngineValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/engine'));
 const PathValidator   = require(path.join(EDUSCAN_DIR, 'validators/syntax/paths'));
 const NamingValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/naming'));
+const HeuristicsValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/heuristics'));
+const ContentCatalogValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/content-catalog'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
 
 // ── Path overrides (relative to rootPath, matching scanner convention) ─
 const PATH_OVERRIDES = {
-    'path-issues.html':       'houses/web/path-issues.html',
-    'path-depth-issues.html': 'houses/eye/index.html',
-    'naming-issues.html':     'houses/shield/presentations/bad-name.html'
+    'path-issues.html':        'houses/web/path-issues.html',
+    'path-depth-issues.html':  'houses/eye/index.html',
+    'naming-issues.html':      'houses/shield/presentations/bad-name.html',
+    'path-strict-issues.html': 'houses/web/path-strict-issues.html',
+    'naming-full-issues.html': 'houses/web/labs/MyBadFile.html'
 };
 
 // ── Instantiate validators ──────────────────────────────────────────
@@ -36,7 +40,8 @@ const validators = [
     new JSValidator({ profile: 'strict' }),
     new EngineValidator({ profile: 'strict', rootPath: ROOT_PATH }),
     new PathValidator({ profile: 'strict', rootPath: ROOT_PATH }),
-    new NamingValidator({ rootPath: ROOT_PATH, strictMode: true })
+    new NamingValidator({ rootPath: ROOT_PATH, strictMode: true }),
+    new HeuristicsValidator({ profile: 'strict', rootPath: ROOT_PATH })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────
@@ -107,6 +112,35 @@ for (const [fixture, expectedCodes] of Object.entries(expectations)) {
             allIssues.forEach(i =>
                 console.log(`      ${i.code} (${i.severity}): ${i.message}`)
             );
+        }
+        failed++;
+    }
+}
+
+// ── Global Validator Tests ───────────────────────────────────────────
+console.log('');
+console.log('── Global Validators ──');
+console.log('');
+
+// ContentCatalog: pod-crossing regression (CAT-001 must fire)
+{
+    const catValidator = new ContentCatalogValidator({ rootPath: ROOT_PATH });
+    const catResult = catValidator.validate();
+    const catCodes = catResult.issues.map(i => i.code);
+    const catModules = catResult.issues.map(i => i.moduleId);
+
+    // pod-crossing must be caught as CAT-001
+    const hasPodCrossing = catResult.issues.some(
+        i => i.code === 'CAT-001' && i.moduleId === 'code-pod-crossing'
+    );
+
+    if (hasPodCrossing) {
+        console.log(`  \u2713 ContentCatalog — pod-crossing regression: CAT-001 fired`);
+        passed++;
+    } else {
+        console.log(`  \u2717 ContentCatalog — pod-crossing regression: CAT-001 NOT found for code-pod-crossing`);
+        if (VERBOSE) {
+            console.log(`    Found CAT-001 for: [${catResult.issues.filter(i => i.code === 'CAT-001').map(i => i.moduleId).join(', ')}]`);
         }
         failed++;
     }

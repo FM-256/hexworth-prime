@@ -78,6 +78,7 @@ ${'═'.repeat(70)}
 
         // Issue counts
         const critical = issues.filter(i => i.severity === 'critical').length;
+        const suspect = issues.filter(i => i.severity === 'suspect').length;
         const warning = issues.filter(i => i.severity === 'warning').length;
         const info = issues.filter(i => i.severity === 'info').length;
 
@@ -101,12 +102,30 @@ ${'─'.repeat(70)}
             summary += `| ${type} | ${count} |\n`;
         }
 
+        // ContentCatalog summary
+        const catSummary = data.syntax?.summary?.contentCatalog;
+        if (catSummary) {
+            summary += `
+### ContentCatalog Validation
+
+| Metric | Value |
+|--------|-------|
+| Total Modules | ${catSummary.totalModules} |
+| Available | ${catSummary.available} |
+| Missing Hrefs (CAT-001) | ${catSummary.missingHrefs} |
+| Undeclared Files (CAT-002) | ${catSummary.undeclared} |
+| Empty Hrefs (CAT-003) | ${catSummary.emptyHrefs} |
+
+`;
+        }
+
         summary += `
 ### Issues Summary
 
 | Severity | Count |
 |----------|-------|
 | Critical | ${critical} |
+| Suspect | ${suspect} |
 | Warning | ${warning} |
 | Info | ${info} |
 | **Total** | **${issues.length}** |
@@ -284,6 +303,7 @@ ${'═'.repeat(70)}
 
         // Group by severity
         const critical = issues.filter(i => i.severity === 'critical');
+        const suspect = issues.filter(i => i.severity === 'suspect');
         const warning = issues.filter(i => i.severity === 'warning');
         const info = issues.filter(i => i.severity === 'info');
 
@@ -292,6 +312,15 @@ ${'═'.repeat(70)}
 
 `;
             for (const issue of critical) {
+                output += this.formatIssue(issue);
+            }
+        }
+
+        if (suspect.length > 0) {
+            output += `### SUSPECT (${suspect.length}) — heuristic, needs review
+
+`;
+            for (const issue of suspect) {
                 output += this.formatIssue(issue);
             }
         }

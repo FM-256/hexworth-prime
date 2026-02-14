@@ -1,0 +1,252 @@
+/**
+ * EduScan - ContentCatalog Validator
+ *
+ * Validates that all hrefs in ContentCatalog.js resolve to existing files on disk.
+ * Uses Node's vm module to safely execute the browser IIFE in a sandbox.
+ *
+ * Issue types detected:
+ * - CAT-001: Module status 'available' but href file doesn't exist on disk (CRITICAL)
+ * - CAT-002: HTML file in house directory not declared in any catalog module (MEDIUM)
+ * - CAT-003: Module status 'available' with empty/missing href (HIGH)
+ *
+ * Created: 2026-02-13 (after pod-crossing 404 bug)
+ */
+
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+// File patterns that indicate navigable content (for CAT-002 reverse check)
+const CONTENT_PATTERNS = [
+    /\.presentation\.html$/,
+    /\.quiz\.html$/,
+    /\.lab\.html$/,
+    /\.applet\.html$/,
+    /\.tool\.html$/,
+    /\.module\.html$/
+];
+
+class ContentCatalogValidator {
+    constructor(options = {}) {
+        this.verbose = options.verbose || false;
+        this.rootPath = options.rootPath || './_app';
+        this.catalogFile = options.catalogFile || 'components/ContentCatalog.js';
+    }
+
+    /**
+     * Main entry point — validate all ContentCatalog hrefs
+     * @returns {Object} { issues, summary }
+     */
+    validate() {
+        const issues = [];
+        const summary = {
+            totalModules: 0,
+            available: 0,
+            missingHrefs: 0,
+            undeclared: 0,
+            emptyHrefs: 0,
+            skipped: 0
+        };
+
+        // Load catalog via VM sandbox
+        const catalog = this._loadCatalog();
+        if (!catalog) {
+            issues.push({
+                code: 'CAT-001',
+                severity: 'critical',
+                category: 'content-catalog',
+                message: 'Failed to load ContentCatalog.js — cannot validate hrefs',
+                file: this.catalogFile,
+                fix: 'Ensure ContentCatalog.js exists and is valid JavaScript'
+            });
+            return { issues, summary };
+        }
+
+        // Check all module hrefs (CAT-001 + CAT-003)
+        this._checkHrefs(catalog, issues, summary);
+
+        // Reverse check: HTML files in house dirs not in catalog (CAT-002)
+        this._checkUndeclared(catalog, issues, summary);
+
+        return { issues, summary };
+    }
+
+    /**
+     * Load ContentCatalog.js in a VM sandbox
+     * @returns {Object|null} { HOUSES, MODULES } or null on failure
+     */
+    _loadCatalog() {
+        const absolutePath = path.resolve(this.rootPath, this.catalogFile);
+
+        if (!fs.existsSync(absolutePath)) {
+            if (this.verbose) {
+                console.log(`[CAT] ContentCatalog.js not found at ${absolutePath}`);
+            }
+            return null;
+        }
+
+        try {
+            const code = fs.readFileSync(absolutePath, 'utf8');
+            const context = vm.createContext({ window: {} });
+            vm.runInContext(code, context);
+
+            const catalog = context.window.ContentCatalog;
+            if (!catalog || !catalog.HOUSES || !catalog.MODULES) {
+                if (this.verbose) {
+                    console.log('[CAT] ContentCatalog loaded but missing HOUSES or MODULES');
+                }
+                return null;
+            }
+
+            if (this.verbose) {
+                console.log(`[CAT] Loaded ${catalog.MODULES.length} modules across ${Object.keys(catalog.HOUSES).length} houses`);
+            }
+
+            return catalog;
+        } catch (err) {
+            if (this.verbose) {
+                console.log(`[CAT] Failed to execute ContentCatalog.js: ${err.message}`);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Check all module hrefs resolve to existing files
+     * Emits CAT-001 (missing file) and CAT-003 (empty href)
+     */
+    _checkHrefs(catalog, issues, summary) {
+        for (const module of catalog.MODULES) {
+            summary.totalModules++;
+
+            // Only check available modules
+            if (module.status !== 'available') {
+                summary.skipped++;
+                continue;
+            }
+
+            summary.available++;
+
+            // CAT-003: empty/missing href
+            if (!module.href || !module.href.trim()) {
+                summary.emptyHrefs++;
+                issues.push({
+                    code: 'CAT-003',
+                    severity: 'high',
+                    category: 'content-catalog',
+                    message: `Module '${module.id}' (${module.title}) has empty/missing href`,
+                    file: this.catalogFile,
+                    moduleId: module.id,
+                    house: module.house,
+                    fix: 'Add a valid href path to this module'
+                });
+                continue;
+            }
+
+            // Skip external URLs
+            if (module.href.startsWith('http://') || module.href.startsWith('https://')) {
+                summary.skipped++;
+                continue;
+            }
+
+            // Resolve href to absolute disk path
+            const house = catalog.HOUSES[module.house];
+            if (!house) {
+                summary.skipped++;
+                continue;
+            }
+
+            // Full path = _app/{house.basePath}/{module.href}
+            // path.join handles ../ navigation (e.g., dark-arts vault hrefs)
+            const resolvedPath = path.resolve(this.rootPath, house.basePath, module.href);
+
+            if (!fs.existsSync(resolvedPath)) {
+                summary.missingHrefs++;
+                issues.push({
+                    code: 'CAT-001',
+                    severity: 'critical',
+                    category: 'content-catalog',
+                    message: `Module '${module.id}' href '${module.href}' does not exist on disk`,
+                    file: this.catalogFile,
+                    moduleId: module.id,
+                    house: module.house,
+                    href: module.href,
+                    expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                    fix: `Create the file or fix the href for module '${module.id}'`
+                });
+            }
+        }
+    }
+
+    /**
+     * Reverse check: find HTML files in house dirs that aren't declared in the catalog
+     * Scoped to known content patterns to avoid noise from index pages, helpers, etc.
+     * Emits CAT-002
+     */
+    _checkUndeclared(catalog, issues, summary) {
+        // Build a set of all resolved catalog paths for fast lookup
+        const catalogPaths = new Set();
+        for (const module of catalog.MODULES) {
+            if (!module.href || module.href.startsWith('http')) continue;
+            const house = catalog.HOUSES[module.house];
+            if (!house) continue;
+            const resolved = path.resolve(this.rootPath, house.basePath, module.href);
+            catalogPaths.add(resolved);
+        }
+
+        // Scan each house directory for content HTML files
+        const housesDir = path.resolve(this.rootPath, 'houses');
+        if (!fs.existsSync(housesDir)) return;
+
+        for (const houseId of Object.keys(catalog.HOUSES)) {
+            const houseDir = path.resolve(housesDir, houseId);
+            if (!fs.existsSync(houseDir)) continue;
+
+            const htmlFiles = this._findHtmlFiles(houseDir);
+
+            for (const filePath of htmlFiles) {
+                // Only check files matching content patterns
+                if (!CONTENT_PATTERNS.some(p => p.test(filePath))) continue;
+
+                if (!catalogPaths.has(filePath)) {
+                    summary.undeclared++;
+                    const relativePath = path.relative(path.resolve(this.rootPath), filePath);
+                    issues.push({
+                        code: 'CAT-002',
+                        severity: 'medium',
+                        category: 'content-catalog',
+                        message: `Content file '${relativePath}' not declared in ContentCatalog`,
+                        file: relativePath,
+                        house: houseId,
+                        fix: `Add this file as a module in ContentCatalog.js under house '${houseId}'`
+                    });
+                }
+            }
+        }
+    }
+
+    /**
+     * Recursively find all .html files under a directory
+     * @param {string} dir - Directory to scan
+     * @returns {string[]} Array of absolute file paths
+     */
+    _findHtmlFiles(dir) {
+        const results = [];
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    results.push(...this._findHtmlFiles(fullPath));
+                } else if (entry.isFile() && entry.name.endsWith('.html')) {
+                    results.push(fullPath);
+                }
+            }
+        } catch (err) {
+            // Skip unreadable directories
+        }
+        return results;
+    }
+}
+
+module.exports = ContentCatalogValidator;
