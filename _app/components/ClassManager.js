@@ -377,7 +377,7 @@ const ClassManager = (function() {
      * @param {string} classCode - e.g. "HEX-7K9M"
      * @returns {Promise<{classId: string, className: string, classCode: string}>}
      */
-    async function joinClass(classCode) {
+    async function joinClass(classCode, options = {}) {
         if (!initialized) await init();
         if (!db) throw new Error('Database not available');
 
@@ -412,15 +412,23 @@ const ClassManager = (function() {
             updatedAt: serverTimestamp()
         });
 
-        // Create member profile in subcollection (pull from user profile)
+        // Create member profile in subcollection
         const memberRef = doc(db, COLLECTION, cls.id, 'members', user.uid);
-        const profile = await FirestoreManager.getUserProfile(user.uid);
 
-        const firstName = profile?.firstName || '';
-        const lastName = profile?.lastName || '';
+        // Try to pull from Firestore profile (may not exist for anonymous users)
+        let profile = null;
+        try {
+            profile = await FirestoreManager.getUserProfile(user.uid);
+        } catch (e) {
+            console.warn('[ClassManager] Could not fetch user profile (anonymous?):', e.message);
+        }
+
+        // Use options (from anonymous join modal) → Firestore profile → fallbacks
+        const firstName = options.firstName || profile?.firstName || '';
+        const lastName = options.lastName || profile?.lastName || '';
         const displayName = (firstName && lastName)
             ? `${firstName} ${lastName}`
-            : user.displayName || user.email?.split('@')[0] || 'Unknown';
+            : user.displayName || user.email?.split('@')[0] || `Device-${user.uid.substring(0, 6)}`;
 
         await setDoc(memberRef, {
             uid: user.uid,
@@ -432,10 +440,11 @@ const ClassManager = (function() {
             photoURL: user.photoURL || '',
             house: localStorage.getItem('hexworth_house') || null,
             callsign: profile?.callsign || null,
+            isAnonymous: user.isAnonymous || false,
             joinedAt: serverTimestamp()
         });
 
-        console.log(`[ClassManager] Joined class: ${cls.id} (${cls.classCode})`);
+        console.log(`[ClassManager] Joined class: ${cls.id} (${cls.classCode})${user.isAnonymous ? ' [anonymous]' : ''}`);
 
         return {
             classId: cls.id,

@@ -1501,6 +1501,12 @@
             color: #4ade80;
         }
 
+        .join-msg.info {
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: #60a5fa;
+        }
+
         .join-submit-btn {
             width: 100%;
             padding: 14px;
@@ -2636,7 +2642,7 @@
                 <a href="handler-dashboard.html" class="footer-link handler-only" id="handlerDashboardLink" style="display:none">Handler Dashboard</a>
                 <a href="javascript:void(0)" class="footer-link" onclick="checkForUpdates()">Check for Updates</a>
                 <a href="javascript:void(0)" class="footer-link" onclick="retakeSorting()">Retake Sorting</a>
-                <a href="javascript:void(0)" class="footer-link" id="joinClassLink" style="display:none" onclick="openJoinClass()">Join Class</a>
+                <a href="javascript:void(0)" class="footer-link" id="joinClassLink" onclick="openJoinClass()">Join Class</a>
                 <a href="javascript:void(0)" class="footer-link" id="authLink" onclick="toggleAuth()">Sign In</a>
                 <a href="about.html" class="footer-link">About</a>
                 <a href="privacy.html" class="footer-link">Privacy</a>
@@ -2872,6 +2878,13 @@
             </div>
             <p style="color: #888; font-size: 0.85rem; margin-bottom: 20px; line-height: 1.5;">Enter the class code provided by your instructor.</p>
             <input type="text" id="joinCodeInput" class="join-code-input" placeholder="HEX-XXXX" maxlength="8" oninput="formatJoinCode(this)">
+            <div id="joinNameFields" style="display:none; margin-top: 12px;">
+                <p style="color: #aaa; font-size: 0.8rem; margin-bottom: 8px;">Your name (so your instructor can identify you):</p>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="joinFirstName" class="join-code-input" placeholder="First Name" maxlength="30" style="font-size: 0.9rem; letter-spacing: normal; text-align: left;">
+                    <input type="text" id="joinLastName" class="join-code-input" placeholder="Last Name" maxlength="30" style="font-size: 0.9rem; letter-spacing: normal; text-align: left;">
+                </div>
+            </div>
             <div id="joinMsg" style="display:none;" class="join-msg"></div>
             <button id="joinBtn" class="join-submit-btn" onclick="submitJoinClass()">Join Class</button>
         </div>
@@ -5270,11 +5283,20 @@
             const input = document.getElementById('joinCodeInput');
             const msg = document.getElementById('joinMsg');
             const btn = document.getElementById('joinBtn');
+            const nameFields = document.getElementById('joinNameFields');
             input.value = '';
             msg.style.display = 'none';
             msg.className = 'join-msg';
             btn.disabled = false;
             btn.textContent = 'Join Class';
+            // Reset name fields
+            if (nameFields) {
+                nameFields.style.display = FirebaseAuth.isSignedIn() ? 'none' : 'none'; // shown on demand
+                const fn = document.getElementById('joinFirstName');
+                const ln = document.getElementById('joinLastName');
+                if (fn) fn.value = '';
+                if (ln) ln.value = '';
+            }
             document.getElementById('joinClassModal').classList.add('active');
             setTimeout(() => input.focus(), 100);
         }
@@ -5296,6 +5318,7 @@
             const input = document.getElementById('joinCodeInput');
             const msg = document.getElementById('joinMsg');
             const btn = document.getElementById('joinBtn');
+            const nameFields = document.getElementById('joinNameFields');
             const code = input.value.trim().toUpperCase();
 
             // Validate format
@@ -5306,18 +5329,76 @@
                 return;
             }
 
-            // Check profile completeness
-            try {
-                const user = FirebaseAuth.getUser();
-                const profile = await FirestoreManager.getUserProfile(user.uid);
-                if (!profile?.firstName || !profile?.lastName) {
+            let user = FirebaseAuth.getUser();
+            let firstName = '', lastName = '';
+
+            if (!user) {
+                // Not signed in — show name fields if not already visible
+                if (nameFields.style.display === 'none') {
+                    nameFields.style.display = 'block';
                     msg.style.display = 'block';
-                    msg.className = 'join-msg error';
-                    msg.textContent = 'Complete your profile first. Go to Settings and enter your first and last name.';
+                    msg.className = 'join-msg info';
+                    msg.textContent = 'Enter your name below, then click Join Class again.';
+                    document.getElementById('joinFirstName').focus();
                     return;
                 }
-            } catch (e) {
-                // If we can't check, let it through — joinClass will handle errors
+
+                // Validate name fields
+                firstName = (document.getElementById('joinFirstName').value || '').trim();
+                lastName = (document.getElementById('joinLastName').value || '').trim();
+                if (!firstName || !lastName) {
+                    msg.style.display = 'block';
+                    msg.className = 'join-msg error';
+                    msg.textContent = 'Please enter your first and last name.';
+                    return;
+                }
+
+                // Sign in anonymously
+                btn.disabled = true;
+                btn.textContent = 'Connecting...';
+                msg.style.display = 'none';
+
+                try {
+                    await FirebaseAuth.signInAnonymously();
+                    // Wait for auth state to settle
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    user = FirebaseAuth.getUser();
+                    if (!user) throw new Error('Anonymous sign-in failed');
+
+                    // Save name to Firestore profile
+                    if (typeof FirestoreManager !== 'undefined') {
+                        try {
+                            await FirestoreManager.setUserProfile(user.uid, {
+                                firstName: firstName,
+                                lastName: lastName,
+                                displayName: `${firstName} ${lastName}`,
+                                isAnonymous: true
+                            });
+                        } catch (e) {
+                            console.warn('[Dashboard] Could not save anonymous profile:', e);
+                        }
+                    }
+                } catch (error) {
+                    msg.style.display = 'block';
+                    msg.className = 'join-msg error';
+                    msg.textContent = 'Connection failed. Please check your internet and try again.';
+                    btn.disabled = false;
+                    btn.textContent = 'Join Class';
+                    return;
+                }
+            } else {
+                // Signed in with Google — check profile completeness
+                try {
+                    const profile = await FirestoreManager.getUserProfile(user.uid);
+                    if (!profile?.firstName || !profile?.lastName) {
+                        msg.style.display = 'block';
+                        msg.className = 'join-msg error';
+                        msg.textContent = 'Complete your profile first. Go to Settings and enter your first and last name.';
+                        return;
+                    }
+                } catch (e) {
+                    // If we can't check, let it through — joinClass will handle errors
+                }
             }
 
             btn.disabled = true;
@@ -5325,11 +5406,14 @@
             msg.style.display = 'none';
 
             try {
-                const result = await ClassManager.joinClass(code);
+                const result = await ClassManager.joinClass(code, { firstName, lastName });
                 msg.style.display = 'block';
                 msg.className = 'join-msg success';
                 msg.textContent = `Joined "${result.className}" successfully!`;
                 btn.textContent = 'Joined!';
+
+                // Push existing localStorage progress to Firestore
+                triggerPostJoinSync();
 
                 // Refresh My Classes after short delay
                 setTimeout(() => {
@@ -5342,6 +5426,107 @@
                 msg.textContent = error.message || 'Failed to join class.';
                 btn.disabled = false;
                 btn.textContent = 'Join Class';
+            }
+        }
+
+        /**
+         * Push existing localStorage progress to Firestore after joining a class.
+         * This ensures modules completed before joining are visible to the instructor.
+         */
+        function triggerPostJoinSync() {
+            // ProgressSync (if loaded) handles the heavy lifting
+            if (typeof ProgressSync !== 'undefined' && ProgressSync.sync) {
+                ProgressSync.sync().then(() => {
+                    console.log('[Dashboard] Post-join progress sync complete');
+                }).catch(err => {
+                    console.warn('[Dashboard] Post-join sync error:', err);
+                });
+            }
+            // Also sync via the existing dashboard pipeline
+            if (typeof syncProgressToFirestore === 'function') {
+                syncProgressToFirestore();
+            }
+            if (typeof syncAllLocalProgress === 'function') {
+                syncAllLocalProgress();
+            }
+        }
+
+        /**
+         * Show a banner prompting anonymous users to claim their account with Google
+         */
+        function showAnonymousClaimBanner() {
+            // Don't duplicate
+            if (document.getElementById('anonClaimBanner')) return;
+
+            const banner = document.createElement('div');
+            banner.id = 'anonClaimBanner';
+            banner.style.cssText = 'background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #f59e0b44; border-radius: 10px; padding: 14px 20px; margin: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;';
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem;">&#9888;</span>
+                    <div>
+                        <div style="color: #f59e0b; font-weight: 600; font-size: 0.85rem;">Anonymous Session</div>
+                        <div style="color: #888; font-size: 0.75rem;">Sign in with Google to save your progress across devices.</div>
+                    </div>
+                </div>
+                <button onclick="claimAnonymousAccount()" style="background: #4285f4; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;">Claim Account</button>
+            `;
+
+            // Insert after header, before main content
+            const main = document.querySelector('main') || document.querySelector('.dashboard-content');
+            if (main) {
+                main.parentNode.insertBefore(banner, main);
+            }
+        }
+
+        /**
+         * Claim anonymous account — link with Google, update class memberships
+         */
+        async function claimAnonymousAccount() {
+            const banner = document.getElementById('anonClaimBanner');
+            try {
+                if (banner) {
+                    banner.querySelector('button').textContent = 'Connecting...';
+                    banner.querySelector('button').disabled = true;
+                }
+
+                const linkedUser = await FirebaseAuth.linkWithGoogle();
+                if (!linkedUser) return; // User cancelled popup
+
+                // Update member profiles in all enrolled classes
+                const user = FirebaseAuth.getUser();
+                if (user) {
+                    try {
+                        const classes = await ClassManager.getStudentClasses(user.uid);
+                        const { doc, updateDoc } = window.firebaseFirestore;
+                        const { getFirestore, getApps } = { ...window.firebaseFirestore, ...window.firebaseApp };
+                        const db = getFirestore(getApps()[0]);
+
+                        for (const cls of classes) {
+                            const memberRef = doc(db, 'classes', cls.id, 'members', user.uid);
+                            await updateDoc(memberRef, {
+                                isAnonymous: false,
+                                email: linkedUser.email || '',
+                                displayName: linkedUser.displayName || user.displayName || '',
+                                photoURL: linkedUser.photoURL || ''
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('[Dashboard] Could not update class memberships after claim:', e);
+                    }
+                }
+
+                // Remove banner
+                if (banner) banner.remove();
+                console.log('[Dashboard] Anonymous account claimed successfully');
+
+            } catch (error) {
+                console.error('[Dashboard] Claim account failed:', error);
+                if (banner) {
+                    banner.querySelector('button').textContent = 'Claim Account';
+                    banner.querySelector('button').disabled = false;
+                }
+                alert('Failed to link account: ' + (error.message || 'Unknown error'));
             }
         }
 
@@ -5992,12 +6177,13 @@
                 console.log('%c🔓 ADMIN ACCESS GRANTED', 'color: #4ade80; font-size: 16px; font-weight: bold;');
             }
 
-            // Show/hide Join Class link + load My Classes for signed-in users
-            const joinLink = document.getElementById('joinClassLink');
-            if (joinLink) {
-                joinLink.style.display = e.detail.user ? '' : 'none';
-            }
+            // Load My Classes for signed-in users + show claim banner for anonymous
             if (e.detail.user) {
+                // Show claim banner for anonymous users
+                if (e.detail.user.isAnonymous) {
+                    showAnonymousClaimBanner();
+                }
+
                 loadMyClasses();
                 // Bidirectional sync: merge user profile (cloud ↔ localStorage)
                 // This is the primary cross-device progress sync

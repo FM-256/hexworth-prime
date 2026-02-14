@@ -110,17 +110,18 @@ const FirebaseAuth = (function() {
         if (user) {
             currentUser = {
                 uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL
+                email: user.email || null,
+                displayName: user.displayName || null,
+                photoURL: user.photoURL || null,
+                isAnonymous: user.isAnonymous || false
             };
-            isAdmin = config.adminEmails.includes(user.email.toLowerCase());
+            isAdmin = user.email ? config.adminEmails.includes(user.email.toLowerCase()) : false;
 
             // Cache to localStorage for file:// persistence
             localStorage.setItem(config.storageKeys.user, JSON.stringify(currentUser));
             localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
 
-            console.log(`[FirebaseAuth] Signed in: ${user.email} (Admin: ${isAdmin})`);
+            console.log(`[FirebaseAuth] Signed in: ${user.email || 'anonymous:' + user.uid} (Admin: ${isAdmin})`);
 
             // Initialize Firestore profile and migrate localStorage data
             let firestoreResult = null;
@@ -284,13 +285,86 @@ const FirebaseAuth = (function() {
         }
     }
 
+    /**
+     * Sign in anonymously (for students joining a class without Google)
+     */
+    async function signInAnonymously() {
+        if (!initialized || !auth) {
+            await init();
+        }
+
+        if (!auth) {
+            console.error('[FirebaseAuth] Auth not available');
+            throw new Error('Authentication not available. Please check your internet connection.');
+        }
+
+        try {
+            const { signInAnonymously: firebaseSignInAnon } = window.firebaseAuth;
+            const result = await firebaseSignInAnon(auth);
+            console.log('[FirebaseAuth] Anonymous sign-in successful:', result.user.uid);
+            return result.user;
+        } catch (error) {
+            console.error('[FirebaseAuth] Anonymous sign-in failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Link anonymous account with Google (claim flow)
+     * Preserves the same uid so Firestore data stays intact
+     */
+    async function linkWithGoogle() {
+        if (!auth || !auth.currentUser) {
+            throw new Error('No current user to link');
+        }
+
+        try {
+            const { GoogleAuthProvider, linkWithPopup, signInWithCredential } = window.firebaseAuth;
+            const provider = new GoogleAuthProvider();
+            const result = await linkWithPopup(auth.currentUser, provider);
+            console.log('[FirebaseAuth] Account linked successfully:', result.user.email);
+            return result.user;
+        } catch (error) {
+            // If Google account already exists, sign in with that credential instead
+            if (error.code === 'auth/credential-already-in-use') {
+                console.warn('[FirebaseAuth] Credential already in use, signing in with existing account');
+                try {
+                    const { signInWithCredential } = window.firebaseAuth;
+                    const result = await signInWithCredential(auth, error.credential);
+                    return result.user;
+                } catch (fallbackError) {
+                    console.error('[FirebaseAuth] Fallback sign-in failed:', fallbackError);
+                    throw fallbackError;
+                }
+            }
+
+            if (error.code === 'auth/popup-blocked') {
+                throw new Error('Popup was blocked. Please allow popups for this site.');
+            } else if (error.code === 'auth/cancelled-popup-request') {
+                return null; // User cancelled
+            }
+
+            throw error;
+        }
+    }
+
+    /**
+     * Check if current user is anonymous
+     */
+    function checkIsAnonymous() {
+        return currentUser?.isAnonymous === true;
+    }
+
     // Public API
     return {
         init,
         signInWithGoogle,
+        signInAnonymously,
+        linkWithGoogle,
         signOut,
         getUser,
         isAdmin: checkIsAdmin,
+        isAnonymous: checkIsAnonymous,
         isSignedIn,
         addAdminEmail,
         removeAdminEmail
