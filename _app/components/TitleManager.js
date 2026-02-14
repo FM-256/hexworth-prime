@@ -365,7 +365,7 @@ const TitleManager = (function() {
     }
 
     function getFullTitle(username = null) {
-        const userName = username || localStorage.getItem('hexworth_username') || 'Student';
+        const userName = username || localStorage.getItem('hexworth_callsign') || localStorage.getItem('hexworth_username') || 'Operative';
         const titleParts = [];
 
         // Factionless users: delegate to FactionlessTree if available
@@ -404,7 +404,7 @@ const TitleManager = (function() {
     }
 
     function getShortTitle(username = null) {
-        const userName = username || localStorage.getItem('hexworth_username') || 'Student';
+        const userName = username || localStorage.getItem('hexworth_callsign') || localStorage.getItem('hexworth_username') || 'Operative';
 
         // Factionless users: delegate to FactionlessTree if available
         if (typeof FactionlessTree !== 'undefined' && FactionlessTree.isFactionless()) {
@@ -477,7 +477,7 @@ const TitleManager = (function() {
     }
 
     function recalculate() {
-        const username = localStorage.getItem('hexworth_username') || 'Student';
+        const username = localStorage.getItem('hexworth_callsign') || localStorage.getItem('hexworth_username') || 'Operative';
         const fullTitle = getFullTitle(username);
         const shortTitle = getShortTitle(username);
         const allTiers = getAllTiers();
@@ -525,7 +525,7 @@ const TitleManager = (function() {
 
         // Update display (call this when progress changes)
         updateDashboardDisplay: function() {
-            const username = localStorage.getItem('hexworth_username') || 'Student';
+            const username = localStorage.getItem('hexworth_callsign') || localStorage.getItem('hexworth_username') || 'Operative';
             const fullTitle = getFullTitle(username);
             const titleDisplay = document.getElementById('userTitleDisplay');
 
