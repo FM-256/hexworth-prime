@@ -159,6 +159,11 @@ const ModuleProgress = (function() {
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
+        // Bridge to CompletionStamp system
+        if (typeof CompletionStamp !== 'undefined') {
+            CompletionStamp.mark(houseId + '-' + moduleId, null);
+        }
+
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
 
@@ -239,6 +244,11 @@ const ModuleProgress = (function() {
         };
 
         localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+
+        // Bridge to CompletionStamp system
+        if (passed && typeof CompletionStamp !== 'undefined') {
+            CompletionStamp.mark(houseId + '-' + quizId, score);
+        }
 
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(quizId, houseId, 'quiz', { score });
