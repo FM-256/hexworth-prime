@@ -150,8 +150,8 @@ class EduScan {
 
         // Re-sort issues by severity
         validation.issues.sort((a, b) => {
-            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, info: 5 };
-            return (order[a.severity] || 6) - (order[b.severity] || 6);
+            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, suspect: 5, info: 6 };
+            return (order[a.severity] || 7) - (order[b.severity] || 7);
         });
 
         if (this.options.verbose) {
@@ -320,13 +320,14 @@ class EduScan {
             high: syntax.issues.filter(i => i.severity === 'high').length,
             medium: syntax.issues.filter(i => i.severity === 'medium').length,
             low: syntax.issues.filter(i => i.severity === 'low').length,
+            suspect: syntax.issues.filter(i => i.severity === 'suspect').length,
             info: syntax.issues.filter(i => i.severity === 'info').length || 0
         };
 
         // Separate failing vs non-blocking based on failOnSeverities
         const failingSeverities = isNeverFail ? [] : failOnSeverities;
         const failingCount = failingSeverities.reduce((sum, s) => sum + (sev[s] || 0), 0);
-        const nonBlockingSeverities = ['critical', 'high', 'medium', 'low', 'info'].filter(s => !failingSeverities.includes(s));
+        const nonBlockingSeverities = ['critical', 'high', 'medium', 'low', 'suspect', 'info'].filter(s => !failingSeverities.includes(s));
         const nonBlockingCount = nonBlockingSeverities.reduce((sum, s) => sum + (sev[s] || 0), 0);
 
         console.log(c('─'.repeat(60), 'dim'));
@@ -356,6 +357,9 @@ class EduScan {
         }
         if (syntax.summary.namingErrors > 0) {
             console.log(`    ${c('Naming:', 'yellow')}  ${syntax.summary.namingErrors} naming convention issues`);
+        }
+        if (syntax.summary.heuristicErrors > 0) {
+            console.log(`    ${c('Heuristic:', 'magenta')}  ${syntax.summary.heuristicErrors} suspect patterns (needs review)`);
         }
 
         if (syntax.summary.totalIssues === 0) {
@@ -396,6 +400,9 @@ class EduScan {
                 if (failingSeverities.includes('low')) {
                     failingParts.push(`${c('LOW:', 'blue')} ${sev.low}`);
                 }
+                if (failingSeverities.includes('suspect')) {
+                    failingParts.push(`${c('SUSPECT:', 'magenta')} ${sev.suspect}`);
+                }
 
                 const failingLine = failingParts.join('    ');
                 console.log(c(`  ${box.v}  `, 'red') + failingLine);
@@ -413,7 +420,7 @@ class EduScan {
 
                 // Build the counts line for non-blocking
                 const nonBlockingParts = [];
-                const displaySeverities = isNeverFail ? ['critical', 'high', 'medium', 'low', 'info'] : nonBlockingSeverities;
+                const displaySeverities = isNeverFail ? ['critical', 'high', 'medium', 'low', 'suspect', 'info'] : nonBlockingSeverities;
 
                 for (const severity of displaySeverities) {
                     const count = sev[severity] || 0;
@@ -425,6 +432,8 @@ class EduScan {
                         nonBlockingParts.push(`${c('MEDIUM:', 'yellow')} ${count}`);
                     } else if (severity === 'low') {
                         nonBlockingParts.push(`${c('LOW:', 'blue')} ${count}`);
+                    } else if (severity === 'suspect') {
+                        nonBlockingParts.push(`${c('SUSPECT:', 'magenta')} ${count}`);
                     } else if (severity === 'info') {
                         nonBlockingParts.push(`INFO: ${count}`);
                     }
@@ -445,7 +454,8 @@ class EduScan {
                     critical: 'red',
                     high: 'red',
                     medium: 'yellow',
-                    low: 'blue'
+                    low: 'blue',
+                    suspect: 'magenta'
                 }[issue.severity] || 'white';
 
                 console.log(`    ${c('[' + issue.code + ']', sevColor)} ${issue.message}`);

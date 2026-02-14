@@ -42,6 +42,50 @@
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
 
+### February 13, 2026 - EDUSCAN ES-9: FUNCTIONAL VALIDATOR (CCode-Opus4.6)
+
+```
++======================================================================+
+|         SPRINT ES-9: FUNCTIONAL VALIDATION (Headless Browser)        |
+|         7 files created, 2 files modified, 1 devDependency added     |
++======================================================================+
+|                                                                       |
+|  NEW CAPABILITY: Browser-based runtime + behavioral testing           |
+|  DEPENDENCY: puppeteer (devDep, headless Chromium for WSL2)          |
+|                                                                       |
+|  TWO LAYERS:                                                          |
+|  1. Runtime checks — Load all 1249 HTML pages, capture:              |
+|     FUNC-001: JS errors  FUNC-002: Promise rejections                |
+|     FUNC-003: console.error  FUNC-004: Resource 404s                 |
+|     FUNC-005: Blank screens                                           |
+|                                                                       |
+|  2. Smoke tests — 8 core system scenarios (~13s):                    |
+|     FUNC-010: ProgressManager XP award (CRITICAL)                    |
+|     FUNC-011: AchievementRegistry v2 persistence (CRITICAL)          |
+|     FUNC-012: GameTracker record (CRITICAL)                          |
+|     FUNC-013: AccessGuard blocks unauthorized (HIGH)                 |
+|     FUNC-014: QuizEngine instantiation (HIGH)                        |
+|     FUNC-015: Achievement v1/v2 bridge (HIGH)                        |
+|     FUNC-016: Level calculation (MEDIUM)                             |
+|     FUNC-017: Top scores sorting (MEDIUM)                            |
+|                                                                       |
+|  RESULTS:                                                             |
+|  - 12/12 existing tests: PASS (no regression)                        |
+|  - 8/8 smoke tests: PASS                                             |
+|  - Runtime: 187 real issues found across 1249 pages                  |
+|                                                                       |
+|  COMMANDS:                                                            |
+|  npm run scan:functional          (both layers, ~8min)               |
+|  npm run scan:functional:smoke    (smoke only, ~13s)                 |
+|  npm run scan:functional:runtime  (runtime only)                     |
+|                                                                       |
+|  GAP IDENTIFIED: pod-crossing.html is status:'available' in          |
+|  ContentCatalog.js but file doesn't exist → 404 on live site.        |
+|  EduScan orphan detector only checks content-registry.js (16 entries)|
+|  not ContentCatalog.js (749 modules). → ES-10 proposed.              |
++----------------------------------------------------------------------+
+```
+
 ### February 13, 2026 - CONTENTCATALOG CENTRALIZATION (CCode-Opus4.6)
 
 ```

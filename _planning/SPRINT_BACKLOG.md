@@ -983,6 +983,127 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 - Confidence scoring: 95%+ for auto-fix, 70-94% for review, <70% manual only
 - PATH-DEPTH-001 (undershoot) and PATH-DEPTH-002 (overshoot) codes
 
+### Sprint ES-9: Functional Validation (Headless Browser)
+**Status:** ✅ Complete (February 13, 2026)
+**Priority:** High — First behavioral/runtime validation layer
+**Dependency:** puppeteer (devDependency)
+
+| Task | Status |
+|------|--------|
+| Puppeteer browser pool (launch, page management, request interception) | ✅ |
+| Runtime error detection (FUNC-001 through FUNC-005) — all HTML pages | ✅ |
+| Smoke test harness + 8 core system scenarios (FUNC-010 through FUNC-017) | ✅ |
+| CLI integration (--functional, --smoke-only, --runtime-only) | ✅ |
+| npm scripts (scan:functional, scan:functional:smoke, scan:functional:runtime) | ✅ |
+| Verification: 12/12 existing tests pass, 8/8 smoke tests pass | ✅ |
+
+**Implementation Notes:**
+- Two layers: Runtime checks (all 1249 HTML pages, ~8min) + Smoke tests (8 scenarios, ~13s)
+- Separate command — NOT part of `npm run scan` (too slow for regular workflow)
+- Runtime checks capture: JS errors, promise rejections, console.error(), resource 404s, blank screens
+- Smoke tests verify: ProgressManager XP, AchievementRegistry v2 persistence, GameTracker record/scores, AccessGuard gating, QuizEngine instantiation, v1/v2 bridge, level calculation
+- Smoke harness loads 11 core scripts in dependency order (SkillTreeData before ProgressManager critical)
+- Browser: headless Chromium, --no-sandbox (WSL2), external domains silently blocked
+- FUNC-004 capped at 3 per page to reduce noise from .hyperesources asset directories
+- Initial scan found 187 real issues: LinuxTerminal not a constructor, FluxCapacitor export, ModuleProgress.trackView, missing assets
+
+**Files Created (7):**
+- `_tools/eduscan/validators/functional/index.js` (orchestrator)
+- `_tools/eduscan/validators/functional/browser.js` (browser pool)
+- `_tools/eduscan/validators/functional/runtime.js` (runtime checks)
+- `_tools/eduscan/validators/functional/smoke.js` (8 smoke scenarios)
+- `_tools/eduscan/tests/fixtures/smoke-harness.html` (script loader)
+- `_tools/eduscan/tests/fixtures/smoke-guard.html` (AccessGuard test)
+- `_tools/eduscan/tests/fixtures/functional-issues.html` (test fixture)
+
+**Files Modified (2):**
+- `_tools/eduscan/cli.js` (--functional flags + runFunctional async handler)
+- `package.json` (puppeteer devDependency + 3 scan:functional scripts)
+
+**Gap Identified:** ContentCatalog.js declares 749 modules with hrefs but EduScan never validates those hrefs against the filesystem. `pod-crossing.html` (status: 'available', file doesn't exist) is the proof case. → See ES-10.
+
+---
+
+### Sprint ES-10: ContentCatalog Href Validation (PROPOSED)
+**Status:** 📋 Next Up
+**Priority:** High — Closes the catalog→filesystem blind spot
+**Trigger:** pod-crossing.html 404 found via live site, not detected by EduScan
+
+| Task | Status |
+|------|--------|
+| Parse ContentCatalog.js module entries + hrefs programmatically | ⬜ |
+| CAT-001: Module with status 'available' but href file missing on disk | ⬜ |
+| CAT-002: HTML file exists on disk but not declared in ContentCatalog | ⬜ |
+| Test signature fixture using pod-crossing.html as target case | ⬜ |
+| Integration with existing EduScan pipeline | ⬜ |
+
+### Sprint HED-1: Host Error Detector — Live Runtime Immune System
+**Status:** 📋 Queued (after ES-10)
+**Priority:** High — Closes the post-deploy blind spot
+**Inspiration:** Biological immune system — lightweight sentinels always on patrol, signal heavier response when threats detected
+**Prefix:** HED (new series — live monitoring, distinct from batch scanning)
+
+#### Problem Statement
+
+EduScan catches issues **before** deploy. The functional validator catches runtime errors in a **simulated** environment. But after deploy — when students are actually using the platform — **nothing is watching**. The pod-crossing.html 404 was found by manually browsing the live site, not by any automated system. Every student session is an untapped test run.
+
+| When | Tool | Coverage |
+|------|------|----------|
+| Before deploy | EduScan (static) | Syntax, orphans, paths, coverage |
+| Before deploy | Functional validator (headless) | Runtime errors on page load |
+| **After deploy** | **Nothing → HED** | **Real user errors, real browsers, real click paths** |
+
+#### Architecture: Immune System Model
+
+| Component | Analogy | Role |
+|-----------|---------|------|
+| **HED Agent** (`HED.js`) | Antibody / Sentinel cell | ~100-150 line JS agent loaded on every page. Listens for errors, buffers locally, signals upstream |
+| **HED Dashboard** | Immune response display | Widget in admin footer showing error count, recent captures, exportable log |
+| **EduScan** | Adaptive immune system | Classifies HED signals against known signatures (FUNC-*, CAT-*, PATH-*) |
+| **Firebase Reporter** (optional) | Nervous system | Cloud Function endpoint — connected students auto-report errors to instructor dashboard |
+
+#### HED Agent Capabilities
+
+**Sensors (what it listens for):**
+- `window.onerror` → JS runtime errors (maps to FUNC-001)
+- `window.onunhandledrejection` → Promise rejections (maps to FUNC-002)
+- Resource `onerror` events → Script/CSS/image 404s (maps to FUNC-004)
+- Navigation failures → 404 pages, dead links (maps to CAT-001)
+- `console.error` interception → Application-level errors (maps to FUNC-003)
+
+**Buffer (how it stores):**
+- localStorage ring buffer (`hexworth_hed_log`), capped at ~50 entries
+- Each entry: `{ code, message, url, timestamp, userAgent }`
+- Benign error filtering (same patterns as functional validator's browser.js — Firebase CORS, CDN 404s on file://, AccessGuard redirects)
+
+**Signal (how it reports):**
+- **Offline students (file://):** Buffer locally → surface in dashboard "Health" tab
+- **Connected students (Firebase):** Auto-report to Cloud Function → aggregated in instructor dashboard
+- **Developer mode:** `HED.dump()` console command for manual inspection
+
+#### Tasks
+
+| Task | Status |
+|------|--------|
+| HED.js core agent — error listeners, benign filtering, ring buffer | ⬜ |
+| Inject HED.js into shared page template (single script tag, all pages) | ⬜ |
+| Dashboard footer "Health" tab — surfaces local HED buffer | ⬜ |
+| HED issue codes (HED-001 through HED-005) mapping to EduScan FUNC-* codes | ⬜ |
+| Firebase Cloud Function endpoint for connected student reporting (optional Phase 2) | ⬜ |
+| Instructor dashboard aggregation — error heatmap by page/house (optional Phase 2) | ⬜ |
+| EduScan integration — `npm run scan:hed` ingests HED reports as issue source | ⬜ |
+
+#### Design Constraints
+
+- **Tiny footprint:** <3KB minified, non-blocking, async-only. Must not slow page loads.
+- **Privacy-safe:** Captures error + URL + timestamp only. No PII, no student identity in offline mode. Firebase mode uses existing auth context.
+- **Noise filtering:** Port benign-error patterns from `_tools/eduscan/validators/functional/browser.js` directly.
+- **Graceful degradation:** If localStorage is full, HED silently stops buffering. If Firebase is unreachable, falls back to local-only. Zero user-visible impact on failure.
+
+#### Success Criteria
+
+The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED captures `{ code: 'HED-NAV-404', message: 'games/pod-crossing.html not found', url: '...', timestamp }` → surfaces in Health tab → instructor sees it without running EduScan manually.
+
 ---
 
 ## Backlog - Future Enhancements
@@ -1348,6 +1469,22 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 - **Gate 6: Static Analysis Investigation** — 5-step PE binary dissection (hex headers, import table, string analysis, entropy, malware classification). 500 pts with hint deductions. ~1,183 lines.
 - **Gate 7: Operation Shadow Hunt** — Threat attribution challenge. 4 evidence categories (malware metadata, network IOCs, MITRE ATT&CK TTPs, historical intelligence) + final attribution to APT group. 600 pts. ~1,338 lines.
 - **Note:** Both built but never tracked. Gate 7 missing AccessGuard gate. Neither registered in ContentCatalog/content-registry. Registration deferred to R-2.
+
+### Sprint DA-7.1: Gate 6 Realism Overhaul + Documentation Audit
+**Status:** ✅ Complete (February 13, 2026)
+**Priority:** High — Gate answers were visually obvious, MASTER_SECRETS.md was out of sync with code
+
+**Problem:** Gate 6 had multiple issues making it trivial: Step 2 used `class="suspicious"` (red/bold text), Step 3 used `class="indicator"` (red borders), Step 4 used color-coded entropy bars with pulsing red on `.rsrc`. MASTER_SECRETS.md documented wrong answers (e.g., `0x1400` instead of actual `0xF8`).
+
+| Task | Status |
+|------|--------|
+| Sync MASTER_SECRETS.md Gate 6 section to match actual code answers | ✅ |
+| Step 2: Remove `class="suspicious"`, expand import table to ~28 realistic entries across 5 DLLs | ✅ |
+| Step 3: Remove `class="indicator"`, expand string list to ~35 entries with benign noise | ✅ |
+| Step 4: Replace flat bar chart with 4-tab PE section viewer (Overview, Hex Preview, Entropy, Permissions) | ✅ |
+| Remove entropy color-coding (all bars uniform purple), remove pulse animation | ✅ |
+| Update hint text to not reference removed visual cues | ✅ |
+| **Audit task:** All future gate implementations must update MASTER_SECRETS.md in the same sprint | ✅ Policy |
 
 ### Sprint DA-8: Gate 8 — Dynamic Analysis Sandbox
 **Status:** ⬜ Backlog

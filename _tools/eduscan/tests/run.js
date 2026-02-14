@@ -122,26 +122,18 @@ console.log('');
 console.log('── Global Validators ──');
 console.log('');
 
-// ContentCatalog: pod-crossing regression (CAT-001 must fire)
+// ContentCatalog: zero dead links regression (CAT-001 count must be 0)
 {
     const catValidator = new ContentCatalogValidator({ rootPath: ROOT_PATH });
     const catResult = catValidator.validate();
-    const catCodes = catResult.issues.map(i => i.code);
-    const catModules = catResult.issues.map(i => i.moduleId);
+    const cat001s = catResult.issues.filter(i => i.code === 'CAT-001');
 
-    // pod-crossing must be caught as CAT-001
-    const hasPodCrossing = catResult.issues.some(
-        i => i.code === 'CAT-001' && i.moduleId === 'code-pod-crossing'
-    );
-
-    if (hasPodCrossing) {
-        console.log(`  \u2713 ContentCatalog — pod-crossing regression: CAT-001 fired`);
+    if (cat001s.length === 0) {
+        console.log(`  \u2713 ContentCatalog — zero dead links (CAT-001 count: 0)`);
         passed++;
     } else {
-        console.log(`  \u2717 ContentCatalog — pod-crossing regression: CAT-001 NOT found for code-pod-crossing`);
-        if (VERBOSE) {
-            console.log(`    Found CAT-001 for: [${catResult.issues.filter(i => i.code === 'CAT-001').map(i => i.moduleId).join(', ')}]`);
-        }
+        console.log(`  \u2717 ContentCatalog — found ${cat001s.length} dead links (CAT-001):`);
+        cat001s.forEach(i => console.log(`    - ${i.moduleId}: ${i.message}`));
         failed++;
     }
 }

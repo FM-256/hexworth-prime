@@ -33,7 +33,7 @@ const CertPathRenderer = (() => {
 
     /* ── path helpers ── */
     function resolveHref(href) {
-        // Module hrefs are relative to _app/; pages live at _app/houses/{id}/
+        // Pages live at _app/houses/{pathId}/; ../../ goes up to _app/
         return '../../' + href;
     }
 

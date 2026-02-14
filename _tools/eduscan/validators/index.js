@@ -204,8 +204,8 @@ class ValidatorOrchestrator {
 
         // Sort issues by severity
         results.issues.sort((a, b) => {
-            const order = { critical: 0, warning: 1, info: 2 };
-            return (order[a.severity] || 3) - (order[b.severity] || 3);
+            const order = { critical: 0, warning: 1, suspect: 2, info: 3 };
+            return (order[a.severity] || 4) - (order[b.severity] || 4);
         });
 
         return results;

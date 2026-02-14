@@ -25,6 +25,9 @@
  *   --remediation          Generate PATCH_PLAN.md and PATCH_PLAN.json
  *   --no-syntax            Disable syntax validation in full scans
  *   --watch                Watch mode - re-scan on file changes
+ *   --functional           Run functional validation (headless browser)
+ *   --smoke-only           Only run smoke tests (with --functional)
+ *   --runtime-only         Only run runtime checks (with --functional)
  *   --no-color             Disable colored output
  *   -h, --help             Show help
  *   --version              Show version
@@ -60,6 +63,9 @@ function parseArgs(args) {
         failOn: null,               // 'critical', 'critical,high', etc.
         warnOnly: false,
         watch: false,               // Watch mode - re-scan on changes
+        functional: false,          // Run functional validation (headless browser)
+        smokeOnly: false,           // Only run smoke tests (with --functional)
+        runtimeOnly: false,         // Only run runtime checks (with --functional)
         help: false,
         version: false
     };
@@ -178,6 +184,20 @@ function parseArgs(args) {
                 options.watch = true;
                 break;
 
+            case '--functional':
+                options.functional = true;
+                break;
+
+            case '--smoke-only':
+                options.smokeOnly = true;
+                options.functional = true;
+                break;
+
+            case '--runtime-only':
+                options.runtimeOnly = true;
+                options.functional = true;
+                break;
+
             case '-h':
             case '--help':
                 options.help = true;
@@ -223,6 +243,9 @@ Options:
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
   --warn-only            Never exit with error code (for CI adoption)
   -w, --watch            Watch mode - re-scan automatically on file changes
+  --functional           Run functional validation (headless browser, Puppeteer)
+  --smoke-only           Only run smoke tests (with --functional)
+  --runtime-only         Only run runtime checks (with --functional)
   --no-color             Disable colored output
   -h, --help             Show this help message
   --version              Show version
@@ -249,6 +272,9 @@ Examples:
   eduscan --warn-only                # Never fail (for gradual adoption)
   eduscan --watch                    # Watch mode - re-scan on file changes
   eduscan --syntax=ci --watch        # Watch with syntax-only CI profile
+  eduscan --functional               # Full functional scan (runtime + smoke)
+  eduscan --functional --smoke-only  # Quick smoke tests only (~15s)
+  eduscan --functional --runtime-only  # Runtime checks only (all pages)
   eduscan -p ./src -o ./audit        # Custom paths
   eduscan --json | jq '.[]'          # Pipe issues to jq
 
@@ -273,6 +299,7 @@ Issue Codes:
   ENG-*          Missing engine/library (undefined globals)
   PATH-*         Broken paths (404 resources)
   COV-*          Coverage gaps (missing quizzes, labs, assessments)
+  FUNC-*         Functional issues (runtime errors, smoke test failures)
 
 Orphan Reason Codes (with --deep):
   NOT-IN-REGISTRY    File not declared in content-registry.js
@@ -357,6 +384,12 @@ function main() {
             outputDir: options.outputDir,
             verbose: options.verbose
         }) : null;
+
+        if (options.functional) {
+            // Functional validation (async - headless browser)
+            runFunctional(options, colorFn);
+            return;
+        }
 
         if (options.orphansOnly) {
             // Orphan-only scan
@@ -703,6 +736,101 @@ function runWatch(options, colorFn) {
         console.error(c(`  Failed to start watch: ${err.message}`, 'red'));
         console.error(c('  Make sure the path exists and is accessible.', 'dim'));
         process.exit(1);
+    }
+}
+
+/**
+ * Run functional validation (headless browser)
+ * @param {Object} options - CLI options
+ * @param {Function} colorFn - Color function
+ */
+async function runFunctional(options, colorFn) {
+    const c = colorFn;
+    const FunctionalValidator = require('./validators/functional');
+
+    try {
+        // Print header
+        console.log('');
+        console.log(c('╔═══════════════════════════════════════╗', 'cyan'));
+        console.log(c('║', 'cyan') + c('  FUNCTIONAL VALIDATION                ', 'bright', 'cyan') + c('║', 'cyan'));
+        console.log(c('╚═══════════════════════════════════════╝', 'cyan'));
+        console.log('');
+
+        // We need to scan + parse files first (for runtime checks)
+        const scanner = new EduScan(options);
+        let content = [];
+
+        if (!options.smokeOnly) {
+            const scanResult = scanner.scanner.scan();
+            content = scanner.parser.parseAll(scanResult.files);
+            console.log(c(`  Discovered ${content.filter(f => f.path && f.path.endsWith('.html')).length} HTML pages`, 'dim'));
+        }
+
+        // Run functional validator
+        const validator = new FunctionalValidator({
+            rootPath: options.path,
+            verbose: options.verbose,
+            smokeOnly: options.smokeOnly,
+            runtimeOnly: options.runtimeOnly
+        });
+
+        const results = await validator.validate(content);
+
+        // Print results
+        const rs = results.summary.runtime;
+        const ss = results.summary.smoke;
+
+        if (!options.smokeOnly) {
+            const errColor = rs.pagesWithErrors > 0 ? 'red' : 'green';
+            const skipNote = rs.pagesSkipped ? c(` (${rs.pagesSkipped} skipped)`, 'dim') : '';
+            console.log(`  Runtime checks: ${c(String(rs.pagesLoaded), 'bright')} pages loaded${skipNote}, ${c(String(rs.totalErrors), errColor)} errors found`);
+        }
+
+        if (!options.runtimeOnly) {
+            const smokeColor = ss.failed > 0 ? 'red' : 'green';
+            console.log(`  Smoke tests:    ${c(`${ss.passed}/${ss.total}`, smokeColor)} passed`);
+        }
+
+        console.log(c(`  Duration:       ${(results.summary.duration / 1000).toFixed(1)}s`, 'dim'));
+        console.log('');
+
+        // Print issues
+        if (results.issues.length > 0) {
+            for (const issue of results.issues) {
+                const sevColor = {
+                    critical: 'red',
+                    high: 'red',
+                    medium: 'yellow',
+                    low: 'blue'
+                }[issue.severity] || 'white';
+
+                console.log(`  ${c('[' + issue.code + ']', sevColor)} ${c(issue.severity.toUpperCase(), sevColor)}  ${issue.message}`);
+                if (issue.file) {
+                    console.log(c(`    File: ${issue.file}`, 'dim'));
+                }
+                if (issue.fix) {
+                    console.log(c(`    Fix:  ${issue.fix}`, 'dim'));
+                }
+                console.log('');
+            }
+        } else {
+            console.log(c('  No functional issues detected.', 'green'));
+            console.log('');
+        }
+
+        console.log(c('─'.repeat(40), 'dim'));
+        console.log('');
+
+        // Exit code
+        const exitCode = determineExitCode(results.issues, options);
+        process.exit(exitCode);
+
+    } catch (err) {
+        console.error(c(`  Error: ${err.message}`, 'red'));
+        if (options.verbose) {
+            console.error(err.stack);
+        }
+        process.exit(2);
     }
 }
 

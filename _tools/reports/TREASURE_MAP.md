@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-14 10:53:37 PM
+                    Scanned: 2026-02-14 11:05:18 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1249 |
 | Directories | 469 |
 | Content Files | 1249 |
-| Scan Duration | 539ms |
+| Scan Duration | 202ms |
 
 ### Content by Type
 
@@ -30,9 +30,9 @@
 | Metric | Value |
 |--------|-------|
 | Total Modules | 749 |
-| Available | 748 |
-| Missing Hrefs (CAT-001) | 84 |
-| Undeclared Files (CAT-002) | 515 |
+| Available | 744 |
+| Missing Hrefs (CAT-001) | 0 |
+| Undeclared Files (CAT-002) | 444 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -40,11 +40,11 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 84 |
+| Critical | 0 |
 | Suspect | 114 |
 | Warning | 869 |
 | Info | 395 |
-| **Total** | **2451** |
+| **Total** | **2296** |
 
 ### Sync Status
 
@@ -2613,344 +2613,6 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
-
-### CRITICAL (84)
-
-**[CAT-001]** Module 'clh-001' href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'clh-001'
-
-**[CAT-001]** Module 'script-clh-001' href 'courses/clh/modules/clh-001/script-lab.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'script-clh-001'
-
-**[CAT-001]** Module 'forge-storage-raid' href 'applets/hardware/forge-raid-level.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-storage-raid'
-
-**[CAT-001]** Module 'forge-cpu-arch-ref' href 'reference/forge-cpu-architecture.applet.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-cpu-arch-ref'
-
-**[CAT-001]** Module 'forge-windows-shortcuts' href 'reference/forge-windows-shortcuts.applet.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-windows-shortcuts'
-
-**[CAT-001]** Module 'forge-core2-roleplay-lab' href 'applets/comptia-aplus/forge-core2-roleplay.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'forge-core2-roleplay-lab'
-
-**[CAT-001]** Module 'web-network-services' href 'applets/visualizers/web-network-services.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-network-services'
-
-**[CAT-001]** Module 'web-exam-flashcards' href 'applets/web-networking-exam-flashcards.exam.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-exam-flashcards'
-
-**[CAT-001]** Module 'web-acl-viz' href 'applets/visualizers/web-acl.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-acl-viz'
-
-**[CAT-001]** Module 'web-cable-viz' href 'applets/visualizers/web-cable.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-cable-viz'
-
-**[CAT-001]** Module 'web-devices-viz' href 'applets/visualizers/web-devices.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-devices-viz'
-
-**[CAT-001]** Module 'web-etherchannel-viz' href 'applets/visualizers/web-etherchannel.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-etherchannel-viz'
-
-**[CAT-001]** Module 'web-fhrp-viz' href 'applets/visualizers/web-fhrp.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-fhrp-viz'
-
-**[CAT-001]** Module 'web-ipv6-viz' href 'applets/visualizers/web-ipv6.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-ipv6-viz'
-
-**[CAT-001]** Module 'web-osi-deep-viz' href 'applets/visualizers/web-osi-deep-dive.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-osi-deep-viz'
-
-**[CAT-001]** Module 'web-osi-viz' href 'applets/visualizers/web-osi.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-osi-viz'
-
-**[CAT-001]** Module 'web-ospf-cost-viz' href 'applets/visualizers/web-ospf-cost.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-ospf-cost-viz'
-
-**[CAT-001]** Module 'web-port-viz' href 'applets/visualizers/web-port.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-port-viz'
-
-**[CAT-001]** Module 'web-qos-viz' href 'applets/visualizers/web-qos.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-qos-viz'
-
-**[CAT-001]** Module 'web-security-viz' href 'applets/visualizers/web-security.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-security-viz'
-
-**[CAT-001]** Module 'web-stp-viz' href 'applets/visualizers/web-stp.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-stp-viz'
-
-**[CAT-001]** Module 'web-subnetting-viz' href 'applets/visualizers/web-subnetting.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-subnetting-viz'
-
-**[CAT-001]** Module 'web-switch-ops-viz' href 'applets/visualizers/web-switch-operations.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-switch-ops-viz'
-
-**[CAT-001]** Module 'web-topology-viz' href 'applets/visualizers/web-topology.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-topology-viz'
-
-**[CAT-001]** Module 'web-troubleshoot-viz' href 'applets/visualizers/web-troubleshooting.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-troubleshoot-viz'
-
-**[CAT-001]** Module 'web-vlan-viz' href 'applets/visualizers/web-vlan.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-vlan-viz'
-
-**[CAT-001]** Module 'web-wireless-arch-viz' href 'applets/visualizers/web-wireless-architecture.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-wireless-arch-viz'
-
-**[CAT-001]** Module 'web-wireless-viz' href 'applets/visualizers/web-wireless.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-wireless-viz'
-
-**[CAT-001]** Module 'web-troubleshooting' href 'applets/visualizers/web-troubleshooting.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-troubleshooting'
-
-**[CAT-001]** Module 'web-networking-ch7-10' href 'applets/networking-quizzes/web-networking-ch7-10.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-networking-ch7-10'
-
-**[CAT-001]** Module 'web-networking-ch7-20' href 'applets/networking-quizzes/web-networking-ch7-20.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-networking-ch7-20'
-
-**[CAT-001]** Module 'web-networking-final' href 'applets/networking-quizzes/web-networking-final-review.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-networking-final'
-
-**[CAT-001]** Module 'web-week3-quiz' href 'applets/networking-quizzes/web-week3.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'web-week3-quiz'
-
-**[CAT-001]** Module 'shield-aaa-simulator' href 'applets/access/shield-aaa-flow.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-aaa-simulator'
-
-**[CAT-001]** Module 'shield-gpg-lab' href 'applets/crypto/shield-gpg-encryption.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-gpg-lab'
-
-**[CAT-001]** Module 'shield-hash-lab' href 'applets/crypto/hashing_steganography/shield-hash.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-hash-lab'
-
-**[CAT-001]** Module 'shield-hash-steg-pres' href 'applets/crypto/hashing_steganography/shield-hash-steg.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-hash-steg-pres'
-
-**[CAT-001]** Module 'shield-hashing-lab' href 'applets/crypto/hashing_steganography/shield-hashing.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-hashing-lab'
-
-**[CAT-001]** Module 'shield-data-lifecycle' href 'applets/fundamentals/shield-data-lifecycle.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-data-lifecycle'
-
-**[CAT-001]** Module 'shield-eh-case' href 'applets/games/ethical_hacking_case/shield-eh-exam-1-a.exam.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-eh-case'
-
-**[CAT-001]** Module 'shield-incident-sim' href 'applets/risk/shield-incident-response.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-incident-sim'
-
-**[CAT-001]** Module 'shield-bia-calculator' href 'applets/risk/shield-bia.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-bia-calculator'
-
-**[CAT-001]** Module 'shield-crisc-calculator' href 'applets/risk/shield-crisc-risk.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-crisc-calculator'
-
-**[CAT-001]** Module 'shield-zero-trust' href 'applets/architecture/shield-zero-trust.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-zero-trust'
-
-**[CAT-001]** Module 'shield-ir-forensics' href 'applets/operations/shield-ir-forensics.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-ir-forensics'
-
-**[CAT-001]** Module 'shield-security-models' href 'applets/architecture/shield-security-models.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-security-models'
-
-**[CAT-001]** Module 'shield-linux-firewall' href 'applets/network/linux-firewall-builder.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'shield-linux-firewall'
-
-**[CAT-001]** Module 'key-cryptanalysis-tool' href 'tools/key-cryptanalysis.lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'key-cryptanalysis-tool'
-
-**[CAT-001]** Module 'key-hashing' href 'applets/hashing-lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'key-hashing'
-
-**[CAT-001]** Module 'cloud-models' href 'applets/fundamentals/cloud-ch01-cloud-models.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-models'
-
-**[CAT-001]** Module 'cloud-aws-account' href 'applets/aws/cloud-ch02-aws-account.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-account'
-
-**[CAT-001]** Module 'cloud-aws-security' href 'applets/aws/cloud-ch05-security.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-security'
-
-**[CAT-001]** Module 'cloud-aws-compute' href 'applets/aws/cloud-ch07-compute-services.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-compute'
-
-**[CAT-001]** Module 'cloud-aws-storage' href 'applets/aws/cloud-ch08-storage-services.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-storage'
-
-**[CAT-001]** Module 'cloud-aws-database' href 'applets/aws/cloud-ch09-database-services.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-database'
-
-**[CAT-001]** Module 'cloud-aws-networking' href 'applets/aws/cloud-ch10-vpc-networking.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-networking'
-
-**[CAT-001]** Module 'cloud-aws-services' href 'applets/aws/cloud-aws-service.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-services'
-
-**[CAT-001]** Module 'cloud-aws-practitioner' href 'applets/aws/cloud-ch12-aws-practitioner-final.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-practitioner'
-
-**[CAT-001]** Module 'cloud-support-plans' href 'applets/aws/cloud-ch03-support-plans.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-support-plans'
-
-**[CAT-001]** Module 'cloud-regions' href 'applets/aws/cloud-ch04-aws-regions.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-regions'
-
-**[CAT-001]** Module 'cloud-iam-quiz' href 'applets/aws/cloud-ch05-iam-security.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-iam-quiz'
-
-**[CAT-001]** Module 'cloud-aws-tools' href 'applets/aws/cloud-ch06-aws-tools.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-tools'
-
-**[CAT-001]** Module 'cloud-ec2-visualizer' href 'applets/aws/cloud-ch07-ec2-instance.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-ec2-visualizer'
-
-**[CAT-001]** Module 'cloud-storage-quiz' href 'applets/aws/cloud-ch08-storage.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-storage-quiz'
-
-**[CAT-001]** Module 'cloud-database-quiz' href 'applets/aws/cloud-ch09-database.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-database-quiz'
-
-**[CAT-001]** Module 'cloud-networking-quiz' href 'applets/aws/cloud-ch10-networking.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-networking-quiz'
-
-**[CAT-001]** Module 'cloud-automation' href 'applets/aws/cloud-ch11-automation.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-automation'
-
-**[CAT-001]** Module 'cloud-use-cases' href 'applets/aws/cloud-ch12-use-cases.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-use-cases'
-
-**[CAT-001]** Module 'cloud-fundamentals-quiz' href 'applets/fundamentals/cloud-ch01-cloud-fundamentals.quiz.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-fundamentals-quiz'
-
-**[CAT-001]** Module 'cloud-visualizer' href 'applets/fundamentals/cloud-cloud.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-visualizer'
-
-**[CAT-001]** Module 'cse-module01' href 'modules/cse/cloud-cse-module01.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module01'
-
-**[CAT-001]** Module 'cse-module02' href 'modules/cse/cloud-cse-module02.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module02'
-
-**[CAT-001]** Module 'cse-module03' href 'modules/cse/cloud-cse-module03.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module03'
-
-**[CAT-001]** Module 'cse-module04' href 'modules/cse/cloud-cse-module04.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module04'
-
-**[CAT-001]** Module 'cse-module05' href 'modules/cse/cloud-cse-module05.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module05'
-
-**[CAT-001]** Module 'cse-module06' href 'modules/cse/cloud-cse-module06.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module06'
-
-**[CAT-001]** Module 'cse-module07' href 'modules/cse/cloud-cse-module07.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module07'
-
-**[CAT-001]** Module 'cse-module08' href 'modules/cse/cloud-cse-module08.presentation.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cse-module08'
-
-**[CAT-001]** Module 'cloud-aws-support' href 'applets/aws/cloud-ch03-support-plans.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-support'
-
-**[CAT-001]** Module 'cloud-aws-regions' href 'applets/aws/cloud-ch04-aws-regions.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-regions'
-
-**[CAT-001]** Module 'cloud-aws-ec2' href 'applets/aws/cloud-ch07-ec2-instance.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-ec2'
-
-**[CAT-001]** Module 'cloud-aws-automation' href 'applets/aws/cloud-ch11-automation.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-automation'
-
-**[CAT-001]** Module 'cloud-aws-use-cases' href 'applets/aws/cloud-ch12-use-cases.tool.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'cloud-aws-use-cases'
-
-**[CAT-001]** Module 'code-pod-crossing' href 'games/pod-crossing.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file or fix the href for module 'code-pod-crossing'
 
 ### SUSPECT (114) — heuristic, needs review
 

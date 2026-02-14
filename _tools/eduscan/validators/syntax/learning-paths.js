@@ -316,8 +316,8 @@ class LearningPathsValidator {
 
         // Sort by severity
         issues.sort((a, b) => {
-            const order = { critical: 0, high: 1, warning: 2, info: 3 };
-            return (order[a.severity] || 4) - (order[b.severity] || 4);
+            const order = { critical: 0, high: 1, warning: 2, suspect: 3, info: 4 };
+            return (order[a.severity] || 5) - (order[b.severity] || 5);
         });
 
         return { issues, stats };
