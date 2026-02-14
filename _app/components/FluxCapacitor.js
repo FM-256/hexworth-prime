@@ -9,6 +9,17 @@
 (function() {
     'use strict';
 
+    // ── HED.js (Host Error Detector) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'HED.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
     // ═══════════════════════════════════════════════════════════════
     // CONFIGURATION
     // ═══════════════════════════════════════════════════════════════
