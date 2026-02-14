@@ -79,7 +79,18 @@ class ProgressManager {
         try {
             const stored = localStorage.getItem(this.STORAGE_KEYS.PROGRESS);
             if (stored) {
-                return JSON.parse(stored);
+                const data = JSON.parse(stored);
+                // Merge with defaults to ensure all required fields exist
+                const defaults = this.createDefaultProgress();
+                return {
+                    ...defaults,
+                    ...data,
+                    completedModules: data.completedModules || defaults.completedModules,
+                    quizHistory: data.quizHistory || defaults.quizHistory,
+                    labsCompleted: data.labsCompleted || defaults.labsCompleted,
+                    divergentBranches: data.divergentBranches || defaults.divergentBranches,
+                    houses: data.houses || defaults.houses
+                };
             }
         } catch (e) {
             console.warn('ProgressManager: Error loading progress', e);

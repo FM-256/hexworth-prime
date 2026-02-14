@@ -970,7 +970,7 @@
             </p>
             <div class="start-here-items">
                 ${starters.map(m => `
-                    <div class="start-here-item" onclick="openModule('${m.id}')">
+                    <div class="start-here-item" onclick="if('${m.href}')window.location.href='${m.href}'">
                         <span class="start-here-item-icon">${m.icon}</span>
                         <div class="start-here-item-info">
                             <div class="start-here-item-title">${m.title}</div>
