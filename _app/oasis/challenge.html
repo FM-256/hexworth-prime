@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OASIS Ring Challenge - Hexworth Prime</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #8b5cf6;
+            text-transform: uppercase;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Challenge Container */
+        #challenge-container {
+            min-height: 60vh;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(139, 92, 246, 0.2);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .error-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+
+        .error-detail {
+            color: #94a3b8;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 10px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            #answer-buttons {
+                grid-template-columns: 1fr !important;
+            }
+
+            #question-text {
+                font-size: 20px !important;
+            }
+        }
+
+        /* Background Animation */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(139, 92, 246, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Grid -->
+    <div class="bg-grid"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>⚔️ OASIS Ring Challenge</h1>
+        <a href="gallery.html" class="back-btn">← Return to Gallery</a>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div id="challenge-container">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p style="color: #94a3b8;">Loading challenge...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="../components/RingManager.js"></script>
+    <script src="../components/RingChallengeData.js"></script>
+    <script src="../components/RingChallengeEngine.js"></script>
+
+    <!-- Main Script -->
+    <script>
+        (function() {
+            'use strict';
+
+            // Get ring ID from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const ringId = urlParams.get('ring');
+
+            // Validate ring ID
+            if (!ringId) {
+                showError('Missing Ring ID', 'No ring specified in URL. Please select a ring from the gallery.');
+                return;
+            }
+
+            const validRings = ['shield', 'web', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+            if (!validRings.includes(ringId)) {
+                showError('Invalid Ring ID', `Ring "${ringId}" does not exist. Valid rings: ${validRings.join(', ')}`);
+                return;
+            }
+
+            // House color mapping
+            const houseColors = {
+                shield: '#f87171',    // Red
+                web: '#60a5fa',       // Blue
+                forge: '#fb923c',     // Orange
+                script: '#a78bfa',    // Purple
+                cloud: '#38bdf8',     // Sky blue
+                code: '#4ade80',      // Green
+                key: '#fbbf24',       // Yellow
+                eye: '#c084fc'        // Purple-pink
+            };
+
+            // Get questions for this ring
+            const questions = RingChallengeData.getQuestions(ringId);
+            if (!questions || questions.length === 0) {
+                showError('No Questions Available', `No question bank found for the ${ringId} ring.`);
+                return;
+            }
+
+            // Initialize challenge engine
+            try {
+                RingChallengeEngine.init({
+                    containerId: 'challenge-container',
+                    ringId: ringId,
+                    questions: questions,
+                    onComplete: handleChallengeComplete,
+                    houseColor: houseColors[ringId] || '#8b5cf6'
+                });
+            } catch (error) {
+                console.error('Challenge initialization failed:', error);
+                showError('Initialization Failed', error.message);
+            }
+
+            /**
+             * Handle challenge completion
+             */
+            function handleChallengeComplete(result) {
+                console.log('Challenge completed:', result);
+
+                // Submit score to RingManager if available
+                if (typeof RingManager !== 'undefined') {
+                    try {
+                        RingManager.submitScore(result.ringId, result.score, result);
+                        console.log('Score submitted to RingManager');
+                    } catch (error) {
+                        console.error('Failed to submit score:', error);
+                    }
+                }
+
+                // Store result in localStorage as backup
+                try {
+                    const storageKey = `ring_challenge_${result.ringId}_best`;
+                    const existing = localStorage.getItem(storageKey);
+                    const existingScore = existing ? JSON.parse(existing).score : 0;
+
+                    if (result.score > existingScore) {
+                        localStorage.setItem(storageKey, JSON.stringify(result));
+                        console.log('New personal best saved');
+                    }
+                } catch (error) {
+                    console.error('Failed to save result to localStorage:', error);
+                }
+
+                // Track achievement if high score
+                if (result.score >= 8000) {
+                    trackAchievement('ring_master_' + result.ringId);
+                }
+
+                if (result.perfectRun) {
+                    trackAchievement('perfect_run_' + result.ringId);
+                }
+
+                if (result.bestStreak >= 10) {
+                    trackAchievement('streak_master');
+                }
+            }
+
+            /**
+             * Track achievement
+             */
+            function trackAchievement(achievementId) {
+                if (typeof AchievementSystem !== 'undefined') {
+                    try {
+                        AchievementSystem.unlock(achievementId);
+                    } catch (error) {
+                        console.log('Achievement tracking not available:', error);
+                    }
+                }
+            }
+
+            /**
+             * Show error state
+             */
+            function showError(title, message) {
+                const container = document.getElementById('challenge-container');
+                container.innerHTML = `
+                    <div class="error">
+                        <div class="error-icon">⚠️</div>
+                        <div class="error-message">${title}</div>
+                        <div class="error-detail">${message}</div>
+                        <a href="gallery.html" class="back-btn">← Return to Gallery</a>
+                    </div>
+                `;
+            }
+
+            /**
+             * Handle visibility change (pause timer when tab hidden)
+             */
+            let wasPlaying = false;
+            document.addEventListener('visibilitychange', function() {
+                const state = RingChallengeEngine.getState();
+
+                if (document.hidden) {
+                    // Tab hidden - pause if playing
+                    if (state.phase === 'playing') {
+                        wasPlaying = true;
+                        // Could add pause functionality to engine
+                    }
+                } else {
+                    // Tab visible - resume if was playing
+                    if (wasPlaying && state.phase === 'playing') {
+                        wasPlaying = false;
+                        // Could add resume functionality
+                    }
+                }
+            });
+
+            /**
+             * Warn before page unload during challenge
+             */
+            window.addEventListener('beforeunload', function(e) {
+                const state = RingChallengeEngine.getState();
+                if (state.phase === 'playing') {
+                    e.preventDefault();
+                    e.returnValue = 'Your challenge is in progress. Are you sure you want to leave?';
+                    return e.returnValue;
+                }
+            });
+
+            /**
+             * Debug info (only in development)
+             */
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('=== OASIS Ring Challenge Debug ===');
+                console.log('Ring ID:', ringId);
+                console.log('Question Count:', questions.length);
+                console.log('House Color:', houseColors[ringId]);
+                console.log('Valid Rings:', validRings);
+                console.log('==================================');
+
+                // Expose engine to console for debugging
+                window.debugChallenge = {
+                    engine: RingChallengeEngine,
+                    data: RingChallengeData,
+                    ringId: ringId,
+                    questions: questions,
+                    getState: () => RingChallengeEngine.getState()
+                };
+            }
+
+            /**
+             * Analytics (if available)
+             */
+            function trackEvent(category, action, label, value) {
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', action, {
+                        event_category: category,
+                        event_label: label,
+                        value: value
+                    });
+                }
+            }
+
+            // Track challenge start
+            trackEvent('ring_challenge', 'start', ringId);
+
+        })();
+    </script>
+</body>
+</html>

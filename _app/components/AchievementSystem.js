@@ -1672,6 +1672,91 @@ class AchievementSystem {
         },
 
         // ═══════════════════════════════════════════════════════════════
+        // OASIS RINGS
+        // ═══════════════════════════════════════════════════════════════
+        ring_seeker: {
+            id: 'ring_seeker',
+            name: 'Ring Seeker',
+            description: 'Attempt your first OASIS Ring challenge',
+            icon: '💍',
+            category: 'oasis',
+            points: 100,
+            secret: false
+        },
+        ring_bearer: {
+            id: 'ring_bearer',
+            name: 'Ring Bearer',
+            description: 'Claim your first OASIS Ring',
+            icon: '👑',
+            category: 'oasis',
+            points: 500,
+            secret: false
+        },
+        ring_defender: {
+            id: 'ring_defender',
+            name: 'Ring Defender',
+            description: 'Successfully defend a Ring against a challenger',
+            icon: '🛡️',
+            category: 'oasis',
+            points: 200,
+            secret: false
+        },
+        ring_collector: {
+            id: 'ring_collector',
+            name: 'Ring Collector',
+            description: 'Hold 3 OASIS Rings simultaneously',
+            icon: '💎',
+            category: 'oasis',
+            points: 1000,
+            secret: false
+        },
+        lord_of_rings: {
+            id: 'lord_of_rings',
+            name: 'Lord of the Rings',
+            description: 'Hold all 8 OASIS Rings simultaneously',
+            icon: '🔥',
+            category: 'oasis',
+            points: 5000,
+            secret: true
+        },
+        ring_dynasty: {
+            id: 'ring_dynasty',
+            name: 'Ring Dynasty',
+            description: 'Hold a single Ring for 30 days',
+            icon: '🏰',
+            category: 'oasis',
+            points: 1000,
+            secret: false
+        },
+        ring_thief: {
+            id: 'ring_thief',
+            name: 'Ring Thief',
+            description: 'Claim a Ring from another house',
+            icon: '🗝️',
+            category: 'oasis',
+            points: 300,
+            secret: false
+        },
+        fellowship: {
+            id: 'fellowship',
+            name: 'The Fellowship',
+            description: 'Attempt all 8 Ring challenges',
+            icon: '⚔️',
+            category: 'oasis',
+            points: 500,
+            secret: false
+        },
+        perfect_challenger: {
+            id: 'perfect_challenger',
+            name: 'Perfect Challenger',
+            description: 'Score a perfect run on any Ring challenge',
+            icon: '✨',
+            category: 'oasis',
+            points: 300,
+            secret: false
+        },
+
+        // ═══════════════════════════════════════════════════════════════
         // PRESTIGE / LEGENDARY
         // ═══════════════════════════════════════════════════════════════
         hexworth_legend: {
