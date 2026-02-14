@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Flap - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #020617;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute; top: 20px; left: 20px;
+            color: #3b82f6; text-decoration: none; font-size: 16px;
+            cursor: pointer; z-index: 100; transition: color 0.3s;
+        }
+        .back-link:hover { color: #60a5fa; }
+        #gameWrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+        #lorePanel {
+            width: 260px;
+            background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+            border: 2px solid #1e3a8a;
+            border-right: none;
+            padding: 20px;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 606px;
+            overflow-y: auto;
+        }
+        .lore-title {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: #fff; font-size: 18px; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 3px;
+            border-bottom: 2px solid #60a5fa;
+            padding: 12px 8px; text-align: center;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+            margin: -20px -20px 0 -20px;
+        }
+        .lore-section h3 {
+            color: #60a5fa; font-size: 12px; margin-bottom: 6px;
+            border-left: 3px solid #3b82f6; padding-left: 6px;
+        }
+        .lore-section p { line-height: 1.6; margin-bottom: 4px; }
+        .lore-section em { color: #60a5fa; font-style: normal; }
+        .stat-row {
+            display: flex; justify-content: space-between;
+            padding: 3px 0; border-bottom: 1px solid #1e293b;
+        }
+        .stat-label { color: #94a3b8; }
+        .stat-value { color: #60a5fa; font-weight: bold; }
+        .milestone-log {
+            background: #0f172a; border: 1px solid #1e3a8a;
+            padding: 8px; font-size: 10px; line-height: 1.5;
+            max-height: 100px; overflow-y: auto; color: #94a3b8;
+        }
+        .milestone-log .entry { border-bottom: 1px solid #0f172a; padding: 2px 0; }
+        .milestone-log .entry em { color: #60a5fa; font-style: normal; }
+        #muteBtn {
+            position: absolute; top: 20px; right: 20px;
+            background: #3b82f6; color: #020617; border: none;
+            padding: 8px 16px; cursor: pointer; z-index: 100;
+            font-family: 'Courier New', monospace; font-weight: bold;
+            transition: background 0.3s;
+        }
+        #muteBtn:hover { background: #2563eb; }
+        #gameContainer { position: relative; }
+        #controls {
+            text-align: center; margin-top: 12px;
+            color: #64748b; font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" href="../index.html">&larr; Back to Web House</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+
+    <div id="gameWrapper">
+        <div id="lorePanel">
+            <div class="lore-title">PACKET FLAP</div>
+
+            <div class="lore-section">
+                <h3>Mission Brief</h3>
+                <p>You are <em>PACKET-7</em>, a lone datagram navigating the hostile firewall gauntlet. Each gap is an open port &mdash; miss it and you're <em>DROP'd</em>.</p>
+            </div>
+
+            <div class="lore-section">
+                <h3>Controls</h3>
+                <p style="color:#e2e8f0;">SPACE / CLICK &mdash; Flap</p>
+                <p style="color:#e2e8f0;">UP / W &mdash; Flap</p>
+            </div>
+
+            <div class="lore-section">
+                <h3>Intel</h3>
+                <p>Firewalls tighten as you progress. Every packet that passes earns +1 hop. Reach milestones to unlock protocol intel.</p>
+            </div>
+
+            <div class="lore-section">
+                <h3>Stats</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="sideScore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">High Score</span>
+                    <span class="stat-value" id="sideHigh">0</span>
+                </div>
+            </div>
+
+            <div class="lore-section">
+                <h3>Protocol Log</h3>
+                <div class="milestone-log" id="milestoneLog">
+                    <div class="entry" style="color:#475569;">Awaiting transmission...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameContainer"></div>
+    </div>
+
+    <div id="controls">SPACE / CLICK to flap &bull; Navigate through the open ports</div>
+
+    <script src="../../../components/FlappyEngine.js"></script>
+    <script>
+        let game = null;
+
+        function drawPacketSprite(ctx, w, h, flapFrame) {
+            // Envelope body
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(-w/2, -h/2, w, h);
+            // Envelope border
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-w/2, -h/2, w, h);
+            // Binary bits on face
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 7px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('101', 0, -1);
+            ctx.fillText('010', 0, 8);
+            // Flap effect — small wings
+            if (flapFrame > 0.3) {
+                ctx.fillStyle = 'rgba(96,165,250,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(-w/2, 0);
+                ctx.lineTo(-w/2 - 8, -6);
+                ctx.lineTo(-w/2, -4);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(w/2, 0);
+                ctx.lineTo(w/2 + 8, -6);
+                ctx.lineTo(w/2, -4);
+                ctx.fill();
+            }
+        }
+
+        function drawFirewallDecoration(ctx, pipe) {
+            // Flame-like glow at gap edges
+            const gradient1 = ctx.createRadialGradient(
+                pipe.x + pipe.width/2, pipe.gapY, 2,
+                pipe.x + pipe.width/2, pipe.gapY, 25
+            );
+            gradient1.addColorStop(0, 'rgba(251,146,60,0.5)');
+            gradient1.addColorStop(1, 'rgba(251,146,60,0)');
+            ctx.fillStyle = gradient1;
+            ctx.fillRect(pipe.x - 10, pipe.gapY - 25, pipe.width + 20, 25);
+
+            const gradient2 = ctx.createRadialGradient(
+                pipe.x + pipe.width/2, pipe.gapY + pipe.gapSize, 2,
+                pipe.x + pipe.width/2, pipe.gapY + pipe.gapSize, 25
+            );
+            gradient2.addColorStop(0, 'rgba(251,146,60,0.5)');
+            gradient2.addColorStop(1, 'rgba(251,146,60,0)');
+            ctx.fillStyle = gradient2;
+            ctx.fillRect(pipe.x - 10, pipe.gapY + pipe.gapSize, pipe.width + 20, 25);
+        }
+
+        const milestones = {
+            3: 'SYN, SYN-ACK, ACK — The TCP three-way handshake establishes every reliable connection.',
+            7: 'HTTP methods: GET retrieves, POST creates, PUT updates, DELETE removes resources.',
+            12: 'DNS resolves domain names to IP addresses — the phonebook of the internet.',
+            18: 'TLS 1.3 reduced the handshake to just 1 round trip (1-RTT), down from 2 in TLS 1.2.',
+            25: 'ARP maps IP addresses to MAC addresses on the local network segment.',
+            30: 'BGP (Border Gateway Protocol) is the routing protocol that holds the internet together.',
+            40: 'ICMP carries diagnostic messages — ping and traceroute rely on it.',
+            50: 'NAT (Network Address Translation) maps private IPs to public — IPv4 survival trick.'
+        };
+
+        function updateSidePanel(score) {
+            document.getElementById('sideScore').textContent = score;
+        }
+
+        function logMilestone(ms, fact) {
+            const log = document.getElementById('milestoneLog');
+            if (log.querySelector('.entry:first-child').textContent === 'Awaiting transmission...') {
+                log.innerHTML = '';
+            }
+            const entry = document.createElement('div');
+            entry.className = 'entry';
+            entry.innerHTML = '<em>[' + ms + ']</em> ' + fact;
+            log.prepend(entry);
+
+            // Achievement integration
+            if (typeof AchievementSystem !== 'undefined') {
+                if (ms >= 10) AchievementSystem.unlock('flappy_packet_10');
+                if (ms >= 25) AchievementSystem.unlock('flappy_packet_25');
+                if (ms >= 50) AchievementSystem.unlock('flappy_packet_50');
+            }
+        }
+
+        function onGameOver(finalScore) {
+            document.getElementById('sideHigh').textContent = Math.max(
+                finalScore, parseInt(document.getElementById('sideHigh').textContent) || 0
+            );
+        }
+
+        game = FlappyEngine.init({
+            containerId: 'gameContainer',
+            title: 'PACKET FLAP',
+            character: {
+                name: 'PACKET-7',
+                sprite: drawPacketSprite,
+                width: 28,
+                height: 22,
+                color: '#3b82f6'
+            },
+            pipes: {
+                color: '#b91c1c',
+                borderColor: '#f97316',
+                gapSize: 150,
+                speed: 2.5,
+                spacing: 95,
+                labels: ['DROP', 'DENY', 'REJECT', 'BLOCK', 'FILTER', 'ACL', 'FW-01', 'FW-02'],
+                drawDecoration: drawFirewallDecoration
+            },
+            background: {
+                topColor: '#0f0a2e',
+                bottomColor: '#1e1b4b',
+                groundColor: '#0c0a1a'
+            },
+            theme: {
+                accentColor: '#3b82f6',
+                scoreColor: '#ffffff'
+            },
+            audio: { enabled: true },
+            storageKey: 'hexworth_flappy_packet',
+            trackerKey: 'flappy_packet',
+            milestones: milestones,
+            onScore: function(score) {
+                updateSidePanel(score);
+            },
+            onGameOver: onGameOver,
+            onMilestone: logMilestone
+        });
+
+        document.getElementById('sideHigh').textContent = game.getHighScore();
+
+        function toggleMute() {
+            const enabled = game.toggleAudio();
+            document.getElementById('muteBtn').textContent = enabled ? 'MUTE' : 'UNMUTE';
+        }
+    </script>
+</body>
+</html>

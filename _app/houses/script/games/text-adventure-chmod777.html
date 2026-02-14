@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chmod 777 — The Permission Nightmare — Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(4px); }
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.96; }
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 5px rgba(34, 197, 94, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.6); }
+        }
+
+        @keyframes urgentPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(34, 197, 94, 0.015) 50%,
+                rgba(0, 0, 0, 0.015) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanlines 8s linear infinite;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(34, 197, 94, 0.008);
+            pointer-events: none;
+            z-index: 999;
+            animation: flicker 0.15s infinite;
+        }
+
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(34, 197, 94, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            color: #22c55e;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        .game-title {
+            color: #22c55e;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+            text-align: center;
+            flex: 1;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #clock {
+            color: #ff3333;
+            font-size: 14px;
+            font-weight: bold;
+            animation: urgentPulse 2s ease-in-out infinite;
+        }
+
+        #audio-toggle {
+            background: none;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #22c55e;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+
+        #audio-toggle:hover {
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        #narrative {
+            min-height: 300px;
+            padding: 20px 0;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #00ff41;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        .cmd { color: #22c55e; }
+        .danger { color: #ff3333; text-shadow: 0 0 5px rgba(255, 51, 51, 0.3); }
+        .warning { color: #ffaa00; }
+        .success { color: #00ff41; text-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
+        .system { color: #888; }
+        .highlight { color: #ff66ff; }
+        .perm { color: #00d4ff; font-weight: bold; }
+
+        #choices {
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .choice-btn {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #22c55e;
+            padding: 12px 18px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            transition: all 0.3s;
+            border-radius: 3px;
+            animation: fadeIn 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .choice-btn:nth-child(1) { animation-delay: 0.1s; }
+        .choice-btn:nth-child(2) { animation-delay: 0.2s; }
+        .choice-btn:nth-child(3) { animation-delay: 0.3s; }
+        .choice-btn:nth-child(4) { animation-delay: 0.4s; }
+
+        .choice-btn:hover {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+            transform: translateX(5px);
+        }
+
+        .choice-btn .choice-key {
+            color: #00ff41;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #inventory-panel {
+            border-top: 1px solid rgba(34, 197, 94, 0.3);
+            margin-top: 20px;
+            padding-top: 15px;
+        }
+
+        .inv-title {
+            color: #22c55e;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .inv-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .inv-item {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 3px 10px;
+            font-size: 11px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .inv-item.key-item {
+            border-color: #ffaa00;
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        #start-screen {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        #start-screen h1 {
+            font-size: 36px;
+            color: #ff3333;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(255, 51, 51, 0.4);
+        }
+
+        #start-screen .subtitle {
+            color: #22c55e;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        #start-screen .description {
+            color: #888;
+            font-size: 14px;
+            max-width: 500px;
+            margin: 0 auto 30px;
+            line-height: 1.6;
+        }
+
+        .start-btn {
+            background: rgba(34, 197, 94, 0.1);
+            border: 2px solid #22c55e;
+            color: #22c55e;
+            padding: 15px 40px;
+            font-size: 18px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+            margin: 8px;
+            border-radius: 3px;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .start-btn:hover {
+            background: rgba(34, 197, 94, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .start-btn.secondary {
+            border-color: #666;
+            color: #888;
+            animation: none;
+        }
+
+        .start-btn.secondary:hover {
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .ascii-art {
+            white-space: pre;
+            font-size: 11px;
+            line-height: 1.1;
+            color: #ff3333;
+            margin: 20px 0;
+            text-shadow: 0 0 5px rgba(255, 51, 51, 0.3);
+        }
+
+        .ending-banner {
+            text-align: center;
+            padding: 30px;
+            margin: 20px 0;
+            border: 2px solid;
+            border-radius: 5px;
+        }
+
+        .ending-banner.good { border-color: #00ff41; color: #00ff41; background: rgba(0, 255, 65, 0.05); }
+        .ending-banner.bad { border-color: #ff3333; color: #ff3333; background: rgba(255, 51, 51, 0.05); }
+        .ending-banner.neutral { border-color: #ffaa00; color: #ffaa00; background: rgba(255, 170, 0, 0.05); }
+        .ending-banner h2 { margin-bottom: 10px; font-size: 24px; }
+        .ending-banner p { font-size: 13px; opacity: 0.8; }
+
+        .edu-box {
+            border-left: 3px solid #22c55e;
+            padding: 10px 15px;
+            margin: 15px 0;
+            background: rgba(34, 197, 94, 0.05);
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .edu-box .edu-label {
+            color: #22c55e;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .scene-divider {
+            color: #333;
+            margin: 15px 0;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header" style="display:none;">
+            <a class="back-link" href="../index.html">&larr; Back to Script House</a>
+            <div class="game-title">chmod 777</div>
+            <div class="header-controls">
+                <span id="clock"></span>
+                <button id="audio-toggle" title="Toggle audio">&#x1f507;</button>
+            </div>
+        </div>
+
+        <div id="start-screen">
+            <div class="ascii-art">
+   _____ _    _ __  __  ____  _____   ______ ______ ______
+  / ____| |  | |  \/  |/ __ \|  __ \ |____  |____  |____  |
+ | |    | |__| | \  / | |  | | |  | |    / /    / /    / /
+ | |    |  __  | |\/| | |  | | |  | |   / /    / /    / /
+ | |____| |  | | |  | | |__| | |__| |  / /    / /    / /
+  \_____|_|  |_|_|  |_|\____/|_____/  /_/    /_/    /_/
+            </div>
+            <h1>chmod 777</h1>
+            <div class="subtitle">The Permission Nightmare</div>
+            <div class="description">
+A junior admin runs chmod -R 777 / on a production server. You're the senior sysadmin called in at 2 AM. The CEO's presentation is at 9 AM. Fix the catastrophe before anyone notices.
+
+~25 scenes | 3 endings | Unix permissions education
+            </div>
+            <div id="start-buttons">
+                <button class="start-btn" onclick="startNewGame()">[ NEW GAME ]</button>
+            </div>
+        </div>
+
+        <div id="narrative" style="display:none;">
+            <div class="scene-text" id="scene-text"></div>
+            <span class="cursor-blink" id="cursor" style="display:none;"></span>
+        </div>
+        <div id="choices" style="display:none;"></div>
+        <div id="inventory-panel" style="display:none;">
+            <div class="inv-title">// Status</div>
+            <div class="inv-items" id="inv-items"></div>
+        </div>
+    </div>
+
+    <script>
+    // ========================================
+    // AUDIO ENGINE
+    // ========================================
+    const AudioEngine = {
+        ctx: null,
+        muted: true,
+        init() {
+            if (this.ctx) return;
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        },
+        playTick() {
+            if (this.muted || !this.ctx) return;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.ctx.destination);
+            o.frequency.value = 600 + Math.random() * 200;
+            o.type = 'square'; g.gain.value = 0.02;
+            o.start(); o.stop(this.ctx.currentTime + 0.02);
+        },
+        playSelect() {
+            if (this.muted || !this.ctx) return;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.ctx.destination);
+            o.frequency.value = 500; o.type = 'sine';
+            g.gain.setValueAtTime(0.08, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+            o.start(); o.stop(this.ctx.currentTime + 0.15);
+        },
+        playDanger() {
+            if (this.muted || !this.ctx) return;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.ctx.destination);
+            o.frequency.value = 80; o.type = 'sawtooth';
+            g.gain.setValueAtTime(0.06, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+            o.start(); o.stop(this.ctx.currentTime + 0.5);
+        },
+        playVictory() {
+            if (this.muted || !this.ctx) return;
+            [392, 494, 587, 784].forEach((f, i) => {
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.connect(g); g.connect(this.ctx.destination);
+                o.frequency.value = f; o.type = 'sine';
+                g.gain.setValueAtTime(0.06, this.ctx.currentTime + i * 0.15);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.15 + 0.3);
+                o.start(this.ctx.currentTime + i * 0.15);
+                o.stop(this.ctx.currentTime + i * 0.15 + 0.3);
+            });
+        },
+        startAmbient() {
+            if (this.muted || !this.ctx || this._ambientRunning) return;
+            this._ambientRunning = true;
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.ctx.destination);
+            o.frequency.value = 45; o.type = 'sine'; g.gain.value = 0.012;
+            o.start(); this._ambientOsc = o; this._ambientGain = g;
+        },
+        stopAmbient() {
+            if (this._ambientOsc) { this._ambientOsc.stop(); this._ambientOsc = null; this._ambientRunning = false; }
+        }
+    };
+
+    // ========================================
+    // GAME STATE
+    // ========================================
+    const STORAGE_KEY = 'hexworth_ta_chmod';
+    let state = { currentScene: 'phone_call', inventory: [], flags: {}, history: [] };
+    let gameHour = 2;
+    let gameMinute = 0;
+
+    function advanceTime(minutes) {
+        gameMinute += minutes;
+        while (gameMinute >= 60) { gameMinute -= 60; gameHour++; }
+        updateClock();
+    }
+
+    function updateClock() {
+        const h = String(gameHour).padStart(2, '0');
+        const m = String(gameMinute).padStart(2, '0');
+        const remaining = ((9 - gameHour) * 60) - gameMinute;
+        const el = document.getElementById('clock');
+        if (el) {
+            el.textContent = `${h}:${m} | ${remaining > 0 ? remaining + 'min left' : 'TIME UP'}`;
+            el.style.color = remaining <= 60 ? '#ff3333' : remaining <= 180 ? '#ffaa00' : '#22c55e';
+        }
+    }
+
+    // ========================================
+    // SCENES
+    // ========================================
+    const scenes = {
+        phone_call: {
+            text: `<span class="system">[02:00 AM — YOUR PHONE IS RINGING]</span>
+
+<span class="scene-divider">--- --- --- --- ---</span>
+
+Your phone blasts through the silence. The screen reads: <span class="warning">DATACENTER — URGENT</span>
+
+You answer. It's Kevin. The junior admin. He's breathing fast.
+
+<span class="highlight">"Hey... so... I might have done something. On the production server."</span>
+
+You sit up. "What did you do, Kevin?"
+
+<span class="highlight">"I was trying to fix a permission issue on the web directory. I googled it and... I ran chmod -R 777... but I forgot to specify the path. It ran on... everything."</span>
+
+<span class="danger">chmod -R 777 /</span>
+
+Your blood runs cold. Every file on the production server is now world-readable, world-writable, and world-executable. Every. Single. File.
+
+<span class="highlight">"The CEO's quarterly presentation is on that server. Her talk is at 9 AM."</span>
+
+You have 7 hours.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: chmod 777</div>
+chmod 777 sets permissions to rwxrwxrwx — read, write, and execute for owner, group, AND others (everyone). Running this recursively on / means every file on the system — including /etc/passwd, /etc/shadow, SSH keys, cron jobs — is now accessible to ANY user. This is a catastrophic security failure.
+</div>`,
+            choices: [
+                { text: 'Get to the datacenter NOW', next: 'arrive_datacenter', key: 'A' },
+                { text: 'SSH in from home first to assess the damage', next: 'ssh_home', key: 'B' },
+                { text: 'Tell Kevin to shut the server down immediately', next: 'shutdown_order', key: 'C' }
+            ]
+        },
+
+        ssh_home: {
+            text: `<span class="cmd">$ ssh admin@prod-server-01</span>
+
+<span class="danger">WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!</span>
+<span class="danger">IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!</span>
+
+The SSH host key permissions are wrong. With 777, the private key files are world-readable, and SSH refuses to use them. The server's SSH daemon may have already restarted and regenerated keys, or...
+
+Actually, sshd might not even start properly now. The <span class="cmd">/etc/ssh/</span> directory and all its key files are world-writable. OpenSSH refuses to use key files with permissions more permissive than 600.
+
+<span class="cmd">$ ssh -o StrictHostKeyChecking=no admin@prod-server-01</span>
+<span class="danger">Connection refused.</span>
+
+<span class="warning">sshd is down.</span> The daemon detected the bad permissions on its config files and refused to run.
+
+You need to be physically at the server, or use an out-of-band console.`,
+            choices: [
+                { text: 'Drive to the datacenter', next: 'arrive_datacenter', key: 'A' },
+                { text: 'Use the IPMI/BMC console remotely', next: 'ipmi_console', key: 'B' }
+            ]
+        },
+
+        shutdown_order: {
+            text: `"Kevin, shut it down. Now. Pull the power if you have to."
+
+<span class="highlight">"But... the CEO's presentation files—"</span>
+
+"If that server stays up with 777 permissions, every bot scanning the internet will find it. It's a matter of time before someone gets in. Shut. It. Down."
+
+<span class="system">[02:05 AM — Kevin powers off the server]</span>
+
+The server is off. Nothing is being accessed, but nothing is being fixed either. The clock is ticking.
+
+<div class="edu-box">
+<div class="edu-label">Incident Response: Containment vs. Availability</div>
+Shutting down a compromised system stops active exploitation but also stops all legitimate services. In production, this tradeoff is painful. A better approach: isolate the system from the network (firewall rules, VLAN change) while keeping it running for investigation. But with 777 on everything, the risk of continued exposure may outweigh availability needs.
+</div>`,
+            gives: ['server-offline'],
+            choices: [
+                { text: 'Drive to the datacenter to fix it in person', next: 'arrive_datacenter', key: 'A' },
+                { text: 'Check if there are backups first', next: 'check_backups_remote', key: 'B' }
+            ]
+        },
+
+        check_backups_remote: {
+            text: `You pull up the backup dashboard on your phone. The backup server is a separate machine, thankfully.
+
+<span class="success">Last full backup: 11:00 PM (3 hours ago)
+Backup type: rsync + permission metadata (getfacl)
+Retention: 7 daily, 4 weekly</span>
+
+<span class="warning">Wait — does the backup include permission metadata?</span>
+
+You check the backup script...
+
+<span class="cmd">rsync -avz --delete /srv/ backup-server:/backups/prod/</span>
+
+The <span class="cmd">-a</span> flag preserves permissions! The backup has the correct permissions for /srv/. But the backup only covers <span class="cmd">/srv/</span> — not /etc, /home, /var, or any system directories.
+
+For system directories, you'll need to reference the RPM/dpkg database to restore default permissions.`,
+            gives: ['backup-info'],
+            choices: [
+                { text: 'Drive to the datacenter', next: 'arrive_datacenter', key: 'A' }
+            ]
+        },
+
+        ipmi_console: {
+            text: `Smart thinking. The IPMI (Intelligent Platform Management Interface) is an out-of-band management channel — it works independently of the OS.
+
+<span class="cmd">$ ipmitool -I lanplus -H prod-bmc-01 -U admin sol activate</span>
+
+You get a console. The server is still running, and you can log in at the physical console level. But...
+
+<span class="cmd">login: root</span>
+<span class="danger">Login incorrect</span>
+
+PAM (Pluggable Authentication Modules) is failing. The 777 permissions on <span class="cmd">/etc/shadow</span> mean the shadow file is world-readable, and PAM may be rejecting authentication because the shadow file permissions are wrong.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: /etc/shadow Permissions</div>
+The /etc/shadow file stores hashed passwords and MUST be 640 or 600 (readable only by root). When shadow has wrong permissions, PAM authentication modules may refuse to function as a security measure — they assume the system is compromised. This is a chicken-and-egg problem: you can't log in to fix permissions because the permissions prevent login.
+</div>
+
+<span class="warning">You need physical access to boot into single-user mode.</span>`,
+            gives: ['ipmi-attempted'],
+            choices: [
+                { text: 'Drive to the datacenter — no other option', next: 'arrive_datacenter', key: 'A' }
+            ]
+        },
+
+        arrive_datacenter: {
+            text: function() {
+                advanceTime(35);
+                return `<span class="system">[02:35 AM — You arrive at the datacenter]</span>
+
+The parking lot is empty except for Kevin's car. He's sitting in the server room, staring at the rack with the expression of someone who just learned what "production" means.
+
+<span class="highlight">"I'm so sorry. I found the Stack Overflow answer that said chmod 777 fixes permission problems. I didn't think—"</span>
+
+"We'll talk about Stack Overflow later, Kevin."
+
+You badge into the server room. The production server's LEDs are ${state.inventory.includes('server-offline') ? 'dark — Kevin already shut it down as you ordered' : 'blinking steadily. It\'s still running with 777 on everything'}.
+
+You sit down at the KVM console.
+
+${state.inventory.includes('server-offline') ? '<span class="warning">First, you need to boot it back up — in recovery mode.</span>' : '<span class="warning">First priority: assess the damage and decide your strategy.</span>'}`;
+            },
+            choices: [
+                { text: 'Boot into single-user/recovery mode', next: 'single_user', key: 'A' },
+                { text: 'Check if the server is still network-accessible first', next: 'network_check', key: 'B' },
+                { text: 'Ask Kevin exactly what he did, step by step', next: 'kevin_story', key: 'C' }
+            ]
+        },
+
+        kevin_story: {
+            text: `"Walk me through it. Exactly."
+
+Kevin swallows hard.
+
+<span class="highlight">"The web team filed a ticket. Users couldn't upload files to /srv/www/uploads/. I checked, and the directory was owned by www-data but the group didn't have write."</span>
+
+<span class="highlight">"So I opened a root shell and typed: sudo chmod -R 777"</span>
+
+<span class="highlight">"I was GOING to type /srv/www/uploads/ next. But I accidentally hit Enter first. Then I typed / and hit Enter again."</span>
+
+<span class="cmd">sudo chmod -R 777</span>  ← entered
+<span class="cmd">/</span>  ← entered
+
+<span class="highlight">"So it ran chmod -R 777 on the current directory... which was /"</span>
+
+<span class="danger">He ran chmod -R 777 with no path argument, defaulting to the current working directory, which was /.</span>
+
+<span class="highlight">"I tried to Ctrl+C but it was already done. It only took a few seconds."</span>
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: Dangerous Default Behavior</div>
+When chmod is given no path argument, it operates on the current directory. Combined with -R (recursive) and running as root, this is catastrophic. The correct fix for the original problem was: chmod g+w /srv/www/uploads/ — adding group write to ONLY that directory. Or better: use setfacl for granular ACLs.
+</div>`,
+            gives: ['kevin-story'],
+            choices: [
+                { text: 'Boot into single-user mode to start fixing', next: 'single_user', key: 'A' },
+                { text: 'Check if anyone has already gotten into the server', next: 'network_check', key: 'B' }
+            ]
+        },
+
+        network_check: {
+            text: function() {
+                advanceTime(10);
+                if (state.inventory.includes('server-offline')) {
+                    return `The server is off — you had Kevin shut it down. Good call. No network exposure while it was running with 777.
+
+But you need it running to fix it. Time for recovery mode.`;
+                }
+                return `You check the firewall appliance logs from your phone:
+
+<span class="cmd">Firewall log — last 30 minutes:</span>
+<span class="danger">[02:15] Inbound connection: 185.220.101.42 → prod:22 (SSH) — ALLOWED
+[02:15] Auth failure (SSH) from 185.220.101.42
+[02:16] Inbound connection: 91.240.118.87 → prod:22 (SSH) — ALLOWED
+[02:17] Auth failure (SSH) from 91.240.118.87
+[02:20] Inbound connection: 45.155.205.233 → prod:80 (HTTP) — ALLOWED
+[02:22] Inbound connection: 45.155.205.233 → prod:80 — GET /etc/passwd 200 OK</span>
+
+<span class="danger">Someone already accessed /etc/passwd through the web server.</span>
+
+With 777 on everything, the web server can serve ANY file. <span class="cmd">/etc/passwd</span> is now world-readable (well, it was already, but now <span class="cmd">/etc/shadow</span> is too). And with 777, the web server process can read the shadow file with password hashes.
+
+<span class="warning">The server is actively being probed. You need to isolate it NOW.</span>
+
+<div class="edu-box">
+<div class="edu-label">Security Concept: Directory Traversal</div>
+When a web server can read files outside its document root (because permissions allow it), attackers use path traversal (../../etc/passwd) to access sensitive system files. Proper file permissions are a critical layer of defense even if the web server is misconfigured.
+</div>`;
+            },
+            gives: ['compromised-detected'],
+            choices: [
+                { text: 'Disconnect the network cable immediately', next: 'network_disconnect', key: 'A' },
+                { text: 'Check what else was accessed before disconnecting', next: 'access_audit', key: 'B' }
+            ]
+        },
+
+        access_audit: {
+            text: function() {
+                advanceTime(15);
+                return `<span class="cmd">Checking web server access logs...</span>
+
+<span class="danger">[02:22] GET /etc/passwd — 200 OK (1.2KB)
+[02:22] GET /etc/shadow — 200 OK (892B)
+[02:23] GET /home/deploy/.ssh/id_rsa — 200 OK (1.6KB)
+[02:23] GET /home/deploy/.ssh/authorized_keys — 200 OK (407B)
+[02:24] GET /root/.bash_history — 200 OK (4.1KB)
+[02:25] GET /srv/www/app/config/database.yml — 200 OK (312B)</span>
+
+<span class="danger">They got the shadow file (password hashes), SSH private keys, AND database credentials.</span>
+
+This is now a full breach. Even after you fix the permissions, the attacker has:
+- Password hashes they can crack offline
+- SSH keys for the deploy user
+- Database connection strings
+
+<span class="warning">Every credential on this server is compromised.</span>`;
+            },
+            gives: ['compromised-detected', 'full-breach'],
+            choices: [
+                { text: 'Disconnect the network NOW', next: 'network_disconnect', key: 'A' }
+            ]
+        },
+
+        network_disconnect: {
+            text: function() {
+                advanceTime(2);
+                return `You yank the network cable from the server. The link lights go dark.
+
+<span class="success">Server is now air-gapped.</span> No more inbound or outbound connections.
+
+Kevin winces. "Was someone in there?"
+
+"Yes. They got password hashes, SSH keys, and database creds. We have a much bigger problem than permissions now."
+
+${state.inventory.includes('full-breach') ? '<span class="danger">This is a full incident response situation. The permissions are just the beginning.</span>' : '<span class="warning">We caught it early, but some data was exposed.</span>'}
+
+You still need to fix the permissions for the CEO's presentation. But you also need to handle the breach.`;
+            },
+            gives: ['network-isolated'],
+            choices: [
+                { text: 'Permissions first — fix the server for the 9 AM presentation', next: 'single_user', key: 'A' },
+                { text: 'Breach first — change all credentials before reconnecting', next: 'credential_rotation', key: 'B' },
+                { text: 'Do both in parallel — have Kevin handle one while you do the other', next: 'parallel_work', key: 'C' }
+            ]
+        },
+
+        parallel_work: {
+            text: `You look at Kevin. He's 22, six months out of school, and he looks like he's about to cry.
+
+"Kevin. We're going to fix this. But I need your help."
+
+His eyes widen. "You're... not going to fire me?"
+
+"Not right now. Right now I need you focused. You're going to handle credential rotation while I fix the permissions. Can you do that?"
+
+He straightens up. "Yes. What do I need to do?"
+
+You hand him a list:
+1. Generate new SSH keys for every user account
+2. Reset the database password from the backup server
+3. Force password reset for all local accounts
+4. Rotate the deploy key
+
+"Use the backup server for all of this. DO NOT touch the production server."
+
+<span class="highlight">"Got it. I won't touch production. I've learned that lesson."</span>
+
+<div class="edu-box">
+<div class="edu-label">Leadership Concept: Incident Response Under Pressure</div>
+During a crisis, blame helps nobody. Effective incident leaders focus on containment and recovery, delegate clearly, and save the post-mortem for later. Kevin's mistake was catastrophic, but his willingness to help fix it is more valuable than punishment right now.
+</div>`,
+            gives: ['kevin-helping', 'creds-rotating'],
+            choices: [
+                { text: 'Boot into single-user mode and start fixing permissions', next: 'single_user', key: 'A' }
+            ]
+        },
+
+        credential_rotation: {
+            text: function() {
+                advanceTime(30);
+                return `You spend 30 minutes on the backup server rotating every credential:
+
+<span class="cmd">$ ssh-keygen -t ed25519 -f /tmp/new_deploy_key</span> <span class="success">Done</span>
+<span class="cmd">$ psql -h db-server -U postgres -c "ALTER USER app_user PASSWORD '...';"</span> <span class="success">Done</span>
+<span class="cmd">$ for user in deploy admin kevin; do chage -d 0 $user; done</span> <span class="success">Done</span>
+
+All credentials rotated. Even if the attacker cracked the password hashes, the old passwords are useless now. The SSH keys are regenerated. The database password is changed.
+
+<span class="success">Credential exposure contained.</span>
+
+Now for the main event: fixing those permissions.`;
+            },
+            gives: ['creds-rotated'],
+            choices: [
+                { text: 'Boot into single-user mode', next: 'single_user', key: 'A' }
+            ]
+        },
+
+        single_user: {
+            text: function() {
+                advanceTime(10);
+                return `You reboot the server and interrupt GRUB to edit the boot parameters:
+
+<span class="cmd">GRUB: linux /vmlinuz root=/dev/sda1 ro single init=/bin/bash</span>
+
+The system boots into a root shell with no networking, no services — just you and the filesystem.
+
+<span class="cmd">bash-5.1#</span>
+
+<span class="cmd">$ ls -la /etc/passwd</span>
+<span class="danger">-rwxrwxrwx 1 root root 1847 Dec 10 /etc/passwd</span>
+
+<span class="cmd">$ ls -la /etc/shadow</span>
+<span class="danger">-rwxrwxrwx 1 root root 892 Dec 10 /etc/shadow</span>
+
+<span class="cmd">$ ls -la /usr/bin/sudo</span>
+<span class="danger">-rwxrwxrwx 1 root root 232416 Nov 15 /usr/bin/sudo</span>
+
+Everything is <span class="danger">rwxrwxrwx</span>. The horror is real.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: Permission Notation</div>
+<span class="perm">rwxrwxrwx</span> (777) means: Owner can read/write/execute, Group can read/write/execute, Others can read/write/execute. For sensitive files: /etc/shadow should be <span class="perm">640</span> (rw-r-----), /etc/passwd should be <span class="perm">644</span> (rw-r--r--), sudo should be <span class="perm">4755</span> (rwsr-xr-x, with SUID bit).
+</div>
+
+You have several strategies to fix this. Which approach?`;
+            },
+            choices: [
+                { text: 'Restore from backup (safest, but lose 3 hours of data)', next: 'restore_backup', key: 'A' },
+                { text: 'Use RPM/dpkg to reset system file permissions', next: 'package_restore', key: 'B' },
+                { text: 'Manual fix — start with critical files first', next: 'manual_fix', key: 'C' },
+                { text: 'Hybrid: package manager for system files, backup for /srv/', next: 'hybrid_fix', key: 'D' }
+            ]
+        },
+
+        restore_backup: {
+            text: function() {
+                advanceTime(15);
+                return `You consider a full restore from the 11 PM backup.
+
+<span class="warning">Pros:</span>
+- Clean, known-good state
+- All permissions correct
+- Simple and reliable
+
+<span class="danger">Cons:</span>
+- Lose 3+ hours of data (11 PM to 2 AM)
+- The CEO's team was working on the presentation until midnight
+- Any database changes since 11 PM are lost
+- Restore takes ~90 minutes for the full server
+
+<span class="cmd">Total time estimate: ~90 minutes</span>
+<span class="cmd">Data loss: 11 PM to present</span>
+
+${state.inventory.includes('backup-info') ? '<span class="success">You confirmed earlier that the backup includes permission metadata via rsync -a.</span>' : '<span class="warning">You need to verify the backup has permission metadata.</span>'}
+
+Do you want to proceed with the full restore?`;
+            },
+            choices: [
+                { text: 'Yes — full restore, accept the data loss', next: 'full_restore', key: 'A' },
+                { text: 'No — too much data loss. Try the hybrid approach instead', next: 'hybrid_fix', key: 'B' },
+                { text: 'No — manual fix for critical files only', next: 'manual_fix', key: 'C' }
+            ]
+        },
+
+        full_restore: {
+            text: function() {
+                advanceTime(90);
+                return `<span class="cmd">bash-5.1# mount /dev/sdb1 /mnt/backup</span>
+<span class="cmd">bash-5.1# rsync -avz --delete /mnt/backup/latest/ /</span>
+
+<span class="system">[Restoring... this takes a while]</span>
+
+90 minutes later:
+
+<span class="success">Restore complete. All files restored to 11 PM state.</span>
+
+<span class="cmd">$ ls -la /etc/shadow</span>
+<span class="success">-rw-r----- 1 root shadow 892 Dec 10 /etc/shadow</span>
+
+<span class="cmd">$ ls -la /etc/passwd</span>
+<span class="success">-rw-r--r-- 1 root root 1847 Dec 10 /etc/passwd</span>
+
+Permissions are correct! But you've lost everything since 11 PM. The CEO's team's late-night edits to the presentation are gone.
+
+You reboot normally. Services come up clean. SSH works. The web server starts.
+
+But there's a problem: it's now <span class="warning">${String(gameHour).padStart(2,'0')}:${String(gameMinute).padStart(2,'0')}</span> and the presentation files are 3 hours out of date.`;
+            },
+            gives: ['permissions-fixed', 'data-lost'],
+            choices: [
+                { text: 'Check if the CEO has a local copy of the latest presentation', next: 'find_presentation', key: 'A' },
+                { text: 'Check the database for any transaction logs to replay', next: 'db_recovery', key: 'B' }
+            ]
+        },
+
+        package_restore: {
+            text: function() {
+                advanceTime(5);
+                return `Great idea. The package manager knows the correct permissions for every file it installed.
+
+<span class="cmd">bash-5.1# rpm --setperms $(rpm -qa)</span>
+
+This tells RPM to reset permissions on every installed package's files to their correct values.
+
+<span class="system">[Processing 1,847 packages...]</span>
+
+<span class="cmd">$ ls -la /etc/shadow</span>
+<span class="success">-rw-r----- 1 root shadow 892 Dec 10 /etc/shadow</span>
+
+<span class="cmd">$ ls -la /usr/bin/sudo</span>
+<span class="success">-rwsr-xr-x 1 root root 232416 Nov 15 /usr/bin/sudo</span>
+
+<span class="success">System files are fixed!</span> The SUID bit on sudo is restored, shadow file is locked down, SSH config is secure.
+
+But the package manager only knows about files it installed. Everything in <span class="warning">/srv/</span> (web content), <span class="warning">/home/</span> (user files), and custom configurations are still 777.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: SUID/SGID Bits</div>
+The SUID bit (4 in 4755) means the program runs as the file's OWNER regardless of who executes it. sudo needs SUID to run as root. Without it, sudo can't elevate privileges. The SGID bit (2 in 2755) means the program runs with the file's GROUP. These special permission bits are critical for many system utilities and are NOT set by chmod 777 — they're actually REMOVED by it.
+</div>`;
+            },
+            gives: ['system-perms-fixed'],
+            choices: [
+                { text: 'Now fix /srv/ from backup', next: 'fix_srv', key: 'A' },
+                { text: 'Now fix /home/ manually', next: 'fix_home', key: 'B' },
+                { text: 'Fix /srv/ and /home/ together (hybrid approach)', next: 'fix_data_dirs', key: 'C' }
+            ]
+        },
+
+        manual_fix: {
+            text: function() {
+                advanceTime(5);
+                return `You start with the most critical files. This is triage — fix what will kill you first:
+
+<span class="cmd">bash-5.1# chmod 640 /etc/shadow
+bash-5.1# chmod 644 /etc/passwd /etc/group /etc/hosts
+bash-5.1# chmod 600 /etc/ssh/ssh_host_*_key
+bash-5.1# chmod 644 /etc/ssh/ssh_host_*_key.pub
+bash-5.1# chmod 755 /etc /usr /var /home /srv
+bash-5.1# chmod 4755 /usr/bin/sudo /usr/bin/passwd
+bash-5.1# chmod 2755 /usr/bin/crontab
+bash-5.1# chmod 1777 /tmp /var/tmp
+bash-5.1# chmod 700 /root</span>
+
+The critical files are fixed. But this is a fraction of the filesystem. There are thousands of files with wrong permissions.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: Special Permissions</div>
+<span class="perm">SUID (4xxx)</span>: Program runs as file owner (e.g., sudo, passwd)
+<span class="perm">SGID (2xxx)</span>: Program runs as file group (e.g., crontab); on directories, new files inherit the group
+<span class="perm">Sticky bit (1xxx)</span>: Only file owner can delete files in the directory (e.g., /tmp)
+chmod 777 STRIPS all special bits — they must be explicitly restored.
+</div>
+
+This manual approach works but it's slow and error-prone. You'll miss something.`;
+            },
+            gives: ['critical-perms-fixed'],
+            choices: [
+                { text: 'Switch to package manager approach for the rest', next: 'package_restore_partial', key: 'A' },
+                { text: 'Keep going manually — fix /srv/ next for the presentation', next: 'fix_srv_manual', key: 'B' }
+            ]
+        },
+
+        hybrid_fix: {
+            text: function() {
+                advanceTime(5);
+                return `Smart. The hybrid approach:
+1. Use the <span class="cmd">package manager</span> (rpm/dpkg) to reset all system file permissions
+2. Use the <span class="cmd">backup</span> to restore permissions on /srv/ (web content)
+3. Fix <span class="cmd">/home/</span> manually (fewer files, simpler permissions)
+
+This gives you speed, accuracy, AND preserves recent data.
+
+<span class="cmd">bash-5.1# rpm --setperms $(rpm -qa)</span>
+<span class="system">[Processing packages... done]</span>
+
+<span class="success">System files: FIXED</span>
+
+<span class="cmd">bash-5.1# rsync -avz --perms-only backup-server:/backups/latest/srv/ /srv/</span>
+
+Wait — you're in single-user mode with no networking. You can't reach the backup server.
+
+You need to either:
+- Mount the backup drive locally (if it's on a separate disk)
+- Restore network briefly to pull permissions
+- Fix /srv/ manually based on what you know`;
+            },
+            gives: ['system-perms-fixed'],
+            choices: [
+                { text: 'Mount the backup drive locally', next: 'mount_backup', key: 'A' },
+                { text: 'Fix /srv/ permissions manually — you know the web stack', next: 'fix_srv_manual', key: 'B' },
+                { text: 'Briefly restore network to pull from backup server', next: 'brief_network', key: 'C' }
+            ]
+        },
+
+        package_restore_partial: {
+            text: function() {
+                advanceTime(20);
+                return `<span class="cmd">bash-5.1# rpm --setperms $(rpm -qa)</span>
+<span class="system">[Processing 1,847 packages... done]</span>
+
+<span class="success">All system file permissions restored via package manager.</span>
+
+Now you need to handle the data directories: /srv/ and /home/.`;
+            },
+            gives: ['system-perms-fixed'],
+            choices: [
+                { text: 'Fix /srv/ for the web content', next: 'fix_srv_manual', key: 'A' },
+                { text: 'Mount the backup drive for /srv/ permissions', next: 'mount_backup', key: 'B' }
+            ]
+        },
+
+        mount_backup: {
+            text: function() {
+                advanceTime(20);
+                return `<span class="cmd">bash-5.1# lsblk</span>
+<span class="success">sda   8:0   disk  500G
+sda1  8:1   part  /
+sdb   8:16  disk  1T
+sdb1  8:17  part  (backup)</span>
+
+There's a local backup disk.
+
+<span class="cmd">bash-5.1# mount /dev/sdb1 /mnt/backup
+bash-5.1# ls /mnt/backup/latest/</span>
+<span class="success">srv/  etc/  home/  var/</span>
+
+<span class="cmd">bash-5.1# rsync -avz /mnt/backup/latest/srv/ /srv/ --ignore-times</span>
+
+Wait — this would overwrite the CONTENT too, not just permissions. You want permissions ONLY:
+
+<span class="cmd">bash-5.1# cd /mnt/backup/latest/srv
+bash-5.1# find . -type f -exec sh -c 'chmod --reference="/mnt/backup/latest/srv/$1" "/srv/$1"' _ {} \\;</span>
+
+This copies the permission bits from the backup files to the live files WITHOUT overwriting the content. The CEO's latest edits are preserved, but permissions match the backup.
+
+<span class="success">Permissions for /srv/ restored from backup metadata!</span>
+<span class="success">Content preserved — no data loss!</span>
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: chmod --reference</div>
+The --reference flag copies permissions from a reference file. This is incredibly useful for disaster recovery — you can restore permissions from a known-good source without touching the file contents. Combined with find -exec, you can batch-fix entire directory trees.
+</div>`;
+            },
+            gives: ['srv-fixed', 'no-data-loss'],
+            choices: [
+                { text: 'Fix /home/ directory permissions too', next: 'fix_home', key: 'A' },
+                { text: 'Good enough — reboot and test', next: 'reboot_test', key: 'B' }
+            ]
+        },
+
+        fix_srv_manual: {
+            text: function() {
+                advanceTime(20);
+                return `You know the web stack. Apache/Nginx needs:
+- Document root: 755 for directories, 644 for files
+- Upload directory: 775 (group writable for www-data)
+- Config files: 640
+
+<span class="cmd">bash-5.1# find /srv/www -type d -exec chmod 755 {} \\;
+bash-5.1# find /srv/www -type f -exec chmod 644 {} \\;
+bash-5.1# chmod 775 /srv/www/uploads
+bash-5.1# chown -R www-data:www-data /srv/www
+bash-5.1# chmod 640 /srv/www/app/config/*</span>
+
+<span class="success">/srv/ permissions restored manually!</span>
+
+The presentation files in /srv/www/presentations/ are intact with correct permissions. Content is preserved.
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: Standard Web Permissions</div>
+<span class="perm">755</span> (rwxr-xr-x) for directories: owner full, others can list and enter
+<span class="perm">644</span> (rw-r--r--) for files: owner read/write, others read-only
+<span class="perm">775</span> (rwxrwxr-x) for upload dirs: group needs write access
+Config files should be more restrictive: <span class="perm">640</span> or <span class="perm">600</span>
+The web server user (www-data) should own the files but NOT be able to write to most of them.
+</div>`;
+            },
+            gives: ['srv-fixed', 'no-data-loss'],
+            choices: [
+                { text: 'Fix /home/ directories next', next: 'fix_home', key: 'A' },
+                { text: 'Reboot and test — /srv/ is what matters for the presentation', next: 'reboot_test', key: 'B' }
+            ]
+        },
+
+        brief_network: {
+            text: function() {
+                advanceTime(10);
+                return `You bring up the network interface briefly in single-user mode:
+
+<span class="cmd">bash-5.1# ip link set eth0 up
+bash-5.1# dhclient eth0</span>
+
+<span class="warning">The server is briefly network-accessible again.</span> You work fast:
+
+<span class="cmd">bash-5.1# rsync -avz backup-server:/backups/latest/srv/ /tmp/perm-ref/ --include='*/' --exclude='*'</span>
+
+You pull just the directory structure (with permissions) from backup, then apply them:
+
+<span class="cmd">bash-5.1# find /tmp/perm-ref/srv -type d -exec sh -c 'chmod --reference="$1" "${1#/tmp/perm-ref}"' _ {} \\;</span>
+
+<span class="cmd">bash-5.1# ip link set eth0 down</span>
+
+Network is down again. You were exposed for about 45 seconds.
+
+<span class="success">/srv/ directory permissions restored from backup!</span>`;
+            },
+            gives: ['srv-fixed', 'no-data-loss'],
+            choices: [
+                { text: 'Fix /home/ next', next: 'fix_home', key: 'A' },
+                { text: 'Reboot and test', next: 'reboot_test', key: 'B' }
+            ]
+        },
+
+        fix_data_dirs: {
+            text: function() {
+                advanceTime(30);
+                return `You tackle both data directories:
+
+<span class="cmd">For /srv/ (web content):</span>
+<span class="cmd">bash-5.1# find /srv/www -type d -exec chmod 755 {} \\;
+bash-5.1# find /srv/www -type f -exec chmod 644 {} \\;
+bash-5.1# chmod 775 /srv/www/uploads
+bash-5.1# chown -R www-data:www-data /srv/www</span>
+
+<span class="cmd">For /home/ (user directories):</span>
+<span class="cmd">bash-5.1# chmod 700 /home/*
+bash-5.1# for user in $(ls /home/); do chown -R $user:$user /home/$user; done
+bash-5.1# find /home -name ".ssh" -exec chmod 700 {} \\;
+bash-5.1# find /home -name "authorized_keys" -exec chmod 600 {} \\;
+bash-5.1# find /home -name "id_*" -not -name "*.pub" -exec chmod 600 {} \\;</span>
+
+<span class="success">Both /srv/ and /home/ permissions restored!</span>`;
+            },
+            gives: ['srv-fixed', 'home-fixed', 'no-data-loss'],
+            choices: [
+                { text: 'Reboot and test everything', next: 'reboot_test', key: 'A' }
+            ]
+        },
+
+        fix_home: {
+            text: function() {
+                advanceTime(15);
+                return `<span class="cmd">bash-5.1# chmod 700 /home/*</span>
+
+Each home directory should be accessible only by its owner.
+
+<span class="cmd">bash-5.1# for user in deploy admin kevin ceo; do
+  chown -R $user:$user /home/$user
+  chmod 700 /home/$user/.ssh 2>/dev/null
+  chmod 600 /home/$user/.ssh/id_* 2>/dev/null
+  chmod 600 /home/$user/.ssh/authorized_keys 2>/dev/null
+done</span>
+
+<span class="success">/home/ directories secured!</span>
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: SSH Key Permissions</div>
+OpenSSH is extremely strict about permissions:
+- ~/.ssh/ must be <span class="perm">700</span> (drwx------)
+- Private keys must be <span class="perm">600</span> (-rw-------)
+- authorized_keys must be <span class="perm">600</span> (-rw-------)
+- Public keys can be <span class="perm">644</span> (-rw-r--r--)
+If any of these are wrong, SSH silently refuses to use them. This is a security feature, not a bug.
+</div>`;
+            },
+            gives: ['home-fixed'],
+            choices: [
+                { text: 'Reboot and test', next: 'reboot_test', key: 'A' }
+            ]
+        },
+
+        find_presentation: {
+            text: function() {
+                advanceTime(20);
+                return `You call the CEO's executive assistant.
+
+<span class="highlight">"It's 4 AM. What? ... Yes, the server had an issue. ... The presentation files? ... She was editing them from her laptop. ... She might have a local copy. ... I'll check. ... Yes, I understand it's important."</span>
+
+Twenty agonizing minutes later, you get a callback:
+
+<span class="success">"She has a local copy from 1:30 AM. It's missing the final chart updates but it's 95% complete."</span>
+
+You can use this copy to restore the latest version on the server. It won't be perfect, but it's better than the 11 PM backup.`;
+            },
+            gives: ['presentation-recovered'],
+            choices: [
+                { text: 'Good enough — now handle the remaining security issues', next: 'security_aftermath', key: 'A' }
+            ]
+        },
+
+        db_recovery: {
+            text: function() {
+                advanceTime(30);
+                return `You check the database server (which is a separate machine, unaffected by the chmod).
+
+<span class="cmd">$ psql -h db-server -U postgres</span>
+<span class="cmd">postgres=# SELECT count(*) FROM pg_stat_activity WHERE state = 'active';</span>
+<span class="success">0 active connections (production server is down)</span>
+
+<span class="cmd">postgres=# SELECT max(created_at) FROM transactions;</span>
+<span class="success">2025-12-15 01:47:22</span>
+
+Good news: the database is intact and has data up to 1:47 AM. The 11 PM backup restore only affects the filesystem — the database was never on the production server's disk.
+
+<span class="success">Database is fully intact. No data loss on the DB side.</span>
+
+The only thing you've lost is filesystem changes between 11 PM and 2 AM — mostly the presentation updates.`;
+            },
+            gives: ['db-intact'],
+            choices: [
+                { text: 'Try to find a local copy of the presentation updates', next: 'find_presentation', key: 'A' },
+                { text: 'The 11 PM version will have to do — focus on security', next: 'security_aftermath', key: 'B' }
+            ]
+        },
+
+        reboot_test: {
+            text: function() {
+                advanceTime(10);
+                const sysFixed = state.inventory.includes('system-perms-fixed') || state.inventory.includes('critical-perms-fixed');
+                const srvFixed = state.inventory.includes('srv-fixed');
+                const homeFixed = state.inventory.includes('home-fixed');
+
+                let issues = [];
+                if (!sysFixed) issues.push('System file permissions still 777');
+                if (!srvFixed) issues.push('/srv/ permissions may have issues');
+                if (!homeFixed) issues.push('/home/ SSH keys may not work');
+
+                return `<span class="cmd">bash-5.1# exec /sbin/init</span>
+
+The server reboots into normal multi-user mode...
+
+<span class="system">[Starting sshd...] ${sysFixed ? '<span class="success">OK</span>' : '<span class="danger">FAILED</span>'}</span>
+<span class="system">[Starting nginx...] ${srvFixed ? '<span class="success">OK</span>' : '<span class="warning">OK (with warnings)</span>'}</span>
+<span class="system">[Starting postgresql...] <span class="success">OK (separate server)</span></span>
+<span class="system">[Starting cron...] ${sysFixed ? '<span class="success">OK</span>' : '<span class="danger">FAILED — bad permissions on /etc/crontab</span>'}</span>
+
+${issues.length === 0 ? '<span class="success">All services started successfully!</span>' : '<span class="warning">Some issues remain:</span>\n' + issues.map(i => '<span class="danger">  [!] ' + i + '</span>').join('\n')}
+
+You test the web server:
+<span class="cmd">$ curl -s http://localhost/presentations/q4-2025.html | head -1</span>
+${srvFixed ? '<span class="success">&lt;!DOCTYPE html&gt; — Presentation is accessible!</span>' : '<span class="danger">403 Forbidden — Permission issue</span>'}
+
+Time check: <span class="warning">${String(gameHour).padStart(2,'0')}:${String(gameMinute).padStart(2,'0')}</span>`;
+            },
+            choices: [
+                { text: 'Run a comprehensive permission audit', next: 'perm_audit', key: 'A' },
+                { text: 'Handle the security breach / credential rotation', next: 'security_aftermath', key: 'B' },
+                { text: "It's working — time to address the Kevin situation", next: 'kevin_situation', key: 'C' }
+            ]
+        },
+
+        perm_audit: {
+            text: function() {
+                advanceTime(20);
+                return `You run a comprehensive check:
+
+<span class="cmd">$ find / -perm -0002 -not -path "/tmp/*" -not -path "/var/tmp/*" -not -path "/proc/*" -not -path "/sys/*" 2>/dev/null | wc -l</span>
+
+This finds all world-writable files outside of /tmp (where world-writable is expected).
+
+<span class="${state.inventory.includes('system-perms-fixed') ? 'success' : 'danger'}">${state.inventory.includes('system-perms-fixed') ? '0 world-writable files found (outside /tmp)' : '14,832 world-writable files found'}</span>
+
+<span class="cmd">$ find / -perm -4000 2>/dev/null</span>
+This finds all SUID binaries:
+<span class="${state.inventory.includes('system-perms-fixed') ? 'success' : 'danger'}">${state.inventory.includes('system-perms-fixed') ? 'sudo, passwd, ping, mount — all correct' : 'No SUID binaries found — chmod 777 stripped them all'}</span>
+
+<div class="edu-box">
+<div class="edu-label">Unix Concept: Umask and Default Permissions</div>
+The <span class="perm">umask</span> controls default permissions for new files. A umask of 022 means new files get 644 and new directories get 755. After a permission disaster, setting the correct umask (umask 022 in /etc/profile) prevents future files from being created with overly permissive defaults. Also consider using the <span class="perm">sticky bit</span> (chmod +t) on shared directories like /tmp to prevent users from deleting each other's files.
+</div>`;
+            },
+            choices: [
+                { text: 'Handle the security aftermath', next: 'security_aftermath', key: 'A' },
+                { text: 'Address Kevin', next: 'kevin_situation', key: 'B' }
+            ]
+        },
+
+        security_aftermath: {
+            text: function() {
+                advanceTime(30);
+                const breached = state.inventory.includes('compromised-detected');
+                const credsRotated = state.inventory.includes('creds-rotated') || state.inventory.includes('creds-rotating');
+
+                return `${breached ? '<span class="danger">The breach needs to be addressed before reconnecting to the network.</span>' : '<span class="warning">Even without confirmed breach, you should assume compromise.</span>'}
+
+You work through the security checklist:
+
+<span class="cmd">1. Credential rotation:</span> ${credsRotated ? '<span class="success">Already done</span>' : '<span class="warning">Rotating now...</span>'}
+${!credsRotated ? `<span class="cmd">$ passwd root</span> <span class="success">Done</span>
+<span class="cmd">$ ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key</span> <span class="success">Done</span>
+<span class="cmd">$ for user in deploy admin kevin; do passwd -e $user; done</span> <span class="success">Done</span>` : ''}
+
+<span class="cmd">2. Database credentials:</span>
+<span class="cmd">$ psql -h db-server -c "ALTER USER app_user PASSWORD 'new_secure_pw';"</span> <span class="success">Done</span>
+
+<span class="cmd">3. Check for unauthorized access or backdoors:</span>
+<span class="cmd">$ last | head -10</span>
+<span class="cmd">$ grep "Accepted" /var/log/auth.log</span>
+${breached ? '<span class="danger">Found: unauthorized SSH attempt from 185.220.101.42 (blocked by bad permissions)</span>' : '<span class="success">No unauthorized logins detected</span>'}
+
+<span class="cmd">4. Check for new cron jobs or modified binaries:</span>
+<span class="cmd">$ crontab -l -u root</span>
+<span class="success">No suspicious cron entries</span>
+
+${breached ? '<span class="warning">The attacker got password hashes and SSH keys before you disconnected. They could not log in (SSH was down due to bad perms), but they have material for offline attacks.</span>' : ''}`;
+            },
+            gives: ['security-handled'],
+            choices: [
+                { text: 'Time to deal with Kevin', next: 'kevin_situation', key: 'A' },
+                { text: 'Write up the incident report now', next: 'incident_report', key: 'B' }
+            ]
+        },
+
+        kevin_situation: {
+            text: function() {
+                advanceTime(5);
+                return `It's <span class="warning">${String(gameHour).padStart(2,'0')}:${String(gameMinute).padStart(2,'0')}</span>. The server is ${state.inventory.includes('srv-fixed') || state.inventory.includes('permissions-fixed') ? 'recovering' : 'still being fixed'}. Kevin is sitting across from you, looking like a kicked puppy.
+
+"Kevin. We need to talk about what happened."
+
+He nods. Doesn't meet your eyes.
+
+This is the part they don't teach in sysadmin courses. The human part.`;
+            },
+            choices: [
+                { text: 'Mentor him — this is a learning moment', next: 'mentor_kevin', key: 'A' },
+                { text: 'Recommend termination — this was too serious', next: 'fire_kevin', key: 'B' },
+                { text: 'Cover for him — report it as a "system glitch"', next: 'cover_kevin', key: 'C' },
+                { text: 'Let him decide his own fate', next: 'kevin_decides', key: 'D' }
+            ]
+        },
+
+        mentor_kevin: {
+            text: `"Kevin, let me tell you something. In my second year as a sysadmin, I ran <span class="cmd">rm -rf</span> on a directory that turned out to be a symlink to /usr. Took down a mail server for 8,000 users."
+
+His eyes widen. "Really?"
+
+"Really. The difference between a junior and a senior admin isn't that seniors don't make mistakes. It's that they've made enough mistakes to develop the instincts — and the safeguards."
+
+You pull up a terminal:
+
+<span class="cmd">$ cat >> ~/.bashrc << 'EOF'
+# Kevin's safeguards - Never forget December 15th
+alias chmod='chmod --verbose'
+alias rm='rm -I'
+alias chown='chown --verbose'
+# Always double-check dangerous commands:
+confirm_dangerous() {
+    echo "You are about to run: $@"
+    echo "Working directory: $(pwd)"
+    read -p "Are you sure? (yes/no) " confirm
+    [ "$confirm" = "yes" ] && "$@"
+}
+EOF</span>
+
+"From now on, your bash aliases will make you confirm destructive commands. And you're going to write the incident post-mortem. Every detail. That document will be more educational than any certification."
+
+<span class="success">Kevin straightens up. "I'll write the best post-mortem you've ever read."</span>
+
+<div class="edu-box">
+<div class="edu-label">Safeguard: Protective Aliases</div>
+Smart sysadmins add safeguards to their shell: rm -I (prompt for mass deletes), --verbose on chmod/chown (see what's changing), and wrapper functions that require confirmation. Also consider: <span class="cmd">molly-guard</span> (prevents accidental shutdowns on production), <span class="cmd">safe-rm</span> (blacklists critical directories from rm), and <span class="cmd">tmux/screen</span> (prevents losing work if SSH drops).
+</div>`,
+            gives: ['kevin-mentored'],
+            choices: [
+                { text: 'Finish up — run the final checks', next: 'final_checks', key: 'A' }
+            ]
+        },
+
+        fire_kevin: {
+            text: `"Kevin, I'm going to be straight with you. What happened tonight is a terminable offense. You ran an untested command from Stack Overflow on a production server as root without understanding what it did."
+
+He looks down. "I know."
+
+"I'm going to recommend to the director that we begin a PIP at minimum. I may recommend termination depending on the full damage assessment."
+
+Kevin nods slowly. "I understand. I should have asked. I should have tested it on dev first. I should have read the man page."
+
+"Yes. All of those things."
+
+He stands up. "Is there anything else I can do tonight to help?"
+
+There's something admirable about that — even facing termination, he wants to help fix the mess. But trust has been broken.
+
+<span class="warning">Kevin leaves the server room. You finish the repair alone.</span>
+
+<div class="edu-box">
+<div class="edu-label">Management Concept: Accountability vs. Learning</div>
+Some organizations fire people for serious mistakes. Others use them as learning opportunities. The argument for keeping someone: they'll never make that specific mistake again, and the "tuition" has already been paid. The argument for termination: some mistakes indicate a pattern of carelessness that training can't fix. There's no universal right answer — it depends on the person, the mistake, and the organizational culture.
+</div>`,
+            gives: ['kevin-fired'],
+            choices: [
+                { text: 'Finish the repairs', next: 'final_checks', key: 'A' }
+            ]
+        },
+
+        cover_kevin: {
+            text: `"Kevin, here's what we're going to say: a configuration management script had a bug that reset permissions. You found it and reported it."
+
+Kevin stares at you. "You'd do that for me?"
+
+"I'd do it for the team. If you get fired, I'm down one sysadmin and I have to train a replacement. That's more expensive than one bad night."
+
+<span class="warning">But there's a risk.</span> If the real story comes out — and in security, it usually does — you'll both be in trouble. Covering up the root cause of an incident violates every incident response framework.
+
+And if there's a breach investigation, the cover story won't survive forensic analysis. The CloudTrail-equivalent logs on the server will show a manual chmod command, not a script failure.
+
+"Listen — I appreciate it," Kevin says. "But... maybe we should just tell the truth. I'd rather face the music than have you risk your job for me."
+
+<div class="edu-box">
+<div class="edu-label">Ethics: Incident Report Integrity</div>
+Falsifying incident reports is a serious ethical violation, especially in security. Accurate post-mortems prevent recurrence. If the real root cause is hidden, the organization can't implement proper safeguards. In regulated industries, false incident reports can result in legal liability.
+</div>`,
+            gives: ['cover-attempted'],
+            choices: [
+                { text: 'Kevin is right — tell the truth', next: 'kevin_truth', key: 'A' },
+                { text: 'Stick with the cover story', next: 'cover_maintained', key: 'B' }
+            ]
+        },
+
+        kevin_decides: {
+            text: `"Kevin, I'm going to let you write your own section of the incident report. What happened, why, and what you think should happen next. Including consequences for yourself."
+
+He looks surprised. "You want me to decide my own punishment?"
+
+"I want you to demonstrate judgment. Good or bad, I want to see how you think about accountability."
+
+An hour later, Kevin hands you his write-up:
+
+<span class="success">INCIDENT REPORT - SECTION: ROOT CAUSE (Author: K. Martinez)
+
+At approximately 01:55 AM, I executed 'chmod -R 777' without a target path argument while in the / directory. This was a result of:
+
+1. Insufficient understanding of chmod syntax and behavior
+2. Running commands as root without testing on a non-production system
+3. Copy-pasting solutions from Stack Overflow without understanding them
+4. No use of a change management process for production modifications
+
+RECOMMENDED ACTIONS:
+- Mandatory training on Unix permissions and change management (for me)
+- Implementation of a change control process for production commands
+- Addition of shell aliases to prevent destructive commands
+- I accept whatever disciplinary action management deems appropriate
+
+I take full responsibility for this incident.</span>
+
+<span class="success">That's... a remarkably mature incident report from a junior admin.</span>`,
+            gives: ['kevin-matured'],
+            choices: [
+                { text: 'Keep Kevin and implement his suggestions', next: 'final_checks', key: 'A' }
+            ]
+        },
+
+        kevin_truth: {
+            text: `"You're right. Truth it is. We'll write an honest post-mortem."
+
+Kevin nods with visible relief. Lying clearly didn't sit well with him either.
+
+<span class="success">Integrity preserved. The hard conversations will happen, but they'll happen honestly.</span>`,
+            gives: ['kevin-honest'],
+            choices: [
+                { text: 'Finish the final checks', next: 'final_checks', key: 'A' }
+            ]
+        },
+
+        cover_maintained: {
+            text: `You file the incident report with the cover story. A "configuration management bug."
+
+For now, nobody questions it. Kevin is safe. But every time someone mentions the incident, you feel a knot in your stomach.
+
+<span class="warning">Secrets in IT have a half-life. This one will decay eventually.</span>`,
+            gives: ['cover-maintained'],
+            choices: [
+                { text: 'Finish the final checks', next: 'final_checks', key: 'A' }
+            ]
+        },
+
+        incident_report: {
+            text: function() {
+                advanceTime(20);
+                return `You draft the incident report while the server stabilizes:
+
+<span class="cmd">INCIDENT REPORT #2025-1215-001
+Title: Production Server Permission Catastrophe
+Severity: CRITICAL
+Duration: 02:00 - ongoing
+Root Cause: Human error — recursive chmod 777 on /
+
+Timeline:
+  01:55 — Junior admin runs chmod -R 777 / on prod-server-01
+  02:00 — Senior admin (you) notified
+  02:35 — On-site, assessment begins
+  ${state.inventory.includes('compromised-detected') ? '02:45 — Breach detected: external access to /etc/shadow, SSH keys\n  02:47 — Server network-isolated' : ''}
+  ${String(gameHour).padStart(2,'0')}:${String(gameMinute).padStart(2,'0')} — Permission restoration ${state.inventory.includes('srv-fixed') ? 'complete' : 'in progress'}
+
+Impact:
+  - All file permissions set to 777 (world-rwx)
+  - SSH daemon failure (bad key permissions)
+  ${state.inventory.includes('compromised-detected') ? '- Confirmed data exposure: /etc/shadow, SSH keys, DB credentials' : '- No confirmed external access (server was isolated quickly)'}
+
+Remediation:
+  - ${state.inventory.includes('system-perms-fixed') ? 'System permissions restored via package manager' : 'System permissions partially restored'}
+  - ${state.inventory.includes('srv-fixed') ? 'Web content permissions restored' : 'Web content permissions pending'}
+  - All credentials rotated as precaution</span>`;
+            },
+            choices: [
+                { text: 'Deal with Kevin', next: 'kevin_situation', key: 'A' },
+                { text: 'Run final checks', next: 'final_checks', key: 'B' }
+            ]
+        },
+
+        final_checks: {
+            text: function() {
+                advanceTime(30);
+                const allFixed = state.inventory.includes('system-perms-fixed') || state.inventory.includes('permissions-fixed') || state.inventory.includes('critical-perms-fixed');
+                const srvOk = state.inventory.includes('srv-fixed') || state.inventory.includes('permissions-fixed');
+                const noLoss = state.inventory.includes('no-data-loss') || state.inventory.includes('presentation-recovered');
+                const securityOk = state.inventory.includes('security-handled') || state.inventory.includes('creds-rotated') || state.inventory.includes('creds-rotating');
+                const breached = state.inventory.includes('compromised-detected');
+
+                const score = [allFixed, srvOk, noLoss, securityOk].filter(Boolean).length;
+
+                if (score >= 3 && !state.inventory.includes('cover-maintained')) {
+                    return renderEnding_fixed();
+                } else if (state.inventory.includes('cover-maintained')) {
+                    return renderEnding_compromised();
+                } else if (state.inventory.includes('data-lost') && !noLoss) {
+                    return renderEnding_backup();
+                } else {
+                    return renderEnding_fixed();
+                }
+            },
+            choices: [
+                { text: '[ PLAY AGAIN ]', next: 'restart', key: 'A' },
+                { text: '[ BACK TO SCRIPT HOUSE ]', next: 'exit', key: 'B' }
+            ]
+        }
+    };
+
+    function renderEnding_fixed() {
+        state.flags.ending = 'fixed';
+        return `<div class="ending-banner good">
+<h2>ENDING: PERMISSIONS RESTORED</h2>
+<p>You saved the server, the presentation, and (maybe) Kevin's career</p>
+</div>
+
+It's <span class="success">${String(gameHour).padStart(2,'0')}:${String(gameMinute).padStart(2,'0')} AM</span>. The server is running. The CEO's presentation is accessible. All critical permissions are restored.
+
+At 9:00 AM, the CEO walks into the conference room, opens her browser, and the Q4 presentation loads perfectly. She'll never know how close it came.
+
+${state.inventory.includes('kevin-mentored') ? '<span class="success">Kevin goes on to become one of the most careful sysadmins on the team. He writes a company-wide guide on safe permission management that becomes required reading for all new hires.</span>' : ''}
+${state.inventory.includes('kevin-matured') ? '<span class="success">Kevin\'s honest post-mortem becomes a case study in the onboarding program. He earns respect for owning his mistake.</span>' : ''}
+${state.inventory.includes('kevin-fired') ? '<span class="warning">Kevin is let go the following week. He sends you a thank-you email for being straight with him. He lands a new job a month later — at a company with better change management.</span>' : ''}
+
+You go home at 10 AM, set an alarm for 2 PM, and collapse.
+
+<div class="edu-box">
+<div class="edu-label">Prevention Checklist</div>
+1. Never run chmod/chown recursively without double-checking the path
+2. Use change management for ALL production modifications
+3. Test commands on non-production systems first
+4. Set up protective shell aliases (rm -I, chmod --verbose)
+5. Maintain backups with permission metadata (rsync -a, getfacl)
+6. Use configuration management (Ansible, Puppet) to enforce permissions
+7. Implement the principle of least privilege — not everyone needs root
+</div>`;
+    }
+
+    function renderEnding_backup() {
+        state.flags.ending = 'backup';
+        return `<div class="ending-banner neutral">
+<h2>ENDING: CLEAN SLATE</h2>
+<p>Backup restored — but at a cost</p>
+</div>
+
+The full restore brought the server back to a clean state. Every permission is correct. Every file is intact — from 11 PM.
+
+At 8:45 AM, the CEO's assistant calls: "The presentation is missing the final charts she added at midnight."
+
+You explain there was a server issue and the most recent backup was from 11 PM. She's not happy, but the CEO rebuilds the missing charts from memory before the 9 AM meeting.
+
+<span class="warning">The presentation goes okay, but the CEO notices the data gap.</span>
+
+In the post-mortem, the recommendation is clear: implement point-in-time recovery and continuous backup for critical data, not just nightly snapshots.
+
+${state.inventory.includes('kevin-mentored') ? '<span class="success">Kevin takes the lesson to heart and becomes the team\'s backup and recovery specialist.</span>' : ''}
+
+<div class="edu-box">
+<div class="edu-label">Backup Strategy: 3-2-1 Rule</div>
+Keep 3 copies of data, on 2 different media types, with 1 off-site. For production systems, nightly backups aren't enough — implement continuous data protection (CDP) or at minimum, hourly snapshots. The RPO (Recovery Point Objective) should match business requirements.
+</div>`;
+    }
+
+    function renderEnding_compromised() {
+        state.flags.ending = 'compromised';
+        return `<div class="ending-banner bad">
+<h2>ENDING: COMPROMISED</h2>
+<p>The cover-up was worse than the crime</p>
+</div>
+
+Three weeks later, the security team runs a routine audit. They find the anomalous access patterns in the firewall logs. They find the world-writable /etc/shadow in a forensic snapshot. They find the chmod command in the bash history.
+
+The cover story about a "configuration management bug" falls apart instantly.
+
+<span class="danger">Both you and Kevin face disciplinary action.</span> Kevin for the original mistake. You for the cover-up.
+
+The CISO is particularly unhappy: "If we'd known the truth from day one, we could have started the credential rotation and breach notification immediately. By hiding the root cause, you delayed our incident response by THREE WEEKS."
+
+The attacker who accessed /etc/shadow during the 777 window has been quietly cracking password hashes for 21 days. Two executive accounts are compromised before the breach is contained.
+
+<span class="danger">Your career at this company is over.</span>
+
+<div class="edu-box">
+<div class="edu-label">Lesson: Never Cover Up Security Incidents</div>
+In security, the cover-up is ALWAYS worse than the original incident. Delayed incident response means longer attacker dwell time, more damage, and potential regulatory violations. In many jurisdictions, failing to report known breaches carries legal penalties. Honest post-mortems save organizations. Cover-ups destroy careers.
+</div>`;
+    }
+
+    // ========================================
+    // ENGINE
+    // ========================================
+    let isTyping = false;
+
+    function saveGame() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, gameHour, gameMinute, timestamp: Date.now() }));
+    }
+
+    function loadGame() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            state = { currentScene: data.currentScene, inventory: data.inventory || [], flags: data.flags || {}, history: data.history || [] };
+            gameHour = data.gameHour || 2;
+            gameMinute = data.gameMinute || 0;
+            return true;
+        }
+        return false;
+    }
+
+    function clearSave() { localStorage.removeItem(STORAGE_KEY); }
+
+    function startNewGame() {
+        AudioEngine.init();
+        clearSave();
+        state = { currentScene: 'phone_call', inventory: [], flags: {}, history: [] };
+        gameHour = 2; gameMinute = 0;
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('header').style.display = 'flex';
+        document.getElementById('narrative').style.display = 'block';
+        document.getElementById('choices').style.display = 'block';
+        document.getElementById('inventory-panel').style.display = 'block';
+        updateClock();
+        AudioEngine.startAmbient();
+        renderScene('phone_call');
+    }
+
+    function continueGame() {
+        AudioEngine.init();
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('header').style.display = 'flex';
+        document.getElementById('narrative').style.display = 'block';
+        document.getElementById('choices').style.display = 'block';
+        document.getElementById('inventory-panel').style.display = 'block';
+        updateClock();
+        AudioEngine.startAmbient();
+        renderScene(state.currentScene);
+    }
+
+    function renderScene(sceneId) {
+        if (sceneId === 'restart') { clearSave(); location.reload(); return; }
+        if (sceneId === 'exit') { window.location.href = '../index.html'; return; }
+
+        const scene = scenes[sceneId];
+        if (!scene) return;
+
+        state.currentScene = sceneId;
+        state.history.push(sceneId);
+        if (scene.gives) scene.gives.forEach(item => { if (!state.inventory.includes(item)) state.inventory.push(item); });
+        saveGame();
+        updateInventory();
+
+        let text = typeof scene.text === 'function' ? scene.text() : scene.text;
+
+        const sceneText = document.getElementById('scene-text');
+        const choicesDiv = document.getElementById('choices');
+        const cursor = document.getElementById('cursor');
+
+        choicesDiv.innerHTML = '';
+        sceneText.innerHTML = '';
+        cursor.style.display = 'none';
+        isTyping = true;
+
+        sceneText.innerHTML = text;
+        sceneText.style.opacity = '0';
+        setTimeout(() => {
+            sceneText.style.transition = 'opacity 0.5s ease';
+            sceneText.style.opacity = '1';
+            AudioEngine.playSelect();
+            setTimeout(() => {
+                isTyping = false;
+                cursor.style.display = 'inline-block';
+                renderChoices(scene);
+                if (scene.ending || state.flags.ending) {
+                    if (state.flags.ending === 'fixed') AudioEngine.playVictory();
+                    else if (state.flags.ending === 'compromised') AudioEngine.playDanger();
+                    try { if (window.parent && window.parent.AchievementRegistry) window.parent.AchievementRegistry.unlock('ta-chmod-' + (state.flags.ending || 'complete')); } catch(e) {}
+                }
+            }, 500);
+        }, 100);
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+
+    function renderChoices(scene) {
+        const choicesDiv = document.getElementById('choices');
+        choicesDiv.innerHTML = '';
+        if (!scene.choices) return;
+
+        const seenNexts = new Set();
+        const available = scene.choices.filter(c => {
+            if (c.requires && !c.requires.every(r => state.inventory.includes(r))) return false;
+            if (seenNexts.has(c.next)) return false;
+            seenNexts.add(c.next);
+            return true;
+        });
+
+        available.forEach((choice, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerHTML = `<span class="choice-key">[${choice.key || String.fromCharCode(65 + i)}]</span> ${choice.text}`;
+            btn.onclick = () => { AudioEngine.playSelect(); renderScene(choice.next); };
+            choicesDiv.appendChild(btn);
+        });
+    }
+
+    function updateInventory() {
+        const container = document.getElementById('inv-items');
+        container.innerHTML = '';
+        const labels = {
+            'server-offline': 'Server: OFFLINE',
+            'backup-info': 'Backup confirmed (11PM)',
+            'ipmi-attempted': 'IPMI console tried',
+            'kevin-story': "Kevin's confession",
+            'compromised-detected': 'BREACH DETECTED',
+            'full-breach': 'Full breach: hashes+keys',
+            'network-isolated': 'Network: ISOLATED',
+            'kevin-helping': 'Kevin: assisting',
+            'creds-rotating': 'Creds: rotating',
+            'creds-rotated': 'Creds: ROTATED',
+            'system-perms-fixed': 'System perms: FIXED',
+            'critical-perms-fixed': 'Critical perms: FIXED',
+            'permissions-fixed': 'All perms: RESTORED',
+            'srv-fixed': '/srv/: FIXED',
+            'home-fixed': '/home/: FIXED',
+            'no-data-loss': 'Data: PRESERVED',
+            'data-lost': 'Data loss: 3hrs',
+            'presentation-recovered': 'Presentation: 95%',
+            'db-intact': 'Database: INTACT',
+            'security-handled': 'Security: HANDLED',
+            'kevin-mentored': 'Kevin: mentored',
+            'kevin-fired': 'Kevin: terminated',
+            'kevin-matured': 'Kevin: own report',
+            'kevin-honest': 'Kevin: honest path',
+            'cover-attempted': 'Cover story attempted',
+            'cover-maintained': 'Cover story active',
+            'log-evidence': 'Access logs',
+            'injection-evidence': 'Script injection'
+        };
+        const keyItems = ['compromised-detected', 'full-breach', 'system-perms-fixed', 'permissions-fixed', 'srv-fixed', 'network-isolated'];
+        state.inventory.forEach(item => {
+            const el = document.createElement('span');
+            el.className = 'inv-item' + (keyItems.includes(item) ? ' key-item' : '');
+            el.textContent = labels[item] || item;
+            container.appendChild(el);
+        });
+    }
+
+    // Audio toggle
+    document.getElementById('audio-toggle').addEventListener('click', function() {
+        AudioEngine.init();
+        AudioEngine.muted = !AudioEngine.muted;
+        this.textContent = AudioEngine.muted ? '\u{1F507}' : '\u{1F50A}';
+        if (!AudioEngine.muted) AudioEngine.startAmbient(); else AudioEngine.stopAmbient();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (isTyping) return;
+        const key = e.key.toUpperCase();
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+            const match = btn.querySelector('.choice-key');
+            if (match && match.textContent.includes(key)) btn.click();
+        });
+    });
+
+    // Init
+    if (loadGame() && state.currentScene) {
+        const cb = document.createElement('button');
+        cb.className = 'start-btn';
+        cb.textContent = '[ CONTINUE ]';
+        cb.onclick = continueGame;
+        document.getElementById('start-buttons').prepend(cb);
+        const nb = document.querySelector('#start-buttons .start-btn:last-child');
+        if (nb) nb.className = 'start-btn secondary';
+    }
+    </script>
+</body>
+</html>

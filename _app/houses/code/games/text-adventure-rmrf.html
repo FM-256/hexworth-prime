@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rm -rf / — The Point of No Return — Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @keyframes scanlines { 0% { transform: translateY(0); } 100% { transform: translateY(4px); } }
+        @keyframes flicker { 0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.96; } }
+        @keyframes blink { 50% { opacity: 0; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 5px rgba(59,130,246,0.3); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.6); } }
+        @keyframes deleteFlash { 0% { background: rgba(255,0,0,0.1); } 100% { background: transparent; } }
+
+        body {
+            background: linear-gradient(145deg, #0a0a0a 0%, #080a12 50%, #0a0a0f 100%);
+            color: #00ff41; font-family: 'Courier New', Courier, monospace; min-height: 100vh; overflow-x: hidden;
+        }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(59,130,246,0.01) 50%, rgba(0,0,0,0.01) 50%); background-size: 100% 4px; pointer-events: none; z-index: 1000; animation: scanlines 8s linear infinite; }
+        body::after { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(59,130,246,0.005); pointer-events: none; z-index: 999; animation: flicker 0.15s infinite; }
+        #game-container { max-width: 800px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+        #header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid rgba(59,130,246,0.3); margin-bottom: 20px; }
+        .back-link { color: #3b82f6; text-decoration: none; font-size: 14px; cursor: pointer; transition: all 0.3s; }
+        .back-link:hover { color: #60a5fa; text-shadow: 0 0 10px rgba(59,130,246,0.5); }
+        .game-title { color: #3b82f6; font-size: 18px; text-shadow: 0 0 10px rgba(59,130,246,0.3); text-align: center; flex: 1; }
+        .header-controls { display: flex; gap: 10px; align-items: center; }
+        #damage-meter { color: #ff3333; font-size: 12px; font-weight: bold; }
+        #audio-toggle { background: none; border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; padding: 4px 8px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 16px; border-radius: 3px; }
+        #narrative { min-height: 300px; padding: 20px 0; line-height: 1.8; font-size: 15px; }
+        .cursor-blink { display: inline-block; width: 8px; height: 16px; background: #00ff41; animation: blink 1s step-end infinite; vertical-align: middle; }
+        .cmd { color: #3b82f6; } .danger { color: #ff3333; text-shadow: 0 0 5px rgba(255,51,51,0.3); } .warning { color: #ffaa00; } .success { color: #00ff41; text-shadow: 0 0 5px rgba(0,255,65,0.3); } .system { color: #888; } .highlight { color: #00d4ff; } .deleted { color: #ff3333; text-decoration: line-through; opacity: 0.6; }
+        #choices { padding: 10px 0; display: flex; flex-direction: column; gap: 8px; }
+        .choice-btn { background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.4); color: #3b82f6; padding: 12px 18px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 14px; text-align: left; transition: all 0.3s; border-radius: 3px; animation: fadeIn 0.5s ease forwards; opacity: 0; }
+        .choice-btn:nth-child(1) { animation-delay: 0.1s; } .choice-btn:nth-child(2) { animation-delay: 0.2s; } .choice-btn:nth-child(3) { animation-delay: 0.3s; } .choice-btn:nth-child(4) { animation-delay: 0.4s; }
+        .choice-btn:hover { background: rgba(59,130,246,0.15); border-color: #3b82f6; box-shadow: 0 0 15px rgba(59,130,246,0.3); transform: translateX(5px); }
+        .choice-btn .choice-key { color: #00ff41; margin-right: 10px; font-weight: bold; }
+        #inventory-panel { border-top: 1px solid rgba(59,130,246,0.3); margin-top: 20px; padding-top: 15px; }
+        .inv-title { color: #3b82f6; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 2px; }
+        .inv-items { display: flex; flex-wrap: wrap; gap: 6px; }
+        .inv-item { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #3b82f6; padding: 3px 10px; font-size: 11px; border-radius: 3px; font-family: 'Courier New', monospace; }
+        .inv-item.key-item { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.1); }
+        .inv-item.bad-item { border-color: #ff3333; color: #ff3333; background: rgba(255,51,51,0.1); }
+        #start-screen { text-align: center; padding: 60px 20px; }
+        #start-screen h1 { font-size: 36px; color: #ff3333; margin-bottom: 10px; text-shadow: 0 0 30px rgba(255,51,51,0.4); }
+        #start-screen .subtitle { color: #3b82f6; font-size: 16px; margin-bottom: 30px; }
+        #start-screen .description { color: #888; font-size: 14px; max-width: 500px; margin: 0 auto 30px; line-height: 1.6; }
+        .start-btn { background: rgba(59,130,246,0.1); border: 2px solid #3b82f6; color: #3b82f6; padding: 15px 40px; font-size: 18px; cursor: pointer; font-family: 'Courier New', monospace; transition: all 0.3s; margin: 8px; border-radius: 3px; animation: pulseGlow 2s ease-in-out infinite; }
+        .start-btn:hover { background: rgba(59,130,246,0.2); transform: translateY(-2px); }
+        .start-btn.secondary { border-color: #666; color: #888; animation: none; }
+        .ascii-art { white-space: pre; font-size: 12px; line-height: 1.1; color: #ff3333; margin: 20px 0; text-shadow: 0 0 5px rgba(255,51,51,0.3); }
+        .ending-banner { text-align: center; padding: 30px; margin: 20px 0; border: 2px solid; border-radius: 5px; }
+        .ending-banner.good { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.05); }
+        .ending-banner.bad { border-color: #ff3333; color: #ff3333; background: rgba(255,51,51,0.05); }
+        .ending-banner.neutral { border-color: #ffaa00; color: #ffaa00; background: rgba(255,170,0,0.05); }
+        .ending-banner h2 { margin-bottom: 10px; font-size: 24px; } .ending-banner p { font-size: 13px; opacity: 0.8; }
+        .edu-box { border-left: 3px solid #3b82f6; padding: 10px 15px; margin: 15px 0; background: rgba(59,130,246,0.05); font-size: 13px; color: #aaa; }
+        .edu-box .edu-label { color: #3b82f6; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .deletion-log { background: rgba(255,0,0,0.05); border: 1px solid rgba(255,51,51,0.2); padding: 10px; margin: 10px 0; font-size: 12px; color: #ff6666; white-space: pre; overflow-x: auto; border-radius: 3px; animation: deleteFlash 1s ease; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header" style="display:none;">
+            <a class="back-link" href="../index.html">&larr; Back to Code House</a>
+            <div class="game-title">rm -rf /</div>
+            <div class="header-controls">
+                <span id="damage-meter"></span>
+                <button id="audio-toggle" title="Toggle audio">&#x1f507;</button>
+            </div>
+        </div>
+        <div id="start-screen">
+            <div class="ascii-art">
+                    __
+   _________ ___  / /
+  / ___/ __ `__ \/ /   ____  / ___/ __/
+ / /  / / / / / /_/   /___/ / /  / /_
+/_/  /_/ /_/ /_(_)         /_/   \__/
+            </div>
+            <h1>rm -rf /</h1>
+            <div class="subtitle">The Point of No Return</div>
+            <div class="description">
+You're a DevOps engineer who accidentally runs a destructive command in production. The clock is ticking as data disappears in real time. Can you stop the damage and recover?
+
+~25 scenes | 3 endings | Linux recovery and backup education
+            </div>
+            <div id="start-buttons">
+                <button class="start-btn" onclick="startNewGame()">[ NEW GAME ]</button>
+            </div>
+        </div>
+        <div id="narrative" style="display:none;">
+            <div class="scene-text" id="scene-text"></div>
+            <span class="cursor-blink" id="cursor" style="display:none;"></span>
+        </div>
+        <div id="choices" style="display:none;"></div>
+        <div id="inventory-panel" style="display:none;">
+            <div class="inv-title">// Damage Report</div>
+            <div class="inv-items" id="inv-items"></div>
+        </div>
+    </div>
+
+    <script>
+    // ========================================
+    // AUDIO
+    // ========================================
+    const SFX = {
+        ctx: null, muted: true,
+        init() { if (this.ctx) return; this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+        play(f,t,d,v) { if (this.muted||!this.ctx) return; const o=this.ctx.createOscillator(),g=this.ctx.createGain(); o.connect(g);g.connect(this.ctx.destination); o.frequency.value=f;o.type=t||'sine'; g.gain.setValueAtTime(v||0.05,this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+(d||0.15)); o.start();o.stop(this.ctx.currentTime+(d||0.15)); },
+        playSelect() { this.play(450,'sine',0.15,0.08); },
+        playDanger() { this.play(65,'sawtooth',0.7,0.07); },
+        playVictory() { [440,554,659,880].forEach((f,i) => setTimeout(() => this.play(f,'sine',0.3,0.06), i*150)); },
+        startAmbient() { if (this.muted||!this.ctx||this._a) return; this._a=true; const o=this.ctx.createOscillator(),g=this.ctx.createGain(); o.connect(g);g.connect(this.ctx.destination); o.frequency.value=42;o.type='sine';g.gain.value=0.01; o.start();this._ao=o; },
+        stopAmbient() { if (this._ao) { this._ao.stop();this._ao=null;this._a=false; } }
+    };
+
+    // ========================================
+    // STATE
+    // ========================================
+    const STORAGE_KEY = 'hexworth_ta_rmrf';
+    let state = { currentScene: 'the_moment', inventory: [], flags: {}, history: [] };
+    let damagePercent = 0;
+    let isTyping = false;
+
+    function setDamage(pct) {
+        damagePercent = pct;
+        const el = document.getElementById('damage-meter');
+        if (!el) return;
+        const color = pct < 20 ? '#22c55e' : pct < 50 ? '#ffaa00' : pct < 80 ? '#ff6633' : '#ff0000';
+        el.textContent = `DATA LOSS: ${pct}%`;
+        el.style.color = color;
+    }
+
+    const scenes = {
+        the_moment: {
+            text: `<span class="system">[Friday, 4:47 PM — Production Server: app-prod-01]</span>
+
+<span class="scene-divider">--- --- --- --- ---</span>
+
+You're cleaning up old deployment artifacts. It's been a long week. You're running a cleanup script you've used a hundred times.
+
+Except today, you're tired. And today, you make a typo.
+
+What you MEANT to type:
+<span class="success">$ rm -rf /opt/deploys/old_builds/*</span>
+
+What your fingers ACTUALLY typed:
+<span class="danger">$ rm -rf / opt/deploys/old_builds/*</span>
+
+One space. One tiny space between <span class="danger">/</span> and <span class="danger">opt</span>. The shell interprets this as TWO arguments: <span class="danger">/</span> (the entire filesystem root) and <span class="danger">opt/deploys/old_builds/*</span>.
+
+You hit Enter.
+
+For a fraction of a second, nothing happens. Then the terminal starts scrolling:
+
+<div class="deletion-log">rm: cannot remove '/proc/1/fd/0': Operation not permitted
+rm: cannot remove '/proc/1/fd/1': Operation not permitted
+rm: cannot remove '/sys/devices': Operation not permitted
+removing '/usr/bin/ls'
+removing '/usr/bin/cat'
+removing '/usr/bin/ps'
+removing '/usr/bin/kill'...</div>
+
+<span class="danger">Your stomach drops.</span>
+
+The proc and sys filesystems are protected (virtual, can't be deleted). But everything else — /usr, /bin, /etc, /var, /home, /opt — is being deleted RIGHT NOW.
+
+<div class="edu-box">
+<div class="edu-label">Linux Concept: rm -rf / vs --no-preserve-root</div>
+Modern GNU rm has a safety feature: it REFUSES to run rm -rf / unless you explicitly add --no-preserve-root. However, "rm -rf /" with a space before the path (rm -rf / path) treats / as an argument and bypasses this protection because rm sees it as "rm -rf [target1] [target2]". Also, some older systems and BusyBox don't have this safeguard.
+</div>`,
+            choices: [
+                { text: 'CTRL+C! KILL IT NOW!', next: 'ctrl_c', key: 'A' },
+                { text: 'Find the PID and kill -9 it', next: 'find_pid', key: 'B' },
+                { text: 'Pull the power cable', next: 'pull_power', key: 'C' }
+            ]
+        },
+
+        ctrl_c: {
+            text: function() {
+                setDamage(15);
+                return `You slam <span class="cmd">Ctrl+C</span>.
+
+<span class="success">^C</span>
+
+The rm process stops. But how long was it running? You check the clock — maybe 8 seconds. In 8 seconds, rm -rf can delete thousands of files.
+
+<span class="cmd">$ ls /usr/bin/</span>
+<span class="danger">bash: ls: command not found</span>
+
+<span class="cmd">$ /usr/bin/ls</span>
+<span class="danger">bash: /usr/bin/ls: No such file or directory</span>
+
+<span class="warning">ls is gone.</span> Along with most of /usr/bin/. But your bash shell is still running because it was loaded into memory before the deletion.
+
+<span class="cmd">$ echo /bin/*</span>
+<span class="success">bash shows: /bin/bash /bin/sh /bin/mount /bin/umount</span>
+
+Some binaries in /bin survived. rm was working through the filesystem alphabetically and hadn't reached /bin yet (it started with /usr). But everything in /usr is severely damaged.
+
+<span class="success">The good news: you caught it in ~8 seconds. Maybe 15% of the filesystem is gone.</span>
+<span class="danger">The bad news: /usr/bin/ was hit first, taking most system utilities with it.</span>
+
+<div class="edu-box">
+<div class="edu-label">Linux Concept: Running Processes Survive Deletion</div>
+When a file is deleted, any process that has it open keeps a reference to the file data (via inode). Your bash shell still works because it was loaded into memory. Similarly, running services continue until they try to load a library or binary that's been deleted. This is why some commands work and others don't after partial deletion.
+</div>`;
+            },
+            gives: ['process-stopped', 'partial-damage'],
+            choices: [
+                { text: 'Assess the damage — what survived?', next: 'damage_assessment', key: 'A' },
+                { text: 'Try to stop any running services that might crash', next: 'save_services', key: 'B' }
+            ]
+        },
+
+        find_pid: {
+            text: function() {
+                setDamage(25);
+                return `You need to find the PID, but you're racing against the deletion.
+
+<span class="cmd">$ ps aux | grep rm</span>
+<span class="danger">bash: ps: command not found</span>
+
+ps was already deleted! Think...
+
+<span class="cmd">$ cat /proc/*/cmdline 2>/dev/null | strings | grep rm</span>
+
+Scanning /proc for the rm process...
+
+<span class="success">Found: PID 24601 — rm -rf / opt/deploys/old_builds/*</span>
+
+<span class="cmd">$ kill -9 24601</span>
+<span class="danger">bash: kill: command not found</span>
+
+The kill binary is gone too! But bash has a built-in kill:
+
+<span class="cmd">$ builtin kill -9 24601</span>
+<span class="danger">bash: builtin: kill: not a shell builtin</span>
+
+Wait — kill IS a bash builtin. Try:
+<span class="cmd">$ kill -9 24601</span>
+
+<span class="success">Process killed.</span>
+
+The delay cost you. The rm process ran for about 15 seconds total — enough to wipe most of /usr and start on /var.
+
+<span class="danger">Estimated damage: 25% of the filesystem.</span>
+
+<div class="edu-box">
+<div class="edu-label">Linux Concept: Bash Builtins</div>
+Bash has built-in versions of several commands: kill, echo, cd, pwd, type, read, and others. These work even if the corresponding binaries in /usr/bin are deleted. When your external commands are gone, bash builtins are your lifeline. Use "type commandname" (also a builtin) to check if a command is built-in or external.
+</div>`;
+            },
+            gives: ['process-stopped', 'moderate-damage'],
+            choices: [
+                { text: 'Assess the damage', next: 'damage_assessment', key: 'A' },
+                { text: 'Check if the application and database are intact', next: 'check_app', key: 'B' }
+            ]
+        },
+
+        pull_power: {
+            text: function() {
+                setDamage(10);
+                return `You reach behind the server and yank the power cable. The fans spin down. The LEDs go dark. Silence.
+
+<span class="danger">The server is off.</span>
+
+Pulling power is the nuclear option. It stops EVERYTHING instantly — including the destructive rm process, but also:
+- Any database transactions in flight (possible corruption)
+- Any files being written (possible corruption)
+- The filesystem journal (possible inconsistency)
+
+<span class="warning">You saved the most data (rm only ran for ~5 seconds), but you may have caused additional damage from the hard shutdown.</span>
+
+<div class="edu-box">
+<div class="edu-label">Linux Concept: Clean vs. Hard Shutdown</div>
+A clean shutdown (shutdown -h now) flushes disk buffers, closes files, and unmounts filesystems. A hard shutdown (power pull) doesn't — data in write buffers is lost, databases may have incomplete transactions, and the filesystem may need journal replay or fsck on next boot. Modern journaling filesystems (ext4, XFS) handle hard shutdowns reasonably well, but there's always risk.
+</div>
+
+You need to boot into recovery to assess the damage. The question is: how do you boot a system that's missing half its files?`;
+            },
+            gives: ['power-pulled', 'minimal-damage'],
+            choices: [
+                { text: 'Boot from a live USB/CD', next: 'live_boot', key: 'A' },
+                { text: 'Try normal boot first — maybe enough survived', next: 'normal_boot', key: 'B' }
+            ]
+        },
+
+        damage_assessment: {
+            text: function() {
+                const pct = damagePercent;
+                return `You need to assess what survived. Without ls, you use bash globbing and echo:
+
+<span class="cmd">$ echo /bin/*</span>
+<span class="${pct < 20 ? 'success' : 'warning'}">${pct < 20 ? '/bin/bash /bin/sh /bin/mount /bin/umount /bin/cp /bin/mv /bin/cat /bin/grep' : '/bin/bash /bin/sh /bin/mount'}</span>
+
+<span class="cmd">$ echo /etc/*</span>
+<span class="${pct < 30 ? 'success' : 'danger'}">${pct < 30 ? '/etc/passwd /etc/shadow /etc/fstab /etc/hosts /etc/ssh /etc/nginx /etc/systemd ...' : '/etc/passwd /etc/shadow /etc/fstab (most of /etc survived)'}</span>
+
+<span class="cmd">$ echo /var/*</span>
+<span class="${pct < 30 ? 'success' : 'danger'}">${pct < 30 ? '/var/log /var/lib /var/www /var/backups ...' : '/var/log (partially) /var/lib (partially)'}</span>
+
+<span class="cmd">$ echo /opt/*</span>
+<span class="${pct < 50 ? 'warning' : 'danger'}">${pct < 50 ? '/opt/app /opt/deploys' : '(empty — fully deleted)'}</span>
+
+<span class="cmd">$ echo /home/*</span>
+<span class="${pct < 40 ? 'success' : 'warning'}">${pct < 40 ? '/home/deploy /home/admin' : '/home/deploy (partially)'}</span>
+
+<span class="cmd">Summary:</span>
+<span class="${pct < 20 ? 'success' : pct < 40 ? 'warning' : 'danger'}">Filesystem damage: approximately ${pct}%
+  /usr: ${pct < 15 ? 'PARTIALLY damaged' : 'SEVERELY damaged'} (binaries, libraries)
+  /bin: ${pct < 20 ? 'INTACT' : 'PARTIALLY damaged'}
+  /etc: ${pct < 25 ? 'INTACT' : 'PARTIALLY damaged'} (config files)
+  /var: ${pct < 30 ? 'INTACT' : 'PARTIALLY damaged'} (logs, web content, databases)
+  /opt: ${pct < 50 ? 'INTACT' : 'DELETED'} (application code)
+  /home: ${pct < 35 ? 'INTACT' : 'PARTIALLY damaged'}</span>
+
+<span class="warning">The application code and database are the priority.</span>`;
+            },
+            choices: [
+                { text: 'Check if the application and database survived', next: 'check_app', key: 'A' },
+                { text: 'Look for backups immediately', next: 'backup_check', key: 'B' },
+                { text: 'Boot from a live USB to do a proper forensic check', next: 'live_boot', key: 'C' }
+            ]
+        },
+
+        save_services: {
+            text: function() {
+                return `Running services are still alive in memory, but they'll crash if they try to load any deleted libraries.
+
+<span class="cmd">$ echo /var/run/*.pid</span>
+<span class="success">/var/run/nginx.pid /var/run/postgresql.pid /var/run/sshd.pid</span>
+
+The web server, database, and SSH daemon are still running! Their processes are alive in memory.
+
+<span class="warning">But if nginx tries to reload or PostgreSQL tries to checkpoint, they'll crash when they can't find their binaries or libraries.</span>
+
+<span class="cmd">$ kill -USR1 $(cat /var/run/postgresql.pid) 2>/dev/null</span>
+
+You send PostgreSQL a signal to do an immediate checkpoint — write all buffered data to disk while it still can.
+
+<span class="success">PostgreSQL checkpoint completed.</span>
+
+<span class="cmd">$ kill -QUIT $(cat /var/run/nginx.pid) 2>/dev/null</span>
+
+Graceful nginx shutdown — finish serving current requests, then stop.
+
+<span class="success">Services gracefully shut down with data integrity preserved.</span>
+
+<div class="edu-box">
+<div class="edu-label">Linux Concept: Process Signals</div>
+Signals control process behavior: SIGTERM (graceful stop), SIGKILL (force stop), SIGUSR1 (user-defined — PostgreSQL uses it for checkpoint), SIGQUIT (nginx uses it for graceful shutdown). During a crisis, sending the RIGHT signal preserves data. SIGKILL should be the last resort as it doesn't allow cleanup.
+</div>`;
+            },
+            gives: ['services-saved'],
+            choices: [
+                { text: 'Now assess the full damage', next: 'damage_assessment', key: 'A' },
+                { text: 'Check if the database files are intact', next: 'check_app', key: 'B' }
+            ]
+        },
+
+        check_app: {
+            text: function() {
+                const severe = damagePercent >= 40;
+                return `The application is a Node.js app in /opt/app/ with a PostgreSQL database in /var/lib/postgresql/.
+
+<span class="cmd">$ echo /opt/app/*</span>
+${severe ? '<span class="danger">(empty — application directory deleted)</span>' : '<span class="success">/opt/app/package.json /opt/app/node_modules /opt/app/src /opt/app/dist</span>'}
+
+<span class="cmd">$ echo /var/lib/postgresql/14/main/*</span>
+${damagePercent >= 30 ? '<span class="danger">/var/lib/postgresql/14/main/base (data directory exists but may be incomplete)</span>' : '<span class="success">/var/lib/postgresql/14/main/base /var/lib/postgresql/14/main/pg_wal — Database files INTACT!</span>'}
+
+${severe ? `<span class="danger">The application code is GONE.</span> But wait — it's a Node.js app. The code lives in Git. You can redeploy from the repository.
+
+The database is the critical piece. Is it intact?` : `<span class="success">The application code survived!</span> And the database directory looks complete.
+
+But can PostgreSQL actually start and read the data?`}
+
+<span class="cmd">$ echo /var/lib/postgresql/14/main/pg_wal/*</span>
+<span class="success">WAL files present — transaction log intact</span>
+
+${state.inventory.includes('services-saved') ? '<span class="success">Because you checkpointed PostgreSQL before it crashed, the data files should be consistent.</span>' : '<span class="warning">PostgreSQL was killed abruptly. It will need to replay WAL logs on next start.</span>'}
+
+<div class="edu-box">
+<div class="edu-label">Database Concept: Write-Ahead Logging (WAL)</div>
+PostgreSQL uses WAL to ensure data integrity. Every change is written to the WAL BEFORE the data files. During recovery, PostgreSQL replays uncommitted WAL entries to reach a consistent state. As long as the WAL files and data directory are intact, the database can recover even from a crash or power loss. This is why /var/lib/postgresql is the most critical directory to protect.
+</div>`;
+            },
+            gives: [damagePercent >= 40 ? 'app-deleted' : 'app-intact', damagePercent >= 30 ? 'db-uncertain' : 'db-intact'],
+            choices: [
+                { text: 'Check for backups before attempting recovery', next: 'backup_check', key: 'A' },
+                { text: 'Try to recover the system with what remains', next: 'recovery_plan', key: 'B' },
+                { text: 'Boot from live USB for safer recovery', next: 'live_boot', key: 'C' }
+            ]
+        },
+
+        live_boot: {
+            text: `You grab a live USB from the emergency kit (every server room should have one):
+
+<span class="cmd">Boot from Ubuntu Live USB...</span>
+<span class="success">Live environment loaded. Full set of tools available.</span>
+
+<span class="cmd">$ mount /dev/sda1 /mnt</span>
+<span class="success">Production filesystem mounted at /mnt</span>
+
+Now you have a full set of tools (ls, find, rsync, etc.) and can examine the damaged filesystem safely.
+
+<span class="cmd">$ find /mnt -maxdepth 2 -type d | head -30</span>
+
+You map the surviving directory structure:
+<span class="success">/mnt/bin — ${damagePercent < 20 ? 'INTACT' : 'PARTIAL'}
+/mnt/boot — INTACT (wasn't targeted by rm)
+/mnt/etc — ${damagePercent < 25 ? 'INTACT' : 'PARTIAL'}
+/mnt/home — ${damagePercent < 35 ? 'INTACT' : 'PARTIAL'}
+/mnt/opt — ${damagePercent < 50 ? 'INTACT' : 'EMPTY'}
+/mnt/usr — ${damagePercent < 15 ? 'PARTIAL' : 'SEVERELY DAMAGED'}
+/mnt/var — ${damagePercent < 30 ? 'INTACT' : 'PARTIAL'}</span>
+
+<span class="cmd">$ du -sh /mnt/var/lib/postgresql/</span>
+<span class="success">4.2G  /mnt/var/lib/postgresql/</span>
+
+<span class="success">Database directory is present and has data!</span>`,
+            gives: ['live-usb-booted'],
+            choices: [
+                { text: 'Check backup situation', next: 'backup_check', key: 'A' },
+                { text: 'Begin recovery from live environment', next: 'recovery_plan', key: 'B' },
+                { text: 'Check the RAID status first', next: 'raid_check', key: 'C' }
+            ]
+        },
+
+        normal_boot: {
+            text: `You power the server back on. BIOS POST succeeds. GRUB loads.
+
+<span class="system">[  OK  ] Started systemd-journald.service
+[  OK  ] Reached target Local File Systems
+[FAILED] Started nginx.service — binary not found
+[FAILED] Started postgresql.service — binary not found
+[  OK  ] Started sshd.service</span>
+
+The system boots! The kernel, initramfs, and core systemd survived (they're in /boot, which rm hadn't reached). SSH works because sshd was in a directory rm hadn't deleted yet.
+
+But nginx and PostgreSQL can't start because their binaries were deleted from /usr.
+
+<span class="success">The system is bootable. The data is on disk. You just can't run most programs.</span>`,
+            gives: ['system-booted'],
+            choices: [
+                { text: 'Check backup situation', next: 'backup_check', key: 'A' },
+                { text: 'Reinstall packages to restore binaries', next: 'recovery_plan', key: 'B' },
+                { text: 'Boot from live USB instead for safer recovery', next: 'live_boot', key: 'C' }
+            ]
+        },
+
+        backup_check: {
+            text: function() {
+                return `<span class="cmd">Backup Infrastructure Status:</span>
+
+<span class="success">1. Daily snapshots (AWS EBS): Last snapshot 6 hours ago (10:00 AM)</span>
+<span class="success">2. PostgreSQL WAL archiving: Continuous to S3, last archive 2 minutes ago</span>
+<span class="success">3. Application code: Git repository (GitHub)</span>
+<span class="warning">4. Configuration files: Ansible playbooks (last run 2 weeks ago)</span>
+<span class="danger">5. Local /var/backups: ${damagePercent >= 30 ? 'DELETED' : 'Intact but outdated (weekly)'}</span>
+
+Your best options:
+- <span class="highlight">EBS Snapshot</span>: 6-hour-old full disk image. Complete restore, but you lose 6 hours of data.
+- <span class="highlight">PostgreSQL PITR</span>: Point-in-time recovery using WAL archives. Can restore to within seconds of the disaster.
+- <span class="highlight">Git + Ansible</span>: Rebuild from code and config management. No data loss, but takes time.
+- <span class="highlight">RAID Rebuild</span>: If the server has RAID, undamaged mirrors might help.
+
+<div class="edu-box">
+<div class="edu-label">Backup Concept: Recovery Point Objective (RPO)</div>
+RPO is the maximum acceptable data loss measured in time. EBS snapshot RPO = 6 hours. PostgreSQL WAL RPO = seconds. The best strategy usually combines multiple recovery methods: quick but lossy (snapshots) with precise but complex (PITR). Always test your backups — an untested backup is Schrodinger's backup.
+</div>`;
+            },
+            gives: ['backup-assessed'],
+            choices: [
+                { text: 'Restore from EBS snapshot (fastest, lose 6hrs)', next: 'ebs_restore', key: 'A' },
+                { text: 'Rebuild from code + use PITR for database (complex, minimal loss)', next: 'pitr_recovery', key: 'B' },
+                { text: 'Check if RAID can help before deciding', next: 'raid_check', key: 'C' },
+                { text: 'Try to recover deleted files from the filesystem', next: 'forensic_recovery', key: 'D' }
+            ]
+        },
+
+        raid_check: {
+            text: `<span class="cmd">$ cat /proc/mdstat</span>
+<span class="system">Personalities : [raid1]
+md0 : active raid1 sda1[0] sdb1[1]
+      976762584 blocks super 1.2 [2/2] [UU]</span>
+
+<span class="warning">RAID 1 (mirror)!</span> There are two disks. But...
+
+RAID 1 mirrors data in real time. When rm deleted files from sda1, the mirror on sdb1 was updated simultaneously. Both disks now have the same deleted data.
+
+<span class="danger">RAID does NOT protect against rm -rf.</span>
+
+RAID protects against: hardware failure (disk death), bad sectors, controller failure.
+RAID does NOT protect against: rm -rf, accidental deletion, ransomware, corruption.
+
+<div class="edu-box">
+<div class="edu-label">Storage Concept: RAID is Not Backup</div>
+"RAID is not backup" is one of the most important rules in system administration. RAID provides redundancy against hardware failure, not against data destruction. Every destructive operation — rm, overwrite, corruption — is faithfully mirrored to all RAID members. You need SEPARATE backups (different media, different location, different point in time) for true data protection.
+</div>
+
+The RAID mirror won't help. Your options are backups, PITR, or forensic recovery.`,
+            gives: ['raid-checked'],
+            choices: [
+                { text: 'Restore from EBS snapshot', next: 'ebs_restore', key: 'A' },
+                { text: 'Use PITR for database, rebuild system from code', next: 'pitr_recovery', key: 'B' },
+                { text: 'Try forensic file recovery (undelete)', next: 'forensic_recovery', key: 'C' }
+            ]
+        },
+
+        forensic_recovery: {
+            text: `Deleted files aren't immediately gone — the disk still has the data until it's overwritten. You can try to recover:
+
+<span class="cmd">$ apt install extundelete  # (from live USB)</span>
+<span class="cmd">$ extundelete /dev/sda1 --restore-all --after $(date -d '1 hour ago' +%s)</span>
+
+<span class="system">[Scanning filesystem for recently deleted inodes...]</span>
+<span class="system">[Found 14,832 deleted files]</span>
+<span class="system">[Recovering...]</span>
+
+<span class="warning">Results:</span>
+<span class="success">  Recovered: 8,241 files (55.6%)</span>
+<span class="danger">  Unrecoverable: 6,591 files (44.4%) — blocks already reallocated</span>
+
+The recovery is partial. Some files were recovered perfectly, others are fragmented or corrupted. The database files are a mixed bag — some data pages recovered, some not.
+
+<span class="danger">You cannot rebuild a consistent PostgreSQL database from partially recovered files.</span> The database recovery tools need ALL pages intact.
+
+<div class="edu-box">
+<div class="edu-label">Recovery Concept: File Recovery After Deletion</div>
+When Linux deletes a file, it removes the directory entry and marks the inode as free, but the DATA remains on disk until overwritten. Tools like extundelete, photorec, and testdisk can recover deleted files IF the blocks haven't been reused. Recovery success depends on: how much new data was written since deletion, filesystem type (ext4 is better than XFS for recovery), and whether the filesystem was mounted read-write after deletion.
+</div>`,
+            gives: ['forensic-attempted'],
+            choices: [
+                { text: 'Use the EBS snapshot + PITR for proper recovery', next: 'pitr_recovery', key: 'A' },
+                { text: 'Just use the EBS snapshot (simpler)', next: 'ebs_restore', key: 'B' }
+            ]
+        },
+
+        ebs_restore: {
+            text: function() {
+                setDamage(0);
+                return `You decide on the fastest path: restore from the 6-hour-old EBS snapshot.
+
+<span class="cmd">$ aws ec2 create-volume --snapshot-id snap-0abc123 --availability-zone us-east-1a</span>
+<span class="success">Volume created from snapshot</span>
+
+<span class="cmd">$ aws ec2 detach-volume --volume-id vol-damaged</span>
+<span class="cmd">$ aws ec2 attach-volume --volume-id vol-restored --instance-id i-prod01 --device /dev/sda1</span>
+
+<span class="system">[Swapping volumes... attaching restored snapshot...]</span>
+
+<span class="cmd">$ reboot</span>
+
+The server boots from the snapshot. Everything works — it's like the last 6 hours never happened.
+
+<span class="success">System fully operational. All services running.</span>
+
+<span class="danger">But 6 hours of data is lost.</span> That includes:
+- 6 hours of database transactions (customer orders, user accounts created)
+- 6 hours of log data
+- Any deployments made in the last 6 hours
+- Application state changes
+
+<span class="warning">Customer impact: Orders placed since 10 AM are gone. Users created since 10 AM are gone.</span>
+
+<div class="edu-box">
+<div class="edu-label">Cloud Concept: EBS Snapshots</div>
+EBS snapshots are point-in-time copies of your volumes stored in S3. They're incremental (only changed blocks are stored) and can be used to create new volumes. Snapshot frequency determines your RPO. For critical production systems, consider: more frequent snapshots, PostgreSQL PITR for database-level recovery, and application-level backup strategies.
+</div>`;
+            },
+            gives: ['system-restored', 'data-loss-6hr'],
+            choices: [
+                { text: 'Try to recover the 6 hours of database transactions from WAL', next: 'wal_recovery', key: 'A' },
+                { text: 'Accept the loss and focus on post-mortem', next: 'postmortem', key: 'B' }
+            ]
+        },
+
+        pitr_recovery: {
+            text: function() {
+                setDamage(0);
+                return `The plan: rebuild the OS from Ansible + Git, then use PostgreSQL PITR to restore the database to the exact moment before the disaster.
+
+<span class="cmd">Step 1: Fresh OS install (30 minutes)</span>
+<span class="cmd">$ # Boot from live USB, reinstall base OS on the disk</span>
+<span class="success">Clean Ubuntu 22.04 installed</span>
+
+<span class="cmd">Step 2: Run Ansible to restore configuration (15 minutes)</span>
+<span class="cmd">$ ansible-playbook -i inventory site.yml --tags "production"</span>
+<span class="success">nginx, PostgreSQL, Node.js, monitoring — all reinstalled and configured</span>
+
+<span class="cmd">Step 3: Deploy application from Git (5 minutes)</span>
+<span class="cmd">$ git clone git@github.com:company/app.git /opt/app
+$ cd /opt/app && npm install && npm run build</span>
+<span class="success">Application deployed from latest main branch</span>
+
+<span class="cmd">Step 4: PostgreSQL Point-in-Time Recovery</span>
+<span class="cmd">$ # Restore base backup from S3
+$ aws s3 cp s3://pg-backups/base/latest/ /var/lib/postgresql/14/main/ --recursive
+$ # Configure recovery to replay WAL up to 4:46 PM (1 minute before disaster)
+$ cat > /var/lib/postgresql/14/main/recovery.conf << EOF
+restore_command = 'aws s3 cp s3://pg-wal-archive/%f %p'
+recovery_target_time = '2025-12-15 16:46:00'
+recovery_target_action = 'promote'
+EOF
+$ systemctl start postgresql</span>
+
+<span class="system">[PostgreSQL recovering... replaying WAL segments...]</span>
+<span class="system">[Recovery target reached: 2025-12-15 16:46:00]</span>
+<span class="system">[Database promoted to read-write]</span>
+
+<span class="success">DATABASE FULLY RECOVERED TO 1 MINUTE BEFORE THE DISASTER!</span>
+
+<span class="success">Data loss: ~1 minute of transactions (the time between last WAL archive and the rm command)</span>
+
+<div class="edu-box">
+<div class="edu-label">Database Concept: Point-in-Time Recovery (PITR)</div>
+PostgreSQL PITR uses a base backup (full copy of data directory) + WAL archive (continuous stream of changes) to recover to ANY point in time. The process: restore base backup, configure recovery target time, start PostgreSQL to replay WAL up to that point. This provides near-zero RPO. Requirements: WAL archiving must be enabled BEFORE the disaster, and archives must be stored externally (S3, separate server).
+</div>`;
+            },
+            gives: ['system-restored', 'pitr-recovery', 'minimal-data-loss'],
+            choices: [
+                { text: 'Run verification tests on the recovered system', next: 'verify_recovery', key: 'A' },
+                { text: 'Proceed to post-mortem', next: 'postmortem', key: 'B' }
+            ]
+        },
+
+        recovery_plan: {
+            text: `You assess your recovery options with what you have:
+
+<span class="cmd">Option A: Package Manager Recovery</span>
+If dpkg/apt survived, you can reinstall all system packages to restore /usr/bin:
+<span class="cmd">$ dpkg --configure -a && apt install --reinstall $(dpkg --get-selections | grep -v deinstall | awk '{print $1}')</span>
+
+<span class="cmd">Option B: Fresh Install + Data Preservation</span>
+Reinstall the OS while preserving /var (database) and /home (user data):
+Mount /var and /home on separate partitions, reinstall on /, then remount.
+
+<span class="cmd">Option C: EBS Snapshot Restore</span>
+Full restore from the 6-hour-old snapshot. Fastest, but loses recent data.
+
+<span class="cmd">Option D: PITR (Best for Database)</span>
+Rebuild system from Ansible/Git, restore database via PITR from WAL archives.
+
+Which approach do you want to take?`,
+            choices: [
+                { text: 'PITR — rebuild system, restore database to the second', next: 'pitr_recovery', key: 'A' },
+                { text: 'EBS snapshot — fastest, accept 6-hour loss', next: 'ebs_restore', key: 'B' },
+                { text: 'Package manager recovery — try to fix in place', next: 'package_recovery', key: 'C' }
+            ]
+        },
+
+        package_recovery: {
+            text: function() {
+                setDamage(Math.max(0, damagePercent - 10));
+                return `You attempt to reinstall packages on the running (damaged) system:
+
+<span class="cmd">$ dpkg --configure -a</span>
+<span class="danger">dpkg: error: unable to open /usr/share/dpkg/cputable: No such file or directory</span>
+
+<span class="warning">dpkg itself is partially broken</span> because files it depends on were deleted from /usr.
+
+You try downloading a fresh dpkg binary from the live USB:
+<span class="cmd">$ cp /live-usb/usr/bin/dpkg /mnt/usr/bin/dpkg</span>
+<span class="cmd">$ chroot /mnt dpkg --configure -a</span>
+
+It starts working, but it's a fragile process. Every missing dependency triggers another error. You're rebuilding a house of cards.
+
+After 2 hours of manual dependency resolution:
+
+<span class="success">Core system packages restored. nginx and PostgreSQL binaries reinstalled.</span>
+<span class="warning">But the package manager's database is inconsistent. Future updates may break.</span>
+
+The quick-and-dirty approach got services running, but the system is fragile. A clean rebuild is recommended for long-term stability.`;
+            },
+            gives: ['system-patched'],
+            choices: [
+                { text: 'Test if services can start', next: 'verify_recovery', key: 'A' },
+                { text: 'This is too fragile — do a proper rebuild', next: 'pitr_recovery', key: 'B' }
+            ]
+        },
+
+        wal_recovery: {
+            text: function() {
+                setDamage(0);
+                return `The EBS snapshot gave you the system state from 10 AM. But the WAL archives in S3 have every database change since then.
+
+<span class="cmd">$ cat > /var/lib/postgresql/14/main/recovery.conf << EOF
+restore_command = 'aws s3 cp s3://pg-wal-archive/%f %p'
+recovery_target_time = '2025-12-15 16:46:00'
+recovery_target_action = 'promote'
+EOF</span>
+
+<span class="cmd">$ systemctl restart postgresql</span>
+
+<span class="system">[Replaying WAL from 10:00 AM to 4:46 PM...]</span>
+<span class="system">[6 hours and 46 minutes of transactions replayed]</span>
+<span class="success">[Database recovered to 16:46:00 — 1 minute before disaster]</span>
+
+<span class="success">PERFECT RECOVERY!</span> The database is restored to exactly one minute before you ran the fatal command. Every customer order, every user account, every transaction from the last 6 hours is back.
+
+The combination of EBS snapshot (fast system restore) + WAL replay (precise database recovery) gave you the best of both worlds.`;
+            },
+            gives: ['pitr-recovery', 'minimal-data-loss'],
+            choices: [
+                { text: 'Verify everything works', next: 'verify_recovery', key: 'A' },
+                { text: 'Proceed to post-mortem', next: 'postmortem', key: 'B' }
+            ]
+        },
+
+        verify_recovery: {
+            text: `<span class="cmd">Recovery Verification Checklist:</span>
+
+<span class="cmd">$ systemctl status nginx</span>
+<span class="success">Active: active (running)</span>
+
+<span class="cmd">$ systemctl status postgresql</span>
+<span class="success">Active: active (running)</span>
+
+<span class="cmd">$ curl -s http://localhost/ | head -1</span>
+<span class="success">&lt;!DOCTYPE html&gt; — Application serving!</span>
+
+<span class="cmd">$ psql -U app -d production -c "SELECT count(*) FROM users;"</span>
+<span class="success">  count
+  -------
+  47,823</span>
+
+<span class="cmd">$ psql -U app -d production -c "SELECT max(created_at) FROM orders;"</span>
+<span class="success">${state.inventory.includes('minimal-data-loss') ? '2025-12-15 16:45:47 — 13 seconds before the disaster! Nearly zero data loss!' : '2025-12-15 10:00:00 — Last order from snapshot time. 6 hours of orders lost.'}</span>
+
+${state.inventory.includes('minimal-data-loss') ? '<span class="success">FULL RECOVERY CONFIRMED. The application, database, and all user data are intact.</span>' : '<span class="warning">System recovered, but with 6 hours of data loss. Customer notification may be required.</span>'}
+
+Time to face the music: the post-mortem.`,
+            gives: ['recovery-verified'],
+            choices: [
+                { text: 'Write the post-mortem', next: 'postmortem', key: 'A' }
+            ]
+        },
+
+        postmortem: {
+            text: `<span class="cmd">INCIDENT POST-MORTEM</span>
+<span class="cmd">Date: Friday, December 15, 2025</span>
+<span class="cmd">Author: You</span>
+
+<span class="cmd">What happened:</span>
+At 16:47, a DevOps engineer (you) ran a cleanup command with a typographical error, resulting in recursive deletion of the production filesystem.
+
+<span class="cmd">Root cause:</span>
+<span class="danger">rm -rf / opt/deploys/old_builds/*</span> (space between / and opt)
+
+<span class="cmd">Contributing factors:</span>
+1. Running destructive commands as root without safety aliases
+2. No automated cleanup script (manual command, prone to typos)
+3. Working tired on a Friday afternoon (human factor)
+4. No safeguard preventing rm -rf on /
+5. No change management for production server modifications
+
+<span class="cmd">Impact:</span>
+${state.inventory.includes('minimal-data-loss') ? '<span class="success">Minimal — system fully recovered via PITR. ~13 seconds of transactions lost.</span>' : state.inventory.includes('data-loss-6hr') ? '<span class="warning">Moderate — 6 hours of data lost. Customer orders affected.</span>' : '<span class="danger">Severe — extended outage, data loss TBD.</span>'}
+
+<span class="cmd">Recovery time:</span> ${state.inventory.includes('pitr-recovery') ? '~50 minutes (PITR)' : state.inventory.includes('system-restored') ? '~30 minutes (EBS restore)' : '~3 hours (manual recovery)'}
+
+Now for the hardest part: the action items.`,
+            choices: [
+                { text: 'Implement comprehensive safeguards', next: 'safeguards', key: 'A' },
+                { text: 'Face the blame game first', next: 'blame_game', key: 'B' }
+            ]
+        },
+
+        blame_game: {
+            text: `Monday morning. You're in the conference room with the CTO, your manager, and the VP of Engineering.
+
+The CTO speaks first: "Walk us through what happened."
+
+You take a breath and present the full timeline honestly. The typo. The damage. The recovery.
+
+Silence.
+
+<span class="highlight">Your manager: "How long have you been running manual cleanup commands in production?"</span>
+
+"...About a year. It was never formalized into a script or pipeline."
+
+<span class="highlight">CTO: "So we had no guardrails. No automated pipeline for something that touches production data. And we relied on a human typing commands correctly every time."</span>
+
+"That's correct."
+
+<span class="highlight">VP Engineering: "Here's what I want to know — if this happened to any of our other DevOps engineers, would the same thing occur?"</span>
+
+"Yes. There's nothing preventing it."
+
+<span class="highlight">CTO: "Then this isn't a people problem. It's a systems problem. Let's talk about safeguards."</span>
+
+<span class="success">The CTO gets it.</span> Blameless post-mortems focus on what SYSTEMS failed, not who screwed up.
+
+<div class="edu-box">
+<div class="edu-label">Culture Concept: Blameless Post-Mortems</div>
+Blameless post-mortems (pioneered by Google, Netflix, and Etsy) focus on systemic improvements rather than individual blame. The logic: if a human can make a mistake that causes an outage, the system needs guardrails. Punishing individuals creates a culture of hiding mistakes. Improving systems prevents recurrence. The goal: make the right thing easy and the wrong thing hard.
+</div>`,
+            choices: [
+                { text: 'Propose comprehensive safeguards', next: 'safeguards', key: 'A' }
+            ]
+        },
+
+        safeguards: {
+            text: `<span class="cmd">POST-MORTEM ACTION ITEMS:</span>
+
+<span class="success">1. Shell Safeguards (Immediate)</span>
+<span class="cmd">$ cat >> /etc/profile.d/safety.sh << 'EOF'
+alias rm='rm -I --preserve-root'
+alias chmod='chmod --preserve-root'
+alias chown='chown --preserve-root'
+# Require confirmation for dangerous commands
+set -o noclobber  # Prevent file overwrite
+EOF</span>
+
+<span class="success">2. Install molly-guard and safe-rm (Immediate)</span>
+<span class="cmd">$ apt install molly-guard safe-rm</span>
+molly-guard prevents accidental shutdown/reboot of production.
+safe-rm blacklists critical directories from deletion.
+
+<span class="success">3. Automate the cleanup (Week 1)</span>
+Replace manual rm commands with a CI/CD pipeline job that:
+- Only deletes from specific whitelisted directories
+- Requires approval for deletion of more than 100 files
+- Logs all deletions to an audit trail
+
+<span class="success">4. Improve backup strategy (Week 1)</span>
+- Increase EBS snapshot frequency: every 1 hour (was 6 hours)
+- Verify WAL archiving is active and tested
+- Add automated backup verification tests
+
+<span class="success">5. Infrastructure as Code (Month 1)</span>
+- All server configuration in Ansible (already partial)
+- All deployments via CI/CD (no SSH to production)
+- Immutable infrastructure: rebuild, don't repair
+
+<span class="success">6. Remove root access for routine operations (Month 1)</span>
+- Use sudo with fine-grained permissions
+- Audit all root sessions
+
+<div class="edu-box">
+<div class="edu-label">Prevention: Making the Wrong Thing Hard</div>
+<span class="cmd">rm -I</span>: prompts before deleting >3 files
+<span class="cmd">--preserve-root</span>: refuses to operate on /
+<span class="cmd">safe-rm</span>: blacklists directories (/, /usr, /var, /etc)
+<span class="cmd">molly-guard</span>: requires hostname confirmation before shutdown
+<span class="cmd">noclobber</span>: prevents > from overwriting existing files
+Best of all: automate everything so humans never type rm in production.
+</div>`,
+            gives: ['safeguards-planned'],
+            choices: [
+                { text: 'Finalize the post-mortem and move forward', next: 'final_ending', key: 'A' }
+            ]
+        },
+
+        final_ending: {
+            text: function() {
+                const minLoss = state.inventory.includes('minimal-data-loss');
+                const sixHrLoss = state.inventory.includes('data-loss-6hr');
+                const pitr = state.inventory.includes('pitr-recovery');
+                const fast = state.inventory.includes('process-stopped');
+
+                if (minLoss) return endingSaved();
+                if (sixHrLoss) return endingRebuilt();
+                return endingCareer();
+            },
+            choices: [
+                { text: '[ PLAY AGAIN ]', next: 'restart', key: 'A' },
+                { text: '[ BACK TO CODE HOUSE ]', next: 'exit', key: 'B' }
+            ],
+            ending: 'complete'
+        }
+    };
+
+    function endingSaved() {
+        state.flags.ending = 'saved';
+        return `<div class="ending-banner good">
+<h2>ENDING: SAVED</h2>
+<p>Caught it in time — minimal data loss</p>
+</div>
+
+You caught the rm command quickly, recovered the system using PITR, and lost only seconds of data. The customers never noticed. The application was down for less than an hour.
+
+<span class="success">The post-mortem leads to real improvements:</span>
+- Automated cleanup pipelines replace manual rm commands
+- safe-rm installed on all production servers
+- EBS snapshots every hour instead of every 6 hours
+- WAL archiving verified weekly with automated tests
+- Nobody runs rm as root anymore
+
+Six months later, a junior engineer makes a similar typo. safe-rm catches it:
+
+<span class="cmd">$ rm -rf / opt/old/
+safe-rm: skipping / (blacklisted directory)</span>
+
+<span class="success">Your worst day became the organization's best safeguard.</span>
+
+<div class="edu-box">
+<div class="edu-label">The Silver Lining</div>
+Every major outage, if handled with blameless post-mortems and genuine improvement, makes the organization MORE resilient. The companies with the best reliability practices (Google, Netflix, Amazon) got there by learning from spectacular failures. Your disaster + good response + real safeguards = a stronger system.
+</div>`;
+    }
+
+    function endingRebuilt() {
+        state.flags.ending = 'rebuilt';
+        return `<div class="ending-banner neutral">
+<h2>ENDING: REBUILT</h2>
+<p>Major recovery effort — lessons learned the hard way</p>
+</div>
+
+The system was restored from the EBS snapshot, but 6 hours of data was lost. Customer support spends the next week handling complaints about missing orders and account issues.
+
+<span class="warning">Total impact:</span>
+- 6 hours of customer transactions lost
+- ~500 customer support tickets
+- Trust damaged (some customers switch to competitors)
+- 2 engineers spent the weekend rebuilding
+
+<span class="success">But the recovery could have been much worse.</span> Without EBS snapshots, the data loss would have been total. Without WAL archiving, the database would be gone entirely.
+
+The post-mortem drives real change:
+- PostgreSQL PITR tested and verified (it was set up but never tested)
+- Hourly snapshots replace daily
+- All production maintenance automated via CI/CD
+- "No Human SSH" policy for production servers
+
+<span class="warning">The lesson: untested backups are theoretical backups. Test your recovery process BEFORE you need it.</span>`;
+    }
+
+    function endingCareer() {
+        state.flags.ending = 'career';
+        return `<div class="ending-banner bad">
+<h2>ENDING: CAREER-ENDING</h2>
+<p>Total loss — time to update the resume</p>
+</div>
+
+The damage was too severe. The database files were corrupted beyond PITR recovery. The application data is gone. The EBS snapshots... were never actually configured (someone set them up in dev but forgot to enable them in prod).
+
+<span class="danger">Total loss:</span>
+- 47,823 user accounts
+- 3 years of customer data
+- Application state and configuration
+- Complete business operations halt for 1 week
+
+The company doesn't fire you. But they don't need to. You submit your resignation the following Monday.
+
+<span class="warning">In your resignation letter, you include a list of recommendations:</span>
+1. Verify backups exist AND work
+2. Never assume "someone else set up backups"
+3. Test disaster recovery quarterly
+4. Automate everything that touches production
+5. Install safe-rm on every server on day one
+
+Your next job has the best backup strategy anyone has ever seen. Because you built it.
+
+<span class="system">"Experience is what you get when you didn't get what you wanted." — Randy Pausch</span>`;
+    }
+
+    // ========================================
+    // ENGINE
+    // ========================================
+    function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, damagePercent, timestamp: Date.now() })); }
+    function loadGame() { const s = localStorage.getItem(STORAGE_KEY); if (s) { const d = JSON.parse(s); state = { currentScene: d.currentScene, inventory: d.inventory||[], flags: d.flags||{}, history: d.history||[] }; damagePercent = d.damagePercent || 0; return true; } return false; }
+    function clearSave() { localStorage.removeItem(STORAGE_KEY); }
+
+    function startNewGame() {
+        SFX.init(); clearSave();
+        state = { currentScene: 'the_moment', inventory: [], flags: {}, history: [] }; damagePercent = 0;
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('header').style.display = 'flex';
+        document.getElementById('narrative').style.display = 'block';
+        document.getElementById('choices').style.display = 'block';
+        document.getElementById('inventory-panel').style.display = 'block';
+        setDamage(0); SFX.startAmbient(); renderScene('the_moment');
+    }
+
+    function continueGame() {
+        SFX.init();
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('header').style.display = 'flex';
+        document.getElementById('narrative').style.display = 'block';
+        document.getElementById('choices').style.display = 'block';
+        document.getElementById('inventory-panel').style.display = 'block';
+        setDamage(damagePercent); SFX.startAmbient(); renderScene(state.currentScene);
+    }
+
+    function renderScene(id) {
+        if (id === 'restart') { clearSave(); location.reload(); return; }
+        if (id === 'exit') { window.location.href = '../index.html'; return; }
+        const scene = scenes[id]; if (!scene) return;
+        state.currentScene = id; state.history.push(id);
+        if (scene.gives) scene.gives.forEach(i => { if (!state.inventory.includes(i)) state.inventory.push(i); });
+        saveGame(); updateInventory();
+        let text = typeof scene.text === 'function' ? scene.text() : scene.text;
+        const st = document.getElementById('scene-text'), ch = document.getElementById('choices'), cur = document.getElementById('cursor');
+        ch.innerHTML = ''; st.innerHTML = ''; cur.style.display = 'none'; isTyping = true;
+        st.innerHTML = text; st.style.opacity = '0';
+        setTimeout(() => {
+            st.style.transition = 'opacity 0.5s ease'; st.style.opacity = '1'; SFX.playSelect();
+            setTimeout(() => {
+                isTyping = false; cur.style.display = 'inline-block'; renderChoices(scene);
+                if (scene.audio === 'victory') SFX.playVictory();
+                if (scene.audio === 'danger') SFX.playDanger();
+                if (scene.ending) try { if (window.parent && window.parent.AchievementRegistry) window.parent.AchievementRegistry.unlock('ta-rmrf-' + (state.flags.ending || 'complete')); } catch(e) {}
+            }, 500);
+        }, 100);
+        window.scrollTo(0, 0);
+    }
+
+    function renderChoices(scene) {
+        const ch = document.getElementById('choices'); ch.innerHTML = '';
+        if (!scene.choices) return;
+        const seen = new Set();
+        scene.choices.filter(c => { if (c.requires && !c.requires.every(r => state.inventory.includes(r))) return false; if (seen.has(c.next)) return false; seen.add(c.next); return true; })
+        .forEach((c, i) => {
+            const b = document.createElement('button'); b.className = 'choice-btn';
+            b.innerHTML = `<span class="choice-key">[${c.key || String.fromCharCode(65+i)}]</span> ${c.text}`;
+            b.onclick = () => { SFX.playSelect(); renderScene(c.next); }; ch.appendChild(b);
+        });
+    }
+
+    function updateInventory() {
+        const c = document.getElementById('inv-items'); c.innerHTML = '';
+        const labels = {
+            'process-stopped':'rm: KILLED','partial-damage':'Damage: ~15%','moderate-damage':'Damage: ~25%','minimal-damage':'Damage: ~10%',
+            'power-pulled':'Hard shutdown','services-saved':'Services: checkpointed','app-intact':'App code: INTACT','app-deleted':'App code: DELETED',
+            'db-intact':'Database: INTACT','db-uncertain':'Database: UNCERTAIN','live-usb-booted':'Live USB: active',
+            'system-booted':'System: bootable','backup-assessed':'Backups: assessed','raid-checked':'RAID: no help',
+            'forensic-attempted':'Forensics: partial','system-restored':'System: RESTORED','pitr-recovery':'PITR: RECOVERED',
+            'minimal-data-loss':'Data loss: ~seconds','data-loss-6hr':'Data loss: 6 hours','system-patched':'System: patched (fragile)',
+            'recovery-verified':'Recovery: VERIFIED','safeguards-planned':'Safeguards: planned'
+        };
+        const key = ['system-restored','pitr-recovery','minimal-data-loss','recovery-verified','safeguards-planned'];
+        const bad = ['app-deleted','data-loss-6hr','db-uncertain','moderate-damage'];
+        state.inventory.forEach(item => {
+            const el = document.createElement('span');
+            el.className = 'inv-item' + (key.includes(item) ? ' key-item' : bad.includes(item) ? ' bad-item' : '');
+            el.textContent = labels[item] || item; c.appendChild(el);
+        });
+    }
+
+    document.getElementById('audio-toggle').addEventListener('click', function() {
+        SFX.init(); SFX.muted = !SFX.muted;
+        this.textContent = SFX.muted ? '\u{1F507}' : '\u{1F50A}';
+        if (!SFX.muted) SFX.startAmbient(); else SFX.stopAmbient();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (isTyping) return;
+        document.querySelectorAll('.choice-btn').forEach(b => {
+            const m = b.querySelector('.choice-key');
+            if (m && m.textContent.includes(e.key.toUpperCase())) b.click();
+        });
+    });
+
+    if (loadGame() && state.currentScene) {
+        const cb = document.createElement('button'); cb.className = 'start-btn'; cb.textContent = '[ CONTINUE ]'; cb.onclick = continueGame;
+        document.getElementById('start-buttons').prepend(cb);
+        const nb = document.querySelector('#start-buttons .start-btn:last-child'); if (nb) nb.className = 'start-btn secondary';
+    }
+    </script>
+</body>
+</html>
