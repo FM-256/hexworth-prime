@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Box A2: The Shadow Encoder | CTF Arena</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0f;
+            color: #c0c0d0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Layout ── */
+        .arena-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+        }
+
+        /* ── Top Bar ── */
+        .top-bar {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #111118;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .top-bar .back { color: #8e44ad; text-decoration: none; font-size: 0.8rem; font-weight: 600; }
+        .top-bar .back:hover { color: #a569bd; }
+        .top-bar .box-id { color: #555; font-size: 0.75rem; letter-spacing: 0.2em; }
+        .top-bar .score-display {
+            font-size: 1rem; font-weight: 700;
+            color: #8e44ad;
+            text-shadow: 0 0 10px rgba(142,68,173,0.4);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            background: #0e0e16;
+            border-right: 1px solid #1e1e2e;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .sidebar h3 {
+            color: #8e44ad;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin: 16px 0 8px;
+        }
+        .sidebar h3:first-child { margin-top: 0; }
+        .sidebar p, .sidebar li {
+            font-size: 0.78rem;
+            color: #888;
+            line-height: 1.7;
+        }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li::before { content: '> '; color: #8e44ad; }
+
+        .flag-status {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .flag-badge {
+            padding: 4px 10px; border-radius: 4px;
+            font-size: 0.7rem; font-weight: 600;
+            border: 1px solid #333;
+            background: #1a1a22;
+            color: #555;
+        }
+        .flag-badge.found {
+            border-color: #2ecc71;
+            color: #2ecc71;
+            background: rgba(46,204,113,0.1);
+        }
+
+        .hint-btn {
+            display: block; width: 100%;
+            margin-top: 6px; padding: 6px;
+            background: #1a1a24; border: 1px solid #2a2a3a;
+            color: #888; font-family: inherit; font-size: 0.72rem;
+            border-radius: 4px; cursor: pointer;
+            text-align: left;
+        }
+        .hint-btn:hover { border-color: #8e44ad44; color: #aaa; }
+        .hint-btn.used { color: #8e44ad; border-color: #8e44ad33; }
+        .hint-text { color: #ccc; margin-top: 4px; font-style: italic; }
+
+        /* ── Main Area ── */
+        .main-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Tabbed View ── */
+        .tab-bar {
+            display: flex;
+            background: #111118;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .tab-btn {
+            padding: 8px 18px;
+            background: transparent;
+            border: none; border-bottom: 2px solid transparent;
+            color: #666; font-family: inherit; font-size: 0.75rem;
+            cursor: pointer; letter-spacing: 0.05em;
+        }
+        .tab-btn:hover { color: #aaa; }
+        .tab-btn.active { color: #8e44ad; border-bottom-color: #8e44ad; }
+
+        .tab-panel {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .tab-panel.active { display: flex; flex-direction: column; }
+
+        /* ── Web App Panel ── */
+        .webapp-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .browser-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 12px;
+            background: #1a1a26;
+            border-bottom: 1px solid #2a2a3a;
+            font-size: 0.72rem;
+        }
+        .browser-dots { display: flex; gap: 4px; }
+        .browser-dots span { width: 8px; height: 8px; border-radius: 50%; }
+        .browser-dots .r { background: #e74c3c; }
+        .browser-dots .y { background: #f39c12; }
+        .browser-dots .g { background: #2ecc71; }
+        .url-bar {
+            flex: 1; padding: 3px 10px;
+            background: #0e0e16; border: 1px solid #2a2a3a; border-radius: 4px;
+            color: #666; font-family: inherit; font-size: 0.72rem;
+        }
+
+        .webapp-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        /* ── Shadow Encoder App ── */
+        .encoder-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .encoder-header h1 {
+            color: #8e44ad;
+            font-size: 1.4rem;
+            text-shadow: 0 0 20px rgba(142,68,173,0.3);
+            margin-bottom: 4px;
+        }
+        .encoder-header .tagline { color: #555; font-size: 0.75rem; }
+
+        .encoder-section {
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+        .encoder-section label {
+            display: block; color: #888;
+            font-size: 0.78rem; margin-bottom: 6px;
+        }
+        .encoder-input {
+            width: 100%; padding: 10px 14px;
+            background: #0e0e16; border: 1px solid #2a2a3a;
+            color: #ddd; font-family: inherit; font-size: 0.85rem;
+            border-radius: 4px; resize: vertical; min-height: 60px;
+        }
+        .encoder-input:focus { outline: none; border-color: #8e44ad; }
+        .encode-btn {
+            margin-top: 8px; padding: 8px 24px;
+            background: #8e44ad; color: #fff;
+            border: none; border-radius: 4px;
+            font-family: inherit; font-weight: 700;
+            font-size: 0.8rem; cursor: pointer;
+        }
+        .encode-btn:hover { background: #9b59b6; }
+        .encode-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .validation-toggle {
+            margin-top: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .validation-toggle label {
+            display: inline; font-size: 0.72rem; color: #555; cursor: pointer;
+        }
+        .validation-status {
+            font-size: 0.68rem; padding: 2px 8px;
+            border-radius: 3px;
+        }
+        .validation-status.on { background: #2ecc7122; color: #2ecc71; border: 1px solid #2ecc7133; }
+        .validation-status.off { background: #e74c3c22; color: #e74c3c; border: 1px solid #e74c3c33; }
+
+        .output-section {
+            max-width: 600px; margin: 0 auto;
+        }
+        .output-label {
+            color: #555; font-size: 0.7rem;
+            letter-spacing: 0.1em; margin-bottom: 6px;
+        }
+        .output-box {
+            background: #0a0a12; border: 1px solid #2a2a3a;
+            border-radius: 4px; padding: 12px;
+            font-size: 0.82rem; color: #aaa;
+            min-height: 60px; white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0a0a10;
+        }
+        .terminal-header {
+            padding: 6px 12px;
+            background: #1a1a22;
+            border-bottom: 1px solid #2a2a3a;
+            font-size: 0.72rem;
+            color: #2ecc71;
+        }
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-size: 0.78rem;
+            color: #aaa;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .terminal-output .prompt { color: #2ecc71; }
+        .terminal-output .cmd { color: #ddd; }
+        .terminal-output .result { color: #aaa; }
+        .terminal-output .error { color: #e74c3c; }
+        .terminal-output .flag-found { color: #2ecc71; font-weight: 700; }
+
+        .terminal-input-row {
+            display: flex; align-items: center;
+            padding: 6px 12px;
+            background: #0e0e16;
+            border-top: 1px solid #1a1a22;
+        }
+        .terminal-prompt {
+            color: #2ecc71; font-size: 0.78rem;
+            margin-right: 6px; white-space: nowrap;
+        }
+        .terminal-input {
+            flex: 1; background: transparent;
+            border: none; color: #ddd;
+            font-family: inherit; font-size: 0.78rem;
+            outline: none;
+        }
+
+        /* ── Flag Submission ── */
+        .flag-submit {
+            max-width: 600px; margin: 20px auto;
+            padding: 16px;
+            background: #14141e;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+        }
+        .flag-submit label {
+            display: block; color: #8e44ad;
+            font-size: 0.72rem; letter-spacing: 0.15em;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+        .flag-row { display: flex; gap: 8px; }
+        .flag-input {
+            flex: 1; padding: 8px 12px;
+            background: #0a0a10; border: 1px solid #333;
+            color: #ddd; font-family: inherit; font-size: 0.82rem;
+            border-radius: 4px;
+        }
+        .flag-input:focus { outline: none; border-color: #8e44ad; }
+        .flag-btn {
+            padding: 8px 20px;
+            background: #8e44ad; color: #fff;
+            border: none; border-radius: 4px;
+            font-family: inherit; font-weight: 700;
+            font-size: 0.8rem; cursor: pointer;
+        }
+        .flag-btn:hover { background: #9b59b6; }
+        #flagMsg { margin-top: 8px; }
+
+        .error-msg {
+            color: #e74c3c; background: rgba(231,76,60,0.08);
+            border: 1px solid #e74c3c33; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        .success-msg {
+            color: #2ecc71; background: rgba(46,204,113,0.08);
+            border: 1px solid #2ecc7133; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        .info-msg {
+            color: #3498db; background: rgba(52,152,219,0.08);
+            border: 1px solid #3498db33; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        /* ── Completion Overlay ── */
+        .completion-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center; justify-content: center;
+        }
+        .completion-overlay.active { display: flex; }
+        .completion-card {
+            background: #12121a;
+            border: 2px solid #2ecc71;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            box-shadow: 0 0 60px rgba(46,204,113,0.2);
+        }
+        .completion-card h2 { color: #2ecc71; font-size: 1.4rem; margin-bottom: 8px; }
+        .completion-card .final-score { font-size: 2.2rem; color: #fff; font-weight: 700; margin: 16px 0; }
+        .completion-card .breakdown { color: #888; font-size: 0.8rem; text-align: left; margin: 16px 0; }
+        .completion-card .breakdown div { margin: 4px 0; display: flex; justify-content: space-between; }
+        .completion-card button {
+            margin-top: 20px; padding: 10px 30px;
+            background: #2ecc71; color: #0a0a0f;
+            border: none; border-radius: 6px;
+            font-family: inherit; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer;
+        }
+
+        /* ── Source View ── */
+        .source-view {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .source-view pre {
+            background: #0a0a12; border: 1px solid #2a2a3a;
+            border-radius: 4px; padding: 16px;
+            font-size: 0.75rem; color: #888;
+            overflow-x: auto;
+        }
+        .source-view .highlight { color: #e74c3c; font-weight: 600; }
+        .source-view .comment { color: #555; }
+
+        @media (max-width: 768px) {
+            .arena-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="arena-layout">
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a class="back" href="../index.html">&larr; WORKSHOP</a>
+        <span class="box-id">CTF ARENA &middot; BOX A2 &middot; SERIES A</span>
+        <span class="score-display" id="scoreDisplay">1000</span>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3>Mission Briefing</h3>
+        <p>The Obsidian Hand's "Shadow Encoder" service claims unbreakable encryption. Intel says it's a bluff &mdash; trivial Base64 behind JavaScript validation. The backend has a critical flaw: unsanitized input passed directly to the shell.</p>
+
+        <h3>Objectives</h3>
+        <ul>
+            <li>Analyze the client-side validation</li>
+            <li>Bypass input restrictions</li>
+            <li>Exploit command injection</li>
+            <li>Escalate privileges to root</li>
+            <li>Submit both flags</li>
+        </ul>
+
+        <h3>Flags</h3>
+        <div class="flag-status">
+            <span class="flag-badge" id="userFlagBadge">user.txt</span>
+            <span class="flag-badge" id="rootFlagBadge">root.txt</span>
+        </div>
+
+        <h3>Hints <span style="color:#555;font-size:0.65rem;">(-50 pts each)</span></h3>
+        <button class="hint-btn" id="hint1" onclick="useHint(1)">Hint 1: The Validator</button>
+        <button class="hint-btn" id="hint2" onclick="useHint(2)">Hint 2: Breaking Out</button>
+        <button class="hint-btn" id="hint3" onclick="useHint(3)">Hint 3: Finding Files</button>
+        <button class="hint-btn" id="hint4" onclick="useHint(4)">Hint 4: Going Root</button>
+
+        <h3>Difficulty</h3>
+        <p style="color:#8e44ad;">Intermediate</p>
+        <p style="font-size:0.7rem;color:#555;margin-top:4px;">Command Injection &middot; Privilege Escalation</p>
+
+        <h3>Cert Objectives</h3>
+        <p style="font-size:0.7rem;">CompTIA Security+ 1.3 &mdash; Application Attacks</p>
+        <p style="font-size:0.7rem;">CompTIA PenTest+ 3.2 &mdash; Exploitation Techniques</p>
+    </div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('webapp')">Web App</button>
+            <button class="tab-btn" onclick="switchTab('terminal')">Terminal</button>
+            <button class="tab-btn" onclick="switchTab('source')">View Source</button>
+        </div>
+
+        <!-- Web App Tab -->
+        <div class="tab-panel active" id="tab-webapp">
+            <div class="webapp-frame">
+                <div class="browser-bar">
+                    <div class="browser-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <div class="url-bar">http://shadow-encoder.obsidian.local/encode</div>
+                </div>
+
+                <div class="webapp-content">
+                    <div class="encoder-header">
+                        <h1>&#9764; The Shadow Encoder</h1>
+                        <div class="tagline">Obsidian Hand Secure Communications &mdash; "Unbreakable Encoding"</div>
+                    </div>
+
+                    <div class="encoder-section">
+                        <label>Enter text to encode with our proprietary algorithm:</label>
+                        <textarea class="encoder-input" id="encoderInput" placeholder="Type your message..." rows="3"></textarea>
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                            <button class="encode-btn" id="encodeBtn" onclick="encodeText()">Encode Message</button>
+                            <div class="validation-toggle">
+                                <input type="checkbox" id="validationToggle" checked onchange="toggleValidation()">
+                                <label for="validationToggle">Client Validation</label>
+                                <span class="validation-status on" id="validationStatus">ACTIVE</span>
+                            </div>
+                        </div>
+                        <div id="encoderMsg"></div>
+                    </div>
+
+                    <div class="output-section">
+                        <div class="output-label">ENCODED OUTPUT</div>
+                        <div class="output-box" id="encoderOutput">Awaiting input...</div>
+                    </div>
+
+                    <div class="flag-submit" style="margin-top:30px;">
+                        <label>&#9873; Submit Flag</label>
+                        <div class="flag-row">
+                            <input type="text" class="flag-input" id="flagInput" placeholder="flag{...}">
+                            <button class="flag-btn" onclick="submitFlag()">Submit</button>
+                        </div>
+                        <div id="flagMsg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Tab -->
+        <div class="tab-panel" id="tab-terminal">
+            <div class="terminal-frame">
+                <div class="terminal-header">www-data@shadow-encoder:/var/www/html/app$ &mdash; Reverse Shell (simulated)</div>
+                <div class="terminal-output" id="terminalOutput">
+<span class="result">[*] Connection received from shadow-encoder.obsidian.local
+[*] Shell spawned as www-data
+</span>
+</div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt" id="terminalPrompt">www-data@shadow-encoder:~$</span>
+                    <input type="text" class="terminal-input" id="terminalInput" placeholder="Type command..." autofocus>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source View Tab -->
+        <div class="tab-panel" id="tab-source">
+            <div class="source-view">
+                <p style="color:#888;font-size:0.82rem;margin-bottom:16px;">Page source for <code>http://shadow-encoder.obsidian.local/encode</code></p>
+                <pre id="sourceCode"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Completion Overlay -->
+<div class="completion-overlay" id="completionOverlay">
+    <div class="completion-card">
+        <h2>&#9764; BOX PWNED</h2>
+        <div style="color:#888;font-size:0.85rem;">The Shadow Encoder</div>
+        <div class="final-score" id="finalScore">1000</div>
+        <div class="breakdown" id="scoreBreakdown"></div>
+        <button onclick="location.href='../index.html'">Return to Workshop</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════
+
+    const STORAGE_KEY = 'hexworth_ctf_a2';
+    const USER_FLAG = 'flag{sh4d0w_3nc0d3r_cmd_1nj3ct10n}';
+    const ROOT_FLAG = 'flag{0bs1d14n_h4nd_0p3r4t10n4l_pl4ns}';
+
+    let state = load();
+    let validationEnabled = true;
+    let shellActive = false;
+    let currentUser = 'www-data';
+    let currentDir = '/var/www/html/app';
+
+    function defaults() {
+        return {
+            score: 1000,
+            hintsUsed: [],
+            userFlag: false,
+            rootFlag: false,
+            wrongFlags: 0,
+            commandsRun: 0,
+            injectionFound: false,
+            shellObtained: false,
+            privescDone: false,
+            startTime: Date.now(),
+            completed: false
+        };
+    }
+
+    function load() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) return { ...defaults(), ...JSON.parse(raw) };
+        } catch (e) {}
+        return defaults();
+    }
+
+    function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function updateScore() {
+        document.getElementById('scoreDisplay').textContent = state.score;
+        if (state.userFlag) document.getElementById('userFlagBadge').classList.add('found');
+        if (state.rootFlag) document.getElementById('rootFlagBadge').classList.add('found');
+        save();
+    }
+
+    updateScore();
+    state.hintsUsed.forEach(id => {
+        const btn = document.getElementById('hint' + id);
+        if (btn) btn.classList.add('used');
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // SIMULATED FILESYSTEM
+    // ═══════════════════════════════════════════════════════
+
+    const FS = {
+        '/': { type: 'dir', contents: ['bin', 'etc', 'home', 'root', 'tmp', 'var', 'usr'] },
+        '/var': { type: 'dir', contents: ['www', 'log'] },
+        '/var/www': { type: 'dir', contents: ['html'] },
+        '/var/www/html': { type: 'dir', contents: ['app'] },
+        '/var/www/html/app': { type: 'dir', contents: ['encode.py', 'templates', 'static', 'requirements.txt'] },
+        '/var/www/html/app/encode.py': { type: 'file', content: `#!/usr/bin/env python3
+import os
+from flask import Flask, request, render_template
+
+app = Flask(__name__)
+
+@app.route('/encode', methods=['GET', 'POST'])
+def encode():
+    if request.method == 'POST':
+        user_input = request.form.get('text', '')
+        # Run encoding via shell command
+        result = os.popen("echo " + user_input + " | base64").read()
+        return render_template('result.html', encoded=result)
+    return render_template('encode.html')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80)
+`, owner: 'www-data' },
+        '/var/www/html/app/requirements.txt': { type: 'file', content: 'flask==2.3.2\ngunicorn==21.2.0\n', owner: 'www-data' },
+        '/var/www/html/app/templates': { type: 'dir', contents: ['encode.html', 'result.html'] },
+        '/var/www/html/app/static': { type: 'dir', contents: ['style.css', 'validate.js'] },
+        '/var/www/html/app/static/validate.js': { type: 'file', content: `// Client-side input sanitizer
+function validateInput(text) {
+    // Only allow alphanumeric and spaces
+    const pattern = /^[a-zA-Z0-9 ]+$/;
+    return pattern.test(text);
+}
+`, owner: 'www-data' },
+        '/home': { type: 'dir', contents: ['obsidian_dev'] },
+        '/home/obsidian_dev': { type: 'dir', contents: ['user.txt', '.bash_history', 'notes.txt'] },
+        '/home/obsidian_dev/user.txt': { type: 'file', content: USER_FLAG, owner: 'obsidian_dev', readable: true },
+        '/home/obsidian_dev/.bash_history': { type: 'file', content: 'python3 encode.py\nsudo -l\nfind / -perm -4000 2>/dev/null\nexit\n', owner: 'obsidian_dev', readable: true },
+        '/home/obsidian_dev/notes.txt': { type: 'file', content: 'Reminder: the nmap binary has SUID set for network scanning.\nDon\'t tell anyone - we need it for recon ops.\n', owner: 'obsidian_dev', readable: true },
+        '/root': { type: 'dir', contents: ['operational_plans.txt', '.bashrc'], perm: 'root' },
+        '/root/operational_plans.txt': { type: 'file', content: ROOT_FLAG, owner: 'root', perm: 'root' },
+        '/root/.bashrc': { type: 'file', content: '# root bashrc\nexport PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n', owner: 'root', perm: 'root' },
+        '/etc': { type: 'dir', contents: ['passwd', 'hostname', 'crontab'] },
+        '/etc/passwd': { type: 'file', content: 'root:x:0:0:root:/root:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\nobsidian_dev:x:1000:1000:Obsidian Dev:/home/obsidian_dev:/bin/bash\n' },
+        '/etc/hostname': { type: 'file', content: 'shadow-encoder\n' },
+        '/etc/crontab': { type: 'file', content: '# System crontab\n*/5 * * * * root /usr/local/bin/cleanup.sh\n' },
+        '/tmp': { type: 'dir', contents: [] },
+        '/usr': { type: 'dir', contents: ['bin', 'local'] },
+        '/usr/bin': { type: 'dir', contents: ['python3', 'base64', 'curl', 'wget', 'nmap'] },
+        '/usr/local': { type: 'dir', contents: ['bin'] },
+        '/usr/local/bin': { type: 'dir', contents: ['cleanup.sh'] },
+        '/usr/local/bin/cleanup.sh': { type: 'file', content: '#!/bin/bash\n# Cleanup temp files\nfind /tmp -mtime +1 -delete\n', owner: 'root' }
+    };
+
+    const SUID_BINARIES = ['/usr/bin/nmap'];
+
+    // ═══════════════════════════════════════════════════════
+    // TABS
+    // ═══════════════════════════════════════════════════════
+
+    window.switchTab = function(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        event.target.classList.add('active');
+
+        if (tab === 'terminal') {
+            document.getElementById('terminalInput').focus();
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // ENCODER WEB APP
+    // ═══════════════════════════════════════════════════════
+
+    window.toggleValidation = function() {
+        validationEnabled = document.getElementById('validationToggle').checked;
+        const status = document.getElementById('validationStatus');
+        if (validationEnabled) {
+            status.textContent = 'ACTIVE';
+            status.className = 'validation-status on';
+        } else {
+            status.textContent = 'DISABLED';
+            status.className = 'validation-status off';
+        }
+    };
+
+    window.encodeText = function() {
+        const input = document.getElementById('encoderInput').value;
+        const output = document.getElementById('encoderOutput');
+        const msg = document.getElementById('encoderMsg');
+        msg.innerHTML = '';
+
+        if (!input.trim()) {
+            output.textContent = 'Awaiting input...';
+            return;
+        }
+
+        // Client-side validation
+        if (validationEnabled) {
+            if (!/^[a-zA-Z0-9 ]+$/.test(input)) {
+                msg.innerHTML = '<div class="error-msg">Input rejected: only alphanumeric characters and spaces allowed.<br><small style="color:#666;">Client-side validation (validate.js) blocked this input.</small></div>';
+                return;
+            }
+        }
+
+        // Simulate backend processing
+        // Check for command injection patterns
+        const injectionPatterns = [
+            { regex: /[;|&`$()]/, type: 'metachar' },
+            { regex: /\$\(/, type: 'subshell' },
+        ];
+
+        const hasInjection = injectionPatterns.some(p => p.regex.test(input));
+
+        if (hasInjection) {
+            state.injectionFound = true;
+            save();
+
+            // Simulate command execution alongside base64
+            const parts = input.split(/[;|]/);
+            const base64Part = btoa(parts[0].trim() || '');
+            let cmdOutput = base64Part + '\n';
+
+            // Extract the injected command
+            const cmdPart = input.replace(/^[^;|&`]*[;|&`]+\s*/, '').trim();
+
+            if (cmdPart) {
+                const cmdResult = simulateCommand(cmdPart);
+                cmdOutput += '\n' + cmdResult;
+            }
+
+            output.textContent = cmdOutput;
+
+            if (!state.shellObtained) {
+                msg.innerHTML = '<div class="success-msg">Command injection successful! The server executed your payload. Switch to the Terminal tab for an interactive shell.</div>';
+                state.shellObtained = true;
+                save();
+            }
+        } else {
+            // Normal base64 encoding
+            output.textContent = btoa(input);
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // TERMINAL SIMULATOR
+    // ═══════════════════════════════════════════════════════
+
+    function getPrompt() {
+        const user = currentUser;
+        const dir = currentDir === '/root' ? '~' :
+                    currentDir === '/home/' + user ? '~' :
+                    currentDir;
+        const symbol = currentUser === 'root' ? '#' : '$';
+        return `${user}@shadow-encoder:${dir}${symbol}`;
+    }
+
+    function updatePrompt() {
+        document.getElementById('terminalPrompt').textContent = getPrompt() + ' ';
+    }
+
+    function appendTerminal(html) {
+        const out = document.getElementById('terminalOutput');
+        out.innerHTML += html;
+        out.scrollTop = out.scrollHeight;
+    }
+
+    function simulateCommand(cmd) {
+        const trimmed = cmd.trim();
+        if (!trimmed) return '';
+
+        state.commandsRun++;
+
+        // Parse command
+        const parts = trimmed.split(/\s+/);
+        const binary = parts[0];
+        const args = parts.slice(1);
+
+        // ── whoami ──
+        if (binary === 'whoami') return currentUser;
+
+        // ── id ──
+        if (binary === 'id') {
+            if (currentUser === 'root') return 'uid=0(root) gid=0(root) groups=0(root)';
+            return 'uid=33(www-data) gid=33(www-data) groups=33(www-data)';
+        }
+
+        // ── hostname ──
+        if (binary === 'hostname') return 'shadow-encoder';
+
+        // ── uname ──
+        if (binary === 'uname') return 'Linux shadow-encoder 5.15.0-83-generic #92-Ubuntu SMP x86_64 GNU/Linux';
+
+        // ── pwd ──
+        if (binary === 'pwd') return currentDir;
+
+        // ── ls ──
+        if (binary === 'ls') {
+            let target = currentDir;
+            const pathArg = args.find(a => !a.startsWith('-'));
+            if (pathArg) target = resolvePath(pathArg);
+
+            const node = FS[target];
+            if (!node || node.type !== 'dir') return `ls: cannot access '${pathArg || target}': No such file or directory`;
+            if (node.perm === 'root' && currentUser !== 'root') return `ls: cannot open directory '${target}': Permission denied`;
+
+            const items = node.contents || [];
+            if (args.includes('-la') || args.includes('-l')) {
+                return items.map(name => {
+                    const fullPath = target === '/' ? '/' + name : target + '/' + name;
+                    const child = FS[fullPath];
+                    if (!child) return `drwxr-xr-x 2 root root 4096 Jan 15 08:30 ${name}`;
+                    const isDir = child.type === 'dir';
+                    const owner = child.owner || 'root';
+                    const perm = isDir ? 'drwxr-xr-x' : (SUID_BINARIES.includes(fullPath) ? '-rwsr-xr-x' : '-rw-r--r--');
+                    return `${perm} 1 ${owner} ${owner} ${isDir ? 4096 : (child.content || '').length} Jan 15 08:30 ${name}`;
+                }).join('\n');
+            }
+            return items.join('  ');
+        }
+
+        // ── cd ──
+        if (binary === 'cd') {
+            const target = args[0] || '/home/' + currentUser;
+            const resolved = resolvePath(target);
+            const node = FS[resolved];
+            if (!node || node.type !== 'dir') return `bash: cd: ${target}: No such file or directory`;
+            if (node.perm === 'root' && currentUser !== 'root') return `bash: cd: ${target}: Permission denied`;
+            currentDir = resolved;
+            updatePrompt();
+            return '';
+        }
+
+        // ── cat ──
+        if (binary === 'cat') {
+            const target = args[0];
+            if (!target) return 'cat: missing operand';
+            const resolved = resolvePath(target);
+            const node = FS[resolved];
+            if (!node) return `cat: ${target}: No such file or directory`;
+            if (node.type === 'dir') return `cat: ${target}: Is a directory`;
+            if (node.perm === 'root' && currentUser !== 'root') return `cat: ${target}: Permission denied`;
+            return node.content || '';
+        }
+
+        // ── find ──
+        if (binary === 'find') {
+            const joined = trimmed;
+            // find / -perm -4000 (SUID search)
+            if (joined.includes('-perm') && (joined.includes('-4000') || joined.includes('/4000') || joined.includes('u=s'))) {
+                let result = SUID_BINARIES.join('\n');
+                if (joined.includes('2>/dev/null') || joined.includes('2>&1')) {
+                    return result;
+                }
+                return result + '\nfind: \'/root\': Permission denied';
+            }
+            // find user.txt
+            if (joined.includes('user.txt')) {
+                if (currentUser === 'root') return '/home/obsidian_dev/user.txt';
+                return '/home/obsidian_dev/user.txt\nfind: \'/root\': Permission denied';
+            }
+            return 'find: missing arguments';
+        }
+
+        // ── sudo ──
+        if (binary === 'sudo') {
+            if (args[0] === '-l') return `[sudo] password for ${currentUser}: \nSorry, user ${currentUser} may not run sudo on shadow-encoder.`;
+            return `[sudo] password for ${currentUser}: \nSorry, user ${currentUser} is not allowed to execute that.`;
+        }
+
+        // ── nmap (SUID — privesc vector) ──
+        if (binary === 'nmap') {
+            if (args.includes('--interactive')) {
+                currentUser = 'root';
+                currentDir = '/root';
+                state.privescDone = true;
+                save();
+                updatePrompt();
+                return 'Starting Nmap V. 6.49BETA4 ( https://nmap.org )\nWelcome to Interactive Mode -- press h for help\nnmap> !sh\n# whoami\nroot\n[*] Dropped to root shell via nmap SUID interactive mode.';
+            }
+            if (args.some(a => a.startsWith('!'))) {
+                // nmap interactive shell escape
+                currentUser = 'root';
+                currentDir = '/root';
+                state.privescDone = true;
+                save();
+                updatePrompt();
+                return '# Escalated to root via nmap SUID';
+            }
+            return 'Nmap 6.49BETA4 ( https://nmap.org )\nUsage: nmap [Options] target\nTip: Try --interactive for an interactive session.';
+        }
+
+        // ── file ──
+        if (binary === 'file') {
+            const target = args[0];
+            if (!target) return 'file: missing operand';
+            if (SUID_BINARIES.includes(resolvePath(target))) return `${target}: setuid ELF 64-bit LSB executable, x86-64`;
+            const resolved = resolvePath(target);
+            const node = FS[resolved];
+            if (!node) return `${target}: cannot open \`${target}\' (No such file or directory)`;
+            if (node.type === 'dir') return `${target}: directory`;
+            return `${target}: ASCII text`;
+        }
+
+        // ── echo ──
+        if (binary === 'echo') return args.join(' ');
+
+        // ── head / tail ──
+        if (binary === 'head' || binary === 'tail') {
+            const target = args.find(a => !a.startsWith('-'));
+            if (!target) return `${binary}: missing operand`;
+            const resolved = resolvePath(target);
+            const node = FS[resolved];
+            if (!node) return `${binary}: ${target}: No such file or directory`;
+            if (node.perm === 'root' && currentUser !== 'root') return `${binary}: ${target}: Permission denied`;
+            const lines = (node.content || '').split('\n');
+            return (binary === 'head' ? lines.slice(0, 10) : lines.slice(-10)).join('\n');
+        }
+
+        // ── ps ──
+        if (binary === 'ps') return 'PID TTY          TIME CMD\n  1 ?        00:00:05 python3\n 42 ?        00:00:01 gunicorn\n 99 pts/0    00:00:00 bash\n100 pts/0    00:00:00 ps';
+
+        // ── env ──
+        if (binary === 'env' || binary === 'printenv') return 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nHOME=/var/www\nSHELL=/bin/bash\nFLASK_APP=encode.py\n';
+
+        // ── which ──
+        if (binary === 'which') {
+            const target = args[0];
+            if (['python3','nmap','base64','curl','wget','ls','cat','find'].includes(target)) return '/usr/bin/' + target;
+            return `which: no ${target} in PATH`;
+        }
+
+        // ── help ──
+        if (binary === 'help') {
+            return 'Available commands: ls, cd, cat, pwd, whoami, id, find, file, sudo, nmap, ps, env, echo, head, tail, which, hostname, uname, help, clear';
+        }
+
+        // ── clear ──
+        if (binary === 'clear') {
+            document.getElementById('terminalOutput').innerHTML = '';
+            return '';
+        }
+
+        return `bash: ${binary}: command not found`;
+    }
+
+    function resolvePath(path) {
+        if (path.startsWith('/')) return normalizePath(path);
+        if (path === '~') return currentUser === 'root' ? '/root' : '/home/' + currentUser;
+        if (path.startsWith('~/')) return (currentUser === 'root' ? '/root' : '/home/' + currentUser) + path.substring(1);
+        return normalizePath(currentDir + '/' + path);
+    }
+
+    function normalizePath(path) {
+        const parts = path.split('/').filter(Boolean);
+        const resolved = [];
+        for (const part of parts) {
+            if (part === '..') resolved.pop();
+            else if (part !== '.') resolved.push(part);
+        }
+        return '/' + resolved.join('/');
+    }
+
+    // Terminal input handler
+    document.getElementById('terminalInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const cmd = this.value.trim();
+            this.value = '';
+
+            appendTerminal(`<span class="prompt">${getPrompt()}</span> <span class="cmd">${escapeHtml(cmd)}</span>\n`);
+
+            if (cmd) {
+                const result = simulateCommand(cmd);
+                if (result) {
+                    // Highlight flags in output
+                    const highlighted = result
+                        .replace(USER_FLAG, `<span class="flag-found">${USER_FLAG}</span>`)
+                        .replace(ROOT_FLAG, `<span class="flag-found">${ROOT_FLAG}</span>`);
+                    appendTerminal(`<span class="result">${highlighted}</span>\n`);
+                }
+            }
+
+            save();
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // SOURCE VIEW
+    // ═══════════════════════════════════════════════════════
+
+    document.getElementById('sourceCode').innerHTML = `<span class="comment">&lt;!-- Page source: http://shadow-encoder.obsidian.local/encode --&gt;</span>
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Shadow Encoder - Secure Communications&lt;/title&gt;
+    &lt;script src="/static/validate.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;The Shadow Encoder&lt;/h1&gt;
+    &lt;form method="POST" action="/encode" <span class="highlight">onsubmit="return validateInput(document.getElementById('text').value)"</span>&gt;
+        &lt;textarea name="text" id="text"&gt;&lt;/textarea&gt;
+        &lt;button type="submit"&gt;Encode&lt;/button&gt;
+    &lt;/form&gt;
+
+    <span class="comment">&lt;!-- validate.js contents: --&gt;</span>
+    &lt;script&gt;
+    function validateInput(text) {
+        <span class="highlight">// Only allow alphanumeric and spaces</span>
+        <span class="highlight">const pattern = /^[a-zA-Z0-9 ]+$/;</span>
+        <span class="highlight">return pattern.test(text);</span>
+    }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+
+<span class="comment">/* ─── Server-side source (encode.py) — discovered via directory traversal / command execution ─── */</span>
+
+<span class="comment"># encode.py</span>
+import os
+from flask import Flask, request, render_template
+
+app = Flask(__name__)
+
+@app.route('/encode', methods=['GET', 'POST'])
+def encode():
+    if request.method == 'POST':
+        user_input = request.form.get('text', '')
+        <span class="highlight"># VULNERABLE: unsanitized input passed to shell</span>
+        <span class="highlight">result = os.popen("echo " + user_input + " | base64").read()</span>
+        return render_template('result.html', encoded=result)
+    return render_template('encode.html')`;
+
+    // ═══════════════════════════════════════════════════════
+    // FLAG SUBMISSION
+    // ═══════════════════════════════════════════════════════
+
+    window.submitFlag = function() {
+        const input = document.getElementById('flagInput').value.trim();
+        const msg = document.getElementById('flagMsg');
+
+        if (!input) {
+            msg.innerHTML = '<div class="error-msg">Enter a flag to submit.</div>';
+            return;
+        }
+
+        if (input === USER_FLAG && !state.userFlag) {
+            state.userFlag = true;
+            state.score += 100;
+            msg.innerHTML = '<div class="success-msg">&#10003; user.txt captured! +100 points</div>';
+            updateScore();
+            checkCompletion();
+            return;
+        }
+
+        if (input === ROOT_FLAG && !state.rootFlag) {
+            state.rootFlag = true;
+            state.score += 200;
+            msg.innerHTML = '<div class="success-msg">&#10003; root.txt captured! +200 points</div>';
+            updateScore();
+            checkCompletion();
+            return;
+        }
+
+        if ((input === USER_FLAG && state.userFlag) || (input === ROOT_FLAG && state.rootFlag)) {
+            msg.innerHTML = '<div class="info-msg">Flag already submitted.</div>';
+            return;
+        }
+
+        state.wrongFlags++;
+        state.score = Math.max(0, state.score - 25);
+        msg.innerHTML = '<div class="error-msg">Incorrect flag. -25 points</div>';
+        updateScore();
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // HINTS
+    // ═══════════════════════════════════════════════════════
+
+    const HINTS = {
+        1: "Check the page source (View Source tab). The <code>onsubmit</code> calls <code>validateInput()</code> which only allows <code>[a-zA-Z0-9 ]</code>. Disable the validation checkbox to bypass it.",
+        2: "With validation off, try shell metacharacters: <code>test; whoami</code> or <code>test | id</code>. The semicolon breaks out of the echo command.",
+        3: "Use the Terminal tab. Run <code>find / -name user.txt 2>/dev/null</code> to locate the user flag. Then <code>cat /home/obsidian_dev/user.txt</code>.",
+        4: "Look for SUID binaries: <code>find / -perm -4000 2>/dev/null</code>. The <code>nmap</code> binary has SUID set. Run <code>nmap --interactive</code> to drop to a root shell."
+    };
+
+    window.useHint = function(id) {
+        if (state.hintsUsed.includes(id)) return;
+        state.hintsUsed.push(id);
+        state.score = Math.max(0, state.score - 50);
+        updateScore();
+
+        const btn = document.getElementById('hint' + id);
+        btn.classList.add('used');
+        btn.innerHTML = `Hint ${id} <span style="color:#8e44ad;font-size:0.65rem;">(-50)</span><div class="hint-text">${HINTS[id]}</div>`;
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // COMPLETION
+    // ═══════════════════════════════════════════════════════
+
+    function checkCompletion() {
+        if (state.userFlag && state.rootFlag && !state.completed) {
+            state.completed = true;
+            const elapsed = Math.round((Date.now() - state.startTime) / 60000);
+            let timeBonus = 0;
+            if (elapsed < 15) { timeBonus = 100; state.score += 100; }
+            save();
+
+            setTimeout(() => {
+                document.getElementById('finalScore').textContent = state.score;
+                const breakdown = document.getElementById('scoreBreakdown');
+                breakdown.innerHTML = `
+                    <div><span>Base score</span><span>1000</span></div>
+                    <div><span>user.txt flag</span><span style="color:#2ecc71;">+100</span></div>
+                    <div><span>root.txt flag</span><span style="color:#2ecc71;">+200</span></div>
+                    ${timeBonus ? `<div><span>Speed bonus (&lt;15 min)</span><span style="color:#2ecc71;">+100</span></div>` : ''}
+                    ${state.hintsUsed.length ? `<div><span>Hints used (${state.hintsUsed.length})</span><span style="color:#8e44ad;">-${state.hintsUsed.length * 50}</span></div>` : ''}
+                    ${state.wrongFlags ? `<div><span>Wrong flags (${state.wrongFlags})</span><span style="color:#e74c3c;">-${state.wrongFlags * 25}</span></div>` : ''}
+                    <div style="border-top:1px solid #333;padding-top:6px;margin-top:6px;"><span>Time</span><span>${elapsed} min</span></div>
+                `;
+                document.getElementById('completionOverlay').classList.add('active');
+            }, 800);
+        }
+    }
+
+    document.getElementById('flagInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') window.submitFlag();
+    });
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+})();
+</script>
+</body>
+</html>

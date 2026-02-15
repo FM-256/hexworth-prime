@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Box A1: The Ancient Ledger | CTF Arena</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0f;
+            color: #c0c0d0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Layout ── */
+        .arena-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+        }
+
+        /* ── Top Bar ── */
+        .top-bar {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #111118;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .top-bar .back { color: #e74c3c; text-decoration: none; font-size: 0.8rem; font-weight: 600; }
+        .top-bar .back:hover { color: #ff6b6b; }
+        .top-bar .box-id { color: #555; font-size: 0.75rem; letter-spacing: 0.2em; }
+        .top-bar .score-display {
+            font-size: 1rem; font-weight: 700;
+            color: #e74c3c;
+            text-shadow: 0 0 10px rgba(231,76,60,0.4);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            background: #0e0e16;
+            border-right: 1px solid #1e1e2e;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .sidebar h3 {
+            color: #e74c3c;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin: 16px 0 8px;
+        }
+        .sidebar h3:first-child { margin-top: 0; }
+        .sidebar p, .sidebar li {
+            font-size: 0.78rem;
+            color: #888;
+            line-height: 1.7;
+        }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li::before { content: '> '; color: #e74c3c; }
+
+        .flag-status {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .flag-badge {
+            padding: 4px 10px; border-radius: 4px;
+            font-size: 0.7rem; font-weight: 600;
+            border: 1px solid #333;
+            background: #1a1a22;
+            color: #555;
+        }
+        .flag-badge.found {
+            border-color: #2ecc71;
+            color: #2ecc71;
+            background: rgba(46,204,113,0.1);
+        }
+
+        .hint-btn {
+            display: block; width: 100%;
+            margin-top: 6px; padding: 6px;
+            background: #1a1a24; border: 1px solid #2a2a3a;
+            color: #888; font-family: inherit; font-size: 0.72rem;
+            border-radius: 4px; cursor: pointer;
+            text-align: left;
+        }
+        .hint-btn:hover { border-color: #e74c3c44; color: #aaa; }
+        .hint-btn.used { color: #e74c3c; border-color: #e74c3c33; }
+        .hint-text { color: #ccc; margin-top: 4px; font-style: italic; }
+
+        /* ── Main Area ── */
+        .main-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Web App Sim ── */
+        .webapp-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #12121a;
+            overflow: hidden;
+        }
+        .browser-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 12px;
+            background: #1a1a26;
+            border-bottom: 1px solid #2a2a3a;
+            font-size: 0.72rem;
+        }
+        .browser-dots { display: flex; gap: 4px; }
+        .browser-dots span { width: 8px; height: 8px; border-radius: 50%; }
+        .browser-dots .r { background: #e74c3c; }
+        .browser-dots .y { background: #f39c12; }
+        .browser-dots .g { background: #2ecc71; }
+        .url-bar {
+            flex: 1; padding: 3px 10px;
+            background: #0e0e16; border: 1px solid #2a2a3a; border-radius: 4px;
+            color: #666; font-family: inherit; font-size: 0.72rem;
+        }
+
+        .webapp-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        /* ── Ancient Ledger Web App ── */
+        .ledger-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .ledger-header h1 {
+            color: #c9a84c;
+            font-size: 1.4rem;
+            text-shadow: 0 0 20px rgba(201,168,76,0.3);
+            margin-bottom: 4px;
+        }
+        .ledger-header .tagline {
+            color: #555; font-size: 0.75rem;
+        }
+
+        .search-section {
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+        .search-section label {
+            display: block;
+            color: #888;
+            font-size: 0.78rem;
+            margin-bottom: 6px;
+        }
+        .search-row {
+            display: flex; gap: 8px;
+        }
+        .search-input {
+            flex: 1; padding: 8px 14px;
+            background: #0e0e16; border: 1px solid #2a2a3a;
+            color: #ddd; font-family: inherit; font-size: 0.85rem;
+            border-radius: 4px;
+        }
+        .search-input:focus { outline: none; border-color: #c9a84c; }
+        .search-btn {
+            padding: 8px 20px;
+            background: #c9a84c; color: #0a0a0f;
+            border: none; border-radius: 4px;
+            font-family: inherit; font-weight: 700;
+            font-size: 0.8rem; cursor: pointer;
+        }
+        .search-btn:hover { background: #d4b45c; }
+
+        /* ── Results Table ── */
+        .results-area {
+            max-width: 700px; margin: 0 auto;
+        }
+        .results-label {
+            color: #555; font-size: 0.7rem;
+            letter-spacing: 0.1em; margin-bottom: 8px;
+        }
+        .db-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .db-table th {
+            background: #1a1a26; color: #c9a84c;
+            padding: 6px 10px; text-align: left;
+            border-bottom: 1px solid #2a2a3a;
+            font-size: 0.7rem; letter-spacing: 0.1em;
+        }
+        .db-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #1a1a22;
+            color: #aaa;
+        }
+        .db-table tr:hover td { background: #14141e; }
+
+        .error-msg {
+            color: #e74c3c; background: rgba(231,76,60,0.08);
+            border: 1px solid #e74c3c33; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        .success-msg {
+            color: #2ecc71; background: rgba(46,204,113,0.08);
+            border: 1px solid #2ecc7133; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        .info-msg {
+            color: #3498db; background: rgba(52,152,219,0.08);
+            border: 1px solid #3498db33; border-radius: 4px;
+            padding: 10px 14px; font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        /* ── Flag Submission ── */
+        .flag-submit {
+            max-width: 600px; margin: 30px auto 0;
+            padding: 16px;
+            background: #14141e;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+        }
+        .flag-submit label {
+            display: block; color: #e74c3c;
+            font-size: 0.72rem; letter-spacing: 0.15em;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+        .flag-row { display: flex; gap: 8px; }
+        .flag-input {
+            flex: 1; padding: 8px 12px;
+            background: #0a0a10; border: 1px solid #333;
+            color: #ddd; font-family: inherit; font-size: 0.82rem;
+            border-radius: 4px;
+        }
+        .flag-input:focus { outline: none; border-color: #e74c3c; }
+        .flag-btn {
+            padding: 8px 20px;
+            background: #e74c3c; color: #fff;
+            border: none; border-radius: 4px;
+            font-family: inherit; font-weight: 700;
+            font-size: 0.8rem; cursor: pointer;
+        }
+        .flag-btn:hover { background: #c0392b; }
+        #flagMsg { margin-top: 8px; }
+
+        /* ── Completion Overlay ── */
+        .completion-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center; justify-content: center;
+        }
+        .completion-overlay.active { display: flex; }
+        .completion-card {
+            background: #12121a;
+            border: 2px solid #2ecc71;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            box-shadow: 0 0 60px rgba(46,204,113,0.2);
+        }
+        .completion-card h2 { color: #2ecc71; font-size: 1.4rem; margin-bottom: 8px; }
+        .completion-card .final-score { font-size: 2.2rem; color: #fff; font-weight: 700; margin: 16px 0; }
+        .completion-card .breakdown { color: #888; font-size: 0.8rem; text-align: left; margin: 16px 0; }
+        .completion-card .breakdown div { margin: 4px 0; display: flex; justify-content: space-between; }
+        .completion-card button {
+            margin-top: 20px; padding: 10px 30px;
+            background: #2ecc71; color: #0a0a0f;
+            border: none; border-radius: 6px;
+            font-family: inherit; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer;
+        }
+
+        /* ── Mobile ── */
+        @media (max-width: 768px) {
+            .arena-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="arena-layout">
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a class="back" href="../index.html">&larr; WORKSHOP</a>
+        <span class="box-id">CTF ARENA &middot; BOX A1 &middot; SERIES A</span>
+        <span class="score-display" id="scoreDisplay">1000</span>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3>Mission Briefing</h3>
+        <p>The Ancient Ledger &mdash; a relic accounting system from the Crimson Dawn Confederacy. A disgraced data-scribe embedded a backdoor in the database. Exploit the flaw. Retrieve the Stellar Forge allocation codes.</p>
+
+        <h3>Objectives</h3>
+        <ul>
+            <li>Discover the vulnerable parameter</li>
+            <li>Enumerate the database schema</li>
+            <li>Extract the hidden allocation codes</li>
+            <li>Submit both flags</li>
+        </ul>
+
+        <h3>Flags</h3>
+        <div class="flag-status">
+            <span class="flag-badge" id="userFlagBadge">user.txt</span>
+            <span class="flag-badge" id="rootFlagBadge">root.txt</span>
+        </div>
+
+        <h3>Hints <span style="color:#555;font-size:0.65rem;">(-50 pts each)</span></h3>
+        <button class="hint-btn" id="hint1" onclick="useHint(1)">Hint 1: Getting Started</button>
+        <button class="hint-btn" id="hint2" onclick="useHint(2)">Hint 2: Column Count</button>
+        <button class="hint-btn" id="hint3" onclick="useHint(3)">Hint 3: Finding Tables</button>
+        <button class="hint-btn" id="hint4" onclick="useHint(4)">Hint 4: The Hidden Table</button>
+
+        <h3>Difficulty</h3>
+        <p style="color:#c9a84c;">Beginner-Intermediate</p>
+        <p style="font-size:0.7rem;color:#555;margin-top:4px;">SQL Injection &middot; UNION-based</p>
+
+        <h3>Cert Objectives</h3>
+        <p style="font-size:0.7rem;">CompTIA Security+ 1.3 &mdash; Application Attacks</p>
+        <p style="font-size:0.7rem;">CompTIA CySA+ 1.4 &mdash; Web Application Vulnerabilities</p>
+    </div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+        <div class="webapp-frame">
+            <div class="browser-bar">
+                <div class="browser-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="url-bar">http://ancient-ledger.ctf.local/search.php</div>
+            </div>
+
+            <div class="webapp-content">
+                <div class="ledger-header">
+                    <h1>&#9878; The Ancient Ledger</h1>
+                    <div class="tagline">Crimson Dawn Confederacy &mdash; Resource Allocation System v2.1.4</div>
+                </div>
+
+                <div class="search-section">
+                    <label>Search Allocation Records by Resource Name:</label>
+                    <div class="search-row">
+                        <input type="text" class="search-input" id="searchInput" placeholder="e.g. Titanium, Fuel Cells..." autofocus>
+                        <button class="search-btn" onclick="executeQuery()">Search</button>
+                    </div>
+                </div>
+
+                <div class="results-area" id="resultsArea">
+                    <div class="results-label">QUERY RESULTS</div>
+                    <table class="db-table">
+                        <thead>
+                            <tr><th>ID</th><th>Resource</th><th>Quantity</th><th>Habitat</th></tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <tr><td>1</td><td>Titanium Alloy</td><td>4,200 units</td><td>Orbital-7</td></tr>
+                            <tr><td>2</td><td>Fuel Cells</td><td>890 units</td><td>Orbital-3</td></tr>
+                            <tr><td>3</td><td>Polymer Sheets</td><td>12,600 units</td><td>Orbital-12</td></tr>
+                            <tr><td>4</td><td>Copper Wiring</td><td>7,340 units</td><td>Orbital-7</td></tr>
+                            <tr><td>5</td><td>Water Purifiers</td><td>156 units</td><td>Orbital-1</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="queryMsg"></div>
+                </div>
+
+                <div class="flag-submit">
+                    <label>&#9873; Submit Flag</label>
+                    <div class="flag-row">
+                        <input type="text" class="flag-input" id="flagInput" placeholder="flag{...}">
+                        <button class="flag-btn" onclick="submitFlag()">Submit</button>
+                    </div>
+                    <div id="flagMsg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Completion Overlay -->
+<div class="completion-overlay" id="completionOverlay">
+    <div class="completion-card">
+        <h2>&#9878; BOX PWNED</h2>
+        <div style="color:#888;font-size:0.85rem;">The Ancient Ledger</div>
+        <div class="final-score" id="finalScore">1000</div>
+        <div class="breakdown" id="scoreBreakdown"></div>
+        <button onclick="location.href='../index.html'">Return to Workshop</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════
+
+    const STORAGE_KEY = 'hexworth_ctf_a1';
+    const USER_FLAG = 'flag{4nc13nt_l3dg3r_sql1_d1sc0v3r3d}';
+    const ROOT_FLAG = 'flag{st3ll4r_f0rg3_4ll0c4t10n_c0d3s}';
+
+    let state = load();
+
+    function defaults() {
+        return {
+            score: 1000,
+            hintsUsed: [],
+            userFlag: false,
+            rootFlag: false,
+            wrongFlags: 0,
+            queriesRun: 0,
+            startTime: Date.now(),
+            completed: false
+        };
+    }
+
+    function load() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const s = JSON.parse(raw);
+                return { ...defaults(), ...s };
+            }
+        } catch (e) {}
+        return defaults();
+    }
+
+    function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function updateScore() {
+        document.getElementById('scoreDisplay').textContent = state.score;
+        if (state.userFlag) document.getElementById('userFlagBadge').classList.add('found');
+        if (state.rootFlag) document.getElementById('rootFlagBadge').classList.add('found');
+        save();
+    }
+
+    // Restore state on load
+    updateScore();
+    state.hintsUsed.forEach(id => {
+        const btn = document.getElementById('hint' + id);
+        if (btn) btn.classList.add('used');
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // SIMULATED DATABASE
+    // ═══════════════════════════════════════════════════════
+
+    const DB = {
+        allocations: [
+            { id: 1, resource: 'Titanium Alloy', quantity: '4,200 units', habitat: 'Orbital-7' },
+            { id: 2, resource: 'Fuel Cells', quantity: '890 units', habitat: 'Orbital-3' },
+            { id: 3, resource: 'Polymer Sheets', quantity: '12,600 units', habitat: 'Orbital-12' },
+            { id: 4, resource: 'Copper Wiring', quantity: '7,340 units', habitat: 'Orbital-7' },
+            { id: 5, resource: 'Water Purifiers', quantity: '156 units', habitat: 'Orbital-1' },
+            { id: 6, resource: 'Solar Panels', quantity: '2,100 units', habitat: 'Orbital-9' },
+            { id: 7, resource: 'Hydroponic Kits', quantity: '430 units', habitat: 'Orbital-3' },
+            { id: 8, resource: 'Oxygen Generators', quantity: '88 units', habitat: 'Orbital-1' }
+        ],
+        users: [
+            { id: 1, username: 'admin', password: 'Cr1ms0nD4wn!', role: 'administrator' },
+            { id: 2, username: 'data_scribe', password: 'b4ckd00r_4cc3ss', role: 'scribe' },
+            { id: 3, username: 'viewer', password: 'readonly2024', role: 'readonly' }
+        ],
+        secrets: [
+            { id: 1, code_name: 'Stellar Forge Alpha', value: ROOT_FLAG },
+            { id: 2, code_name: 'Project Eclipse', value: 'CLASSIFIED-REDACTED' },
+            { id: 3, code_name: 'Omega Protocol', value: 'CLASSIFIED-REDACTED' }
+        ],
+        schema: {
+            tables: ['allocations', 'users', 'stellar_forge_codes'],
+            columns: {
+                allocations: ['id', 'resource', 'quantity', 'habitat'],
+                users: ['id', 'username', 'password', 'role'],
+                stellar_forge_codes: ['id', 'code_name', 'value']
+            }
+        }
+    };
+
+    // User flag is hidden on the "filesystem" — accessible via error-based info leak
+    const USER_FLAG_LOCATION = '/home/www-data/user.txt';
+
+    // ═══════════════════════════════════════════════════════
+    // QUERY ENGINE — pattern-matching SQL injection sim
+    // ═══════════════════════════════════════════════════════
+
+    function executeQuery() {
+        const input = document.getElementById('searchInput').value;
+        const resultsBody = document.getElementById('resultsBody');
+        const queryMsg = document.getElementById('queryMsg');
+
+        state.queriesRun++;
+        queryMsg.innerHTML = '';
+
+        if (!input.trim()) {
+            showAllAllocations(resultsBody);
+            return;
+        }
+
+        const lower = input.toLowerCase().trim();
+
+        // ── Check for SQL injection patterns ──
+
+        // 1. Basic tautology: ' OR 1=1-- or similar
+        if (/['"]?\s*or\s+['"]?\d['"]?\s*=\s*['"]?\d/i.test(input) ||
+            /['"]?\s*or\s+true/i.test(input) ||
+            /['"]?\s*or\s+['"]?[a-z]+['"]?\s*=\s*['"]?[a-z]+/i.test(input)) {
+            showAllAllocations(resultsBody);
+            queryMsg.innerHTML = '<div class="info-msg">8 rows returned. The query seems broader than expected...</div>';
+            save();
+            return;
+        }
+
+        // 2. ORDER BY — column count enumeration
+        const orderByMatch = input.match(/order\s+by\s+(\d+)/i);
+        if (orderByMatch) {
+            const col = parseInt(orderByMatch[1]);
+            if (col <= 4) {
+                showAllAllocations(resultsBody);
+                queryMsg.innerHTML = `<div class="info-msg">Results sorted by column ${col}.</div>`;
+            } else {
+                resultsBody.innerHTML = '';
+                queryMsg.innerHTML = `<div class="error-msg">MySQL Error: Unknown column '${col}' in 'order clause'</div>`;
+            }
+            save();
+            return;
+        }
+
+        // 3. UNION SELECT — the main exploitation path
+        const unionMatch = input.match(/union\s+(all\s+)?select\s+(.+)/i);
+        if (unionMatch) {
+            const selectPart = unionMatch[2].trim();
+            return handleUnionSelect(selectPart, resultsBody, queryMsg);
+        }
+
+        // 4. Single quote — trigger error (information disclosure)
+        if (input.includes("'") && !input.toLowerCase().includes('or') && !input.toLowerCase().includes('union')) {
+            resultsBody.innerHTML = '';
+            queryMsg.innerHTML = `<div class="error-msg">MySQL Error: You have an error in your SQL syntax near '${escapeHtml(input.substring(0,40))}' at line 1<br><small style="color:#666;">Query: SELECT id, resource, quantity, habitat FROM allocations WHERE resource LIKE '%${escapeHtml(input.substring(0,30))}%'</small></div>`;
+            save();
+            return;
+        }
+
+        // 5. LOAD_FILE — read filesystem (user flag)
+        if (/load_file/i.test(input)) {
+            if (input.includes('user.txt') || input.includes('/home/www-data')) {
+                resultsBody.innerHTML = `<tr><td colspan="4" style="color:#2ecc71;">${USER_FLAG}</td></tr>`;
+                queryMsg.innerHTML = '<div class="success-msg">File contents retrieved from the server filesystem.</div>';
+            } else {
+                resultsBody.innerHTML = '';
+                queryMsg.innerHTML = '<div class="error-msg">MySQL Error: File not found or permission denied.</div>';
+            }
+            save();
+            return;
+        }
+
+        // Normal search — filter allocations by name
+        const matches = DB.allocations.filter(a =>
+            a.resource.toLowerCase().includes(lower)
+        );
+
+        if (matches.length > 0) {
+            resultsBody.innerHTML = matches.map(a =>
+                `<tr><td>${a.id}</td><td>${a.resource}</td><td>${a.quantity}</td><td>${a.habitat}</td></tr>`
+            ).join('');
+        } else {
+            resultsBody.innerHTML = '<tr><td colspan="4" style="color:#555;">No records found.</td></tr>';
+        }
+        save();
+    }
+
+    function handleUnionSelect(selectPart, resultsBody, queryMsg) {
+        const cols = selectPart.split(',').map(c => c.trim().toLowerCase());
+
+        // Must have exactly 4 columns to match allocations table
+        if (cols.length !== 4) {
+            resultsBody.innerHTML = '';
+            queryMsg.innerHTML = `<div class="error-msg">MySQL Error: The used SELECT statements have a different number of columns<br><small style="color:#666;">Expected 4 columns, got ${cols.length}</small></div>`;
+            save();
+            return;
+        }
+
+        // Check what they're selecting
+        const joined = cols.join(' ');
+
+        // version() / @@version
+        if (/version|@@version/.test(joined)) {
+            resultsBody.innerHTML = '<tr><td>-</td><td>MySQL 5.7.42-log</td><td>-</td><td>-</td></tr>';
+            queryMsg.innerHTML = '<div class="info-msg">Database version disclosed.</div>';
+            save();
+            return;
+        }
+
+        // database() / current_database
+        if (/database\(\)|current_database/.test(joined)) {
+            resultsBody.innerHTML = '<tr><td>-</td><td>ancient_ledger_db</td><td>-</td><td>-</td></tr>';
+            queryMsg.innerHTML = '<div class="info-msg">Current database name disclosed.</div>';
+            save();
+            return;
+        }
+
+        // user() / current_user
+        if (/user\(\)|current_user/.test(joined)) {
+            resultsBody.innerHTML = '<tr><td>-</td><td>ledger_app@localhost</td><td>-</td><td>-</td></tr>';
+            save();
+            return;
+        }
+
+        // information_schema.tables — enumerate tables
+        if (/information_schema\.tables|table_name/.test(joined)) {
+            resultsBody.innerHTML = DB.schema.tables.map((t, i) =>
+                `<tr><td>${i+1}</td><td>${t}</td><td>ancient_ledger_db</td><td>BASE TABLE</td></tr>`
+            ).join('');
+            queryMsg.innerHTML = '<div class="info-msg">3 tables discovered in ancient_ledger_db.</div>';
+            save();
+            return;
+        }
+
+        // information_schema.columns — enumerate columns
+        if (/information_schema\.columns|column_name/.test(joined)) {
+            let targetTable = null;
+            const tableMatch = selectPart.match(/table_name\s*=\s*['"](\w+)['"]/i) ||
+                               selectPart.match(/from\s+\w+.*?where.*?['"](\w+)['"]/i);
+
+            if (tableMatch) {
+                targetTable = tableMatch[1];
+            }
+
+            // Also check for table name in a WHERE clause appended after the UNION
+            const fullInput = document.getElementById('searchInput').value;
+            const whereMatch = fullInput.match(/table_name\s*=\s*['"](\w+)['"]/i);
+            if (whereMatch) targetTable = whereMatch[1];
+
+            if (targetTable && DB.schema.columns[targetTable]) {
+                resultsBody.innerHTML = DB.schema.columns[targetTable].map((c, i) =>
+                    `<tr><td>${i+1}</td><td>${c}</td><td>${targetTable}</td><td>varchar</td></tr>`
+                ).join('');
+                queryMsg.innerHTML = `<div class="info-msg">Columns for '${targetTable}' enumerated.</div>`;
+            } else {
+                // Show all columns
+                let rows = '';
+                for (const [table, colList] of Object.entries(DB.schema.columns)) {
+                    colList.forEach((c, i) => {
+                        rows += `<tr><td>${i+1}</td><td>${c}</td><td>${table}</td><td>varchar</td></tr>`;
+                    });
+                }
+                resultsBody.innerHTML = rows;
+                queryMsg.innerHTML = '<div class="info-msg">All columns from all tables enumerated.</div>';
+            }
+            save();
+            return;
+        }
+
+        // SELECT from users table
+        if (/from\s+users/i.test(selectPart) || (/username/.test(joined) && /password/.test(joined))) {
+            resultsBody.innerHTML = DB.users.map(u =>
+                `<tr><td>${u.id}</td><td>${u.username}</td><td>${u.password}</td><td>${u.role}</td></tr>`
+            ).join('');
+            queryMsg.innerHTML = '<div class="success-msg">Credentials extracted from users table! The data_scribe account looks interesting...</div>';
+            save();
+            return;
+        }
+
+        // SELECT from stellar_forge_codes
+        if (/stellar_forge|from\s+stellar_forge_codes/i.test(selectPart) ||
+            /code_name/.test(joined) || /value/.test(joined)) {
+            const fullInput = document.getElementById('searchInput').value;
+            if (/stellar_forge/i.test(fullInput)) {
+                resultsBody.innerHTML = DB.secrets.map(s =>
+                    `<tr><td>${s.id}</td><td>${s.code_name}</td><td style="color:${s.value.startsWith('flag{') ? '#2ecc71' : '#555'}">${s.value}</td><td>-</td></tr>`
+                ).join('');
+                queryMsg.innerHTML = '<div class="success-msg">Classified data extracted! The Stellar Forge allocation codes are revealed.</div>';
+                save();
+                return;
+            }
+        }
+
+        // NULL columns test — common enumeration step
+        if (cols.every(c => c === 'null' || c === "'" || c.match(/^\d+$/))) {
+            resultsBody.innerHTML = `<tr>${cols.map(c =>
+                `<td>${c === 'null' ? 'NULL' : c.replace(/'/g, '')}</td>`
+            ).join('')}</tr>`;
+            queryMsg.innerHTML = '<div class="info-msg">UNION injection confirmed. 4 columns in the query. Now enumerate the schema...</div>';
+            save();
+            return;
+        }
+
+        // Generic fallback — show what they typed
+        resultsBody.innerHTML = `<tr>${cols.map(c => `<td>${escapeHtml(c).substring(0,30)}</td>`).join('')}</tr>`;
+        save();
+    }
+
+    function showAllAllocations(tbody) {
+        tbody.innerHTML = DB.allocations.map(a =>
+            `<tr><td>${a.id}</td><td>${a.resource}</td><td>${a.quantity}</td><td>${a.habitat}</td></tr>`
+        ).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FLAG SUBMISSION
+    // ═══════════════════════════════════════════════════════
+
+    window.submitFlag = function() {
+        const input = document.getElementById('flagInput').value.trim();
+        const msg = document.getElementById('flagMsg');
+
+        if (!input) {
+            msg.innerHTML = '<div class="error-msg">Enter a flag to submit.</div>';
+            return;
+        }
+
+        if (input === USER_FLAG && !state.userFlag) {
+            state.userFlag = true;
+            state.score += 100;
+            msg.innerHTML = '<div class="success-msg">&#10003; user.txt captured! +100 points</div>';
+            updateScore();
+            checkCompletion();
+            return;
+        }
+
+        if (input === ROOT_FLAG && !state.rootFlag) {
+            state.rootFlag = true;
+            state.score += 200;
+            msg.innerHTML = '<div class="success-msg">&#10003; root.txt captured! +200 points</div>';
+            updateScore();
+            checkCompletion();
+            return;
+        }
+
+        if ((input === USER_FLAG && state.userFlag) || (input === ROOT_FLAG && state.rootFlag)) {
+            msg.innerHTML = '<div class="info-msg">Flag already submitted.</div>';
+            return;
+        }
+
+        // Wrong flag
+        state.wrongFlags++;
+        state.score = Math.max(0, state.score - 25);
+        msg.innerHTML = '<div class="error-msg">Incorrect flag. -25 points</div>';
+        updateScore();
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // HINTS
+    // ═══════════════════════════════════════════════════════
+
+    const HINTS = {
+        1: "Try entering a single quote (') into the search field. SQL errors often reveal query structure.",
+        2: "Use ORDER BY to find the column count. Start high: <code>' ORDER BY 5--</code> (error) then <code>' ORDER BY 4--</code> (success) means 4 columns.",
+        3: "Try: <code>' UNION SELECT 1,table_name,3,4 FROM information_schema.tables--</code> to list all tables in the database.",
+        4: "There's a table called <code>stellar_forge_codes</code>. Query its columns, then extract. For user.txt, look into MySQL's <code>LOAD_FILE()</code> function with path <code>/home/www-data/user.txt</code>."
+    };
+
+    window.useHint = function(id) {
+        if (state.hintsUsed.includes(id)) return;
+        state.hintsUsed.push(id);
+        state.score = Math.max(0, state.score - 50);
+        updateScore();
+
+        const btn = document.getElementById('hint' + id);
+        btn.classList.add('used');
+        btn.innerHTML = `Hint ${id} <span style="color:#e74c3c;font-size:0.65rem;">(-50)</span><div class="hint-text">${HINTS[id]}</div>`;
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // COMPLETION
+    // ═══════════════════════════════════════════════════════
+
+    function checkCompletion() {
+        if (state.userFlag && state.rootFlag && !state.completed) {
+            state.completed = true;
+
+            // Time bonus
+            const elapsed = Math.round((Date.now() - state.startTime) / 60000);
+            let timeBonus = 0;
+            if (elapsed < 15) { timeBonus = 100; state.score += 100; }
+
+            save();
+
+            setTimeout(() => {
+                document.getElementById('finalScore').textContent = state.score;
+                const breakdown = document.getElementById('scoreBreakdown');
+                breakdown.innerHTML = `
+                    <div><span>Base score</span><span>1000</span></div>
+                    <div><span>user.txt flag</span><span style="color:#2ecc71;">+100</span></div>
+                    <div><span>root.txt flag</span><span style="color:#2ecc71;">+200</span></div>
+                    ${timeBonus ? `<div><span>Speed bonus (&lt;15 min)</span><span style="color:#2ecc71;">+100</span></div>` : ''}
+                    ${state.hintsUsed.length ? `<div><span>Hints used (${state.hintsUsed.length})</span><span style="color:#e74c3c;">-${state.hintsUsed.length * 50}</span></div>` : ''}
+                    ${state.wrongFlags ? `<div><span>Wrong flags (${state.wrongFlags})</span><span style="color:#e74c3c;">-${state.wrongFlags * 25}</span></div>` : ''}
+                    <div style="border-top:1px solid #333;padding-top:6px;margin-top:6px;"><span>Time</span><span>${elapsed} min</span></div>
+                `;
+                document.getElementById('completionOverlay').classList.add('active');
+            }, 800);
+        }
+    }
+
+    // Enter key to search
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') executeQuery();
+    });
+    document.getElementById('flagInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') window.submitFlag();
+    });
+
+    // Expose for onclick
+    window.executeQuery = executeQuery;
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+})();
+</script>
+</body>
+</html>

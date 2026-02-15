@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-15 2:13:04 AM
+                    Scanned: 2026-02-15 3:30:53 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1291 |
-| Directories | 479 |
-| Content Files | 1291 |
-| Scan Duration | 187ms |
+| Files Scanned | 1294 |
+| Directories | 482 |
+| Content Files | 1294 |
+| Scan Duration | 217ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 514 |
+| html | 516 |
 | presentation | 419 |
-| applet | 186 |
+| applet | 187 |
 | lab | 158 |
 | quiz | 14 |
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 122 |
-| Warning | 873 |
-| Info | 400 |
-| **Total** | **2346** |
+| Warning | 874 |
+| Info | 401 |
+| **Total** | **2348** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 561 |
+| Ready | 562 |
 | Not Ready | 216 |
-| Unknown | 514 |
+| Unknown | 516 |
 
 
 ## FILE HIERARCHY
@@ -64,6 +64,8 @@
 ├── 📁 admin
 │   ├── 📄 audit-tool.html
 │   └── 📁 scripts
+├── 📁 arctic
+│   └── 📍 index.html
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
@@ -1824,6 +1826,10 @@
 ├── 📄 unauthorized.html
 ├── 📁 utils
 └── 📁 workshop
+    ├── 📁 a1-ancient-ledger
+    │   └── 📄 current.html
+    ├── 📁 a2-shadow-encoder
+    │   └── 📄 current.html
     ├── 📁 backup-or-bust
     │   └── 📄 current.html
     ├── 📍 index.html
@@ -2591,6 +2597,7 @@
 | dark-arts-sample.tool | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | product-info | applet | ✓ | 1 |
+| current | applet | ✓ | 1 |
 
 ### WEB (Networking)
 ──────────────────────────────────────────────────
@@ -3160,7 +3167,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (873)
+### WARNING (874)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -6654,7 +6661,11 @@
   File: `product-info.html`
   Fix: Add entry to content-registry.js
 
-### INFO (400)
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `workshop/a2-shadow-encoder/current.html`
+  Fix: Add entry to content-registry.js
+
+### INFO (401)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -8224,6 +8235,10 @@
   File: `product-info.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `workshop/a2-shadow-encoder/current.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
 **[ASGN-002]** Path 'shield': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'shield' as path segment)
   File: `./components/LearningPaths.js`
 
@@ -8252,7 +8267,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (728)
+### Unregistered Content (729)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8984,6 +8999,7 @@
 | houses/web/tools/web-wireless-architecture.tool.html | presentation | web |
 | houses/web/tools/web-wireless.tool.html | presentation | web |
 | product-info.html | applet | - |
+| workshop/a2-shadow-encoder/current.html | applet | - |
 
 ### Orphaned Registry Entries (0)
 
