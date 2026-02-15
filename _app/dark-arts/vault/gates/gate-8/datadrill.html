@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataDrill Pro — Operation Gone Dark</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: #0a0f14; }
+
+        .dd-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Tool Header */
+        .dd-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: var(--g8-bg-panel);
+            border: 1px solid var(--g8-border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .dd-logo {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, #1a3a2a 0%, #0a2a1a 100%);
+            border: 2px solid rgba(46, 204, 113, 0.3);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .dd-title-group h1 {
+            font-size: 1.1rem;
+            color: #2ecc71;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+
+        .dd-title-group .dd-version {
+            font-size: 0.6rem;
+            color: var(--g8-text-dim);
+            letter-spacing: 0.1em;
+        }
+
+        /* Drive Selector */
+        .dd-drive-section {
+            background: var(--g8-bg-panel);
+            border: 1px solid var(--g8-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dd-section-title {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: var(--g8-text-dim);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .dd-drives {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .dd-drive {
+            padding: 16px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .dd-drive:hover { border-color: rgba(46, 204, 113, 0.3); background: rgba(46, 204, 113, 0.03); }
+        .dd-drive.selected { border-color: #2ecc71; background: rgba(46, 204, 113, 0.08); }
+        .dd-drive.scanned { opacity: 0.6; }
+        .dd-drive.scanned::after { content: ' ✓ SCANNED'; color: #2ecc71; font-size: 0.5rem; letter-spacing: 0.1em; display: block; margin-top: 4px; }
+
+        .dd-drive .drive-icon { font-size: 1.8rem; margin-bottom: 8px; display: block; }
+        .dd-drive .drive-name { font-size: 0.7rem; color: #ccc; margin-bottom: 2px; }
+        .dd-drive .drive-info { font-size: 0.55rem; color: #666; }
+
+        /* Scan Controls */
+        .dd-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .dd-scan-btn {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #1a4a2a 0%, #0a3a1a 100%);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+            border-radius: 4px;
+            color: #2ecc71;
+            font-family: var(--g8-font);
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dd-scan-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2a5a3a 0%, #1a4a2a 100%);
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
+        }
+
+        .dd-scan-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .dd-scan-status {
+            font-size: 0.65rem;
+            color: var(--g8-text-dim);
+            letter-spacing: 0.05em;
+        }
+
+        /* Scan Animation */
+        .dd-scan-area {
+            background: #0a0f14;
+            border: 1px solid rgba(46, 204, 113, 0.15);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .dd-scan-area.active { display: block; }
+
+        .dd-progress-bar {
+            height: 28px;
+            background: rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dd-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a4a2a, #2ecc71, #1a4a2a);
+            width: 0%;
+            transition: width 0.1s linear;
+            position: relative;
+        }
+
+        .dd-progress-fill::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 40px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(46, 204, 113, 0.6));
+        }
+
+        .dd-progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.6rem;
+            color: #aaa;
+            letter-spacing: 0.1em;
+            z-index: 2;
+        }
+
+        /* Hex Dump */
+        .dd-hexdump {
+            height: 120px;
+            overflow: hidden;
+            padding: 8px 12px;
+            font-size: 0.55rem;
+            color: rgba(46, 204, 113, 0.4);
+            line-height: 1.5;
+            font-family: var(--g8-font);
+            position: relative;
+        }
+
+        .dd-hexdump::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, #0a0f14);
+        }
+
+        /* Results Table */
+        .dd-results {
+            background: var(--g8-bg-panel);
+            border: 1px solid var(--g8-border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .dd-results.active { display: block; }
+
+        .dd-results-header {
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--g8-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dd-results-header h3 {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: #2ecc71;
+            text-transform: uppercase;
+        }
+
+        .dd-results-header .results-count {
+            font-size: 0.6rem;
+            color: var(--g8-text-dim);
+        }
+
+        .dd-results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dd-results-table thead th {
+            padding: 8px 12px;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
+            color: #888;
+            text-transform: uppercase;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.1);
+        }
+
+        .dd-results-table tbody td {
+            padding: 10px 12px;
+            font-size: 0.65rem;
+            color: #bbb;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .dd-results-table tbody tr {
+            transition: background 0.1s;
+        }
+
+        .dd-results-table tbody tr:hover {
+            background: rgba(46, 204, 113, 0.03);
+        }
+
+        .status-good { color: #2ecc71; }
+        .status-partial { color: #f39c12; }
+
+        .dd-recover-btn {
+            padding: 4px 12px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-radius: 3px;
+            color: #2ecc71;
+            font-family: var(--g8-font);
+            font-size: 0.55rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .dd-recover-btn:hover { background: rgba(46, 204, 113, 0.2); }
+        .dd-recover-btn.recovered { background: #2ecc71; color: #0a0f14; border-color: #2ecc71; cursor: default; }
+
+        /* Recover All */
+        .dd-recover-all {
+            padding: 12px 16px;
+            border-top: 1px solid var(--g8-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dd-recover-all-btn {
+            padding: 8px 24px;
+            background: linear-gradient(135deg, #1a4a2a 0%, #0a3a1a 100%);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+            border-radius: 4px;
+            color: #2ecc71;
+            font-family: var(--g8-font);
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .dd-recover-all-btn:hover { box-shadow: 0 0 16px rgba(46, 204, 113, 0.2); }
+
+        .dd-recover-note {
+            font-size: 0.6rem;
+            color: var(--g8-text-dim);
+        }
+
+        @media (max-width: 768px) {
+            .dd-drives { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dd-container">
+        <!-- Header -->
+        <div class="dd-header">
+            <div class="dd-logo">&#128268;</div>
+            <div class="dd-title-group">
+                <h1>DataDrill Pro</h1>
+                <div class="dd-version">v4.2.1 &mdash; Forensic Data Recovery Suite</div>
+            </div>
+        </div>
+
+        <!-- Drive Selector -->
+        <div class="dd-drive-section">
+            <div class="dd-section-title">Select Target Drive</div>
+            <div class="dd-drives" id="driveList">
+                <div class="dd-drive" data-device="desktop" onclick="selectDrive('desktop')">
+                    <span class="drive-icon">&#128421;</span>
+                    <div class="drive-name">Desktop PC</div>
+                    <div class="drive-info">C:\ &mdash; NTFS &mdash; 512 GB</div>
+                </div>
+                <div class="dd-drive" data-device="laptop" onclick="selectDrive('laptop')">
+                    <span class="drive-icon">&#128187;</span>
+                    <div class="drive-name">MacBook Pro</div>
+                    <div class="drive-info">/dev/disk0 &mdash; APFS &mdash; 256 GB</div>
+                </div>
+                <div class="dd-drive" data-device="phone" onclick="selectDrive('phone')">
+                    <span class="drive-icon">&#128241;</span>
+                    <div class="drive-name">Samsung Galaxy S24</div>
+                    <div class="drive-info">/storage &mdash; ext4 &mdash; 128 GB</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="dd-controls">
+            <button class="dd-scan-btn" id="scanBtn" onclick="startScan()" disabled>SELECT A DRIVE</button>
+            <span class="dd-scan-status" id="scanStatus"></span>
+        </div>
+
+        <!-- Scan Animation -->
+        <div class="dd-scan-area" id="scanArea">
+            <div class="dd-progress-bar">
+                <div class="dd-progress-fill" id="progressFill"></div>
+                <div class="dd-progress-text" id="progressText">Initializing...</div>
+            </div>
+            <div class="dd-hexdump" id="hexDump"></div>
+        </div>
+
+        <!-- Results -->
+        <div class="dd-results" id="resultsPanel">
+            <div class="dd-results-header">
+                <h3>&#128268; Scan Results</h3>
+                <span class="results-count" id="resultsCount"></span>
+            </div>
+            <table class="dd-results-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Integrity</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+            <div class="dd-recover-all">
+                <span class="dd-recover-note">Recovered files will appear on the target device.</span>
+                <button class="dd-recover-all-btn" id="recoverAllBtn" onclick="recoverAll()">Recover All Files</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+    <script>
+    // === RECOVERABLE FILES PER DEVICE ===
+    const RECOVERABLE = {
+        desktop: [
+            { id: 'desk-rec-warehouse-photo', name: 'RECOVERED_photo_001.jpg', type: 'JPEG Image', size: '2.8 MB', integrity: 78, status: 'GOOD', critical: true },
+            { id: 'desk-rec-draft-notes', name: 'RECOVERED_draft_notes.txt', type: 'Text Document', size: '312 B', integrity: 94, status: 'GOOD', critical: true },
+            { id: 'desk-rec-burner-setup', name: 'RECOVERED_burner_setup.txt', type: 'Text Document', size: '198 B', integrity: 67, status: 'PARTIAL', critical: false }
+        ],
+        laptop: [
+            { id: 'lap-rec-signal-plan', name: 'RECOVERED_signal_plan.txt', type: 'Text Document', size: '1.1 KB', integrity: 91, status: 'GOOD', critical: false },
+            { id: 'lap-rec-exit-routes', name: 'RECOVERED_exit_routes.txt', type: 'Text Document', size: '856 B', integrity: 85, status: 'GOOD', critical: false }
+        ],
+        phone: [
+            { id: 'phone-rec-warehouse-photo', name: 'IMG_4410_warehouse.jpg', type: 'JPEG Image', size: '2.1 MB', integrity: 65, status: 'PARTIAL', critical: true },
+            { id: 'phone-rec-deleted-msg', name: 'deleted_sms_thread.db', type: 'SMS Database', size: '4 KB', integrity: 98, status: 'GOOD', critical: true }
+        ]
+    };
+
+    let selectedDrive = null;
+    let scanning = false;
+
+    // === INIT ===
+    document.addEventListener('DOMContentLoaded', () => {
+        GoneDark.init();
+        GoneDark.buildNav('datadrill');
+        updateDriveStates();
+    });
+
+    function updateDriveStates() {
+        document.querySelectorAll('.dd-drive').forEach(drive => {
+            const device = drive.dataset.device;
+            if (GoneDark.state.dataDrillScans[device]) {
+                drive.classList.add('scanned');
+            }
+        });
+    }
+
+    function selectDrive(device) {
+        if (scanning) return;
+        selectedDrive = device;
+
+        document.querySelectorAll('.dd-drive').forEach(d => d.classList.remove('selected'));
+        document.querySelector(`.dd-drive[data-device="${device}"]`).classList.add('selected');
+
+        const btn = document.getElementById('scanBtn');
+        if (GoneDark.state.dataDrillScans[device]) {
+            btn.textContent = 'SHOW RESULTS';
+            btn.disabled = false;
+        } else {
+            btn.textContent = 'SCAN DRIVE';
+            btn.disabled = false;
+        }
+
+        document.getElementById('resultsPanel').classList.remove('active');
+    }
+
+    function startScan() {
+        if (!selectedDrive || scanning) return;
+
+        // If already scanned, just show results
+        if (GoneDark.state.dataDrillScans[selectedDrive]) {
+            showResults();
+            return;
+        }
+
+        scanning = true;
+        const btn = document.getElementById('scanBtn');
+        btn.disabled = true;
+        btn.textContent = 'SCANNING...';
+        document.getElementById('scanStatus').textContent = 'Deep scan in progress...';
+
+        // Show scan area
+        const scanArea = document.getElementById('scanArea');
+        scanArea.classList.add('active');
+
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const hexDump = document.getElementById('hexDump');
+
+        let progress = 0;
+        const phases = [
+            { pct: 10, text: 'Mounting filesystem...' },
+            { pct: 20, text: 'Reading partition table...' },
+            { pct: 35, text: 'Scanning deleted file markers...' },
+            { pct: 50, text: 'Analyzing file fragments...' },
+            { pct: 65, text: 'Reconstructing file chains...' },
+            { pct: 80, text: 'Validating recovered data...' },
+            { pct: 90, text: 'Calculating integrity checksums...' },
+            { pct: 100, text: 'Scan complete.' }
+        ];
+
+        let phaseIdx = 0;
+
+        // Generate hex dump
+        function genHexLine() {
+            const addr = Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(8, '0');
+            let hex = '';
+            let ascii = '';
+            for (let i = 0; i < 16; i++) {
+                const byte = Math.floor(Math.random() * 256);
+                hex += byte.toString(16).padStart(2, '0') + ' ';
+                ascii += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+            }
+            return `0x${addr}  ${hex} |${ascii}|`;
+        }
+
+        const hexInterval = setInterval(() => {
+            hexDump.textContent += genHexLine() + '\n';
+            hexDump.scrollTop = hexDump.scrollHeight;
+        }, 80);
+
+        const scanInterval = setInterval(() => {
+            progress += 1 + Math.random() * 2;
+            if (progress > 100) progress = 100;
+
+            progressFill.style.width = progress + '%';
+
+            while (phaseIdx < phases.length && progress >= phases[phaseIdx].pct) {
+                progressText.textContent = phases[phaseIdx].text;
+                phaseIdx++;
+            }
+
+            if (progress >= 100) {
+                clearInterval(scanInterval);
+                clearInterval(hexInterval);
+
+                GoneDark.markDrillScanned(selectedDrive);
+                scanning = false;
+                btn.disabled = false;
+                btn.textContent = 'SHOW RESULTS';
+                document.getElementById('scanStatus').textContent = 'Scan complete — recoverable files found.';
+
+                updateDriveStates();
+
+                setTimeout(() => {
+                    scanArea.classList.remove('active');
+                    showResults();
+                }, 800);
+            }
+        }, 100);
+    }
+
+    function showResults() {
+        const files = RECOVERABLE[selectedDrive];
+        if (!files) return;
+
+        const panel = document.getElementById('resultsPanel');
+        const body = document.getElementById('resultsBody');
+        const count = document.getElementById('resultsCount');
+
+        count.textContent = `${files.length} files found on ${selectedDrive}`;
+        body.innerHTML = '';
+
+        files.forEach(file => {
+            const isRecovered = GoneDark.isFileRecovered(selectedDrive, file.id);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${file.name}</td>
+                <td>${file.type}</td>
+                <td>${file.size}</td>
+                <td>
+                    <span class="${file.status === 'GOOD' ? 'status-good' : 'status-partial'}">
+                        ${file.status} (${file.integrity}%)
+                    </span>
+                </td>
+                <td>
+                    <button class="dd-recover-btn ${isRecovered ? 'recovered' : ''}"
+                        onclick="${isRecovered ? '' : `recoverFile('${selectedDrive}', '${file.id}', this)`}"
+                        ${isRecovered ? 'disabled' : ''}>
+                        ${isRecovered ? '&#10003; RECOVERED' : 'RECOVER'}
+                    </button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+
+        panel.classList.add('active');
+    }
+
+    function recoverFile(device, fileId, btn) {
+        const result = GoneDark.recoverFile(device, fileId);
+        if (result) {
+            btn.classList.add('recovered');
+            btn.innerHTML = '&#10003; RECOVERED';
+            btn.disabled = true;
+
+            // Glitch effect on the row
+            btn.closest('tr').style.animation = 'glitchIn 0.6s ease-out';
+        }
+    }
+
+    function recoverAll() {
+        if (!selectedDrive) return;
+        const files = RECOVERABLE[selectedDrive];
+        const buttons = document.querySelectorAll('.dd-recover-btn:not(.recovered)');
+
+        let delay = 0;
+        buttons.forEach((btn, i) => {
+            setTimeout(() => {
+                const fileId = files[i]?.id;
+                if (fileId && !GoneDark.isFileRecovered(selectedDrive, fileId)) {
+                    recoverFile(selectedDrive, fileId, btn);
+                }
+            }, delay);
+            delay += 300;
+        });
+    }
+    </script>
+</body>
+</html>

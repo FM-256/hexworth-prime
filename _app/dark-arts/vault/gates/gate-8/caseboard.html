@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Board — Operation Gone Dark</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { background: #1a1510; overflow: hidden; }
+
+        .cb-layout {
+            display: flex;
+            height: calc(100vh - 44px);
+        }
+
+        /* Sidebar */
+        .cb-sidebar {
+            width: 280px;
+            background: var(--g8-bg-panel);
+            border-right: 1px solid var(--g8-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 20;
+        }
+
+        .cb-sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--g8-border);
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            color: var(--g8-text-dim);
+            text-transform: uppercase;
+        }
+
+        .cb-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--g8-border);
+        }
+
+        .cb-tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
+            color: var(--g8-text-dim);
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: var(--g8-font);
+            transition: all 0.2s;
+        }
+
+        .cb-tab:hover { color: var(--g8-text); }
+        .cb-tab.active { color: var(--g8-yellow); border-bottom: 2px solid var(--g8-yellow); }
+
+        .cb-tab-content { flex: 1; overflow-y: auto; padding: 8px; }
+
+        /* Evidence list in sidebar */
+        .cb-ev-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: grab;
+            transition: background 0.1s;
+            margin-bottom: 4px;
+            font-size: 0.62rem;
+        }
+
+        .cb-ev-item:hover { background: rgba(255,255,255,0.03); }
+
+        .cb-ev-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-top: 3px;
+            flex-shrink: 0;
+        }
+
+        .cb-ev-dot.desktop { background: var(--g8-ev-desktop); }
+        .cb-ev-dot.laptop { background: var(--g8-ev-laptop); }
+        .cb-ev-dot.phone { background: var(--g8-ev-phone); }
+        .cb-ev-dot.report { background: var(--g8-ev-report); }
+        .cb-ev-dot.recovered { background: var(--g8-ev-recovered); }
+
+        .cb-ev-text { flex: 1; }
+        .cb-ev-title { color: #ccc; margin-bottom: 2px; }
+        .cb-ev-detail { color: #666; font-size: 0.55rem; }
+
+        /* Connections sidebar section */
+        .cb-conn-item {
+            padding: 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-size: 0.62rem;
+            border-left: 2px solid var(--g8-yellow-dim);
+        }
+
+        .cb-conn-item.made { border-left-color: #2ecc71; background: rgba(46, 204, 113, 0.04); }
+        .cb-conn-item .conn-label { color: #ccc; margin-bottom: 2px; }
+        .cb-conn-item .conn-desc { color: #666; font-size: 0.55rem; }
+        .cb-conn-item .conn-status { font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+        .cb-conn-item .conn-status.found { color: #2ecc71; }
+        .cb-conn-item .conn-status.pending { color: #666; }
+
+        .cb-conn-make-btn {
+            padding: 3px 8px;
+            background: rgba(216, 216, 48, 0.06);
+            border: 1px solid var(--g8-yellow-dim);
+            border-radius: 3px;
+            color: var(--g8-yellow);
+            font-family: var(--g8-font);
+            font-size: 0.5rem;
+            cursor: pointer;
+            margin-top: 4px;
+            transition: all 0.2s;
+        }
+
+        .cb-conn-make-btn:hover { background: rgba(216, 216, 48, 0.12); }
+
+        /* Board Area */
+        .cb-board {
+            flex: 1;
+            background:
+                linear-gradient(rgba(139, 105, 20, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 105, 20, 0.08) 1px, transparent 1px),
+                radial-gradient(ellipse at center, rgba(139, 105, 20, 0.06) 0%, transparent 70%);
+            background-size: 40px 40px, 40px 40px, 100% 100%;
+            background-color: #1a1510;
+            position: relative;
+            overflow: hidden;
+            cursor: default;
+        }
+
+        /* Board Title */
+        .cb-board-title {
+            position: absolute;
+            top: 12px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.55rem;
+            letter-spacing: 0.3em;
+            color: rgba(216, 216, 48, 0.3);
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Pinned Cards on Board */
+        .cb-card {
+            position: absolute;
+            width: 200px;
+            background: rgba(20, 20, 28, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 0.6rem;
+            cursor: grab;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: box-shadow 0.2s;
+            user-select: none;
+        }
+
+        .cb-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 15; }
+        .cb-card.dragging { opacity: 0.85; cursor: grabbing; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+
+        .cb-card .card-pin {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .cb-card .card-title { color: #ccc; font-weight: bold; margin-bottom: 4px; font-size: 0.62rem; }
+        .cb-card .card-detail { color: #888; font-size: 0.55rem; line-height: 1.4; }
+        .cb-card .card-source { font-size: 0.48rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; opacity: 0.5; }
+
+        .cb-card .card-remove {
+            position: absolute;
+            top: 4px; right: 6px;
+            background: none;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0 4px;
+        }
+
+        .cb-card .card-remove:hover { color: #e74c3c; }
+
+        /* Sticky Notes */
+        .cb-note {
+            position: absolute;
+            width: 160px;
+            min-height: 80px;
+            padding: 24px 10px 10px;
+            border-radius: 2px;
+            font-size: 0.6rem;
+            color: #333;
+            cursor: grab;
+            z-index: 10;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            user-select: none;
+            font-family: 'Georgia', serif;
+            line-height: 1.4;
+        }
+
+        .cb-note.dragging { opacity: 0.85; cursor: grabbing; z-index: 100; }
+
+        .cb-note .note-delete {
+            position: absolute;
+            top: 4px; right: 6px;
+            background: none;
+            border: none;
+            color: rgba(0,0,0,0.3);
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        .cb-note .note-delete:hover { color: #c0392b; }
+
+        .cb-note textarea {
+            width: 100%;
+            min-height: 50px;
+            background: none;
+            border: none;
+            font-family: 'Georgia', serif;
+            font-size: 0.6rem;
+            color: #333;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+        }
+
+        /* Connection Lines (SVG overlay) */
+        .cb-lines {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .cb-lines line {
+            stroke: rgba(216, 216, 48, 0.3);
+            stroke-width: 1.5;
+            stroke-dasharray: 6 4;
+        }
+
+        /* Timeline Bar */
+        .cb-timeline {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(10, 10, 16, 0.9);
+            border-top: 1px solid var(--g8-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 20;
+        }
+
+        .cb-timeline-track {
+            flex: 1;
+            height: 2px;
+            background: rgba(255,255,255,0.06);
+            position: relative;
+            margin: 0 20px;
+        }
+
+        .cb-tl-label {
+            font-size: 0.5rem;
+            letter-spacing: 0.1em;
+            color: #555;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .cb-tl-dot {
+            position: absolute;
+            top: -4px;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            border: 1px solid;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .cb-tl-dot:hover { transform: scale(1.5); }
+
+        .cb-tl-dot .tl-label {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.45rem;
+            color: #888;
+            white-space: nowrap;
+            display: none;
+        }
+
+        .cb-tl-dot:hover .tl-label { display: block; }
+
+        /* Submit Section */
+        .cb-submit {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            z-index: 25;
+        }
+
+        .cb-submit-btn {
+            padding: 12px 28px;
+            background: rgba(216, 216, 48, 0.08);
+            border: 1px solid var(--g8-yellow-dim);
+            border-radius: 4px;
+            color: var(--g8-yellow);
+            font-family: var(--g8-font);
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .cb-submit-btn:hover:not(:disabled) {
+            background: rgba(216, 216, 48, 0.15);
+            box-shadow: 0 0 20px rgba(216, 216, 48, 0.15);
+        }
+
+        .cb-submit-btn:disabled { opacity: 0.3; cursor: default; }
+
+        .cb-submit-hint {
+            font-size: 0.5rem;
+            color: var(--g8-text-dim);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        /* Add Note Button */
+        .cb-add-note {
+            position: absolute;
+            bottom: 70px;
+            left: 20px;
+            z-index: 25;
+            padding: 8px 18px;
+            background: rgba(241, 196, 15, 0.08);
+            border: 1px solid rgba(241, 196, 15, 0.2);
+            border-radius: 4px;
+            color: #f1c40f;
+            font-family: var(--g8-font);
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cb-add-note:hover { background: rgba(241, 196, 15, 0.15); }
+
+        /* Submit Modal */
+        .submit-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .submit-modal.open { display: flex; }
+
+        .submit-box {
+            background: var(--g8-bg-panel);
+            border: 1px solid var(--g8-border);
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .submit-box h2 {
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            color: var(--g8-yellow);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .submit-box p {
+            font-size: 0.7rem;
+            color: var(--g8-text-dim);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .submit-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--g8-border);
+            border-radius: 4px;
+            color: var(--g8-text-bright);
+            font-family: var(--g8-font);
+            font-size: 0.8rem;
+            text-align: center;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+            outline: none;
+        }
+
+        .submit-input:focus { border-color: var(--g8-yellow-dim); }
+
+        .submit-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .submit-confirm {
+            padding: 10px 28px;
+            background: rgba(216, 216, 48, 0.1);
+            border: 1px solid var(--g8-yellow-dim);
+            border-radius: 4px;
+            color: var(--g8-yellow);
+            font-family: var(--g8-font);
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .submit-cancel {
+            padding: 10px 28px;
+            background: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: var(--g8-text-dim);
+            font-family: var(--g8-font);
+            font-size: 0.65rem;
+            cursor: pointer;
+        }
+
+        .submit-feedback {
+            margin-top: 12px;
+            font-size: 0.65rem;
+            min-height: 20px;
+        }
+
+        .submit-feedback.correct { color: #2ecc71; }
+        .submit-feedback.wrong { color: #e74c3c; }
+
+        /* Success Overlay */
+        .success-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 6000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-overlay.open { display: flex; }
+
+        .success-box {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+        }
+
+        .success-box .success-icon { font-size: 3rem; margin-bottom: 20px; }
+        .success-box h1 { font-size: 1.5rem; color: #2ecc71; letter-spacing: 0.1em; margin-bottom: 8px; }
+        .success-box .success-sub { font-size: 0.8rem; color: var(--g8-text-dim); margin-bottom: 24px; }
+
+        .success-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .success-stat {
+            padding: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+        }
+
+        .success-stat .stat-value { font-size: 1.4rem; color: var(--g8-amber); margin-bottom: 4px; }
+        .success-stat .stat-label { font-size: 0.55rem; color: #666; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .success-return {
+            padding: 12px 32px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-radius: 4px;
+            color: #2ecc71;
+            font-family: var(--g8-font);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        @media (max-width: 768px) {
+            .cb-sidebar { width: 220px; }
+            .cb-card { width: 160px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="cb-layout">
+        <!-- Sidebar -->
+        <div class="cb-sidebar">
+            <div class="cb-sidebar-header">&#128203; Case Board</div>
+            <div class="cb-tabs">
+                <button class="cb-tab active" onclick="switchTab('evidence')">Evidence</button>
+                <button class="cb-tab" onclick="switchTab('connections')">Links</button>
+            </div>
+            <div class="cb-tab-content" id="tabContent"></div>
+        </div>
+
+        <!-- Board -->
+        <div class="cb-board" id="caseBoard">
+            <div class="cb-board-title">INVESTIGATION BOARD &mdash; CASE #2026-MP-04871</div>
+
+            <!-- SVG for connection lines -->
+            <svg class="cb-lines" id="linesSvg"></svg>
+
+            <!-- Timeline -->
+            <div class="cb-timeline">
+                <span class="cb-tl-label">Mon</span>
+                <div class="cb-timeline-track" id="timelineTrack"></div>
+                <span class="cb-tl-label">Thu</span>
+            </div>
+
+            <!-- Controls -->
+            <button class="cb-add-note" onclick="addNote()">&#128221; Add Note</button>
+
+            <div class="cb-submit">
+                <button class="cb-submit-btn" id="submitBtn" onclick="openSubmit()" disabled>Submit Analysis</button>
+                <div class="cb-submit-hint" id="submitHint">Need 5+ connections to submit</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Modal -->
+    <div class="submit-modal" id="submitModal">
+        <div class="submit-box">
+            <h2>Submit Analysis</h2>
+            <p>Based on the digital evidence, where <em>specifically</em> was Daniel Reeves last located?</p>
+            <p style="font-size:0.65rem;color:#888;margin-top:4px;">Det. Novak needs a specific site &mdash; district and building. Example format: <em>&ldquo;[District] [Building]&rdquo;</em></p>
+            <input type="text" class="submit-input" id="answerInput" placeholder="e.g. District + Building..." autocomplete="off">
+            <div class="submit-actions">
+                <button class="submit-confirm" onclick="submitAnswer()">Submit</button>
+                <button class="submit-cancel" onclick="closeSubmit()">Cancel</button>
+            </div>
+            <div class="submit-feedback" id="submitFeedback"></div>
+        </div>
+    </div>
+
+    <!-- Success Overlay -->
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-box">
+            <div class="success-icon">&#9762;</div>
+            <h1>CASE CLOSED</h1>
+            <div class="success-sub">Operation Gone Dark — Investigation Complete</div>
+            <div class="success-stats" id="successStats"></div>
+            <p style="font-size:0.7rem;color:var(--g8-text-dim);margin-bottom:20px;line-height:1.6;">
+                Daniel Reeves — operative codename MERIDIAN — was last tracked to <strong style="color:var(--g8-yellow);">Warehouse 7 in the Kadıköy district of Istanbul</strong>, where he arrived at approximately 2030 hours local time on Wednesday for an asset extraction. His signal went dark at 2102 hours. The investigation has been forwarded to the appropriate agencies.
+            </p>
+            <a href="reports/debrief.html" class="success-return" style="background:rgba(139,0,0,0.3);border-color:#8b0000;color:#ff4444;margin-bottom:12px;">&#128274; Access Classified Debrief</a>
+            <a href="../../index.html" class="success-return">Return to Vault</a>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+    <script>
+    let currentTab = 'evidence';
+    let dragTarget = null;
+    let dragOffset = { x: 0, y: 0 };
+    const NOTE_COLORS = ['#f7dc6f', '#f0b27a', '#aed6f1', '#a9dfbf', '#d7bde2'];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        GoneDark.init();
+        GoneDark.buildNav('caseboard');
+        renderTab();
+        renderBoard();
+        renderTimeline();
+        updateSubmitState();
+
+        if (GoneDark.state.completed) {
+            showSuccess();
+        }
+    });
+
+    // === TABS ===
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.cb-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.cb-tab:${tab === 'evidence' ? 'first-child' : 'last-child'}`).classList.add('active');
+        renderTab();
+    }
+
+    function renderTab() {
+        const content = document.getElementById('tabContent');
+        if (currentTab === 'evidence') renderEvidenceTab(content);
+        else renderConnectionsTab(content);
+    }
+
+    function renderEvidenceTab(container) {
+        const pinned = GoneDark.state.pinnedEvidence;
+        if (pinned.length === 0) {
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:#555;font-size:0.6rem;">
+                No evidence pinned yet.<br>Visit devices and pin evidence items to add them here.
+            </div>`;
+            return;
+        }
+
+        let html = '';
+        const sources = ['desktop', 'laptop', 'phone', 'recovered', 'report'];
+        sources.forEach(source => {
+            const items = pinned.filter(e => e.source === source);
+            if (items.length === 0) return;
+            html += `<div style="font-size:0.5rem;letter-spacing:0.12em;color:#555;text-transform:uppercase;padding:8px 8px 4px;margin-top:4px;">${source}</div>`;
+            items.forEach(ev => {
+                html += `
+                    <div class="cb-ev-item" data-id="${ev.id}">
+                        <div class="cb-ev-dot ${source}"></div>
+                        <div class="cb-ev-text">
+                            <div class="cb-ev-title">${ev.title}</div>
+                            <div class="cb-ev-detail">${ev.detail}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+        container.innerHTML = html;
+    }
+
+    function renderConnectionsTab(container) {
+        let html = '';
+        KEY_CONNECTIONS.forEach(conn => {
+            const made = GoneDark.state.connections.find(c => c.id === conn.id);
+            // Check if student has enough pinned evidence
+            const pinnedIds = GoneDark.state.pinnedEvidence.map(e => e.id);
+            const hasEvidence = conn.evidenceIds.filter(id => pinnedIds.includes(id)).length >= 2;
+
+            html += `
+                <div class="cb-conn-item ${made ? 'made' : ''}">
+                    <div class="conn-label">${conn.label}</div>
+                    <div class="conn-desc">${conn.description}</div>
+                    ${made
+                        ? `<div class="conn-status found">&#10003; Connection Made (+25 pts)</div>`
+                        : (hasEvidence || GoneDark.state.godMode
+                            ? `<button class="cb-conn-make-btn" onclick="makeConnection('${conn.id}')">Make Connection</button>`
+                            : `<div class="conn-status pending">Need more evidence pinned</div>`)
+                    }
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function makeConnection(connId) {
+        const conn = KEY_CONNECTIONS.find(c => c.id === connId);
+        if (!conn) return;
+        GoneDark.addConnection({ id: conn.id, label: conn.label, from: conn.evidenceIds[0], to: conn.evidenceIds[1] });
+        renderTab();
+        updateSubmitState();
+    }
+
+    // === BOARD RENDERING ===
+    function renderBoard() {
+        const board = document.getElementById('caseBoard');
+
+        // Clear existing cards and notes (keep timeline, controls, lines)
+        board.querySelectorAll('.cb-card, .cb-note').forEach(el => el.remove());
+
+        // Place evidence cards
+        const pinned = GoneDark.state.pinnedEvidence;
+        pinned.forEach((ev, i) => {
+            const card = document.createElement('div');
+            card.className = 'cb-card g8-fade-in';
+            card.dataset.id = ev.id;
+
+            // Position — distribute across board
+            const cols = 4;
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = 40 + col * 220 + (Math.random() * 20 - 10);
+            const y = 60 + row * 130 + (Math.random() * 20 - 10);
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+
+            const sourceColor = {
+                desktop: 'var(--g8-ev-desktop)', laptop: 'var(--g8-ev-laptop)',
+                phone: 'var(--g8-ev-phone)', report: 'var(--g8-ev-report)', recovered: 'var(--g8-ev-recovered)'
+            }[ev.source] || '#888';
+
+            card.innerHTML = `
+                <div class="card-pin" style="background:${sourceColor};"></div>
+                <button class="card-remove" onclick="removeCard('${ev.id}')">&times;</button>
+                <div class="card-title">${ev.title}</div>
+                <div class="card-detail">${ev.detail}</div>
+                <div class="card-source" style="color:${sourceColor};">${ev.source}</div>
+            `;
+
+            makeDraggable(card);
+            board.appendChild(card);
+        });
+
+        // Place sticky notes
+        GoneDark.state.notes.forEach(note => {
+            createNoteElement(note);
+        });
+    }
+
+    function removeCard(evidenceId) {
+        GoneDark.unpinEvidence(evidenceId);
+        renderBoard();
+        renderTab();
+    }
+
+    // === STICKY NOTES ===
+    function addNote() {
+        const board = document.getElementById('caseBoard');
+        const color = NOTE_COLORS[Math.floor(Math.random() * NOTE_COLORS.length)];
+        const noteData = {
+            text: '',
+            x: 100 + Math.random() * 300,
+            y: 80 + Math.random() * 200,
+            color: color
+        };
+        const noteId = GoneDark.addNote(noteData);
+        noteData.id = noteId;
+        createNoteElement(noteData);
+    }
+
+    function createNoteElement(noteData) {
+        const board = document.getElementById('caseBoard');
+        const note = document.createElement('div');
+        note.className = 'cb-note';
+        note.dataset.noteId = noteData.id;
+        note.style.left = noteData.x + 'px';
+        note.style.top = noteData.y + 'px';
+        note.style.background = noteData.color;
+
+        note.innerHTML = `
+            <button class="note-delete" onclick="deleteNote('${noteData.id}')">&times;</button>
+            <textarea placeholder="Type observation...">${noteData.text || ''}</textarea>
+        `;
+
+        const textarea = note.querySelector('textarea');
+        textarea.addEventListener('input', () => {
+            const n = GoneDark.state.notes.find(n => n.id === noteData.id);
+            if (n) { n.text = textarea.value; GoneDark.save(); }
+        });
+
+        makeDraggable(note);
+        board.appendChild(note);
+    }
+
+    function deleteNote(noteId) {
+        GoneDark.removeNote(noteId);
+        const el = document.querySelector(`[data-note-id="${noteId}"]`);
+        if (el) el.remove();
+    }
+
+    // === DRAG SYSTEM ===
+    function makeDraggable(el) {
+        el.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            dragTarget = el;
+            const rect = el.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            el.classList.add('dragging');
+        });
+    }
+
+    document.addEventListener('mousemove', (e) => {
+        if (!dragTarget) return;
+        const board = document.getElementById('caseBoard');
+        const boardRect = board.getBoundingClientRect();
+        let x = e.clientX - boardRect.left - dragOffset.x;
+        let y = e.clientY - boardRect.top - dragOffset.y;
+        x = Math.max(0, Math.min(x, boardRect.width - 200));
+        y = Math.max(0, Math.min(y, boardRect.height - 100));
+        dragTarget.style.left = x + 'px';
+        dragTarget.style.top = y + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (dragTarget) {
+            dragTarget.classList.remove('dragging');
+            dragTarget = null;
+        }
+    });
+
+    // === TIMELINE ===
+    function renderTimeline() {
+        const track = document.getElementById('timelineTrack');
+        const events = [
+            { pct: 0, label: 'Mon Morning', color: 'var(--g8-ev-desktop)' },
+            { pct: 15, label: 'Mon 7PM — The Anchor', color: 'var(--g8-ev-phone)' },
+            { pct: 25, label: 'Mon 10PM — Unknown Call', color: 'var(--g8-ev-phone)' },
+            { pct: 35, label: 'Tue — Prep Day', color: 'var(--g8-ev-laptop)' },
+            { pct: 50, label: 'Tue — Flight Booked', color: 'var(--g8-ev-laptop)' },
+            { pct: 65, label: 'Wed 5:30AM — Airport', color: 'var(--g8-ev-phone)' },
+            { pct: 75, label: 'Wed 12:15PM — Istanbul', color: 'var(--g8-ev-phone)' },
+            { pct: 88, label: 'Wed 8:47PM — Goes Silent', color: '#e74c3c' },
+            { pct: 92, label: 'Wed 9:02PM — SIGNAL LOST', color: '#e74c3c' }
+        ];
+
+        events.forEach(ev => {
+            const dot = document.createElement('div');
+            dot.className = 'cb-tl-dot';
+            dot.style.left = ev.pct + '%';
+            dot.style.background = ev.color;
+            dot.style.borderColor = ev.color;
+            dot.innerHTML = `<span class="tl-label">${ev.label}</span>`;
+            track.appendChild(dot);
+        });
+    }
+
+    // === SUBMIT ===
+    function updateSubmitState() {
+        const progress = GoneDark.getProgress();
+        const btn = document.getElementById('submitBtn');
+        const hint = document.getElementById('submitHint');
+
+        if (progress.canSubmit || GoneDark.state.godMode) {
+            btn.disabled = false;
+            hint.textContent = 'Ready to submit your analysis';
+        } else {
+            btn.disabled = true;
+            hint.textContent = `Need ${5 - progress.connections.count} more connections`;
+        }
+    }
+
+    function openSubmit() {
+        document.getElementById('submitModal').classList.add('open');
+        document.getElementById('answerInput').focus();
+    }
+
+    function closeSubmit() {
+        document.getElementById('submitModal').classList.remove('open');
+        document.getElementById('submitFeedback').textContent = '';
+    }
+
+    async function submitAnswer() {
+        const input = document.getElementById('answerInput');
+        const feedback = document.getElementById('submitFeedback');
+        const answer = input.value.trim();
+
+        if (!answer) {
+            feedback.className = 'submit-feedback wrong';
+            feedback.textContent = 'Enter a location.';
+            return;
+        }
+
+        const result = await GoneDark.submitAnswer(answer);
+
+        if (result.correct) {
+            closeSubmit();
+            showSuccess();
+        } else {
+            feedback.className = 'submit-feedback wrong';
+            let msg = `Incorrect. -50 points. (Score: ${result.score}).`;
+            if (result.hint) msg += ' ' + result.hint;
+            else msg += ' Try again.';
+            feedback.textContent = msg;
+            input.value = '';
+            input.focus();
+        }
+    }
+
+    function showSuccess() {
+        const overlay = document.getElementById('successOverlay');
+        const stats = document.getElementById('successStats');
+        const progress = GoneDark.getProgress();
+        const elapsed = GoneDark.formatTime(GoneDark.getElapsed());
+
+        stats.innerHTML = `
+            <div class="success-stat">
+                <div class="stat-value">${GoneDark.state.score}</div>
+                <div class="stat-label">Final Score</div>
+            </div>
+            <div class="success-stat">
+                <div class="stat-value">${elapsed}</div>
+                <div class="stat-label">Time Elapsed</div>
+            </div>
+            <div class="success-stat">
+                <div class="stat-value">${progress.connections.count}/${progress.connections.total}</div>
+                <div class="stat-label">Connections</div>
+            </div>
+        `;
+
+        overlay.classList.add('open');
+    }
+
+    // Enter to submit
+    document.getElementById('answerInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitAnswer();
+        if (e.key === 'Escape') closeSubmit();
+    });
+
+    // State sync
+    window.onGoneDarkStateChange = () => {
+        renderTab();
+        renderBoard();
+        updateSubmitState();
+    };
+    </script>
+</body>
+</html>
