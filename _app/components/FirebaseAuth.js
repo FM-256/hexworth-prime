@@ -113,7 +113,8 @@ const FirebaseAuth = (function() {
                 email: user.email || null,
                 displayName: user.displayName || null,
                 photoURL: user.photoURL || null,
-                isAnonymous: user.isAnonymous || false
+                isAnonymous: user.isAnonymous || false,
+                deviceId: getOrCreateDeviceId()
             };
             isAdmin = user.email ? config.adminEmails.includes(user.email.toLowerCase()) : false;
 
@@ -355,6 +356,22 @@ const FirebaseAuth = (function() {
         return currentUser?.isAnonymous === true;
     }
 
+    /**
+     * Get or create a stable device ID (UUID v4)
+     * Used for UID recovery and duplicate detection in classroom scenarios.
+     * Same lifetime as localStorage — if wiped, both progress and deviceId reset together.
+     */
+    function getOrCreateDeviceId() {
+        const STORAGE_KEY = 'hexworth_device_id';
+        let deviceId = localStorage.getItem(STORAGE_KEY);
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem(STORAGE_KEY, deviceId);
+            console.log('[FirebaseAuth] Generated new device ID:', deviceId);
+        }
+        return deviceId;
+    }
+
     // Public API
     return {
         init,
@@ -367,7 +384,8 @@ const FirebaseAuth = (function() {
         isAnonymous: checkIsAnonymous,
         isSignedIn,
         addAdminEmail,
-        removeAdminEmail
+        removeAdminEmail,
+        getOrCreateDeviceId
     };
 })();
 

@@ -653,6 +653,7 @@ const InstructorDashboard = (function() {
             return;
         }
 
+        const hasAnonymous = rosterMembers.some(m => m.isAnonymous);
         rosterEl.innerHTML = `
             <table class="id-roster-table">
                 <thead>
@@ -661,6 +662,7 @@ const InstructorDashboard = (function() {
                         <th>Email</th>
                         <th>Joined</th>
                         <th>Progress</th>
+                        ${hasAnonymous ? '<th style="width:40px;"></th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -669,12 +671,17 @@ const InstructorDashboard = (function() {
                         const email = m.email || '—';
                         const joined = m.joinedAt ? formatDate(m.joinedAt) : '—';
                         const progress = calculateStudentProgress(m.uid);
+                        const anonBadge = m.isAnonymous ? ' <span style="color:#f59e0b;font-size:0.7rem;" title="Anonymous">[anon]</span>' : '';
+                        const mergeBtn = (hasAnonymous && m.isAnonymous)
+                            ? `<td><button class="id-merge-btn" onclick="event.stopPropagation(); InstructorDashboard.showMergeModal('${m.uid}')" title="Merge with another student">&#8644;</button></td>`
+                            : (hasAnonymous ? '<td></td>' : '');
                         return `
                             <tr class="id-roster-row" onclick="InstructorDashboard.showStudentDetail('${m.uid}')">
-                                <td>${escapeHtml(name)}</td>
+                                <td>${escapeHtml(name)}${anonBadge}</td>
                                 <td>${escapeHtml(email)}</td>
                                 <td>${joined}</td>
                                 <td><span class="id-progress-badge">${progress}%</span></td>
+                                ${mergeBtn}
                             </tr>
                         `;
                     }).join('')}
@@ -1429,6 +1436,234 @@ const InstructorDashboard = (function() {
         });
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // STUDENT MERGE (HD-6)
+    // ═══════════════════════════════════════════════════════════════
+
+    function showMergeModal(sourceUid) {
+        const source = rosterMembers.find(m => m.uid === sourceUid);
+        if (!source) return;
+
+        const sourceName = source.displayName || source.email?.split('@')[0] || 'Student';
+        const sourceProgress = calculateStudentProgress(sourceUid);
+
+        // Build target options — all non-source students
+        const targets = rosterMembers.filter(m => m.uid !== sourceUid);
+        if (targets.length === 0) {
+            alert('No other students to merge with.');
+            return;
+        }
+
+        const targetOptions = targets.map(m => {
+            const tName = m.displayName || m.email?.split('@')[0] || 'Student';
+            const tProg = calculateStudentProgress(m.uid);
+            const tAnon = m.isAnonymous ? ' [anon]' : '';
+            return `<option value="${m.uid}">${escapeHtml(tName)}${tAnon} (${tProg}%)</option>`;
+        }).join('');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'id-overlay';
+        overlay.id = 'idMergeModal';
+        overlay.innerHTML = `
+            <div class="id-modal">
+                <button class="id-modal-close" onclick="InstructorDashboard.closeModal('idMergeModal')">&times;</button>
+                <div class="id-modal-title">Merge Students</div>
+                <div style="color:#888;font-size:0.85rem;margin-bottom:16px;line-height:1.5;">
+                    Merge <strong style="color:#f59e0b;">${escapeHtml(sourceName)}</strong> (${sourceProgress}% complete, anonymous)
+                    into another student record. Completions are combined (max scores, earliest timestamps).
+                    The source record is then removed.
+                </div>
+                <div class="id-input-group">
+                    <label class="id-input-label">Merge into:</label>
+                    <select class="id-input" id="idMergeTarget">${targetOptions}</select>
+                </div>
+                <div id="idMergePreview" style="margin:12px 0;padding:10px;background:#111;border-radius:6px;font-size:0.8rem;color:#aaa;display:none;"></div>
+                <div class="id-error" id="idMergeError"></div>
+                <div class="id-modal-actions">
+                    <button class="id-secondary-btn" onclick="InstructorDashboard.closeModal('idMergeModal')">Cancel</button>
+                    <button class="id-secondary-btn" onclick="InstructorDashboard.previewMerge('${sourceUid}')" id="idMergePreviewBtn">Preview</button>
+                    <button class="id-primary-btn" onclick="InstructorDashboard.submitMerge('${sourceUid}')" id="idMergeSubmitBtn" style="background:#f59e0b;color:#000;">Merge</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal('idMergeModal');
+        });
+    }
+
+    function previewMerge(sourceUid) {
+        const targetUid = document.getElementById('idMergeTarget')?.value;
+        if (!targetUid) return;
+
+        const sourceData = classProgressData.find(p => p.uid === sourceUid);
+        const targetData = classProgressData.find(p => p.uid === targetUid);
+        const targetMember = rosterMembers.find(m => m.uid === targetUid);
+        const targetName = targetMember?.displayName || 'Target student';
+
+        const sourceCompletions = sourceData?.completions || {};
+        const targetCompletions = targetData?.completions || {};
+
+        // Calculate what would change
+        let newCompletions = 0;
+        let scoreUpgrades = 0;
+        for (const [contentId, comp] of Object.entries(sourceCompletions)) {
+            if (comp?.completed) {
+                const existing = targetCompletions[contentId];
+                if (!existing?.completed) {
+                    newCompletions++;
+                } else if (comp.score != null && (existing.score == null || comp.score > existing.score)) {
+                    scoreUpgrades++;
+                }
+            }
+        }
+
+        const preview = document.getElementById('idMergePreview');
+        preview.style.display = 'block';
+        preview.innerHTML = `
+            <div style="margin-bottom:6px;color:#ccc;font-weight:600;">Preview: merge into ${escapeHtml(targetName)}</div>
+            <div>+ ${newCompletions} new completion(s) added</div>
+            <div>+ ${scoreUpgrades} score upgrade(s)</div>
+            <div style="margin-top:6px;color:#f59e0b;">Source record will be permanently removed after merge.</div>
+        `;
+    }
+
+    async function submitMerge(sourceUid) {
+        const targetUid = document.getElementById('idMergeTarget')?.value;
+        if (!targetUid) return;
+
+        const errorEl = document.getElementById('idMergeError');
+        const btn = document.getElementById('idMergeSubmitBtn');
+
+        if (!confirm('This action cannot be undone. Proceed with merge?')) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Merging...';
+        errorEl.textContent = '';
+
+        try {
+            await mergeStudents(sourceUid, targetUid, selectedClassId);
+            closeModal('idMergeModal');
+            showToast('Students merged successfully');
+            // Reload roster and progress
+            await Promise.all([
+                loadRoster(selectedClassId),
+                loadClassProgress(selectedClassId)
+            ]);
+        } catch (error) {
+            console.error('[InstructorDashboard] Merge failed:', error);
+            errorEl.textContent = error.message || 'Merge failed';
+            btn.disabled = false;
+            btn.textContent = 'Merge';
+        }
+    }
+
+    /**
+     * Merge source student into target:
+     * - Union completions (max scores, earliest timestamps)
+     * - Copy activity logs
+     * - Add mergedFrom audit trail to target progress doc
+     * - Delete source member doc
+     */
+    async function mergeStudents(sourceUid, targetUid, classId) {
+        if (!db) throw new Error('Database not available');
+
+        const {
+            doc, getDoc, setDoc, updateDoc, deleteDoc, collection: colRef, getDocs, arrayUnion
+        } = window.firebaseFirestore;
+
+        // Load both progress docs
+        const sourceProgRef = doc(db, 'classes', classId, 'progress', sourceUid);
+        const targetProgRef = doc(db, 'classes', classId, 'progress', targetUid);
+
+        const [sourceSnap, targetSnap] = await Promise.all([
+            getDoc(sourceProgRef),
+            getDoc(targetProgRef)
+        ]);
+
+        const sourceProgress = sourceSnap.exists() ? sourceSnap.data() : {};
+        const targetProgress = targetSnap.exists() ? targetSnap.data() : {};
+
+        // Merge completions — union with max scores, earliest timestamps
+        const sourceCompletions = sourceProgress.completions || {};
+        const targetCompletions = targetProgress.completions || {};
+        const mergedCompletions = { ...targetCompletions };
+
+        for (const [contentId, sourceComp] of Object.entries(sourceCompletions)) {
+            if (!sourceComp?.completed) continue;
+
+            const existing = mergedCompletions[contentId];
+            if (!existing?.completed) {
+                // New completion from source
+                mergedCompletions[contentId] = sourceComp;
+            } else {
+                // Both completed — take max score, earliest completedAt
+                if (sourceComp.score != null && (existing.score == null || sourceComp.score > existing.score)) {
+                    mergedCompletions[contentId] = {
+                        ...existing,
+                        score: sourceComp.score
+                    };
+                }
+                if (sourceComp.completedAt && existing.completedAt) {
+                    const srcTime = sourceComp.completedAt?.toMillis ? sourceComp.completedAt.toMillis()
+                        : new Date(sourceComp.completedAt).getTime();
+                    const tgtTime = existing.completedAt?.toMillis ? existing.completedAt.toMillis()
+                        : new Date(existing.completedAt).getTime();
+                    if (srcTime < tgtTime) {
+                        mergedCompletions[contentId] = {
+                            ...mergedCompletions[contentId],
+                            completedAt: sourceComp.completedAt
+                        };
+                    }
+                }
+            }
+        }
+
+        // Write merged progress to target
+        await setDoc(targetProgRef, {
+            ...targetProgress,
+            uid: targetUid,
+            completions: mergedCompletions,
+            mergedFrom: arrayUnion(sourceUid)
+        }, { merge: true });
+
+        // Copy activity logs from source to target
+        try {
+            const sourceActivityRef = colRef(db, 'classes', classId, 'progress', sourceUid, 'activity');
+            const activitySnap = await getDocs(sourceActivityRef);
+
+            for (const actDoc of activitySnap.docs) {
+                const targetActivityRef = doc(db, 'classes', classId, 'progress', targetUid, 'activity', `merged_${sourceUid}_${actDoc.id}`);
+                await setDoc(targetActivityRef, {
+                    ...actDoc.data(),
+                    _mergedFrom: sourceUid
+                });
+            }
+        } catch (e) {
+            console.warn('[InstructorDashboard] Could not copy activity logs:', e);
+        }
+
+        // Remove source member doc and update class memberUids
+        const { arrayRemove, increment, serverTimestamp } = window.firebaseFirestore;
+
+        const sourceMemberRef = doc(db, 'classes', classId, 'members', sourceUid);
+        await deleteDoc(sourceMemberRef);
+
+        // Delete source progress doc
+        await deleteDoc(sourceProgRef);
+
+        // Update class doc
+        const classRef = doc(db, 'classes', classId);
+        await updateDoc(classRef, {
+            memberUids: arrayRemove(sourceUid),
+            memberCount: increment(-1),
+            updatedAt: serverTimestamp()
+        });
+
+        console.log(`[InstructorDashboard] Merged ${sourceUid} into ${targetUid} in class ${classId}`);
+    }
+
     function formatTimeAgo(timestamp) {
         const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
         const now = new Date();
@@ -1868,6 +2103,20 @@ const InstructorDashboard = (function() {
 
             .id-assignment-delete:hover {
                 color: var(--id-danger);
+            }
+
+            .id-merge-btn {
+                background: none;
+                border: 1px solid #f59e0b44;
+                color: #f59e0b;
+                font-size: 14px;
+                cursor: pointer;
+                padding: 2px 8px;
+                border-radius: 4px;
+                transition: background 0.2s;
+            }
+            .id-merge-btn:hover {
+                background: #f59e0b22;
             }
 
             .id-assignment-empty {
@@ -2467,7 +2716,10 @@ const InstructorDashboard = (function() {
         removeAssignment: removeAssignment,
         exportRosterCSV: exportRosterCSV,
         exportGradesCSV: exportGradesCSV,
-        showStudentDetail: showStudentDetail
+        showStudentDetail: showStudentDetail,
+        showMergeModal: showMergeModal,
+        previewMerge: previewMerge,
+        submitMerge: submitMerge
     };
 
 })();

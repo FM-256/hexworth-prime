@@ -5,6 +5,10 @@
  * can see student progress. Works on any page that loads FirebaseAuth,
  * ClassManager, and AssignmentManager.
  *
+ * HD-6 additions:
+ *   - Offline sync queue (hexworth_sync_queue) — retries on reconnect
+ *   - Enrollment cache fallback — uses ClassManager.getCachedEnrollments() when offline
+ *
  * Usage: <script src="components/ProgressSync.js"></script>
  * That's it. It auto-runs on auth ready.
  */
@@ -13,6 +17,8 @@
 
     // Debounce: don't sync more than once per 5 seconds
     const SYNC_COOLDOWN = 5000;
+    const QUEUE_KEY = 'hexworth_sync_queue';
+    const QUEUE_MAX = 100;
     let _lastSync = 0;
 
     /**
@@ -104,6 +110,72 @@
         return null;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // OFFLINE SYNC QUEUE (HD-6)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Enqueue a failed sync item for later retry
+     */
+    function enqueueItem(item) {
+        try {
+            const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+            queue.push({ ...item, queuedAt: Date.now() });
+            // Cap at QUEUE_MAX — drop oldest entries (FIFO)
+            while (queue.length > QUEUE_MAX) {
+                queue.shift();
+            }
+            localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        } catch (e) {
+            console.warn('[ProgressSync] Failed to enqueue item:', e);
+        }
+    }
+
+    /**
+     * Flush queued items — attempt to submit each, remove on success
+     */
+    async function flushQueue() {
+        if (typeof AssignmentManager === 'undefined') return;
+
+        let queue;
+        try {
+            queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+        } catch (e) {
+            return;
+        }
+
+        if (queue.length === 0) return;
+
+        const remaining = [];
+        let flushed = 0;
+
+        for (const item of queue) {
+            try {
+                if (item.type === 'progress') {
+                    await AssignmentManager.submitProgress(item.classId, item.contentId, item.data);
+                    flushed++;
+                } else if (item.type === 'activity') {
+                    await AssignmentManager.logActivity(
+                        item.classId, item.eventType, item.contentId,
+                        item.title, item.meta
+                    );
+                    flushed++;
+                } else {
+                    // Unknown type — discard
+                }
+            } catch (e) {
+                // Still failing — keep in queue
+                remaining.push(item);
+            }
+        }
+
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+
+        if (flushed > 0) {
+            console.log(`[ProgressSync] Flushed ${flushed} queued item(s), ${remaining.length} remaining`);
+        }
+    }
+
     /**
      * Run the sync
      */
@@ -121,15 +193,31 @@
         const user = FirebaseAuth.getUser();
         if (!user) return;
 
-        try {
-            const classes = await ClassManager.getStudentClasses(user.uid);
-            if (!classes.length) return;
+        // Flush any queued items first
+        await flushQueue();
 
+        // Get enrolled classes — fall back to local cache if network fails
+        let classes;
+        try {
+            classes = await ClassManager.getStudentClasses(user.uid);
+        } catch (e) {
+            console.warn('[ProgressSync] Network error fetching classes, using cache:', e.message);
+            classes = ClassManager.getCachedEnrollments ? ClassManager.getCachedEnrollments() : [];
+        }
+        if (!classes.length) return;
+
+        try {
             const syncedActivity = JSON.parse(localStorage.getItem('hexworth_synced_activity') || '{}');
             let synced = 0;
 
             for (const cls of classes) {
-                const assignments = await AssignmentManager.getClassAssignments(cls.id);
+                let assignments;
+                try {
+                    assignments = await AssignmentManager.getClassAssignments(cls.id);
+                } catch (e) {
+                    console.warn(`[ProgressSync] Could not fetch assignments for ${cls.id}:`, e.message);
+                    continue;
+                }
 
                 for (const assignment of assignments) {
                     const result = checkLocalCompletion(assignment.contentId);
@@ -148,11 +236,20 @@
                             }
                         } catch(e) { /* non-critical */ }
 
-                        await AssignmentManager.submitProgress(cls.id, assignment.contentId, {
-                            ...result,
-                            duration
-                        });
-                        synced++;
+                        const progressData = { ...result, duration };
+
+                        try {
+                            await AssignmentManager.submitProgress(cls.id, assignment.contentId, progressData);
+                            synced++;
+                        } catch (e) {
+                            // Network failure — enqueue for later
+                            enqueueItem({
+                                type: 'progress',
+                                classId: cls.id,
+                                contentId: assignment.contentId,
+                                data: progressData
+                            });
+                        }
 
                         const activityKey = `${cls.id}:${assignment.contentId}`;
                         if (!syncedActivity[activityKey]) {
@@ -164,7 +261,17 @@
                                     { score: result.score }
                                 );
                                 syncedActivity[activityKey] = Date.now();
-                            } catch (_) { /* non-critical */ }
+                            } catch (e) {
+                                // Network failure — enqueue activity log
+                                enqueueItem({
+                                    type: 'activity',
+                                    classId: cls.id,
+                                    eventType: result.score !== undefined ? 'quiz_passed' : 'module_completed',
+                                    contentId: assignment.contentId,
+                                    title: assignment.title || assignment.contentId,
+                                    meta: { score: result.score }
+                                });
+                            }
                         }
                     }
                 }
@@ -190,6 +297,12 @@
     window.addEventListener('courseProgress:componentComplete', () => sync());
     window.addEventListener('wsa-progress-updated', () => sync());
 
+    // Flush queue when coming back online
+    window.addEventListener('online', () => {
+        console.log('[ProgressSync] Back online — flushing sync queue');
+        flushQueue();
+    });
+
     // Export for manual trigger
-    window.ProgressSync = { sync, checkLocalCompletion };
+    window.ProgressSync = { sync, checkLocalCompletion, flushQueue };
 })();

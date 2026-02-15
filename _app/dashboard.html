@@ -2808,11 +2808,11 @@
                 </div>
                 <div class="settings-row">
                     <div class="settings-label">
-                        Reset All Data
-                        <small>Clear all progress (cannot be undone)</small>
+                        Clear My Data
+                        <small>Clear all local progress (Firestore data is preserved)</small>
                     </div>
                     <div class="settings-control">
-                        <button class="settings-btn danger" onclick="resetAllData()">Reset</button>
+                        <button class="settings-btn danger" onclick="resetAllData()">Clear</button>
                     </div>
                 </div>
             </div>
@@ -4807,15 +4807,26 @@
 
         // Data management
         function exportUserData() {
-            const userData = {};
+            const storageData = {};
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')) {
-                    userData[key] = localStorage.getItem(key);
+                if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')
+                    || key.startsWith('wsa-') || key.startsWith('aplus-')) {
+                    storageData[key] = localStorage.getItem(key);
                 }
             }
 
-            const dataStr = JSON.stringify(userData, null, 2);
+            // v2 export envelope with metadata
+            const exportData = {
+                _format: 'hexworth-backup-v2',
+                _exportedAt: new Date().toISOString(),
+                _deviceId: (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getOrCreateDeviceId)
+                    ? FirebaseAuth.getOrCreateDeviceId() : null,
+                _enrolledClasses: JSON.parse(localStorage.getItem('hexworth_enrolled_classes') || '[]'),
+                data: storageData
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
 
@@ -4839,13 +4850,34 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     try {
-                        const data = JSON.parse(event.target.result);
+                        const raw = JSON.parse(event.target.result);
                         let imported = 0;
+                        const ALLOWED_PREFIXES = ['hexworth_', 'dark_arts_', 'gate', 'wsa-', 'aplus-'];
+                        const isAllowed = (k) => ALLOWED_PREFIXES.some(p => k.startsWith(p));
 
-                        for (const [key, value] of Object.entries(data)) {
-                            if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')) {
-                                localStorage.setItem(key, value);
-                                imported++;
+                        if (raw._format === 'hexworth-backup-v2') {
+                            // v2 format: restore data map + metadata
+                            for (const [key, value] of Object.entries(raw.data || {})) {
+                                if (isAllowed(key)) {
+                                    localStorage.setItem(key, value);
+                                    imported++;
+                                }
+                            }
+                            // Restore deviceId if present and no existing one
+                            if (raw._deviceId && !localStorage.getItem('hexworth_device_id')) {
+                                localStorage.setItem('hexworth_device_id', raw._deviceId);
+                            }
+                            // Restore enrollment cache
+                            if (Array.isArray(raw._enrolledClasses) && raw._enrolledClasses.length > 0) {
+                                localStorage.setItem('hexworth_enrolled_classes', JSON.stringify(raw._enrolledClasses));
+                            }
+                        } else {
+                            // v1 format: flat key-value map (backwards compatible)
+                            for (const [key, value] of Object.entries(raw)) {
+                                if (isAllowed(key)) {
+                                    localStorage.setItem(key, value);
+                                    imported++;
+                                }
                             }
                         }
 
@@ -4861,26 +4893,35 @@
         }
 
         function resetAllData() {
-            if (!confirm('Are you sure you want to reset ALL data?\n\nThis will clear:\n- Your house assignment\n- All achievements\n- All progress\n\nThis cannot be undone!')) {
+            // Get callsign for typed confirmation
+            const callsign = localStorage.getItem('hexworth_callsign') || 'CONFIRM';
+            const typed = prompt(
+                'This will permanently clear ALL local data:\n' +
+                '- House assignment\n' +
+                '- All achievements & progress\n' +
+                '- Device ID & enrollment cache\n\n' +
+                'Firestore data (visible to your instructor) is NOT deleted.\n\n' +
+                `Type your callsign "${callsign}" to confirm:`
+            );
+
+            if (!typed || typed.trim().toUpperCase() !== callsign.toUpperCase()) {
+                if (typed !== null) alert('Callsign did not match. No data was cleared.');
                 return;
             }
 
-            if (!confirm('FINAL WARNING: All your progress will be permanently deleted.\n\nProceed with reset?')) {
-                return;
-            }
-
-            // Clear all Hexworth data
+            // Clear all Hexworth-related localStorage keys
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')) {
+                if (key.startsWith('hexworth_') || key.startsWith('dark_arts_') || key.startsWith('gate')
+                    || key.startsWith('wsa-') || key.startsWith('aplus-')) {
                     keysToRemove.push(key);
                 }
             }
 
             keysToRemove.forEach(key => localStorage.removeItem(key));
 
-            alert('All data has been reset.\n\nRedirecting to START...');
+            alert('All local data has been cleared.\n\nRedirecting to START...');
             window.location.href = '../START.html';
         }
 

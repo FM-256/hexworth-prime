@@ -441,10 +441,15 @@ const ClassManager = (function() {
             house: localStorage.getItem('hexworth_house') || null,
             callsign: profile?.callsign || null,
             isAnonymous: user.isAnonymous || false,
+            deviceId: (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getOrCreateDeviceId)
+                ? FirebaseAuth.getOrCreateDeviceId() : null,
             joinedAt: serverTimestamp()
         });
 
         console.log(`[ClassManager] Joined class: ${cls.id} (${cls.classCode})${user.isAnonymous ? ' [anonymous]' : ''}`);
+
+        // Cache enrollment locally for offline fallback
+        cacheEnrollment(cls.id, cls.classCode);
 
         return {
             classId: cls.id,
@@ -489,6 +494,9 @@ const ClassManager = (function() {
         // Delete member profile
         const memberRef = doc(db, COLLECTION, classId, 'members', user.uid);
         await deleteDoc(memberRef);
+
+        // Remove from local enrollment cache
+        uncacheEnrollment(classId);
 
         console.log(`[ClassManager] Left class: ${classId}`);
         return true;
@@ -606,6 +614,53 @@ const ClassManager = (function() {
 
 
     // ═══════════════════════════════════════════════════════════════
+    // LOCAL ENROLLMENT CACHE (HD-6)
+    // ═══════════════════════════════════════════════════════════════
+
+    const ENROLLMENT_CACHE_KEY = 'hexworth_enrolled_classes';
+
+    /**
+     * Cache an enrollment locally for offline ProgressSync fallback
+     */
+    function cacheEnrollment(classId, classCode) {
+        try {
+            const cache = JSON.parse(localStorage.getItem(ENROLLMENT_CACHE_KEY) || '[]');
+            if (!cache.some(e => e.classId === classId)) {
+                cache.push({ classId, classCode, joinedAt: new Date().toISOString() });
+                localStorage.setItem(ENROLLMENT_CACHE_KEY, JSON.stringify(cache));
+            }
+        } catch (e) {
+            console.warn('[ClassManager] Failed to cache enrollment:', e);
+        }
+    }
+
+    /**
+     * Remove a class from the local enrollment cache
+     */
+    function uncacheEnrollment(classId) {
+        try {
+            const cache = JSON.parse(localStorage.getItem(ENROLLMENT_CACHE_KEY) || '[]');
+            const filtered = cache.filter(e => e.classId !== classId);
+            localStorage.setItem(ENROLLMENT_CACHE_KEY, JSON.stringify(filtered));
+        } catch (e) {
+            console.warn('[ClassManager] Failed to uncache enrollment:', e);
+        }
+    }
+
+    /**
+     * Get cached enrollments (for offline ProgressSync fallback)
+     * Returns minimal class objects with { id, classCode } matching getStudentClasses() shape
+     */
+    function getCachedEnrollments() {
+        try {
+            const cache = JSON.parse(localStorage.getItem(ENROLLMENT_CACHE_KEY) || '[]');
+            return cache.map(e => ({ id: e.classId, classCode: e.classCode }));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════════
 
@@ -620,7 +675,8 @@ const ClassManager = (function() {
         leaveClass,
         getStudentClasses,
         getClassMembers,
-        removeStudentFromClass
+        removeStudentFromClass,
+        getCachedEnrollments
     };
 
 })();
