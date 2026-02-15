@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-14 11:28:55 PM
+                    Scanned: 2026-02-15 10:52:23 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1249 |
-| Directories | 469 |
-| Content Files | 1249 |
-| Scan Duration | 184ms |
+| Files Scanned | 1291 |
+| Directories | 479 |
+| Content Files | 1291 |
+| Scan Duration | 705ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 476 |
-| presentation | 418 |
-| applet | 183 |
+| html | 514 |
+| presentation | 419 |
+| applet | 186 |
 | lab | 158 |
 | quiz | 14 |
 
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 749 |
-| Available | 744 |
+| Total Modules | 765 |
+| Available | 759 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 444 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 114 |
-| Warning | 869 |
-| Info | 395 |
-| **Total** | **2296** |
+| Suspect | 122 |
+| Warning | 873 |
+| Info | 400 |
+| **Total** | **2346** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 559 |
-| Not Ready | 214 |
-| Unknown | 476 |
+| Ready | 561 |
+| Not Ready | 216 |
+| Unknown | 514 |
 
 
 ## FILE HIERARCHY
@@ -87,9 +87,29 @@
 │       ├── 🔬 enumeration-lab.html
 │       ├── 🔬 footprinting-lab.html
 │       ├── 📁 gates
+│       │   ├── 📄 gate-10.html
+│       │   ├── 📄 gate-11.html
+│       │   ├── 📄 gate-12.html
+│       │   ├── 📄 gate-13.html
 │       │   ├── 📄 gate-6.html
 │       │   ├── 📄 gate-7.html
-│       │   └── 📄 gate-8.html
+│       │   ├── 📁 gate-8
+│       │   │   ├── 📄 caseboard.html
+│       │   │   ├── 📄 datadrill.html
+│       │   │   ├── 📄 desktop.html
+│       │   │   ├── 📁 evidence
+│       │   │   ├── 📍 index.html
+│       │   │   ├── 📄 laptop.html
+│       │   │   ├── 📄 phone.html
+│       │   │   └── 📁 reports
+│       │   │       ├── 📄 case-summary.html
+│       │   │       ├── 📄 debrief.html
+│       │   │       ├── 📄 interview-bartender.html
+│       │   │       ├── 📄 interview-colleague.html
+│       │   │       ├── 📄 interview-neighbor.html
+│       │   │       └── 📄 police-report.html
+│       │   ├── 📄 gate-8.html
+│       │   └── 📄 gate-9.html
 │       ├── 🔬 idor-attack-lab.html
 │       ├── 🔬 ids-evasion-lab.html
 │       ├── 📍 index.html
@@ -98,13 +118,17 @@
 │       ├── 🔬 malware-analysis-lab.html
 │       ├── 🔬 mobile-security-lab.html
 │       ├── 📁 modules [modules]
+│       │   ├── 📄 advanced-dynamic-analysis.barricade.html
+│       │   ├── 📄 advanced-reverse-engineering.barricade.html
 │       │   ├── 📄 behavioral-analysis.module.html
 │       │   ├── 📄 dynamic-analysis.module.html
 │       │   ├── 📄 incident-response.module.html
 │       │   ├── 📄 malware-families.module.html
+│       │   ├── 📄 redteam.barricade.html
 │       │   ├── 📄 reverse-engineering.module.html
 │       │   ├── 📄 sandbox-setup.module.html
-│       │   └── 📄 static-analysis.module.html
+│       │   ├── 📄 static-analysis.module.html
+│       │   └── 📄 tier-locked.barricade.html
 │       ├── 🔬 network-scanning-lab.html
 │       ├── 🔬 network-sniffing-lab.html
 │       ├── 🔬 nmap-scanning-lab.html
@@ -156,10 +180,12 @@
 │   │   │   ├── 📄 aws-sts.html
 │   │   │   ├── 📄 cloud-architect.html
 │   │   │   ├── 📄 cloud-destroyer.html
+│   │   │   ├── 📄 cloud-flap.html
 │   │   │   ├── 📄 cloud-hop.html
 │   │   │   ├── 📄 dont-check-the-bill.html
 │   │   │   ├── 📄 dont-lose-your-domain.html
-│   │   │   └── 📄 iam-debugger.html
+│   │   │   ├── 📄 iam-debugger.html
+│   │   │   └── 📄 text-adventure-whoami.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 cloud-architecture.lab.html
@@ -286,9 +312,11 @@
 │   │   │       ├── 📁 m20-failsafe-capstone [modules]
 │   │   │       │   ├── 📄 cloud-simulation.module.html
 │   │   │       │   └── 📍 index.html
-│   │   │       └── 📁 midterm-outpost [modules]
-│   │   │           ├── 📄 cloud-simulation.module.html
-│   │   │           └── 📍 index.html
+│   │   │       ├── 📁 midterm-outpost [modules]
+│   │   │       │   ├── 📄 cloud-simulation.module.html
+│   │   │       │   └── 📍 index.html
+│   │   │       └── 📁 reviews [modules]
+│   │   │           └── 📄 wsa-review.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 cloud-aws-fundamentals.presentation.html
 │   │   │   ├── 📊 cloud-azure-fundamentals.presentation.html
@@ -371,7 +399,8 @@
 │   │   │   ├── 📄 git-blame.html
 │   │   │   ├── 📄 kill-nine.html
 │   │   │   ├── 📄 kubernetes-rescue.html
-│   │   │   └── 📄 pipeline-panic.html
+│   │   │   ├── 📄 pipeline-panic.html
+│   │   │   └── 📄 text-adventure-rmrf.html
 │   │   ├── 📁 guides
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -557,6 +586,7 @@
 │   │   │   ├── 📄 grep-noir.html
 │   │   │   ├── 📄 log-centipede.html
 │   │   │   ├── 📄 memory-forensics.html
+│   │   │   ├── 📄 text-adventure-wireshark.html
 │   │   │   └── 📄 threat-modeler.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -583,6 +613,8 @@
 │   │   │   ├── ❓ eye-siem.quiz.html
 │   │   │   ├── ❓ eye-soc.quiz.html
 │   │   │   └── ❓ eye-traffic.quiz.html
+│   │   ├── 📁 reviews
+│   │   │   └── 📄 cyberops-review.html
 │   │   └── 📁 tools
 │   │       ├── 📄 eye-correlation.tool.html
 │   │       ├── 📄 eye-hunt.tool.html
@@ -840,6 +872,8 @@
 │   │   │   ├── ❓ forge-hardware-essentials.quiz.html
 │   │   │   └── ❓ forge-windows-admin.quiz.html
 │   │   ├── 📁 reviews
+│   │   │   ├── 📄 aplus-core1-review.html
+│   │   │   ├── 📄 aplus-core2-review.html
 │   │   │   ├── 📄 backup-or-bust.html
 │   │   │   ├── 📄 binary-blitz.html
 │   │   │   └── 📄 forge-aplus-jeopardy.applet.html
@@ -857,6 +891,7 @@
 │   │   ├── 📁 games
 │   │   │   ├── 📄 cipher-bubbles.html
 │   │   │   ├── 📄 cipher-cracker.html
+│   │   │   ├── 📄 crypto-flap.html
 │   │   │   ├── 📄 crypto-pong.html
 │   │   │   ├── 📄 dont-leak-the-key.html
 │   │   │   └── 📄 gpg-decrypt.html
@@ -1162,7 +1197,9 @@
 │   │   │   ├── 📄 dont-kill-the-server.html
 │   │   │   ├── 📄 pipe-snake.html
 │   │   │   ├── 📄 shell-sprint.html
-│   │   │   └── 📄 sudo-su.html
+│   │   │   ├── 📄 sudo-flap.html
+│   │   │   ├── 📄 sudo-su.html
+│   │   │   └── 📄 text-adventure-chmod777.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📄 cron-builder.html
@@ -1273,6 +1310,7 @@
 │   │   │   ├── ❓ script-quiz.quiz.html
 │   │   │   └── ❓ script-sysadmin.quiz.html
 │   │   ├── 📁 reviews
+│   │   │   ├── 📄 linux-cli-review.html
 │   │   │   ├── 📄 permission-puzzle.html
 │   │   │   ├── 📄 regex-runner.html
 │   │   │   └── 📄 terminal-velocity.html
@@ -1561,10 +1599,12 @@
 │   │   ├── 📁 games
 │   │   │   ├── 📄 dont-get-phished.html
 │   │   │   ├── 📄 dr-malware.html
+│   │   │   ├── 📄 exploit-flap.html
 │   │   │   ├── 📄 incident-response.html
 │   │   │   ├── 📄 malware-zoo.html
 │   │   │   ├── 📄 social-engineer.html
 │   │   │   ├── 📄 sql-injection-defense.html
+│   │   │   ├── 📄 text-adventure-hydra.html
 │   │   │   ├── 📄 threat-runner.html
 │   │   │   ├── 📄 threat-swarm.html
 │   │   │   └── 📄 tor-darkweb.html
@@ -1601,6 +1641,8 @@
 │   │   │   ├── ❓ shield-network-security.quiz.html
 │   │   │   ├── ❓ shield-security-fundamentals.quiz.html
 │   │   │   └── ❓ shield-threats.quiz.html
+│   │   ├── 📁 reviews
+│   │   │   └── 📄 feh-review.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -1669,6 +1711,7 @@
 │       │   ├── 📄 dont-drop-the-packet.html
 │       │   ├── 📄 network-architect.html
 │       │   ├── 📄 nmap.html
+│       │   ├── 📄 packet-flap.html
 │       │   ├── 📄 packet-invaders.html
 │       │   ├── 📄 packet-run.html
 │       │   ├── 📄 packet-sniffer.html
@@ -1759,6 +1802,9 @@
 │       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
+├── 📁 oasis
+│   ├── 📄 challenge.html
+│   └── 📍 index.html
 ├── 📄 path-view.html
 ├── 📄 privacy.html
 ├── 📄 product-info.html
@@ -1776,7 +1822,13 @@
 ├── 📁 tools
 │   └── 📄 career-pathway-planner.html
 ├── 📄 unauthorized.html
-└── 📁 utils
+├── 📁 utils
+└── 📁 workshop
+    ├── 📁 backup-or-bust
+    │   └── 📄 current.html
+    ├── 📍 index.html
+    └── 📁 network-forensics-lab
+        └── 📄 current.html
 ```
 
 
@@ -2111,7 +2163,6 @@
 | forge-system-tools-sim.applet | presentation | ✓ | 1 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
-| raid-calculator | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
@@ -2125,6 +2176,7 @@
 | forge-windows-editions.presentation | presentation | ✓ | 2 |
 | forge-windows-settings.presentation | presentation | ✓ | 2 |
 | windows-admin | quiz | ✓ | 0 |
+| backup-or-bust | applet | ✓ | 1 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-os-core.tool | presentation | ✓ | 0 |
@@ -2138,7 +2190,7 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| cipher-cracker | presentation | ✓ | 0 |
+| cipher-cracker | presentation | ✓ | 1 |
 | dont-leak-the-key | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
@@ -2371,6 +2423,7 @@
 | script-scripting-basics.presentation | presentation | ✓ | 1 |
 | script-linux-bash.quiz | presentation | ✓ | 1 |
 | linux-basics | quiz | ✓ | 0 |
+| linux-cli-review | applet | ✓ | 1 |
 | permission-puzzle | presentation | ✓ | 0 |
 | script-automation.tool | applet | ✓ | 1 |
 | script-linux-command.tool | applet | ✓ | 1 |
@@ -2445,7 +2498,6 @@
 | shield-malware-types.applet | applet | ✓ | 1 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | malware-zoo | lab | ✓ | 1 |
-| social-engineer | applet | ✓ | 1 |
 | shield-access-control.lab | presentation | ✓ | 0 |
 | shield-compliance.lab | presentation | ✓ | 0 |
 | shield-cryptography.lab | presentation | ✓ | 0 |
@@ -2488,8 +2540,10 @@
 | dos-ddos-lab | presentation | ✓ | 1 |
 | enumeration-lab | applet | ✓ | 1 |
 | footprinting-lab | lab | ✓ | 2 |
+| gate-11 | applet | ✓ | 1 |
 | gate-6 | presentation | ✓ | 0 |
 | gate-7 | presentation | ✓ | 0 |
+| gate-8 | applet | ✓ | 1 |
 | idor-attack-lab | lab | ✓ | 2 |
 | ids-evasion-lab | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
@@ -2500,6 +2554,7 @@
 | behavioral-analysis.module | applet | ✓ | 1 |
 | dynamic-analysis.module | applet | ✓ | 1 |
 | incident-response.module | applet | ✓ | 1 |
+| redteam.barricade | applet | ✓ | 1 |
 | reverse-engineering.module | applet | ✓ | 1 |
 | static-analysis.module | applet | ✓ | 1 |
 | network-scanning-lab | applet | ✓ | 1 |
@@ -2546,6 +2601,7 @@
 | web-server-comparison.applet | applet | ✓ | 1 |
 | web-networking-interactive.applet | applet | ✓ | 1 |
 | web-networking-midterm.exam | applet | ✓ | 1 |
+| packet-sniffer | presentation | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | web-networking-fundamentals.lab | lab | ✓ | 0 |
 | web-static-routes.lab | lab | ✓ | 0 |
@@ -2614,7 +2670,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (114) — heuristic, needs review
+### SUSPECT (122) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
@@ -2662,6 +2718,10 @@
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `dark-arts/vault/gates/gate-7.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-8/phone.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
@@ -2781,6 +2841,10 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/cloud/modules/wsa/reviews/wsa-review.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/cloud/presentations/cloud-concepts.presentation.html`
   Fix: Remove console.log or replace with proper logging
 
@@ -2831,6 +2895,10 @@
 **[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
   File: `houses/eye/modules/cyberops/index.html`
   Fix: Resolve or remove TODO comment
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/eye/reviews/cyberops-review.html`
+  Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/eye/tools/eye-correlation.tool.html`
@@ -2921,6 +2989,14 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/reviews/aplus-core1-review.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/forge/reviews/aplus-core2-review.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/key/labs/key-ecc.lab.html`
   Fix: Remove console.log or replace with proper logging
 
@@ -2989,6 +3065,10 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/script/reviews/linux-cli-review.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/script/tools/script-log-management.tool.html`
   Fix: Remove console.log or replace with proper logging
 
@@ -3041,6 +3121,14 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `oasis/challenge.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `oasis/index.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `path-view.html`
   Fix: Remove console.log or replace with proper logging
 
@@ -3072,7 +3160,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (869)
+### WARNING (873)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -3127,11 +3215,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/gates/gate-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/gates/gate-6.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/gates/gate-7.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/gates/gate-8.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -3172,6 +3268,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/modules/incident-response.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/modules/redteam.barricade.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4774,10 +4874,6 @@
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/games/raid-calculator.html`
-  Fix: Add entry to content-registry.js
-
 **[TRACK-003]** Lab has no visible progress tracking mechanism
   File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
@@ -4868,6 +4964,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-windows-settings.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/reviews/backup-or-bust.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5799,6 +5899,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/reviews/linux-cli-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/reviews/permission-puzzle.html`
   Fix: Add entry to content-registry.js
 
@@ -6079,10 +6183,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/social-engineer.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/labs/shield-access-control.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -6196,6 +6296,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/exams/web-networking-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/packet-sniffer.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6550,7 +6654,7 @@
   File: `product-info.html`
   Fix: Add entry to content-registry.js
 
-### INFO (395)
+### INFO (400)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6593,6 +6697,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/gates/gate-11.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/gates/gate-8.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/idor-attack-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6630,6 +6742,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/modules/incident-response.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/modules/redteam.barricade.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7301,10 +7417,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/raid-calculator.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7345,11 +7457,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/reviews/backup-or-bust.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/tools/forge-raid-level.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/tools/forge-system-tools-sim.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/cipher-cracker.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7757,6 +7877,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/reviews/linux-cli-review.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/tools/script-automation.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7845,10 +7969,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/social-engineer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/labs/shield-gpg-encryption.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7922,6 +8042,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/exams/web-networking-midterm.exam.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/packet-sniffer.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8128,7 +8252,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (724)
+### Unregistered Content (728)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8142,8 +8266,10 @@
 | dark-arts/vault/dos-ddos-lab.html | presentation | - |
 | dark-arts/vault/enumeration-lab.html | applet | - |
 | dark-arts/vault/footprinting-lab.html | lab | - |
+| dark-arts/vault/gates/gate-11.html | applet | - |
 | dark-arts/vault/gates/gate-6.html | presentation | - |
 | dark-arts/vault/gates/gate-7.html | presentation | - |
+| dark-arts/vault/gates/gate-8.html | applet | - |
 | dark-arts/vault/idor-attack-lab.html | lab | - |
 | dark-arts/vault/ids-evasion-lab.html | applet | - |
 | dark-arts/vault/iot-security-lab.html | applet | - |
@@ -8153,6 +8279,7 @@
 | dark-arts/vault/modules/behavioral-analysis.module.html | applet | - |
 | dark-arts/vault/modules/dynamic-analysis.module.html | applet | - |
 | dark-arts/vault/modules/incident-response.module.html | applet | - |
+| dark-arts/vault/modules/redteam.barricade.html | applet | - |
 | dark-arts/vault/modules/reverse-engineering.module.html | applet | - |
 | dark-arts/vault/modules/static-analysis.module.html | applet | - |
 | dark-arts/vault/network-scanning-lab.html | applet | - |
@@ -8456,7 +8583,6 @@
 | houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
 | houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
-| houses/forge/games/raid-calculator.html | applet | forge |
 | houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
 | houses/forge/labs/forge-control-panel.lab.html | lab | forge |
 | houses/forge/labs/forge-hardware-essentials.lab.html | lab | forge |
@@ -8469,6 +8595,7 @@
 | houses/forge/presentations/forge-system-tools.presentation.html | presentation | forge |
 | houses/forge/presentations/forge-windows-editions.presentation.html | presentation | forge |
 | houses/forge/presentations/forge-windows-settings.presentation.html | presentation | forge |
+| houses/forge/reviews/backup-or-bust.html | applet | forge |
 | houses/forge/tools/forge-admin-tools.tool.html | presentation | forge |
 | houses/forge/tools/forge-control-panel.tool.html | presentation | forge |
 | houses/forge/tools/forge-os-core.tool.html | presentation | forge |
@@ -8699,6 +8826,7 @@
 | houses/script/presentations/script-macos-linux-basics.presentation.html | presentation | script |
 | houses/script/presentations/script-scripting-basics.presentation.html | presentation | script |
 | houses/script/quizzes/script-linux-bash.quiz.html | presentation | script |
+| houses/script/reviews/linux-cli-review.html | applet | script |
 | houses/script/reviews/permission-puzzle.html | presentation | script |
 | houses/script/tools/script-automation.tool.html | applet | script |
 | houses/script/tools/script-linux-command.tool.html | applet | script |
@@ -8766,7 +8894,6 @@
 | houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
 | houses/shield/exams/shield-eh-exam-1-a.exam.html | presentation | shield |
 | houses/shield/games/malware-zoo.html | lab | shield |
-| houses/shield/games/social-engineer.html | applet | shield |
 | houses/shield/labs/shield-access-control.lab.html | presentation | shield |
 | houses/shield/labs/shield-compliance.lab.html | presentation | shield |
 | houses/shield/labs/shield-cryptography.lab.html | presentation | shield |
@@ -8793,6 +8920,7 @@
 | houses/web/applets/services/web-server-comparison.applet.html | applet | web |
 | houses/web/applets/web-networking-interactive.applet.html | applet | web |
 | houses/web/exams/web-networking-midterm.exam.html | applet | web |
+| houses/web/games/packet-sniffer.html | presentation | web |
 | houses/web/labs/web-networking-fundamentals.lab.html | lab | web |
 | houses/web/labs/web-static-routes.lab.html | lab | web |
 | houses/web/modules/web-ip-addressing-ch7-10.module.html | applet | web |
